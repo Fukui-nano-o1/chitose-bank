@@ -61,25 +61,23 @@ function genCode(){ return String(Math.floor(100000+Math.random()*900000)); }
 // GmailでOTPコード送信
 async function sendCodeByEmail(email, code, name){
   try{
-    const greeting = name ? name + "\u3055\u3093\u3001\n\n" : "";
-    const subject  = "\u3010\u5409\u91ce\u5ddd\u30d6\u30ed\u30c3\u30b3\u30ea\u30fc\u8fb2\u5bb6\u3011\u30ed\u30b0\u30a4\u30f3\u30b3\u30fc\u30c9";
-    const bodyText = greeting
+    const greeting  = name ? name + "\u3055\u3093\u3001\n\n" : "";
+    const subject   = "\u3010\u5409\u91ce\u5ddd\u30d6\u30ed\u30c3\u30b3\u30ea\u30fc\u8fb2\u5bb6\u3011\u30ed\u30b0\u30a4\u30f3\u30b3\u30fc\u30c9";
+    const textBody  = greeting
       + "\u30ed\u30b0\u30a4\u30f3\u30b3\u30fc\u30c9: " + code + "\n\n"
-      + "\u3053\u306e\u30b3\u30fc\u30c9\u306f10\u5206\u9593\u6709\u52b9\u3067\u3059\u3002\n"
-      + "\u7b2c\u4e09\u8005\u306b\u6559\u3048\u306a\u3044\u3067\u304f\u3060\u3055\u3044\u3002\n\n"
+      + "\u3053\u306e\u30b3\u30fc\u30c9\u306f10\u5206\u9593\u6709\u52b9\u3067\u3059\u3002\u7b2c\u4e09\u8005\u306b\u6559\u3048\u306a\u3044\u3067\u304f\u3060\u3055\u3044\u3002\n\n"
       + "\u5409\u91ce\u5ddd\u30d6\u30ed\u30c3\u30b3\u30ea\u30fc\u8fb2\u5bb6 \u8a18\u9332\u30d7\u30ed\u30b8\u30a7\u30af\u30c8";
-    const prompt = "\u6b21\u306e\u30e1\u30fc\u30eb\u3092Gmail\u3067\u9001\u4fe1\u3057\u3066\u304f\u3060\u3055\u3044\u3002\n"
-      + "\u5b9b\u5148: " + email + "\n"
-      + "\u4ef6\u540d: " + subject + "\n"
-      + "\u672c\u6587:\n" + bodyText;
-    const resp = await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",
-        max_tokens:200,
-        messages:[{role:"user",content:prompt}],
-        mcp_servers:[{type:"url",url:"https://gmail.mcp.claude.com/mcp",name:"gmail"}]
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer re_dW6fUBRN_H1bxXjtdzRKEBUdiVw3tbNyw"
+      },
+      body: JSON.stringify({
+        from: "noreply@chitose-bank.com",
+        to: email,
+        subject: subject,
+        text: textBody
       })
     });
     return resp.ok;
