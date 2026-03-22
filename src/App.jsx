@@ -71,7 +71,7 @@ async function sendCodeByEmail(email, code, name){
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer re_dW6fUBRN_H1bxXjtdzRKEBUdiVw3tbNyw"
+        "Authorization": "Bearer " + import.meta.env.VITE_RESEND_API_KEY
       },
       body: JSON.stringify({
         from: "noreply@chitose-bank.com",
