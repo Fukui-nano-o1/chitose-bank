@@ -1,0 +1,71 @@
+name: Keep Supabase Project Alive
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keep-alive
+  cancel-in-progress: false
+
+env:
+  HEALTHCHECK_URL: https://chitose-bank.com/api/health
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ping health endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HTTP_STATUS=$(curl \
+            --silent \
+            --show-error \
+            --location \
+            --output /tmp/health.json \
+            --write-out "%{http_code}" \
+            --connect-timeout 5 \
+            --max-time 15 \
+            --retry 2 \
+            --retry-delay 3 \
+            "$HEALTHCHECK_URL")
+
+          echo "HTTP Status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Health check failed with status $HTTP_STATUS" >&2
+            echo "Response body:"
+            cat /tmp/health.json || true
+            exit 1
+          fi
+
+      - name: Write summary
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "## Keep-alive ping succeeded"
+            echo "- URL: $HEALTHCHECK_URL"
+            echo "- Status: 200 OK"
+            echo "- Checked at (UTC): $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write failure summary
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "## Keep-alive ping failed"
+            echo "- URL: $HEALTHCHECK_URL"
+            echo "- Supabase pause / DNS / Cloudflare / Vercel / App のどこかで失敗している可能性があります"
+            echo "- Run: $GITHUB_RUN_ID"
+            echo "- Check logs in GitHub Actions"
+          } >> "$GITHUB_STEP_SUMMARY"
