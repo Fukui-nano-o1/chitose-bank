@@ -400,10 +400,25 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
     setCode("");
   };
 
-  const verifyCode = () => {
+ const verifyCode = async () => {
     if (!pending) return;
     if (Date.now() > pending.expiresAt) { setErr("コードの有効期限が切れました。再送信してください"); setPending(null); bounce(); return; }
     if (code !== pending.code) { setErr("コードが違います"); setCode(""); bounce(); return; }
+
+    // Supabase farmers テーブルに同期（失敗してもログインは通す）
+    try {
+      await fetch('/api/sync-farmer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: pending.farmer.email,
+          name: pending.farmer.name,
+        }),
+      });
+    } catch (err) {
+      console.error('[sync-farmer]', err);
+    }
+
     onLogin(pending.farmer);
   };
 
