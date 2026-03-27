@@ -24,11 +24,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Validate secret
         shell: bash
         run: |
@@ -38,7 +33,10 @@ jobs:
           fi
 
       - name: Install Supabase CLI
-        run: npm install -g supabase
+        run: |
+          curl -o /tmp/supabase.deb -L \
+            "https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.deb"
+          sudo dpkg -i /tmp/supabase.deb
 
       - name: Dump DB
         shell: bash
