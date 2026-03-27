@@ -24,72 +24,43 @@ function getAdminClient() {
 
 async function withTimeout(promise, ms) {
   let timer
-
-  const timeoutPromise = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      reject(new Error(`Health check timeout after ${ms}ms`))
-    }, ms)
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
   })
-
   try {
-    return await Promise.race([promise, timeoutPromise])
+    return await Promise.race([promise, timeout])
   } finally {
-    if (timer) clearTimeout(timer)
+    clearTimeout(timer)
   }
 }
 
-async function checkDatabaseConnection() {
-  const client = getAdminClient()
-
-  await withTimeout(
-    client
-      .from('farmers')
-      .select('id', { head: true })
-      .limit(1)
-      .then(({ error }) => {
-        if (error) throw error
-      }),
-    HEALTH_TIMEOUT_MS
-  )
-}
-
-export default async function handler(req, res) {
+export async function GET() {
   const timestamp = new Date().toISOString()
 
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
-  res.setHeader('Pragma', 'no-cache')
-  res.setHeader('Expires', '0')
-  res.setHeader('Allow', 'GET, HEAD')
-
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    return res.status(405).json({
-      status: 'error',
-      message: 'Method Not Allowed',
-      timestamp,
-    })
+  const headers = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    'Pragma': 'no-cache',
   }
 
   try {
-    await checkDatabaseConnection()
+    const client = getAdminClient()
+    await withTimeout(
+      client.from('farmers').select('id', { head: true }).limit(1)
+        .then(({ error }) => { if (error) throw error }),
+      HEALTH_TIMEOUT_MS
+    )
 
-    if (req.method === 'HEAD') return res.status(200).end()
-
-    return res.status(200).json({
-      status: 'ok',
-      db: 'connected',
-      service: 'chitose-bank-core',
-      timestamp,
-    })
+    return new Response(
+      JSON.stringify({ status: 'ok', db: 'connected', service: 'chitose-bank-core', timestamp }),
+      { status: 200, headers }
+    )
   } catch (err) {
-    console.error('[health-check] failed:', err instanceof Error ? err.message : err)
+    console.error('[health-check] failed:', err?.message ?? err)
 
-    if (req.method === 'HEAD') return res.status(503).end()
-
-    return res.status(503).json({
-      status: 'error',
-      db: 'disconnected',
-      timestamp,
-      message: err instanceof Error ? err.message : 'Database health check failed',
-    })
+    return new Response(
+      JSON.stringify({ status: 'error', db: 'disconnected', timestamp }),
+      { status: 503, headers }
+    )
   }
 }
