@@ -1,0 +1,84 @@
+name: Supabase Weekly Backup
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-weekly-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate secret
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "SUPABASE_DB_URL is not set" >&2
+            exit 1
+          fi
+
+      - name: Install Supabase CLI
+        run: npm install -g supabase
+
+      - name: Dump DB
+        shell: bash
+        run: |
+          BACKUP_DIR="backup_$(date -u +%Y%m%dT%H%M%SZ)"
+          mkdir -p "$BACKUP_DIR"
+
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/roles.sql" --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/schema.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/data.sql" --use-copy --data-only
+
+          echo "BACKUP_DIR=$BACKUP_DIR" >> "$GITHUB_ENV"
+          echo "Created backup files:"
+          ls -lh "$BACKUP_DIR"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: ${{ env.BACKUP_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Write summary
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "## Supabase backup completed"
+            echo "- Run: $GITHUB_RUN_ID"
+            echo "- Directory: $BACKUP_DIR"
+            echo "- Created at (UTC): $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write failure summary
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "## Supabase backup failed"
+            echo "- Run: $GITHUB_RUN_ID"
+            echo "- Check logs in GitHub Actions"
+          } >> "$GITHUB_STEP_SUMMARY"
