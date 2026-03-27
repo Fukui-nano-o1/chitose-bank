@@ -5,20 +5,13 @@ let admin = null
 
 function getAdminClient() {
   if (admin) return admin
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
   if (!supabaseUrl) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL')
   if (!serviceRoleKey) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY')
-
   admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+    auth: { autoRefreshToken: false, persistSession: false },
   })
-
   return admin
 }
 
@@ -34,14 +27,15 @@ async function withTimeout(promise, ms) {
   }
 }
 
-export async function GET() {
-  const timestamp = new Date().toISOString()
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+  res.setHeader('Pragma', 'no-cache')
 
-  const headers = {
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-    'Pragma': 'no-cache',
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return res.status(405).json({ status: 'error', message: 'Method Not Allowed' })
   }
+
+  const timestamp = new Date().toISOString()
 
   try {
     const client = getAdminClient()
@@ -51,16 +45,23 @@ export async function GET() {
       HEALTH_TIMEOUT_MS
     )
 
-    return new Response(
-      JSON.stringify({ status: 'ok', db: 'connected', service: 'chitose-bank-core', timestamp }),
-      { status: 200, headers }
-    )
+    if (req.method === 'HEAD') return res.status(200).end()
+
+    return res.status(200).json({
+      status: 'ok',
+      db: 'connected',
+      service: 'chitose-bank-core',
+      timestamp,
+    })
   } catch (err) {
     console.error('[health-check] failed:', err?.message ?? err)
 
-    return new Response(
-      JSON.stringify({ status: 'error', db: 'disconnected', timestamp }),
-      { status: 503, headers }
-    )
+    if (req.method === 'HEAD') return res.status(503).end()
+
+    return res.status(503).json({
+      status: 'error',
+      db: 'disconnected',
+      timestamp,
+    })
   }
 }
