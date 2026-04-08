@@ -392,33 +392,23 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
     const f = farmers.find(x => x.email?.toLowerCase()===email.trim().toLowerCase());
     if (!f) { setErr("このメールアドレスは登録されていません"); bounce(); return; }
     setSending(true); setErr("");
-    const c = genCode();
-    const ok = await sendCodeByEmail(email.trim(), c, f.name);
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
     setSending(false);
-    if (!ok) { setErr("メール送信に失敗しました。しばらく経ってから再度お試しください"); return; }
-    setPending({ code:c, expiresAt:Date.now()+10*60*1000, farmer:f });
+    if (error) { setErr("メール送信に失敗しました。しばらく経ってから再度お試しください"); return; }
+    setPending({ farmer: f });
     setCode("");
   };
 
  const verifyCode = async () => {
     if (!pending) return;
-    if (Date.now() > pending.expiresAt) { setErr("コードの有効期限が切れました。再送信してください"); setPending(null); bounce(); return; }
-    if (code !== pending.code) { setErr("コードが違います"); setCode(""); bounce(); return; }
-
-    // Supabase farmers テーブルに同期（失敗してもログインは通す）
-    try {
-      await fetch('/api/sync-farmer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: pending.farmer.email,
-          name: pending.farmer.name,
-        }),
-      });
-    } catch (err) {
-      console.error('[sync-farmer]', err);
-    }
-
+    setSending(true); setErr("");
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code,
+      type: 'email',
+    });
+    setSending(false);
+    if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
     onLogin(pending.farmer);
   };
 
