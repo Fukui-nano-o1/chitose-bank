@@ -401,18 +401,18 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
     setCode("");
   };
 
- const verifyCode = async () => {
+const verifyCode = async () => {
     if (!pending) return;
     setSending(true); setErr("");
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: code,
       type: 'email',
     });
     setSending(false);
     if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
-    onLogin(pending.farmer);
-  };
+    onLogin({ ...pending.farmer, id: data.user.id });
+};
 
   return (
     <div className="fade-in" style={{ minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:28 }}>
