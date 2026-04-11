@@ -1459,10 +1459,20 @@ export default function App(){
   const savDP=useCallback(async d=>{setDestPend(d);await sSet("yw_dests_pend",d);setBadgeCnt((farmPend?.length||0)+d.length);},[farmPend]);
   const savR=useCallback(async r=>{setRecs(r);await sSet("yw_records",r);},[]);
 
-  const addRec=useCallback(async(fid,yr,mi,e)=>{
+ const addRec=useCallback(async(fid,yr,mi,e)=>{
     const k=`${fid}_${yr}_${mi}`;
-    await savR({...recs,[k]:[...(recs[k]||[]).filter(x=>x.destId!==e.destId),e]});
-  },[recs,savR]);
+    const newRecs={...recs,[k]:[...(recs[k]||[]).filter(x=>x.destId!==e.destId),e]};
+    setRecs(newRecs);
+    await supabase.from('records').upsert({
+      farmer_id: fid,
+      year: yr,
+      month: mi,
+      dest_id: e.destId,
+      boxes: e.boxes,
+      ppb: e.ppb,
+      costs: e.costs || [],
+    }, { onConflict: 'farmer_id,year,month,dest_id' });
+  },[recs]);
   const subDest=useCallback(async d=>{await savDP([...destPend,d]);},[destPend,savDP]);
   const subReg=useCallback(async f=>{await savFP([...farmPend,f]);},[farmPend,savFP]);
   const appFarmer=useCallback(async id=>{
