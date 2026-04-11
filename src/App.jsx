@@ -61,8 +61,7 @@ const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/1000)/10).
 function uid(){ return Math.random().toString(36).slice(2,9); }
 // メール認証コード生成（6桁）
 function genCode(){ return String(Math.floor(100000+Math.random()*900000)); }
-// GmailでOTPコード送信
-async function sendCodeByEmail(email, code, name){
+// GmailでOTPコード送信async function sendCodeByEmail(email, code, name){
   try{
     const greeting  = name ? name + "\u3055\u3093\u3001\n\n" : "";
     const subject   = "\u3010\u5409\u91ce\u5ddd\u30d6\u30ed\u30c3\u30b3\u30ea\u30fc\u8fb2\u5bb6\u3011\u30ed\u30b0\u30a4\u30f3\u30b3\u30fc\u30c9";
