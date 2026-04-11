@@ -1442,13 +1442,21 @@ export default function App(){
       await sSet("yw_records",{});
       await sSet("yw_pres_v3",true);
     }
-    const seen=await sGet("yw_onboard_seen");
+const seen=await sGet("yw_onboard_seen");
     if(!seen) setShowOnboard(true);
     const f=await sGet("yw_farmers")||SEED_FARMERS;
     const fp=await sGet("yw_farmers_pend")||[];
     const da=await sGet("yw_dests_ok")||SEED_DESTS;
     const dp=await sGet("yw_dests_pend")||[];
-    const r=await sGet("yw_records")||{};
+    const { data: dbRecs } = await supabase.from('records').select('*');
+    const r = {};
+    if (dbRecs) {
+      dbRecs.forEach(rec => {
+        const k = `${rec.farmer_id}_${rec.year}_${rec.month}`;
+        if (!r[k]) r[k] = [];
+        r[k].push({ destId: rec.dest_id, boxes: rec.boxes, ppb: rec.ppb, costs: rec.costs || [] });
+      });
+    }
     setFarmers(f);setFarmPend(fp);setDestOk(da);setDestPend(dp);setRecs(r);
     setBadgeCnt(fp.length+dp.length);setLoaded(true);
   })();},[]);
