@@ -59,15 +59,6 @@ async function sSet(k,v){try{await window.storage.set(k,JSON.stringify(v),true);
 const cn  = n => Math.round(n).toLocaleString("ja-JP");
 const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/1000)/10).toFixed(1)+"万":cn(a); };
 function uid(){ return Math.random().toString(36).slice(2,9); }
-// メール認証コード生成（6桁）
-function genCode(){ return String(Math.floor(100000+Math.random()*900000)); }
-// GmailでOTPコード送信async function sendCodeByEmail(email, code, name){
-  try{
-    const greeting  = name ? name + "\u3055\u3093\u3001\n\n" : "";
-    const subject   = "\u3010\u5409\u91ce\u5ddd\u30d6\u30ed\u30c3\u30b3\u30ea\u30fc\u8fb2\u5bb6\u3011\u30ed\u30b0\u30a4\u30f3\u30b3\u30fc\u30c9";
-    const textBody  = greeting
-      + "\u30ed\u30b0\u30a4\u30f3\u30b3\u30fc\u30c9: " + code + "\n\n"
-      + "\u3053\u306e\u30b3\u30fc\u30c9\u306f10\u5206\u9593\u6709\u52b9\u3067\u3059\u3002\u7b2c\u4e09\u8005\u306b\u6559\u3048\u306a\u3044\u3067\u304f\u3060\u3055\u3044\u3002\n\n"
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
 
 // ── CSS ────────────────────────────────────────────────────
