@@ -1440,12 +1440,14 @@ const seen=await sGet("yw_onboard_seen");
   const savDA=useCallback(async d=>{setDestOk(d);await sSet("yw_dests_ok",d);},[]);
   const savDP=useCallback(async d=>{setDestPend(d);await sSet("yw_dests_pend",d);setBadgeCnt((farmPend?.length||0)+d.length);},[farmPend]);
   const savR=useCallback(async r=>{setRecs(r);await sSet("yw_records",r);},[]);
-
- const addRec=useCallback(async(fid,yr,mi,e)=>{
+  
+const addRec=useCallback(async(fid,yr,mi,e)=>{
     const k=`${fid}_${yr}_${mi}`;
     const newRecs={...recs,[k]:[...(recs[k]||[]).filter(x=>x.destId!==e.destId),e]};
     setRecs(newRecs);
-    await supabase.from('records').upsert({
+    const { data: session } = await supabase.auth.getSession();
+    alert('farmer_id: ' + fid + '\nauth.uid: ' + (session?.session?.user?.id || 'NO SESSION'));
+    const { data, error } = await supabase.from('records').upsert({
       farmer_id: fid,
       year: yr,
       month: mi,
@@ -1454,6 +1456,8 @@ const seen=await sGet("yw_onboard_seen");
       ppb: e.ppb,
       costs: e.costs || [],
     }, { onConflict: 'farmer_id,year,month,dest_id' });
+    if (error) alert('保存エラー: ' + error.message + '\ncode: ' + error.code);
+    else alert('保存成功: ' + JSON.stringify(data));
   },[recs]);
   const subDest=useCallback(async d=>{await savDP([...destPend,d]);},[destPend,savDP]);
   const subReg=useCallback(async f=>{await savFP([...farmPend,f]);},[farmPend,savFP]);
