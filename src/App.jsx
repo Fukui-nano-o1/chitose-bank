@@ -1445,9 +1445,7 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
     const k=`${fid}_${yr}_${mi}`;
     const newRecs={...recs,[k]:[...(recs[k]||[]).filter(x=>x.destId!==e.destId),e]};
     setRecs(newRecs);
-    const { data: session } = await supabase.auth.getSession();
-    alert('farmer_id: ' + fid + '\nauth.uid: ' + (session?.session?.user?.id || 'NO SESSION'));
-    const { data, error } = await supabase.from('records').upsert({
+    const { error } = await supabase.from('records').upsert({
       farmer_id: fid,
       year: yr,
       month: mi,
@@ -1456,9 +1454,9 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
       ppb: e.ppb,
       costs: e.costs || [],
     }, { onConflict: 'farmer_id,year,month,dest_id' });
-    if (error) alert('保存エラー: ' + error.message + '\ncode: ' + error.code);
-    else alert('保存成功: ' + JSON.stringify(data));
+    if (error) console.error('records upsert error:', error);
   },[recs]);
+  
   const subDest=useCallback(async d=>{await savDP([...destPend,d]);},[destPend,savDP]);
   const subReg=useCallback(async f=>{await savFP([...farmPend,f]);},[farmPend,savFP]);
   const appFarmer=useCallback(async id=>{
