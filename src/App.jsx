@@ -1449,6 +1449,11 @@ const seen=await sGet("yw_onboard_seen");
       });
     }
     setFarmers(f);setFarmPend(fp);setDestOk(da);setDestPend(dp);setRecs(r);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const loggedIn = f.find(x => x.email?.toLowerCase() === session.user.email?.toLowerCase());
+      if (loggedIn) { setMe({ ...loggedIn, id: session.user.id }); setTab("input"); }
+    }
     setBadgeCnt(fp.length+dp.length);setLoaded(true);
   })();},[]);
 
