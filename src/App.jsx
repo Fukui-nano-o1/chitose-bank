@@ -1418,7 +1418,8 @@ export default function App(){
     }
 const seen=await sGet("yw_onboard_seen");
     if(!seen) setShowOnboard(true);
-    const f=await sGet("yw_farmers")||SEED_FARMERS;
+  　const { data: dbFarmers } = await supabase.from('farmers').select('*');
+    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year })) : [];
     const fp=await sGet("yw_farmers_pend")||[];
     const da=await sGet("yw_dests_ok")||SEED_DESTS;
     const dp=await sGet("yw_dests_pend")||[];
