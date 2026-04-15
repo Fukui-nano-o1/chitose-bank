@@ -381,6 +381,7 @@ const verifyCode = async () => {
     });
     setSending(false);
     if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
+    await supabase.from('farmers').update({ auth_id: data.user.id }).eq('email', email.trim().toLowerCase());
     onLogin({ ...pending.farmer, id: data.user.id });
 };
 
