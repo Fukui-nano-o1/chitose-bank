@@ -1536,7 +1536,7 @@ const subDest=useCallback(async d=>{
               吉野川 ブロッコリー農家 記録
             </div>
             <div className="f-sans" style={{fontSize:7,color:`${C.washi}35`,letterSpacing:".18em",textTransform:"uppercase"}}>
-              Yoshinogawa · be-looking
+              Yoshinogawa · chitose-bank
             </div>
           </div>
         </div>
