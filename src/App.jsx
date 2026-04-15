@@ -735,6 +735,20 @@ function BoardTab({ farmers, destApproved, records }) {
                   </div>
                 );
               })}
+              <div style={{
+                display:"grid",
+                gridTemplateColumns:"20px 88px 1fr 72px",
+                alignItems:"center", gap:12,
+                marginTop:12, paddingTop:12,
+                borderTop:`2px solid ${C.gold}`,
+              }}>
+                <div/>
+                <div className="f-sans" style={{ fontSize:12, fontWeight:700, color:C.ink }}>合計</div>
+                <div/>
+                <div className="f-mono" style={{
+                  fontSize:15, fontWeight:700, color:C.gold, textAlign:"right",
+                }}>{man(topCosts.reduce((s,c)=>s+c[1],0))}</div>
+              </div>
             </div>
           ) : (
             /* 空の状態 — 何が入るかを示す */
