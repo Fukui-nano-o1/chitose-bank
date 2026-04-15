@@ -76,6 +76,14 @@ button, input, select { font-family: 'Zen Kaku Gothic New', sans-serif; }
 button { cursor: pointer; transition: all .2s ease; }
 button:active { transform: scale(.97); }
 input:focus { outline: none; }
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  header { padding: 0 12px !important; height: auto !important; min-height: 48px; flex-wrap: wrap; gap: 4px; }
+  header nav { width: 100%; justify-content: center; gap: 0; }
+  header nav button { font-size: 10px !important; padding: 0 10px !important; height: 40px !important; }
+  main { padding: 16px 8px 48px !important; }
+  .ledger-card { padding: 16px !important; }
+}
 
 /* ── Entrance animations ── */
 @keyframes appear {
