@@ -992,7 +992,7 @@ function BoardTab({ farmers, destApproved, records }) {
 }
 
 // ── InputTab ─────────────────────────────────────────────────
-function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRecord, onSubmitDest }) {
+function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRecord, onSubmitDest, onGoBoard }) {
   const [step,setStep]=useState(1);
   const [mon,setMon]=useState(new Date().getMonth());
   const [dest,setDest]=useState(null);
