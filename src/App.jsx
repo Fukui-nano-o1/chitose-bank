@@ -1067,11 +1067,14 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
         {step===2&&(
           <div className="fade-in">
             <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:18}}>{MONTHS[mon]}の出荷先</p>
-            <div style={{display:"grid",gap:8,marginBottom:14}}>
-              {destApproved.map(d=>{
+            <input className="field f-sans" placeholder="出荷先を検索..." value={destSearch}
+              onChange={e=>setDestSearch(e.target.value)}
+              style={{marginBottom:12,fontSize:13}}/>
+            <div style={{display:"grid",gap:8,marginBottom:14,maxHeight:240,overflowY:"auto"}}>
+              {destApproved.filter(d=>!destSearch||d.name.includes(destSearch)).map(d=>{
                 const sel=dest?.id===d.id,col=destColor(d.name);
                 return(
-                  <button key={d.id} onClick={()=>{setDest(d);setDSubmit(false);}} style={{
+                  <button key={d.id} onClick={()=>{setDest(d);setDSubmit(false);setDestSearch("");}} style={{
                     padding:"12px 16px",border:`1.5px solid ${sel?col:C.rule}`,borderRadius:2,
                     background:sel?`${col}10`:"#fff",
                     display:"flex",alignItems:"center",gap:10,
