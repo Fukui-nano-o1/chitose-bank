@@ -398,8 +398,8 @@ const verifyCode = async () => {
       <div style={{ width:"100%",maxWidth:360 }}>
         <div style={{ textAlign:"center",marginBottom:40 }}>
           <div style={{ fontSize:44,marginBottom:14,lineHeight:1 }}>🥦</div>
-          <div className="f-serif" style={{ fontSize:22,fontWeight:700,color:C.ink,letterSpacing:".06em" }}>吉野川 ブロッコリー農家</div>
-          <div className="f-sans" style={{ fontSize:9,color:C.dim,marginTop:7,letterSpacing:".18em",textTransform:"uppercase" }}>Yoshinogawa Broccoli Farmers</div>
+          <div className="f-serif" style={{ fontSize:22,fontWeight:700,color:C.ink,letterSpacing:".06em" }}>吉野川 農家</div>
+          <div className="f-sans" style={{ fontSize:9,color:C.dim,marginTop:7,letterSpacing:".18em",textTransform:"uppercase" }}>Yoshinogawa Farmers</div>
         </div>
 
         <div className="ledger-card" style={{ padding:32 }}>
@@ -1293,7 +1293,7 @@ const ONBOARD_STEPS = [
   {
     icon:"📋",
     title:"公開ボードを見る",
-    desc:"ログイン不要。吉野川のブロッコリー農家が実際にかかった経費・売上をそのまま公開しています。就農前に、現実の数字を確認してください。",
+    desc:"ログイン不要。吉野川の農家が実際にかかった経費・売上をそのまま公開しています。就農前に、現実の数字を確認してください。",
     tab:"board",
   },
   {
@@ -1533,7 +1533,7 @@ const subDest=useCallback(async d=>{
           <span style={{fontSize:19}}>🥦</span>
           <div>
             <div className="f-serif" style={{fontSize:13,fontWeight:700,color:C.washi,letterSpacing:".06em",lineHeight:1.2}}>
-              吉野川 ブロッコリー農家 記録
+              吉野川 農家 記録
             </div>
             <div className="f-sans" style={{fontSize:7,color:`${C.washi}35`,letterSpacing:".18em",textTransform:"uppercase"}}>
               Yoshinogawa · chitose-bank
@@ -1606,7 +1606,7 @@ const subDest=useCallback(async d=>{
         background:C.pale,
       }}>
         <span className="f-sans" style={{fontSize:9,color:C.ghost,letterSpacing:".06em"}}>
-          © {THIS_YEAR} chitose-bank · 吉野川ブロッコリー農家 記録プロジェクト
+          © {THIS_YEAR} chitose-bank · 吉野川農家 記録プロジェクト
         </span>
         <span className="f-sans" style={{fontSize:9,color:C.ghost}}>
           ⚠ 本データは農家本人の入力による参考値です
