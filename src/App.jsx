@@ -1456,7 +1456,10 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
     if (error) console.error('records upsert error:', error);
   },[recs]);
   
-const subDest=useCallback(async d=>{await savDP([...destPend,d]);},[destPend,savDP]);
+const subDest=useCallback(async d=>{
+    await supabase.from('dests').insert({ id: d.id, name: d.name, status: 'pending', submitted_by: d.submittedBy });
+    await savDP([...destPend,d]);
+  },[destPend,savDP]);
   const subReg=useCallback(async f=>{await savFP([...farmPend,f]);},[farmPend,savFP]);
   const appFarmer=useCallback(async id=>{
     const f=farmPend.find(x=>x.id===id);if(!f)return;
