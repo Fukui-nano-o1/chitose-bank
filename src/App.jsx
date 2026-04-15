@@ -1587,7 +1587,7 @@ const subDest=useCallback(async d=>{
         {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs}/>}
         {tab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
-              records={recs} onAddRecord={addRec} onSubmitDest={subDest}/>
+              records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")}/>
           : authV==="register"
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");}} onGoRegister={()=>setAuthV("register")}/>
