@@ -1126,7 +1126,19 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               ))}
             </div>
             <div style={{display:"grid",gap:14,marginBottom:18}}>
-              {[{lbl:"出荷箱数",unit:"箱",val:boxes,fn:setBoxes},{lbl:"1箱あたり単価",unit:"円/箱",val:ppb,fn:setPpb}].map(f=>(
+              {[{lbl:"出荷箱数",unit:"箱",val:boxes,fn:setBoxes,next:"ppb-input"},{lbl:"1箱あたり単価",unit:"円/箱",val:ppb,fn:setPpb,next:null}].map(f=>(
+                <div key={f.lbl}>
+                  <label className="lbl f-sans">{f.lbl}</label>
+                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                    <input className="field f-mono" type="number" inputMode="numeric" placeholder="0" value={f.val}
+                      id={f.lbl==="1箱あたり単価"?"ppb-input":undefined}
+                      onChange={e=>f.fn(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"&&f.next){e.preventDefault();document.getElementById(f.next)?.focus();}}}
+                      style={{flex:1,fontSize:20}}/>
+                    <span className="f-sans" style={{fontSize:12,color:C.mid,whiteSpace:"nowrap"}}>{f.unit}</span>
+                  </div>
+                </div>
+              ))}
                 <div key={f.lbl}>
                   <label className="lbl f-sans">{f.lbl}</label>
                   <div style={{display:"flex",gap:10,alignItems:"center"}}>
