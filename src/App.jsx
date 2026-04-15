@@ -43,11 +43,7 @@ const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#
 
 // 農家データ（PINなし・メール認証のみ）
 const SEED_FARMERS = [];
-const SEED_DESTS = [
-  { id:"d1", name:"吉野川農業協同組合", status:"approved", notes:"ブロッコリー・レタス類取扱い" },
-  { id:"d2", name:"四国青果株式会社",   status:"approved", notes:"徳島市中央卸売市場内" },
-  { id:"d3", name:"道の駅 吉野川",     status:"approved", notes:"直売・農産加工品コーナーあり" },
-];
+const SEED_DESTS = [];
 
 const THIS_YEAR = 2025;
 const ADMIN_PW  = "yoshino2025";
