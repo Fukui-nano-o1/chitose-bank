@@ -954,31 +954,43 @@ function BoardTab({ farmers, destApproved, records }) {
                       fontSize:9, fontWeight:700, letterSpacing:".12em",
                       textTransform:"uppercase", color:C.mid, marginBottom:12,
                     }}>出荷先別</div>
-                    <div style={{ display:"grid", gap:8 }}>
+                    <div style={{ display:"grid", gap:12 }}>
                       {Object.entries(byDest).map(([did, d]) => {
                         const dest = destMap[did];
-                        const cr   = d.rev>0 ? Math.round(d.cost/d.rev*100) : 0;
+                        const profit = d.rev - d.cost;
+                        const maxVal = Math.max(d.rev, d.cost, Math.abs(profit)) || 1;
                         return (
                           <div key={did} style={{
-                            padding:"12px 16px",
+                            padding:"14px 16px",
                             background:C.cream,
                             border:`1px solid ${C.rule}`,
                             borderRadius:2,
                           }}>
-                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                               {dest ? <DestMark name={dest.name} sz={22}/> : <span className="f-sans" style={{ fontSize:11, color:C.ghost }}>不明</span>}
                               <div className="f-mono" style={{ fontSize:9, color:C.ghost }}>{cn(d.boxes)}箱</div>
                             </div>
-                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                              <div style={{ padding:"8px 12px", background:C.bambooPl, borderRadius:2 }}>
-                                <div className="f-sans" style={{ fontSize:8, color:C.bamboo, fontWeight:700, letterSpacing:".08em", marginBottom:4 }}>売上</div>
-                                <div className="f-mono" style={{ fontSize:15, fontWeight:500, color:C.bamboo }}>{man(d.rev)}</div>
-                              </div>
-                              <div style={{ padding:"8px 12px", background:C.goldPl, borderRadius:2, border:`1px solid ${C.gold}18` }}>
-                                <div className="f-sans" style={{ fontSize:8, color:C.gold, fontWeight:700, letterSpacing:".08em", marginBottom:4 }}>経費</div>
-                                <div className="f-mono" style={{ fontSize:15, fontWeight:500, color:C.gold }}>{d.cost>0?man(d.cost):"——"}</div>
-                                {d.cost>0&&<div className="f-sans" style={{ fontSize:8, color:C.dim, marginTop:2 }}>売上の{cr}%</div>}
-                              </div>
+                            <div style={{ display:"grid", gap:8 }}>
+                              {[
+                                { label:"売上", val:d.rev, color:C.bamboo, bg:C.bambooPl },
+                                { label:"経費", val:d.cost, color:C.gold, bg:C.goldPl },
+                                { label:"利益", val:profit, color:profit>=0?C.bamboo:C.shu, bg:profit>=0?C.bambooPl:C.shuPl },
+                              ].map(item=>(
+                                <div key={item.label}>
+                                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                                    <span className="f-sans" style={{ fontSize:9, fontWeight:700, color:item.color, letterSpacing:".08em" }}>{item.label}</span>
+                                    <span className="f-mono" style={{ fontSize:13, fontWeight:500, color:item.color }}>{item.val<0?"-":""}{man(Math.abs(item.val))}</span>
+                                  </div>
+                                  <div style={{ height:8, background:C.ivory, borderRadius:2, overflow:"hidden" }}>
+                                    <div style={{
+                                      height:8, borderRadius:2,
+                                      background:item.color,
+                                      width:`${Math.abs(item.val)/maxVal*100}%`,
+                                      transition:"width .6s ease",
+                                    }}/>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         );
