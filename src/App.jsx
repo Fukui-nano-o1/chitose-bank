@@ -606,7 +606,7 @@ function BoardTab({ farmers, destApproved, records }) {
             textTransform:"uppercase", marginBottom:18,
             display:"flex", alignItems:"center", gap:14,
           }}>
-            <span style={{ flex:"none" }}>be-looking</span>
+            <span style={{ flex:"none" }}>chitose-bank</span>
             <span style={{ flex:"none", width:40, height:1, background:`${C.washi}18`, display:"inline-block" }}/>
             <span>{THIS_YEAR} · 吉野川 · ブロッコリー · {farmers.length}農家</span>
           </div>
