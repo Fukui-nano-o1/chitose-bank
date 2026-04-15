@@ -1181,8 +1181,9 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 {saved?"✓ 保存しました":"保存する"}
               </button>
             </div>
-            {saved&&<div style={{marginTop:12,textAlign:"center"}}>
-              <button onClick={()=>{setStep(1);setSaved(false);setCosts([{l:"",v:"",mode:"yen"}]);}} className="f-sans" style={{fontSize:12,color:C.mid,background:"none",border:"none",textDecoration:"underline",textUnderlineOffset:3}}>別の月を入力する</button>
+            {saved&&<div style={{marginTop:12,textAlign:"center",display:"grid",gap:8}}>
+              <button onClick={()=>{setStep(1);setSaved(false);setCosts([{l:"",v:"",mode:"yen"}]);}} className="f-sans" style={{fontSize:12,color:C.mid,background:"none",border:"none",textDecoration:"underline",textUnderlineOffset:3}}>入力を続ける</button>
+              <button onClick={()=>onGoBoard&&onGoBoard()} className="btn-dark" style={{width:"100%"}}>公開ボードを見る →</button>
             </div>}
           </div>
         )}
