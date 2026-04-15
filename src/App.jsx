@@ -995,6 +995,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const [newDN,setNewDN]=useState("");
   const [subDest,setSubDest]=useState(false);
   const [dSubmit,setDSubmit]=useState(false);
+  const [destSearch,setDestSearch]=useState("");
   const rev=(parseFloat(boxes)||0)*(parseFloat(ppb)||0);
   const myPend=destPending.filter(d=>d.submittedBy===loggedInFarmer?.name);
 
