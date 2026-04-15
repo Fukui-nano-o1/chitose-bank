@@ -1458,11 +1458,17 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
     if (error) console.error('records upsert error:', error);
   },[recs]);
   
-  const subDest=useCallback(async d=>{await savDP([...destPend,d]);},[destPend,savDP]);
+const subDest=useCallback(async d=>{await savDP([...destPend,d]);},[destPend,savDP]);
   const subReg=useCallback(async f=>{await savFP([...farmPend,f]);},[farmPend,savFP]);
   const appFarmer=useCallback(async id=>{
     const f=farmPend.find(x=>x.id===id);if(!f)return;
     const{appliedAt,...farmer}=f;
+    await supabase.from('farmers').insert({
+      name: farmer.name,
+      email: farmer.email,
+      joined_year: farmer.joinedYear || 2025,
+      status: 'approved',
+    });
     await savF([...farmers,farmer]);await savFP(farmPend.filter(x=>x.id!==id));
   },[farmPend,farmers,savF,savFP]);
   const rejFarmer=useCallback(async id=>{await savFP(farmPend.filter(x=>x.id!==id));},[farmPend,savFP]);
