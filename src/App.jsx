@@ -1473,11 +1473,11 @@ const subDest=useCallback(async d=>{
     await savF([...farmers,farmer]);await savFP(farmPend.filter(x=>x.id!==id));
   },[farmPend,farmers,savF,savFP]);
   const rejFarmer=useCallback(async id=>{await savFP(farmPend.filter(x=>x.id!==id));},[farmPend,savFP]);
-  const appDest=useCallback(async id=>{
+　const appDest=useCallback(async id=>{
     const d=destPend.find(x=>x.id===id);if(!d)return;
+    await supabase.from('dests').update({ status: 'approved' }).eq('id', id);
     await savDA([...destOk,{...d,status:"approved"}]);await savDP(destPend.filter(x=>x.id!==id));
   },[destPend,destOk,savDA,savDP]);
-  const rejDest=useCallback(async id=>{await savDP(destPend.filter(x=>x.id!==id));},[destPend,savDP]);
 
 
   if(!loaded)return(
