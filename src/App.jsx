@@ -1606,7 +1606,7 @@ const subDest=useCallback(async d=>{
         background:C.pale,
       }}>
         <span className="f-sans" style={{fontSize:9,color:C.ghost,letterSpacing:".06em"}}>
-          © {THIS_YEAR} be-looking · 吉野川ブロッコリー農家 記録プロジェクト
+          © {THIS_YEAR} chitose-bank · 吉野川ブロッコリー農家 記録プロジェクト
         </span>
         <span className="f-sans" style={{fontSize:9,color:C.ghost}}>
           ⚠ 本データは農家本人の入力による参考値です
