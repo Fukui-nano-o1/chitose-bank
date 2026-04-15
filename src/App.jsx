@@ -1478,6 +1478,10 @@ const subDest=useCallback(async d=>{
     await supabase.from('dests').update({ status: 'approved' }).eq('id', id);
     await savDA([...destOk,{...d,status:"approved"}]);await savDP(destPend.filter(x=>x.id!==id));
   },[destPend,destOk,savDA,savDP]);
+  const rejDest=useCallback(async id=>{
+    await supabase.from('dests').delete().eq('id', id);
+    await savDP(destPend.filter(x=>x.id!==id));
+  },[destPend,savDP]);
 
 
   if(!loaded)return(
