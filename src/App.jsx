@@ -1138,15 +1138,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                     <span className="f-sans" style={{fontSize:12,color:C.mid,whiteSpace:"nowrap"}}>{f.unit}</span>
                   </div>
                 </div>
-              ))}
-                <div key={f.lbl}>
-                  <label className="lbl f-sans">{f.lbl}</label>
-                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                    <input className="field f-mono" type="number" placeholder="0" value={f.val} onChange={e=>f.fn(e.target.value)} style={{flex:1,fontSize:20}}/>
-                    <span className="f-sans" style={{fontSize:12,color:C.mid,whiteSpace:"nowrap"}}>{f.unit}</span>
-                  </div>
-                </div>
-              ))}
+              ))}          
               {rev>0&&<div style={{padding:"12px 16px",background:C.bambooPl,borderRadius:2,border:`1px solid ${C.bamboo}22`,display:"flex",justifyContent:"space-between"}}>
                 <span className="f-sans" style={{fontSize:11,color:C.bamboo}}>売上合計</span>
                 <span className="f-mono" style={{fontSize:18,fontWeight:500,color:C.bamboo}}>{man(rev)}</span>
