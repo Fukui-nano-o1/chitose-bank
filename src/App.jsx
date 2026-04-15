@@ -1416,7 +1416,7 @@ export default function App(){
 const seen=await sGet("yw_onboard_seen");
     if(!seen) setShowOnboard(true);
   　const { data: dbFarmers } = await supabase.from('farmers').select('*');
-    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year })) : [];
+    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year })) : [];
     const fp=await sGet("yw_farmers_pend")||[];
     const { data: dbDestsOk } = await supabase.from('dests').select('*').eq('status', 'approved');
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
