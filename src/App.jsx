@@ -1458,7 +1458,7 @@ export default function App(){
   const [showOnboard,setShowOnboard]=useState(false);
 
   const dismissOnboard=async()=>{
-    await sSet("yw_onboard_seen",true);
+    localStorage.setItem("yw_onboard_seen","1");
     setShowOnboard(false);
   };
 
@@ -1474,7 +1474,7 @@ export default function App(){
       await sSet("yw_records",{});
       await sSet("yw_pres_v3",true);
     }
-const seen=await sGet("yw_onboard_seen");
+const seen = localStorage.getItem("yw_onboard_seen");
     if(!seen) setShowOnboard(true);
   　const { data: dbFarmers } = await supabase.from('farmers').select('*');
     const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year })) : [];
