@@ -1115,7 +1115,17 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               {destApproved.filter(d=>!destSearch||d.name.includes(destSearch)).map(d=>{
                 const sel=dest?.id===d.id,col=destColor(d.name);
                 return(
-                  <button key={d.id} onClick={()=>{setDest(d);setDSubmit(false);setDestSearch("");}} style={{
+                  <button key={d.id} onClick={()=>{
+                    setDest(d);setDSubmit(false);setDestSearch("");
+                    const prevRecs = Object.entries(records).flatMap(([k,arr])=>arr.filter(r=>r.destId===d.id&&k.startsWith(loggedInFarmer.id)));
+                    if(prevRecs.length>0){
+                      const latest = prevRecs[prevRecs.length-1];
+                      if(latest.costs&&latest.costs.length>0){
+                        setCosts(latest.costs.map(c=>({l:c.l,v:String(c.a),mode:"yen"})));
+                      }
+                      if(latest.ppb) setPpb(String(latest.ppb));
+                    }
+                  }} style={{
                     padding:"12px 16px",border:`1.5px solid ${sel?col:C.rule}`,borderRadius:2,
                     background:sel?`${col}10`:"#fff",
                     display:"flex",alignItems:"center",gap:10,
