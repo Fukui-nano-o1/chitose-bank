@@ -1117,6 +1117,8 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 return(
                   <button key={d.id} onClick={()=>{
                     setDest(d);setDSubmit(false);setDestSearch("");
+                    setCosts([{l:"",v:"",mode:"yen"}]);
+                    setPpb("");
                     const prevRecs = Object.entries(records).flatMap(([k,arr])=>arr.filter(r=>r.destId===d.id&&k.startsWith(loggedInFarmer.id)));
                     if(prevRecs.length>0){
                       const latest = prevRecs[prevRecs.length-1];
