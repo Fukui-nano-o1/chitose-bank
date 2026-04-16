@@ -970,27 +970,33 @@ function BoardTab({ farmers, destApproved, records }) {
                               {dest ? <DestMark name={dest.name} sz={22}/> : <span className="f-sans" style={{ fontSize:11, color:C.ghost }}>不明</span>}
                               <div className="f-mono" style={{ fontSize:9, color:C.ghost }}>{cn(d.boxes)}箱</div>
                             </div>
-                            <div style={{ display:"grid", gap:8 }}>
-                              {[
-                                { label:"売上", val:d.rev, color:C.bamboo, bg:C.bambooPl },
-                                { label:"経費", val:d.cost, color:C.gold, bg:C.goldPl },
-                                { label:"利益", val:profit, color:profit>=0?C.bamboo:C.shu, bg:profit>=0?C.bambooPl:C.shuPl },
-                              ].map(item=>(
-                                <div key={item.label}>
-                                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
-                                    <span className="f-sans" style={{ fontSize:9, fontWeight:700, color:item.color, letterSpacing:".08em" }}>{item.label}</span>
-                                    <span className="f-mono" style={{ fontSize:13, fontWeight:500, color:item.color }}>{item.val<0?"-":""}{man(Math.abs(item.val))}</span>
-                                  </div>
-                                  <div style={{ height:8, background:C.ivory, borderRadius:2, overflow:"hidden" }}>
-                                    <div style={{
-                                      height:8, borderRadius:2,
-                                      background:item.color,
-                                      width:`${Math.abs(item.val)/maxVal*100}%`,
-                                      transition:"width .6s ease",
-                                    }}/>
-                                  </div>
+                            <div>
+                              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                                <span className="f-sans" style={{ fontSize:9, fontWeight:700, color:C.mid, letterSpacing:".08em" }}>売上 {man(d.rev)}</span>
+                                <span className="f-sans" style={{ fontSize:9, color:C.dim }}>100%</span>
+                              </div>
+                              <div style={{ height:24, display:"flex", borderRadius:2, overflow:"hidden", border:`1px solid ${C.rule}` }}>
+                                <div style={{
+                                  width:`${d.rev>0?d.cost/d.rev*100:0}%`,
+                                  background:C.gold,
+                                  display:"flex", alignItems:"center", justifyContent:"center",
+                                  transition:"width .6s ease",
+                                }}>
+                                  {d.rev>0&&d.cost/d.rev>0.15&&<span className="f-mono" style={{ fontSize:9, color:"#fff", fontWeight:700 }}>経費 {Math.round(d.cost/d.rev*100)}%</span>}
                                 </div>
-                              ))}
+                                <div style={{
+                                  width:`${d.rev>0?Math.max(0,profit)/d.rev*100:0}%`,
+                                  background:profit>=0?C.bamboo:C.shu,
+                                  display:"flex", alignItems:"center", justifyContent:"center",
+                                  transition:"width .6s ease",
+                                }}>
+                                  {d.rev>0&&profit/d.rev>0.15&&<span className="f-mono" style={{ fontSize:9, color:"#fff", fontWeight:700 }}>利益 {Math.round(profit/d.rev*100)}%</span>}
+                                </div>
+                              </div>
+                              <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:10 }}>
+                                <span className="f-sans" style={{ color:C.gold, fontWeight:500 }}>経費 {man(d.cost)}</span>
+                                <span className="f-mono" style={{ color:profit>=0?C.bamboo:C.shu, fontWeight:700 }}>利益 {profit<0?"-":""}{man(Math.abs(profit))}</span>
+                              </div>
                             </div>
                           </div>
                         );
