@@ -369,8 +369,17 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
 
   const requestCode = async () => {
-    const f = farmers.find(x => x.email?.toLowerCase()===email.trim().toLowerCase());
-    if (!f) { setErr("このメールアドレスは登録されていません"); bounce(); return; }
+    let f = farmers.find(x => x.email?.toLowerCase()===email.trim().toLowerCase());
+    if (!f) {
+      const { error: insertErr } = await supabase.from('farmers').insert({
+        name: email.trim().split('@')[0],
+        email: email.trim().toLowerCase(),
+        joined_year: 2025,
+        status: 'approved',
+      });
+      if (insertErr) { setErr("登録に失敗しました。しばらく経ってから再度お試しください"); bounce(); return; }
+      f = { id: null, name: email.trim().split('@')[0], email: email.trim().toLowerCase(), joinedYear: 2025 };
+    }
     setSending(true); setErr("");
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
     setSending(false);
