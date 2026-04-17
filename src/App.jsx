@@ -1051,7 +1051,10 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const save=async()=>{
     if(!boxes||!ppb)return;
     const ci=costs.filter(c=>c.l&&c.v).map(c=>({
-      l:c.l,a:c.mode==="pct"?Math.round(rev*(parseFloat(c.v)||0)/100):Math.round(parseFloat(c.v)||0)
+      l:c.l,
+      v:parseFloat(c.v)||0,
+      mode:c.mode,
+      a:c.mode==="pct"?Math.round(rev*(parseFloat(c.v)||0)/100):Math.round(parseFloat(c.v)||0)
     }));
     await onAddRecord(loggedInFarmer.id,THIS_YEAR,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci});
     setSaved(true);
