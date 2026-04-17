@@ -1039,7 +1039,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const [dest,setDest]=useState(null);
   const [boxes,setBoxes]=useState("");
   const [ppb,setPpb]=useState("");
-  const [costs,setCosts]=useState([{l:"",v:"",mode:"yen"}]);
+  const [costs,setCosts]=useState([{l:"",v:"",mode:"fixed"}]);
   const [saved,setSaved]=useState(false);
   const [newDN,setNewDN]=useState("");
   const [subDest,setSubDest]=useState(false);
@@ -1131,13 +1131,13 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 return(
                   <button key={d.id} onClick={()=>{
                     setDest(d);setDSubmit(false);setDestSearch("");
-                    setCosts([{l:"",v:"",mode:"yen"}]);
+                    setCosts([{l:"",v:"",mode:"fixed"}]);
                     setPpb("");
                     const prevRecs = Object.entries(records).flatMap(([k,arr])=>arr.filter(r=>r.destId===d.id&&k.startsWith(loggedInFarmer.id)));
                     if(prevRecs.length>0){
                       const latest = prevRecs[prevRecs.length-1];
                       if(latest.costs&&latest.costs.length>0){
-                        setCosts(latest.costs.map(c=>({l:c.l,v:String(c.a),mode:"yen"})));
+                        setCosts(latest.costs.map(c=>({l:c.l,v:String(c.a),mode:"fixed"})));
                       }
                       if(latest.ppb) setPpb(String(latest.ppb));
                     }
@@ -1229,7 +1229,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                       </div>
                     );
                   })}
-                  {costs.length<5&&<button onClick={()=>setCosts([...costs,{l:"",v:"",mode:"yen"}])} style={{padding:"8px",border:`1px dashed ${C.rule}`,borderRadius:2,background:"transparent",color:C.mid,fontSize:11,fontFamily:"inherit"}}>＋ 経費追加</button>}
+                  {costs.length<5&&<button onClick={()=>setCosts([...costs,{l:"",v:"",mode:"fixed"}])} style={{padding:"8px",border:`1px dashed ${C.rule}`,borderRadius:2,background:"transparent",color:C.mid,fontSize:11,fontFamily:"inherit"}}>＋ 経費追加</button>}
                 </div>
               </div>
             </div>
@@ -1240,7 +1240,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               </button>
             </div>
             {saved&&<div style={{marginTop:12,textAlign:"center",display:"grid",gap:8}}>
-              <button onClick={()=>{setStep(1);setSaved(false);setCosts([{l:"",v:"",mode:"yen"}]);}} className="f-sans" style={{fontSize:12,color:C.mid,background:"none",border:"none",textDecoration:"underline",textUnderlineOffset:3}}>入力を続ける</button>
+              <button onClick={()=>{setStep(1);setSaved(false);setCosts([{l:"",v:"",mode:"fixed"}]);}} className="f-sans" style={{fontSize:12,color:C.mid,background:"none",border:"none",textDecoration:"underline",textUnderlineOffset:3}}>入力を続ける</button>
               <button onClick={()=>onGoBoard&&onGoBoard()} className="btn-dark" style={{width:"100%"}}>公開ボードを見る →</button>
             </div>}
           </div>
