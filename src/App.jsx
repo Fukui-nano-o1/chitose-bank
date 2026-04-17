@@ -1215,12 +1215,12 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                           <input className="field f-mono" type="number" placeholder="0" value={c.v}
                             onChange={e=>{const n=[...costs];n[i]={...n[i],v:e.target.value};setCosts(n);}} style={{flex:1}}/>
                           <div style={{display:"flex",borderRadius:2,overflow:"hidden",border:`1px solid ${C.rule}`,flexShrink:0}}>
-                            {["yen","pct"].map(mode=>(
+                            {["pct","per_box","fixed"].map(mode=>(
                               <button key={mode} onClick={()=>{const n=[...costs];n[i]={...n[i],mode};setCosts(n);}} style={{
                                 padding:"8px 9px",border:"none",fontSize:10,fontWeight:700,
                                 background:c.mode===mode?C.bark:"transparent",
                                 color:c.mode===mode?"#fff":C.dim,
-                              }}>{mode==="yen"?"円":"%"}</button>
+                              }}>{mode==="pct"?"%":mode==="per_box"?"/箱":"固定"}</button>
                             ))}
                           </div>
                           {costs.length>1&&<button onClick={()=>setCosts(costs.filter((_,j)=>j!==i))} style={{padding:"8px",border:`1px solid ${C.rule}`,borderRadius:2,background:"transparent",color:C.dim,fontSize:11}}>×</button>}
