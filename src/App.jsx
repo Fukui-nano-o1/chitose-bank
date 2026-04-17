@@ -1137,7 +1137,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                     if(prevRecs.length>0){
                       const latest = prevRecs[prevRecs.length-1];
                       if(latest.costs&&latest.costs.length>0){
-                        setCosts(latest.costs.map(c=>({l:c.l,v:String(c.a),mode:"fixed"})));
+                        setCosts(latest.costs.map(c=>({l:c.l,v:String(c.v||c.a),mode:c.mode||"fixed"})));
                       }
                       if(latest.ppb) setPpb(String(latest.ppb));
                     }
