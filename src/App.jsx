@@ -1050,12 +1050,14 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
 
   const save=async()=>{
     if(!boxes||!ppb)return;
-    const ci=costs.filter(c=>c.l&&c.v).map(c=>({
-      l:c.l,
-      v:parseFloat(c.v)||0,
-      mode:c.mode,
-      a:c.mode==="pct"?Math.round(rev*(parseFloat(c.v)||0)/100):Math.round(parseFloat(c.v)||0)
-    }));
+    const ci=costs.filter(c=>c.l&&c.v).map(c=>{
+      const v=parseFloat(c.v)||0;
+      let a=0;
+      if(c.mode==="pct") a=Math.round(rev*v/100);
+      else if(c.mode==="per_box") a=Math.round(parseFloat(boxes)*v);
+      else a=Math.round(v);
+      return {l:c.l,v,mode:c.mode,a};
+    });
     await onAddRecord(loggedInFarmer.id,THIS_YEAR,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci});
     setSaved(true);
   };
