@@ -1205,8 +1205,6 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 <label className="lbl f-sans">経費項目（省略可）</label>
                 <div style={{display:"grid",gap:8}}>
                   {costs.map((c,i)=>{
-                    const isPct=c.mode==="pct";
-                    const ye=isPct&&rev>0?Math.round(rev*(parseFloat(c.v)||0)/100):null;
                     return(
                       <div key={i}>
                         <div style={{display:"flex",gap:6,alignItems:"center"}}>
