@@ -1225,7 +1225,9 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                           </div>
                           {costs.length>1&&<button onClick={()=>setCosts(costs.filter((_,j)=>j!==i))} style={{padding:"8px",border:`1px solid ${C.rule}`,borderRadius:2,background:"transparent",color:C.dim,fontSize:11}}>×</button>}
                         </div>
-                        {isPct&&ye!==null&&<p className="f-sans" style={{marginTop:4,fontSize:10,color:C.gold}}>→ 売上の{c.v||0}% ≒ {cn(ye)} 円</p>}
+                        {c.mode==="pct"&&rev>0&&<p className="f-sans" style={{marginTop:4,fontSize:10,color:C.gold}}>→ 売上の{c.v||0}% ≒ {cn(Math.round(rev*(parseFloat(c.v)||0)/100))} 円</p>}
+                        {c.mode==="per_box"&&boxes&&<p className="f-sans" style={{marginTop:4,fontSize:10,color:C.gold}}>→ {boxes}箱 × {c.v||0}円 ≒ {cn(Math.round(parseFloat(boxes)*(parseFloat(c.v)||0)))} 円</p>}
+                        {c.mode==="fixed"&&c.v&&<p className="f-sans" style={{marginTop:4,fontSize:10,color:C.gold}}>→ 固定 {cn(Math.round(parseFloat(c.v)||0))} 円</p>}
                       </div>
                     );
                   })}
