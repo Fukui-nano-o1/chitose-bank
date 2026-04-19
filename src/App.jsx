@@ -188,6 +188,14 @@ input:focus { outline: none; }
 }
 .field::placeholder { color: ${C.ghost}; }
 
+/* ── Mobile responsive ── */
+@media (max-width: 640px) {
+  .hero-row { flex-direction: column !important; }
+  .hero-cta { flex-direction: column !important; }
+  .hero-cta button { width: 100% !important; }
+  .how-to-grid { flex-direction: column !important; }
+}
+
 /* ── Buttons ── */
 .btn-dark {
   background: ${C.bark};
@@ -577,100 +585,101 @@ function BoardTab({ farmers, destApproved, records }) {
 
       {/* ══ HERO ══════════════════════════════════════════ */}
       <div style={{
-        background: C.bark,
+        background: C.cream,
+        border:`1px solid ${C.rule}`,
         borderRadius:2,
         padding:"44px 40px 36px",
-        marginBottom:32,
+        marginBottom:24,
         position:"relative",
         overflow:"hidden",
-        boxShadow:"0 8px 48px rgba(8,6,4,.32)",
+        boxShadow:"0 2px 16px rgba(8,6,4,.06)",
       }}>
-        {/* 装飾：縦線 */}
-        <div style={{
-          position:"absolute", top:0, bottom:0, left:40,
-          width:1, background:`${C.washi}06`,
-        }}/>
-        <div style={{
-          position:"absolute", top:0, bottom:0, right:40,
-          width:1, background:`${C.washi}06`,
-        }}/>
         {/* 装飾：右上の円 */}
         <div style={{
           position:"absolute", top:-60, right:-60,
           width:240, height:240, borderRadius:"50%",
-          background:`${C.gold}09`,
+          background:`${C.gold}07`,
           pointerEvents:"none",
         }}/>
         <div style={{
           position:"absolute", bottom:-40, left:120,
           width:140, height:140, borderRadius:"50%",
-          background:`${C.bamboo}08`,
+          background:`${C.bamboo}05`,
           pointerEvents:"none",
         }}/>
 
         <div style={{ position:"relative", zIndex:1 }}>
-          {/* 上部ラベル */}
-          <div className="f-sans" style={{
-            fontSize:9, letterSpacing:".2em", color:`${C.washi}30`,
-            textTransform:"uppercase", marginBottom:18,
-            display:"flex", alignItems:"center", gap:14,
-          }}>
-            <span style={{ flex:"none" }}>chitose-bank</span>
-            <span style={{ flex:"none", width:40, height:1, background:`${C.washi}18`, display:"inline-block" }}/>
-            <span>{THIS_YEAR} · 吉野川 · ブロッコリー · {farmers.length}農家</span>
-          </div>
+          <div className="hero-row" style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:32 }}>
 
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:28 }}>
-            <div style={{ maxWidth:520 }}>
-              <h1 className="f-serif" style={{
-                fontSize:32, fontWeight:800, color:C.washi,
-                lineHeight:1.4, letterSpacing:".03em", marginBottom:16,
+            {/* 左：キャッチ＋CTA */}
+            <div style={{ maxWidth:460 }}>
+              <div className="f-sans" style={{
+                fontSize:9, letterSpacing:".2em", color:C.dim,
+                textTransform:"uppercase", marginBottom:14,
               }}>
-                農業経営の実態を、<br/>
-                <span style={{ color:C.gold }}>経費から</span>公開する。
+                {THIS_YEAR} · 吉野川 · ブロッコリー · {farmers.length}農家
+              </div>
+              <h1 className="f-serif" style={{
+                fontSize:36, fontWeight:800, color:C.ink,
+                lineHeight:1.3, letterSpacing:".03em", marginBottom:14, margin:"0 0 14px",
+              }}>
+                農家の現実を。
               </h1>
               <p className="f-sans" style={{
-                fontSize:12, color:`${C.washi}70`,
-                lineHeight:2, maxWidth:400,
+                fontSize:14, color:C.mid,
+                lineHeight:1.8, marginBottom:28,
               }}>
-                売上だけではわからない。運賃・資材・手数料——
-                <strong style={{ color:`${C.gold}AA` }}>経費の内訳</strong>を公開することで、
-                就農を考える人が現実を知り、
-                支援する人が正確に動ける。
+                吉野川の農家が、実際の経費を公開するサイトです。
               </p>
+              <div className="hero-cta" style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                <button className="btn-gold" style={{ padding:"12px 24px", fontSize:13 }}>経費を見る ↓</button>
+                <button className="btn-dark" style={{ padding:"12px 24px", fontSize:13 }}>データを入力する →</button>
+              </div>
             </div>
 
-            {/* 数字ペア */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, minWidth:220 }}>
-              {[
-                { lbl:"産地合計経費", val:hasAnyData&&totalCst>0?man(totalCst):"——", accent:true },
-                { lbl:"産地合計売上", val:hasAnyData&&totalRev>0?man(totalRev):"——", accent:false },
-              ].map(s => (
-                <div key={s.lbl} style={{
-                  padding:"16px 18px",
-                  background: s.accent?`${C.gold}14`:`${C.washi}05`,
-                  border:`1px solid ${s.accent?C.gold+"30":C.washi+"12"}`,
-                  borderRadius:2,
-                }}>
-                  <div className="f-sans" style={{
-                    fontSize:8, letterSpacing:".12em", textTransform:"uppercase",
-                    color:s.accent?`${C.gold}80`:`${C.washi}35`,
-                    marginBottom:8,
-                  }}>{s.lbl}</div>
-                  <div className="f-mono" style={{
-                    fontSize:24, fontWeight:500,
-                    color:s.accent?C.gold:`${C.washi}70`,
-                    lineHeight:1,
-                  }}>{s.val}</div>
-                </div>
-              ))}
+            {/* 右：経費ランキング TOP3 ミニプレビュー */}
+            <div style={{ flex:"0 0 220px", minWidth:200 }}>
+              <div className="f-sans" style={{
+                fontSize:9, fontWeight:700, letterSpacing:".14em",
+                textTransform:"uppercase", color:C.gold, marginBottom:12,
+              }}>経費ランキング TOP3</div>
+              <div style={{ display:"grid", gap:8 }}>
+                {topCosts.length > 0 ? topCosts.slice(0, 3).map(([label, total], i) => (
+                  <div key={label} style={{
+                    display:"flex", alignItems:"center", gap:10,
+                    padding:"10px 14px",
+                    background:"#fff",
+                    border:`1px solid ${C.rule}`,
+                    borderRadius:2,
+                  }}>
+                    <div className="f-mono" style={{ fontSize:10, color:C.dim, width:14, textAlign:"center" }}>{i+1}</div>
+                    <div className="f-sans" style={{ fontSize:12, color:C.ink, flex:1, fontWeight:500 }}>{label}</div>
+                    <div className="f-mono" style={{ fontSize:12, color:C.gold, fontWeight:500 }}>{man(total)}</div>
+                  </div>
+                )) : [
+                  { lbl:"運　　賃" }, { lbl:"資材費" }, { lbl:"市場手数料" },
+                ].map(({ lbl }, i) => (
+                  <div key={i} style={{
+                    display:"flex", alignItems:"center", gap:10,
+                    padding:"10px 14px",
+                    background:"#fff",
+                    border:`1px solid ${C.rule}`,
+                    borderRadius:2,
+                    opacity: 1 - i * .1,
+                  }}>
+                    <div className="f-mono" style={{ fontSize:10, color:`${C.gold}40`, width:14, textAlign:"center" }}>{i+1}</div>
+                    <div className="f-sans" style={{ fontSize:12, color:`${C.mid}55`, flex:1 }}>{lbl}</div>
+                    <div className="f-mono" style={{ fontSize:12, color:`${C.gold}35` }}>——</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* フッター注記 */}
           <div style={{
-            marginTop:24, paddingTop:16,
-            borderTop:`1px solid ${C.washi}10`,
+            marginTop:28, paddingTop:16,
+            borderTop:`1px solid ${C.rule}`,
             display:"flex", alignItems:"center", gap:16, flexWrap:"wrap",
           }}>
             {[
@@ -679,14 +688,42 @@ function BoardTab({ farmers, destApproved, records }) {
               "データは農家本人が入力",
             ].map(t => (
               <span key={t} className="f-sans" style={{
-                fontSize:9, color:`${C.washi}30`, letterSpacing:".08em",
+                fontSize:9, color:C.ghost, letterSpacing:".08em",
                 display:"flex", alignItems:"center", gap:5,
               }}>
-                <span style={{ width:3, height:3, borderRadius:"50%", background:`${C.washi}30`, display:"inline-block" }}/>
+                <span style={{ width:3, height:3, borderRadius:"50%", background:C.ghost, display:"inline-block" }}/>
                 {t}
               </span>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* ══ 使い方 ══════════════════════════════════════ */}
+      <div style={{ marginBottom:32 }}>
+        <div className="f-sans" style={{
+          fontSize:9, fontWeight:700, letterSpacing:".14em",
+          textTransform:"uppercase", color:C.dim, marginBottom:16, textAlign:"center",
+        }}>使い方</div>
+        <div className="how-to-grid" style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+          {[
+            { step:"①", title:"登録（10秒）", desc:"メールアドレスを入力するだけ。管理者承認後すぐ使えます。" },
+            { step:"②", title:"経費入力（3分）", desc:"月ごとに出荷箱数・単価・経費項目を入力します。" },
+            { step:"③", title:"産地全体で比較", desc:"経費ランキングで産地の実態をリアルタイムで確認できます。" },
+          ].map((s, i) => (
+            <div key={i} style={{
+              flex:"1 1 200px",
+              padding:"20px 22px",
+              background:C.cream,
+              border:`1px solid ${C.rule}`,
+              borderRadius:2,
+              textAlign:"center",
+            }}>
+              <div className="f-mono" style={{ fontSize:28, color:C.gold, marginBottom:10, fontWeight:500 }}>{s.step}</div>
+              <div className="f-serif" style={{ fontSize:14, fontWeight:700, color:C.ink, marginBottom:8 }}>{s.title}</div>
+              <div className="f-sans" style={{ fontSize:12, color:C.mid, lineHeight:1.8 }}>{s.desc}</div>
+            </div>
+          ))}
         </div>
       </div>
 
