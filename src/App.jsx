@@ -132,7 +132,7 @@ input:focus { outline: none; }
 .ledger-card {
   background: ${C.cream};
   border: 1px solid ${C.rule};
-  border-radius: 2px;
+  border-radius: 12px;
   box-shadow:
     0 1px 3px rgba(8,6,4,.06),
     0 4px 16px rgba(8,6,4,.08),
@@ -176,7 +176,7 @@ input:focus { outline: none; }
   width: 100%;
   padding: 11px 14px;
   border: 1px solid ${C.rule};
-  border-radius: 3px;
+  border-radius: 10px;
   font-size: 14px;
   color: ${C.ink};
   background: ${C.cream};
@@ -201,7 +201,7 @@ input:focus { outline: none; }
   background: ${C.bark};
   color: ${C.washi};
   border: 1px solid ${C.shadow};
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 11px 24px;
   font-size: 12px;
   font-weight: 500;
@@ -214,7 +214,7 @@ input:focus { outline: none; }
   background: transparent;
   color: ${C.mid};
   border: 1px solid ${C.rule};
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 10px 20px;
   font-size: 12px;
 }
@@ -224,7 +224,7 @@ input:focus { outline: none; }
   background: ${C.gold};
   color: #fff;
   border: none;
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 11px 24px;
   font-size: 12px;
   font-weight: 700;
@@ -266,7 +266,7 @@ input:focus { outline: none; }
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
-  border-radius: 1px;
+  border-radius: 8px;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: .08em;
@@ -587,7 +587,7 @@ function BoardTab({ farmers, destApproved, records }) {
       <div style={{
         background: C.cream,
         border:`1px solid ${C.rule}`,
-        borderRadius:2,
+        borderRadius:12,
         padding:"44px 40px 36px",
         marginBottom:24,
         position:"relative",
@@ -650,7 +650,7 @@ function BoardTab({ farmers, destApproved, records }) {
                     padding:"10px 14px",
                     background:"#fff",
                     border:`1px solid ${C.rule}`,
-                    borderRadius:2,
+                    borderRadius:12,
                   }}>
                     <div className="f-mono" style={{ fontSize:10, color:C.dim, width:14, textAlign:"center" }}>{i+1}</div>
                     <div className="f-sans" style={{ fontSize:12, color:C.ink, flex:1, fontWeight:500 }}>{label}</div>
@@ -664,7 +664,7 @@ function BoardTab({ farmers, destApproved, records }) {
                     padding:"10px 14px",
                     background:"#fff",
                     border:`1px solid ${C.rule}`,
-                    borderRadius:2,
+                    borderRadius:12,
                     opacity: 1 - i * .1,
                   }}>
                     <div className="f-mono" style={{ fontSize:10, color:`${C.gold}40`, width:14, textAlign:"center" }}>{i+1}</div>
@@ -716,7 +716,7 @@ function BoardTab({ farmers, destApproved, records }) {
               padding:"20px 22px",
               background:C.cream,
               border:`1px solid ${C.rule}`,
-              borderRadius:2,
+              borderRadius:12,
               textAlign:"center",
             }}>
               <div className="f-mono" style={{ fontSize:28, color:C.gold, marginBottom:10, fontWeight:500 }}>{s.step}</div>
@@ -733,7 +733,7 @@ function BoardTab({ farmers, destApproved, records }) {
           padding:"24px 28px",
           background:C.goldPl,
           border:`1px solid ${C.gold}28`,
-          borderRadius:2,
+          borderRadius:12,
         }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
             <div>
@@ -767,10 +767,10 @@ function BoardTab({ farmers, destApproved, records }) {
                     <div className="f-sans" style={{ fontSize:12, fontWeight:500, color:C.ink }}>
                       {label}
                     </div>
-                    <div style={{ height:6, background:C.ivory, borderRadius:1, overflow:"hidden" }}>
+                    <div style={{ height:6, background:C.ivory, borderRadius:4, overflow:"hidden" }}>
                       <div style={{
                         height:6, background:`linear-gradient(90deg, ${C.gold}, ${C.goldLt})`,
-                        width:`${w}%`, borderRadius:1,
+                        width:`${w}%`, borderRadius:4,
                         animation:"appear .6s ease both",
                         animationDelay:`${.3+i*.08}s`,
                       }}/>
@@ -813,11 +813,11 @@ function BoardTab({ farmers, destApproved, records }) {
                   }}>
                     <div className="f-mono" style={{ fontSize:10, color:`${C.gold}40`, textAlign:"center" }}>{i+1}</div>
                     <div className="f-sans" style={{ fontSize:12, color:`${C.mid}60` }}>{lbl}</div>
-                    <div style={{ height:6, background:C.ivory, borderRadius:1, overflow:"hidden" }}>
+                    <div style={{ height:6, background:C.ivory, borderRadius:4, overflow:"hidden" }}>
                       <div style={{
                         height:6,
                         background:`linear-gradient(90deg, ${C.gold}30, ${C.gold}18)`,
-                        width:`${w}%`, borderRadius:1,
+                        width:`${w}%`, borderRadius:4,
                       }}/>
                     </div>
                     <div className="f-mono" style={{ fontSize:13, color:`${C.gold}35`, textAlign:"right" }}>——</div>
@@ -932,9 +932,9 @@ function BoardTab({ farmers, destApproved, records }) {
                   {/* 経費率バー */}
                   {fRev>0&&(
                     <div style={{ marginTop:16 }}>
-                      <div style={{ height:4, background:`${C.washi}10`, borderRadius:1, overflow:"hidden" }}>
+                      <div style={{ height:4, background:`${C.washi}10`, borderRadius:4, overflow:"hidden" }}>
                         <div style={{
-                          height:4, borderRadius:1,
+                          height:4, borderRadius:4,
                           background:`linear-gradient(90deg, ${C.gold}, ${C.goldLt})`,
                           width:`${Math.min(cstRatio,100)}%`,
                           boxShadow:`0 0 8px ${C.gold}60`,
@@ -972,11 +972,11 @@ function BoardTab({ farmers, destApproved, records }) {
                             alignItems:"center", gap:10,
                           }}>
                             <div className="f-sans" style={{ fontSize:11, fontWeight:500, color:C.ink }}>{lbl}</div>
-                            <div style={{ height:5, background:C.ivory, borderRadius:1, overflow:"hidden" }}>
+                            <div style={{ height:5, background:C.ivory, borderRadius:4, overflow:"hidden" }}>
                               <div style={{
                                 height:5,
                                 background:C.gold,
-                                width:`${pct}%`, borderRadius:1,
+                                width:`${pct}%`, borderRadius:4,
                               }}/>
                             </div>
                             <div className="f-mono" style={{ fontSize:12, color:C.gold, fontWeight:500, textAlign:"right" }}>{man(amt)}</div>
@@ -1010,7 +1010,7 @@ function BoardTab({ farmers, destApproved, records }) {
                             padding:"14px 16px",
                             background:C.cream,
                             border:`1px solid ${C.rule}`,
-                            borderRadius:2,
+                            borderRadius:12,
                           }}>
                             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                               {dest ? <DestMark name={dest.name} sz={22}/> : <span className="f-sans" style={{ fontSize:11, color:C.ghost }}>不明</span>}
@@ -1021,7 +1021,7 @@ function BoardTab({ farmers, destApproved, records }) {
                                 <span className="f-sans" style={{ fontSize:9, fontWeight:700, color:C.mid, letterSpacing:".08em" }}>売上 {man(d.rev)}</span>
                                 <span className="f-sans" style={{ fontSize:9, color:C.dim }}>100%</span>
                               </div>
-                              <div style={{ height:24, display:"flex", borderRadius:2, overflow:"hidden", border:`1px solid ${C.rule}` }}>
+                              <div style={{ height:24, display:"flex", borderRadius:4, overflow:"hidden", border:`1px solid ${C.rule}` }}>
                                 <div style={{
                                   width:`${d.rev>0?d.cost/d.rev*100:0}%`,
                                   background:C.gold,
@@ -1141,7 +1141,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 const act=mon===i;
                 return(
                   <button key={i} onClick={()=>setMon(i)} style={{
-                    padding:"11px 4px",border:`1.5px solid ${act?C.gold:C.rule}`,borderRadius:2,
+                    padding:"11px 4px",border:`1.5px solid ${act?C.gold:C.rule}`,borderRadius:10,
                     background:act?`${C.gold}12`:"#fff",
                     color:act?C.gold:C.ink,fontSize:12,fontWeight:act?700:400,
                     position:"relative",
