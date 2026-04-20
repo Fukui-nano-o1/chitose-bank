@@ -194,6 +194,7 @@ input:focus { outline: none; }
   .hero-cta { flex-direction: column !important; }
   .hero-cta button { width: 100% !important; }
   .how-to-grid { flex-direction: column !important; }
+  .farmer-3cols { grid-template-columns: 1fr !important; }
 }
 
 /* ── Buttons ── */
@@ -292,6 +293,228 @@ function DestMark({ name, sz=32, showLabel=true }) {
         <span className="f-sans" style={{ fontSize:Math.max(11,sz*.34), color:C.ink, fontWeight:500 }}>{name}</span>
       )}
     </span>
+  );
+}
+
+// ── FarmerCard — アコーディオン農家カード ────────────────────
+function FarmerCard({ farmer, fi, records, destMap }) {
+  const [open, setOpen] = useState(false);
+
+  const mRecs    = MONTHS.map((_,i) => records[`${farmer.id}_${THIS_YEAR}_${i}`] || []);
+  const allFRecs = mRecs.flat();
+  const fRev     = allFRecs.reduce((s,e) => s+e.boxes*e.ppb, 0);
+  const fCst     = allFRecs.reduce((s,e) => s+e.costs.reduce((a,c)=>a+c.a,0), 0);
+  const fProfit  = fRev - fCst;
+  const cstRatio = fRev>0 ? Math.round(fCst/fRev*100) : 0;
+  const pftRatio = fRev>0 ? Math.round(Math.max(0,fProfit)/fRev*100) : 0;
+  const usedDsts = [...new Set(allFRecs.map(e=>e.destId))].map(id=>destMap[id]).filter(Boolean);
+
+  const cLabels = {};
+  allFRecs.forEach(e => e.costs.forEach(c => { if(c.l) cLabels[c.l]=(cLabels[c.l]||0)+c.a; }));
+  const cList = Object.entries(cLabels).sort((a,b)=>b[1]-a[1]);
+
+  const byDest = {};
+  allFRecs.forEach(e => {
+    if (!byDest[e.destId]) byDest[e.destId]={boxes:0,rev:0,cost:0};
+    byDest[e.destId].boxes += e.boxes;
+    byDest[e.destId].rev   += e.boxes*e.ppb;
+    byDest[e.destId].cost  += e.costs.reduce((a,c)=>a+c.a,0);
+  });
+
+  const years = THIS_YEAR - farmer.joinedYear + 1;
+  const badgeColor = years<=2 ? C.shu   : years<=4 ? C.gold   : C.bamboo;
+  const badgeBg    = years<=2 ? C.shuPl : years<=4 ? C.goldPl : C.bambooPl;
+
+  const monthlyRev = MONTHS.map((_,i) => (records[`${farmer.id}_${THIS_YEAR}_${i}`]||[]).reduce((s,e)=>s+e.boxes*e.ppb,0));
+  const monthlyCst = MONTHS.map((_,i) => (records[`${farmer.id}_${THIS_YEAR}_${i}`]||[]).reduce((s,e)=>s+e.costs.reduce((a,c)=>a+c.a,0),0));
+
+  const svgW=400, svgH=120, padL=44, padR=16, padT=12, padB=28;
+  const chartW=svgW-padL-padR, chartH=svgH-padT-padB;
+  const maxVal=Math.max(...monthlyRev,...monthlyCst,1);
+  const toX=i=>padL+i*(chartW/(MONTHS.length-1));
+  const toY=v=>padT+chartH-(v/maxVal*chartH);
+  const pts=arr=>arr.map((v,i)=>`${toX(i)},${toY(v)}`).join(" ");
+
+  const hasChart = monthlyRev.some(v=>v>0)||monthlyCst.some(v=>v>0);
+
+  return (
+    <div className="appear" style={{ animationDelay:`${fi*.08}s` }}>
+
+      {/* ── 閉じた状態：1行リスト ── */}
+      <div onClick={()=>setOpen(o=>!o)} style={{
+        display:"flex", alignItems:"center", gap:14,
+        background:"#fff",
+        border:`0.5px solid ${C.rule}`,
+        borderRadius: open ? "12px 12px 0 0" : 12,
+        padding:"14px 18px",
+        cursor:"pointer", userSelect:"none",
+        transition:"border-radius .2s, box-shadow .2s",
+        boxShadow: open ? "none" : "0 1px 4px rgba(8,6,4,.04)",
+      }}>
+        <span style={{
+          display:"inline-flex", alignItems:"center", justifyContent:"center",
+          padding:"3px 11px", borderRadius:20,
+          background:badgeBg, border:`1px solid ${badgeColor}30`,
+          color:badgeColor, fontSize:11, fontWeight:700, flexShrink:0,
+          fontFamily:"'DM Mono',monospace",
+        }}>{years}年目</span>
+
+        <div style={{ flex:1, minWidth:0 }}>
+          <div className="f-serif" style={{ fontSize:13, fontWeight:600, color:C.ink, marginBottom:2 }}>
+            就農{years}年目 · ブロッコリー
+          </div>
+          <div className="f-sans" style={{ fontSize:10, color:C.dim }}>
+            出荷先 {usedDsts.length}件
+          </div>
+        </div>
+
+        <div style={{ textAlign:"right", flexShrink:0 }}>
+          <div className="f-mono" style={{ fontSize:16, fontWeight:700, color:fProfit>=0?C.bamboo:C.shu }}>
+            {fProfit<0?"−":"+"}{man(Math.abs(fProfit))}
+          </div>
+          <div className="f-sans" style={{ fontSize:9, color:C.ghost }}>{fProfit>=0?"黒字":"赤字"}</div>
+        </div>
+
+        <span style={{
+          color:C.dim, fontSize:10, flexShrink:0,
+          display:"inline-block",
+          transition:"transform .25s",
+          transform: open?"rotate(180deg)":"rotate(0deg)",
+        }}>▼</span>
+      </div>
+
+      {/* ── 展開コンテンツ ── */}
+      {open&&(
+        <div style={{
+          background:"#fff",
+          border:`0.5px solid ${C.rule}`, borderTop:"none",
+          borderRadius:"0 0 12px 12px",
+          padding:"20px 18px",
+          animation:"appear .2s ease both",
+        }}>
+
+          {/* A. 売上・経費・利益 3カード */}
+          <div className="farmer-3cols" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:18 }}>
+            {[
+              { lbl:"売上", val:man(fRev),                                    color:C.bamboo,              bg:C.bambooPl },
+              { lbl:"経費", val:man(fCst),                                    color:C.gold,                bg:C.goldPl   },
+              { lbl:"利益", val:(fProfit<0?"−":"+")+man(Math.abs(fProfit)),   color:fProfit>=0?C.bamboo:C.shu, bg:fProfit>=0?C.bambooPl:C.shuPl },
+            ].map(s=>(
+              <div key={s.lbl} style={{ padding:"12px 14px", background:s.bg, borderRadius:8, textAlign:"center" }}>
+                <div className="f-sans" style={{ fontSize:9, color:s.color, fontWeight:700, letterSpacing:".1em", marginBottom:6 }}>{s.lbl}</div>
+                <div className="f-mono" style={{ fontSize:15, fontWeight:700, color:s.color }}>{s.val}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* B. 売上vs経費 積み上げバー */}
+          {fRev>0&&(
+            <div style={{ marginBottom:18 }}>
+              <div style={{ height:28, display:"flex", borderRadius:8, overflow:"hidden", background:C.ivory }}>
+                <div style={{
+                  width:`${cstRatio}%`, transition:"width .6s ease",
+                  background:`linear-gradient(90deg,${C.gold},${C.goldLt})`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}>
+                  {cstRatio>14&&<span className="f-mono" style={{ fontSize:9, color:"#fff", fontWeight:700 }}>経費 {cstRatio}%</span>}
+                </div>
+                <div style={{
+                  width:`${pftRatio}%`, transition:"width .6s ease",
+                  background:`linear-gradient(90deg,${C.bamboo},${C.bambooL})`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}>
+                  {pftRatio>14&&<span className="f-mono" style={{ fontSize:9, color:"#fff", fontWeight:700 }}>利益 {pftRatio}%</span>}
+                </div>
+              </div>
+              <div className="f-sans" style={{ display:"flex", justifyContent:"space-between", marginTop:5, fontSize:9 }}>
+                <span style={{ color:C.gold }}>■ 経費 {cstRatio}%</span>
+                <span style={{ color:C.bamboo }}>■ 利益 {pftRatio}%</span>
+              </div>
+            </div>
+          )}
+
+          {/* C. 月次折れ線グラフ */}
+          {hasChart&&(
+            <div style={{ marginBottom:18 }}>
+              <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".12em", textTransform:"uppercase", color:C.dim, marginBottom:10 }}>月次推移</div>
+              <svg viewBox={`0 0 ${svgW} ${svgH}`} style={{ width:"100%", height:"auto", display:"block" }}>
+                {[0,.5,1].map(r=>(
+                  <line key={r} x1={padL} y1={padT+chartH*(1-r)} x2={svgW-padR} y2={padT+chartH*(1-r)}
+                    stroke={C.rule} strokeWidth=".5" strokeDasharray={r===0?"none":"3,3"}/>
+                ))}
+                {[0,.5,1].map(r=>(
+                  <text key={r} x={padL-4} y={padT+chartH*(1-r)+3} textAnchor="end"
+                    fill={C.ghost} fontSize="7" fontFamily="'DM Mono',monospace">
+                    {r===0?"0":man(maxVal*r)}
+                  </text>
+                ))}
+                {MONTHS.map((m,i)=>i%3===0&&(
+                  <text key={i} x={toX(i)} y={svgH-4} textAnchor="middle"
+                    fill={C.ghost} fontSize="7" fontFamily="'Zen Kaku Gothic New',sans-serif">{m}</text>
+                ))}
+                <polyline points={pts(monthlyRev)} fill="none" stroke={C.bamboo} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+                <polyline points={pts(monthlyCst)} fill="none" stroke={C.gold}   strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+                {monthlyRev.map((v,i)=>v>0&&<circle key={i} cx={toX(i)} cy={toY(v)} r="2.5" fill={C.bamboo}/>)}
+                {monthlyCst.map((v,i)=>v>0&&<circle key={i} cx={toX(i)} cy={toY(v)} r="2.5" fill={C.gold}/>)}
+              </svg>
+              <div className="f-sans" style={{ display:"flex", gap:16, fontSize:9, justifyContent:"center", marginTop:4 }}>
+                <span style={{ color:C.bamboo }}>— 売上</span>
+                <span style={{ color:C.gold   }}>— 経費</span>
+              </div>
+            </div>
+          )}
+
+          {/* D. 経費内訳 横棒グラフ */}
+          {cList.length>0&&(
+            <div style={{ marginBottom:18 }}>
+              <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".12em", textTransform:"uppercase", color:C.dim, marginBottom:10 }}>経費の内訳</div>
+              <div style={{ display:"grid", gap:8 }}>
+                {cList.map(([lbl,amt])=>{
+                  const pct=fCst>0?Math.round(amt/fCst*100):0;
+                  return(
+                    <div key={lbl} style={{ display:"grid", gridTemplateColumns:"80px 1fr 56px 28px", alignItems:"center", gap:10 }}>
+                      <div className="f-sans" style={{ fontSize:11, color:C.ink }}>{lbl}</div>
+                      <div style={{ height:6, background:C.ivory, borderRadius:4, overflow:"hidden" }}>
+                        <div style={{ height:6, width:`${pct}%`, background:`linear-gradient(90deg,${C.gold},${C.goldLt})`, borderRadius:4 }}/>
+                      </div>
+                      <div className="f-mono" style={{ fontSize:11, color:C.gold, fontWeight:600, textAlign:"right" }}>{man(amt)}</div>
+                      <div className="f-sans" style={{ fontSize:9, color:C.dim, textAlign:"right" }}>{pct}%</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* E. 出荷先別リスト */}
+          {Object.keys(byDest).length>0&&(
+            <div>
+              <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".12em", textTransform:"uppercase", color:C.dim, marginBottom:10 }}>出荷先別</div>
+              <div style={{ display:"grid", gap:8 }}>
+                {Object.entries(byDest).map(([did,d])=>{
+                  const dest=destMap[did];
+                  const revShare=fRev>0?Math.round(d.rev/fRev*100):0;
+                  return(
+                    <div key={did} style={{
+                      display:"flex", alignItems:"center", gap:12,
+                      padding:"10px 14px",
+                      background:C.cream, border:`0.5px solid ${C.rule}`, borderRadius:8,
+                    }}>
+                      {dest?<DestMark name={dest.name} sz={28} showLabel={true}/>:<span className="f-sans" style={{ fontSize:11, color:C.ghost }}>不明</span>}
+                      <div style={{ flex:1 }}/>
+                      <div style={{ textAlign:"right" }}>
+                        <div className="f-mono" style={{ fontSize:13, fontWeight:600, color:C.bamboo }}>{man(d.rev)}</div>
+                        <div className="f-sans" style={{ fontSize:9, color:C.dim }}>売上の{revShare}%</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -849,210 +1072,12 @@ function BoardTab({ farmers, destApproved, records }) {
         </div>
       </div>
 
-      <div className="stagger" style={{ display:"grid", gap:20 }}>
+      <div style={{ display:"grid", gap:10 }}>
         {farmers.map((farmer, fi) => {
-          const mRecs    = MONTHS.map((_,i) => records[`${farmer.id}_${THIS_YEAR}_${i}`] || []);
-          const allFRecs = mRecs.flat();
-          const fRev     = allFRecs.reduce((s,e) => s+e.boxes*e.ppb, 0);
-          const fCst     = allFRecs.reduce((s,e) => s+e.costs.reduce((a,c)=>a+c.a,0), 0);
-          const cstRatio = fRev>0 ? Math.round(fCst/fRev*100) : 0;
-          const usedDsts = [...new Set(allFRecs.map(e=>e.destId))].map(id=>destMap[id]).filter(Boolean);
-          const hasData  = fRev > 0;
-
-          // 費目集計
-          const cLabels = {};
-          allFRecs.forEach(e => e.costs.forEach(c => { if(c.l) cLabels[c.l]=(cLabels[c.l]||0)+c.a; }));
-          const cList = Object.entries(cLabels).sort((a,b)=>b[1]-a[1]);
-
-          // 出荷先集計
-          const byDest = {};
-          allFRecs.forEach(e => {
-            if (!byDest[e.destId]) byDest[e.destId]={boxes:0,rev:0,cost:0};
-            byDest[e.destId].boxes += e.boxes;
-            byDest[e.destId].rev   += e.boxes*e.ppb;
-            byDest[e.destId].cost  += e.costs.reduce((a,c)=>a+c.a,0);
-          });
-
+          const allFRecs = MONTHS.flatMap((_,i) => records[`${farmer.id}_${THIS_YEAR}_${i}`] || []);
+          const hasData  = allFRecs.some(e=>e.boxes*e.ppb>0);
           if (!hasData) return <GhostCard key={farmer.id} index={fi}/>;
-
-          return (
-            <div key={farmer.id} className="ledger-card appear" style={{ animationDelay:`${fi*.1}s` }}>
-
-              {/* ─ HEADER ─ */}
-              <div style={{
-                background:C.bark,
-                padding:"22px 28px 18px",
-                borderBottom:`1px solid ${C.ruleD}`,
-                position:"relative", overflow:"hidden",
-              }}>
-                <div style={{
-                  position:"absolute", top:-30, right:-30,
-                  width:140, height:140, borderRadius:"50%",
-                  background:`${C.gold}08`, pointerEvents:"none",
-                }}/>
-                <div style={{ position:"relative", zIndex:1 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                    <div>
-                      <div className="f-sans" style={{
-                        fontSize:9, color:`${C.washi}28`, letterSpacing:".14em",
-                        textTransform:"uppercase", marginBottom:8,
-                      }}>
-                        就農{THIS_YEAR-farmer.joinedYear+1}年目 · {farmer.joinedYear}年〜 · ブロッコリー
-                      </div>
-                      {usedDsts.length>0&&(
-                        <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                          {usedDsts.map(d => (
-                            <DestMark key={d.id} name={d.name} sz={20} showLabel={true}/>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 経費 主役数字 */}
-                    <div style={{ textAlign:"right", flexShrink:0 }}>
-                      <div className="f-sans" style={{
-                        fontSize:9, fontWeight:700, letterSpacing:".12em",
-                        textTransform:"uppercase", color:C.goldDim, marginBottom:6,
-                      }}>年間経費</div>
-                      <div className="f-mono" style={{
-                        fontSize:34, fontWeight:500, color:C.gold,
-                        lineHeight:1, letterSpacing:"-.01em",
-                      }}>
-                        {man(fCst)}
-                      </div>
-                      <div className="f-sans" style={{ fontSize:10, color:`${C.washi}40`, marginTop:5 }}>
-                        売上 <span className="f-mono">{man(fRev)}</span> の
-                        <span className="f-mono" style={{ color:`${C.gold}AA`, marginLeft:4, fontWeight:500 }}>
-                          {cstRatio}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 経費率バー */}
-                  {fRev>0&&(
-                    <div style={{ marginTop:16 }}>
-                      <div style={{ height:4, background:`${C.washi}10`, borderRadius:4, overflow:"hidden" }}>
-                        <div style={{
-                          height:4, borderRadius:4,
-                          background:`linear-gradient(90deg, ${C.gold}, ${C.goldLt})`,
-                          width:`${Math.min(cstRatio,100)}%`,
-                          boxShadow:`0 0 8px ${C.gold}60`,
-                        }}/>
-                      </div>
-                      <div className="f-sans" style={{
-                        display:"flex", justifyContent:"space-between",
-                        marginTop:4, fontSize:8, color:`${C.washi}28`,
-                      }}>
-                        <span>経費 {cstRatio}%</span>
-                        <span>売上 100%</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ─ BODY ─ */}
-              <div style={{ padding:"20px 28px" }}>
-
-                {/* 費目内訳 */}
-                {cList.length>0&&(
-                  <div style={{ marginBottom:20 }}>
-                    <div className="f-sans" style={{
-                      fontSize:9, fontWeight:700, letterSpacing:".12em",
-                      textTransform:"uppercase", color:C.gold, marginBottom:14,
-                    }}>経費の内訳</div>
-                    <div style={{ display:"grid", gap:10 }}>
-                      {cList.map(([lbl, amt]) => {
-                        const pct = fCst>0 ? Math.round(amt/fCst*100) : 0;
-                        return (
-                          <div key={lbl} style={{
-                            display:"grid",
-                            gridTemplateColumns:"80px 1fr 56px 34px",
-                            alignItems:"center", gap:10,
-                          }}>
-                            <div className="f-sans" style={{ fontSize:11, fontWeight:500, color:C.ink }}>{lbl}</div>
-                            <div style={{ height:5, background:C.ivory, borderRadius:4, overflow:"hidden" }}>
-                              <div style={{
-                                height:5,
-                                background:C.gold,
-                                width:`${pct}%`, borderRadius:4,
-                              }}/>
-                            </div>
-                            <div className="f-mono" style={{ fontSize:12, color:C.gold, fontWeight:500, textAlign:"right" }}>{man(amt)}</div>
-                            <div className="f-sans" style={{ fontSize:9, color:C.dim, textAlign:"right" }}>{pct}%</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* 区切り線 */}
-                {cList.length>0&&Object.keys(byDest).length>0&&(
-                  <div style={{ height:1, background:C.rule, margin:"0 0 18px" }}/>
-                )}
-
-                {/* 出荷先別 */}
-                {Object.keys(byDest).length>0&&(
-                  <div>
-                    <div className="f-sans" style={{
-                      fontSize:9, fontWeight:700, letterSpacing:".12em",
-                      textTransform:"uppercase", color:C.mid, marginBottom:12,
-                    }}>出荷先別</div>
-                    <div style={{ display:"grid", gap:12 }}>
-                      {Object.entries(byDest).map(([did, d]) => {
-                        const dest = destMap[did];
-                        const profit = d.rev - d.cost;
-                        const maxVal = Math.max(d.rev, d.cost, Math.abs(profit)) || 1;
-                        return (
-                          <div key={did} style={{
-                            padding:"14px 16px",
-                            background:C.cream,
-                            border:`1px solid ${C.rule}`,
-                            borderRadius:12,
-                          }}>
-                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                              {dest ? <DestMark name={dest.name} sz={22}/> : <span className="f-sans" style={{ fontSize:11, color:C.ghost }}>不明</span>}
-                              <div className="f-mono" style={{ fontSize:9, color:C.ghost }}>{cn(d.boxes)}箱</div>
-                            </div>
-                            <div>
-                              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-                                <span className="f-sans" style={{ fontSize:9, fontWeight:700, color:C.mid, letterSpacing:".08em" }}>売上 {man(d.rev)}</span>
-                                <span className="f-sans" style={{ fontSize:9, color:C.dim }}>100%</span>
-                              </div>
-                              <div style={{ height:24, display:"flex", borderRadius:4, overflow:"hidden", border:`1px solid ${C.rule}` }}>
-                                <div style={{
-                                  width:`${d.rev>0?d.cost/d.rev*100:0}%`,
-                                  background:C.gold,
-                                  display:"flex", alignItems:"center", justifyContent:"center",
-                                  transition:"width .6s ease",
-                                }}>
-                                  {d.rev>0&&d.cost/d.rev>0.15&&<span className="f-mono" style={{ fontSize:9, color:"#fff", fontWeight:700 }}>経費 {Math.round(d.cost/d.rev*100)}%</span>}
-                                </div>
-                                <div style={{
-                                  width:`${d.rev>0?Math.max(0,profit)/d.rev*100:0}%`,
-                                  background:profit>=0?C.bamboo:C.shu,
-                                  display:"flex", alignItems:"center", justifyContent:"center",
-                                  transition:"width .6s ease",
-                                }}>
-                                  {d.rev>0&&profit/d.rev>0.15&&<span className="f-mono" style={{ fontSize:9, color:"#fff", fontWeight:700 }}>利益 {Math.round(profit/d.rev*100)}%</span>}
-                                </div>
-                              </div>
-                              <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:10 }}>
-                                <span className="f-sans" style={{ color:C.gold, fontWeight:500 }}>経費 {man(d.cost)}</span>
-                                <span className="f-mono" style={{ color:profit>=0?C.bamboo:C.shu, fontWeight:700 }}>利益 {profit<0?"-":""}{man(Math.abs(profit))}</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
+          return <FarmerCard key={farmer.id} farmer={farmer} fi={fi} records={records} destMap={destMap}/>;
         })}
       </div>
 
