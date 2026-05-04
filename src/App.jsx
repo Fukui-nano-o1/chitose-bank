@@ -846,7 +846,7 @@ function BoardTab({ farmers, destApproved, records }) {
                 fontSize:36, fontWeight:800, color:C.ink,
                 lineHeight:1.3, letterSpacing:".03em", marginBottom:14, margin:"0 0 14px",
               }}>
-                農家の現実を。
+                日本農業研究所。
               </h1>
               <p className="f-sans" style={{
                 fontSize:14, color:C.mid,
