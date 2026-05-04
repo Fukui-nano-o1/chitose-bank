@@ -1097,6 +1097,8 @@ function BoardTab({ farmers, destApproved, records }) {
 // ── InputTab ─────────────────────────────────────────────────
 function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRecord, onSubmitDest, onGoBoard }) {
   const [step,setStep]=useState(1);
+  const [crop,setCrop]=useState("");
+  const [cropInput,setCropInput]=useState("");
   const [mon,setMon]=useState(new Date().getMonth());
   const [dest,setDest]=useState(null);
   const [boxes,setBoxes]=useState("");
@@ -1110,6 +1112,10 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const rev=(parseFloat(boxes)||0)*(parseFloat(ppb)||0);
   const myPend=destPending.filter(d=>d.submittedBy===loggedInFarmer?.name);
 
+  const knownCrops=[...new Set(
+    Object.values(records).flat().map(r=>r.crop).filter(Boolean)
+  )];
+
   const save=async()=>{
     if(!boxes||!ppb)return;
     const ci=costs.filter(c=>c.l&&c.v).map(c=>{
@@ -1120,7 +1126,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
       else a=Math.round(v);
       return {l:c.l,v,mode:c.mode,a};
     });
-    await onAddRecord(loggedInFarmer.id,THIS_YEAR,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci});
+    await onAddRecord(loggedInFarmer.id,THIS_YEAR,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci,crop:crop});
     setSaved(true);
   };
   const submitDest=async()=>{
@@ -1129,7 +1135,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
     setNewDN("");setSubDest(false);setDSubmit(true);
   };
 
-  const STEPS=["月を選ぶ","出荷先","売上・経費"];
+  const STEPS=["作物","月を選ぶ","出荷先","売上・経費"];
   return (
     <div className="appear" style={{maxWidth:540,margin:"0 auto"}}>
       {/* ステップ */}
@@ -1159,6 +1165,27 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
       <div className="ledger-card" style={{padding:28}}>
         {step===1&&(
           <div className="fade-in">
+            <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:16}}>作物を選んでください</p>
+            {knownCrops.length>0&&(
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
+                {knownCrops.map(c=>(
+                  <button key={c} onClick={()=>{setCrop(c);setCropInput(c);}} style={{
+                    padding:"6px 12px",border:`1.5px solid ${crop===c?C.gold:C.rule}`,borderRadius:20,
+                    background:crop===c?`${C.gold}12`:"#fff",
+                    color:crop===c?C.gold:C.mid,fontSize:12,fontWeight:crop===c?700:400,
+                  }}>{c}</button>
+                ))}
+              </div>
+            )}
+            <input className="field f-sans" placeholder="作物名を入力（例：トマト）" value={cropInput}
+              onChange={e=>{setCropInput(e.target.value);setCrop(e.target.value);}}
+              style={{marginBottom:18,fontSize:14}}/>
+            <button className="btn-dark" style={{width:"100%"}} disabled={!crop.trim()} onClick={()=>setStep(2)}>続ける →</button>
+          </div>
+        )}
+
+        {step===2&&(
+          <div className="fade-in">
             <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:20}}>何月のデータを入力しますか？</p>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:22}}>
               {MONTHS.map((m,i)=>{
@@ -1177,11 +1204,14 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 );
               })}
             </div>
-            <button className="btn-dark" style={{width:"100%"}} onClick={()=>setStep(2)}>続ける →</button>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn-outline" onClick={()=>setStep(1)}>← 戻る</button>
+              <button className="btn-dark" style={{flex:1}} onClick={()=>setStep(3)}>続ける →</button>
+            </div>
           </div>
         )}
 
-        {step===2&&(
+        {step===3&&(
           <div className="fade-in">
             <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:18}}>{MONTHS[mon]}の出荷先</p>
             <input className="field f-sans" placeholder="出荷先を検索..." value={destSearch}
@@ -1228,17 +1258,18 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 </div>
             }
             <div style={{display:"flex",gap:8}}>
-              <button className="btn-outline" onClick={()=>setStep(1)}>← 戻る</button>
-              <button className="btn-dark" style={{flex:1}} disabled={!dest} onClick={()=>setStep(3)}>続ける →</button>
+              <button className="btn-outline" onClick={()=>setStep(2)}>← 戻る</button>
+              <button className="btn-dark" style={{flex:1}} disabled={!dest} onClick={()=>setStep(4)}>続ける →</button>
             </div>
           </div>
         )}
 
-        {step===3&&(
+        {step===4&&(
           <div className="fade-in">
             <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:20}}>
               {[
                 {lbl:loggedInFarmer.name,color:C.bark},
+                crop&&{lbl:crop,color:C.bamboo},
                 {lbl:MONTHS[mon],color:C.bamboo},
                 dest&&{lbl:dest.name,color:destColor(dest.name)},
               ].filter(Boolean).map(t=>(
@@ -1258,7 +1289,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                     <span className="f-sans" style={{fontSize:12,color:C.mid,whiteSpace:"nowrap"}}>{f.unit}</span>
                   </div>
                 </div>
-              ))}          
+              ))}
               {rev>0&&<div style={{padding:"12px 16px",background:C.bambooPl,borderRadius:2,border:`1px solid ${C.bamboo}22`,display:"flex",justifyContent:"space-between"}}>
                 <span className="f-sans" style={{fontSize:11,color:C.bamboo}}>売上合計</span>
                 <span className="f-mono" style={{fontSize:18,fontWeight:500,color:C.bamboo}}>{man(rev)}</span>
@@ -1296,13 +1327,13 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button className="btn-outline" onClick={()=>setStep(2)}>← 戻る</button>
+              <button className="btn-outline" onClick={()=>setStep(3)}>← 戻る</button>
               <button className="btn-dark" style={{flex:1,background:saved?C.bamboo:undefined}} disabled={!boxes||!ppb} onClick={save}>
                 {saved?"✓ 保存しました":"保存する"}
               </button>
             </div>
             {saved&&<div style={{marginTop:12,textAlign:"center",display:"grid",gap:8}}>
-              <button onClick={()=>{setStep(1);setSaved(false);setCosts([{l:"",v:"",mode:"fixed"}]);}} className="f-sans" style={{fontSize:12,color:C.mid,background:"none",border:"none",textDecoration:"underline",textUnderlineOffset:3}}>入力を続ける</button>
+              <button onClick={()=>{setStep(1);setSaved(false);setCosts([{l:"",v:"",mode:"fixed"}]);setCrop("");setCropInput("");}} className="f-sans" style={{fontSize:12,color:C.mid,background:"none",border:"none",textDecoration:"underline",textUnderlineOffset:3}}>入力を続ける</button>
               <button onClick={()=>onGoBoard&&onGoBoard()} className="btn-dark" style={{width:"100%"}}>公開ボードを見る →</button>
             </div>}
           </div>
@@ -1595,6 +1626,7 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
       boxes: e.boxes,
       ppb: e.ppb,
       costs: e.costs || [],
+      crop: e.crop,
     }, { onConflict: 'farmer_id,year,month,dest_id' });
     if (error) console.error('records upsert error:', error);
   },[recs]);
