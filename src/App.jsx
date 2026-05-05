@@ -1458,6 +1458,220 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
   );
 }
 
+// ── BenchmarkTab ─────────────────────────────────────────────
+const TIER_LABELS = {
+  "1-3": "就農1〜3年",
+  "4-7": "就農4〜7年",
+  "8+":  "就農8年以上",
+};
+
+function BenchmarkTab({ loggedInFarmer, farmers, records }) {
+  const [copied, setCopied] = useState(false);
+  const myTier = loggedInFarmer.experience_tier || "1-3";
+  const tierLabel = TIER_LABELS[myTier] || myTier;
+  const MIN_FARMERS = 5;
+
+  const median = arr => {
+    if (!arr.length) return 0;
+    const s = [...arr].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
+  const percentile = (arr, val) => {
+    if (!arr.length) return 50;
+    const below = arr.filter(x => x < val).length;
+    return Math.round((below / arr.length) * 100);
+  };
+
+  // 同グループのfarmer一覧
+  const groupFarmers = farmers.filter(f => (f.experience_tier || "1-3") === myTier);
+  const groupCount = groupFarmers.length;
+
+  // farmer別年間集計
+  const calcFarmerTotals = fid => {
+    let rev = 0, cost = 0;
+    MONTHS.forEach((_, mi) => {
+      (records[`${fid}_${THIS_YEAR}_${mi}`] || []).forEach(r => {
+        rev += (r.boxes || 0) * (r.ppb || 0);
+        cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
+      });
+    });
+    return { rev, cost, profit: rev - cost };
+  };
+
+  const myTotals = calcFarmerTotals(loggedInFarmer.id);
+  const groupTotals = groupFarmers.map(f => calcFarmerTotals(f.id));
+  const groupRevs    = groupTotals.map(t => t.rev);
+  const groupCosts   = groupTotals.map(t => t.cost);
+  const groupProfits = groupTotals.map(t => t.profit);
+
+  const medRev    = median(groupRevs);
+  const medCost   = median(groupCosts);
+  const medProfit = median(groupProfits);
+
+  const myRevPct  = percentile(groupRevs,    myTotals.rev);
+  const myProfPct = percentile(groupProfits, myTotals.profit);
+
+  // 出荷先別比較
+  const calcFarmerDestRate = (fid, destId) => {
+    let rev = 0, cost = 0;
+    MONTHS.forEach((_, mi) => {
+      (records[`${fid}_${THIS_YEAR}_${mi}`] || []).filter(r => r.destId === destId).forEach(r => {
+        rev += (r.boxes || 0) * (r.ppb || 0);
+        cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
+      });
+    });
+    return rev > 0 ? Math.round(cost / rev * 100) : null;
+  };
+
+  const myDestIds = [...new Set(
+    MONTHS.flatMap((_, mi) => (records[`${loggedInFarmer.id}_${THIS_YEAR}_${mi}`] || []).map(r => r.destId))
+  )].filter(Boolean);
+
+  const destComparisons = myDestIds.map(destId => {
+    const myRate = calcFarmerDestRate(loggedInFarmer.id, destId);
+    const groupRates = groupFarmers
+      .map(f => calcFarmerDestRate(f.id, destId))
+      .filter(r => r !== null);
+    return { destId, myRate, medRate: Math.round(median(groupRates)), groupN: groupRates.length };
+  }).filter(d => d.myRate !== null);
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText("https://chitose-bank.com").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const hasEnoughData = groupCount >= MIN_FARMERS;
+  const need = MIN_FARMERS - groupCount;
+
+  // バーチャートの幅計算
+  const barMax = Math.max(Math.max(...groupRevs, 1), myTotals.rev, medRev) * 1.1;
+
+  const CompareRow = ({ label, myVal, medVal, myPct }) => {
+    const myW  = myVal  / barMax * 100;
+    const medW = medVal / barMax * 100;
+    const col  = myVal >= medVal ? C.bamboo : C.shu;
+    return (
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <span className="f-sans" style={{ fontSize: 11, color: C.mid }}>{label}</span>
+          {myPct !== undefined && (
+            <span className="f-sans" style={{ fontSize: 10, color: col, fontWeight: 700 }}>上位{100 - myPct}%</span>
+          )}
+        </div>
+        <div style={{ position: "relative", height: 28 }}>
+          {/* 自分のバー */}
+          <div style={{ position: "absolute", top: 0, left: 0, width: `${myW}%`, height: 12, background: col, borderRadius: 3, opacity: 0.85 }} />
+          {/* グループ中央値バー */}
+          <div style={{ position: "absolute", top: 14, left: 0, width: `${medW}%`, height: 12, background: C.rule, borderRadius: 3 }} />
+          {/* 中央値ライン */}
+          <div style={{ position: "absolute", top: 0, left: `${medW}%`, width: 2, height: 28, background: C.gold, borderRadius: 1 }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+          <div style={{ display: "flex", gap: 14 }}>
+            <span className="f-mono" style={{ fontSize: 11, color: col }}>自分 {man(myVal)}</span>
+            <span className="f-mono" style={{ fontSize: 11, color: C.ghost }}>中央値 {man(medVal)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="appear" style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 24 }}>
+
+      {/* 1. グループ表示 */}
+      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+          <span style={{ fontSize: 24 }}>🌾</span>
+          <div>
+            <p className="f-serif" style={{ fontSize: 16, fontWeight: 700, color: C.ink }}>あなたは{tierLabel}グループです</p>
+            <p className="f-sans" style={{ fontSize: 11, color: C.mid, marginTop: 3 }}>同グループの参加者 {groupCount} 名</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2 or 3. データ十分/不十分 */}
+      {hasEnoughData ? (
+        <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
+          <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 20 }}>同グループとの比較（{THIS_YEAR}年 年間）</p>
+          <div style={{ padding: "12px 16px", background: C.ivory, borderRadius: 10, marginBottom: 20, display: "flex", flexWrap: "wrap", gap: 20 }}>
+            {[
+              { l: "売上", my: myTotals.rev, med: medRev, pct: myRevPct },
+              { l: "経費", my: myTotals.cost, med: medCost },
+              { l: "利益", my: myTotals.profit, med: medProfit, pct: myProfPct },
+            ].map(row => (
+              <div key={row.l} style={{ flex: "1 1 120px" }}>
+                <p className="f-sans" style={{ fontSize: 9, color: C.ghost, marginBottom: 3 }}>{row.l}</p>
+                <p className="f-mono" style={{ fontSize: 17, fontWeight: 700, color: C.ink }}>{man(row.my)}</p>
+                <p className="f-sans" style={{ fontSize: 9, color: C.ghost }}>中央値 {man(row.med)}</p>
+              </div>
+            ))}
+          </div>
+          <CompareRow label="売上"  myVal={myTotals.rev}    medVal={medRev}    myPct={myRevPct} />
+          <CompareRow label="経費"  myVal={myTotals.cost}   medVal={medCost} />
+          <CompareRow label="利益"  myVal={myTotals.profit} medVal={medProfit} myPct={myProfPct} />
+          <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+            <span className="f-sans" style={{ fontSize: 10, color: C.mid, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 28, height: 8, borderRadius: 2, background: C.bamboo, display: "inline-block", opacity: 0.85 }} />自分
+            </span>
+            <span className="f-sans" style={{ fontSize: 10, color: C.mid, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 28, height: 8, borderRadius: 2, background: C.rule, display: "inline-block" }} />グループ中央値
+            </span>
+            <span className="f-sans" style={{ fontSize: 10, color: C.gold, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 2, height: 16, background: C.gold, display: "inline-block", borderRadius: 1 }} />中央値ライン
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="ledger-card" style={{ padding: 28, background: C.cream, borderRadius: 12, textAlign: "center" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
+          <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 8 }}>ベンチマークを解放しましょう</p>
+          <p className="f-sans" style={{ fontSize: 12, color: C.mid, lineHeight: 1.9, marginBottom: 20 }}>
+            あなたのグループにはあと <strong style={{ color: C.gold }}>{need}</strong> 人必要です。<br />仲間を招待してベンチマークを解放しましょう。
+          </p>
+          <button onClick={copyUrl} className="btn-gold" style={{ padding: "12px 28px", fontSize: 13 }}>
+            {copied ? "✓ コピーしました" : "招待URLをコピー"}
+          </button>
+        </div>
+      )}
+
+      {/* 4. 出荷先別経費率比較 */}
+      {destComparisons.length > 0 && (
+        <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
+          <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 20 }}>出荷先別 経費率（自分 vs グループ中央値）</p>
+          {destComparisons.map(d => {
+            const myR  = d.myRate;
+            const medR = d.medRate;
+            const maxR = Math.max(myR, medR, 1);
+            const myCol  = myR <= medR ? C.bamboo : C.shu;
+            return (
+              <div key={d.destId} style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span className="f-sans" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>{d.destId}</span>
+                  <span className="f-sans" style={{ fontSize: 10, color: C.ghost }}>{d.groupN}農家のデータ</span>
+                </div>
+                <div style={{ position: "relative", height: 28 }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, width: `${myR / maxR * 90}%`, height: 12, background: myCol, borderRadius: 3, opacity: 0.85 }} />
+                  <div style={{ position: "absolute", top: 14, left: 0, width: `${medR / maxR * 90}%`, height: 12, background: C.rule, borderRadius: 3 }} />
+                  <div style={{ position: "absolute", top: 0, left: `${medR / maxR * 90}%`, width: 2, height: 28, background: C.gold, borderRadius: 1 }} />
+                </div>
+                <div style={{ display: "flex", gap: 14, marginTop: 4 }}>
+                  <span className="f-mono" style={{ fontSize: 11, color: myCol }}>自分 {myR}%</span>
+                  <span className="f-mono" style={{ fontSize: 11, color: C.ghost }}>中央値 {medR}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+    </div>
+  );
+}
+
 // ── AdminTab ─────────────────────────────────────────────────
 function AdminTab({destPending,destApproved,farmers,farmersPending,onApprove,onReject,onApproveFarmer,onRejectFarmer}){
   const [pw,setPw]=useState("");const[ok,setOk]=useState(false);const[err,setErr]=useState(false);
@@ -1783,7 +1997,7 @@ const subDest=useCallback(async d=>{
   const TABS=[
     {k:"board",l:"公開ボード"},
     {k:"input",l:me?"データ入力":"🔒 データ入力",locked:!me},
-    ...(me?[{k:"ledger",l:"マイ台帳"}]:[]),
+    ...(me?[{k:"ledger",l:"マイ台帳"},{k:"benchmark",l:"ベンチマーク"}]:[]),
     {k:"admin",l:"管理",badge:badgeCnt},
   ];
 
@@ -1866,6 +2080,7 @@ const subDest=useCallback(async d=>{
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");}} onGoRegister={()=>setAuthV("register")}/>
         )}
         {tab==="ledger"&&me&&<MyLedger loggedInFarmer={me} records={recs} destApproved={destOk}/>}
+        {tab==="benchmark"&&me&&<BenchmarkTab loggedInFarmer={me} farmers={farmers} records={recs}/>}
         {tab==="admin"&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
