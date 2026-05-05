@@ -790,130 +790,84 @@ function RegisterScreen({ onGoLogin, onSubmit }) {
 function BoardTab({ farmers, destApproved, records }) {
   const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
 
-  // 全体集計
-  const allRecs = farmers.flatMap(f =>
-    MONTHS.flatMap((_,i) => records[`${f.id}_${THIS_YEAR}_${i}`] || [])
-  );
-  const totalRev   = allRecs.reduce((s,e) => s + e.boxes*e.ppb, 0);
-  const totalCst   = allRecs.reduce((s,e) => s + e.costs.reduce((a,c)=>a+c.a,0), 0);
-  const hasAnyData = totalRev > 0;
+  const median = arr => {
+    if (!arr.length) return 0;
+    const s = [...arr].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
 
-  // 産地経費ランキング
-  const costMap = {};
-  allRecs.forEach(e => e.costs.forEach(c => { if(c.l) costMap[c.l]=(costMap[c.l]||0)+c.a; }));
-  const topCosts = Object.entries(costMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const allFarmerRecs = farmers.map(f => ({
+    id: f.id,
+    recs: MONTHS.flatMap((_, i) => records[`${f.id}_${THIS_YEAR}_${i}`] || []),
+  }));
+
+  // 作物別集計（農家単位）
+  const cropFarmerMap = {};
+  allFarmerRecs.forEach(({ id, recs }) => {
+    recs.forEach(r => {
+      const crop = r.crop || "";
+      if (!crop) return;
+      if (!cropFarmerMap[crop]) cropFarmerMap[crop] = {};
+      if (!cropFarmerMap[crop][id]) cropFarmerMap[crop][id] = { rev: 0, cost: 0 };
+      cropFarmerMap[crop][id].rev += (r.boxes || 0) * (r.ppb || 0);
+      cropFarmerMap[crop][id].cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
+    });
+  });
+  const cropCards = Object.entries(cropFarmerMap).map(([crop, fm]) => {
+    const entries = Object.values(fm);
+    const revs = entries.map(e => e.rev);
+    const costs = entries.map(e => e.cost);
+    const profits = entries.map(e => e.rev - e.cost);
+    const rates = entries.filter(e => e.rev > 0).map(e => Math.round(e.cost / e.rev * 100));
+    return { crop, count: entries.length, medRev: median(revs), medCost: median(costs), medProfit: median(profits), medRate: Math.round(median(rates)) };
+  }).sort((a, b) => b.count - a.count);
+
+  // 出荷先別集計（農家単位）
+  const destFarmerMap = {};
+  allFarmerRecs.forEach(({ id, recs }) => {
+    recs.forEach(r => {
+      if (!r.destId) return;
+      if (!destFarmerMap[r.destId]) destFarmerMap[r.destId] = {};
+      if (!destFarmerMap[r.destId][id]) destFarmerMap[r.destId][id] = { rev: 0, cost: 0 };
+      destFarmerMap[r.destId][id].rev += (r.boxes || 0) * (r.ppb || 0);
+      destFarmerMap[r.destId][id].cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
+    });
+  });
+  const destCards = Object.entries(destFarmerMap).map(([destId, fm]) => {
+    const entries = Object.values(fm);
+    const rates = entries.filter(e => e.rev > 0).map(e => Math.round(e.cost / e.rev * 100));
+    return { destId, name: destMap[destId]?.name || "不明", count: entries.length, medRate: Math.round(median(rates)) };
+  }).sort((a, b) => b.count - a.count);
+
+  const lastUpdated = new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"2-digit", day:"2-digit" });
+  const MIN_FARMERS = 5;
 
   return (
     <div className="appear">
 
       {/* ══ HERO ══════════════════════════════════════════ */}
       <div style={{
-        background: C.cream,
-        border:`1px solid ${C.rule}`,
-        borderRadius:12,
-        padding:"44px 40px 36px",
-        marginBottom:24,
-        position:"relative",
-        overflow:"hidden",
+        background: C.cream, border:`1px solid ${C.rule}`, borderRadius:12,
+        padding:"44px 40px 36px", marginBottom:24,
+        position:"relative", overflow:"hidden",
         boxShadow:"0 2px 16px rgba(8,6,4,.06)",
       }}>
-        {/* 装飾：右上の円 */}
-        <div style={{
-          position:"absolute", top:-60, right:-60,
-          width:240, height:240, borderRadius:"50%",
-          background:`${C.gold}07`,
-          pointerEvents:"none",
-        }}/>
-        <div style={{
-          position:"absolute", bottom:-40, left:120,
-          width:140, height:140, borderRadius:"50%",
-          background:`${C.bamboo}05`,
-          pointerEvents:"none",
-        }}/>
-
+        <div style={{ position:"absolute", top:-60, right:-60, width:240, height:240, borderRadius:"50%", background:`${C.gold}07`, pointerEvents:"none" }}/>
+        <div style={{ position:"absolute", bottom:-40, left:120, width:140, height:140, borderRadius:"50%", background:`${C.bamboo}05`, pointerEvents:"none" }}/>
         <div style={{ position:"relative", zIndex:1 }}>
-          <div className="hero-row" style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:32 }}>
-
-            {/* 左：キャッチ＋CTA */}
-            <div style={{ maxWidth:460 }}>
-              <div className="f-sans" style={{
-                fontSize:9, letterSpacing:".2em", color:C.dim,
-                textTransform:"uppercase", marginBottom:14,
-              }}>
-                {THIS_YEAR} · 吉野川 · ブロッコリー · {farmers.length}農家
-              </div>
-              <h1 className="f-serif" style={{
-                fontSize:36, fontWeight:800, color:C.ink,
-                lineHeight:1.3, letterSpacing:".03em", marginBottom:14, margin:"0 0 14px",
-              }}>
-                日本農業研究所。
-              </h1>
-              <p className="f-sans" style={{
-                fontSize:14, color:C.mid,
-                lineHeight:1.8, marginBottom:28,
-              }}>
-                吉野川の農家が、実際の経費を公開するサイトです。
-              </p>
-              <div className="hero-cta" style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                <button className="btn-gold" style={{ padding:"12px 24px", fontSize:13 }}>経費を見る ↓</button>
-                <button className="btn-dark" style={{ padding:"12px 24px", fontSize:13 }}>データを入力する →</button>
-              </div>
-            </div>
-
-            {/* 右：経費ランキング TOP3 ミニプレビュー */}
-            <div style={{ flex:"0 0 220px", minWidth:200 }}>
-              <div className="f-sans" style={{
-                fontSize:9, fontWeight:700, letterSpacing:".14em",
-                textTransform:"uppercase", color:C.gold, marginBottom:12,
-              }}>経費ランキング TOP3</div>
-              <div style={{ display:"grid", gap:8 }}>
-                {topCosts.length > 0 ? topCosts.slice(0, 3).map(([label, total], i) => (
-                  <div key={label} style={{
-                    display:"flex", alignItems:"center", gap:10,
-                    padding:"10px 14px",
-                    background:"#fff",
-                    border:`1px solid ${C.rule}`,
-                    borderRadius:12,
-                  }}>
-                    <div className="f-mono" style={{ fontSize:10, color:C.dim, width:14, textAlign:"center" }}>{i+1}</div>
-                    <div className="f-sans" style={{ fontSize:12, color:C.ink, flex:1, fontWeight:500 }}>{label}</div>
-                    <div className="f-mono" style={{ fontSize:12, color:C.gold, fontWeight:500 }}>{man(total)}</div>
-                  </div>
-                )) : [
-                  { lbl:"運　　賃" }, { lbl:"資材費" }, { lbl:"市場手数料" },
-                ].map(({ lbl }, i) => (
-                  <div key={i} style={{
-                    display:"flex", alignItems:"center", gap:10,
-                    padding:"10px 14px",
-                    background:"#fff",
-                    border:`1px solid ${C.rule}`,
-                    borderRadius:12,
-                    opacity: 1 - i * .1,
-                  }}>
-                    <div className="f-mono" style={{ fontSize:10, color:`${C.gold}40`, width:14, textAlign:"center" }}>{i+1}</div>
-                    <div className="f-sans" style={{ fontSize:12, color:`${C.mid}55`, flex:1 }}>{lbl}</div>
-                    <div className="f-mono" style={{ fontSize:12, color:`${C.gold}35` }}>——</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="f-sans" style={{ fontSize:9, letterSpacing:".2em", color:C.dim, textTransform:"uppercase", marginBottom:14 }}>
+            {THIS_YEAR} · 吉野川 · {farmers.length}農家
           </div>
-
-          {/* フッター注記 */}
-          <div style={{
-            marginTop:28, paddingTop:16,
-            borderTop:`1px solid ${C.rule}`,
-            display:"flex", alignItems:"center", gap:16, flexWrap:"wrap",
-          }}>
-            {[
-              "個人名は非公開",
-              "格付け・ランキングを目的としない",
-              "データは農家本人が入力",
-            ].map(t => (
-              <span key={t} className="f-sans" style={{
-                fontSize:9, color:C.ghost, letterSpacing:".08em",
-                display:"flex", alignItems:"center", gap:5,
-              }}>
+          <h1 className="f-serif" style={{ fontSize:36, fontWeight:800, color:C.ink, lineHeight:1.3, letterSpacing:".03em", margin:"0 0 14px" }}>
+            日本農業研究所。
+          </h1>
+          <p className="f-sans" style={{ fontSize:14, color:C.mid, lineHeight:1.8, marginBottom:28 }}>
+            吉野川の農家が、実際の経費を公開するサイトです。
+          </p>
+          <div style={{ marginTop:28, paddingTop:16, borderTop:`1px solid ${C.rule}`, display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
+            {["個人名は非公開","格付け・ランキングを目的としない","データは農家本人が入力"].map(t => (
+              <span key={t} className="f-sans" style={{ fontSize:9, color:C.ghost, letterSpacing:".08em", display:"flex", alignItems:"center", gap:5 }}>
                 <span style={{ width:3, height:3, borderRadius:"50%", background:C.ghost, display:"inline-block" }}/>
                 {t}
               </span>
@@ -922,26 +876,28 @@ function BoardTab({ farmers, destApproved, records }) {
         </div>
       </div>
 
+      {/* ══ 参加状況バナー ══════════════════════════════ */}
+      <div style={{
+        padding:"14px 20px", background:C.ivory, border:`1px solid ${C.rule}`,
+        borderRadius:12, marginBottom:28,
+        display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8,
+      }}>
+        <span className="f-sans" style={{ fontSize:13, color:C.ink }}>
+          現在 <strong style={{ color:C.bamboo }}>{farmers.length}</strong> 名の農家が参加中
+        </span>
+        <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>最終更新 {lastUpdated}</span>
+      </div>
+
       {/* ══ 使い方 ══════════════════════════════════════ */}
       <div style={{ marginBottom:32 }}>
-        <div className="f-sans" style={{
-          fontSize:9, fontWeight:700, letterSpacing:".14em",
-          textTransform:"uppercase", color:C.dim, marginBottom:16, textAlign:"center",
-        }}>使い方</div>
+        <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:16, textAlign:"center" }}>使い方</div>
         <div className="how-to-grid" style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
           {[
             { step:"①", title:"登録（10秒）", desc:"メールアドレスを入力するだけ。管理者承認後すぐ使えます。" },
             { step:"②", title:"経費入力（3分）", desc:"月ごとに出荷箱数・単価・経費項目を入力します。" },
-            { step:"③", title:"産地全体で比較", desc:"経費ランキングで産地の実態をリアルタイムで確認できます。" },
+            { step:"③", title:"産地全体で比較", desc:"作物別・出荷先別の中央値で産地の実態を確認できます。" },
           ].map((s, i) => (
-            <div key={i} style={{
-              flex:"1 1 200px",
-              padding:"20px 22px",
-              background:C.cream,
-              border:`1px solid ${C.rule}`,
-              borderRadius:12,
-              textAlign:"center",
-            }}>
+            <div key={i} style={{ flex:"1 1 200px", padding:"20px 22px", background:C.cream, border:`1px solid ${C.rule}`, borderRadius:12, textAlign:"center" }}>
               <div className="f-mono" style={{ fontSize:28, color:C.gold, marginBottom:10, fontWeight:500 }}>{s.step}</div>
               <div className="f-serif" style={{ fontSize:14, fontWeight:700, color:C.ink, marginBottom:8 }}>{s.title}</div>
               <div className="f-sans" style={{ fontSize:12, color:C.mid, lineHeight:1.8 }}>{s.desc}</div>
@@ -950,146 +906,97 @@ function BoardTab({ farmers, destApproved, records }) {
         </div>
       </div>
 
-      {/* ══ 経費ランキング ══════════════════════════════════ */}
+      {/* ══ 作物別中央値カルーセル ══════════════════════ */}
       <div style={{ marginBottom:32 }}>
-        <div style={{
-          padding:"24px 28px",
-          background:C.goldPl,
-          border:`1px solid ${C.gold}28`,
-          borderRadius:12,
-        }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-            <div>
-              <div className="f-sans" style={{
-                fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase",
-                color:C.gold, marginBottom:5,
-              }}>産地全体 — 経費ランキング</div>
-              <div className="f-serif" style={{ fontSize:13, color:C.ink, letterSpacing:".03em" }}>
-                何に、いくらかかっているか
-              </div>
-            </div>
-            <span className="tag f-sans" style={{
-              background:C.gold, color:"#fff", fontSize:8,
-            }}>COST</span>
-          </div>
-
-          {topCosts.length > 0 ? (
-            <div className="stagger" style={{ display:"grid", gap:12 }}>
-              {topCosts.map(([label, total], i) => {
-                const max = topCosts[0][1];
-                const w   = total / max * 100;
+        <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>作物別 集計（中央値）</div>
+        {cropCards.length === 0
+          ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
+          : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
+              {cropCards.map(c => {
+                const masked = c.count < MIN_FARMERS;
                 return (
-                  <div key={label} className="appear" style={{
-                    display:"grid",
-                    gridTemplateColumns:"20px 88px 1fr 72px",
-                    alignItems:"center", gap:12,
+                  <div key={c.crop} style={{
+                    flexShrink:0, width:200, padding:"18px 18px 16px",
+                    background:C.cream, border:`1px solid ${C.rule}`, borderRadius:12,
+                    boxShadow:"0 1px 6px rgba(8,6,4,.05)",
                   }}>
-                    <div className="f-mono" style={{ fontSize:10, color:C.dim, textAlign:"center" }}>
-                      {i+1}
-                    </div>
-                    <div className="f-sans" style={{ fontSize:12, fontWeight:500, color:C.ink }}>
-                      {label}
-                    </div>
-                    <div style={{ height:6, background:C.ivory, borderRadius:4, overflow:"hidden" }}>
-                      <div style={{
-                        height:6, background:`linear-gradient(90deg, ${C.gold}, ${C.goldLt})`,
-                        width:`${w}%`, borderRadius:4,
-                        animation:"appear .6s ease both",
-                        animationDelay:`${.3+i*.08}s`,
-                      }}/>
-                    </div>
-                    <div className="f-mono" style={{
-                      fontSize:13, fontWeight:500, color:C.gold, textAlign:"right",
-                    }}>{man(total)}</div>
+                    <p className="f-serif" style={{ fontSize:15, fontWeight:700, color:C.ink, marginBottom:4 }}>{c.crop}</p>
+                    <p className="f-sans" style={{ fontSize:10, color:C.ghost, marginBottom:12 }}>{c.count}農家が入力</p>
+                    {masked ? (
+                      <div style={{ padding:"12px 10px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
+                        <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中<br/>（あと{MIN_FARMERS - c.count}人）</p>
+                      </div>
+                    ) : (
+                      <div style={{ display:"grid", gap:6 }}>
+                        {[{l:"売上中央値",v:man(c.medRev),col:C.bamboo},{l:"経費中央値",v:man(c.medCost),col:C.gold},{l:"利益中央値",v:man(c.medProfit),col:c.medProfit>=0?C.bamboo:C.shu},{l:"経費率中央値",v:`${c.medRate}%`,col:C.mid}].map(row => (
+                          <div key={row.l} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+                            <span className="f-sans" style={{ fontSize:9, color:C.ghost }}>{row.l}</span>
+                            <span className="f-mono" style={{ fontSize:13, fontWeight:600, color:row.col }}>{row.v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
-              <div style={{
-                display:"grid",
-                gridTemplateColumns:"20px 88px 1fr 72px",
-                alignItems:"center", gap:12,
-                marginTop:12, paddingTop:12,
-                borderTop:`2px solid ${C.gold}`,
-              }}>
-                <div/>
-                <div className="f-sans" style={{ fontSize:12, fontWeight:700, color:C.ink }}>合計</div>
-                <div/>
-                <div className="f-mono" style={{
-                  fontSize:15, fontWeight:700, color:C.gold, textAlign:"right",
-                }}>{man(topCosts.reduce((s,c)=>s+c[1],0))}</div>
-              </div>
             </div>
-          ) : (
-            /* 空の状態 — 何が入るかを示す */
-            <div>
-              <div style={{ display:"grid", gap:12, marginBottom:16 }}>
-                {[
-                  { lbl:"運　　賃", w:100 },
-                  { lbl:"資材費",   w:72 },
-                  { lbl:"市場手数料", w:55 },
-                  { lbl:"包装費",   w:40 },
-                  { lbl:"燃料費",   w:28 },
-                ].map(({ lbl, w }, i) => (
-                  <div key={i} style={{
-                    display:"grid", gridTemplateColumns:"20px 88px 1fr 72px",
-                    alignItems:"center", gap:12, opacity:1-i*.14,
+        }
+      </div>
+
+      {/* ══ 出荷先別経費率カルーセル ════════════════════ */}
+      <div style={{ marginBottom:32 }}>
+        <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>出荷先別 経費率（中央値）</div>
+        {destCards.length === 0
+          ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
+          : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
+              {destCards.map(d => {
+                const masked = d.count < MIN_FARMERS;
+                const rate = Math.min(d.medRate, 100);
+                const r = 36, inner = 24, sz = 90;
+                const cx2 = sz / 2, cy2 = sz / 2;
+                const circ = 2 * Math.PI * r;
+                const dash = circ * rate / 100;
+                const rateCol = rate < 30 ? C.bamboo : rate < 50 ? C.gold : C.shu;
+                return (
+                  <div key={d.destId} style={{
+                    flexShrink:0, width:160, padding:"18px 14px 16px",
+                    background:C.cream, border:`1px solid ${C.rule}`, borderRadius:12,
+                    boxShadow:"0 1px 6px rgba(8,6,4,.05)",
+                    display:"flex", flexDirection:"column", alignItems:"center", gap:10,
                   }}>
-                    <div className="f-mono" style={{ fontSize:10, color:`${C.gold}40`, textAlign:"center" }}>{i+1}</div>
-                    <div className="f-sans" style={{ fontSize:12, color:`${C.mid}60` }}>{lbl}</div>
-                    <div style={{ height:6, background:C.ivory, borderRadius:4, overflow:"hidden" }}>
-                      <div style={{
-                        height:6,
-                        background:`linear-gradient(90deg, ${C.gold}30, ${C.gold}18)`,
-                        width:`${w}%`, borderRadius:4,
-                      }}/>
-                    </div>
-                    <div className="f-mono" style={{ fontSize:13, color:`${C.gold}35`, textAlign:"right" }}>——</div>
+                    <DestMark name={d.name} sz={28} showLabel={false} />
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:C.ink, textAlign:"center", lineHeight:1.4 }}>{d.name}</p>
+                    {masked ? (
+                      <div style={{ padding:"10px 8px", background:C.ivory, borderRadius:8, textAlign:"center", width:"100%" }}>
+                        <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中<br/>（あと{MIN_FARMERS - d.count}人）</p>
+                      </div>
+                    ) : (
+                      <>
+                        <svg width={sz} height={sz}>
+                          <circle cx={cx2} cy={cy2} r={r} fill="none" stroke={C.ivory} strokeWidth={12} />
+                          <circle cx={cx2} cy={cy2} r={r} fill="none" stroke={rateCol} strokeWidth={12}
+                            strokeDasharray={`${dash} ${circ}`} strokeDashoffset={circ * 0.25}
+                            strokeLinecap="round" opacity={0.85} />
+                          <text x={cx2} y={cy2 - 4} textAnchor="middle" fontSize={14} fontWeight="700" fill={rateCol} fontFamily="'DM Mono',monospace">{rate}%</text>
+                          <text x={cx2} y={cy2 + 11} textAnchor="middle" fontSize={8} fill={C.ghost} fontFamily="'Zen Kaku Gothic New',sans-serif">経費率</text>
+                        </svg>
+                        <p className="f-sans" style={{ fontSize:9, color:C.ghost }}>{d.count}農家</p>
+                      </>
+                    )}
                   </div>
-                ))}
-              </div>
-              <p className="f-sans" style={{
-                fontSize:11, color:C.dim, lineHeight:1.9,
-                paddingTop:14, borderTop:`1px dashed ${C.rule}`,
-              }}>
-                農家がデータを入力すると、<strong style={{ color:C.gold }}>何にいくらかかっているか</strong>が
-                産地全体でランキング表示されます。
-                就農を考える人が最初に知るべき情報です。
-              </p>
+                );
+              })}
             </div>
-          )}
-        </div>
+        }
       </div>
 
-      {/* ══ 農家カード ══════════════════════════════════════ */}
-      <div style={{ marginBottom:14 }}>
-        <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:18 }}>
-          <div className="f-serif" style={{ fontSize:15, color:C.ink, letterSpacing:".04em" }}>
-            農家の記録
-          </div>
-          <div className="f-sans" style={{ fontSize:9, color:C.ghost, letterSpacing:".1em", textTransform:"uppercase" }}>
-            {THIS_YEAR}年 · {farmers.length}名
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display:"grid", gap:10 }}>
-        {farmers.map((farmer, fi) => {
-          const allFRecs = MONTHS.flatMap((_,i) => records[`${farmer.id}_${THIS_YEAR}_${i}`] || []);
-          const hasData  = allFRecs.some(e=>e.boxes*e.ppb>0);
-          if (!hasData) return <GhostCard key={farmer.id} index={fi}/>;
-          return <FarmerCard key={farmer.id} farmer={farmer} fi={fi} records={records} destMap={destMap}/>;
-        })}
-      </div>
-
-      {/* 注記 */}
-      <div style={{
-        marginTop:32, padding:"12px 18px",
-        borderTop:`1px solid ${C.rule}`,
-      }}>
+      {/* ══ 注記 ════════════════════════════════════════ */}
+      <div style={{ marginTop:8, padding:"12px 18px", borderTop:`1px solid ${C.rule}` }}>
         <p className="f-sans" style={{ fontSize:10, color:C.ghost, lineHeight:1.9 }}>
-          ⚠ このデータは農家本人が入力した参考値です。実際の契約・手数料内容は個別に異なります。格付け・ランキングを目的とするものではありません。
+          このデータは参加農家の入力に基づく集計値です。個人の情報は公開されません。
         </p>
       </div>
+
     </div>
   );
 }
