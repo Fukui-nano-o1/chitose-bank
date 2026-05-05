@@ -1343,6 +1343,214 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   );
 }
 
+// ── MyLedger ─────────────────────────────────────────────────
+function MyLedger({ loggedInFarmer, records, destApproved }) {
+  const fid = loggedInFarmer.id;
+
+  const getMonthData = (year, mi) => {
+    const rs = records[`${fid}_${year}_${mi}`] || [];
+    let rev = 0, cost = 0;
+    rs.forEach(r => {
+      rev += (r.boxes || 0) * (r.ppb || 0);
+      cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
+    });
+    return { rev, cost, profit: rev - cost };
+  };
+
+  const monthlyData = MONTHS.map((label, mi) => ({ label, mi, ...getMonthData(THIS_YEAR, mi) }));
+
+  const destMap = {};
+  Object.entries(records).forEach(([k, arr]) => {
+    if (!k.startsWith(fid + "_")) return;
+    arr.forEach(r => {
+      if (!destMap[r.destId]) destMap[r.destId] = { rev: 0, cost: 0 };
+      destMap[r.destId].rev += (r.boxes || 0) * (r.ppb || 0);
+      destMap[r.destId].cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
+    });
+  });
+  const destCards = Object.entries(destMap).map(([id, d]) => {
+    const dest = destApproved.find(x => x.id === id);
+    const profit = d.rev - d.cost;
+    const costRate = d.rev > 0 ? Math.round(d.cost / d.rev * 100) : 0;
+    return { id, name: dest?.name || "不明", ...d, profit, costRate };
+  }).sort((a, b) => a.costRate - b.costRate);
+
+  const curMi = new Date().getMonth();
+  const curData = getMonthData(THIS_YEAR, curMi);
+  const prevData = getMonthData(THIS_YEAR - 1, curMi);
+  const hasPrev = (records[`${fid}_${THIS_YEAR - 1}_${curMi}`] || []).length > 0;
+
+  const costLabels = {};
+  Object.entries(records).forEach(([k, arr]) => {
+    if (!k.startsWith(fid + "_")) return;
+    arr.forEach(r => {
+      (r.costs || []).forEach(c => {
+        if (!c.l) return;
+        costLabels[c.l] = (costLabels[c.l] || 0) + (c.a || 0);
+      });
+    });
+  });
+  const costItems = Object.entries(costLabels).sort((a, b) => b[1] - a[1]);
+  const totalCost = costItems.reduce((s, [, v]) => s + v, 0);
+
+  const CHART_COLORS = ["#2D5A1B","#C8890A","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F"];
+
+  // SVG bar chart dimensions
+  const chartW = 560, chartH = 200, padL = 44, padB = 28, padT = 10, padR = 8;
+  const innerW = chartW - padL - padR;
+  const innerH = chartH - padB - padT;
+  const maxVal = Math.max(...monthlyData.map(d => Math.max(d.rev, d.cost)), 1);
+  const barGrp = innerW / 12;
+  const barW = barGrp * 0.24;
+
+  // Donut chart
+  const donutR = 70, donutInner = 44, cx = 90, cy = 90;
+  let angle = -Math.PI / 2;
+  const slices = costItems.map(([label, val], i) => {
+    const frac = totalCost > 0 ? val / totalCost : 0;
+    const a1 = angle, a2 = angle + frac * 2 * Math.PI;
+    angle = a2;
+    const x1 = cx + donutR * Math.cos(a1), y1 = cy + donutR * Math.sin(a1);
+    const x2 = cx + donutR * Math.cos(a2), y2 = cy + donutR * Math.sin(a2);
+    const xi1 = cx + donutInner * Math.cos(a1), yi1 = cy + donutInner * Math.sin(a1);
+    const xi2 = cx + donutInner * Math.cos(a2), yi2 = cy + donutInner * Math.sin(a2);
+    const large = frac > 0.5 ? 1 : 0;
+    return { label, val, color: CHART_COLORS[i % CHART_COLORS.length], x1, y1, x2, y2, xi1, yi1, xi2, yi2, large };
+  });
+
+  return (
+    <div className="appear" style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 24 }}>
+
+      {/* 1. 月次推移グラフ */}
+      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
+        <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>月次推移（{THIS_YEAR}年）</p>
+        <div style={{ overflowX: "auto" }}>
+          <svg width={chartW} height={chartH} style={{ display: "block", minWidth: 320 }}>
+            {[0, 0.25, 0.5, 0.75, 1].map(t => {
+              const y = padT + innerH * (1 - t);
+              const val = Math.round(maxVal * t);
+              return (
+                <g key={t}>
+                  <line x1={padL} x2={padL + innerW} y1={y} y2={y} stroke={C.rule} strokeWidth={0.5} />
+                  <text x={padL - 4} y={y + 3} textAnchor="end" fontSize={8} fill={C.ghost} fontFamily="'DM Mono',monospace">
+                    {val >= 10000 ? `${(val / 10000).toFixed(0)}万` : val}
+                  </text>
+                </g>
+              );
+            })}
+            {monthlyData.map((d, i) => {
+              const x = padL + barGrp * i + barGrp * 0.08;
+              const revH = (d.rev / maxVal) * innerH;
+              const costH = (d.cost / maxVal) * innerH;
+              const profH = Math.max(0, (d.profit / maxVal) * innerH);
+              return (
+                <g key={i}>
+                  <rect x={x} y={padT + innerH - revH} width={barW} height={revH} fill={C.bamboo} opacity={0.82} rx={2} />
+                  <rect x={x + barW + 1} y={padT + innerH - costH} width={barW} height={costH} fill={C.gold} opacity={0.82} rx={2} />
+                  <rect x={x + barW * 2 + 2} y={padT + innerH - profH} width={barW} height={profH} fill="#1A3F6B" opacity={0.82} rx={2} />
+                  <text x={padL + barGrp * i + barGrp / 2} y={chartH - 6} textAnchor="middle" fontSize={8} fill={C.mid} fontFamily="'Zen Kaku Gothic New',sans-serif">
+                    {d.label.replace("月", "")}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+        <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+          {[{c:C.bamboo,l:"売上"},{c:C.gold,l:"経費"},{c:"#1A3F6B",l:"利益"}].map(({c,l}) => (
+            <span key={l} className="f-sans" style={{ fontSize: 11, color: C.mid, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: c, display: "inline-block" }} />{l}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* 2. 出荷先別採算 */}
+      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
+        <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>出荷先別採算（経費率 低い順）</p>
+        {destCards.length === 0
+          ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost }}>データがありません</p>
+          : <div style={{ display: "grid", gap: 10 }}>
+              {destCards.map(d => (
+                <div key={d.id} style={{ padding: "14px 16px", border: `1px solid ${C.rule}`, borderRadius: 12, background: "#fff", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+                  <DestMark name={d.name} sz={32} showLabel={false} />
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <p className="f-sans" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>{d.name}</p>
+                    <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 }}>
+                      <span className="f-mono" style={{ fontSize: 11, color: C.bamboo }}>売上 {man(d.rev)}</span>
+                      <span className="f-mono" style={{ fontSize: 11, color: C.gold }}>経費 {man(d.cost)}</span>
+                      <span className="f-mono" style={{ fontSize: 11, color: d.profit >= 0 ? C.bamboo : C.shu }}>利益 {man(d.profit)}</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p className="f-mono" style={{ fontSize: 20, fontWeight: 700, color: d.costRate < 30 ? C.bamboo : d.costRate < 50 ? C.gold : C.shu }}>{d.costRate}%</p>
+                    <p className="f-sans" style={{ fontSize: 9, color: C.ghost }}>経費率</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+        }
+      </div>
+
+      {/* 3. 前年同月比較 */}
+      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
+        <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 4 }}>前年同月比較 — {MONTHS[curMi]}</p>
+        {!hasPrev
+          ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost, marginTop: 12 }}>前年データなし</p>
+          : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginTop: 14 }}>
+              {[{lbl:"売上",cur:curData.rev,prev:prevData.rev},{lbl:"経費",cur:curData.cost,prev:prevData.cost},{lbl:"利益",cur:curData.profit,prev:prevData.profit}].map(row => {
+                const diff = row.cur - row.prev;
+                const up = diff >= 0;
+                const color = row.lbl === "経費" ? (up ? C.shu : C.bamboo) : (up ? C.bamboo : C.shu);
+                return (
+                  <div key={row.lbl} style={{ padding: "12px 14px", background: C.ivory, borderRadius: 10 }}>
+                    <p className="f-sans" style={{ fontSize: 10, color: C.ghost, marginBottom: 4 }}>{row.lbl}</p>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
+                      <span className="f-mono" style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>{man(row.cur)}</span>
+                      <span className="f-sans" style={{ fontSize: 11, color, fontWeight: 700 }}>{up ? "↑" : "↓"} {man(Math.abs(diff))}</span>
+                    </div>
+                    <p className="f-sans" style={{ fontSize: 9, color: C.ghost, marginTop: 2 }}>前年: {man(row.prev)}</p>
+                  </div>
+                );
+              })}
+            </div>
+        }
+      </div>
+
+      {/* 4. 経費内訳ドーナツ */}
+      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
+        <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>経費内訳（全期間）</p>
+        {costItems.length === 0
+          ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost }}>経費データなし</p>
+          : <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center" }}>
+              <svg width={180} height={180} style={{ flexShrink: 0 }}>
+                {slices.map((s, i) => (
+                  <path key={i}
+                    d={`M ${s.xi1} ${s.yi1} L ${s.x1} ${s.y1} A ${donutR} ${donutR} 0 ${s.large} 1 ${s.x2} ${s.y2} L ${s.xi2} ${s.yi2} A ${donutInner} ${donutInner} 0 ${s.large} 0 ${s.xi1} ${s.yi1} Z`}
+                    fill={s.color} opacity={0.88}
+                  />
+                ))}
+                <text x={cx} y={cy - 5} textAnchor="middle" fontSize={9} fill={C.ghost} fontFamily="'Zen Kaku Gothic New',sans-serif">合計経費</text>
+                <text x={cx} y={cy + 11} textAnchor="middle" fontSize={13} fontWeight="700" fill={C.ink} fontFamily="'DM Mono',monospace">{man(totalCost)}</text>
+              </svg>
+              <div style={{ display: "grid", gap: 8, flex: 1, minWidth: 140 }}>
+                {costItems.map(([label, val], i) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 2, background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
+                    <span className="f-sans" style={{ fontSize: 11, color: C.mid, flex: 1 }}>{label}</span>
+                    <span className="f-mono" style={{ fontSize: 11, color: C.ink }}>{man(val)}</span>
+                    <span className="f-sans" style={{ fontSize: 9, color: C.ghost }}>{totalCost > 0 ? Math.round(val / totalCost * 100) : 0}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+        }
+      </div>
+
+    </div>
+  );
+}
+
 // ── AdminTab ─────────────────────────────────────────────────
 function AdminTab({destPending,destApproved,farmers,farmersPending,onApprove,onReject,onApproveFarmer,onRejectFarmer}){
   const [pw,setPw]=useState("");const[ok,setOk]=useState(false);const[err,setErr]=useState(false);
@@ -1668,6 +1876,7 @@ const subDest=useCallback(async d=>{
   const TABS=[
     {k:"board",l:"公開ボード"},
     {k:"input",l:me?"データ入力":"🔒 データ入力",locked:!me},
+    ...(me?[{k:"ledger",l:"マイ台帳"}]:[]),
     {k:"admin",l:"管理",badge:badgeCnt},
   ];
 
@@ -1749,6 +1958,7 @@ const subDest=useCallback(async d=>{
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");}} onGoRegister={()=>setAuthV("register")}/>
         )}
+        {tab==="ledger"&&me&&<MyLedger loggedInFarmer={me} records={recs} destApproved={destOk}/>}
         {tab==="admin"&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
