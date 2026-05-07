@@ -310,6 +310,37 @@ input:focus { outline: none; }
 }
 `;
 
+// ── Mascot ─────────────────────────────────────────────────
+function Mascot({ message }) {
+  return (
+    <div style={{ display:"flex", alignItems:"flex-start", gap:12, width:"100%", marginBottom:16 }}>
+      <span style={{ fontSize:32, flexShrink:0, lineHeight:1 }}>🥦</span>
+      <div style={{
+        flex:1, position:"relative",
+        background:"#F0FFF4", border:"1px solid #00A86B30",
+        borderRadius:16, padding:"12px 16px",
+      }}>
+        {/* 吹き出し矢印 */}
+        <span style={{
+          position:"absolute", left:-8, top:14,
+          width:0, height:0,
+          borderTop:"6px solid transparent",
+          borderBottom:"6px solid transparent",
+          borderRight:"8px solid #00A86B30",
+        }}/>
+        <span style={{
+          position:"absolute", left:-6, top:14,
+          width:0, height:0,
+          borderTop:"6px solid transparent",
+          borderBottom:"6px solid transparent",
+          borderRight:"8px solid #F0FFF4",
+        }}/>
+        <p className="f-sans" style={{ fontSize:13, color:"#333", lineHeight:1.8, margin:0 }}>{message}</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Atoms ──────────────────────────────────────────────────
 function DestMark({ name, sz=32, showLabel=true }) {
   const col = destColor(name);
@@ -677,6 +708,7 @@ const verifyCode = async () => {
           <div className="f-sans" style={{ fontSize:9,color:C.dim,marginTop:7,letterSpacing:".18em",textTransform:"uppercase" }}>Yoshinogawa Farmers</div>
         </div>
 
+        <Mascot message="メールアドレスを入力するだけで始められます。届いた6桁のコードを入力してログインしてください。"/>
         <div className="ledger-card" style={{ padding:32 }}>
           <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:24,letterSpacing:".04em" }}>ログイン</div>
 
@@ -911,6 +943,8 @@ function BoardTab({ farmers, destApproved, records }) {
         </div>
       </div>
 
+      <Mascot message="ようこそ！ここでは吉野川の農家が実際にかかっている経費の集計データを見ることができます。個人情報は一切公開されません。"/>
+
       {/* ══ 参加状況バナー ══════════════════════════════ */}
       <div style={{
         padding:"14px 20px", background:C.ivory, border:`1px solid ${C.rule}`,
@@ -1080,6 +1114,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const STEPS=["作物","月を選ぶ","出荷先","売上・経費"];
   return (
     <div className="appear" style={{maxWidth:540,margin:"0 auto"}}>
+      <Mascot message="月を選んで、出荷先ごとの売上と経費を入力しましょう。一度入力した経費項目は保存されるので、次回からはもっと簡単です！"/>
       {/* ステップ */}
       <div style={{display:"flex",marginBottom:28}}>
         {STEPS.map((s,i)=>{
@@ -1363,6 +1398,8 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
   return (
     <div className="appear" style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 24 }}>
 
+      <Mascot message="あなたの経営データを分析しました。気になる項目があれば、出荷先の見直しや経費の交渉に活用してください。"/>
+
       {/* 1. 月次推移グラフ */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
         <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>月次推移（{THIS_YEAR}年）</p>
@@ -1616,6 +1653,8 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
 
   return (
     <div className="appear" style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 24 }}>
+
+      <Mascot message="同じ就農年数のグループと比較できます。5人以上のデータが集まると、より詳しい比較が解放されます。仲間を招待しましょう！"/>
 
       {/* 1. グループ表示 */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
