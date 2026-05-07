@@ -1708,81 +1708,345 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
 }
 
 // ── AdminTab ─────────────────────────────────────────────────
-function AdminTab({destPending,destApproved,farmers,farmersPending,onApprove,onReject,onApproveFarmer,onRejectFarmer}){
-  const [sub,setSub]=useState("pending");
-  const total=destPending.length+farmersPending.length;
+function AdminTab() {
+  const [sub, setSub] = useState("farmers");
+  const [farmers, setFarmers] = useState([]);
+  const [dests, setDests] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [confirm, setConfirm] = useState(null); // {msg, onOk}
 
-  return(
-    <div className="appear" style={{maxWidth:640,margin:"0 auto"}}>
-      <div style={{marginBottom:18,paddingBottom:14,borderBottom:`1px solid ${C.rule}`}}>
-        <p className="f-sans" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:3}}>管理者コンソール</p>
-        <p className="f-sans" style={{fontSize:11,color:C.mid}}>承認・PIN管理</p>
+  // フィルター (記録データ)
+  const [filterFarmer, setFilterFarmer] = useState("");
+  const [filterCrop,   setFilterCrop]   = useState("");
+  const [filterDest,   setFilterDest]   = useState("");
+  const [filterMonth,  setFilterMonth]  = useState("");
+
+  // 新規出荷先フォーム
+  const [newDestName, setNewDestName] = useState("");
+  const [newDestNote, setNewDestNote] = useState("");
+  const [addingDest, setAddingDest]   = useState(false);
+
+  const TIERS = ["1-3","4-10","10+"];
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [fr, de, re] = await Promise.all([
+      supabase.from("farmers").select("*").order("created_at", { ascending: false }),
+      supabase.from("dests").select("*").order("name"),
+      supabase.from("records").select("*").order("year,month"),
+    ]);
+    if (!fr.error) setFarmers(fr.data || []);
+    if (!de.error) setDests(de.data || []);
+    if (!re.error) setRecords(re.data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const ask = (msg, onOk) => setConfirm({ msg, onOk });
+  const closeConfirm = () => setConfirm(null);
+
+  // ── 農家 actions ──
+  const updateTier = async (id, tier) => {
+    await supabase.from("farmers").update({ experience_tier: tier }).eq("id", id);
+    setFarmers(prev => prev.map(f => f.id === id ? { ...f, experience_tier: tier } : f));
+  };
+  const deleteFarmer = (f) => ask(
+    `「${f.name}」を削除しますか？この操作は元に戻せません。`,
+    async () => {
+      await supabase.from("farmers").delete().eq("id", f.id);
+      setFarmers(prev => prev.filter(x => x.id !== f.id));
+    }
+  );
+
+  // ── 出荷先 actions ──
+  const approveDest = async (d) => {
+    await supabase.from("dests").update({ status: "approved" }).eq("id", d.id);
+    setDests(prev => prev.map(x => x.id === d.id ? { ...x, status: "approved" } : x));
+  };
+  const deleteDest = (d) => ask(
+    `「${d.name}」を削除しますか？`,
+    async () => {
+      await supabase.from("dests").delete().eq("id", d.id);
+      setDests(prev => prev.filter(x => x.id !== d.id));
+    }
+  );
+  const addDest = async () => {
+    if (!newDestName.trim()) return;
+    const row = { id: uid(), name: newDestName.trim(), status: "approved", notes: newDestNote.trim() || null };
+    const { error } = await supabase.from("dests").insert(row);
+    if (!error) { setDests(prev => [...prev, row]); setNewDestName(""); setNewDestNote(""); setAddingDest(false); }
+  };
+
+  // ── 記録 actions ──
+  const deleteRecord = (r) => ask(
+    `この記録（${r.crop || "不明"} / ${r.year}年${r.month+1}月）を削除しますか？`,
+    async () => {
+      await supabase.from("records").delete()
+        .eq("farmer_id", r.farmer_id).eq("year", r.year).eq("month", r.month).eq("dest_id", r.dest_id);
+      setRecords(prev => prev.filter(x => !(x.farmer_id===r.farmer_id&&x.year===r.year&&x.month===r.month&&x.dest_id===r.dest_id)));
+    }
+  );
+
+  // 派生データ
+  const farmerMap = Object.fromEntries(farmers.map(f => [f.id, f]));
+  const destMap   = Object.fromEntries(dests.map(d => [d.id, d]));
+  const filteredRecs = records.filter(r => {
+    const fn = farmerMap[r.farmer_id]?.name || "";
+    if (filterFarmer && !fn.includes(filterFarmer)) return false;
+    if (filterCrop && !(r.crop || "").includes(filterCrop)) return false;
+    if (filterDest && r.dest_id !== filterDest) return false;
+    if (filterMonth !== "" && r.month !== Number(filterMonth)) return false;
+    return true;
+  });
+
+  // 統計
+  const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+  const activeFarmerIds = new Set(records.map(r=>r.farmer_id));
+  const cropCount = {};
+  records.forEach(r => { if(r.crop) cropCount[r.crop]=(cropCount[r.crop]||new Set()).add(r.farmer_id)||cropCount[r.crop]; });
+  const destRecCount = {};
+  records.forEach(r => { destRecCount[r.dest_id]=(destRecCount[r.dest_id]||0)+1; });
+
+  const SUB_TABS = [
+    { k:"farmers", l:"農家",     n: farmers.length },
+    { k:"dests",   l:"出荷先",   n: dests.filter(d=>d.status==="pending").length },
+    { k:"records", l:"記録データ", n: records.length },
+    { k:"stats",   l:"統計",     n: null },
+  ];
+
+  const Card = ({ children, style }) => (
+    <div className="ledger-card" style={{ padding:"16px 20px", ...style }}>{children}</div>
+  );
+  const DangerBtn = ({ onClick, children }) => (
+    <button onClick={onClick} style={{
+      padding:"6px 14px", border:"1px solid #E24B4A44", borderRadius:8,
+      background:"transparent", color:"#E24B4A", fontSize:11, fontWeight:600, cursor:"pointer",
+    }}>{children}</button>
+  );
+
+  return (
+    <div className="appear" style={{ maxWidth:800, margin:"0 auto" }}>
+
+      {/* 確認ダイアログ */}
+      {confirm && (
+        <div style={{ position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,0.35)",display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
+          <div style={{ background:"#fff",borderRadius:16,padding:28,maxWidth:360,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,0.15)" }}>
+            <p className="f-sans" style={{ fontSize:14,color:"#222",lineHeight:1.8,marginBottom:20 }}>{confirm.msg}</p>
+            <div style={{ display:"flex",gap:8,justifyContent:"flex-end" }}>
+              <button onClick={closeConfirm} className="btn-outline" style={{ padding:"9px 20px",fontSize:12 }}>キャンセル</button>
+              <button onClick={()=>{ confirm.onOk(); closeConfirm(); }} style={{
+                padding:"9px 20px",background:"#E24B4A",color:"#fff",border:"none",borderRadius:12,fontSize:12,fontWeight:600,cursor:"pointer",
+              }}>削除する</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginBottom:20 }}>
+        <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
+        <p className="f-sans" style={{ fontSize:12,color:"#717171" }}>農家・出荷先・記録データの管理</p>
       </div>
-      <div style={{display:"flex",gap:3,background:C.ivory,border:`1px solid ${C.rule}`,borderRadius:8,padding:3,marginBottom:22}}>
-        {[{k:"pending",l:"📋 承認待ち",c:total},{k:"farmers",l:"🌾 農家アカウント",c:farmers.length}].map(({k,l,c})=>(
-          <button key={k} onClick={()=>setSub(k)} style={{
-            flex:1,padding:"9px 6px",border:"none",borderRadius:8,fontFamily:"inherit",
-            background:sub===k?C.accent:"transparent",color:sub===k?"#fff":C.mid,
-            fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5,
+
+      {/* サブタブ */}
+      <div style={{ display:"flex",gap:4,background:"#F7F7F7",border:"1px solid #EBEBEB",borderRadius:12,padding:4,marginBottom:24 }}>
+        {SUB_TABS.map(({ k, l, n }) => (
+          <button key={k} onClick={() => setSub(k)} style={{
+            flex:1, padding:"9px 8px", border:"none", borderRadius:8, fontFamily:"inherit",
+            background:sub===k?"#fff":"transparent",
+            color:sub===k?"#222":"#717171",
+            fontSize:12, fontWeight:sub===k?700:400,
+            boxShadow:sub===k?"0 1px 4px rgba(0,0,0,0.08)":"none",
+            display:"flex", alignItems:"center", justifyContent:"center", gap:5,
           }}>
             {l}
-            {c>0&&<span style={{padding:"1px 6px",borderRadius:16,fontSize:9,background:sub===k?"#fff3":C.rule,color:sub===k?"#fff":C.ink}}>{c}</span>}
+            {n!=null&&n>0&&<span style={{ padding:"1px 6px",borderRadius:8,fontSize:9,fontWeight:700,background:sub===k?"#E6F7EF":"#EBEBEB",color:sub===k?"#00A86B":"#717171" }}>{n}</span>}
           </button>
         ))}
       </div>
 
-      {sub==="pending"&&<div className="fade-in">
-        {total===0&&<div style={{padding:"48px 0",textAlign:"center"}}><div style={{fontSize:32,opacity:.15,marginBottom:12}}>✓</div><p className="f-sans" style={{color:C.ghost,fontSize:13}}>承認待ちの申請はありません</p></div>}
-        {farmersPending.length>0&&<>
-          <p className="f-sans" style={{fontSize:11,fontWeight:700,color:C.ink,marginBottom:10}}>🌱 農家登録申請</p>
-          <div style={{display:"grid",gap:8,marginBottom:22}}>
-            {farmersPending.map(f=>(
-              <div key={f.id} className="ledger-card" style={{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-                <div><p className="f-sans" style={{fontSize:14,fontWeight:700}}>{f.name}</p><p className="f-sans" style={{fontSize:10,color:C.dim,marginTop:2}}>{f.email}</p></div>
-                <div style={{display:"flex",gap:8}}>
-                  <button className="btn-gold" onClick={()=>onApproveFarmer(f.id)} style={{padding:"8px 18px"}}>承認</button>
-                  <button className="btn-outline" onClick={()=>onRejectFarmer(f.id)} style={{color:C.shu,borderColor:`${C.shu}44`,padding:"8px 18px"}}>却下</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>}
-        {destPending.length>0&&<>
-          <p className="f-sans" style={{fontSize:11,fontWeight:700,color:C.ink,marginBottom:10}}>🆕 出荷先申請</p>
-          <div style={{display:"grid",gap:8}}>
-            {destPending.map(d=>(
-              <div key={d.id} className="ledger-card" style={{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-                <div><DestMark name={d.name} sz={32}/><p className="f-sans" style={{fontSize:10,color:C.dim,marginTop:6}}>申請者: {d.submittedBy}</p></div>
-                <div style={{display:"flex",gap:8}}>
-                  <button className="btn-gold" onClick={()=>onApprove(d.id)} style={{padding:"8px 18px"}}>承認</button>
-                  <button className="btn-outline" onClick={()=>onReject(d.id)} style={{color:C.shu,borderColor:`${C.shu}44`,padding:"8px 18px"}}>却下</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>}
-      </div>}
+      {loading && <div style={{ textAlign:"center",padding:48,color:"#B0B0B0",fontSize:13 }}>読み込み中...</div>}
 
-      {sub==="farmers"&&<div className="fade-in">
-        <p className="f-sans" style={{fontSize:11,color:C.mid,marginBottom:16}}>
-        承認済みの農家一覧です。ログインはメール認証コードで行われます。
-      </p>
-        <div style={{display:"grid",gap:10}}>
-          {farmers.map(f=>(
-            <div key={f.id} className="ledger-card" style={{padding:"14px 18px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:38,height:38,borderRadius:"50%",background:C.bambooPl,border:`2px solid ${C.bamboo}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🌾</div>
-                <div style={{flex:1}}>
-                  <p className="f-sans" style={{fontSize:13,fontWeight:700}}>{f.name}</p>
-                  <p className="f-sans" style={{fontSize:10,color:C.dim,marginTop:2}}>{f.email}</p>
-                  <p className="f-sans" style={{fontSize:9,color:C.ghost,marginTop:1}}>就農{THIS_YEAR-f.joinedYear+1}年目</p>
+      {/* ── 農家管理 ── */}
+      {!loading && sub==="farmers" && (
+        <div className="fade-in" style={{ display:"grid",gap:12 }}>
+          {farmers.length===0 && <p className="f-sans" style={{ fontSize:13,color:"#B0B0B0",padding:"32px 0",textAlign:"center" }}>農家がいません</p>}
+          {farmers.map(f => (
+            <Card key={f.id}>
+              <div style={{ display:"flex",alignItems:"center",gap:14,flexWrap:"wrap" }}>
+                <div style={{ width:40,height:40,borderRadius:"50%",background:"#E6F7EF",border:"2px solid #00A86B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0 }}>🌾</div>
+                <div style={{ flex:1,minWidth:140 }}>
+                  <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222" }}>{f.name}</p>
+                  <p className="f-sans" style={{ fontSize:11,color:"#717171",marginTop:2 }}>{f.email}</p>
+                  {f.created_at && <p className="f-sans" style={{ fontSize:10,color:"#B0B0B0",marginTop:2 }}>登録日: {new Date(f.created_at).toLocaleDateString("ja-JP")}</p>}
                 </div>
-                <span className="tag f-sans" style={{background:`${C.bamboo}12`,color:C.bamboo,border:`1px solid ${C.bamboo}20`}}>メール認証</span>
+                <div style={{ display:"flex",alignItems:"center",gap:10,flexWrap:"wrap" }}>
+                  <div>
+                    <p className="f-sans" style={{ fontSize:9,color:"#B0B0B0",marginBottom:3 }}>就農年数</p>
+                    <select value={f.experience_tier||"1-3"} onChange={e=>updateTier(f.id,e.target.value)} style={{
+                      padding:"6px 10px",border:"1px solid #EBEBEB",borderRadius:8,fontSize:12,background:"#fff",cursor:"pointer",fontFamily:"inherit",
+                    }}>
+                      {TIERS.map(t=><option key={t} value={t}>{t}年</option>)}
+                    </select>
+                  </div>
+                  <DangerBtn onClick={()=>deleteFarmer(f)}>削除</DangerBtn>
+                </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
-      </div>}
+      )}
+
+      {/* ── 出荷先管理 ── */}
+      {!loading && sub==="dests" && (
+        <div className="fade-in">
+          <div style={{ display:"grid",gap:12,marginBottom:20 }}>
+            {dests.map(d => (
+              <Card key={d.id}>
+                <div style={{ display:"flex",alignItems:"center",gap:12,flexWrap:"wrap" }}>
+                  <DestMark name={d.name} sz={36} showLabel={false}/>
+                  <div style={{ flex:1,minWidth:120 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:2 }}>
+                      <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222" }}>{d.name}</p>
+                      <span style={{
+                        padding:"2px 8px",borderRadius:8,fontSize:10,fontWeight:700,
+                        background:d.status==="approved"?"#E6F7EF":"#FEF3E2",
+                        color:d.status==="approved"?"#00A86B":"#F5A623",
+                      }}>{d.status==="approved"?"承認済":"承認待ち"}</span>
+                    </div>
+                    {d.notes&&<p className="f-sans" style={{ fontSize:11,color:"#717171" }}>{d.notes}</p>}
+                    {d.submitted_by&&<p className="f-sans" style={{ fontSize:10,color:"#B0B0B0" }}>申請者: {d.submitted_by}</p>}
+                  </div>
+                  <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+                    {d.status==="pending"&&(
+                      <button onClick={()=>approveDest(d)} style={{ padding:"7px 16px",background:"#00A86B",color:"#fff",border:"none",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer" }}>承認</button>
+                    )}
+                    <DangerBtn onClick={()=>deleteDest(d)}>削除</DangerBtn>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* 新規追加フォーム */}
+          {!addingDest
+            ? <button onClick={()=>setAddingDest(true)} style={{ width:"100%",padding:14,border:"1.5px dashed #EBEBEB",borderRadius:16,background:"transparent",color:"#717171",fontSize:13,cursor:"pointer",fontFamily:"inherit" }}>＋ 出荷先を手動追加</button>
+            : <Card style={{ border:"1.5px solid #00A86B" }}>
+                <p className="f-sans" style={{ fontSize:13,fontWeight:700,color:"#222",marginBottom:14 }}>新規出荷先</p>
+                <div style={{ display:"grid",gap:10 }}>
+                  <input className="field f-sans" placeholder="出荷先名（必須）" value={newDestName} onChange={e=>setNewDestName(e.target.value)}/>
+                  <input className="field f-sans" placeholder="メモ（任意）" value={newDestNote} onChange={e=>setNewDestNote(e.target.value)}/>
+                  <div style={{ display:"flex",gap:8 }}>
+                    <button className="btn-primary" style={{ flex:1 }} onClick={addDest}>追加する</button>
+                    <button className="btn-outline" onClick={()=>setAddingDest(false)}>キャンセル</button>
+                  </div>
+                </div>
+              </Card>
+          }
+        </div>
+      )}
+
+      {/* ── 記録データ管理 ── */}
+      {!loading && sub==="records" && (
+        <div className="fade-in">
+          {/* フィルター */}
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:16 }}>
+            <input className="field f-sans" placeholder="農家名で絞り込み" value={filterFarmer} onChange={e=>setFilterFarmer(e.target.value)} style={{ fontSize:12 }}/>
+            <input className="field f-sans" placeholder="作物で絞り込み" value={filterCrop} onChange={e=>setFilterCrop(e.target.value)} style={{ fontSize:12 }}/>
+            <select className="field f-sans" value={filterDest} onChange={e=>setFilterDest(e.target.value)} style={{ fontSize:12 }}>
+              <option value="">出荷先すべて</option>
+              {dests.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <select className="field f-sans" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} style={{ fontSize:12 }}>
+              <option value="">月すべて</option>
+              {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+            </select>
+          </div>
+          <p className="f-sans" style={{ fontSize:11,color:"#B0B0B0",marginBottom:12 }}>{filteredRecs.length} 件</p>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12,fontFamily:"'Noto Sans JP','Inter',sans-serif",minWidth:640 }}>
+              <thead>
+                <tr style={{ borderBottom:"2px solid #EBEBEB",color:"#B0B0B0",fontSize:10 }}>
+                  {["農家","作物","年月","出荷先","箱数","単価","売上","経費","利益",""].map(h=>(
+                    <th key={h} style={{ padding:"8px 10px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecs.map((r,i)=>{
+                  const rev=(r.boxes||0)*(r.ppb||0);
+                  const cost=(r.costs||[]).reduce((s,c)=>s+(c.a||0),0);
+                  const profit=rev-cost;
+                  return(
+                    <tr key={i} style={{ borderBottom:"1px solid #F7F7F7" }}>
+                      <td style={{ padding:"10px 10px",color:"#222",fontWeight:500 }}>{farmerMap[r.farmer_id]?.name||"不明"}</td>
+                      <td style={{ padding:"10px 10px",color:"#444" }}>{r.crop||"—"}</td>
+                      <td style={{ padding:"10px 10px",color:"#444",whiteSpace:"nowrap" }}>{r.year}/{r.month+1}月</td>
+                      <td style={{ padding:"10px 10px",color:"#444" }}>{destMap[r.dest_id]?.name||"不明"}</td>
+                      <td style={{ padding:"10px 10px",color:"#444",fontFamily:"'DM Mono',monospace" }}>{r.boxes}</td>
+                      <td style={{ padding:"10px 10px",color:"#444",fontFamily:"'DM Mono',monospace" }}>{cn(r.ppb)}</td>
+                      <td style={{ padding:"10px 10px",color:"#00A86B",fontFamily:"'DM Mono',monospace",fontWeight:600 }}>{man(rev)}</td>
+                      <td style={{ padding:"10px 10px",color:"#F5A623",fontFamily:"'DM Mono',monospace" }}>{man(cost)}</td>
+                      <td style={{ padding:"10px 10px",color:profit>=0?"#00A86B":"#E24B4A",fontFamily:"'DM Mono',monospace",fontWeight:600 }}>{man(profit)}</td>
+                      <td style={{ padding:"10px 10px" }}>
+                        <DangerBtn onClick={()=>deleteRecord(r)}>削除</DangerBtn>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredRecs.length===0&&(
+                  <tr><td colSpan={10} style={{ padding:"32px 0",textAlign:"center",color:"#B0B0B0" }}>該当するデータがありません</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── 統計 ── */}
+      {!loading && sub==="stats" && (
+        <div className="fade-in" style={{ display:"grid",gap:16 }}>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12 }}>
+            {[
+              { l:"登録農家数", v:farmers.length, icon:"🌾" },
+              { l:"アクティブ農家", v:activeFarmerIds.size, icon:"✅" },
+              { l:"総レコード数", v:records.length, icon:"📋" },
+              { l:"出荷先数", v:dests.filter(d=>d.status==="approved").length, icon:"🚚" },
+            ].map(s=>(
+              <Card key={s.l} style={{ textAlign:"center" }}>
+                <div style={{ fontSize:28,marginBottom:8 }}>{s.icon}</div>
+                <div className="f-sans" style={{ fontSize:28,fontWeight:700,color:"#222" }}>{s.v}</div>
+                <div className="f-sans" style={{ fontSize:11,color:"#717171",marginTop:4 }}>{s.l}</div>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:14 }}>作物別 農家数</p>
+            {Object.entries(
+              records.reduce((acc,r)=>{ if(r.crop){if(!acc[r.crop])acc[r.crop]=new Set();acc[r.crop].add(r.farmer_id);}return acc;},{})
+            ).sort((a,b)=>b[1].size-a[1].size).map(([crop,ids])=>(
+              <div key={crop} style={{ display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #F7F7F7" }}>
+                <span className="f-sans" style={{ fontSize:13,color:"#222" }}>{crop}</span>
+                <span className="f-sans" style={{ fontSize:13,fontWeight:600,color:"#00A86B" }}>{ids.size}農家</span>
+              </div>
+            ))}
+            {Object.keys(records.reduce((a,r)=>{if(r.crop)a[r.crop]=1;return a},{})).length===0&&(
+              <p className="f-sans" style={{ fontSize:12,color:"#B0B0B0" }}>データなし</p>
+            )}
+          </Card>
+          <Card>
+            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:14 }}>出荷先別 レコード数</p>
+            {Object.entries(destRecCount).sort((a,b)=>b[1]-a[1]).map(([destId,cnt])=>(
+              <div key={destId} style={{ display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #F7F7F7" }}>
+                <span className="f-sans" style={{ fontSize:13,color:"#222" }}>{destMap[destId]?.name||"不明"}</span>
+                <span className="f-sans" style={{ fontSize:13,fontWeight:600,color:"#717171" }}>{cnt}件</span>
+              </div>
+            ))}
+          </Card>
+        </div>
+      )}
+
     </div>
   );
 }
