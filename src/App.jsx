@@ -8,35 +8,45 @@ import { useState, useEffect, useCallback, useRef } from "react";
 // 和紙と墨、金泥で書かれた帳簿を現代に翻訳する
 // ══════════════════════════════════════════════════════════
 const C = {
-  // 暗地
-  void:    "#080604",
-  deep:    "#0F0B07",
-  bark:    "#1C1409",
-  shadow:  "#241A0C",
-  // 和紙
-  washi:   "#F4EDD8",
-  cream:   "#FBF6EC",
-  ivory:   "#EDE3C8",
-  pale:    "#E8DEC8",
-  // 金泥（経費の主役）
-  gold:    "#C8890A",
-  goldLt:  "#E8A820",
-  goldPl:  "#FDF3DC",
-  goldDim: "#6B4A08",
-  // 青竹（売上）
-  bamboo:  "#2D5A1B",
-  bambooL: "#4A8C2A",
-  bambooPl:"#EBF5E4",
-  // 朱（警告）
-  shu:     "#8B2A1A",
-  shuPl:   "#FAE8E4",
-  // テキスト
-  ink:     "#14100A",
-  mid:     "#6B5535",
-  dim:     "#A08B6E",
-  ghost:   "#C8B89A",
-  rule:    "#DDD0B8",
-  ruleD:   "#2A2016",
+  // ── New design system ──
+  bg:           "#FFFFFF",
+  bgSoft:       "#F7F7F7",
+  card:         "#FFFFFF",
+  text:         "#222222",
+  textSub:      "#717171",
+  textLight:    "#B0B0B0",
+  border:       "#EBEBEB",
+  accent:       "#00A86B",
+  accentLight:  "#E6F7EF",
+  danger:       "#E24B4A",
+  dangerLight:  "#FCEBEB",
+  warning:      "#F5A623",
+  warningLight: "#FEF3E2",
+  // ── Semantic aliases (backwards compat) ──
+  gold:    "#F5A623",
+  goldLt:  "#F7B84B",
+  goldPl:  "#FEF3E2",
+  goldDim: "#B87A1A",
+  bamboo:  "#00A86B",
+  bambooL: "#2DC28A",
+  bambooPl:"#E6F7EF",
+  shu:     "#E24B4A",
+  shuPl:   "#FCEBEB",
+  ink:     "#222222",
+  mid:     "#717171",
+  dim:     "#717171",
+  ghost:   "#B0B0B0",
+  rule:    "#EBEBEB",
+  ruleD:   "#EBEBEB",
+  // ── Deprecated dark colors → light equivalents ──
+  void:    "#F7F7F7",
+  deep:    "#FFFFFF",
+  bark:    "#222222",
+  shadow:  "#F7F7F7",
+  washi:   "#FFFFFF",
+  cream:   "#FFFFFF",
+  ivory:   "#F7F7F7",
+  pale:    "#F7F7F7",
 };
 
 const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F","#6B3A18"];
@@ -59,31 +69,24 @@ function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h
 
 // ── CSS ────────────────────────────────────────────────────
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; background: #fff; }
+body { background: #fff; }
 
 ::-webkit-scrollbar { width: 2px; height: 2px; }
-::-webkit-scrollbar-thumb { background: ${C.ruleD}; border-radius: 1px; }
+::-webkit-scrollbar-thumb { background: #EBEBEB; border-radius: 1px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-.f-serif { font-family: 'Shippori Mincho B1', 'Hiragino Mincho ProN', 'Yu Mincho', serif; }
-.f-sans  { font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif; }
+.f-serif { font-family: 'Noto Sans JP', 'Inter', sans-serif; font-weight: 700; }
+.f-sans  { font-family: 'Noto Sans JP', 'Inter', sans-serif; }
 .f-mono  { font-family: 'DM Mono', 'Courier New', monospace; }
 
-button, input, select { font-family: 'Zen Kaku Gothic New', sans-serif; }
+button, input, select { font-family: 'Noto Sans JP', 'Inter', sans-serif; }
 button { cursor: pointer; transition: all .2s ease; }
 button:active { transform: scale(.97); }
 input:focus { outline: none; }
-/* ── Mobile ── */
-@media (max-width: 640px) {
-  header { padding: 0 12px !important; height: auto !important; min-height: 48px; flex-wrap: wrap; gap: 4px; }
-  header nav { width: 100%; justify-content: center; gap: 0; }
-  header nav button { font-size: 10px !important; padding: 0 10px !important; height: 40px !important; }
-  main { padding: 16px 8px 48px !important; }
-  .ledger-card { padding: 16px !important; }
-}
 
 /* ── Entrance animations ── */
 @keyframes appear {
@@ -107,13 +110,8 @@ input:focus { outline: none; }
   25%      { transform: translateX(-7px); }
   75%      { transform: translateX(7px); }
 }
-@keyframes drawLine {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
-@keyframes countUp {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .appear      { animation: appear .5s cubic-bezier(.22,.8,.36,1) both; }
@@ -130,13 +128,10 @@ input:focus { outline: none; }
 
 /* ── Ledger card ── */
 .ledger-card {
-  background: ${C.cream};
-  border: 1px solid ${C.rule};
-  border-radius: 12px;
-  box-shadow:
-    0 1px 3px rgba(8,6,4,.06),
-    0 4px 16px rgba(8,6,4,.08),
-    0 12px 40px rgba(8,6,4,.05);
+  background: #FFFFFF;
+  border: 1px solid #EBEBEB;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
   position: relative;
   overflow: hidden;
 }
@@ -145,7 +140,7 @@ input:focus { outline: none; }
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: linear-gradient(90deg, transparent, ${C.gold}55, transparent);
+  background: linear-gradient(90deg, transparent, #00A86B44, transparent);
   opacity: 0;
   transition: opacity .3s;
 }
@@ -153,10 +148,10 @@ input:focus { outline: none; }
 
 /* ── Ghost / skeleton ── */
 .ghost-line {
-  background: linear-gradient(90deg, ${C.ivory} 25%, ${C.pale} 50%, ${C.ivory} 75%);
+  background: linear-gradient(90deg, #F7F7F7 25%, #EBEBEB 50%, #F7F7F7 75%);
   background-size: 200% 100%;
   animation: shimmer 2s ease infinite;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 /* ── Nav underline ── */
@@ -165,28 +160,67 @@ input:focus { outline: none; }
   content: '';
   position: absolute;
   bottom: -1px; left: 50%; right: 50%;
-  height: 1px;
-  background: ${C.washi};
+  height: 2px;
+  background: #00A86B;
   transition: left .25s ease, right .25s ease;
+  border-radius: 2px;
 }
 .nav-item.active::after { left: 0; right: 0; }
+
+/* ── Bottom tab bar (mobile) ── */
+.bottom-tab-bar {
+  display: none;
+}
+@media (max-width: 640px) {
+  .bottom-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #FFFFFF;
+    border-top: 1px solid #EBEBEB;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bottom-tab-bar button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px 6px;
+    border: none;
+    background: transparent;
+    font-size: 9px;
+    font-family: 'Noto Sans JP', sans-serif;
+    gap: 3px;
+    cursor: pointer;
+    color: #B0B0B0;
+  }
+  .bottom-tab-bar button.active { color: #00A86B; }
+  .bottom-tab-bar button span.icon { font-size: 20px; line-height: 1; }
+  /* Hide desktop header nav on mobile */
+  header nav { display: none !important; }
+  header { padding: 0 16px !important; height: 52px !important; }
+  main { padding: 16px 12px 90px !important; }
+  .ledger-card { padding: 16px !important; }
+}
 
 /* ── Input ── */
 .field {
   width: 100%;
-  padding: 11px 14px;
-  border: 1px solid ${C.rule};
-  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid #EBEBEB;
+  border-radius: 12px;
   font-size: 14px;
-  color: ${C.ink};
-  background: ${C.cream};
+  color: #222222;
+  background: #FFFFFF;
   transition: border-color .2s, box-shadow .2s;
 }
 .field:focus {
-  border-color: ${C.gold};
-  box-shadow: 0 0 0 3px ${C.gold}18;
+  border-color: #00A86B;
+  box-shadow: 0 0 0 3px #00A86B18;
 }
-.field::placeholder { color: ${C.ghost}; }
+.field::placeholder { color: #B0B0B0; }
 
 /* ── Mobile responsive ── */
 @media (max-width: 640px) {
@@ -198,50 +232,51 @@ input:focus { outline: none; }
 }
 
 /* ── Buttons ── */
-.btn-dark {
-  background: ${C.bark};
-  color: ${C.washi};
-  border: 1px solid ${C.shadow};
-  border-radius: 10px;
-  padding: 11px 24px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: .06em;
+.btn-primary, .btn-dark {
+  background: #00A86B;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 13px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .02em;
 }
-.btn-dark:hover { background: ${C.shadow}; border-color: ${C.ruleD}; }
-.btn-dark:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+.btn-primary:hover, .btn-dark:hover { background: #009960; }
+.btn-primary:disabled, .btn-dark:disabled { opacity: .35; cursor: not-allowed; transform: none; }
 
 .btn-outline {
   background: transparent;
-  color: ${C.mid};
-  border: 1px solid ${C.rule};
-  border-radius: 10px;
-  padding: 10px 20px;
-  font-size: 12px;
+  color: #222222;
+  border: 1px solid #222222;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 500;
 }
-.btn-outline:hover { border-color: ${C.dim}; color: ${C.ink}; }
+.btn-outline:hover { background: #F7F7F7; }
 
 .btn-gold {
-  background: ${C.gold};
+  background: #F5A623;
   color: #fff;
   border: none;
-  border-radius: 10px;
-  padding: 11px 24px;
-  font-size: 12px;
+  border-radius: 12px;
+  padding: 13px 24px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: .04em;
+  letter-spacing: .02em;
 }
-.btn-gold:hover { background: ${C.goldLt}; }
-.btn-gold:disabled { background: ${C.rule}; color: ${C.ghost}; cursor: not-allowed; transform: none; }
+.btn-gold:hover { background: #F7B84B; }
+.btn-gold:disabled { background: #EBEBEB; color: #B0B0B0; cursor: not-allowed; transform: none; }
 
 /* ── Label ── */
 .lbl {
   display: block;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: .12em;
+  letter-spacing: .08em;
   text-transform: uppercase;
-  color: ${C.dim};
+  color: #717171;
   margin-bottom: 7px;
 }
 
@@ -250,28 +285,27 @@ input:focus { outline: none; }
   display: flex;
   align-items: center;
   gap: 12px;
-  color: ${C.ghost};
-  font-size: 9px;
-  letter-spacing: .1em;
+  color: #B0B0B0;
+  font-size: 10px;
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
 .rule-text::before, .rule-text::after {
   content: '';
   flex: 1;
   height: 1px;
-  background: ${C.rule};
+  background: #EBEBEB;
 }
 
 /* ── Tag ── */
 .tag {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: 8px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
 }
 `;
 
@@ -345,7 +379,7 @@ function FarmerCard({ farmer, fi, records, destMap }) {
         display:"flex", alignItems:"center", gap:14,
         background:"#fff",
         border:`0.5px solid ${C.rule}`,
-        borderRadius: open ? "12px 12px 0 0" : 12,
+        borderRadius: open ? "16px 16px 0 0" : 16,
         padding:"14px 18px",
         cursor:"pointer", userSelect:"none",
         transition:"border-radius .2s, box-shadow .2s",
@@ -360,7 +394,7 @@ function FarmerCard({ farmer, fi, records, destMap }) {
         }}>{years}年目</span>
 
         <div style={{ flex:1, minWidth:0 }}>
-          <div className="f-serif" style={{ fontSize:13, fontWeight:600, color:C.ink, marginBottom:2 }}>
+          <div className="f-sans" style={{ fontSize:13, fontWeight:600, color:C.ink, marginBottom:2 }}>
             就農{years}年目 · ブロッコリー
           </div>
           <div className="f-sans" style={{ fontSize:10, color:C.dim }}>
@@ -388,7 +422,7 @@ function FarmerCard({ farmer, fi, records, destMap }) {
         <div style={{
           background:"#fff",
           border:`0.5px solid ${C.rule}`, borderTop:"none",
-          borderRadius:"0 0 12px 12px",
+          borderRadius:"0 0 16px 16px",
           padding:"20px 18px",
           animation:"appear .2s ease both",
         }}>
@@ -474,7 +508,7 @@ function FarmerCard({ farmer, fi, records, destMap }) {
                   return(
                     <div key={lbl} style={{ display:"grid", gridTemplateColumns:"80px 1fr 56px 28px", alignItems:"center", gap:10 }}>
                       <div className="f-sans" style={{ fontSize:11, color:C.ink }}>{lbl}</div>
-                      <div style={{ height:6, background:C.ivory, borderRadius:4, overflow:"hidden" }}>
+                      <div style={{ height:6, background:C.ivory, borderRadius:8, overflow:"hidden" }}>
                         <div style={{ height:6, width:`${pct}%`, background:`linear-gradient(90deg,${C.gold},${C.goldLt})`, borderRadius:4 }}/>
                       </div>
                       <div className="f-mono" style={{ fontSize:11, color:C.gold, fontWeight:600, textAlign:"right" }}>{man(amt)}</div>
@@ -524,12 +558,12 @@ function GhostCard({ index }) {
     <div className="ledger-card appear" style={{ overflow:"hidden", animationDelay:`${index*.12}s` }}>
       {/* dark header */}
       <div style={{
-        background:C.bark, padding:"22px 28px",
-        borderBottom:`1px solid ${C.ruleD}`,
+        background:C.bgSoft, padding:"22px 28px",
+        borderBottom:`1px solid ${C.border}`,
       }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
           <div>
-            <div className="f-sans" style={{ fontSize:9, color:`${C.washi}30`, letterSpacing:".14em", marginBottom:8, textTransform:"uppercase" }}>
+            <div className="f-sans" style={{ fontSize:9, color:C.textLight, letterSpacing:".14em", marginBottom:8, textTransform:"uppercase" }}>
               {THIS_YEAR} · 就農{THIS_YEAR - yr + 1}年目 · ブロッコリー
             </div>
             <div className="ghost-line" style={{ width:140, height:22, marginBottom:6 }}/>
@@ -542,7 +576,7 @@ function GhostCard({ index }) {
             <div style={{
               width:80, height:32,
               background:`${C.gold}18`,
-              borderRadius:2,
+              borderRadius:8,
               display:"flex", alignItems:"center", justifyContent:"center",
             }}>
               <span className="f-mono" style={{ color:`${C.gold}44`, fontSize:18, fontWeight:500 }}>——</span>
@@ -561,7 +595,7 @@ function GhostCard({ index }) {
           marginBottom:20,
         }}>
           <div style={{ fontSize:32, marginBottom:10, opacity:.15 }}>帳</div>
-          <div className="f-serif" style={{ fontSize:13, color:C.ghost, lineHeight:2, letterSpacing:".06em" }}>
+          <div className="f-sans" style={{ fontSize:13, color:C.ghost, lineHeight:2, letterSpacing:".06em" }}>
             データ入力後に<br/>
             <span style={{ color:C.gold, opacity:.6 }}>経費の内訳</span>と<span style={{ color:C.bamboo, opacity:.6 }}>売上</span>が<br/>
             ここに表示されます
@@ -638,12 +672,12 @@ const verifyCode = async () => {
       <div style={{ width:"100%",maxWidth:360 }}>
         <div style={{ textAlign:"center",marginBottom:40 }}>
           <div style={{ fontSize:44,marginBottom:14,lineHeight:1 }}>🥦</div>
-          <div className="f-serif" style={{ fontSize:22,fontWeight:700,color:C.ink,letterSpacing:".06em" }}>吉野川 農家</div>
+          <div className="f-sans" style={{ fontSize:22,fontWeight:700,color:C.ink,letterSpacing:".06em" }}>吉野川 農家</div>
           <div className="f-sans" style={{ fontSize:9,color:C.dim,marginTop:7,letterSpacing:".18em",textTransform:"uppercase" }}>Yoshinogawa Farmers</div>
         </div>
 
         <div className="ledger-card" style={{ padding:32 }}>
-          <div className="f-serif" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:24,letterSpacing:".04em" }}>ログイン</div>
+          <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:24,letterSpacing:".04em" }}>ログイン</div>
 
           {!pending ? (
             /* ── STEP 1: メールアドレス入力 ── */
@@ -656,7 +690,7 @@ const verifyCode = async () => {
                   onKeyDown={e=>e.key==="Enter"&&email.trim()&&!sending&&requestCode()}/>
                 {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
               </div>
-              <button className="btn-dark" style={{ width:"100%",position:"relative" }}
+              <button className="btn-primary" style={{ width:"100%",position:"relative" }}
                 disabled={!email.trim()||sending} onClick={requestCode}>
                 {sending
                   ? <span style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:8 }}>
@@ -670,7 +704,7 @@ const verifyCode = async () => {
           ) : (
             /* ── STEP 2: コード入力 ── */
             <div className="fade-in">
-              <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:2,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
+              <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
                 <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
                   <strong>{email}</strong> に6桁のコードを送信しました。<br/>
                   メールを確認してコードを入力してください。<br/>
@@ -691,7 +725,7 @@ const verifyCode = async () => {
                   }}/>
                 {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
               </div>
-              <button className="btn-dark" style={{ width:"100%",marginBottom:10 }}
+              <button className="btn-primary" style={{ width:"100%",marginBottom:10 }}
                 disabled={code.length!==6} onClick={verifyCode}>
                 ログイン
               </button>
@@ -736,13 +770,13 @@ function RegisterScreen({ onGoLogin, onSubmit }) {
     <div className="fade-in" style={{ minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:28 }}>
       <div className="ledger-card" style={{ maxWidth:360,padding:40,textAlign:"center" }}>
         <div style={{ fontSize:40,marginBottom:16 }}>📬</div>
-        <div className="f-serif" style={{ fontSize:18,fontWeight:700,color:C.bamboo,marginBottom:12 }}>申請を受け付けました</div>
+        <div className="f-sans" style={{ fontSize:18,fontWeight:700,color:C.bamboo,marginBottom:12 }}>申請を受け付けました</div>
         <p className="f-sans" style={{ fontSize:12,color:C.mid,lineHeight:2,marginBottom:28 }}>
           管理者が承認するまでお待ちください。<br/>
           承認後はメールアドレスだけで<br/>
           ログインできます（コード認証）。
         </p>
-        <button className="btn-dark" onClick={onGoLogin}>ログイン画面へ</button>
+        <button className="btn-primary" onClick={onGoLogin}>ログイン画面へ</button>
       </div>
     </div>
   );
@@ -752,7 +786,7 @@ function RegisterScreen({ onGoLogin, onSubmit }) {
       <div style={{ width:"100%",maxWidth:380 }}>
         <div style={{ textAlign:"center",marginBottom:32 }}>
           <div style={{ fontSize:36,marginBottom:12 }}>🥦</div>
-          <div className="f-serif" style={{ fontSize:20,fontWeight:700,color:C.ink }}>新規登録申請</div>
+          <div className="f-sans" style={{ fontSize:20,fontWeight:700,color:C.ink }}>新規登録申請</div>
           <p className="f-sans" style={{ fontSize:11,color:C.dim,marginTop:6 }}>
             管理者の承認後、メール認証でログインできます
           </p>
@@ -848,7 +882,7 @@ function BoardTab({ farmers, destApproved, records }) {
 
       {/* ══ HERO ══════════════════════════════════════════ */}
       <div style={{
-        background: C.cream, border:`1px solid ${C.rule}`, borderRadius:12,
+        background: C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
         padding:"44px 40px 36px", marginBottom:24,
         position:"relative", overflow:"hidden",
         boxShadow:"0 2px 16px rgba(8,6,4,.06)",
@@ -859,7 +893,7 @@ function BoardTab({ farmers, destApproved, records }) {
           <div className="f-sans" style={{ fontSize:9, letterSpacing:".2em", color:C.dim, textTransform:"uppercase", marginBottom:14 }}>
             {THIS_YEAR} · 吉野川 · {farmers.length}農家
           </div>
-          <h1 className="f-serif" style={{ fontSize:36, fontWeight:800, color:C.ink, lineHeight:1.3, letterSpacing:".03em", margin:"0 0 14px" }}>
+          <h1 className="f-sans" style={{ fontSize:36, fontWeight:800, color:C.ink, lineHeight:1.3, letterSpacing:".03em", margin:"0 0 14px" }}>
             日本農業研究所。
           </h1>
           <p className="f-sans" style={{ fontSize:14, color:C.mid, lineHeight:1.8, marginBottom:28 }}>
@@ -868,7 +902,7 @@ function BoardTab({ farmers, destApproved, records }) {
           <div style={{ marginTop:28, paddingTop:16, borderTop:`1px solid ${C.rule}`, display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
             {["個人名は非公開","格付け・ランキングを目的としない","データは農家本人が入力"].map(t => (
               <span key={t} className="f-sans" style={{ fontSize:9, color:C.ghost, letterSpacing:".08em", display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ width:3, height:3, borderRadius:"50%", background:C.ghost, display:"inline-block" }}/>
+                <span style={{ width:5, height:5, borderRadius:"50%", background:C.accent, display:"inline-block" }}/>
                 {t}
               </span>
             ))}
@@ -879,7 +913,7 @@ function BoardTab({ farmers, destApproved, records }) {
       {/* ══ 参加状況バナー ══════════════════════════════ */}
       <div style={{
         padding:"14px 20px", background:C.ivory, border:`1px solid ${C.rule}`,
-        borderRadius:12, marginBottom:28,
+        borderRadius:16, marginBottom:28,
         display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8,
       }}>
         <span className="f-sans" style={{ fontSize:13, color:C.ink }}>
@@ -897,9 +931,9 @@ function BoardTab({ farmers, destApproved, records }) {
             { step:"②", title:"経費入力（3分）", desc:"月ごとに出荷箱数・単価・経費項目を入力します。" },
             { step:"③", title:"産地全体で比較", desc:"作物別・出荷先別の中央値で産地の実態を確認できます。" },
           ].map((s, i) => (
-            <div key={i} style={{ flex:"1 1 200px", padding:"20px 22px", background:C.cream, border:`1px solid ${C.rule}`, borderRadius:12, textAlign:"center" }}>
+            <div key={i} style={{ flex:"1 1 200px", padding:"20px 22px", background:C.cream, border:`1px solid ${C.rule}`, borderRadius:16, textAlign:"center" }}>
               <div className="f-mono" style={{ fontSize:28, color:C.gold, marginBottom:10, fontWeight:500 }}>{s.step}</div>
-              <div className="f-serif" style={{ fontSize:14, fontWeight:700, color:C.ink, marginBottom:8 }}>{s.title}</div>
+              <div className="f-sans" style={{ fontSize:14, fontWeight:700, color:C.ink, marginBottom:8 }}>{s.title}</div>
               <div className="f-sans" style={{ fontSize:12, color:C.mid, lineHeight:1.8 }}>{s.desc}</div>
             </div>
           ))}
@@ -917,10 +951,10 @@ function BoardTab({ farmers, destApproved, records }) {
                 return (
                   <div key={c.crop} style={{
                     flexShrink:0, width:200, padding:"18px 18px 16px",
-                    background:C.cream, border:`1px solid ${C.rule}`, borderRadius:12,
+                    background:C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
                     boxShadow:"0 1px 6px rgba(8,6,4,.05)",
                   }}>
-                    <p className="f-serif" style={{ fontSize:15, fontWeight:700, color:C.ink, marginBottom:4 }}>{c.crop}</p>
+                    <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:C.ink, marginBottom:4 }}>{c.crop}</p>
                     <p className="f-sans" style={{ fontSize:10, color:C.ghost, marginBottom:12 }}>{c.count}農家が入力</p>
                     {masked ? (
                       <div style={{ padding:"12px 10px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
@@ -960,7 +994,7 @@ function BoardTab({ farmers, destApproved, records }) {
                 return (
                   <div key={d.destId} style={{
                     flexShrink:0, width:160, padding:"18px 14px 16px",
-                    background:C.cream, border:`1px solid ${C.rule}`, borderRadius:12,
+                    background:C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
                     boxShadow:"0 1px 6px rgba(8,6,4,.05)",
                     display:"flex", flexDirection:"column", alignItems:"center", gap:10,
                   }}>
@@ -1072,7 +1106,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
       <div className="ledger-card" style={{padding:28}}>
         {step===1&&(
           <div className="fade-in">
-            <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:16}}>作物を選んでください</p>
+            <p className="f-sans" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:16}}>作物を選んでください</p>
             {knownCrops.length>0&&(
               <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
                 {knownCrops.map(c=>(
@@ -1087,20 +1121,20 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
             <input className="field f-sans" placeholder="作物名を入力（例：トマト）" value={cropInput}
               onChange={e=>{setCropInput(e.target.value);setCrop(e.target.value);}}
               style={{marginBottom:18,fontSize:14}}/>
-            <button className="btn-dark" style={{width:"100%"}} disabled={!crop.trim()} onClick={()=>setStep(2)}>続ける →</button>
+            <button className="btn-primary" style={{width:"100%"}} disabled={!crop.trim()} onClick={()=>setStep(2)}>続ける →</button>
           </div>
         )}
 
         {step===2&&(
           <div className="fade-in">
-            <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:20}}>何月のデータを入力しますか？</p>
+            <p className="f-sans" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:20}}>何月のデータを入力しますか？</p>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:22}}>
               {MONTHS.map((m,i)=>{
                 const has=(records[`${loggedInFarmer.id}_${THIS_YEAR}_${i}`]||[]).length>0;
                 const act=mon===i;
                 return(
                   <button key={i} onClick={()=>setMon(i)} style={{
-                    padding:"11px 4px",border:`1.5px solid ${act?C.gold:C.rule}`,borderRadius:10,
+                    padding:"11px 4px",border:`1.5px solid ${act?C.gold:C.rule}`,borderRadius:16,
                     background:act?`${C.gold}12`:"#fff",
                     color:act?C.gold:C.ink,fontSize:12,fontWeight:act?700:400,
                     position:"relative",
@@ -1113,14 +1147,14 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
             </div>
             <div style={{display:"flex",gap:8}}>
               <button className="btn-outline" onClick={()=>setStep(1)}>← 戻る</button>
-              <button className="btn-dark" style={{flex:1}} onClick={()=>setStep(3)}>続ける →</button>
+              <button className="btn-primary" style={{flex:1}} onClick={()=>setStep(3)}>続ける →</button>
             </div>
           </div>
         )}
 
         {step===3&&(
           <div className="fade-in">
-            <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:18}}>{MONTHS[mon]}の出荷先</p>
+            <p className="f-sans" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:18}}>{MONTHS[mon]}の出荷先</p>
             <input className="field f-sans" placeholder="出荷先を検索..." value={destSearch}
               onChange={e=>setDestSearch(e.target.value)}
               style={{marginBottom:12,fontSize:13}}/>
@@ -1141,7 +1175,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                       if(latest.ppb) setPpb(String(latest.ppb));
                     }
                   }} style={{
-                    padding:"12px 16px",border:`1.5px solid ${sel?col:C.rule}`,borderRadius:2,
+                    padding:"12px 16px",border:`1.5px solid ${sel?col:C.rule}`,borderRadius:8,
                     background:sel?`${col}10`:"#fff",
                     display:"flex",alignItems:"center",gap:10,
                   }}>
@@ -1151,11 +1185,11 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 );
               })}
             </div>
-            {myPend.length>0&&<div className="f-sans" style={{padding:"8px 12px",background:C.goldPl,borderRadius:2,marginBottom:10,fontSize:11,color:C.gold}}>承認待ち: {myPend.map(d=>d.name).join("、")}</div>}
-            {dSubmit&&<div className="f-sans" style={{padding:"8px 12px",background:C.bambooPl,borderRadius:2,marginBottom:10,fontSize:11,color:C.bamboo}}>✓ 申請しました。管理者の承認後に利用できます。</div>}
+            {myPend.length>0&&<div className="f-sans" style={{padding:"8px 12px",background:C.goldPl,borderRadius:8,marginBottom:10,fontSize:11,color:C.gold}}>承認待ち: {myPend.map(d=>d.name).join("、")}</div>}
+            {dSubmit&&<div className="f-sans" style={{padding:"8px 12px",background:C.bambooPl,borderRadius:8,marginBottom:10,fontSize:11,color:C.bamboo}}>✓ 申請しました。管理者の承認後に利用できます。</div>}
             {!subDest
-              ? <button onClick={()=>{setSubDest(true);setDSubmit(false);}} style={{width:"100%",padding:"9px",border:`1px dashed ${C.rule}`,borderRadius:2,background:"transparent",color:C.mid,fontSize:11,marginBottom:14,fontFamily:"inherit"}}>＋ 出荷先を申請する</button>
-              : <div style={{padding:14,background:C.ivory,borderRadius:2,marginBottom:14,display:"grid",gap:9}}>
+              ? <button onClick={()=>{setSubDest(true);setDSubmit(false);}} style={{width:"100%",padding:"9px",border:`1px dashed ${C.rule}`,borderRadius:8,background:"transparent",color:C.mid,fontSize:11,marginBottom:14,fontFamily:"inherit"}}>＋ 出荷先を申請する</button>
+              : <div style={{padding:14,background:C.ivory,borderRadius:8,marginBottom:14,display:"grid",gap:9}}>
                   <p className="f-sans" style={{fontSize:11,color:C.gold}}>新しい出荷先は管理者の承認後に公開されます</p>
                   <input className="field f-sans" placeholder="会社・団体名" value={newDN} onChange={e=>setNewDN(e.target.value)}/>
                   <div style={{display:"flex",gap:8}}>
@@ -1166,7 +1200,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
             }
             <div style={{display:"flex",gap:8}}>
               <button className="btn-outline" onClick={()=>setStep(2)}>← 戻る</button>
-              <button className="btn-dark" style={{flex:1}} disabled={!dest} onClick={()=>setStep(4)}>続ける →</button>
+              <button className="btn-primary" style={{flex:1}} disabled={!dest} onClick={()=>setStep(4)}>続ける →</button>
             </div>
           </div>
         )}
@@ -1197,7 +1231,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                   </div>
                 </div>
               ))}
-              {rev>0&&<div style={{padding:"12px 16px",background:C.bambooPl,borderRadius:2,border:`1px solid ${C.bamboo}22`,display:"flex",justifyContent:"space-between"}}>
+              {rev>0&&<div style={{padding:"12px 16px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,display:"flex",justifyContent:"space-between"}}>
                 <span className="f-sans" style={{fontSize:11,color:C.bamboo}}>売上合計</span>
                 <span className="f-mono" style={{fontSize:18,fontWeight:500,color:C.bamboo}}>{man(rev)}</span>
               </div>}
@@ -1212,16 +1246,16 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                             onChange={e=>{const n=[...costs];n[i]={...n[i],l:e.target.value};setCosts(n);}} style={{flex:2}}/>
                           <input className="field f-mono" type="number" placeholder="0" value={c.v}
                             onChange={e=>{const n=[...costs];n[i]={...n[i],v:e.target.value};setCosts(n);}} style={{flex:1}}/>
-                          <div style={{display:"flex",borderRadius:2,overflow:"hidden",border:`1px solid ${C.rule}`,flexShrink:0}}>
+                          <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:`1px solid ${C.rule}`,flexShrink:0}}>
                             {["pct","per_box","fixed"].map(mode=>(
                               <button key={mode} onClick={()=>{const n=[...costs];n[i]={...n[i],mode};setCosts(n);}} style={{
                                 padding:"8px 9px",border:"none",fontSize:10,fontWeight:700,
-                                background:c.mode===mode?C.bark:"transparent",
+                                background:c.mode===mode?C.text:"transparent",
                                 color:c.mode===mode?"#fff":C.dim,
                               }}>{mode==="pct"?"%":mode==="per_box"?"/箱":"固定"}</button>
                             ))}
                           </div>
-                          {costs.length>1&&<button onClick={()=>setCosts(costs.filter((_,j)=>j!==i))} style={{padding:"8px",border:`1px solid ${C.rule}`,borderRadius:2,background:"transparent",color:C.dim,fontSize:11}}>×</button>}
+                          {costs.length>1&&<button onClick={()=>setCosts(costs.filter((_,j)=>j!==i))} style={{padding:"8px",border:`1px solid ${C.rule}`,borderRadius:8,background:"transparent",color:C.dim,fontSize:11}}>×</button>}
                         </div>
                         {c.mode==="pct"&&rev>0&&<p className="f-sans" style={{marginTop:4,fontSize:10,color:C.gold}}>→ 売上の{c.v||0}% ≒ {cn(Math.round(rev*(parseFloat(c.v)||0)/100))} 円</p>}
                         {c.mode==="per_box"&&boxes&&<p className="f-sans" style={{marginTop:4,fontSize:10,color:C.gold}}>→ {boxes}箱 × {c.v||0}円 ≒ {cn(Math.round(parseFloat(boxes)*(parseFloat(c.v)||0)))} 円</p>}
@@ -1229,19 +1263,19 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                       </div>
                     );
                   })}
-                  {costs.length<5&&<button onClick={()=>setCosts([...costs,{l:"",v:"",mode:"fixed"}])} style={{padding:"8px",border:`1px dashed ${C.rule}`,borderRadius:2,background:"transparent",color:C.mid,fontSize:11,fontFamily:"inherit"}}>＋ 経費追加</button>}
+                  {costs.length<5&&<button onClick={()=>setCosts([...costs,{l:"",v:"",mode:"fixed"}])} style={{padding:"8px",border:`1px dashed ${C.rule}`,borderRadius:8,background:"transparent",color:C.mid,fontSize:11,fontFamily:"inherit"}}>＋ 経費追加</button>}
                 </div>
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
               <button className="btn-outline" onClick={()=>setStep(3)}>← 戻る</button>
-              <button className="btn-dark" style={{flex:1,background:saved?C.bamboo:undefined}} disabled={!boxes||!ppb} onClick={save}>
+              <button className="btn-primary" style={{flex:1,background:saved?C.bamboo:undefined}} disabled={!boxes||!ppb} onClick={save}>
                 {saved?"✓ 保存しました":"保存する"}
               </button>
             </div>
             {saved&&<div style={{marginTop:12,textAlign:"center",display:"grid",gap:8}}>
               <button onClick={()=>{setStep(1);setSaved(false);setCosts([{l:"",v:"",mode:"fixed"}]);setCrop("");setCropInput("");}} className="f-sans" style={{fontSize:12,color:C.mid,background:"none",border:"none",textDecoration:"underline",textUnderlineOffset:3}}>入力を続ける</button>
-              <button onClick={()=>onGoBoard&&onGoBoard()} className="btn-dark" style={{width:"100%"}}>公開ボードを見る →</button>
+              <button onClick={()=>onGoBoard&&onGoBoard()} className="btn-primary" style={{width:"100%"}}>公開ボードを見る →</button>
             </div>}
           </div>
         )}
@@ -1330,7 +1364,7 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
 
       {/* 1. 月次推移グラフ */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-        <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>月次推移（{THIS_YEAR}年）</p>
+        <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>月次推移（{THIS_YEAR}年）</p>
         <div style={{ overflowX: "auto" }}>
           <svg width={chartW} height={chartH} style={{ display: "block", minWidth: 320 }}>
             {[0, 0.25, 0.5, 0.75, 1].map(t => {
@@ -1374,7 +1408,7 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
 
       {/* 2. 出荷先別採算 */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-        <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>出荷先別採算（経費率 低い順）</p>
+        <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>出荷先別採算（経費率 低い順）</p>
         {destCards.length === 0
           ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost }}>データがありません</p>
           : <div style={{ display: "grid", gap: 10 }}>
@@ -1401,7 +1435,7 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
 
       {/* 3. 前年同月比較 */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-        <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 4 }}>前年同月比較 — {MONTHS[curMi]}</p>
+        <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 4 }}>前年同月比較 — {MONTHS[curMi]}</p>
         {!hasPrev
           ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost, marginTop: 12 }}>前年データなし</p>
           : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginTop: 14 }}>
@@ -1426,7 +1460,7 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
 
       {/* 4. 経費内訳ドーナツ */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-        <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>経費内訳（全期間）</p>
+        <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>経費内訳（全期間）</p>
         {costItems.length === 0
           ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost }}>経費データなし</p>
           : <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center" }}>
@@ -1587,7 +1621,7 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
           <span style={{ fontSize: 24 }}>🌾</span>
           <div>
-            <p className="f-serif" style={{ fontSize: 16, fontWeight: 700, color: C.ink }}>あなたは{tierLabel}グループです</p>
+            <p className="f-sans" style={{ fontSize: 16, fontWeight: 700, color: C.ink }}>あなたは{tierLabel}グループです</p>
             <p className="f-sans" style={{ fontSize: 11, color: C.mid, marginTop: 3 }}>同グループの参加者 {groupCount} 名</p>
           </div>
         </div>
@@ -1596,7 +1630,7 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
       {/* 2 or 3. データ十分/不十分 */}
       {hasEnoughData ? (
         <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-          <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 20 }}>同グループとの比較（{THIS_YEAR}年 年間）</p>
+          <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 20 }}>同グループとの比較（{THIS_YEAR}年 年間）</p>
           <div style={{ padding: "12px 16px", background: C.ivory, borderRadius: 10, marginBottom: 20, display: "flex", flexWrap: "wrap", gap: 20 }}>
             {[
               { l: "売上", my: myTotals.rev, med: medRev, pct: myRevPct },
@@ -1628,7 +1662,7 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
       ) : (
         <div className="ledger-card" style={{ padding: 28, background: C.cream, borderRadius: 12, textAlign: "center" }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
-          <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 8 }}>ベンチマークを解放しましょう</p>
+          <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 8 }}>ベンチマークを解放しましょう</p>
           <p className="f-sans" style={{ fontSize: 12, color: C.mid, lineHeight: 1.9, marginBottom: 20 }}>
             あなたのグループにはあと <strong style={{ color: C.gold }}>{need}</strong> 人必要です。<br />仲間を招待してベンチマークを解放しましょう。
           </p>
@@ -1641,7 +1675,7 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
       {/* 4. 出荷先別経費率比較 */}
       {destComparisons.length > 0 && (
         <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-          <p className="f-serif" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 20 }}>出荷先別 経費率（自分 vs グループ中央値）</p>
+          <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 20 }}>出荷先別 経費率（自分 vs グループ中央値）</p>
           {destComparisons.map(d => {
             const myR  = d.myRate;
             const medR = d.medRate;
@@ -1682,13 +1716,13 @@ function AdminTab({destPending,destApproved,farmers,farmersPending,onApprove,onR
   if(!ok)return(
     <div className="fade-in" style={{maxWidth:340,margin:"60px auto"}}>
       <div className="ledger-card" style={{padding:28}}>
-        <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:4}}>🔑 管理者ログイン</p>
+        <p className="f-sans" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:4}}>🔑 管理者ログイン</p>
         <p className="f-sans" style={{fontSize:11,color:C.mid,marginBottom:18,lineHeight:1.8}}>出荷先・農家登録の承認を行います</p>
         <input className="field f-sans" type="password" placeholder="パスワード" value={pw}
           onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&auth()}
           style={{marginBottom:8,borderColor:err?C.shu:undefined}}/>
         {err&&<p className="f-sans" style={{fontSize:11,color:C.shu,marginBottom:8}}>パスワードが違います</p>}
-        <button className="btn-dark" style={{width:"100%"}} onClick={auth}>ログイン</button>
+        <button className="btn-primary" style={{width:"100%"}} onClick={auth}>ログイン</button>
       </div>
     </div>
   );
@@ -1696,18 +1730,18 @@ function AdminTab({destPending,destApproved,farmers,farmersPending,onApprove,onR
   return(
     <div className="appear" style={{maxWidth:640,margin:"0 auto"}}>
       <div style={{marginBottom:18,paddingBottom:14,borderBottom:`1px solid ${C.rule}`}}>
-        <p className="f-serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:3}}>管理者コンソール</p>
+        <p className="f-sans" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:3}}>管理者コンソール</p>
         <p className="f-sans" style={{fontSize:11,color:C.mid}}>承認・PIN管理</p>
       </div>
-      <div style={{display:"flex",gap:3,background:C.ivory,border:`1px solid ${C.rule}`,borderRadius:2,padding:3,marginBottom:22}}>
+      <div style={{display:"flex",gap:3,background:C.ivory,border:`1px solid ${C.rule}`,borderRadius:8,padding:3,marginBottom:22}}>
         {[{k:"pending",l:"📋 承認待ち",c:total},{k:"farmers",l:"🌾 農家アカウント",c:farmers.length}].map(({k,l,c})=>(
           <button key={k} onClick={()=>setSub(k)} style={{
-            flex:1,padding:"9px 6px",border:"none",borderRadius:2,fontFamily:"inherit",
-            background:sub===k?C.bark:"transparent",color:sub===k?"#fff":C.mid,
+            flex:1,padding:"9px 6px",border:"none",borderRadius:8,fontFamily:"inherit",
+            background:sub===k?C.accent:"transparent",color:sub===k?"#fff":C.mid,
             fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5,
           }}>
             {l}
-            {c>0&&<span style={{padding:"1px 6px",borderRadius:10,fontSize:9,background:sub===k?"#fff3":C.rule,color:sub===k?"#fff":C.ink}}>{c}</span>}
+            {c>0&&<span style={{padding:"1px 6px",borderRadius:16,fontSize:9,background:sub===k?"#fff3":C.rule,color:sub===k?"#fff":C.ink}}>{c}</span>}
           </button>
         ))}
       </div>
@@ -1719,7 +1753,7 @@ function AdminTab({destPending,destApproved,farmers,farmersPending,onApprove,onR
           <div style={{display:"grid",gap:8,marginBottom:22}}>
             {farmersPending.map(f=>(
               <div key={f.id} className="ledger-card" style={{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-                <div><p className="f-serif" style={{fontSize:14,fontWeight:700}}>{f.name}</p><p className="f-sans" style={{fontSize:10,color:C.dim,marginTop:2}}>{f.email}</p></div>
+                <div><p className="f-sans" style={{fontSize:14,fontWeight:700}}>{f.name}</p><p className="f-sans" style={{fontSize:10,color:C.dim,marginTop:2}}>{f.email}</p></div>
                 <div style={{display:"flex",gap:8}}>
                   <button className="btn-gold" onClick={()=>onApproveFarmer(f.id)} style={{padding:"8px 18px"}}>承認</button>
                   <button className="btn-outline" onClick={()=>onRejectFarmer(f.id)} style={{color:C.shu,borderColor:`${C.shu}44`,padding:"8px 18px"}}>却下</button>
@@ -1754,7 +1788,7 @@ function AdminTab({destPending,destApproved,farmers,farmersPending,onApprove,onR
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{width:38,height:38,borderRadius:"50%",background:C.bambooPl,border:`2px solid ${C.bamboo}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🌾</div>
                 <div style={{flex:1}}>
-                  <p className="f-serif" style={{fontSize:13,fontWeight:700}}>{f.name}</p>
+                  <p className="f-sans" style={{fontSize:13,fontWeight:700}}>{f.name}</p>
                   <p className="f-sans" style={{fontSize:10,color:C.dim,marginTop:2}}>{f.email}</p>
                   <p className="f-sans" style={{fontSize:9,color:C.ghost,marginTop:1}}>就農{THIS_YEAR-f.joinedYear+1}年目</p>
                 </div>
@@ -1839,7 +1873,7 @@ function OnboardingModal({ onDismiss }) {
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             <span style={{ fontSize:32 }}>{s.icon}</span>
-            <div className="f-serif" style={{ fontSize:18, fontWeight:700, color:C.washi, lineHeight:1.3 }}>
+            <div className="f-sans" style={{ fontSize:18, fontWeight:700, color:C.washi, lineHeight:1.3 }}>
               {s.title}
             </div>
           </div>
@@ -1858,7 +1892,7 @@ function OnboardingModal({ onDismiss }) {
               </button>
             )}
             <button
-              className="btn-dark"
+              className="btn-primary"
               style={{ flex:1 }}
               onClick={()=>{ isLast ? onDismiss() : setStep(p=>p+1); }}
             >
@@ -2008,66 +2042,68 @@ const subDest=useCallback(async d=>{
 
       {/* ── HEADER ── */}
       <header style={{
-        background:`${C.deep}F6`,
-        backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-        borderBottom:`1px solid ${C.ruleD}`,
+        background:"#FFFFFF",
+        borderBottom:"1px solid #EBEBEB",
         height:52,
         display:"flex",alignItems:"center",
         padding:"0 24px",
         position:"sticky",top:0,zIndex:50,
       }}>
-        {/* ロゴ */}
-        <div style={{display:"flex",alignItems:"center",gap:11,marginRight:"auto"}}>
-          <span style={{fontSize:19}}>🥦</span>
-          <div>
-            <div className="f-serif" style={{fontSize:13,fontWeight:700,color:C.washi,letterSpacing:".06em",lineHeight:1.2}}>
-              吉野川 農家 記録
-            </div>
-            <div className="f-sans" style={{fontSize:7,color:`${C.washi}35`,letterSpacing:".18em",textTransform:"uppercase"}}>
-              Yoshinogawa · chitose-bank
-            </div>
-          </div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginRight:"auto"}}>
+          <span style={{fontSize:20}}>🥦</span>
+          <span className="f-sans" style={{fontSize:14,fontWeight:700,color:"#222222",letterSpacing:".02em"}}>吉野川 農家記録</span>
         </div>
-
-        {/* ログイン中 */}
         {me&&(
           <div style={{
             display:"flex",alignItems:"center",gap:8,
-            padding:"5px 12px",background:`${C.washi}0C`,
-            borderRadius:20,marginRight:16,border:`1px solid ${C.washi}14`,
+            padding:"5px 12px",background:"#F7F7F7",
+            borderRadius:20,marginRight:12,border:"1px solid #EBEBEB",
           }}>
             <span style={{fontSize:11}}>🌾</span>
-            <span className="f-sans" style={{fontSize:11,fontWeight:500,color:C.washi}}>{me.name}</span>
+            <span className="f-sans" style={{fontSize:11,fontWeight:500,color:"#222222"}}>{me.name}</span>
             <button onClick={()=>{setMe(null);setTab("board");}} className="f-sans" style={{
-              fontSize:9,color:`${C.washi}50`,background:`${C.washi}10`,
-              border:`1px solid ${C.washi}18`,borderRadius:10,padding:"2px 8px",
+              fontSize:9,color:"#717171",background:"transparent",
+              border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",
             }}>ログアウト</button>
           </div>
         )}
-
-        {/* ナビ */}
         <nav style={{display:"flex"}}>
           {TABS.map(({k,l,badge,locked})=>(
             <button key={k} onClick={()=>setTab(k)}
               className={`nav-item ${tab===k?"active":""}`}
               style={{
-                padding:"0 18px",height:52,border:"none",borderRadius:0,
+                padding:"0 16px",height:52,border:"none",borderRadius:0,
                 background:"transparent",
-                color:tab===k?C.washi:locked?`${C.washi}25`:`${C.washi}55`,
-                fontSize:11,fontWeight:tab===k?600:400,
-                letterSpacing:".06em",position:"relative",
+                color:tab===k?"#222222":locked?"#D0D0D0":"#717171",
+                fontSize:12,fontWeight:tab===k?600:400,
+                letterSpacing:".02em",position:"relative",
               }}>
               {l}
               {badge>0&&<span style={{
-                position:"absolute",top:10,right:6,
+                position:"absolute",top:10,right:4,
                 width:14,height:14,borderRadius:"50%",
-                background:C.shu,color:"#fff",fontSize:8,fontWeight:700,
+                background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,
                 display:"flex",alignItems:"center",justifyContent:"center",
               }}>{badge}</span>}
             </button>
           ))}
         </nav>
       </header>
+
+      {/* ── MOBILE BOTTOM TAB BAR ── */}
+      <div className="bottom-tab-bar">
+        {[
+          {k:"board",   icon:"📋", l:"ボード"},
+          {k:"input",   icon:"✏️",  l:"入力"},
+          ...(me?[{k:"ledger",    icon:"📊", l:"台帳"},{k:"benchmark", icon:"📈", l:"比較"}]:[]),
+          {k:"admin",   icon:"⚙️",  l:"管理"},
+        ].map(({k,icon,l})=>(
+          <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}>
+            <span className="icon">{icon}</span>
+            {l}
+          </button>
+        ))}
+      </div>
 
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
