@@ -1809,11 +1809,27 @@ function AdminTab() {
   const destRecCount = {};
   records.forEach(r => { destRecCount[r.dest_id]=(destRecCount[r.dest_id]||0)+1; });
 
+  const NOTIF_SQL = `CREATE TABLE notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  farmer_id uuid REFERENCES auth.users(id) NOT NULL,
+  type text NOT NULL,
+  message text NOT NULL,
+  read boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "notifications_own" ON notifications
+  FOR ALL USING (auth.uid() = farmer_id)
+  WITH CHECK (auth.uid() = farmer_id);
+CREATE INDEX idx_notifications_farmer
+  ON notifications(farmer_id, created_at DESC);`;
+
   const SUB_TABS = [
     { k:"farmers", l:"農家",     n: farmers.length },
     { k:"dests",   l:"出荷先",   n: dests.filter(d=>d.status==="pending").length },
     { k:"records", l:"記録データ", n: records.length },
     { k:"stats",   l:"統計",     n: null },
+    { k:"sql",     l:"SQL",      n: null },
   ];
 
   const Card = ({ children, style }) => (
@@ -2047,6 +2063,25 @@ function AdminTab() {
         </div>
       )}
 
+      {/* ── SQL ── */}
+      {!loading && sub==="sql" && (
+        <div className="fade-in" style={{ display:"grid",gap:16 }}>
+          <Card>
+            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>notifications テーブル作成SQL</p>
+            <p className="f-sans" style={{ fontSize:11,color:"#717171",marginBottom:16 }}>Supabase SQL Editorで実行してください。</p>
+            <pre style={{
+              background:"#F7F7F7",borderRadius:12,padding:16,overflowX:"auto",
+              fontFamily:"'DM Mono','Courier New',monospace",fontSize:12,color:"#222",lineHeight:1.7,margin:0,
+              border:"1px solid #EBEBEB",whiteSpace:"pre",
+            }}>{NOTIF_SQL}</pre>
+            <button onClick={()=>navigator.clipboard.writeText(NOTIF_SQL)} style={{
+              marginTop:12,padding:"8px 20px",background:"#00A86B",color:"#fff",border:"none",
+              borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",
+            }}>SQLをコピー</button>
+          </Card>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -2176,6 +2211,14 @@ export default function App(){
   const [authV,setAuthV]=useState("login");
   const [showOnboard,setShowOnboard]=useState(false);
   const [showTerms,setShowTerms]=useState(false);
+  const [notifs,setNotifs]=useState([]);
+  const [showNotifs,setShowNotifs]=useState(false);
+  useEffect(()=>{
+    if(!showNotifs)return;
+    const close=e=>{ if(!e.target.closest('[data-notif-bell]'))setShowNotifs(false); };
+    document.addEventListener('mousedown',close);
+    return()=>document.removeEventListener('mousedown',close);
+  },[showNotifs]);
 
   const dismissOnboard=async()=>{
     localStorage.setItem("yw_onboard_seen","1");
@@ -2227,6 +2270,21 @@ const seen = localStorage.getItem("yw_onboard_seen");
   const savDP=useCallback(async d=>{setDestPend(d);await sSet("yw_dests_pend",d);setBadgeCnt((farmPend?.length||0)+d.length);},[farmPend]);
   const savR=useCallback(async r=>{setRecs(r);await sSet("yw_records",r);},[]);
   
+const loadNotifs=useCallback(async(farmerId)=>{
+    const{data}=await supabase.from('notifications').select('*').eq('farmer_id',farmerId).order('created_at',{ascending:false}).limit(10);
+    if(data)setNotifs(data);
+  },[]);
+
+  const markRead=useCallback(async(id)=>{
+    await supabase.from('notifications').update({read:true}).eq('id',id);
+    setNotifs(prev=>prev.map(n=>n.id===id?{...n,read:true}:n));
+  },[]);
+
+  const pushNotif=useCallback(async(farmerId,type,message)=>{
+    const{data}=await supabase.from('notifications').insert({farmer_id:farmerId,type,message}).select().single();
+    if(data)setNotifs(prev=>[data,...prev].slice(0,10));
+  },[]);
+
 const addRec=useCallback(async(fid,yr,mi,e)=>{
     const k=`${fid}_${yr}_${mi}`;
     const newRecs={...recs,[k]:[...(recs[k]||[]).filter(x=>x.destId!==e.destId),e]};
@@ -2241,8 +2299,59 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
       costs: e.costs || [],
       crop: e.crop,
     }, { onConflict: 'farmer_id,year,month,dest_id' });
-    if (error) console.error('records upsert error:', error);
-  },[recs]);
+    if (error) { console.error('records upsert error:', error); return; }
+
+    // ── 経営インサイト通知 ──
+    const rev = e.boxes * e.ppb;
+    const cost = (e.costs||[]).reduce((s,c)=>s+(c.a||0),0);
+    if(rev<=0) return;
+    const rate = Math.round(cost/rev*100);
+
+    // 経費率50%超
+    if(rate>50) await pushNotif(fid,'expense_alert',`経費率が${rate}%です。利益を圧迫しています。`);
+
+    // 経費1項目が50%以上
+    if(cost>0){
+      const dominated=(e.costs||[]).find(c=>(c.a||0)/cost>=0.5&&c.l);
+      if(dominated) await pushNotif(fid,'cost_concentration',`${dominated.l}が経費全体の${Math.round((dominated.a||0)/cost*100)}%を占めています。`);
+    }
+
+    // 前月比 悪化
+    const prevMi=mi===0?11:mi-1;const prevYr=mi===0?yr-1:yr;
+    const prevRecs=(recs[`${fid}_${prevYr}_${prevMi}`]||[]);
+    if(prevRecs.length>0){
+      const pr=prevRecs.find(r=>r.destId===e.destId);
+      if(pr){
+        const prevRev=(pr.boxes||0)*(pr.ppb||0);
+        const prevCost=(pr.costs||[]).reduce((s,c)=>s+(c.a||0),0);
+        if(prevRev>0){
+          const prevRate=Math.round(prevCost/prevRev*100);
+          const diff=rate-prevRate;
+          if(diff>=5) await pushNotif(fid,'monthly_change',`前月比で経費率が${diff}%上昇しました（${prevRate}%→${rate}%）。`);
+        }
+      }
+    }
+
+    // 出荷先間の経費率差10%超
+    const allDestRecs=Object.values(recs).flat().filter(r=>r&&r.boxes&&r.ppb);
+    const destRates={};
+    allDestRecs.forEach(r=>{
+      const rv=(r.boxes||0)*(r.ppb||0);const cs=(r.costs||[]).reduce((s,c)=>s+(c.a||0),0);
+      if(rv>0) destRates[r.destId]=Math.round(cs/rv*100);
+    });
+    destRates[e.destId]=rate;
+    const destEntries=Object.entries(destRates);
+    if(destEntries.length>=2){
+      destEntries.sort((a,b)=>a[1]-b[1]);
+      const[lowId,lowR]=destEntries[0];const[highId,highR]=destEntries[destEntries.length-1];
+      if(highR-lowR>=10){
+        const destOkLocal=destOk||[];
+        const lowName=destOkLocal.find(d=>d.id===lowId)?.name||lowId;
+        const highName=destOkLocal.find(d=>d.id===highId)?.name||highId;
+        await pushNotif(fid,'dest_compare',`${lowName}の経費率は${lowR}%、${highName}は${highR}%です。`);
+      }
+    }
+  },[recs,pushNotif,destOk]);
   
 const subDest=useCallback(async d=>{
     await supabase.from('dests').insert({ id: d.id, name: d.name, status: 'approved', submitted_by: d.submittedBy });
@@ -2304,17 +2413,69 @@ const subDest=useCallback(async d=>{
           <span className="f-sans" style={{fontSize:14,fontWeight:700,color:"#222222",letterSpacing:".02em"}}>吉野川 農家記録</span>
         </div>
         {me&&(
-          <div style={{
-            display:"flex",alignItems:"center",gap:8,
-            padding:"5px 12px",background:"#F7F7F7",
-            borderRadius:20,marginRight:12,border:"1px solid #EBEBEB",
-          }}>
-            <span style={{fontSize:11}}>🌾</span>
-            <span className="f-sans" style={{fontSize:11,fontWeight:500,color:"#222222"}}>{me.name}</span>
-            <button onClick={()=>{setMe(null);setTab("board");}} className="f-sans" style={{
-              fontSize:9,color:"#717171",background:"transparent",
-              border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",
-            }}>ログアウト</button>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginRight:12}}>
+            {/* 通知ベル */}
+            <div data-notif-bell="" style={{position:"relative"}}>
+              <button onClick={()=>setShowNotifs(v=>!v)} style={{
+                width:36,height:36,borderRadius:"50%",border:"1px solid #EBEBEB",
+                background:"#F7F7F7",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",
+              }}>
+                🔔
+                {notifs.filter(n=>!n.read).length>0&&(
+                  <span style={{position:"absolute",top:2,right:2,width:14,height:14,borderRadius:"50%",background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {notifs.filter(n=>!n.read).length}
+                  </span>
+                )}
+              </button>
+              {showNotifs&&(
+                <div style={{
+                  position:"absolute",top:44,right:0,width:320,background:"#fff",borderRadius:16,
+                  border:"1px solid #EBEBEB",boxShadow:"0 8px 32px rgba(0,0,0,0.12)",zIndex:200,overflow:"hidden",
+                }}>
+                  <div style={{padding:"14px 16px",borderBottom:"1px solid #EBEBEB",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span className="f-sans" style={{fontSize:13,fontWeight:700,color:"#222"}}>通知</span>
+                    <button onClick={()=>setShowNotifs(false)} style={{border:"none",background:"none",color:"#B0B0B0",fontSize:16,cursor:"pointer",padding:4}}>×</button>
+                  </div>
+                  {notifs.length===0
+                    ? <div style={{padding:"28px 16px",textAlign:"center",color:"#B0B0B0",fontSize:12}}>通知はありません</div>
+                    : <div style={{maxHeight:360,overflowY:"auto"}}>
+                        {notifs.map(n=>(
+                          <div key={n.id} onClick={()=>markRead(n.id)} style={{
+                            padding:"12px 16px",borderBottom:"1px solid #F7F7F7",cursor:"pointer",
+                            background:n.read?"#fff":"#F0FBF6",
+                          }}>
+                            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                              <span style={{fontSize:16,flexShrink:0}}>
+                                {n.type==="expense_alert"?"⚠️":n.type==="dest_compare"?"🔄":n.type==="monthly_change"?"📉":"💡"}
+                              </span>
+                              <div style={{flex:1}}>
+                                <p className="f-sans" style={{fontSize:12,color:"#222",lineHeight:1.6}}>{n.message}</p>
+                                <p className="f-sans" style={{fontSize:10,color:"#B0B0B0",marginTop:3}}>
+                                  {new Date(n.created_at).toLocaleDateString("ja-JP",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+                                </p>
+                              </div>
+                              {!n.read&&<span style={{width:6,height:6,borderRadius:"50%",background:"#00A86B",flexShrink:0,marginTop:5}}/>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                  }
+                </div>
+              )}
+            </div>
+            {/* ユーザーピル */}
+            <div style={{
+              display:"flex",alignItems:"center",gap:8,
+              padding:"5px 12px",background:"#F7F7F7",
+              borderRadius:20,border:"1px solid #EBEBEB",
+            }}>
+              <span style={{fontSize:11}}>🌾</span>
+              <span className="f-sans" style={{fontSize:11,fontWeight:500,color:"#222222"}}>{me.name}</span>
+              <button onClick={()=>{setMe(null);setTab("board");setNotifs([]);setShowNotifs(false);}} className="f-sans" style={{
+                fontSize:9,color:"#717171",background:"transparent",
+                border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",
+              }}>ログアウト</button>
+            </div>
           </div>
         )}
         <nav style={{display:"flex"}}>
@@ -2363,7 +2524,7 @@ const subDest=useCallback(async d=>{
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")}/>
           : authV==="register"
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
-            : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");}} onGoRegister={()=>setAuthV("register")}/>
+            : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>
         )}
         {tab==="ledger"&&me&&<MyLedger loggedInFarmer={me} records={recs} destApproved={destOk}/>}
         {tab==="benchmark"&&me&&<BenchmarkTab loggedInFarmer={me} farmers={farmers} records={recs}/>}
