@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Terms from "./Terms.jsx";
 
 // ══════════════════════════════════════════════════════════
 // DESIGN SYSTEM — 「台帳の美学」
@@ -1926,6 +1927,7 @@ export default function App(){
   const [me,setMe]=useState(null);
   const [authV,setAuthV]=useState("login");
   const [showOnboard,setShowOnboard]=useState(false);
+  const [showTerms,setShowTerms]=useState(false);
 
   const dismissOnboard=async()=>{
     localStorage.setItem("yw_onboard_seen","1");
@@ -2126,18 +2128,26 @@ const subDest=useCallback(async d=>{
 
       {/* ── FOOTER ── */}
       <footer style={{
-        borderTop:`1px solid ${C.rule}`,
-        padding:"14px 28px",
+        borderTop:"1px solid #EBEBEB",
+        padding:"16px 28px",
         display:"flex",justifyContent:"space-between",alignItems:"center",
-        background:C.pale,
+        background:"#F7F7F7",
+        flexWrap:"wrap",gap:8,
       }}>
-        <span className="f-sans" style={{fontSize:9,color:C.ghost,letterSpacing:".06em"}}>
+        <span className="f-sans" style={{fontSize:11,color:"#B0B0B0"}}>
           © {THIS_YEAR} chitose-bank · 吉野川農家 記録プロジェクト
         </span>
-        <span className="f-sans" style={{fontSize:9,color:C.ghost}}>
-          ⚠ 本データは農家本人の入力による参考値です
-        </span>
+        <div style={{display:"flex",gap:16,alignItems:"center"}}>
+          <span className="f-sans" style={{fontSize:11,color:"#B0B0B0"}}>
+            本データは農家本人の入力による参考値です
+          </span>
+          <button onClick={()=>setShowTerms(true)} style={{
+            fontSize:11,color:"#717171",background:"none",border:"none",
+            cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,padding:0,
+          }}>利用規約</button>
+        </div>
       </footer>
+      {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
     </div>
   );
 }
