@@ -56,8 +56,8 @@ const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#
 const SEED_FARMERS = [];
 const SEED_DESTS = [];
 
-const THIS_YEAR = 2025;
-const ADMIN_PW  = "yoshino2025";
+const THIS_YEAR   = 2025;
+const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 const MONTHS    = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 
 async function sGet(k){try{const r=await window.storage.get(k,true);return r?JSON.parse(r.value):null;}catch{return null;}}
@@ -1709,24 +1709,8 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
 
 // ── AdminTab ─────────────────────────────────────────────────
 function AdminTab({destPending,destApproved,farmers,farmersPending,onApprove,onReject,onApproveFarmer,onRejectFarmer}){
-  const [pw,setPw]=useState("");const[ok,setOk]=useState(false);const[err,setErr]=useState(false);
   const [sub,setSub]=useState("pending");
-  const auth=()=>{pw===ADMIN_PW?(setOk(true),setErr(false)):setErr(true);};
   const total=destPending.length+farmersPending.length;
-
-  if(!ok)return(
-    <div className="fade-in" style={{maxWidth:340,margin:"60px auto"}}>
-      <div className="ledger-card" style={{padding:28}}>
-        <p className="f-sans" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:4}}>🔑 管理者ログイン</p>
-        <p className="f-sans" style={{fontSize:11,color:C.mid,marginBottom:18,lineHeight:1.8}}>出荷先・農家登録の承認を行います</p>
-        <input className="field f-sans" type="password" placeholder="パスワード" value={pw}
-          onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&auth()}
-          style={{marginBottom:8,borderColor:err?C.shu:undefined}}/>
-        {err&&<p className="f-sans" style={{fontSize:11,color:C.shu,marginBottom:8}}>パスワードが違います</p>}
-        <button className="btn-primary" style={{width:"100%"}} onClick={auth}>ログイン</button>
-      </div>
-    </div>
-  );
 
   return(
     <div className="appear" style={{maxWidth:640,margin:"0 auto"}}>
@@ -2034,7 +2018,7 @@ const subDest=useCallback(async d=>{
     {k:"board",l:"公開ボード"},
     {k:"input",l:me?"データ入力":"🔒 データ入力",locked:!me},
     ...(me?[{k:"ledger",l:"マイ台帳"},{k:"benchmark",l:"ベンチマーク"}]:[]),
-    {k:"admin",l:"管理",badge:badgeCnt},
+    ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
   return(
@@ -2119,7 +2103,7 @@ const subDest=useCallback(async d=>{
         )}
         {tab==="ledger"&&me&&<MyLedger loggedInFarmer={me} records={recs} destApproved={destOk}/>}
         {tab==="benchmark"&&me&&<BenchmarkTab loggedInFarmer={me} farmers={farmers} records={recs}/>}
-        {tab==="admin"&&<AdminTab
+        {tab==="admin"&&me?.email===ADMIN_EMAIL&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
