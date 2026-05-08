@@ -310,6 +310,101 @@ input:focus { outline: none; }
 }
 `;
 
+// ── BalanceSheet ────────────────────────────────────────────
+function BalanceSheet({ revenue, costs, title, compact = false }) {
+  const items = costs || [];
+  const totalCost = items.reduce((s, c) => s + (c.a || 0), 0);
+  const profit    = revenue - totalCost;
+  const costRate  = revenue > 0 ? Math.round(totalCost / revenue * 100) : 0;
+  const profRate  = 100 - costRate;
+  const maxItem   = Math.max(...items.map(c => c.a || 0), 1);
+  const isLoss    = profit < 0;
+
+  if (revenue === 0) return (
+    <div style={{ padding:"12px 0", textAlign:"center" }}>
+      <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>データなし</p>
+    </div>
+  );
+
+  return (
+    <div>
+      {title && <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:12 }}>{title}</p>}
+
+      {!compact && (
+        <>
+          {/* 売上バー */}
+          <div style={{ marginBottom:12 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
+              <span className="f-sans" style={{ fontSize:10, color:"#717171" }}>売上</span>
+              <span className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B" }}>{man(revenue)}</span>
+            </div>
+            <div style={{ height:28, background:"#00A86B", borderRadius:8 }}/>
+          </div>
+
+          {/* 経費内訳 */}
+          {items.length > 0 && (
+            <div style={{ marginBottom:10 }}>
+              {items.map((c, i) => {
+                const w = Math.round((c.a || 0) / maxItem * 100);
+                return (
+                  <div key={c.l + i} style={{ marginBottom:7 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:3 }}>
+                      <span className="f-sans" style={{ fontSize:10, color:"#717171" }}>{c.l}</span>
+                      <span className="f-mono" style={{ fontSize:10, color:"#F5A623" }}>{man(c.a || 0)}</span>
+                    </div>
+                    <div style={{ height:8, background:"#F7F7F7", borderRadius:4 }}>
+                      <div style={{ height:8, width:`${w}%`, background:"#F5A623", borderRadius:4, opacity:0.85 }}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 経費合計区切り */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", borderTop:"2px solid #EBEBEB", paddingTop:8, marginBottom:12 }}>
+            <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#222" }}>経費合計</span>
+            <div style={{ display:"flex", gap:6, alignItems:"baseline" }}>
+              <span className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#F5A623" }}>{man(totalCost)}</span>
+              <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>({costRate}%)</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 積み上げバー */}
+      {compact && (
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+          <span className="f-sans" style={{ fontSize:10, color:"#717171" }}>売上 {man(revenue)}</span>
+          <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>経費 {costRate}%</span>
+        </div>
+      )}
+      <div style={{ display:"flex", height:28, borderRadius:8, overflow:"hidden", background:"#EBEBEB" }}>
+        {isLoss ? (
+          <div style={{ flex:1, background:"#E24B4A", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <span className="f-sans" style={{ fontSize:9, color:"#fff", fontWeight:600 }}>赤字 {man(Math.abs(profit))}</span>
+          </div>
+        ) : (
+          <>
+            <div style={{ width:`${profRate}%`, minWidth:0, background:"#00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+              {profRate >= 18 && <span className="f-sans" style={{ fontSize:9, color:"#fff", fontWeight:600, whiteSpace:"nowrap", padding:"0 4px" }}>利益 {man(profit)}({profRate}%)</span>}
+            </div>
+            <div style={{ width:`${costRate}%`, minWidth:0, background:"#F5A623", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+              {costRate >= 18 && <span className="f-sans" style={{ fontSize:9, color:"#fff", fontWeight:600, whiteSpace:"nowrap", padding:"0 4px" }}>経費 {man(totalCost)}({costRate}%)</span>}
+            </div>
+          </>
+        )}
+      </div>
+      {!compact && (
+        <div style={{ display:"flex", gap:14, marginTop:6 }}>
+          <span className="f-mono" style={{ fontSize:11, color:isLoss?"#E24B4A":"#00A86B", fontWeight:600 }}>利益 {man(profit)}</span>
+          <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>{isLoss ? "赤字" : `利益率 ${profRate}%`}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Mascot ─────────────────────────────────────────────────
 function Mascot({ message }) {
   return (
@@ -1332,6 +1427,19 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
       cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
     });
     return { rev, cost, profit: rev - cost };
+  };
+
+  const getMonthCosts = (year, mi) => {
+    const rs = records[`${fid}_${year}_${mi}`] || [];
+    const map = {};
+    rs.forEach(r => (r.costs || []).forEach(c => { if (c.l) map[c.l] = (map[c.l] || 0) + (c.a || 0); }));
+    return Object.entries(map).sort((a,b) => b[1]-a[1]).map(([l,a]) => ({l,a}));
+  };
+
+  const topN = (items, n) => {
+    if (items.length <= n) return items;
+    const rest = items.slice(n).reduce((s,c) => s + c.a, 0);
+    return [...items.slice(0, n), { l:"その他", a:rest }];
   };
 
   const monthlyData = MONTHS.map((label, mi) => ({ label, mi, ...getMonthData(THIS_YEAR, mi) }));
