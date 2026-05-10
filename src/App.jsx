@@ -80,6 +80,8 @@ body { background: #fff; }
 ::-webkit-scrollbar-thumb { background: #EBEBEB; border-radius: 1px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
+.filter-scroll::-webkit-scrollbar { display: none; }
+
 .f-serif { font-family: 'Noto Sans JP', 'Inter', sans-serif; font-weight: 700; }
 .f-sans  { font-family: 'Noto Sans JP', 'Inter', sans-serif; }
 .f-mono  { font-family: 'DM Mono', 'Courier New', monospace; }
@@ -942,6 +944,21 @@ function RegisterScreen({ onGoLogin, onSubmit }) {
 function BoardTab({ farmers, destApproved, records }) {
   const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
 
+  const [selectedCrop, setSelectedCrop] = useState(() => {
+    try { return localStorage.getItem('boardFilterCrop') || 'すべて'; } catch { return 'すべて'; }
+  });
+  const [searchQuery, setSearchQuery] = useState(() => {
+    try { return localStorage.getItem('boardSearchQuery') || ''; } catch { return ''; }
+  });
+  const handleSetCrop = crop => {
+    setSelectedCrop(crop);
+    try { localStorage.setItem('boardFilterCrop', crop); } catch {}
+  };
+  const handleSetSearch = q => {
+    setSearchQuery(q);
+    try { localStorage.setItem('boardSearchQuery', q); } catch {}
+  };
+
   const median = arr => {
     if (!arr.length) return 0;
     const s = [...arr].sort((a, b) => a - b);
@@ -954,9 +971,15 @@ function BoardTab({ farmers, destApproved, records }) {
     recs: MONTHS.flatMap((_, i) => records[`${f.id}_${THIS_YEAR}_${i}`] || []),
   }));
 
+  const allCrops = [...new Set(allFarmerRecs.flatMap(f => f.recs).map(r => r.crop).filter(Boolean))];
+
+  const filteredFarmerRecs = selectedCrop === 'すべて'
+    ? allFarmerRecs
+    : allFarmerRecs.map(({ id, recs }) => ({ id, recs: recs.filter(r => r.crop === selectedCrop) }));
+
   // 作物別集計（農家単位）
   const cropFarmerMap = {};
-  allFarmerRecs.forEach(({ id, recs }) => {
+  filteredFarmerRecs.forEach(({ id, recs }) => {
     recs.forEach(r => {
       const crop = r.crop || "";
       if (!crop) return;
@@ -977,7 +1000,7 @@ function BoardTab({ farmers, destApproved, records }) {
 
   // 出荷先別集計（農家単位）
   const destFarmerMap = {};
-  allFarmerRecs.forEach(({ id, recs }) => {
+  filteredFarmerRecs.forEach(({ id, recs }) => {
     recs.forEach(r => {
       if (!r.destId) return;
       if (!destFarmerMap[r.destId]) destFarmerMap[r.destId] = {};
@@ -993,6 +1016,13 @@ function BoardTab({ farmers, destApproved, records }) {
     const rates = entries.filter(e => e.rev > 0).map(e => Math.round(e.cost / e.rev * 100));
     return { destId, name: destMap[destId]?.name || "不明", count: entries.length, medRate: Math.round(median(rates)), medRev: median(revs), medCost: median(costs) };
   }).sort((a, b) => b.count - a.count);
+
+  const sq = searchQuery.trim().toLowerCase();
+  const filteredCropCards = sq ? cropCards.filter(c => c.crop.toLowerCase().includes(sq)) : cropCards;
+  const filteredDestCards = sq ? destCards.filter(d => d.name.toLowerCase().includes(sq)) : destCards;
+
+  const isFiltered = selectedCrop !== 'すべて';
+  const hasNoData = filteredCropCards.length === 0 && filteredDestCards.length === 0;
 
   const lastUpdated = new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"2-digit", day:"2-digit" });
   const MIN_FARMERS = 5;
@@ -1030,6 +1060,50 @@ function BoardTab({ farmers, destApproved, records }) {
         </div>
       </div>
 
+      {/* ══ 検索バー ════════════════════════════════════ */}
+      <div style={{ marginBottom:12, position:"relative" }}>
+        <span style={{ position:"absolute", left:16, top:"50%", transform:"translateY(-50%)", fontSize:16, pointerEvents:"none" }}>🔍</span>
+        <input
+          className="f-sans"
+          type="text"
+          placeholder="作物や出荷先を検索..."
+          value={searchQuery}
+          onChange={e => handleSetSearch(e.target.value)}
+          style={{
+            width:"100%", padding:"14px 16px 14px 44px",
+            borderRadius:16, border:"none", background:C.bgSoft,
+            fontSize:14, color:C.ink, outline:"none",
+          }}
+        />
+        {searchQuery && (
+          <button onClick={() => handleSetSearch('')} style={{
+            position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
+            background:"none", border:"none", fontSize:18, color:C.ghost, cursor:"pointer",
+          }}>×</button>
+        )}
+      </div>
+
+      {/* ══ 作物フィルターピル ════════════════════════ */}
+      <div className="filter-scroll" style={{
+        display:"flex", gap:8, overflowX:"auto", paddingBottom:10, marginBottom:16,
+        scrollbarWidth:"none", msOverflowStyle:"none",
+      }}>
+        {['すべて', ...allCrops].map(crop => {
+          const active = selectedCrop === crop;
+          return (
+            <button key={crop} onClick={() => handleSetCrop(crop)} style={{
+              flexShrink:0, padding:"8px 20px", borderRadius:20, fontSize:13,
+              fontWeight: active ? 700 : 400,
+              background: active ? C.accent : "#fff",
+              color: active ? "#fff" : C.ink,
+              border: active ? `1px solid ${C.accent}` : `1px solid ${C.border}`,
+              whiteSpace:"nowrap", cursor:"pointer",
+              transition:"all .15s ease",
+            }}>{crop}</button>
+          );
+        })}
+      </div>
+
       <Mascot message="ようこそ！ここでは吉野川の農家が実際にかかっている経費の集計データを見ることができます。個人情報は一切公開されません。"/>
 
       {/* ══ 参加状況バナー ══════════════════════════════ */}
@@ -1043,6 +1117,28 @@ function BoardTab({ farmers, destApproved, records }) {
         </span>
         <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>最終更新 {lastUpdated}</span>
       </div>
+
+      {/* ══ フィルター中バナー ════════════════════════ */}
+      {(isFiltered || sq) && (
+        <div style={{
+          padding:"12px 18px", marginBottom:20,
+          background: hasNoData ? C.dangerLight : C.accentLight,
+          border:`1px solid ${hasNoData ? C.danger+'44' : C.accent+'44'}`,
+          borderRadius:12,
+          display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap",
+        }}>
+          <span className="f-sans" style={{ fontSize:13, color: hasNoData ? C.danger : C.accent, fontWeight:600 }}>
+            {hasNoData
+              ? `「${selectedCrop !== 'すべて' ? selectedCrop : sq}」のデータはまだありません。最初の入力者になりましょう！`
+              : `${selectedCrop !== 'すべて' ? selectedCrop : `"${sq}"`}のデータを表示中`
+            }
+          </span>
+          <button onClick={() => { handleSetCrop('すべて'); handleSetSearch(''); }} style={{
+            padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:600,
+            background:"#fff", border:`1px solid ${C.border}`, color:C.ink, cursor:"pointer",
+          }}>すべてに戻す</button>
+        </div>
+      )}
 
       {/* ══ 使い方 ══════════════════════════════════════ */}
       <div style={{ marginBottom:32 }}>
@@ -1065,10 +1161,10 @@ function BoardTab({ farmers, destApproved, records }) {
       {/* ══ 作物別中央値カルーセル ══════════════════════ */}
       <div style={{ marginBottom:32 }}>
         <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>作物別 集計（中央値）</div>
-        {cropCards.length === 0
+        {filteredCropCards.length === 0
           ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
           : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
-              {cropCards.map(c => {
+              {filteredCropCards.map(c => {
                 const masked = c.count < MIN_FARMERS;
                 return (
                   <div key={c.crop} style={{
@@ -1102,10 +1198,10 @@ function BoardTab({ farmers, destApproved, records }) {
       {/* ══ 出荷先別経費率カルーセル ════════════════════ */}
       <div style={{ marginBottom:32 }}>
         <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>出荷先別 採算（中央値）</div>
-        {destCards.length === 0
+        {filteredDestCards.length === 0
           ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
           : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
-              {destCards.map(d => {
+              {filteredDestCards.map(d => {
                 const masked = d.count < MIN_FARMERS;
                 return (
                   <div key={d.destId} style={{
