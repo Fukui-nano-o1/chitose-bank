@@ -1151,6 +1151,8 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const [step,setStep]=useState(1);
   const [crop,setCrop]=useState("");
   const [cropInput,setCropInput]=useState("");
+  const [variety,setVariety]=useState("");
+  const [isBrand,setIsBrand]=useState(false);
   const [mon,setMon]=useState(new Date().getMonth());
   const [dest,setDest]=useState(null);
   const [boxes,setBoxes]=useState("");
@@ -1168,6 +1170,10 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
     Object.values(records).flat().map(r=>r.crop).filter(Boolean)
   )];
 
+  const knownVarieties=(cropName)=>[...new Set(
+    Object.values(records).flat().filter(r=>r.crop===cropName&&r.variety).map(r=>r.variety)
+  )];
+
   const save=async()=>{
     if(!boxes||!ppb)return;
     const ci=costs.filter(c=>c.l&&c.v).map(c=>{
@@ -1178,7 +1184,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
       else a=Math.round(v);
       return {l:c.l,v,mode:c.mode,a};
     });
-    await onAddRecord(loggedInFarmer.id,THIS_YEAR,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci,crop:crop});
+    await onAddRecord(loggedInFarmer.id,THIS_YEAR,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci,crop:crop,variety:variety.trim(),is_brand:isBrand});
     setSaved(true);
   };
   const submitDest=async()=>{
@@ -1222,7 +1228,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
             {knownCrops.length>0&&(
               <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
                 {knownCrops.map(c=>(
-                  <button key={c} onClick={()=>{setCrop(c);setCropInput(c);}} style={{
+                  <button key={c} onClick={()=>{setCrop(c);setCropInput(c);setVariety("");}} style={{
                     padding:"6px 12px",border:`1.5px solid ${crop===c?C.gold:C.rule}`,borderRadius:20,
                     background:crop===c?`${C.gold}12`:"#fff",
                     color:crop===c?C.gold:C.mid,fontSize:12,fontWeight:crop===c?700:400,
@@ -1231,8 +1237,50 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               </div>
             )}
             <input className="field f-sans" placeholder="作物名を入力（例：トマト）" value={cropInput}
-              onChange={e=>{setCropInput(e.target.value);setCrop(e.target.value);}}
+              onChange={e=>{setCropInput(e.target.value);setCrop(e.target.value);setVariety("");}}
               style={{marginBottom:18,fontSize:14}}/>
+
+            {/* 品種入力 */}
+            <div style={{marginBottom:16}}>
+              <label className="lbl f-sans">品種（例：千両2号、おかわかめ等）</label>
+              {crop&&knownVarieties(crop).length>0&&(
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+                  {knownVarieties(crop).map(v=>(
+                    <button key={v} onClick={()=>setVariety(v)} style={{
+                      padding:"4px 10px",border:`1.5px solid ${variety===v?C.bamboo:C.rule}`,borderRadius:20,
+                      background:variety===v?`${C.bamboo}12`:"#fff",
+                      color:variety===v?C.bamboo:C.mid,fontSize:11,fontWeight:variety===v?700:400,
+                    }}>{v}</button>
+                  ))}
+                </div>
+              )}
+              <input className="field f-sans" placeholder="品種名（任意）" value={variety}
+                onChange={e=>setVariety(e.target.value)}
+                style={{fontSize:13}}/>
+            </div>
+
+            {/* ブランド品トグル */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22,padding:"12px 14px",background:C.bgSoft,borderRadius:10}}>
+              <div>
+                <span className="f-sans" style={{fontSize:13,fontWeight:600,color:C.ink}}>ブランド品</span>
+                {isBrand&&<span style={{marginLeft:8,padding:"2px 8px",borderRadius:8,fontSize:10,fontWeight:700,background:C.accentLight,color:C.accent}}>ブランド</span>}
+              </div>
+              <button onClick={()=>setIsBrand(b=>!b)} style={{
+                width:44,height:24,borderRadius:12,border:"none",cursor:"pointer",
+                background:isBrand?C.accent:"#D1D1D1",
+                transition:"background .2s",
+                position:"relative",padding:0,flexShrink:0,
+              }}>
+                <span style={{
+                  position:"absolute",top:3,left:isBrand?23:3,
+                  width:18,height:18,borderRadius:"50%",background:"#fff",
+                  transition:"left .2s",
+                  boxShadow:"0 1px 3px rgba(0,0,0,0.2)",
+                  display:"block",
+                }}/>
+              </button>
+            </div>
+
             <button className="btn-primary" style={{width:"100%"}} disabled={!crop.trim()} onClick={()=>setStep(2)}>続ける →</button>
           </div>
         )}
@@ -1832,6 +1880,9 @@ CREATE POLICY "notifications_own" ON notifications
 CREATE INDEX idx_notifications_farmer
   ON notifications(farmer_id, created_at DESC);`;
 
+  const VARIETY_SQL = `ALTER TABLE records ADD COLUMN IF NOT EXISTS variety text DEFAULT '';
+ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
+
   const SUB_TABS = [
     { k:"farmers", l:"農家",     n: farmers.length },
     { k:"dests",   l:"出荷先",   n: dests.filter(d=>d.status==="pending").length },
@@ -2075,6 +2126,19 @@ CREATE INDEX idx_notifications_farmer
       {!loading && sub==="sql" && (
         <div className="fade-in" style={{ display:"grid",gap:16 }}>
           <Card>
+            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>records 列追加SQL（品種・ブランド）</p>
+            <p className="f-sans" style={{ fontSize:11,color:"#717171",marginBottom:16 }}>Supabase SQL Editorで実行してください。</p>
+            <pre style={{
+              background:"#F7F7F7",borderRadius:12,padding:16,overflowX:"auto",
+              fontFamily:"'DM Mono','Courier New',monospace",fontSize:12,color:"#222",lineHeight:1.7,margin:0,
+              border:"1px solid #EBEBEB",whiteSpace:"pre",
+            }}>{VARIETY_SQL}</pre>
+            <button onClick={()=>navigator.clipboard.writeText(VARIETY_SQL)} style={{
+              marginTop:12,padding:"8px 20px",background:"#00A86B",color:"#fff",border:"none",
+              borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",
+            }}>SQLをコピー</button>
+          </Card>
+          <Card>
             <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>notifications テーブル作成SQL</p>
             <p className="f-sans" style={{ fontSize:11,color:"#717171",marginBottom:16 }}>Supabase SQL Editorで実行してください。</p>
             <pre style={{
@@ -2306,6 +2370,8 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
       ppb: e.ppb,
       costs: e.costs || [],
       crop: e.crop,
+      variety: e.variety || '',
+      is_brand: e.is_brand || false,
     }, { onConflict: 'farmer_id,year,month,dest_id' });
     if (error) { console.error('records upsert error:', error); return; }
 
