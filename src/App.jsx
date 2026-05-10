@@ -311,14 +311,16 @@ input:focus { outline: none; }
 `;
 
 // ── BalanceSheet ────────────────────────────────────────────
-function BalanceSheet({ revenue, costs, title, compact = false }) {
+function BalanceSheet({ revenue, costs, compact = false }) {
+  const [open, setOpen] = useState(false);
   const items = costs || [];
   const totalCost = items.reduce((s, c) => s + (c.a || 0), 0);
-  const profit    = revenue - totalCost;
-  const costRate  = revenue > 0 ? Math.round(totalCost / revenue * 100) : 0;
-  const profRate  = 100 - costRate;
-  const maxItem   = Math.max(...items.map(c => c.a || 0), 1);
-  const isLoss    = profit < 0;
+  const profit = revenue - totalCost;
+  const isLoss = profit < 0;
+  const costRate = revenue > 0 ? Math.round(totalCost / revenue * 100) : 0;
+  const profRate = 100 - costRate;
+  const maxItem = Math.max(...items.map(c => c.a || 0), 1);
+  const h = compact ? 20 : 28;
 
   if (revenue === 0) return (
     <div style={{ padding:"12px 0", textAlign:"center" }}>
@@ -328,77 +330,65 @@ function BalanceSheet({ revenue, costs, title, compact = false }) {
 
   return (
     <div>
-      {title && <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:12 }}>{title}</p>}
+      {/* 売上バー */}
+      <div style={{ height:h, background:"#00A86B", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:6 }}>
+        <span className="f-sans" style={{ fontSize: compact ? 9 : 11, color:"#fff", fontWeight:600 }}>売上 {man(revenue)}</span>
+      </div>
 
-      {!compact && (
-        <>
-          {/* 売上バー */}
-          <div style={{ marginBottom:12 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:5 }}>
-              <span className="f-sans" style={{ fontSize:10, color:"#717171" }}>売上</span>
-              <span className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B" }}>{man(revenue)}</span>
-            </div>
-            <div style={{ height:28, background:"#00A86B", borderRadius:8 }}/>
-          </div>
-
-          {/* 経費内訳 */}
-          {items.length > 0 && (
-            <div style={{ marginBottom:10 }}>
-              {items.map((c, i) => {
-                const w = Math.round((c.a || 0) / maxItem * 100);
-                return (
-                  <div key={c.l + i} style={{ marginBottom:7 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:3 }}>
-                      <span className="f-sans" style={{ fontSize:10, color:"#717171" }}>{c.l}</span>
-                      <span className="f-mono" style={{ fontSize:10, color:"#F5A623" }}>{man(c.a || 0)}</span>
-                    </div>
-                    <div style={{ height:8, background:"#F7F7F7", borderRadius:4 }}>
-                      <div style={{ height:8, width:`${w}%`, background:"#F5A623", borderRadius:4, opacity:0.85 }}/>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* 経費合計区切り */}
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", borderTop:"2px solid #EBEBEB", paddingTop:8, marginBottom:12 }}>
-            <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#222" }}>経費合計</span>
-            <div style={{ display:"flex", gap:6, alignItems:"baseline" }}>
-              <span className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#F5A623" }}>{man(totalCost)}</span>
-              <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>({costRate}%)</span>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 積み上げバー */}
-      {compact && (
-        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-          <span className="f-sans" style={{ fontSize:10, color:"#717171" }}>売上 {man(revenue)}</span>
-          <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>経費 {costRate}%</span>
-        </div>
-      )}
-      <div style={{ display:"flex", height:28, borderRadius:8, overflow:"hidden", background:"#EBEBEB" }}>
+      {/* 利益・経費の積み上げバー */}
+      <div style={{ display:"flex", height:h, borderRadius:8, overflow:"hidden" }}>
         {isLoss ? (
           <div style={{ flex:1, background:"#E24B4A", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <span className="f-sans" style={{ fontSize:9, color:"#fff", fontWeight:600 }}>赤字 {man(Math.abs(profit))}</span>
+            <span className="f-sans" style={{ fontSize: compact ? 8 : 9, color:"#fff", fontWeight:600 }}>赤字 {man(Math.abs(profit))}</span>
           </div>
         ) : (
           <>
             <div style={{ width:`${profRate}%`, minWidth:0, background:"#00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-              {profRate >= 18 && <span className="f-sans" style={{ fontSize:9, color:"#fff", fontWeight:600, whiteSpace:"nowrap", padding:"0 4px" }}>利益 {man(profit)}({profRate}%)</span>}
+              {profRate >= 22 && <span className="f-sans" style={{ fontSize: compact ? 8 : 9, color:"#fff", fontWeight:600, whiteSpace:"nowrap", padding:"0 3px" }}>利益 {man(profit)}（{profRate}%）</span>}
             </div>
             <div style={{ width:`${costRate}%`, minWidth:0, background:"#F5A623", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-              {costRate >= 18 && <span className="f-sans" style={{ fontSize:9, color:"#fff", fontWeight:600, whiteSpace:"nowrap", padding:"0 4px" }}>経費 {man(totalCost)}({costRate}%)</span>}
+              {costRate >= 22 && <span className="f-sans" style={{ fontSize: compact ? 8 : 9, color:"#fff", fontWeight:600, whiteSpace:"nowrap", padding:"0 3px" }}>経費 {man(totalCost)}（{costRate}%）</span>}
             </div>
           </>
         )}
       </div>
-      {!compact && (
-        <div style={{ display:"flex", gap:14, marginTop:6 }}>
-          <span className="f-mono" style={{ fontSize:11, color:isLoss?"#E24B4A":"#00A86B", fontWeight:600 }}>利益 {man(profit)}</span>
-          <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>{isLoss ? "赤字" : `利益率 ${profRate}%`}</span>
+
+      {/* 経費内訳展開ボタン（compactでない場合のみ） */}
+      {!compact && items.length > 0 && (
+        <div>
+          <button onClick={() => setOpen(o => !o)} style={{
+            width:"100%", marginTop:8, padding:"7px 12px",
+            background:"transparent", border:"1px solid #EBEBEB",
+            borderRadius:8, fontFamily:"inherit",
+            fontSize:11, color:"#717171", cursor:"pointer",
+            display:"flex", justifyContent:"space-between", alignItems:"center",
+          }}>
+            <span>経費の内訳を見る</span>
+            <span style={{ transition:"transform 0.3s", display:"inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
+          </button>
+          <div style={{ overflow:"hidden", maxHeight: open ? "600px" : "0", transition:"max-height 0.3s ease" }}>
+            <div style={{ paddingTop:12 }}>
+              {items.map((c, i) => {
+                const w = Math.round((c.a || 0) / maxItem * 100);
+                return (
+                  <div key={c.l + i} style={{ display:"grid", gridTemplateColumns:"80px 1fr 56px", alignItems:"center", gap:8, marginBottom:8 }}>
+                    <span className="f-sans" style={{ fontSize:11, color:"#717171", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.l}</span>
+                    <div style={{ height:8, background:"#F7F7F7", borderRadius:4, overflow:"hidden" }}>
+                      <div style={{ height:8, width:`${w}%`, background:"#F5A623", borderRadius:4 }}/>
+                    </div>
+                    <span className="f-mono" style={{ fontSize:11, color:"#F5A623", fontWeight:600, textAlign:"right" }}>{man(c.a || 0)}</span>
+                  </div>
+                );
+              })}
+              <div style={{ borderTop:"2px solid #EBEBEB", paddingTop:8, marginTop:4, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#222" }}>合計</span>
+                <div style={{ display:"flex", gap:8, alignItems:"baseline" }}>
+                  <span className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#F5A623" }}>{man(totalCost)}</span>
+                  <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>売上の{costRate}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -998,8 +988,10 @@ function BoardTab({ farmers, destApproved, records }) {
   });
   const destCards = Object.entries(destFarmerMap).map(([destId, fm]) => {
     const entries = Object.values(fm);
+    const revs = entries.map(e => e.rev);
+    const costs = entries.map(e => e.cost);
     const rates = entries.filter(e => e.rev > 0).map(e => Math.round(e.cost / e.rev * 100));
-    return { destId, name: destMap[destId]?.name || "不明", count: entries.length, medRate: Math.round(median(rates)) };
+    return { destId, name: destMap[destId]?.name || "不明", count: entries.length, medRate: Math.round(median(rates)), medRev: median(revs), medCost: median(costs) };
   }).sort((a, b) => b.count - a.count);
 
   const lastUpdated = new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"2-digit", day:"2-digit" });
@@ -1109,43 +1101,32 @@ function BoardTab({ farmers, destApproved, records }) {
 
       {/* ══ 出荷先別経費率カルーセル ════════════════════ */}
       <div style={{ marginBottom:32 }}>
-        <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>出荷先別 経費率（中央値）</div>
+        <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>出荷先別 採算（中央値）</div>
         {destCards.length === 0
           ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
           : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
               {destCards.map(d => {
                 const masked = d.count < MIN_FARMERS;
-                const rate = Math.min(d.medRate, 100);
-                const r = 36, inner = 24, sz = 90;
-                const cx2 = sz / 2, cy2 = sz / 2;
-                const circ = 2 * Math.PI * r;
-                const dash = circ * rate / 100;
-                const rateCol = rate < 30 ? C.bamboo : rate < 50 ? C.gold : C.shu;
                 return (
                   <div key={d.destId} style={{
-                    flexShrink:0, width:160, padding:"18px 14px 16px",
+                    flexShrink:0, width:280, padding:"16px",
                     background:C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
                     boxShadow:"0 1px 6px rgba(8,6,4,.05)",
-                    display:"flex", flexDirection:"column", alignItems:"center", gap:10,
                   }}>
-                    <DestMark name={d.name} sz={28} showLabel={false} />
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:C.ink, textAlign:"center", lineHeight:1.4 }}>{d.name}</p>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                      <DestMark name={d.name} sz={24} showLabel={true} />
+                      <span className="f-sans" style={{ marginLeft:"auto", fontSize:9, color:C.ghost }}>{d.count}農家</span>
+                    </div>
                     {masked ? (
-                      <div style={{ padding:"10px 8px", background:C.ivory, borderRadius:8, textAlign:"center", width:"100%" }}>
-                        <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中<br/>（あと{MIN_FARMERS - d.count}人）</p>
+                      <div style={{ padding:"10px 8px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
+                        <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中（あと{MIN_FARMERS - d.count}人）</p>
                       </div>
                     ) : (
-                      <>
-                        <svg width={sz} height={sz}>
-                          <circle cx={cx2} cy={cy2} r={r} fill="none" stroke={C.ivory} strokeWidth={12} />
-                          <circle cx={cx2} cy={cy2} r={r} fill="none" stroke={rateCol} strokeWidth={12}
-                            strokeDasharray={`${dash} ${circ}`} strokeDashoffset={circ * 0.25}
-                            strokeLinecap="round" opacity={0.85} />
-                          <text x={cx2} y={cy2 - 4} textAnchor="middle" fontSize={14} fontWeight="700" fill={rateCol} fontFamily="'DM Mono',monospace">{rate}%</text>
-                          <text x={cx2} y={cy2 + 11} textAnchor="middle" fontSize={8} fill={C.ghost} fontFamily="'Zen Kaku Gothic New',sans-serif">経費率</text>
-                        </svg>
-                        <p className="f-sans" style={{ fontSize:9, color:C.ghost }}>{d.count}農家</p>
-                      </>
+                      <BalanceSheet
+                        revenue={d.medRev}
+                        costs={[{l:"経費(中央値)", a: d.medCost}]}
+                        compact={true}
+                      />
                     )}
                   </div>
                 );
@@ -1478,76 +1459,36 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
   const costItems = Object.entries(costLabels).sort((a, b) => b[1] - a[1]);
   const totalCost = costItems.reduce((s, [, v]) => s + v, 0);
 
-  const CHART_COLORS = ["#2D5A1B","#C8890A","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F"];
+  const totalRev = monthlyData.reduce((s, d) => s + d.rev, 0);
 
-  // SVG bar chart dimensions
-  const chartW = 560, chartH = 200, padL = 44, padB = 28, padT = 10, padR = 8;
-  const innerW = chartW - padL - padR;
-  const innerH = chartH - padB - padT;
-  const maxVal = Math.max(...monthlyData.map(d => Math.max(d.rev, d.cost)), 1);
-  const barGrp = innerW / 12;
-  const barW = barGrp * 0.24;
-
-  // Donut chart
-  const donutR = 70, donutInner = 44, cx = 90, cy = 90;
-  let angle = -Math.PI / 2;
-  const slices = costItems.map(([label, val], i) => {
-    const frac = totalCost > 0 ? val / totalCost : 0;
-    const a1 = angle, a2 = angle + frac * 2 * Math.PI;
-    angle = a2;
-    const x1 = cx + donutR * Math.cos(a1), y1 = cy + donutR * Math.sin(a1);
-    const x2 = cx + donutR * Math.cos(a2), y2 = cy + donutR * Math.sin(a2);
-    const xi1 = cx + donutInner * Math.cos(a1), yi1 = cy + donutInner * Math.sin(a1);
-    const xi2 = cx + donutInner * Math.cos(a2), yi2 = cy + donutInner * Math.sin(a2);
-    const large = frac > 0.5 ? 1 : 0;
-    return { label, val, color: CHART_COLORS[i % CHART_COLORS.length], x1, y1, x2, y2, xi1, yi1, xi2, yi2, large };
-  });
+  const getDestCosts = (destId) => {
+    const map = {};
+    Object.entries(records).forEach(([k, arr]) => {
+      if (!k.startsWith(fid + "_")) return;
+      arr.filter(r => r.destId === destId).forEach(r => {
+        (r.costs || []).forEach(c => {
+          if (!c.l) return;
+          map[c.l] = (map[c.l] || 0) + (c.a || 0);
+        });
+      });
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([l, a]) => ({l, a}));
+  };
 
   return (
     <div className="appear" style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 24 }}>
 
       <Mascot message="あなたの経営データを分析しました。気になる項目があれば、出荷先の見直しや経費の交渉に活用してください。"/>
 
-      {/* 1. 月次推移グラフ */}
+      {/* 1. 月次推移 */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
         <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>月次推移（{THIS_YEAR}年）</p>
-        <div style={{ overflowX: "auto" }}>
-          <svg width={chartW} height={chartH} style={{ display: "block", minWidth: 320 }}>
-            {[0, 0.25, 0.5, 0.75, 1].map(t => {
-              const y = padT + innerH * (1 - t);
-              const val = Math.round(maxVal * t);
-              return (
-                <g key={t}>
-                  <line x1={padL} x2={padL + innerW} y1={y} y2={y} stroke={C.rule} strokeWidth={0.5} />
-                  <text x={padL - 4} y={y + 3} textAnchor="end" fontSize={8} fill={C.ghost} fontFamily="'DM Mono',monospace">
-                    {val >= 10000 ? `${(val / 10000).toFixed(0)}万` : val}
-                  </text>
-                </g>
-              );
-            })}
-            {monthlyData.map((d, i) => {
-              const x = padL + barGrp * i + barGrp * 0.08;
-              const revH = (d.rev / maxVal) * innerH;
-              const costH = (d.cost / maxVal) * innerH;
-              const profH = Math.max(0, (d.profit / maxVal) * innerH);
-              return (
-                <g key={i}>
-                  <rect x={x} y={padT + innerH - revH} width={barW} height={revH} fill={C.bamboo} opacity={0.82} rx={2} />
-                  <rect x={x + barW + 1} y={padT + innerH - costH} width={barW} height={costH} fill={C.gold} opacity={0.82} rx={2} />
-                  <rect x={x + barW * 2 + 2} y={padT + innerH - profH} width={barW} height={profH} fill="#1A3F6B" opacity={0.82} rx={2} />
-                  <text x={padL + barGrp * i + barGrp / 2} y={chartH - 6} textAnchor="middle" fontSize={8} fill={C.mid} fontFamily="'Zen Kaku Gothic New',sans-serif">
-                    {d.label.replace("月", "")}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-        <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-          {[{c:C.bamboo,l:"売上"},{c:C.gold,l:"経費"},{c:"#1A3F6B",l:"利益"}].map(({c,l}) => (
-            <span key={l} className="f-sans" style={{ fontSize: 11, color: C.mid, display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 2, background: c, display: "inline-block" }} />{l}
-            </span>
+        <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
+          {monthlyData.map((d, i) => (
+            <div key={i} style={{ flexShrink:0, width:280, padding:"14px 16px", background:"#fff", border:`1px solid ${C.rule}`, borderRadius:16 }}>
+              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:C.ink, marginBottom:10 }}>{d.label}</p>
+              <BalanceSheet revenue={d.rev} costs={getMonthCosts(THIS_YEAR, d.mi)} compact={true} />
+            </div>
           ))}
         </div>
       </div>
@@ -1557,22 +1498,13 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
         <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>出荷先別採算（経費率 低い順）</p>
         {destCards.length === 0
           ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost }}>データがありません</p>
-          : <div style={{ display: "grid", gap: 10 }}>
+          : <div style={{ display: "grid", gap: 12 }}>
               {destCards.map(d => (
-                <div key={d.id} style={{ padding: "14px 16px", border: `1px solid ${C.rule}`, borderRadius: 12, background: "#fff", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-                  <DestMark name={d.name} sz={32} showLabel={false} />
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <p className="f-sans" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>{d.name}</p>
-                    <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 }}>
-                      <span className="f-mono" style={{ fontSize: 11, color: C.bamboo }}>売上 {man(d.rev)}</span>
-                      <span className="f-mono" style={{ fontSize: 11, color: C.gold }}>経費 {man(d.cost)}</span>
-                      <span className="f-mono" style={{ fontSize: 11, color: d.profit >= 0 ? C.bamboo : C.shu }}>利益 {man(d.profit)}</span>
-                    </div>
+                <div key={d.id} style={{ padding: "14px 16px", border: `1px solid ${C.rule}`, borderRadius: 16, background: "#fff" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                    <DestMark name={d.name} sz={28} showLabel={true} />
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p className="f-mono" style={{ fontSize: 20, fontWeight: 700, color: d.costRate < 30 ? C.bamboo : d.costRate < 50 ? C.gold : C.shu }}>{d.costRate}%</p>
-                    <p className="f-sans" style={{ fontSize: 9, color: C.ghost }}>経費率</p>
-                  </div>
+                  <BalanceSheet revenue={d.rev} costs={getDestCosts(d.id)} />
                 </div>
               ))}
             </div>
@@ -1604,33 +1536,12 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
         }
       </div>
 
-      {/* 4. 経費内訳ドーナツ */}
+      {/* 4. 経費内訳（全期間） */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
         <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>経費内訳（全期間）</p>
         {costItems.length === 0
           ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost }}>経費データなし</p>
-          : <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center" }}>
-              <svg width={180} height={180} style={{ flexShrink: 0 }}>
-                {slices.map((s, i) => (
-                  <path key={i}
-                    d={`M ${s.xi1} ${s.yi1} L ${s.x1} ${s.y1} A ${donutR} ${donutR} 0 ${s.large} 1 ${s.x2} ${s.y2} L ${s.xi2} ${s.yi2} A ${donutInner} ${donutInner} 0 ${s.large} 0 ${s.xi1} ${s.yi1} Z`}
-                    fill={s.color} opacity={0.88}
-                  />
-                ))}
-                <text x={cx} y={cy - 5} textAnchor="middle" fontSize={9} fill={C.ghost} fontFamily="'Zen Kaku Gothic New',sans-serif">合計経費</text>
-                <text x={cx} y={cy + 11} textAnchor="middle" fontSize={13} fontWeight="700" fill={C.ink} fontFamily="'DM Mono',monospace">{man(totalCost)}</text>
-              </svg>
-              <div style={{ display: "grid", gap: 8, flex: 1, minWidth: 140 }}>
-                {costItems.map(([label, val], i) => (
-                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 2, background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
-                    <span className="f-sans" style={{ fontSize: 11, color: C.mid, flex: 1 }}>{label}</span>
-                    <span className="f-mono" style={{ fontSize: 11, color: C.ink }}>{man(val)}</span>
-                    <span className="f-sans" style={{ fontSize: 9, color: C.ghost }}>{totalCost > 0 ? Math.round(val / totalCost * 100) : 0}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          : <BalanceSheet revenue={totalRev} costs={costItems.map(([l, a]) => ({l, a}))} />
         }
       </div>
 
@@ -1726,39 +1637,6 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
   const hasEnoughData = groupCount >= MIN_FARMERS;
   const need = MIN_FARMERS - groupCount;
 
-  // バーチャートの幅計算
-  const barMax = Math.max(Math.max(...groupRevs, 1), myTotals.rev, medRev) * 1.1;
-
-  const CompareRow = ({ label, myVal, medVal, myPct }) => {
-    const myW  = myVal  / barMax * 100;
-    const medW = medVal / barMax * 100;
-    const col  = myVal >= medVal ? C.bamboo : C.shu;
-    return (
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-          <span className="f-sans" style={{ fontSize: 11, color: C.mid }}>{label}</span>
-          {myPct !== undefined && (
-            <span className="f-sans" style={{ fontSize: 10, color: col, fontWeight: 700 }}>上位{100 - myPct}%</span>
-          )}
-        </div>
-        <div style={{ position: "relative", height: 28 }}>
-          {/* 自分のバー */}
-          <div style={{ position: "absolute", top: 0, left: 0, width: `${myW}%`, height: 12, background: col, borderRadius: 3, opacity: 0.85 }} />
-          {/* グループ中央値バー */}
-          <div style={{ position: "absolute", top: 14, left: 0, width: `${medW}%`, height: 12, background: C.rule, borderRadius: 3 }} />
-          {/* 中央値ライン */}
-          <div style={{ position: "absolute", top: 0, left: `${medW}%`, width: 2, height: 28, background: C.gold, borderRadius: 1 }} />
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-          <div style={{ display: "flex", gap: 14 }}>
-            <span className="f-mono" style={{ fontSize: 11, color: col }}>自分 {man(myVal)}</span>
-            <span className="f-mono" style={{ fontSize: 11, color: C.ghost }}>中央値 {man(medVal)}</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="appear" style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 24 }}>
 
@@ -1779,32 +1657,15 @@ function BenchmarkTab({ loggedInFarmer, farmers, records }) {
       {hasEnoughData ? (
         <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
           <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 20 }}>同グループとの比較（{THIS_YEAR}年 年間）</p>
-          <div style={{ padding: "12px 16px", background: C.ivory, borderRadius: 10, marginBottom: 20, display: "flex", flexWrap: "wrap", gap: 20 }}>
-            {[
-              { l: "売上", my: myTotals.rev, med: medRev, pct: myRevPct },
-              { l: "経費", my: myTotals.cost, med: medCost },
-              { l: "利益", my: myTotals.profit, med: medProfit, pct: myProfPct },
-            ].map(row => (
-              <div key={row.l} style={{ flex: "1 1 120px" }}>
-                <p className="f-sans" style={{ fontSize: 9, color: C.ghost, marginBottom: 3 }}>{row.l}</p>
-                <p className="f-mono" style={{ fontSize: 17, fontWeight: 700, color: C.ink }}>{man(row.my)}</p>
-                <p className="f-sans" style={{ fontSize: 9, color: C.ghost }}>中央値 {man(row.med)}</p>
-              </div>
-            ))}
-          </div>
-          <CompareRow label="売上"  myVal={myTotals.rev}    medVal={medRev}    myPct={myRevPct} />
-          <CompareRow label="経費"  myVal={myTotals.cost}   medVal={medCost} />
-          <CompareRow label="利益"  myVal={myTotals.profit} medVal={medProfit} myPct={myProfPct} />
-          <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-            <span className="f-sans" style={{ fontSize: 10, color: C.mid, display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 28, height: 8, borderRadius: 2, background: C.bamboo, display: "inline-block", opacity: 0.85 }} />自分
-            </span>
-            <span className="f-sans" style={{ fontSize: 10, color: C.mid, display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 28, height: 8, borderRadius: 2, background: C.rule, display: "inline-block" }} />グループ中央値
-            </span>
-            <span className="f-sans" style={{ fontSize: 10, color: C.gold, display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 2, height: 16, background: C.gold, display: "inline-block", borderRadius: 1 }} />中央値ライン
-            </span>
+          <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+            <div style={{ flex:"1 1 200px", padding:"14px 16px", background:"#fff", border:`1px solid ${C.rule}`, borderRadius:16 }}>
+              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:C.ink, marginBottom:10 }}>自分</p>
+              <BalanceSheet revenue={myTotals.rev} costs={[{l:"経費", a: myTotals.cost}]} />
+            </div>
+            <div style={{ flex:"1 1 200px", padding:"14px 16px", background:"#fff", border:`1px solid ${C.rule}`, borderRadius:16 }}>
+              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:C.ink, marginBottom:10 }}>グループ中央値</p>
+              <BalanceSheet revenue={medRev} costs={[{l:"経費", a: medCost}]} />
+            </div>
           </div>
         </div>
       ) : (
