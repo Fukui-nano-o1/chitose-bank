@@ -772,7 +772,6 @@ const verifyCode = async () => {
           <div className="f-sans" style={{ fontSize:9,color:C.dim,marginTop:7,letterSpacing:".18em",textTransform:"uppercase" }}>Yoshinogawa Farmers</div>
         </div>
 
-        <Mascot message="メールアドレスを入力するだけで始められます。届いた6桁のコードを入力してログインしてください。"/>
         <div className="ledger-card" style={{ padding:32 }}>
           <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:24,letterSpacing:".04em" }}>ログイン</div>
 
@@ -1249,7 +1248,6 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const STEPS=["作物","月を選ぶ","出荷先","売上・経費"];
   return (
     <div className="appear" style={{maxWidth:540,margin:"0 auto"}}>
-      <Mascot message="月を選んで、出荷先ごとの売上と経費を入力しましょう。一度入力した経費項目は保存されるので、次回からはもっと簡単です！"/>
       {/* ステップ */}
       <div style={{display:"flex",marginBottom:28}}>
         {STEPS.map((s,i)=>{
@@ -1578,8 +1576,6 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
 
   return (
     <div className="appear" style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 24 }}>
-
-      <Mascot message="あなたの経営データを分析しました。気になる項目があれば、出荷先の見直しや経費の交渉に活用してください。"/>
 
       {/* 1. 月次推移 */}
       <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
