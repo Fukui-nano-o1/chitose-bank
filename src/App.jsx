@@ -988,117 +988,234 @@ const LABOR_DATA   = [
   { crop:"ブロッコリー", min:94,  max:110 },
   { crop:"ナス",         min:300, max:500 },
 ];
+const METRICS = [
+  { key:"price",   label:"卸売価格", unit:"円/kg",    type:"line", dataKey:"price" },
+  { key:"acreage", label:"作付面積", unit:"ha",       type:"line", dataKey:"acreage" },
+  { key:"harvest", label:"収穫量",   unit:"t",        type:"line", dataKey:"harvest" },
+  { key:"labor",   label:"労働時間", unit:"時間/10a", type:"bar",  dataKey:null },
+];
 
-// ── MarketLineChart ───────────────────────────────────────────
-function MarketLineChart({ title, series, visibleCrops, xYears, citation }) {
+// ── MarketChart ───────────────────────────────────────────────
+function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
   const [tip, setTip] = useState(null);
-  const W = 600, H = 260;
-  const P = { l:60, r:16, t:16, b:32 };
-  const cW = W - P.l - P.r, cH = H - P.t - P.b;
 
-  const visSeries = series.filter(s => visibleCrops.includes(s.crop) && s.data?.length > 0);
-  if (visSeries.length === 0) return null;
+  const W = 600, mainH = 280;
 
-  const allVals = visSeries.flatMap(s => s.data.map(d => d.val));
-  const minY = xYears[0], maxY = xYears[xYears.length - 1];
-  const dv = Math.max(...allVals) - Math.min(...allVals) || 1;
-  const vMin = Math.min(...allVals) - dv * 0.1;
-  const vMax = Math.max(...allVals) + dv * 0.1;
+  if (activeMetrics.size === 0 || visibleCrops.length === 0) {
+    return (
+      <svg viewBox={`0 0 ${W} ${mainH}`} width="100%" style={{ display:"block" }}>
+        <text x={W/2} y={mainH/2} textAnchor="middle" dominantBaseline="middle"
+          fontSize={14} fill="#717171">作物と指標を選択してください</text>
+      </svg>
+    );
+  }
 
-  const xp = y => P.l + ((y - minY) / (maxY - minY || 1)) * cW;
-  const yp = v => P.t + cH - ((v - vMin) / (vMax - vMin)) * cH;
+  const mkt = MARKET_DATA[selectedMarket] || {};
+  const lineKeys = ["price","acreage","harvest"].filter(k => activeMetrics.has(k));
+  const hasLabor = activeMetrics.has("labor");
+  const laborCrops = hasLabor ? LABOR_DATA.filter(d => visibleCrops.includes(d.crop)) : [];
 
-  const grids = Array.from({ length: 5 }, (_, i) => vMin + (vMax - vMin) * i / 4);
-  const fmtL = v => v >= 10000 ? `${Math.round(v/1000)}千` : Math.round(v).toLocaleString("ja-JP");
+  const hasRightAxis = lineKeys.length >= 2;
+  const P = { l:60, r: hasRightAxis ? 60 : 20, t:20, b:36 };
+  const cW = W - P.l - P.r, cH = mainH - P.t - P.b;
+
+  const scales = {};
+  lineKeys.forEach(key => {
+    const meta = METRICS.find(m => m.key === key);
+    const vals = visibleCrops.flatMap(crop => (mkt[CROP_TO_KEY[crop]]?.[meta.dataKey] || []).map(d => d.val));
+    if (!vals.length) { scales[key] = { vMin:0, vMax:1 }; return; }
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const pad = (hi - lo) * 0.12 || hi * 0.1 || 1;
+    scales[key] = { vMin: lo - pad, vMax: hi + pad };
+  });
+
+  const allYears = [...new Set(
+    lineKeys.flatMap(key => {
+      const meta = METRICS.find(m => m.key === key);
+      return visibleCrops.flatMap(crop => (mkt[CROP_TO_KEY[crop]]?.[meta.dataKey] || []).map(d => d.year));
+    })
+  )].sort((a,b) => a-b);
+
+  const xMin = allYears[0] ?? 2019, xMax = allYears[allYears.length-1] ?? 2025;
+  const xp = yr => P.l + ((yr - xMin) / (xMax - xMin || 1)) * cW;
+  const yp = (v, key) => {
+    const { vMin, vMax } = scales[key] || { vMin:0, vMax:1 };
+    return P.t + cH - ((v - vMin) / (vMax - vMin)) * cH;
+  };
+
+  const fmtV = (v, unit) => {
+    if (unit === "t" || unit === "ha") {
+      if (v >= 100000) return `${Math.round(v/1000)}千`;
+      if (v >= 10000)  return `${(v/10000).toFixed(1)}万`;
+    }
+    return Math.round(v).toLocaleString("ja-JP");
+  };
+
+  const DASH = { price: undefined, acreage: "8,4", harvest: "2,4" };
+  const leftKey = lineKeys[0], rightKey = lineKeys[1];
+  const leftMeta = METRICS.find(m => m.key === leftKey);
+  const rightMeta = METRICS.find(m => m.key === rightKey);
+
+  const gridTicks = key => key
+    ? Array.from({length:5}, (_,i) => scales[key].vMin + (scales[key].vMax - scales[key].vMin) * i / 4)
+    : [];
+
+  const maxLaborVal = laborCrops.length ? Math.max(...laborCrops.map(d => d.max)) : 1;
+  const laborBarMaxH = 64;
+  const laborAreaH = laborCrops.length ? 100 : 0;
+  const totalH = mainH + (laborAreaH ? laborAreaH + 8 : 0);
+
+  const legendEntries = [];
+  lineKeys.forEach(key => {
+    const meta = METRICS.find(m => m.key === key);
+    visibleCrops.forEach(crop => {
+      if ((mkt[CROP_TO_KEY[crop]]?.[meta.dataKey] || []).length)
+        legendEntries.push({ key, crop, meta, col: CROP_COLORS[crop] || "#888", dash: DASH[key] });
+    });
+  });
+  laborCrops.forEach(d =>
+    legendEntries.push({ key:"labor", crop:d.crop, meta:METRICS.find(m=>m.key==="labor"), col:CROP_COLORS[d.crop]||"#888", isBar:true })
+  );
+
+  const citeSet = new Set([
+    activeMetrics.has("price") && "卸売価格→東京都中央卸売市場 市場統計情報",
+    (activeMetrics.has("acreage")||activeMetrics.has("harvest")) && "面積/収穫量→農水省 作物統計調査",
+    activeMetrics.has("labor") && "労働時間→各県農業経営指標",
+  ].filter(Boolean));
 
   return (
     <div>
-      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:C.ink, marginBottom:8 }}>{title}</p>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display:"block" }}
+      <svg viewBox={`0 0 ${W} ${totalH}`} width="100%" style={{ display:"block" }}
         onClick={() => setTip(null)}>
-        {grids.map((v, i) => (
-          <g key={i}>
-            <line x1={P.l} y1={yp(v)} x2={W - P.r} y2={yp(v)}
+
+        {/* グリッド + 左Y軸ラベル */}
+        {gridTicks(leftKey).map((v,i) => (
+          <g key={`gl${i}`}>
+            <line x1={P.l} y1={yp(v,leftKey)} x2={W-P.r} y2={yp(v,leftKey)}
               stroke="#EBEBEB" strokeDasharray="4,4" />
-            <text x={P.l - 4} y={yp(v)} textAnchor="end" fontSize={11} fill="#717171" dominantBaseline="middle">
-              {fmtL(v)}
+            <text x={P.l-5} y={yp(v,leftKey)} textAnchor="end" fontSize={11} fill="#717171" dominantBaseline="middle">
+              {fmtV(v, leftMeta?.unit)}
             </text>
           </g>
         ))}
-        {xYears.map(y => (
-          <text key={y} x={xp(y)} y={H - P.b + 16} textAnchor="middle" fontSize={11} fill="#717171">{y}</text>
+
+        {leftMeta && (
+          <text x={10} y={P.t+cH/2} textAnchor="middle" fontSize={11} fill="#717171"
+            transform={`rotate(-90 10 ${P.t+cH/2})`}>{leftMeta.unit}</text>
+        )}
+
+        {/* 右Y軸ラベル */}
+        {rightKey && gridTicks(rightKey).map((v,i) => (
+          <text key={`gr${i}`} x={W-P.r+5} y={yp(v,rightKey)}
+            textAnchor="start" fontSize={11} fill="#717171" dominantBaseline="middle">
+            {fmtV(v, rightMeta?.unit)}
+          </text>
         ))}
-        {series.map((s, si) => {
-          if (!visibleCrops.includes(s.crop) || !s.data?.length) return null;
-          const col = CROP_COLORS[s.crop] || "#888";
-          const pts = s.data.map(d => `${xp(d.year)},${yp(d.val)}`).join(" ");
+
+        {rightMeta && (
+          <text x={W-10} y={P.t+cH/2} textAnchor="middle" fontSize={11} fill="#717171"
+            transform={`rotate(90 ${W-10} ${P.t+cH/2})`}>{rightMeta.unit}</text>
+        )}
+
+        {/* X軸年ラベル */}
+        {allYears.map(yr => (
+          <text key={yr} x={xp(yr)} y={mainH-P.b+18} textAnchor="middle" fontSize={11} fill="#717171">{yr}</text>
+        ))}
+
+        {/* 折れ線 + データポイント */}
+        {lineKeys.map(key => visibleCrops.map(crop => {
+          const meta = METRICS.find(m => m.key === key);
+          const data = mkt[CROP_TO_KEY[crop]]?.[meta.dataKey] || [];
+          if (!data.length) return null;
+          const col = CROP_COLORS[crop] || "#888";
+          const pts = data.map(d => `${xp(d.year)},${yp(d.val,key)}`).join(" ");
           return (
-            <g key={si}>
-              <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
-              {s.data.map((d, di) => (
-                <circle key={di} cx={xp(d.year)} cy={yp(d.val)} r={4}
+            <g key={`${key}-${crop}`}>
+              <polyline points={pts} fill="none" stroke={col} strokeWidth={2} strokeDasharray={DASH[key]} />
+              {data.map((d,di) => (
+                <circle key={di} cx={xp(d.year)} cy={yp(d.val,key)} r={3}
                   fill={col} stroke="#fff" strokeWidth={1.5} style={{ cursor:"pointer" }}
-                  onClick={e => { e.stopPropagation(); setTip(t => t?.si===si&&t?.di===di ? null : {si,di}); }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    const id = `${key}-${crop}-${di}`;
+                    setTip(t => t?.id===id ? null : { id, key, crop, d, meta, col });
+                  }}
                 />
               ))}
             </g>
           );
-        })}
+        }))}
+
+        {/* ツールチップ */}
         {tip && (() => {
-          const s = series[tip.si]; const d = s?.data[tip.di];
-          if (!d) return null;
-          const x = xp(d.year), y = yp(d.val);
-          const txt = `${d.year}: ${d.val.toLocaleString("ja-JP")}`;
-          const bw = txt.length * 6.5 + 10;
-          const bx = Math.min(Math.max(x - bw / 2, P.l), W - P.r - bw);
-          const by = y < P.t + 30 ? y + 8 : y - 26;
+          const x = xp(tip.d.year), y = yp(tip.d.val, tip.key);
+          const txt = `${tip.d.year} ${tip.crop}: ${tip.d.val.toLocaleString("ja-JP")}${tip.meta.unit}`;
+          const bw = txt.length * 6.2 + 14;
+          const bx = Math.min(Math.max(x - bw/2, P.l), W-P.r-bw);
+          const by = y < P.t+30 ? y+8 : y-26;
           return (
             <g>
-              <rect x={bx} y={by} width={bw} height={20} rx={4} fill="rgba(34,34,34,.85)" />
-              <text x={bx + bw / 2} y={by + 13} textAnchor="middle" fontSize={10} fill="#fff">{txt}</text>
+              <rect x={bx} y={by} width={bw} height={22} rx={4} fill="rgba(34,34,34,.9)" />
+              <text x={bx+bw/2} y={by+14} textAnchor="middle" fontSize={10} fill="#fff">{txt}</text>
             </g>
           );
         })()}
-      </svg>
-      <p className="f-sans" style={{ fontSize:9, color:C.ghost, marginTop:4 }}>{citation}</p>
-    </div>
-  );
-}
 
-// ── LaborBarChart ─────────────────────────────────────────────
-function LaborBarChart({ data, visibleCrops }) {
-  const maxH = Math.max(...data.map(d => d.max));
-  const visible = data.filter(d => visibleCrops.includes(d.crop));
-  if (visible.length === 0) return null;
-  return (
-    <div>
-      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:C.ink, marginBottom:12 }}>
-        年間労働時間（10aあたり）
-      </p>
-      {visible.map(d => {
-        const pMax = (d.max / maxH * 100).toFixed(1);
-        const pMin = (d.min / maxH * 100).toFixed(1);
-        const col = CROP_COLORS[d.crop] || "#888";
-        const dMin = Math.round(d.min / 8), dMax = Math.round(d.max / 8);
-        return (
-          <div key={d.crop} style={{ marginBottom:16 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
-              <span className="f-sans" style={{ width:72, fontSize:12, color:C.ink, flexShrink:0 }}>{d.crop}</span>
-              <div style={{ flex:1, position:"relative", height:22, borderRadius:4, overflow:"hidden", background:C.bgSoft }}>
-                <div style={{ position:"absolute", left:0, top:0, width:`${pMax}%`, height:"100%", background:col, opacity:0.25, borderRadius:4 }}/>
-                <div style={{ position:"absolute", left:0, top:0, width:`${pMin}%`, height:"100%", background:col, borderRadius:4 }}/>
-              </div>
-              <span className="f-mono" style={{ fontSize:12, color:C.ink, whiteSpace:"nowrap", flexShrink:0 }}>
-                {d.min}〜{d.max}時間
+        {/* 労働時間 縦棒エリア */}
+        {laborCrops.length > 0 && (() => {
+          const slotW = cW / Math.max(laborCrops.length, 1);
+          const baseY = laborBarMaxH + 16;
+          return (
+            <g transform={`translate(0,${mainH+8})`}>
+              <line x1={P.l} y1={0} x2={W-P.r} y2={0} stroke="#EBEBEB" strokeWidth={1} />
+              <text x={P.l} y={-4} fontSize={11} fill="#717171">労働時間（時間/10a）</text>
+              {laborCrops.map((d,i) => {
+                const col = CROP_COLORS[d.crop] || "#888";
+                const cx = P.l + i*slotW + slotW/2;
+                const bw = Math.min(slotW*0.44, 28);
+                const hMax = (d.max / maxLaborVal) * laborBarMaxH;
+                const hMin = (d.min / maxLaborVal) * laborBarMaxH;
+                const dMin = Math.round(d.min/8), dMax = Math.round(d.max/8);
+                return (
+                  <g key={d.crop}>
+                    <rect x={cx-bw/2} y={baseY-hMax} width={bw} height={hMax} fill={col} opacity={0.3} rx={2} />
+                    <rect x={cx-bw/2} y={baseY-hMin} width={bw} height={hMin} fill={col} opacity={1} rx={2} />
+                    <text x={cx} y={baseY-hMax-5} textAnchor="middle" fontSize={11} fill={col} fontWeight="600">{d.max}h</text>
+                    <text x={cx} y={baseY+13} textAnchor="middle" fontSize={11} fill="#717171">{d.crop}</text>
+                    <text x={cx} y={baseY+25} textAnchor="middle" fontSize={9} fill="#B0B0B0">8h換算 {dMin}〜{dMax}日</text>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })()}
+
+      </svg>
+
+      {legendEntries.length > 0 && (
+        <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:10 }}>
+          {legendEntries.map(({ key, crop, meta, col, dash, isBar }) => (
+            <div key={`${key}-${crop}`} style={{ display:"flex", alignItems:"center", gap:5 }}>
+              {isBar
+                ? <div style={{ width:10, height:10, borderRadius:"50%", background:col, opacity:0.8, flexShrink:0 }} />
+                : <svg width={24} height={10} style={{ flexShrink:0 }}>
+                    <line x1={0} y1={5} x2={24} y2={5} stroke={col} strokeWidth={2} strokeDasharray={dash} />
+                    <circle cx={12} cy={5} r={3} fill={col} stroke="#fff" strokeWidth={1} />
+                  </svg>
+              }
+              <span className="f-sans" style={{ fontSize:11, color:"#222", whiteSpace:"nowrap" }}>
+                {crop} · {meta.label}
               </span>
             </div>
-            <p className="f-sans" style={{ fontSize:10, color:C.mid, marginLeft:80 }}>
-              1日8時間換算で{dMin}〜{dMax}日分
-            </p>
-          </div>
-        );
-      })}
-      <p className="f-sans" style={{ fontSize:9, color:C.ghost, marginTop:8 }}>出典：各県農業経営指標</p>
+          ))}
+        </div>
+      )}
+
+      {citeSet.size > 0 && (
+        <p className="f-sans" style={{ fontSize:9, color:"#B0B0B0", marginTop:6 }}>
+          出典：{[...citeSet].join(" / ")}
+        </p>
+      )}
     </div>
   );
 }
@@ -1123,9 +1240,20 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
   };
 
   const [showMarketChart, setShowMarketChart] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
   const [selectedMarket, setSelectedMarket] = useState('tokyo');
   const [visibleCrops, setVisibleCrops] = useState(['ブロッコリー', 'ナス']);
-  const toggleCrop = crop => setVisibleCrops(v => v.includes(crop) ? v.filter(c => c !== crop) : [...v, crop]);
+  const [activeMetrics, setActiveMetrics] = useState(() => new Set(['price']));
+  const toggleCrop = crop => setVisibleCrops(v => {
+    if (v.includes(crop)) return v.filter(c => c !== crop);
+    if (v.length >= 5) return v;
+    return [...v, crop];
+  });
+  const toggleMetric = key => setActiveMetrics(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
 
   const median = arr => {
     if (!arr.length) return 0;
@@ -1284,81 +1412,97 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
             {showMarketChart ? '▲ 閉じる' : '市場データを詳しく見る ▼'}
           </button>
         </div>
-        <div style={{ maxHeight: showMarketChart ? "2000px" : "0", overflow:"hidden", transition:"max-height 0.3s ease" }}>
+
+        <div style={{ maxHeight: showMarketChart ? "3000px" : "0", overflow:"hidden", transition:"max-height 0.3s ease" }}>
           <div style={{ marginTop:16, background:"#fff", borderRadius:16, padding:24, border:`1px solid ${C.border}` }}>
 
-            {/* 市場選択 + 作物トグル */}
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:24, flexWrap:"wrap" }}>
-              <select value={selectedMarket} onChange={e => setSelectedMarket(e.target.value)} className="f-sans" style={{
-                padding:"8px 12px", borderRadius:8, border:`1px solid ${C.border}`,
-                fontSize:13, color:C.ink, background:"#fff",
-              }}>
-                {Object.entries(MARKET_DATA).map(([k, v]) => (
-                  <option key={k} value={k} disabled={!v.available}>
-                    {v.name}{!v.available ? '（準備中）' : ''}
-                  </option>
-                ))}
-              </select>
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                {Object.keys(CROP_COLORS).map(crop => {
-                  const active = visibleCrops.includes(crop);
-                  return (
-                    <button key={crop} onClick={() => toggleCrop(crop)} className="f-sans" style={{
-                      display:"flex", alignItems:"center", gap:6,
-                      padding:"6px 14px", borderRadius:20, fontSize:12,
-                      border:`1px solid ${active ? CROP_COLORS[crop] : C.border}`,
-                      background: active ? `${CROP_COLORS[crop]}18` : "#fff",
-                      color:C.ink, cursor:"pointer",
-                      opacity: active ? 1 : 0.4,
-                      transition:"all .15s",
+            {/* A. 設定エリア */}
+            <div style={{ background:"#F7F7F7", borderRadius:12, padding:16, marginBottom:16 }}>
+              <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                <button onClick={() => setShowSettings(v => !v)} className="f-sans" style={{
+                  background:"none", border:"none", fontSize:12, color:C.mid, cursor:"pointer", padding:0,
+                }}>
+                  {showSettings ? "設定を隠す ▲" : "設定を表示 ▼"}
+                </button>
+              </div>
+              <div style={{ maxHeight: showSettings ? "500px" : "0", overflow:"hidden", transition:"max-height 0.3s ease" }}>
+                <div style={{ paddingTop:10 }}>
+
+                  {/* 段1：市場選択 */}
+                  <div style={{ marginBottom:14 }}>
+                    <div className="f-sans" style={{ fontSize:11, color:C.mid, marginBottom:6 }}>市場</div>
+                    <select value={selectedMarket} onChange={e => setSelectedMarket(e.target.value)} className="f-sans" style={{
+                      padding:"8px 12px", borderRadius:8, border:`1px solid ${C.border}`,
+                      fontSize:13, color:C.ink, background:"#fff", cursor:"pointer",
                     }}>
-                      <span style={{ width:8, height:8, borderRadius:"50%", background:CROP_COLORS[crop], display:"inline-block" }}/>
-                      {crop}
-                    </button>
-                  );
-                })}
+                      {Object.entries(MARKET_DATA).map(([k, v]) => (
+                        <option key={k} value={k} disabled={!v.available}>
+                          {v.name}{!v.available ? '（準備中）' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 段2：作物ピル */}
+                  <div style={{ marginBottom:14 }}>
+                    <div className="f-sans" style={{ fontSize:11, color:C.mid, marginBottom:6 }}>
+                      作物<span style={{ marginLeft:6, color:C.ghost }}>（最大5つ）</span>
+                    </div>
+                    <div className="filter-scroll" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, scrollbarWidth:"none", msOverflowStyle:"none" }}>
+                      {Object.keys(CROP_COLORS).map(crop => {
+                        const active = visibleCrops.includes(crop);
+                        const atMax = visibleCrops.length >= 5 && !active;
+                        return (
+                          <button key={crop} onClick={() => !atMax && toggleCrop(crop)} className="f-sans" style={{
+                            flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12,
+                            border:`1px solid ${active ? "transparent" : C.border}`,
+                            background: active ? (CROP_COLORS[crop] || "#222") : "#fff",
+                            color: active ? "#fff" : C.mid,
+                            cursor: atMax ? "not-allowed" : "pointer",
+                            opacity: atMax ? 0.4 : 1,
+                            transition:"all .15s",
+                            whiteSpace:"nowrap",
+                          }}>
+                            {crop}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 段3：指標ピル */}
+                  <div>
+                    <div className="f-sans" style={{ fontSize:11, color:C.mid, marginBottom:6 }}>指標</div>
+                    <div className="filter-scroll" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, scrollbarWidth:"none", msOverflowStyle:"none" }}>
+                      {METRICS.map(m => {
+                        const active = activeMetrics.has(m.key);
+                        return (
+                          <button key={m.key} onClick={() => toggleMetric(m.key)} className="f-sans" style={{
+                            flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12,
+                            border:`1px solid ${active ? "transparent" : C.border}`,
+                            background: active ? "#222" : "#fff",
+                            color: active ? "#fff" : C.mid,
+                            cursor:"pointer",
+                            transition:"all .15s",
+                            whiteSpace:"nowrap",
+                          }}>
+                            {m.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
               </div>
             </div>
 
-            {/* グラフ */}
-            {(() => {
-              const mkt = MARKET_DATA[selectedMarket];
-              const mkSeries = (key) => Object.keys(CROP_COLORS).map(crop => ({
-                crop, data: mkt[CROP_TO_KEY[crop]]?.[key] || [],
-              }));
-              return (
-                <>
-                  <MarketLineChart
-                    title="卸売価格（円/kg）"
-                    series={mkSeries('price')}
-                    visibleCrops={visibleCrops}
-                    xYears={[2019,2020,2021,2022,2023,2024,2025]}
-                    citation="出典：東京都中央卸売市場 市場統計情報"
-                  />
-                  <div style={{ marginTop:32 }}>
-                    <MarketLineChart
-                      title="全国作付面積（ha）"
-                      series={mkSeries('acreage')}
-                      visibleCrops={visibleCrops}
-                      xYears={[2019,2020,2021,2022,2023]}
-                      citation="出典：農水省 作物統計調査"
-                    />
-                  </div>
-                  <div style={{ marginTop:32 }}>
-                    <MarketLineChart
-                      title="全国収穫量（t）"
-                      series={mkSeries('harvest')}
-                      visibleCrops={visibleCrops}
-                      xYears={[2019,2020,2021,2022,2023]}
-                      citation="出典：農水省 作物統計調査"
-                    />
-                  </div>
-                  <div style={{ marginTop:32 }}>
-                    <LaborBarChart data={LABOR_DATA} visibleCrops={visibleCrops} />
-                  </div>
-                </>
-              );
-            })()}
+            {/* B. グラフエリア（常時表示） */}
+            <MarketChart
+              selectedMarket={selectedMarket}
+              visibleCrops={visibleCrops}
+              activeMetrics={activeMetrics}
+            />
 
           </div>
         </div>
