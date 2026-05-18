@@ -916,6 +916,34 @@ function RegisterScreen({ onGoLogin, onSubmit }) {
   );
 }
 
+// ── MAFF public statistics (10a) ────────────────────────────
+const MAFF_DATA = [
+  {
+    crop: "ブロッコリー",
+    source: "農水省 農業経営統計調査・各県経営指標",
+    per10a: {
+      yield:       { min: 750,  max: 1080, unit: "kg" },
+      revenue:     { min: 297,  max: 528,  unit: "千円" },
+      expense:     { min: 158,  max: 384,  unit: "千円" },
+      income:      { min: 110,  max: 178,  unit: "千円" },
+      incomeRate:  { min: 27,   max: 34,   unit: "%" },
+      laborHours:  { min: 94,   max: 110,  unit: "時間" },
+    },
+  },
+  {
+    crop: "ナス",
+    source: "農水省 農業経営統計調査",
+    per10a: {
+      yield:       { min: 3000, max: 5000, unit: "kg" },
+      revenue:     { min: 800,  max: 1500, unit: "千円" },
+      expense:     { min: 500,  max: 1000, unit: "千円" },
+      income:      { min: 200,  max: 500,  unit: "千円" },
+      incomeRate:  { min: 25,   max: 35,   unit: "%" },
+      laborHours:  { min: 300,  max: 500,  unit: "時間" },
+    },
+  },
+];
+
 // ── BoardTab ─────────────────────────────────────────────────
 function BoardTab({ farmers, destApproved, records }) {
   const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
@@ -1035,6 +1063,52 @@ function BoardTab({ farmers, destApproved, records }) {
           </div>
         </div>
       </div>
+
+      {/* ══ 公的統計 ════════════════════════════════════ */}
+      {(() => {
+        const toMan = v => `${(v / 10).toFixed(1)}万円`;
+        const maffFiltered = selectedCrop === 'すべて'
+          ? MAFF_DATA
+          : MAFF_DATA.filter(d => d.crop === selectedCrop);
+        if (maffFiltered.length === 0) return null;
+        return (
+          <div style={{ marginBottom: 24 }}>
+            <h2 className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 12, letterSpacing: '.04em' }}>
+              公的統計（10aあたり）
+            </h2>
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {maffFiltered.map(d => {
+                const p = d.per10a;
+                const revMid = Math.round((p.revenue.min + p.revenue.max) / 2) * 1000;
+                const expMid = Math.round((p.expense.min + p.expense.max) / 2) * 1000;
+                const rows = [
+                  { label: '収量',     value: `${p.yield.min}〜${p.yield.max}${p.yield.unit}` },
+                  { label: '粗収益',   value: `${toMan(p.revenue.min)}〜${toMan(p.revenue.max)}` },
+                  { label: '経費',     value: `${toMan(p.expense.min)}〜${toMan(p.expense.max)}` },
+                  { label: '所得',     value: `${toMan(p.income.min)}〜${toMan(p.income.max)}` },
+                  { label: '所得率',   value: `${p.incomeRate.min}〜${p.incomeRate.max}%` },
+                  { label: '労働時間', value: `${p.laborHours.min}〜${p.laborHours.max}${p.laborHours.unit}` },
+                ];
+                return (
+                  <div key={d.crop} style={{ flexShrink: 0, width: 280, background: '#fff', borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.rule}` }}>
+                    <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 12 }}>{d.crop}</p>
+                    {rows.map(r => (
+                      <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                        <span className="f-sans" style={{ fontSize: 11, color: C.mid }}>{r.label}</span>
+                        <span className="f-mono" style={{ fontSize: 12, fontWeight: 600, color: C.ink }}>{r.value}</span>
+                      </div>
+                    ))}
+                    <div style={{ marginTop: 14, marginBottom: 10 }}>
+                      <BalanceSheet revenue={revMid} costs={[{ l: '経費', a: expMid }]} compact={true} />
+                    </div>
+                    <p className="f-sans" style={{ fontSize: 9, color: C.ghost, lineHeight: 1.6 }}>出典：{d.source}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ══ 検索バー ════════════════════════════════════ */}
       <div style={{ marginBottom:12, position:"relative" }}>
@@ -1647,392 +1721,267 @@ function MyLedger({ loggedInFarmer, records, destApproved }) {
 }
 
 // ── FiveYearPlanTab ──────────────────────────────────────────
-function FiveYearPlanTab({ loggedInFarmer, records, destApproved, farmers }) {
-  const PLAN_YEARS = Array.from({ length: 5 }, (_, i) => THIS_YEAR + i);
-  const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
+function FiveYearPlanTab({ loggedInFarmer, records }) {
+  const PLAN_YEARS = Array.from({ length: 5 }, (_, i) => THIS_YEAR + i); // kept for compat
   const today = new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"long", day:"numeric" });
+  const YR_LABELS = ["直近実績","1年目","2年目","3年目","4年目","5年目(目標)"];
 
-  // ── 自分のrecords全件 ──
+  // ── records ──────────────────────────────────────────────
   const myRecs = MONTHS.flatMap((_, mi) =>
-    (records[`${loggedInFarmer.id}_${THIS_YEAR}_${mi}`] || [])
+    records[`${loggedInFarmer.id}_${THIS_YEAR}_${mi}`] || []
   );
-
-  // 入力済み作物リスト
   const myCrops = [...new Set(myRecs.map(r => r.crop).filter(Boolean))];
 
-  // 作付面積state（localStorage保存）
-  const [areas, setAreas] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(`plan_areas_${loggedInFarmer.id}`) || "{}"); }
+  // 作物別売上実績（千円）
+  const cropRev0 = crop =>
+    Math.round(
+      myRecs.filter(r => r.crop === crop)
+            .reduce((s, r) => s + (r.boxes || 0) * (r.ppb || 0), 0) / 1000
+    );
+
+  // 出荷販売経費実績（手数料・運賃合算、千円）
+  const shipping0 = Math.round(
+    myRecs.flatMap(r => r.costs || [])
+          .filter(c => c.l && (c.l.includes("手数料") || c.l.includes("運賃")))
+          .reduce((s, c) => s + (c.a || 0), 0) / 1000
+  );
+
+  // ── state（全inputをlocalStorageに自動保存）────────────────
+  const lsKey = `plan5_${loggedInFarmer.id}`;
+  const [vals, setVals] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(lsKey) || "{}"); }
     catch { return {}; }
   });
-  const setArea = (crop, val) => {
-    const next = { ...areas, [crop]: val };
-    setAreas(next);
-    try { localStorage.setItem(`plan_areas_${loggedInFarmer.id}`, JSON.stringify(next)); } catch {}
+  const set = (key, yi, v) => {
+    const next = { ...vals, [`${key}_${yi}`]: v };
+    setVals(next);
+    try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
   };
 
-  // 作物別 単価統計（箱当たり）
-  const cropPriceStats = (crop) => {
-    const ppbs = myRecs.filter(r => r.crop === crop && r.ppb > 0).map(r => r.ppb).sort((a,b)=>a-b);
-    if (!ppbs.length) return null;
-    const n = ppbs.length;
-    const q1 = ppbs[Math.floor(n * 0.25)];
-    const med = n % 2 ? ppbs[Math.floor(n/2)] : (ppbs[n/2-1]+ppbs[n/2])/2;
-    const q3 = ppbs[Math.floor(n * 0.75)];
-    return { low: q1, mid: med, high: q3 };
+  // 数値取得：yi=0は実績値優先、yi=1はデフォルト=実績、yi>=2はカスケード
+  const num = (key, yi, actDef = 0) => {
+    const stored = vals[`${key}_${yi}`];
+    if (stored !== undefined && stored !== "") return parseFloat(stored) || 0;
+    if (yi <= 1) return actDef;
+    return num(key, yi - 1, actDef);
   };
 
-  // 作物別 経費率実績
-  const cropCostRate = (crop) => {
-    const recs = myRecs.filter(r => r.crop === crop && r.boxes > 0 && r.ppb > 0);
-    if (!recs.length) return 0;
-    const rev = recs.reduce((s,r) => s + r.boxes * r.ppb, 0);
-    const cost = recs.reduce((s,r) => s + (r.costs||[]).reduce((a,c)=>a+(c.a||0),0), 0);
-    return rev > 0 ? cost / rev : 0;
+  // input表示文字列
+  const inp = (key, yi, actDef = 0) => {
+    const stored = vals[`${key}_${yi}`];
+    if (stored !== undefined) return stored;
+    if (yi <= 1) return actDef !== 0 ? String(actDef) : "";
+    const pv = num(key, yi - 1, actDef);
+    return pv !== 0 ? String(pv) : "";
   };
 
-  // 年間箱数実績
-  const cropBoxes = (crop) => myRecs.filter(r => r.crop === crop).reduce((s,r) => s + (r.boxes||0), 0);
+  // ── 集計関数 ─────────────────────────────────────────────
+  const grossRevY = yi =>
+    myCrops.reduce((s, c) => s + num(`cr_${c}_rev`, yi, cropRev0(c)), 0)
+    + num("work_recv", yi, 0)
+    + num("other_rev", yi, 0);
 
-  // 参加農家数
-  const totalFarmers = farmers.length;
+  const totalCostY = yi =>
+    num("c_material", yi, 0)
+    + num("c_facility", yi, 0)
+    + num("c_deprec", yi, 0)
+    + num("c_shipping", yi, shipping0)
+    + num("c_labor", yi, 0)
+    + num("c_interest", yi, 0)
+    + num("c_rent", yi, 0)
+    + num("c_other_cost", yi, 0);
 
-  // 経費内訳実績
-  const costItems = (() => {
-    const map = {};
-    myRecs.forEach(r => (r.costs||[]).forEach(c => {
-      if (!c.l) return;
-      map[c.l] = (map[c.l] || 0) + (c.a || 0);
-    }));
-    return Object.entries(map).sort((a,b) => b[1]-a[1]);
-  })();
-  const totalCostAct = costItems.reduce((s,[,a])=>s+a,0);
+  const farmIncomeY   = yi => grossRevY(yi) - totalCostY(yi);
+  const totalIncomeY  = yi => farmIncomeY(yi) + num("non_farm", yi, 0) + num("pension", yi, 0);
+  const repaySourceY  = yi => totalIncomeY(yi) - num("household", yi, 1080) - num("tax", yi, 150);
+  const surplusY      = yi => repaySourceY(yi) - num("repay_principal", yi, 0);
+  const totalDebtY    = yi =>
+    num("debt_short", yi, 0) + num("debt_long", yi, 0) + num("debt_nonfarm", yi, 0);
 
-  const SCEN = [
-    { key:"high", label:"高値", col:"#00A86B" },
-    { key:"mid",  label:"中値", col:"#2563EB" },
-    { key:"low",  label:"安値", col:"#F5A623" },
-  ];
-
-  // シナリオ別5年計画計算
-  const planData = myCrops.map(crop => {
-    const stats = cropPriceStats(crop);
-    if (!stats) return null;
-    const rate = cropCostRate(crop);
-    const boxes = cropBoxes(crop);
-    const areaN = parseFloat(areas[crop] || 0);
-    return { crop, stats, rate, boxes, areaN };
-  }).filter(Boolean);
-
-  const scenRev = (crop, scen, yr) => {
-    const d = planData.find(p => p.crop === crop);
-    if (!d) return 0;
-    const ppb = scen === "high" ? d.stats.high : scen === "mid" ? d.stats.mid : d.stats.low;
-    const growFactor = 1 + (yr - THIS_YEAR) * 0.02;
-    return Math.round(d.boxes * ppb * growFactor);
-  };
-  const scenCost = (crop, scen, yr) => {
-    const rev = scenRev(crop, scen, yr);
-    const d = planData.find(p => p.crop === crop);
-    return d ? Math.round(rev * d.rate) : 0;
+  // ── スタイル定数 ─────────────────────────────────────────
+  const b   = "1px solid #CCC";
+  const cs  = { border: b, padding: "6px 8px", fontSize: 12 };
+  const cats = { ...cs, background: "#F5F5F5", fontWeight: 600 };
+  const aus  = { ...cs, background: "#FAFAFA", textAlign: "right", fontFamily: "'DM Mono',monospace" };
+  const ls   = { ...cs, paddingLeft: 20 };
+  const ics  = { border: b, padding: 0 };
+  const us   = { ...cs, textAlign: "center", fontSize: 10, color: C.mid };
+  const is_  = {
+    border: "none", background: "transparent", textAlign: "right",
+    width: "100%", padding: "6px 8px", fontSize: 12,
+    fontFamily: "'DM Mono',monospace", color: "inherit", outline: "none", display: "block",
   };
 
-  const totalRev = (scen, yr) => myCrops.reduce((s,c) => s + scenRev(c,scen,yr), 0);
-  const totalCost = (scen, yr) => myCrops.reduce((s,c) => s + scenCost(c,scen,yr), 0);
-  const totalProfit = (scen, yr) => totalRev(scen,yr) - totalCost(scen,yr);
+  // ── セルコンポーネント ───────────────────────────────────
+  const AutoCell = ({ v }) => (
+    <td style={{ ...aus, color: v < 0 ? "#E24B4A" : undefined }}>{v.toLocaleString("ja-JP")}</td>
+  );
 
-  const Section = ({ title, children }) => (
-    <div style={{ marginBottom:32 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
-        <div style={{ flex:1, height:1, background:C.border }}/>
-        <span className="f-sans" style={{ fontSize:10, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.mid }}>{title}</span>
-        <div style={{ flex:1, height:1, background:C.border }}/>
-      </div>
-      {children}
-    </div>
+  const InputCell = ({ rowKey, yi, actDef = 0 }) => (
+    <td style={ics}>
+      <input type="number" value={inp(rowKey, yi, actDef)}
+        onChange={e => set(rowKey, yi, e.target.value)} style={is_} />
+    </td>
+  );
+
+  // 直近実績は実績値表示（読取専用）、1〜5年目はinput
+  const CropRevCell = ({ crop, yi }) =>
+    yi === 0
+      ? <td style={aus}>{cropRev0(crop) !== 0 ? cropRev0(crop).toLocaleString("ja-JP") : "—"}</td>
+      : <InputCell rowKey={`cr_${crop}_rev`} yi={yi} actDef={cropRev0(crop)} />;
+
+  const ShippingCell = ({ yi }) =>
+    yi === 0
+      ? <td style={aus}>{shipping0 !== 0 ? shipping0.toLocaleString("ja-JP") : "—"}</td>
+      : <InputCell rowKey="c_shipping" yi={yi} actDef={shipping0} />;
+
+  // ── 行コンポーネント（レンダー関数）──────────────────────
+  const CatRow = ({ label, calcFn }) => (
+    <tr>
+      <td colSpan={2} style={cats}>{label}</td>
+      {[0,1,2,3,4,5].map(yi => <AutoCell key={yi} v={calcFn(yi)} />)}
+      <td style={cats}></td>
+    </tr>
+  );
+
+  const InpRow = ({ label, unit, rowKey, actDef = 0 }) => (
+    <tr>
+      <td style={ls}>{label}</td>
+      <td style={us}>{unit}</td>
+      {[0,1,2,3,4,5].map(yi => <InputCell key={yi} rowKey={rowKey} yi={yi} actDef={actDef} />)}
+      <td style={cs}></td>
+    </tr>
+  );
+
+  const AutoRow = ({ label, calcFn }) => (
+    <tr>
+      <td colSpan={2} style={{ ...cs, fontWeight: 700 }}>{label}</td>
+      {[0,1,2,3,4,5].map(yi => <AutoCell key={yi} v={calcFn(yi)} />)}
+      <td style={cs}></td>
+    </tr>
   );
 
   return (
-    <div className="appear" id="five-year-plan" style={{ maxWidth:840, margin:"0 auto" }}>
+    <div className="appear" id="five-year-plan">
 
       {/* PDF出力ボタン */}
-      <div className="no-print" style={{ display:"flex", justifyContent:"flex-end", marginBottom:20, gap:10 }}>
-        <button onClick={()=>window.print()} className="btn-primary" style={{ padding:"10px 24px", fontSize:13 }}>
-          五年計画書をPDF出力
+      <div className="no-print" style={{ display:"flex", justifyContent:"flex-end", marginBottom:16, gap:8 }}>
+        <button onClick={() => window.print()} className="btn-primary" style={{ padding:"10px 24px", fontSize:13 }}>
+          収支計画書をPDF出力
         </button>
       </div>
 
-      {/* ── 表紙 ── */}
-      <div style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:16, padding:"40px 40px 32px", marginBottom:28 }}>
-        <div className="f-sans" style={{ fontSize:9, letterSpacing:".2em", color:C.mid, textTransform:"uppercase", marginBottom:16 }}>
-          五年計画書 · Five-Year Business Plan
-        </div>
-        <h1 className="f-sans" style={{ fontSize:28, fontWeight:800, color:C.ink, marginBottom:20, lineHeight:1.3 }}>
-          {loggedInFarmer.name} 農場
-        </h1>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-          {[
-            ["農家名", loggedInFarmer.name],
-            ["作成日", today],
-            ["対象期間", `${THIS_YEAR}年〜${THIS_YEAR+4}年（5ヶ年）`],
-            ["作物数", `${myCrops.length}品目`],
-          ].map(([l,v]) => (
-            <div key={l} style={{ padding:"14px 16px", background:C.bgSoft, borderRadius:12 }}>
-              <div className="f-sans" style={{ fontSize:9, color:C.mid, letterSpacing:".08em", marginBottom:5 }}>{l}</div>
-              <div className="f-sans" style={{ fontSize:14, fontWeight:600, color:C.ink }}>{v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── セクション1：作付計画 ── */}
-      <div style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:16, padding:"28px 32px", marginBottom:28 }}>
-        <Section title="作付計画">
-          {myCrops.length === 0
-            ? <p className="f-sans" style={{ color:C.ghost, fontSize:13 }}>データ入力タブから作物を入力してください</p>
-            : (
-              <div style={{ overflowX:"auto" }}>
-                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
-                  <thead>
-                    <tr>
-                      {["作物","実績箱数（箱/年）","作付面積（反）"].map(h => (
-                        <th key={h} className="f-sans" style={{ padding:"10px 14px", background:C.bgSoft, textAlign:"left", fontWeight:600, color:C.mid, fontSize:11, borderBottom:`1px solid ${C.border}` }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myCrops.map(crop => (
-                      <tr key={crop} style={{ borderBottom:`1px solid ${C.border}` }}>
-                        <td className="f-sans" style={{ padding:"12px 14px", fontWeight:600, color:C.ink }}>{crop}</td>
-                        <td className="f-mono" style={{ padding:"12px 14px", color:C.mid }}>{cn(cropBoxes(crop))}</td>
-                        <td style={{ padding:"8px 14px" }}>
-                          <input
-                            type="number" min="0" step="0.1"
-                            value={areas[crop] || ""}
-                            onChange={e => setArea(crop, e.target.value)}
-                            placeholder="0.0"
-                            style={{ width:80, padding:"6px 10px", border:`1px solid ${C.border}`, borderRadius:8, fontSize:13, fontFamily:"'DM Mono',monospace", color:C.ink, background:"#fff" }}
-                          />
-                          <span className="f-sans" style={{ marginLeft:6, fontSize:12, color:C.mid }}>反</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          }
-        </Section>
-      </div>
-
-      {/* ── セクション2：売上計画 ── */}
-      <div style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:16, padding:"28px 32px", marginBottom:28 }}>
-        <Section title="売上計画（3シナリオ）">
-          {myCrops.length === 0
-            ? <p className="f-sans" style={{ color:C.ghost, fontSize:13 }}>データなし</p>
-            : (
-              <>
-                <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
-                  {SCEN.map(s => (
-                    <span key={s.key} style={{ padding:"4px 12px", borderRadius:20, fontSize:11, fontWeight:600, background:`${s.col}18`, color:s.col, border:`1px solid ${s.col}40` }}>
-                      {s.label}シナリオ
-                    </span>
-                  ))}
-                </div>
-                <div style={{ overflowX:"auto" }}>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-                    <thead>
-                      <tr>
-                        <th className="f-sans" style={{ padding:"10px 14px", background:C.bgSoft, textAlign:"left", fontWeight:600, color:C.mid, fontSize:11, borderBottom:`1px solid ${C.border}`, whiteSpace:"nowrap" }}>シナリオ</th>
-                        {PLAN_YEARS.map(y => (
-                          <th key={y} className="f-sans" style={{ padding:"10px 14px", background:C.bgSoft, textAlign:"right", fontWeight:600, color:C.mid, fontSize:11, borderBottom:`1px solid ${C.border}`, whiteSpace:"nowrap" }}>
-                            {y}年{y===THIS_YEAR?" (実績基準)":""}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {SCEN.map(s => (
-                        <tr key={s.key} style={{ borderBottom:`1px solid ${C.border}` }}>
-                          <td style={{ padding:"12px 14px" }}>
-                            <span style={{ fontSize:12, fontWeight:700, color:s.col }}>{s.label}</span>
-                          </td>
-                          {PLAN_YEARS.map(y => (
-                            <td key={y} className="f-mono" style={{ padding:"12px 14px", textAlign:"right", color:C.ink }}>
-                              {man(totalRev(s.key,y))}円
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div style={{ marginTop:20 }}>
-                  <p className="f-sans" style={{ fontSize:11, color:C.mid, marginBottom:12 }}>中値シナリオのバランスシート（年次）</p>
-                  <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
-                    {PLAN_YEARS.map(y => (
-                      <div key={y} style={{ flexShrink:0, width:200 }}>
-                        <p className="f-sans" style={{ fontSize:10, color:C.mid, marginBottom:8 }}>{y}年</p>
-                        <BalanceSheet revenue={totalRev("mid",y)} costs={[{l:"経費推計", a:totalCost("mid",y)}]} compact={true}/>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )
-          }
-        </Section>
-      </div>
-
-      {/* ── セクション3：経費計画 ── */}
-      <div style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:16, padding:"28px 32px", marginBottom:28 }}>
-        <Section title="経費計画">
-          {costItems.length === 0
-            ? <p className="f-sans" style={{ color:C.ghost, fontSize:13 }}>経費データなし</p>
-            : (
-              <>
-                <div style={{ overflowX:"auto", marginBottom:20 }}>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-                    <thead>
-                      <tr>
-                        {["経費項目","実績額","構成比"].map(h => (
-                          <th key={h} className="f-sans" style={{ padding:"10px 14px", background:C.bgSoft, textAlign:"left", fontWeight:600, color:C.mid, fontSize:11, borderBottom:`1px solid ${C.border}` }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {costItems.map(([l,a]) => (
-                        <tr key={l} style={{ borderBottom:`1px solid ${C.border}` }}>
-                          <td className="f-sans" style={{ padding:"11px 14px", color:C.ink }}>{l}</td>
-                          <td className="f-mono" style={{ padding:"11px 14px", color:C.ink }}>{man(a)}円</td>
-                          <td style={{ padding:"11px 14px" }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              <div style={{ flex:1, height:6, background:C.bgSoft, borderRadius:3 }}>
-                                <div style={{ width:`${totalCostAct>0?Math.round(a/totalCostAct*100):0}%`, height:6, background:C.accent, borderRadius:3 }}/>
-                              </div>
-                              <span className="f-mono" style={{ fontSize:11, color:C.mid, flexShrink:0 }}>{totalCostAct>0?Math.round(a/totalCostAct*100):0}%</span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div style={{ overflowX:"auto" }}>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-                    <thead>
-                      <tr>
-                        <th className="f-sans" style={{ padding:"10px 14px", background:C.bgSoft, textAlign:"left", fontWeight:600, color:C.mid, fontSize:11, borderBottom:`1px solid ${C.border}` }}>シナリオ</th>
-                        {PLAN_YEARS.map(y => (
-                          <th key={y} className="f-sans" style={{ padding:"10px 14px", background:C.bgSoft, textAlign:"right", fontWeight:600, color:C.mid, fontSize:11, borderBottom:`1px solid ${C.border}` }}>{y}年</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {SCEN.map(s => (
-                        <tr key={s.key} style={{ borderBottom:`1px solid ${C.border}` }}>
-                          <td style={{ padding:"12px 14px" }}><span style={{ fontSize:12, fontWeight:700, color:s.col }}>{s.label}</span></td>
-                          {PLAN_YEARS.map(y => (
-                            <td key={y} className="f-mono" style={{ padding:"12px 14px", textAlign:"right", color:C.mid }}>{man(totalCost(s.key,y))}円</td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )
-          }
-        </Section>
-      </div>
-
-      {/* ── セクション4：収支計画 ── */}
-      <div style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:16, padding:"28px 32px", marginBottom:28 }}>
-        <Section title="収支計画（利益推移）">
-          {myCrops.length === 0
-            ? <p className="f-sans" style={{ color:C.ghost, fontSize:13 }}>データなし</p>
-            : (
-              <>
-                <div style={{ overflowX:"auto", marginBottom:24 }}>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-                    <thead>
-                      <tr>
-                        <th className="f-sans" style={{ padding:"10px 14px", background:C.bgSoft, textAlign:"left", fontWeight:600, color:C.mid, fontSize:11, borderBottom:`1px solid ${C.border}` }}>シナリオ</th>
-                        {PLAN_YEARS.map(y => (
-                          <th key={y} className="f-sans" style={{ padding:"10px 14px", background:C.bgSoft, textAlign:"right", fontWeight:600, color:C.mid, fontSize:11, borderBottom:`1px solid ${C.border}` }}>{y}年</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {SCEN.map(s => {
-                        let cumulative = 0;
-                        return (
-                          <tr key={s.key} style={{ borderBottom:`1px solid ${C.border}` }}>
-                            <td style={{ padding:"12px 14px" }}><span style={{ fontSize:12, fontWeight:700, color:s.col }}>{s.label} 利益</span></td>
-                            {PLAN_YEARS.map(y => {
-                              const p = totalProfit(s.key, y);
-                              cumulative += p;
-                              return (
-                                <td key={y} className="f-mono" style={{ padding:"12px 14px", textAlign:"right", color: p>=0 ? C.bamboo : C.shu }}>
-                                  {man(p)}円
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                      {/* 累積利益（中値） */}
-                      <tr style={{ background:C.bgSoft }}>
-                        <td className="f-sans" style={{ padding:"12px 14px", fontSize:11, fontWeight:700, color:C.mid }}>中値 累積利益</td>
-                        {(() => {
-                          let cum = 0;
-                          return PLAN_YEARS.map(y => {
-                            cum += totalProfit("mid", y);
-                            return (
-                              <td key={y} className="f-mono" style={{ padding:"12px 14px", textAlign:"right", fontWeight:700, color: cum>=0 ? C.bamboo : C.shu }}>
-                                {man(cum)}円
-                              </td>
-                            );
-                          });
-                        })()}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
-                  {PLAN_YEARS.map(y => (
-                    <div key={y} style={{ flexShrink:0, minWidth:180 }}>
-                      <p className="f-sans" style={{ fontSize:10, color:C.mid, marginBottom:8 }}>{y}年（中値）</p>
-                      <BalanceSheet revenue={totalRev("mid",y)} costs={[{l:"経費", a:totalCost("mid",y)}]} compact={true}/>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )
-          }
-        </Section>
-      </div>
-
-      {/* ── セクション5：数値的根拠 ── */}
-      <div style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:16, padding:"24px 32px", marginBottom:28 }}>
-        <Section title="数値的根拠">
-          <p className="f-sans" style={{ fontSize:13, color:C.ink, lineHeight:2, marginBottom:12 }}>
-            本計画の数値は、吉野川市の <strong style={{ color:C.accent }}>{totalFarmers}</strong> 名の農家の実績データに基づきます。
-          </p>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-            {[
-              ["データ期間", `${THIS_YEAR}年`],
-              ["参加農家数", `${totalFarmers}名`],
-              ["出典", "日本農業研究所"],
-              ["URL", "chitose-bank.com"],
-            ].map(([l,v]) => (
-              <div key={l} style={{ padding:"10px 14px", background:"#fff", borderRadius:10, border:`1px solid ${C.border}` }}>
-                <div className="f-sans" style={{ fontSize:9, color:C.mid, marginBottom:4 }}>{l}</div>
-                <div className="f-sans" style={{ fontSize:13, color:C.ink }}>{v}</div>
-              </div>
-            ))}
+      {/* 表ヘッダー */}
+      <div style={{ maxWidth:900, margin:"0 auto 10px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:6 }}>
+          <div>
+            <p className="f-sans" style={{ fontSize:13, color:C.ink, fontWeight:600 }}>{loggedInFarmer.name}</p>
+            <p className="f-sans" style={{ fontSize:10, color:C.mid }}>
+              作成日：{today}　　日本農業研究所（chitose-bank.com）
+            </p>
           </div>
-        </Section>
+          <p className="f-sans" style={{ fontSize:11, color:C.mid }}>金額単位：千円</p>
+        </div>
+        <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:C.ink, letterSpacing:".03em" }}>
+          収支計画書（個人）
+        </h2>
+      </div>
+
+      {/* テーブル */}
+      <div style={{ overflowX:"auto", maxWidth:900, margin:"0 auto", printColorAdjust:"exact", WebkitPrintColorAdjust:"exact" }}>
+        <table style={{ minWidth:800, width:"100%", borderCollapse:"collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ ...cats, textAlign:"left", minWidth:170 }}>項目</th>
+              <th style={{ ...cats, textAlign:"center", width:44 }}>単位</th>
+              {YR_LABELS.map(l => (
+                <th key={l} style={{ ...cats, textAlign:"center", minWidth:86 }}>{l}</th>
+              ))}
+              <th style={{ ...cats, textAlign:"left", minWidth:80 }}>備考</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            {/* ─── 農業粗収入 ─── */}
+            {CatRow({ label:"農業粗収入", calcFn:grossRevY })}
+
+            {myCrops.flatMap(crop => [
+              <tr key={`${crop}_scale`}>
+                <td style={ls}>{crop}（生産規模）</td>
+                <td style={us}>a</td>
+                {[0,1,2,3,4,5].map(yi => <InputCell key={yi} rowKey={`cr_${crop}_scale`} yi={yi} actDef={0} />)}
+                <td style={cs}></td>
+              </tr>,
+              <tr key={`${crop}_qty`}>
+                <td style={ls}>{crop}（生産量）</td>
+                <td style={us}>kg</td>
+                {[0,1,2,3,4,5].map(yi => <InputCell key={yi} rowKey={`cr_${crop}_qty`} yi={yi} actDef={0} />)}
+                <td style={cs}></td>
+              </tr>,
+              <tr key={`${crop}_rev`}>
+                <td style={ls}>{crop}（収入金額）</td>
+                <td style={us}>千円</td>
+                {[0,1,2,3,4,5].map(yi => <CropRevCell key={yi} crop={crop} yi={yi} />)}
+                <td style={cs}></td>
+              </tr>,
+            ])}
+
+            {InpRow({ label:"作業受託収入", unit:"千円", rowKey:"work_recv", actDef:0 })}
+            {InpRow({ label:"その他", unit:"千円", rowKey:"other_rev", actDef:0 })}
+
+            {/* ─── 農業経営費 ─── */}
+            {CatRow({ label:"農業経営費", calcFn:totalCostY })}
+            {InpRow({ label:"原材料費", unit:"千円", rowKey:"c_material", actDef:0 })}
+            {InpRow({ label:"施設・機械費", unit:"千円", rowKey:"c_facility", actDef:0 })}
+            {InpRow({ label:"減価償却費", unit:"千円", rowKey:"c_deprec", actDef:0 })}
+            <tr>
+              <td style={ls}>出荷販売経費</td>
+              <td style={us}>千円</td>
+              {[0,1,2,3,4,5].map(yi => <ShippingCell key={yi} yi={yi} />)}
+              <td style={cs}></td>
+            </tr>
+            {InpRow({ label:"雇用労賃", unit:"千円", rowKey:"c_labor", actDef:0 })}
+            {InpRow({ label:"支払利息", unit:"千円", rowKey:"c_interest", actDef:0 })}
+            {InpRow({ label:"支払地代", unit:"千円", rowKey:"c_rent", actDef:0 })}
+            {InpRow({ label:"その他", unit:"千円", rowKey:"c_other_cost", actDef:0 })}
+
+            {/* ─── 農業所得 ─── */}
+            {AutoRow({ label:"農業所得", calcFn:farmIncomeY })}
+
+            {InpRow({ label:"農外所得", unit:"千円", rowKey:"non_farm", actDef:0 })}
+            {InpRow({ label:"年金被贈等", unit:"千円", rowKey:"pension", actDef:0 })}
+
+            {/* ─── 農家総所得 ─── */}
+            {AutoRow({ label:"農家総所得", calcFn:totalIncomeY })}
+
+            {InpRow({ label:"家計費", unit:"千円", rowKey:"household", actDef:1080 })}
+            {InpRow({ label:"租税公課", unit:"千円", rowKey:"tax", actDef:150 })}
+
+            {/* ─── 償還財源 ─── */}
+            {AutoRow({ label:"償還財源", calcFn:repaySourceY })}
+
+            {InpRow({ label:"償還元金", unit:"千円", rowKey:"repay_principal", actDef:0 })}
+
+            {/* ─── 差引余剰 ─── */}
+            {AutoRow({ label:"差引余剰", calcFn:surplusY })}
+
+            {InpRow({ label:"施設・機械等の設備投資", unit:"千円", rowKey:"capex", actDef:0 })}
+            {InpRow({ label:"農業負債（短期）", unit:"千円", rowKey:"debt_short", actDef:0 })}
+            {InpRow({ label:"農業負債（長期）", unit:"千円", rowKey:"debt_long", actDef:0 })}
+            {InpRow({ label:"農外負債", unit:"千円", rowKey:"debt_nonfarm", actDef:0 })}
+
+            {/* ─── 負債合計 ─── */}
+            {AutoRow({ label:"負債合計", calcFn:totalDebtY })}
+
+          </tbody>
+        </table>
+      </div>
+
+      {/* 注釈 */}
+      <div className="f-sans" style={{ maxWidth:900, margin:"12px auto 40px", fontSize:10, color:C.mid, lineHeight:2 }}>
+        <p>注1：品目に合わせて生産規模・生産量の単位を記載してください。</p>
+        <p>注2：特別の事情があるときは直近実績欄に前期実績を記入可。</p>
+        <p>数値的根拠：農水省統計および日本農業研究所の実績データに基づく。</p>
       </div>
 
     </div>
