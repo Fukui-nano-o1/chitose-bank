@@ -945,7 +945,7 @@ const MAFF_DATA = [
 ];
 
 // ── BoardTab ─────────────────────────────────────────────────
-function BoardTab({ farmers, destApproved, records }) {
+function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
   const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
 
   const [selectedCrop, setSelectedCrop] = useState(() => {
@@ -1188,78 +1188,97 @@ function BoardTab({ farmers, destApproved, records }) {
         </div>
       )}
 
-      {/* ══ 作物別中央値カルーセル ══════════════════════ */}
-      <div style={{ marginBottom:32 }}>
-        <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>作物別 集計（中央値）</div>
-        {filteredCropCards.length === 0
-          ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
-          : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
-              {filteredCropCards.map(c => {
-                const masked = c.count < MIN_FARMERS;
-                return (
-                  <div key={c.crop} style={{
-                    flexShrink:0, width:200, padding:"18px 18px 16px",
-                    background:C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
-                    boxShadow:"0 1px 6px rgba(8,6,4,.05)",
-                  }}>
-                    <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:C.ink, marginBottom:4 }}>{c.crop}</p>
-                    <p className="f-sans" style={{ fontSize:10, color:C.ghost, marginBottom:12 }}>{c.count}農家が入力</p>
-                    {masked ? (
-                      <div style={{ padding:"12px 10px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
-                        <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中<br/>（あと{MIN_FARMERS - c.count}人）</p>
-                      </div>
-                    ) : (
-                      <div style={{ display:"grid", gap:6 }}>
-                        {[{l:"売上中央値",v:man(c.medRev),col:C.bamboo},{l:"経費中央値",v:man(c.medCost),col:C.gold},{l:"利益中央値",v:man(c.medProfit),col:c.medProfit>=0?C.bamboo:C.shu},{l:"経費率中央値",v:`${c.medRate}%`,col:C.mid}].map(row => (
-                          <div key={row.l} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
-                            <span className="f-sans" style={{ fontSize:9, color:C.ghost }}>{row.l}</span>
-                            <span className="f-mono" style={{ fontSize:13, fontWeight:600, color:row.col }}>{row.v}</span>
+      {/* ══ 吉野川リアルデータ ══════════════════════════ */}
+      {userLevel >= 2 ? (
+        <>
+          {/* 作物別中央値カルーセル */}
+          <div style={{ marginBottom:32 }}>
+            <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>作物別 集計（中央値）</div>
+            {filteredCropCards.length === 0
+              ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
+              : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
+                  {filteredCropCards.map(c => {
+                    const masked = c.count < MIN_FARMERS;
+                    return (
+                      <div key={c.crop} style={{
+                        flexShrink:0, width:200, padding:"18px 18px 16px",
+                        background:C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
+                        boxShadow:"0 1px 6px rgba(8,6,4,.05)",
+                      }}>
+                        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:C.ink, marginBottom:4 }}>{c.crop}</p>
+                        <p className="f-sans" style={{ fontSize:10, color:C.ghost, marginBottom:12 }}>{c.count}農家が入力</p>
+                        {masked ? (
+                          <div style={{ padding:"12px 10px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
+                            <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中<br/>（あと{MIN_FARMERS - c.count}人）</p>
                           </div>
-                        ))}
+                        ) : (
+                          <div style={{ display:"grid", gap:6 }}>
+                            {[{l:"売上中央値",v:man(c.medRev),col:C.bamboo},{l:"経費中央値",v:man(c.medCost),col:C.gold},{l:"利益中央値",v:man(c.medProfit),col:c.medProfit>=0?C.bamboo:C.shu},{l:"経費率中央値",v:`${c.medRate}%`,col:C.mid}].map(row => (
+                              <div key={row.l} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+                                <span className="f-sans" style={{ fontSize:9, color:C.ghost }}>{row.l}</span>
+                                <span className="f-mono" style={{ fontSize:13, fontWeight:600, color:row.col }}>{row.v}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-        }
-      </div>
+                    );
+                  })}
+                </div>
+            }
+          </div>
 
-      {/* ══ 出荷先別経費率カルーセル ════════════════════ */}
-      <div style={{ marginBottom:32 }}>
-        <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>出荷先別 採算（中央値）</div>
-        {filteredDestCards.length === 0
-          ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
-          : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
-              {filteredDestCards.map(d => {
-                const masked = d.count < MIN_FARMERS;
-                return (
-                  <div key={d.destId} style={{
-                    flexShrink:0, width:280, padding:"16px",
-                    background:C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
-                    boxShadow:"0 1px 6px rgba(8,6,4,.05)",
-                  }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-                      <DestMark name={d.name} sz={24} showLabel={true} />
-                      <span className="f-sans" style={{ marginLeft:"auto", fontSize:9, color:C.ghost }}>{d.count}農家</span>
-                    </div>
-                    {masked ? (
-                      <div style={{ padding:"10px 8px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
-                        <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中（あと{MIN_FARMERS - d.count}人）</p>
+          {/* 出荷先別経費率カルーセル */}
+          <div style={{ marginBottom:32 }}>
+            <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>出荷先別 採算（中央値）</div>
+            {filteredDestCards.length === 0
+              ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
+              : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
+                  {filteredDestCards.map(d => {
+                    const masked = d.count < MIN_FARMERS;
+                    return (
+                      <div key={d.destId} style={{
+                        flexShrink:0, width:280, padding:"16px",
+                        background:C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
+                        boxShadow:"0 1px 6px rgba(8,6,4,.05)",
+                      }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                          <DestMark name={d.name} sz={24} showLabel={true} />
+                          <span className="f-sans" style={{ marginLeft:"auto", fontSize:9, color:C.ghost }}>{d.count}農家</span>
+                        </div>
+                        {masked ? (
+                          <div style={{ padding:"10px 8px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
+                            <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中（あと{MIN_FARMERS - d.count}人）</p>
+                          </div>
+                        ) : (
+                          <BalanceSheet
+                            revenue={d.medRev}
+                            costs={[{l:"経費(中央値)", a: d.medCost}]}
+                            compact={true}
+                          />
+                        )}
                       </div>
-                    ) : (
-                      <BalanceSheet
-                        revenue={d.medRev}
-                        costs={[{l:"経費(中央値)", a: d.medCost}]}
-                        compact={true}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-        }
-      </div>
+                    );
+                  })}
+                </div>
+            }
+          </div>
+        </>
+      ) : (
+        /* レベル1：登録促進カード */
+        <div style={{
+          borderRadius:16, background:"#F7F7F7", border:`1px solid ${C.rule}`,
+          padding:"40px 24px", textAlign:"center", marginBottom:32,
+        }}>
+          <p className="f-sans" style={{ fontSize:14, color:C.ink, fontWeight:600, marginBottom:12 }}>
+            登録すると産地の実績データが見れます
+          </p>
+          <button onClick={onLogin} style={{
+            padding:"10px 28px", borderRadius:20, background:C.accent,
+            color:"#fff", border:"none", fontSize:13, fontWeight:600, cursor:"pointer",
+          }}>無料で登録する（10秒）</button>
+        </div>
+      )}
 
       {/* ══ 注記 ════════════════════════════════════════ */}
       <div style={{ marginTop:8, padding:"12px 18px", borderTop:`1px solid ${C.rule}` }}>
@@ -2431,7 +2450,7 @@ export default function App(){
       dbRecs.forEach(rec => {
         const k = `${rec.farmer_id}_${rec.year}_${rec.month}`;
         if (!r[k]) r[k] = [];
-        r[k].push({ destId: rec.dest_id, boxes: rec.boxes, ppb: rec.ppb, costs: rec.costs || [] });
+        r[k].push({ destId: rec.dest_id, boxes: rec.boxes, ppb: rec.ppb, costs: rec.costs || [], created_at: rec.created_at });
       });
     }
     setFarmers(f);setFarmPend(fp);setDestOk(da);setDestPend(dp);setRecs(r);
@@ -2568,10 +2587,24 @@ const subDest=useCallback(async d=>{
     </div>
   );
 
+  // ── 貢献者レベル判定 ──────────────────────────────────────
+  const myAllRecs = me
+    ? Object.entries(recs).filter(([k]) => k.startsWith(me.id + "_")).flatMap(([, v]) => v)
+    : [];
+  const createdDates = myAllRecs.map(r => r.created_at).filter(Boolean).map(d => new Date(d));
+  const lastInputDate = createdDates.length > 0 ? new Date(Math.max(...createdDates)) : null;
+  const daysSinceInput = lastInputDate !== null
+    ? Math.floor((Date.now() - lastInputDate.getTime()) / 86400000)
+    : null;
+  const isContributor = lastInputDate !== null && daysSinceInput <= 30;
+  const isMember = !!me;
+  const userLevel = !me ? 1 : isContributor ? 3 : 2;
+
   const TABS=[
     {k:"board",l:"公開ボード"},
-    {k:"input",l:me?"データ入力":"🔒 データ入力",locked:!me},
-    ...(me?[{k:"plan",l:"五年計画書"}]:[]),
+    {k:"input",l:isMember?"データ入力":"🔒 データ入力",locked:!isMember},
+    ...(isMember?[{k:"plan",l:"五年計画書",locked:!isContributor}]:[]),
+    ...(isContributor?[{k:"ledger",l:"マイ台帳"}]:[]),
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
@@ -2681,12 +2714,34 @@ const subDest=useCallback(async d=>{
         </nav>
       </header>
 
+      {/* ── 格下げカウントダウン通知 ── */}
+      {isMember && daysSinceInput !== null && daysSinceInput >= 25 && (
+        <div style={{
+          padding:"12px 24px",
+          background: daysSinceInput <= 30 ? "#FEF3E2" : "#FCEBEB",
+          borderBottom:`1px solid ${daysSinceInput <= 30 ? "#F5A62344" : "#E24B4A44"}`,
+          display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8,
+        }}>
+          <span className="f-sans" style={{ fontSize:12, color: daysSinceInput <= 30 ? "#B87A1A" : "#E24B4A" }}>
+            {daysSinceInput <= 30
+              ? `貢献者アクセスがあと${30 - daysSinceInput}日で停止します。データを入力して維持しましょう。`
+              : "貢献者アクセスが停止しました。データを入力すると復活します。"
+            }
+          </span>
+          <button onClick={() => setTab("input")} style={{
+            padding:"6px 16px", borderRadius:20, fontSize:12, fontWeight:600,
+            background:C.accent, color:"#fff", border:"none", cursor:"pointer",
+          }}>今すぐ入力する</button>
+        </div>
+      )}
+
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       <div className="bottom-tab-bar">
         {[
           {k:"board", icon:"📋", l:"ボード"},
           {k:"input", icon:"✏️", l:"入力"},
-          ...(me?[{k:"plan", icon:"📄", l:"計画書"}]:[]),
+          ...(isMember?[{k:"plan", icon:"📄", l:"計画書"}]:[]),
+          ...(isContributor?[{k:"ledger", icon:"📓", l:"台帳"}]:[]),
           ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
         ].map(({k,icon,l})=>(
           <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}>
@@ -2698,7 +2753,7 @@ const subDest=useCallback(async d=>{
 
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
-        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs}/>}
+        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")}/>}
         {tab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")}/>
@@ -2706,8 +2761,24 @@ const subDest=useCallback(async d=>{
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>
         )}
-        {tab==="ledger"&&me&&<MyLedger loggedInFarmer={me} records={recs} destApproved={destOk}/>}
-        {tab==="plan"&&me&&<FiveYearPlanTab loggedInFarmer={me} records={recs} destApproved={destOk} farmers={farmers}/>}
+        {tab==="ledger"&&isContributor&&<MyLedger loggedInFarmer={me} records={recs} destApproved={destOk}/>}
+        {tab==="plan"&&isMember&&(
+          isContributor
+            ? <FiveYearPlanTab loggedInFarmer={me} records={recs} destApproved={destOk} farmers={farmers}/>
+            : <div style={{ textAlign:"center", padding:"64px 24px", maxWidth:480, margin:"0 auto" }}>
+                <div style={{ fontSize:48, marginBottom:20 }}>🔒</div>
+                <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:C.ink, marginBottom:12 }}>
+                  五年計画書を利用するにはデータの入力が必要です
+                </p>
+                <p className="f-sans" style={{ fontSize:13, color:C.mid, lineHeight:1.8, marginBottom:24 }}>
+                  月に1回、売上と経費を入力するだけで五年計画書の作成支援が利用できます。
+                </p>
+                <button onClick={()=>setTab("input")} style={{
+                  padding:"12px 32px", borderRadius:20, background:C.accent,
+                  color:"#fff", border:"none", fontSize:14, fontWeight:600, cursor:"pointer",
+                }}>データを入力する</button>
+              </div>
+        )}
         {tab==="admin"&&me?.email===ADMIN_EMAIL&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
