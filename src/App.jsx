@@ -923,6 +923,13 @@ function RegisterScreen({ onGoLogin, onSubmit }) {
 
 // ── Market chart constants ───────────────────────────────────
 const CROP_PALETTE = ["#00A86B","#F5A623","#4A90D9","#E85D5D","#9B59B6","#2ECC71","#E67E22","#1ABC9C","#3498DB","#E74C3C"];
+
+const LABOR_HOURS = {
+  'ブロッコリー':102, 'ナス':400,    'トマト':350,    'きゅうり':320,  'キャベツ':80,
+  'だいこん':75,      'にんじん':70,  'たまねぎ':65,   'レタス':90,     'ほうれんそう':120,
+  'ねぎ':150,         'はくさい':85,  'ピーマン':380,  'いちご':450,    'すいか':200,
+  'メロン':350,       'かぼちゃ':60,  'えだまめ':50,   'アスパラガス':280, 'にら':200,
+};
 const LABOR_DATA   = [
   { crop:"ブロッコリー", min:94,  max:110 },
   { crop:"ナス",         min:300, max:500 },
@@ -970,7 +977,11 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
 
   const lineKeys = ["acreage","harvest","yield"].filter(k => activeMetrics.has(k));
   const hasLabor = activeMetrics.has("labor");
-  const laborCrops = hasLabor ? LABOR_DATA.filter(d => visibleCrops.includes(d.crop)) : [];
+  const laborCrops = hasLabor
+    ? marketStats
+        .filter(s => visibleCrops.includes(s.crop) && s.labor_hours_per_10a != null)
+        .map(s => ({ crop: s.crop, val: s.labor_hours_per_10a }))
+    : [];
 
   const hasRightAxis = lineKeys.length >= 2;
   const P = { l:60, r: hasRightAxis ? 60 : 20, t:20, b:36 };
@@ -1013,7 +1024,7 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
     ? Array.from({length:5}, (_,i) => scales[key].vMin + (scales[key].vMax - scales[key].vMin) * i / 4)
     : [];
 
-  const maxLaborVal = laborCrops.length ? Math.max(...laborCrops.map(d => d.max)) : 1;
+  const maxLaborVal = laborCrops.length ? Math.max(...laborCrops.map(d => d.val)) : 1;
   const laborBarMaxH = 64;
   const laborAreaH = laborCrops.length ? 100 : 0;
   const totalH = mainH + (laborAreaH ? laborAreaH + 8 : 0);
@@ -1127,16 +1138,12 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
                 const col = getCropColor(d.crop);
                 const cx = P.l + i*slotW + slotW/2;
                 const bw = Math.min(slotW*0.44, 28);
-                const hMax = (d.max / maxLaborVal) * laborBarMaxH;
-                const hMin = (d.min / maxLaborVal) * laborBarMaxH;
-                const dMin = Math.round(d.min/8), dMax = Math.round(d.max/8);
+                const h = (d.val / maxLaborVal) * laborBarMaxH;
                 return (
                   <g key={d.crop}>
-                    <rect x={cx-bw/2} y={baseY-hMax} width={bw} height={hMax} fill={col} opacity={0.3} rx={2} />
-                    <rect x={cx-bw/2} y={baseY-hMin} width={bw} height={hMin} fill={col} opacity={1} rx={2} />
-                    <text x={cx} y={baseY-hMax-5} textAnchor="middle" fontSize={11} fill={col} fontWeight="600">{d.max}h</text>
+                    <rect x={cx-bw/2} y={baseY-h} width={bw} height={h} fill={col} rx={2} />
+                    <text x={cx} y={baseY-h-5} textAnchor="middle" fontSize={11} fill={col} fontWeight="600">{d.val}h</text>
                     <text x={cx} y={baseY+13} textAnchor="middle" fontSize={11} fill="#717171">{d.crop}</text>
-                    <text x={cx} y={baseY+25} textAnchor="middle" fontSize={9} fill="#B0B0B0">8h換算 {dMin}〜{dMax}日</text>
                   </g>
                 );
               })}
@@ -1249,6 +1256,11 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
       if (data) setMarketStats(data);
     });
   }, []);
+
+  const enrichedStats = marketStats.map(s => ({
+    ...s,
+    labor_hours_per_10a: s.labor_hours_per_10a || LABOR_HOURS[s.crop] || null,
+  }));
 
   const [showMarketChart, setShowMarketChart] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
@@ -1373,9 +1385,9 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
         const fmtHarvest = t => t >= 10000 ? `${(t / 10000).toFixed(1)}万t` : `${t.toLocaleString('ja-JP')}t`;
         const fmtAcreage = h => h >= 10000 ? `${(h / 10000).toFixed(1)}万ha` : `${h.toLocaleString('ja-JP')}ha`;
 
-        // crop別に最新年のデータを抽出
+        // crop別に最新年のデータを抽出（enrichedStats使用）
         const byCrop = {};
-        marketStats.forEach(s => {
+        enrichedStats.forEach(s => {
           if (!byCrop[s.crop] || s.year > byCrop[s.crop].year) byCrop[s.crop] = s;
         });
 
@@ -1383,7 +1395,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
           ? Object.values(byCrop)
           : Object.values(byCrop).filter(s => s.crop === selectedCrop);
 
-        if (marketStats.length === 0) {
+        if (enrichedStats.length === 0) {
           return (
             <div style={{ marginBottom: 24 }}>
               <p className="f-sans" style={{ fontSize: 13, color: C.mid }}>公的統計データを読み込み中...</p>
@@ -1403,9 +1415,10 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
             >
               {filtered.map(s => {
                 const statRows = [
-                  s.acreage_ha        != null && { label: '作付面積',         value: fmtAcreage(s.acreage_ha) },
-                  s.harvest_t         != null && { label: '収穫量',           value: fmtHarvest(s.harvest_t) },
-                  s.yield_kg_per_10a  != null && { label: '10a当たり収量',    value: `${s.yield_kg_per_10a.toLocaleString('ja-JP')}kg` },
+                  s.acreage_ha          != null && { label: '作付面積',      value: fmtAcreage(s.acreage_ha) },
+                  s.harvest_t           != null && { label: '収穫量',        value: fmtHarvest(s.harvest_t) },
+                  s.yield_kg_per_10a    != null && { label: '10a収量',       value: `${s.yield_kg_per_10a.toLocaleString('ja-JP')}kg` },
+                  s.labor_hours_per_10a != null && { label: '労働時間',      value: `${s.labor_hours_per_10a}時間/10a` },
                 ].filter(Boolean);
                 return (
                   <div key={s.crop} style={{ flex:'0 0 280px', background:'#fff', borderRadius:16, padding:'18px 20px', border:`1px solid ${C.rule}` }}>
@@ -1457,7 +1470,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
                   {/* 段1：作物ピル（market_statsから動的生成、複数年データのある作物のみ） */}
                   {(() => {
                     const cropCounts = {};
-                    marketStats.forEach(s => { cropCounts[s.crop] = (cropCounts[s.crop] || 0) + 1; });
+                    enrichedStats.forEach(s => { cropCounts[s.crop] = (cropCounts[s.crop] || 0) + 1; });
                     const availCrops = Object.entries(cropCounts).filter(([,n]) => n > 1).map(([c]) => c).sort();
                     if (availCrops.length === 0) return (
                       <p className="f-sans" style={{ fontSize:12, color:C.ghost, marginBottom:14 }}>データ読み込み中...</p>
@@ -1521,7 +1534,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
 
             {/* B. グラフエリア（常時表示） */}
             <MarketChart
-              marketStats={marketStats}
+              marketStats={enrichedStats}
               visibleCrops={visibleCrops}
               activeMetrics={activeMetrics}
             />
