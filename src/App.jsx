@@ -916,33 +916,6 @@ function RegisterScreen({ onGoLogin, onSubmit }) {
   );
 }
 
-// ── MAFF public statistics (10a) ────────────────────────────
-const MAFF_DATA = [
-  {
-    crop: "ブロッコリー",
-    source: "農水省 農業経営統計調査・各県経営指標",
-    per10a: {
-      yield:       { min: 750,  max: 1080, unit: "kg" },
-      revenue:     { min: 297,  max: 528,  unit: "千円" },
-      expense:     { min: 158,  max: 384,  unit: "千円" },
-      income:      { min: 110,  max: 178,  unit: "千円" },
-      incomeRate:  { min: 27,   max: 34,   unit: "%" },
-      laborHours:  { min: 94,   max: 110,  unit: "時間" },
-    },
-  },
-  {
-    crop: "ナス",
-    source: "農水省 農業経営統計調査",
-    per10a: {
-      yield:       { min: 3000, max: 5000, unit: "kg" },
-      revenue:     { min: 800,  max: 1500, unit: "千円" },
-      expense:     { min: 500,  max: 1000, unit: "千円" },
-      income:      { min: 200,  max: 500,  unit: "千円" },
-      incomeRate:  { min: 25,   max: 35,   unit: "%" },
-      laborHours:  { min: 300,  max: 500,  unit: "時間" },
-    },
-  },
-];
 
 // ── Market chart constants ───────────────────────────────────
 const MARKET_DATA = {
@@ -1239,6 +1212,13 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
     try { localStorage.setItem('boardSearchQuery', q); } catch {}
   };
 
+  const [marketStats, setMarketStats] = useState([]);
+  useEffect(() => {
+    supabase.from('market_stats').select('*').order('crop').then(({ data }) => {
+      if (data) setMarketStats(data);
+    });
+  }, []);
+
   const [showMarketChart, setShowMarketChart] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [selectedMarket, setSelectedMarket] = useState('tokyo');
@@ -1267,7 +1247,9 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
     recs: MONTHS.flatMap((_, i) => records[`${f.id}_${THIS_YEAR}_${i}`] || []),
   }));
 
-  const allCrops = [...new Set(allFarmerRecs.flatMap(f => f.recs).map(r => r.crop).filter(Boolean))];
+  const recordCrops = allFarmerRecs.flatMap(f => f.recs).map(r => r.crop).filter(Boolean);
+  const statCrops = marketStats.map(s => s.crop).filter(Boolean);
+  const allCrops = [...new Set([...recordCrops, ...statCrops])];
 
   const filteredFarmerRecs = selectedCrop === 'すべて'
     ? allFarmerRecs
@@ -1358,42 +1340,53 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
 
       {/* ══ 公的統計 ════════════════════════════════════ */}
       {(() => {
-        const toMan = v => `${(v / 10).toFixed(1)}万円`;
-        const maffFiltered = selectedCrop === 'すべて'
-          ? MAFF_DATA
-          : MAFF_DATA.filter(d => d.crop === selectedCrop);
-        if (maffFiltered.length === 0) return null;
+        const fmtHarvest = t => t >= 10000 ? `${(t / 10000).toFixed(1)}万t` : `${t.toLocaleString('ja-JP')}t`;
+        const fmtAcreage = h => h >= 10000 ? `${(h / 10000).toFixed(1)}万ha` : `${h.toLocaleString('ja-JP')}ha`;
+
+        // crop別に最新年のデータを抽出
+        const byCrop = {};
+        marketStats.forEach(s => {
+          if (!byCrop[s.crop] || s.year > byCrop[s.crop].year) byCrop[s.crop] = s;
+        });
+
+        const filtered = selectedCrop === 'すべて'
+          ? Object.values(byCrop)
+          : Object.values(byCrop).filter(s => s.crop === selectedCrop);
+
+        if (marketStats.length === 0) {
+          return (
+            <div style={{ marginBottom: 24 }}>
+              <p className="f-sans" style={{ fontSize: 13, color: C.mid }}>公的統計データを読み込み中...</p>
+            </div>
+          );
+        }
+        if (filtered.length === 0) return null;
+
         return (
           <div style={{ marginBottom: 24 }}>
             <h2 className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 12, letterSpacing: '.04em' }}>
-              公的統計（10aあたり）
+              公的統計（作物統計調査）
             </h2>
             <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {maffFiltered.map(d => {
-                const p = d.per10a;
-                const revMid = Math.round((p.revenue.min + p.revenue.max) / 2) * 1000;
-                const expMid = Math.round((p.expense.min + p.expense.max) / 2) * 1000;
-                const rows = [
-                  { label: '収量',     value: `${p.yield.min}〜${p.yield.max}${p.yield.unit}` },
-                  { label: '粗収益',   value: `${toMan(p.revenue.min)}〜${toMan(p.revenue.max)}` },
-                  { label: '経費',     value: `${toMan(p.expense.min)}〜${toMan(p.expense.max)}` },
-                  { label: '所得',     value: `${toMan(p.income.min)}〜${toMan(p.income.max)}` },
-                  { label: '所得率',   value: `${p.incomeRate.min}〜${p.incomeRate.max}%` },
-                  { label: '労働時間', value: `${p.laborHours.min}〜${p.laborHours.max}${p.laborHours.unit}` },
-                ];
+              {filtered.map(s => {
+                const statRows = [
+                  s.acreage_ha        != null && { label: '作付面積',         value: fmtAcreage(s.acreage_ha) },
+                  s.harvest_t         != null && { label: '収穫量',           value: fmtHarvest(s.harvest_t) },
+                  s.yield_kg_per_10a  != null && { label: '10a当たり収量',    value: `${s.yield_kg_per_10a.toLocaleString('ja-JP')}kg` },
+                ].filter(Boolean);
                 return (
-                  <div key={d.crop} style={{ flexShrink: 0, width: 280, background: '#fff', borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.rule}` }}>
-                    <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 12 }}>{d.crop}</p>
-                    {rows.map(r => (
+                  <div key={s.crop} style={{ flexShrink: 0, width: 280, background: '#fff', borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.rule}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+                      <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0 }}>{s.crop}</p>
+                      <span className="f-sans" style={{ fontSize: 10, color: C.ghost }}>{s.year}年産</span>
+                    </div>
+                    {statRows.map(r => (
                       <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                         <span className="f-sans" style={{ fontSize: 11, color: C.mid }}>{r.label}</span>
                         <span className="f-mono" style={{ fontSize: 12, fontWeight: 600, color: C.ink }}>{r.value}</span>
                       </div>
                     ))}
-                    <div style={{ marginTop: 14, marginBottom: 10 }}>
-                      <BalanceSheet revenue={revMid} costs={[{ l: '経費', a: expMid }]} compact={true} />
-                    </div>
-                    <p className="f-sans" style={{ fontSize: 9, color: C.ghost, lineHeight: 1.6 }}>出典：{d.source}</p>
+                    <p className="f-sans" style={{ fontSize: 9, color: C.ghost, marginTop: 10, lineHeight: 1.6 }}>出典：農水省 作物統計調査</p>
                   </div>
                 );
               })}
