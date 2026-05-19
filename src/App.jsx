@@ -978,9 +978,11 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
   const lineKeys = ["acreage","harvest","yield"].filter(k => activeMetrics.has(k));
   const hasLabor = activeMetrics.has("labor");
   const laborCrops = hasLabor
-    ? marketStats
-        .filter(s => visibleCrops.includes(s.crop) && s.labor_hours_per_10a != null)
-        .map(s => ({ crop: s.crop, val: s.labor_hours_per_10a }))
+    ? [...new Map(
+        marketStats
+          .filter(s => visibleCrops.includes(s.crop) && s.labor_hours_per_10a != null)
+          .map(s => [s.crop, { crop: s.crop, val: s.labor_hours_per_10a }])
+      ).values()]
     : [];
 
   const hasRightAxis = lineKeys.length >= 2;
@@ -1030,16 +1032,27 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
   const totalH = mainH + (laborAreaH ? laborAreaH + 8 : 0);
 
   const legendEntries = [];
+  const legendSeen = new Set();
   lineKeys.forEach(key => {
     const meta = METRICS.find(m => m.key === key);
     visibleCrops.forEach(crop => {
-      if (getSeriesData(crop, key).length)
+      const id = `${crop}·${key}`;
+      if (getSeriesData(crop, key).length && !legendSeen.has(id)) {
+        legendSeen.add(id);
         legendEntries.push({ key, crop, meta, col: getCropColor(crop), dash: DASH[key] });
+      }
     });
   });
-  laborCrops.forEach(d =>
-    legendEntries.push({ key:"labor", crop:d.crop, meta:METRICS.find(m=>m.key==="labor"), col:getCropColor(d.crop), isBar:true })
-  );
+  laborCrops.forEach(d => {
+    const id = `${d.crop}·labor`;
+    if (!legendSeen.has(id)) {
+      legendSeen.add(id);
+      legendEntries.push({ key:"labor", crop:d.crop, meta:METRICS.find(m=>m.key==="labor"), col:getCropColor(d.crop), isBar:true });
+    }
+  });
+  const MAX_LEGEND = 12;
+  const visibleLegend = legendEntries.slice(0, MAX_LEGEND);
+  const hiddenLegendCount = legendEntries.length - visibleLegend.length;
 
   const citeSet = new Set([
     (activeMetrics.has("acreage")||activeMetrics.has("harvest")||activeMetrics.has("yield")) && "農水省 作物統計調査",
@@ -1128,7 +1141,9 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
 
         {/* 労働時間 縦棒エリア */}
         {laborCrops.length > 0 && (() => {
-          const slotW = cW / Math.max(laborCrops.length, 1);
+          const barW = 40, barGap = 20;
+          const totalBarW = laborCrops.length * barW + (laborCrops.length - 1) * barGap;
+          const startX = P.l + (cW - totalBarW) / 2;
           const baseY = laborBarMaxH + 16;
           return (
             <g transform={`translate(0,${mainH+8})`}>
@@ -1136,14 +1151,14 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
               <text x={P.l} y={-4} fontSize={11} fill="#717171">労働時間（時間/10a）</text>
               {laborCrops.map((d,i) => {
                 const col = getCropColor(d.crop);
-                const cx = P.l + i*slotW + slotW/2;
-                const bw = Math.min(slotW*0.44, 28);
+                const cx = startX + i * (barW + barGap) + barW / 2;
                 const h = (d.val / maxLaborVal) * laborBarMaxH;
+                const nameFontSize = d.crop.length > 5 ? 9 : 11;
                 return (
                   <g key={d.crop}>
-                    <rect x={cx-bw/2} y={baseY-h} width={bw} height={h} fill={col} rx={2} />
+                    <rect x={cx-barW/2} y={baseY-h} width={barW} height={h} fill={col} rx={3} />
                     <text x={cx} y={baseY-h-5} textAnchor="middle" fontSize={11} fill={col} fontWeight="600">{d.val}h</text>
-                    <text x={cx} y={baseY+13} textAnchor="middle" fontSize={11} fill="#717171">{d.crop}</text>
+                    <text x={cx} y={baseY+13} textAnchor="middle" fontSize={nameFontSize} fill="#717171">{d.crop}</text>
                   </g>
                 );
               })}
@@ -1154,14 +1169,14 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
       </svg>
 
       {legendEntries.length > 0 && (
-        <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:10 }}>
-          {legendEntries.map(({ key, crop, meta, col, dash, isBar }) => (
-            <div key={`${key}-${crop}`} style={{ display:"flex", alignItems:"center", gap:5 }}>
+        <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginTop:10, maxHeight:80, overflow:"hidden" }}>
+          {visibleLegend.map(({ key, crop, meta, col, dash, isBar }) => (
+            <div key={`${key}-${crop}`} style={{ display:"flex", alignItems:"center", gap:4 }}>
               {isBar
-                ? <div style={{ width:10, height:10, borderRadius:"50%", background:col, opacity:0.8, flexShrink:0 }} />
-                : <svg width={24} height={10} style={{ flexShrink:0 }}>
-                    <line x1={0} y1={5} x2={24} y2={5} stroke={col} strokeWidth={2} strokeDasharray={dash} />
-                    <circle cx={12} cy={5} r={3} fill={col} stroke="#fff" strokeWidth={1} />
+                ? <div style={{ width:8, height:8, borderRadius:"50%", background:col, flexShrink:0 }} />
+                : <svg width={20} height={8} style={{ flexShrink:0 }}>
+                    <line x1={0} y1={4} x2={20} y2={4} stroke={col} strokeWidth={2} strokeDasharray={dash} />
+                    <circle cx={10} cy={4} r={2.5} fill={col} stroke="#fff" strokeWidth={1} />
                   </svg>
               }
               <span className="f-sans" style={{ fontSize:11, color:"#222", whiteSpace:"nowrap" }}>
@@ -1169,6 +1184,11 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
               </span>
             </div>
           ))}
+          {hiddenLegendCount > 0 && (
+            <span className="f-sans" style={{ fontSize:11, color:"#717171", alignSelf:"center" }}>
+              ...他{hiddenLegendCount}項目
+            </span>
+          )}
         </div>
       )}
 
