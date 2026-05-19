@@ -82,6 +82,10 @@ body { background: #fff; }
 
 .filter-scroll::-webkit-scrollbar { display: none; }
 
+.carousel-scroll::-webkit-scrollbar { height: 6px; }
+.carousel-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+.carousel-scroll::-webkit-scrollbar-track { background: transparent; }
+
 /* ── Print ── */
 @media print {
   header, footer, .bottom-tab-bar, .no-print { display: none !important; }
@@ -1170,6 +1174,56 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
   );
 }
 
+// ── Carousel ─────────────────────────────────────────────────
+function Carousel({ children, style, className, wrapperStyle }) {
+  const ref = useRef(null);
+  const [atLeft, setAtLeft] = useState(true);
+  const [atRight, setAtRight] = useState(true);
+
+  const updatePos = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setAtLeft(el.scrollLeft <= 1);
+    setAtRight(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    return () => window.removeEventListener('resize', updatePos);
+  }, [updatePos]);
+
+  useEffect(() => { updatePos(); });
+
+  const scroll = dir => ref.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
+
+  const btnStyle = {
+    position:'absolute', top:'50%', transform:'translateY(-50%)',
+    width:36, height:36, borderRadius:'50%',
+    background:'#fff', border:'1px solid #EBEBEB',
+    boxShadow:'0 2px 4px rgba(0,0,0,0.1)',
+    cursor:'pointer', fontSize:18,
+    display:'flex', alignItems:'center', justifyContent:'center',
+    zIndex:2, padding:0, lineHeight:1,
+  };
+
+  return (
+    <div style={{ position:'relative', ...wrapperStyle }}>
+      {!atLeft && (
+        <button onClick={() => scroll(-1)} className="f-sans"
+          style={{ ...btnStyle, left:-16 }}>‹</button>
+      )}
+      <div ref={ref} className={className} style={style} onScroll={updatePos}>
+        {children}
+      </div>
+      {!atRight && (
+        <button onClick={() => scroll(1)} className="f-sans"
+          style={{ ...btnStyle, right:-16 }}>›</button>
+      )}
+    </div>
+  );
+}
+
 // ── BoardTab ─────────────────────────────────────────────────
 function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
   const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
@@ -1343,7 +1397,10 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
             <h2 className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 12, letterSpacing: '.04em' }}>
               公的統計（作物統計調査）
             </h2>
-            <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <Carousel
+              className="carousel-scroll"
+              style={{ display:'flex', gap:16, overflowX:'auto', paddingBottom:8, WebkitOverflowScrolling:'touch' }}
+            >
               {filtered.map(s => {
                 const statRows = [
                   s.acreage_ha        != null && { label: '作付面積',         value: fmtAcreage(s.acreage_ha) },
@@ -1351,22 +1408,22 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
                   s.yield_kg_per_10a  != null && { label: '10a当たり収量',    value: `${s.yield_kg_per_10a.toLocaleString('ja-JP')}kg` },
                 ].filter(Boolean);
                 return (
-                  <div key={s.crop} style={{ flex: '0 0 280px', background: '#fff', borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.rule}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-                      <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0 }}>{s.crop}</p>
-                      <span className="f-sans" style={{ fontSize: 10, color: C.ghost }}>{s.year}年産</span>
+                  <div key={s.crop} style={{ flex:'0 0 280px', background:'#fff', borderRadius:16, padding:'18px 20px', border:`1px solid ${C.rule}` }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
+                      <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:C.ink, margin:0 }}>{s.crop}</p>
+                      <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>{s.year}年産</span>
                     </div>
                     {statRows.map(r => (
-                      <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                        <span className="f-sans" style={{ fontSize: 11, color: C.mid }}>{r.label}</span>
-                        <span className="f-mono" style={{ fontSize: 12, fontWeight: 600, color: C.ink }}>{r.value}</span>
+                      <div key={r.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+                        <span className="f-sans" style={{ fontSize:11, color:C.mid }}>{r.label}</span>
+                        <span className="f-mono" style={{ fontSize:12, fontWeight:600, color:C.ink }}>{r.value}</span>
                       </div>
                     ))}
-                    <p className="f-sans" style={{ fontSize: 9, color: C.ghost, marginTop: 10, lineHeight: 1.6 }}>出典：農水省 作物統計調査</p>
+                    <p className="f-sans" style={{ fontSize:9, color:C.ghost, marginTop:10, lineHeight:1.6 }}>出典：農水省 作物統計調査</p>
                   </div>
                 );
               })}
-            </div>
+            </Carousel>
           </div>
         );
       })()}
@@ -1497,10 +1554,11 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
       </div>
 
       {/* ══ 作物フィルターピル ════════════════════════ */}
-      <div className="filter-scroll" style={{
-        display:"flex", gap:8, overflowX:"auto", paddingBottom:10, marginBottom:16,
-        scrollbarWidth:"none", msOverflowStyle:"none",
-      }}>
+      <Carousel
+        className="carousel-scroll"
+        style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:10 }}
+        wrapperStyle={{ marginBottom:16 }}
+      >
         {['すべて', ...allCrops].map(crop => {
           const active = selectedCrop === crop;
           return (
@@ -1515,7 +1573,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
             }}>{crop}</button>
           );
         })}
-      </div>
+      </Carousel>
 
       {/* ══ 参加状況バナー ══════════════════════════════ */}
       <div style={{
