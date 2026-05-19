@@ -33,23 +33,22 @@ async function upsertToSupabase(rows) {
 }
 
 async function main() {
-  // 令和5年産または最新の野菜41品目テーブルを検索
+  // Step 1: 最新の指定野菜テーブル一覧を検索
   const listUrl = 'https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList'
     + '?appId=' + appId
     + '&lang=J'
-    + '&searchWord=' + encodeURIComponent('野菜 41品目 作付面積 収穫量 出荷量 年間計')
-    + '&limit=5';
+    + '&searchWord=' + encodeURIComponent('令和 指定野菜 作付面積 収穫量')
+    + '&limit=50';
 
   const listData = await fetchJSON(listUrl);
   let tables = listData?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
 
   if (!tables) {
-    // 別のキーワードで再検索
     const listUrl2 = 'https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList'
       + '?appId=' + appId
       + '&lang=J'
-      + '&searchWord=' + encodeURIComponent('指定野菜 作付面積 収穫量 出荷量')
-      + '&limit=10';
+      + '&searchWord=' + encodeURIComponent('令和 野菜 作付面積 収穫量 出荷量')
+      + '&limit=50';
     const listData2 = await fetchJSON(listUrl2);
     tables = listData2?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
   }
@@ -68,99 +67,63 @@ async function main() {
     console.log('  ID=' + t['@id'] + ' ' + name + ' / ' + sub + ' [' + cycle + ']');
   });
 
-  // 最初のテーブルを使用
-  const target = tableArr[0];
-  console.log('\nSelected: ' + target['@id']);
-
-  const dataUrl = 'https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData'
-    + '?appId=' + appId
-    + '&lang=J'
-    + '&statsDataId=' + target['@id']
-    + '&limit=100000';
-
-  const statsData = await fetchJSON(dataUrl);
-  const statBody = statsData?.GET_STATS_DATA?.STATISTICAL_DATA;
-  if (!statBody) { console.log('No data body'); return; }
-
-  // クラス情報を全て表示
-  const classObjs = Array.isArray(statBody.CLASS_INF.CLASS_OBJ) ? statBody.CLASS_INF.CLASS_OBJ : [statBody.CLASS_INF.CLASS_OBJ];
-  const classMap = {};
-
-  classObjs.forEach(c => {
-    const id = c['@id'];
-    const name = c['@name'];
-    const classes = Array.isArray(c.CLASS) ? c.CLASS : [c.CLASS];
-    classMap[id] = {};
-    classes.forEach(cl => { classMap[id][cl['@code']] = cl['@name']; });
-    console.log('\n' + id + ' (' + name + '):');
-    classes.forEach(cl => console.log('  ' + cl['@code'] + ' = ' + cl['@name']));
-  });
-
-  // データサンプルを詳細表示
-  const values = Array.isArray(statBody.DATA_INF.VALUE) ? statBody.DATA_INF.VALUE : [];
-  console.log('\nTotal values: ' + values.length);
-  console.log('First 10 values:');
-  values.slice(0, 10).forEach((v, i) => console.log('  [' + i + '] ' + JSON.stringify(v)));
-
-  // パース試行：全キーを動的に処理
+  // Step 2: 全テーブルをループしてデータ収集
   const grouped = {};
-  let parseCount = 0;
 
-  values.forEach(v => {
-    const val = parseFloat(v.$);
-    if (isNaN(val) || v.$ === '-' || v.$ === '…' || v.$ === 'x') return;
-
-    // 全ての@属性を取得
-    const attrs = {};
-    Object.keys(v).forEach(k => {
-      if (k.startsWith('@') && k !== '@unit') {
-        const cleanKey = k.replace('@', '');
-        attrs[cleanKey] = v[k];
-      }
-    });
-
-    // 全国を判定（areaキーがあれば00001のみ、なければ通す）
-    if (attrs.area && attrs.area !== '00001') return;
-
-    // 品目名を探す（classMapの各カテゴリから野菜名を検索）
-    let cropName = '';
-    let metricName = '';
+  for (const table of tableArr) {
+    // テーブルタイトルから品目名と年を抽出
+    const cropName = (table.TITLE_SPEC?.TABLE_SUB_CATEGORY1 || '').trim();
+    const titleText = table.TITLE_SPEC?.TABLE_NAME || table.TITLE || '';
+    const reiwaMatch = titleText.match(/令和(\d+)年/);
+    const heieiMatch = titleText.match(/平成(\d+)年/);
     let year = 0;
+    if (reiwaMatch) year = 2018 + parseInt(reiwaMatch[1]);
+    else if (heieiMatch) year = 1988 + parseInt(heieiMatch[1]);
 
-    Object.keys(attrs).forEach(key => {
-      const code = attrs[key];
-      const name = classMap[key]?.[code] || '';
+    if (!cropName || !year) {
+      console.log('  Skip (no crop/year): ' + table['@id'] + ' crop=' + cropName + ' year=' + year);
+      continue;
+    }
 
-      // 年次判定
-      if (key === 'time' || name.match(/\d{4}年/)) {
-        const m = name.match(/(\d{4})/);
-        if (m) year = parseInt(m[1]);
-      }
-      // 指標判定（作付面積、収穫量等）
-      else if (name.includes('作付面積') || name.includes('収穫量') || name.includes('10ａ') || name.includes('10a') || name.includes('出荷量')) {
-        metricName = name;
-      }
-      // 品目判定（上記以外で、全国/地域名でもなく、施設/露地でもない名前）
-      else if (name && !name.includes('全国') && !name.includes('都府県') && !name.includes('施設') && !name.includes('露地') && !name.includes('計') && name.length < 20) {
-        if (!cropName) cropName = name;
-      }
-    });
+    console.log('\nProcessing: ' + table['@id'] + ' ' + cropName + ' ' + year + '年');
 
-    if (!cropName || !metricName) return;
-    if (!year) year = 2024; // 年次がない場合はデフォルト
+    try {
+      const dataUrl = 'https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData'
+        + '?appId=' + appId
+        + '&lang=J'
+        + '&statsDataId=' + table['@id']
+        + '&limit=100000';
 
-    const key = cropName + '_' + year;
-    if (!grouped[key]) grouped[key] = { crop: cropName, year: year };
+      const statsData = await fetchJSON(dataUrl);
+      const statBody = statsData?.GET_STATS_DATA?.STATISTICAL_DATA;
+      if (!statBody) { console.log('  No data body'); continue; }
 
-    if (metricName.includes('作付面積')) grouped[key].acreage_ha = val;
-    else if (metricName.includes('10ａ当たり') || metricName.includes('10a当たり')) grouped[key].yield_kg_per_10a = val;
-    else if (metricName.includes('収穫量')) grouped[key].harvest_t = val;
+      const values = Array.isArray(statBody.DATA_INF.VALUE) ? statBody.DATA_INF.VALUE : [];
 
-    parseCount++;
-  });
+      // cat01="01"〜"04" かつ cat02="01"（年間計）のみ処理
+      // cat01: "01"=作付面積, "02"=10a当たり収量, "03"=収穫量, "04"=出荷量
+      const CAT01_MAP = { '01': 'acreage_ha', '02': 'yield_kg_per_10a', '03': 'harvest_t' };
 
-  console.log('\nParse hits: ' + parseCount);
+      const key = cropName + '_' + year;
+      if (!grouped[key]) grouped[key] = { crop: cropName, year: year };
 
+      values.forEach(v => {
+        const cat01 = v['@cat01'] || '';
+        const cat02 = v['@cat02'] || '';
+        if (cat02 !== '01') return;                  // 年間計以外（季節区分等）を除外
+        if (!CAT01_MAP[cat01]) return;               // cat01="05"以降（対比%）を除外
+        const val = parseFloat(v.$);
+        if (isNaN(val) || v.$ === '-' || v.$ === '…' || v.$ === 'x') return;
+        grouped[key][CAT01_MAP[cat01]] = val;
+      });
+
+      console.log('  -> ' + JSON.stringify(grouped[key]));
+    } catch (err) {
+      console.log('  Error: ' + err.message);
+    }
+  }
+
+  // Step 3: Supabaseに保存
   const rows = Object.values(grouped)
     .filter(r => r.acreage_ha || r.harvest_t || r.yield_kg_per_10a)
     .map(r => ({
@@ -173,13 +136,13 @@ async function main() {
       yield_kg_per_10a: r.yield_kg_per_10a || null
     }));
 
-  console.log('Final rows: ' + rows.length);
+  console.log('\nFinal rows: ' + rows.length);
   if (rows.length > 0) {
     console.log('Crops found:', [...new Set(rows.map(r => r.crop))].join(', '));
     console.log('Sample:', JSON.stringify(rows.slice(0, 3)));
     await upsertToSupabase(rows);
   } else {
-    console.log('No rows. Check class mappings and sample values above.');
+    console.log('No rows parsed. Check logs above.');
   }
 }
 
