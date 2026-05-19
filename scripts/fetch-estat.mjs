@@ -7,17 +7,29 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
 async function searchTables(keyword) {
-  const url = `${ESTAT_API}/getStatsList?appId=${appId}&searchWord=${encodeURIComponent(keyword)}&limit=10`;
+  const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${appId}&lang=J&searchWord=${encodeURIComponent(keyword)}&limit=10&statsField=03`;
+  console.log('Requesting:', url.replace(appId, 'APP_ID'));
   const res = await fetch(url);
-  const data = await res.json();
-  return data.GET_STATS_LIST.DATALIST_INF.TABLE_INF;
+  const text = await res.text();
+  if (!res.ok || text.startsWith('<')) {
+    console.error('API returned non-JSON:', text.substring(0, 500));
+    throw new Error('e-Stat API returned HTML. Check appId or URL format.');
+  }
+  const data = JSON.parse(text);
+  return data.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF || [];
 }
 
 async function getStatsData(statsDataId) {
-  const url = `${ESTAT_API}/getStatsData?appId=${appId}&statsDataId=${statsDataId}&limit=100000`;
+  const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${appId}&lang=J&statsDataId=${statsDataId}&limit=100000`;
+  console.log('Requesting:', url.replace(appId, 'APP_ID'));
   const res = await fetch(url);
-  const data = await res.json();
-  return data.GET_STATS_DATA.STATISTICAL_DATA;
+  const text = await res.text();
+  if (!res.ok || text.startsWith('<')) {
+    console.error('API returned non-JSON:', text.substring(0, 500));
+    throw new Error('e-Stat API returned HTML for stats data.');
+  }
+  const data = JSON.parse(text);
+  return data.GET_STATS_DATA?.STATISTICAL_DATA;
 }
 
 async function upsertToSupabase(rows) {
