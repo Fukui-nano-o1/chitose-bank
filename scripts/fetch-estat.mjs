@@ -131,6 +131,38 @@ async function main() {
         else if (metricName === '収穫量') allRows[key].harvest_t = val;
       });
 
+      // 0001922161専用パース：cat02に「指標名_YYYY年産」が結合されているフォーマット
+      if (tableId === '0001922161') {
+        values.forEach(v => {
+          const val = parseFloat(v.$);
+          if (isNaN(val) || v.$ === '-' || v.$ === '…' || v.$ === 'x') return;
+
+          const cat01code = v['@cat01'];
+          const cat02code = v['@cat02'];
+          const cropRaw = classMap.cat01?.[cat01code] || '';
+          const metricYear = classMap.cat02?.[cat02code] || '';
+
+          if (!cropRaw || cropRaw === '計') return;
+          if (['根菜類','葉茎菜類','果菜類','果実的野菜'].includes(cropRaw)) return;
+          if (['_春','_夏','_秋','_冬','_その他','_春植え','_秋植え'].some(s => cropRaw.includes(s))) return;
+
+          const crop = cropRaw.replace(/^(根菜類|葉茎菜類|果菜類|果実的野菜|香辛野菜)_/, '');
+
+          // 「作付面積_2015年産」→ metric=作付面積, year=2015
+          const match = metricYear.match(/^(.+?)_(\d{4})年産$/);
+          if (!match) return;
+          const metric = match[1];
+          const year = parseInt(match[2]);
+
+          const key = crop + '_' + year;
+          if (!allRows[key]) allRows[key] = { crop, year };
+
+          if (metric === '作付面積') allRows[key].acreage_ha = val;
+          else if (metric.includes('10') && metric.includes('収量')) allRows[key].yield_kg_per_10a = val;
+          else if (metric === '収穫量') allRows[key].harvest_t = val;
+        });
+      }
+
     } catch (err) {
       console.log('Error: ' + err.message);
     }

@@ -918,61 +918,42 @@ function RegisterScreen({ onGoLogin, onSubmit }) {
 
 
 // ── Market chart constants ───────────────────────────────────
-const MARKET_DATA = {
-  tokyo: {
-    name: "東京（大田市場）", available: true,
-    broccoli: {
-      price: [
-        {year:2019,val:340},{year:2020,val:370},{year:2021,val:350},
-        {year:2022,val:410},{year:2023,val:423},{year:2024,val:460},{year:2025,val:380},
-      ],
-      acreage: [
-        {year:2019,val:15900},{year:2020,val:16100},{year:2021,val:16400},
-        {year:2022,val:16900},{year:2023,val:17300},
-      ],
-      harvest: [
-        {year:2019,val:151900},{year:2020,val:158400},{year:2021,val:165300},
-        {year:2022,val:172800},{year:2023,val:171400},
-      ],
-    },
-    eggplant: {
-      price: [
-        {year:2019,val:380},{year:2020,val:420},{year:2021,val:400},
-        {year:2022,val:450},{year:2023,val:480},{year:2024,val:500},{year:2025,val:460},
-      ],
-      acreage: [
-        {year:2019,val:9200},{year:2020,val:9000},{year:2021,val:8800},
-        {year:2022,val:8600},{year:2023,val:8400},
-      ],
-      harvest: [
-        {year:2019,val:299000},{year:2020,val:291000},{year:2021,val:283000},
-        {year:2022,val:276000},{year:2023,val:269000},
-      ],
-    },
-  },
-  osaka:   { name:"大阪",   available:false },
-  nagoya:  { name:"名古屋", available:false },
-  fukuoka: { name:"福岡",   available:false },
-  sapporo: { name:"札幌",   available:false },
-};
-const CROP_COLORS = { "ブロッコリー": "#00A86B", "ナス": "#F5A623" };
-const CROP_TO_KEY  = { "ブロッコリー": "broccoli", "ナス": "eggplant" };
+const CROP_PALETTE = ["#00A86B","#F5A623","#4A90D9","#E85D5D","#9B59B6","#2ECC71","#E67E22","#1ABC9C","#3498DB","#E74C3C"];
 const LABOR_DATA   = [
   { crop:"ブロッコリー", min:94,  max:110 },
   { crop:"ナス",         min:300, max:500 },
 ];
 const METRICS = [
-  { key:"price",   label:"卸売価格", unit:"円/kg",    type:"line", dataKey:"price" },
-  { key:"acreage", label:"作付面積", unit:"ha",       type:"line", dataKey:"acreage" },
-  { key:"harvest", label:"収穫量",   unit:"t",        type:"line", dataKey:"harvest" },
-  { key:"labor",   label:"労働時間", unit:"時間/10a", type:"bar",  dataKey:null },
+  { key:"acreage", label:"作付面積",  unit:"ha",       dataKey:"acreage_ha" },
+  { key:"harvest", label:"収穫量",    unit:"t",        dataKey:"harvest_t" },
+  { key:"yield",   label:"10a収量",   unit:"kg",       dataKey:"yield_kg_per_10a" },
+  { key:"labor",   label:"労働時間",  unit:"時間/10a", dataKey:null },
 ];
 
 // ── MarketChart ───────────────────────────────────────────────
-function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
+function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
   const [tip, setTip] = useState(null);
 
   const W = 600, mainH = 280;
+
+  // 複数年データがある作物のリストとカラー割り当て
+  const cropYearCounts = {};
+  marketStats.forEach(s => { cropYearCounts[s.crop] = (cropYearCounts[s.crop] || 0) + 1; });
+  const allStatCrops = Object.entries(cropYearCounts)
+    .filter(([, n]) => n > 1).map(([c]) => c).sort();
+  const getCropColor = crop => {
+    const i = allStatCrops.indexOf(crop);
+    return CROP_PALETTE[i >= 0 ? i % CROP_PALETTE.length : 0];
+  };
+
+  const getSeriesData = (crop, metricKey) => {
+    const meta = METRICS.find(m => m.key === metricKey);
+    if (!meta?.dataKey) return [];
+    return marketStats
+      .filter(s => s.crop === crop && s[meta.dataKey] != null)
+      .map(s => ({ year: s.year, val: s[meta.dataKey] }))
+      .sort((a, b) => a.year - b.year);
+  };
 
   if (activeMetrics.size === 0 || visibleCrops.length === 0) {
     return (
@@ -983,8 +964,7 @@ function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
     );
   }
 
-  const mkt = MARKET_DATA[selectedMarket] || {};
-  const lineKeys = ["price","acreage","harvest"].filter(k => activeMetrics.has(k));
+  const lineKeys = ["acreage","harvest","yield"].filter(k => activeMetrics.has(k));
   const hasLabor = activeMetrics.has("labor");
   const laborCrops = hasLabor ? LABOR_DATA.filter(d => visibleCrops.includes(d.crop)) : [];
 
@@ -994,8 +974,7 @@ function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
 
   const scales = {};
   lineKeys.forEach(key => {
-    const meta = METRICS.find(m => m.key === key);
-    const vals = visibleCrops.flatMap(crop => (mkt[CROP_TO_KEY[crop]]?.[meta.dataKey] || []).map(d => d.val));
+    const vals = visibleCrops.flatMap(crop => getSeriesData(crop, key).map(d => d.val));
     if (!vals.length) { scales[key] = { vMin:0, vMax:1 }; return; }
     const lo = Math.min(...vals), hi = Math.max(...vals);
     const pad = (hi - lo) * 0.12 || hi * 0.1 || 1;
@@ -1003,10 +982,7 @@ function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
   });
 
   const allYears = [...new Set(
-    lineKeys.flatMap(key => {
-      const meta = METRICS.find(m => m.key === key);
-      return visibleCrops.flatMap(crop => (mkt[CROP_TO_KEY[crop]]?.[meta.dataKey] || []).map(d => d.year));
-    })
+    lineKeys.flatMap(key => visibleCrops.flatMap(crop => getSeriesData(crop, key).map(d => d.year)))
   )].sort((a,b) => a-b);
 
   const xMin = allYears[0] ?? 2019, xMax = allYears[allYears.length-1] ?? 2025;
@@ -1024,7 +1000,7 @@ function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
     return Math.round(v).toLocaleString("ja-JP");
   };
 
-  const DASH = { price: undefined, acreage: "8,4", harvest: "2,4" };
+  const DASH = { acreage: undefined, harvest: "8,4", yield: "2,4" };
   const leftKey = lineKeys[0], rightKey = lineKeys[1];
   const leftMeta = METRICS.find(m => m.key === leftKey);
   const rightMeta = METRICS.find(m => m.key === rightKey);
@@ -1042,18 +1018,17 @@ function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
   lineKeys.forEach(key => {
     const meta = METRICS.find(m => m.key === key);
     visibleCrops.forEach(crop => {
-      if ((mkt[CROP_TO_KEY[crop]]?.[meta.dataKey] || []).length)
-        legendEntries.push({ key, crop, meta, col: CROP_COLORS[crop] || "#888", dash: DASH[key] });
+      if (getSeriesData(crop, key).length)
+        legendEntries.push({ key, crop, meta, col: getCropColor(crop), dash: DASH[key] });
     });
   });
   laborCrops.forEach(d =>
-    legendEntries.push({ key:"labor", crop:d.crop, meta:METRICS.find(m=>m.key==="labor"), col:CROP_COLORS[d.crop]||"#888", isBar:true })
+    legendEntries.push({ key:"labor", crop:d.crop, meta:METRICS.find(m=>m.key==="labor"), col:getCropColor(d.crop), isBar:true })
   );
 
   const citeSet = new Set([
-    activeMetrics.has("price") && "卸売価格→東京都中央卸売市場 市場統計情報",
-    (activeMetrics.has("acreage")||activeMetrics.has("harvest")) && "面積/収穫量→農水省 作物統計調査",
-    activeMetrics.has("labor") && "労働時間→各県農業経営指標",
+    (activeMetrics.has("acreage")||activeMetrics.has("harvest")||activeMetrics.has("yield")) && "農水省 作物統計調査",
+    activeMetrics.has("labor") && "各県農業経営指標",
   ].filter(Boolean));
 
   return (
@@ -1097,24 +1072,26 @@ function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
 
         {/* 折れ線 + データポイント */}
         {lineKeys.map(key => visibleCrops.map(crop => {
-          const meta = METRICS.find(m => m.key === key);
-          const data = mkt[CROP_TO_KEY[crop]]?.[meta.dataKey] || [];
+          const data = getSeriesData(crop, key);
           if (!data.length) return null;
-          const col = CROP_COLORS[crop] || "#888";
+          const col = getCropColor(crop);
           const pts = data.map(d => `${xp(d.year)},${yp(d.val,key)}`).join(" ");
           return (
             <g key={`${key}-${crop}`}>
               <polyline points={pts} fill="none" stroke={col} strokeWidth={2} strokeDasharray={DASH[key]} />
-              {data.map((d,di) => (
-                <circle key={di} cx={xp(d.year)} cy={yp(d.val,key)} r={3}
-                  fill={col} stroke="#fff" strokeWidth={1.5} style={{ cursor:"pointer" }}
-                  onClick={e => {
-                    e.stopPropagation();
-                    const id = `${key}-${crop}-${di}`;
-                    setTip(t => t?.id===id ? null : { id, key, crop, d, meta, col });
-                  }}
-                />
-              ))}
+              {data.map((d,di) => {
+                const meta = METRICS.find(m => m.key === key);
+                return (
+                  <circle key={di} cx={xp(d.year)} cy={yp(d.val,key)} r={3}
+                    fill={col} stroke="#fff" strokeWidth={1.5} style={{ cursor:"pointer" }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      const id = `${key}-${crop}-${di}`;
+                      setTip(t => t?.id===id ? null : { id, key, crop, d, meta, col });
+                    }}
+                  />
+                );
+              })}
             </g>
           );
         }))}
@@ -1143,7 +1120,7 @@ function MarketChart({ selectedMarket, visibleCrops, activeMetrics }) {
               <line x1={P.l} y1={0} x2={W-P.r} y2={0} stroke="#EBEBEB" strokeWidth={1} />
               <text x={P.l} y={-4} fontSize={11} fill="#717171">労働時間（時間/10a）</text>
               {laborCrops.map((d,i) => {
-                const col = CROP_COLORS[d.crop] || "#888";
+                const col = getCropColor(d.crop);
                 const cx = P.l + i*slotW + slotW/2;
                 const bw = Math.min(slotW*0.44, 28);
                 const hMax = (d.max / maxLaborVal) * laborBarMaxH;
@@ -1221,9 +1198,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
 
   const [showMarketChart, setShowMarketChart] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
-  const [selectedMarket, setSelectedMarket] = useState('tokyo');
-  const [visibleCrops, setVisibleCrops] = useState(['ブロッコリー', 'ナス']);
-  const [activeMetrics, setActiveMetrics] = useState(() => new Set(['price']));
+  const [visibleCrops, setVisibleCrops] = useState([]);
+  const [activeMetrics, setActiveMetrics] = useState(() => new Set(['acreage']));
   const toggleCrop = crop => setVisibleCrops(v => {
     if (v.includes(crop)) return v.filter(c => c !== crop);
     if (v.length >= 5) return v;
@@ -1367,7 +1343,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
             <h2 className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 12, letterSpacing: '.04em' }}>
               公的統計（作物統計調査）
             </h2>
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
               {filtered.map(s => {
                 const statRows = [
                   s.acreage_ha        != null && { label: '作付面積',         value: fmtAcreage(s.acreage_ha) },
@@ -1375,7 +1351,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
                   s.yield_kg_per_10a  != null && { label: '10a当たり収量',    value: `${s.yield_kg_per_10a.toLocaleString('ja-JP')}kg` },
                 ].filter(Boolean);
                 return (
-                  <div key={s.crop} style={{ flexShrink: 0, width: 280, background: '#fff', borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.rule}` }}>
+                  <div key={s.crop} style={{ flex: '0 0 280px', background: '#fff', borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.rule}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
                       <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0 }}>{s.crop}</p>
                       <span className="f-sans" style={{ fontSize: 10, color: C.ghost }}>{s.year}年産</span>
@@ -1421,49 +1397,45 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
               <div style={{ maxHeight: showSettings ? "500px" : "0", overflow:"hidden", transition:"max-height 0.3s ease" }}>
                 <div style={{ paddingTop:10 }}>
 
-                  {/* 段1：市場選択 */}
-                  <div style={{ marginBottom:14 }}>
-                    <div className="f-sans" style={{ fontSize:11, color:C.mid, marginBottom:6 }}>市場</div>
-                    <select value={selectedMarket} onChange={e => setSelectedMarket(e.target.value)} className="f-sans" style={{
-                      padding:"8px 12px", borderRadius:8, border:`1px solid ${C.border}`,
-                      fontSize:13, color:C.ink, background:"#fff", cursor:"pointer",
-                    }}>
-                      {Object.entries(MARKET_DATA).map(([k, v]) => (
-                        <option key={k} value={k} disabled={!v.available}>
-                          {v.name}{!v.available ? '（準備中）' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* 段1：作物ピル（market_statsから動的生成、複数年データのある作物のみ） */}
+                  {(() => {
+                    const cropCounts = {};
+                    marketStats.forEach(s => { cropCounts[s.crop] = (cropCounts[s.crop] || 0) + 1; });
+                    const availCrops = Object.entries(cropCounts).filter(([,n]) => n > 1).map(([c]) => c).sort();
+                    if (availCrops.length === 0) return (
+                      <p className="f-sans" style={{ fontSize:12, color:C.ghost, marginBottom:14 }}>データ読み込み中...</p>
+                    );
+                    return (
+                      <div style={{ marginBottom:14 }}>
+                        <div className="f-sans" style={{ fontSize:11, color:C.mid, marginBottom:6 }}>
+                          作物<span style={{ marginLeft:6, color:C.ghost }}>（最大5つ）</span>
+                        </div>
+                        <div className="filter-scroll" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, scrollbarWidth:"none", msOverflowStyle:"none" }}>
+                          {availCrops.map((crop, idx) => {
+                            const active = visibleCrops.includes(crop);
+                            const atMax = visibleCrops.length >= 5 && !active;
+                            const col = CROP_PALETTE[idx % CROP_PALETTE.length];
+                            return (
+                              <button key={crop} onClick={() => !atMax && toggleCrop(crop)} className="f-sans" style={{
+                                flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12,
+                                border:`1px solid ${active ? "transparent" : C.border}`,
+                                background: active ? col : "#fff",
+                                color: active ? "#fff" : C.mid,
+                                cursor: atMax ? "not-allowed" : "pointer",
+                                opacity: atMax ? 0.4 : 1,
+                                transition:"all .15s",
+                                whiteSpace:"nowrap",
+                              }}>
+                                {crop}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
-                  {/* 段2：作物ピル */}
-                  <div style={{ marginBottom:14 }}>
-                    <div className="f-sans" style={{ fontSize:11, color:C.mid, marginBottom:6 }}>
-                      作物<span style={{ marginLeft:6, color:C.ghost }}>（最大5つ）</span>
-                    </div>
-                    <div className="filter-scroll" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, scrollbarWidth:"none", msOverflowStyle:"none" }}>
-                      {Object.keys(CROP_COLORS).map(crop => {
-                        const active = visibleCrops.includes(crop);
-                        const atMax = visibleCrops.length >= 5 && !active;
-                        return (
-                          <button key={crop} onClick={() => !atMax && toggleCrop(crop)} className="f-sans" style={{
-                            flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:12,
-                            border:`1px solid ${active ? "transparent" : C.border}`,
-                            background: active ? (CROP_COLORS[crop] || "#222") : "#fff",
-                            color: active ? "#fff" : C.mid,
-                            cursor: atMax ? "not-allowed" : "pointer",
-                            opacity: atMax ? 0.4 : 1,
-                            transition:"all .15s",
-                            whiteSpace:"nowrap",
-                          }}>
-                            {crop}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 段3：指標ピル */}
+                  {/* 段2：指標ピル */}
                   <div>
                     <div className="f-sans" style={{ fontSize:11, color:C.mid, marginBottom:6 }}>指標</div>
                     <div className="filter-scroll" style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4, scrollbarWidth:"none", msOverflowStyle:"none" }}>
@@ -1492,7 +1464,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
 
             {/* B. グラフエリア（常時表示） */}
             <MarketChart
-              selectedMarket={selectedMarket}
+              marketStats={marketStats}
               visibleCrops={visibleCrops}
               activeMetrics={activeMetrics}
             />
