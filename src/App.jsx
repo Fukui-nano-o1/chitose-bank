@@ -2200,11 +2200,31 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
   const today = new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"long", day:"numeric" });
   const YR_LABELS = ["直近実績","1年目","2年目","3年目","4年目","5年目(目標)"];
 
+  // ── marketStats ───────────────────────────────────────────
+  const [marketStats, setMarketStats] = useState([]);
+  useEffect(() => {
+    supabase.from('market_stats').select('*').then(({ data }) => {
+      if (data) setMarketStats(data);
+    });
+  }, []);
+
+  const getMarketData = useCallback((crop) => {
+    const entries = marketStats.filter(s => s.crop === crop);
+    if (!entries.length) return { yield_per_10a: null, price: null };
+    const latest = entries.reduce((best, s) => (!best || (s.year ?? 0) > (best.year ?? 0)) ? s : best, null);
+    return {
+      yield_per_10a: latest?.yield_kg_per_10a ?? null,
+      price: latest?.price_yen_per_kg ?? null,
+    };
+  }, [marketStats]);
+
   // ── records ──────────────────────────────────────────────
   const myRecs = MONTHS.flatMap((_, mi) =>
     records[`${loggedInFarmer.id}_${THIS_YEAR}_${mi}`] || []
   );
   const myCrops = [...new Set(myRecs.map(r => r.crop).filter(Boolean))];
+  const planCrops = loggedInFarmer.planned_crops || [];
+  const allCrops = [...new Set([...planCrops, ...myCrops])];
 
   // 作物別売上実績（千円）
   const cropRev0 = crop =>
@@ -2249,9 +2269,22 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
     return pv !== 0 ? String(pv) : "";
   };
 
+  // ── market収益デフォルト（scale×yield×price÷10000） ────────
+  const cropMarketRevDef = (crop, yi) => {
+    if (yi === 0) return cropRev0(crop);
+    const md = getMarketData(crop);
+    const scale = num(`cr_${crop}_scale`, yi, 0);
+    const qty   = num(`cr_${crop}_qty`,   yi, md.yield_per_10a ?? 0);
+    const price = num(`cr_${crop}_price`, yi, md.price ?? 0);
+    if (scale > 0 && qty > 0 && price > 0) {
+      return Math.round(qty * scale / 10 * price / 1000);
+    }
+    return cropRev0(crop);
+  };
+
   // ── 集計関数 ─────────────────────────────────────────────
   const grossRevY = yi =>
-    myCrops.reduce((s, c) => s + num(`cr_${c}_rev`, yi, cropRev0(c)), 0)
+    allCrops.reduce((s, c) => s + num(`cr_${c}_rev`, yi, cropMarketRevDef(c, yi)), 0)
     + num("work_recv", yi, 0)
     + num("other_rev", yi, 0);
 
@@ -2298,11 +2331,11 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
     </td>
   );
 
-  // 直近実績は実績値表示（読取専用）、1〜5年目はinput
+  // 直近実績は実績値表示（読取専用）、1〜5年目はmarket default対応input
   const CropRevCell = ({ crop, yi }) =>
     yi === 0
       ? <td style={aus}>{cropRev0(crop) !== 0 ? cropRev0(crop).toLocaleString("ja-JP") : "—"}</td>
-      : <InputCell rowKey={`cr_${crop}_rev`} yi={yi} actDef={cropRev0(crop)} />;
+      : <InputCell rowKey={`cr_${crop}_rev`} yi={yi} actDef={cropMarketRevDef(crop, yi)} />;
 
   const ShippingCell = ({ yi }) =>
     yi === 0
@@ -2345,6 +2378,19 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
         </button>
       </div>
 
+      {/* 都道府県バナー */}
+      {loggedInFarmer.prefecture && (
+        <div className="no-print" style={{ maxWidth:900, margin:"0 auto 12px" }}>
+          <p className="f-sans" style={{
+            fontSize:11, color:C.mid,
+            background:C.bgSoft, padding:"8px 12px", borderRadius:8,
+            border:`1px solid ${C.border}`,
+          }}>
+            📍 {loggedInFarmer.prefecture}の経営指標を参照しています（※現在は全国データのみ）
+          </p>
+        </div>
+      )}
+
       {/* 表ヘッダー */}
       <div style={{ maxWidth:900, margin:"0 auto 10px" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:6 }}>
@@ -2379,26 +2425,43 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
             {/* ─── 農業粗収入 ─── */}
             {CatRow({ label:"農業粗収入", calcFn:grossRevY })}
 
-            {myCrops.flatMap(crop => [
-              <tr key={`${crop}_scale`}>
-                <td style={ls}>{crop}（生産規模）</td>
-                <td style={us}>a</td>
-                {[0,1,2,3,4,5].map(yi => <InputCell key={yi} rowKey={`cr_${crop}_scale`} yi={yi} actDef={0} />)}
-                <td style={cs}></td>
-              </tr>,
-              <tr key={`${crop}_qty`}>
-                <td style={ls}>{crop}（生産量）</td>
-                <td style={us}>kg</td>
-                {[0,1,2,3,4,5].map(yi => <InputCell key={yi} rowKey={`cr_${crop}_qty`} yi={yi} actDef={0} />)}
-                <td style={cs}></td>
-              </tr>,
-              <tr key={`${crop}_rev`}>
-                <td style={ls}>{crop}（収入金額）</td>
-                <td style={us}>千円</td>
-                {[0,1,2,3,4,5].map(yi => <CropRevCell key={yi} crop={crop} yi={yi} />)}
-                <td style={cs}></td>
-              </tr>,
-            ])}
+            {allCrops.flatMap(crop => {
+              const md = getMarketData(crop);
+              return [
+                <tr key={`${crop}_scale`}>
+                  <td style={ls}>{crop}（生産規模）</td>
+                  <td style={us}>a</td>
+                  {[0,1,2,3,4,5].map(yi => <InputCell key={yi} rowKey={`cr_${crop}_scale`} yi={yi} actDef={0} />)}
+                  <td style={cs}></td>
+                </tr>,
+                <tr key={`${crop}_qty`}>
+                  <td style={ls}>{crop}（生産量）</td>
+                  <td style={us}>kg/10a</td>
+                  {[0,1,2,3,4,5].map(yi => (
+                    <InputCell key={yi} rowKey={`cr_${crop}_qty`} yi={yi} actDef={yi === 0 ? 0 : (md.yield_per_10a ?? 0)} />
+                  ))}
+                  <td style={{ ...cs, fontSize:10, color:C.mid }}>
+                    {md.yield_per_10a != null ? `全国平均 ${md.yield_per_10a.toLocaleString("ja-JP")}kg` : ""}
+                  </td>
+                </tr>,
+                <tr key={`${crop}_price`}>
+                  <td style={ls}>{crop}（単価）</td>
+                  <td style={us}>円/kg</td>
+                  {[0,1,2,3,4,5].map(yi => (
+                    <InputCell key={yi} rowKey={`cr_${crop}_price`} yi={yi} actDef={md.price ?? 0} />
+                  ))}
+                  <td style={{ ...cs, fontSize:10, color:C.mid }}>
+                    {md.price != null ? `参考 ${md.price.toLocaleString("ja-JP")}円` : ""}
+                  </td>
+                </tr>,
+                <tr key={`${crop}_rev`}>
+                  <td style={ls}>{crop}（収入金額）</td>
+                  <td style={us}>千円</td>
+                  {[0,1,2,3,4,5].map(yi => <CropRevCell key={yi} crop={crop} yi={yi} />)}
+                  <td style={cs}></td>
+                </tr>,
+              ];
+            })}
 
             {InpRow({ label:"作業受託収入", unit:"千円", rowKey:"work_recv", actDef:0 })}
             {InpRow({ label:"その他", unit:"千円", rowKey:"other_rev", actDef:0 })}
@@ -2945,9 +3008,11 @@ function OnboardingModal({ me, onComplete }) {
         {/* 栽培作物 */}
         <div style={{ marginBottom:36 }}>
           <label className="lbl f-sans">栽培作物</label>
-          <p className="f-sans" style={{ fontSize:11, color:C.ghost, marginBottom:10 }}>最大5つまで</p>
+          <p className="f-sans" style={{ fontSize:11, color:selectedCrops.length >= 5 ? C.danger : C.ghost, marginBottom:10 }}>
+            {selectedCrops.length >= 5 ? "最大5つまで選択済みです" : "最大5つまで"}
+          </p>
           {cropCandidates.length > 0 && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
+            <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:6, marginBottom:12 }} className="filter-scroll">
               {cropCandidates.map(crop => {
                 const sel = selectedCrops.includes(crop);
                 return (
@@ -2955,7 +3020,7 @@ function OnboardingModal({ me, onComplete }) {
                     key={crop}
                     onClick={() => toggleCrop(crop)}
                     style={{
-                      padding:"6px 14px", borderRadius:20,
+                      flexShrink:0, padding:"6px 14px", borderRadius:20,
                       border:`1px solid ${sel ? C.accent : C.border}`,
                       background: sel ? C.accent : "#fff",
                       color: sel ? "#fff" : C.ink,
