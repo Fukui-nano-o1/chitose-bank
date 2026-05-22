@@ -3134,16 +3134,44 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
   ];
 
   const stepMeta = [
-    { title:"お名前を教えてください",    sub:"五年計画書に表示されます" },
-    { title:"どちらにお住まいですか？",   sub:"地域の経営指標を参照します" },
-    { title:"農業の経験は？",            sub:"同じ経験年数の農家と比較できます" },
-    { title:"農業は専業ですか？",         sub:"収支構造の参考にします" },
-    { title:"経営面積を教えてください",   sub:"おおよそで構いません（反）" },
-    { title:"何を栽培していますか？",     sub:"最大5つまで選べます（予定でもOK）" },
-    { title:"主な販売先は？",            sub:"複数選べます（予定でもOK）" },
+    {
+      title:"お名前を教えてください",
+      sub:"五年計画書に表示されます",
+      desc:"五年計画書や融資資料に表示されます。本名をご入力ください。",
+    },
+    {
+      title:"どちらにお住まいですか？",
+      sub:"地域の経営指標を参照します",
+      desc:"お住まいの地域の経営指標を自動で参照します。より正確な五年計画書を作成できます。",
+    },
+    {
+      title:"農業の経験は？",
+      sub:"同じ経験年数の農家と比較できます",
+      desc:"同じ経験年数の農家と収支を比較できます。これから始める方は「まだ始めていない」を選んでください。",
+    },
+    {
+      title:"農業は専業ですか？",
+      sub:"収支構造の参考にします",
+      desc:"専業と兼業では経営の収支構造が大きく異なります。五年計画書の農外所得の計算に使用します。",
+    },
+    {
+      title:"経営面積を教えてください",
+      sub:"おおよそで構いません（反）",
+      desc:"10a（1反）あたりの収支を計算する基準になります。これから始める方は予定の面積でOKです。",
+    },
+    {
+      title:"何を栽培していますか？",
+      sub:"最大5つまで選べます（予定でもOK）",
+      desc:"選んだ作物の公的統計データを五年計画書に自動で反映します。予定の作物でもOKです。最大5つまで。",
+    },
+    {
+      title:"主な販売先は？",
+      sub:"複数選べます（予定でもOK）",
+      desc:"販売先によって手数料や運賃などの経費構造が変わります。将来の収支比較にも活用されます。",
+    },
   ];
 
-  const { title, sub } = stepMeta[obStep - 1];
+  const { title, sub, desc } = stepMeta[obStep - 1];
 
   return (
     <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:9999 }}>
@@ -3175,7 +3203,7 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
           <h1 className="f-sans" style={{ fontSize:26, fontWeight:700, color:C.ink, marginBottom:8, lineHeight:1.35 }}>
             {title}
           </h1>
-          <p className="f-sans" style={{ fontSize:13, color:C.mid }}>{sub}</p>
+          <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:24 }}>{desc}</p>
           {stepContent[obStep - 1]}
         </div>
       </div>
