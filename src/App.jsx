@@ -2922,21 +2922,28 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 
 // ── OnboardingModal ──────────────────────────────────────────
-const EXPERIENCE_TIERS = [
-  { label:"未就農", value:"0" },
-  { label:"1〜3年", value:"1-3" },
-  { label:"4〜10年", value:"4-10" },
-  { label:"10年以上", value:"10+" },
+const OB_SALES_CHANNELS = [
+  { label:"JA（農協）出荷",           value:"ja" },
+  { label:"市場出荷",                  value:"market" },
+  { label:"直売所",                    value:"direct_store" },
+  { label:"直接取引（レストラン・小売等）", value:"direct_trade" },
+  { label:"ネット販売",                value:"online" },
+  { label:"まだ決めていない",          value:"undecided" },
 ];
 
 function OnboardingModal({ me, onComplete }) {
-  const [name, setName] = useState(me.name || "");
-  const [prefecture, setPrefecture] = useState(me.prefecture || "");
-  const [selectedTier, setSelectedTier] = useState(me.experience_tier || "");
-  const [selectedCrops, setSelectedCrops] = useState(me.planned_crops || []);
-  const [cropInput, setCropInput] = useState("");
-  const [cropCandidates, setCropCandidates] = useState([]);
-  const [saving, setSaving] = useState(false);
+  const totalSteps = 7;
+  const [obStep, setObStep] = useState(1);
+  const [obName,        setObName]        = useState(me.name || "");
+  const [obPrefecture,  setObPrefecture]  = useState(me.prefecture || "");
+  const [obTier,        setObTier]        = useState(me.experience_tier || "");
+  const [obFarmingType, setObFarmingType] = useState("");
+  const [obArea,        setObArea]        = useState("");
+  const [obCrops,       setObCrops]       = useState(me.planned_crops || []);
+  const [obChannels,    setObChannels]    = useState([]);
+  const [cropInput,     setCropInput]     = useState("");
+  const [cropCandidates,setCropCandidates]= useState([]);
+  const [saving,        setSaving]        = useState(false);
 
   useEffect(() => {
     supabase.from('market_stats').select('crop').then(({ data }) => {
@@ -2944,175 +2951,249 @@ function OnboardingModal({ me, onComplete }) {
     });
   }, []);
 
-  const toggleCrop = (crop) => {
-    setSelectedCrops(prev => {
-      if (prev.includes(crop)) return prev.filter(c => c !== crop);
-      if (prev.length >= 5) return prev;
-      return [...prev, crop];
-    });
-  };
+  const canGoNext = [null, !!obName.trim(), !!obPrefecture, !!obTier, !!obFarmingType, true, true, true][obStep] ?? true;
+
+  const goNext = () => { if (obStep < totalSteps) setObStep(s => s + 1); else handleSubmit(); };
+  const goBack = () => setObStep(s => s - 1);
+
+  const toggleCrop = crop => setObCrops(prev => {
+    if (prev.includes(crop)) return prev.filter(c => c !== crop);
+    if (prev.length >= 5) return prev;
+    return [...prev, crop];
+  });
 
   const addCustomCrop = () => {
     const c = cropInput.trim();
-    if (!c) return;
-    if (!selectedCrops.includes(c) && selectedCrops.length < 5) {
-      setSelectedCrops(prev => [...prev, c]);
-    }
+    if (!c || obCrops.includes(c) || obCrops.length >= 5) { setCropInput(""); return; }
+    setObCrops(prev => [...prev, c]);
     setCropInput("");
   };
 
-  const canSubmit = name.trim() && prefecture && selectedTier;
+  const toggleChannel = value => {
+    if (value === "undecided") {
+      setObChannels(prev => prev.includes("undecided") ? [] : ["undecided"]);
+    } else {
+      setObChannels(prev => {
+        const without = prev.filter(c => c !== "undecided");
+        return without.includes(value) ? without.filter(c => c !== value) : [...without, value];
+      });
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!canSubmit || saving) return;
+    if (saving) return;
     setSaving(true);
     const { error } = await supabase.from('farmers').update({
-      name: name.trim(),
-      prefecture,
-      planned_crops: selectedCrops,
-      experience_tier: selectedTier,
+      name: obName.trim(),
+      prefecture: obPrefecture,
+      experience_tier: obTier,
+      planned_crops: obCrops,
     }).eq('auth_id', me.id);
-    if (!error) await onComplete({ name: name.trim(), prefecture, planned_crops: selectedCrops, experience_tier: selectedTier });
+    if (!error) {
+      localStorage.setItem('ob_farming_type', obFarmingType);
+      localStorage.setItem('ob_area_tan', obArea);
+      localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels));
+      await onComplete({ name: obName.trim(), prefecture: obPrefecture, experience_tier: obTier, planned_crops: obCrops });
+    }
     setSaving(false);
   };
 
-  return (
-    <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:9999, overflowY:"auto" }}>
-      <div style={{ maxWidth:480, margin:"0 auto", padding:"40px 24px" }}>
-        <div style={{ marginBottom:32 }}>
-          <h1 className="f-sans" style={{ fontSize:22, fontWeight:700, color:C.ink, marginBottom:8 }}>
-            はじめに教えてください
-          </h1>
-          <p className="f-sans" style={{ fontSize:13, color:C.mid }}>五年計画書の作成に使用します</p>
-        </div>
+  const CardBtn = ({ selected, onClick, children }) => (
+    <button onClick={onClick} style={{
+      width:"100%", textAlign:"left", padding:"20px", borderRadius:16,
+      border: selected ? `2px solid ${C.accent}` : `2px solid ${C.border}`,
+      background: selected ? C.accentLight : "#fff",
+      fontSize:16, fontWeight: selected ? 600 : 400,
+      color:C.ink, cursor:"pointer", transition:"all .15s", marginBottom:10,
+    }}>{children}</button>
+  );
 
-        {/* 名前 */}
-        <div style={{ marginBottom:20 }}>
-          <label className="lbl f-sans">名前</label>
-          <input
-            className="field f-sans"
-            type="text"
-            placeholder="例：田中太郎"
-            value={name}
-            autoFocus
-            onChange={e => setName(e.target.value)}
-            style={{ border:`1px solid ${C.border}`, borderRadius:12, padding:"14px 16px" }}
-          />
-        </div>
+  const stepContent = [
+    // 1: 名前
+    <div style={{ marginTop:32 }}>
+      <input
+        type="text" placeholder="例：田中太郎" value={obName} autoFocus
+        onChange={e => setObName(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && obName.trim() && goNext()}
+        style={{
+          width:"100%", fontSize:24, textAlign:"center",
+          border:"none", borderBottom:`2px solid ${C.ink}`,
+          outline:"none", padding:"12px 0", background:"transparent",
+          color:C.ink, fontFamily:"'Noto Sans JP',sans-serif",
+        }}
+      />
+    </div>,
 
-        {/* 都道府県 */}
-        <div style={{ marginBottom:20 }}>
-          <label className="lbl f-sans">都道府県</label>
-          <select
-            className="field f-sans"
-            value={prefecture}
-            onChange={e => setPrefecture(e.target.value)}
-            style={{ border:`1px solid ${C.border}`, borderRadius:12, padding:"14px 16px", appearance:"auto", width:"100%" }}
-          >
-            <option value="">選択してください</option>
-            {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
+    // 2: 都道府県
+    <div style={{
+      display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginTop:24,
+      maxHeight:"52vh", overflowY:"auto",
+    }}>
+      {PREFECTURES.map(p => (
+        <button key={p} onClick={() => setObPrefecture(p)} style={{
+          padding:"12px 4px", borderRadius:12, fontSize:13,
+          border:`1px solid ${obPrefecture === p ? C.accent : C.border}`,
+          background: obPrefecture === p ? C.accent : "#fff",
+          color: obPrefecture === p ? "#fff" : C.ink,
+          fontWeight: obPrefecture === p ? 600 : 400,
+          cursor:"pointer", transition:"all .12s",
+        }}>{p}</button>
+      ))}
+    </div>,
 
-        {/* 就農歴 */}
-        <div style={{ marginBottom:20 }}>
-          <label className="lbl f-sans">就農歴</label>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {EXPERIENCE_TIERS.map(({ label, value }) => (
-              <button
-                key={value}
-                onClick={() => setSelectedTier(value)}
-                style={{
-                  padding:"10px 20px", borderRadius:12,
-                  border: selectedTier === value ? "none" : `1px solid ${C.border}`,
-                  background: selectedTier === value ? C.accent : "#fff",
-                  color: selectedTier === value ? "#fff" : C.ink,
-                  fontSize:13, fontWeight: selectedTier === value ? 600 : 400,
-                  cursor:"pointer", transition:"all .15s",
-                }}
-              >{label}</button>
-            ))}
-          </div>
-        </div>
+    // 3: 就農歴
+    <div style={{ marginTop:24 }}>
+      {[
+        { label:"まだ始めていない（未就農）", value:"0" },
+        { label:"1〜3年",  value:"1-3" },
+        { label:"4〜10年", value:"4-10" },
+        { label:"10年以上", value:"10+" },
+      ].map(({ label, value }) => (
+        <CardBtn key={value} selected={obTier === value} onClick={() => setObTier(value)}>{label}</CardBtn>
+      ))}
+    </div>,
 
-        {/* 栽培作物 */}
-        <div style={{ marginBottom:36 }}>
-          <label className="lbl f-sans">栽培作物</label>
-          <p className="f-sans" style={{ fontSize:11, color:selectedCrops.length >= 5 ? C.danger : C.ghost, marginBottom:10 }}>
-            {selectedCrops.length >= 5 ? "最大5つまで選択済みです" : "最大5つまで"}
-          </p>
-          {cropCandidates.length > 0 && (
-            <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:6, marginBottom:12 }} className="filter-scroll">
-              {cropCandidates.map(crop => {
-                const sel = selectedCrops.includes(crop);
-                return (
-                  <button
-                    key={crop}
-                    onClick={() => toggleCrop(crop)}
-                    style={{
-                      flexShrink:0, padding:"6px 14px", borderRadius:20,
-                      border:`1px solid ${sel ? C.accent : C.border}`,
-                      background: sel ? C.accent : "#fff",
-                      color: sel ? "#fff" : C.ink,
-                      fontSize:13, fontWeight: sel ? 600 : 400,
-                      cursor:"pointer", transition:"all .15s",
-                    }}
-                  >{crop}</button>
-                );
-              })}
-            </div>
-          )}
-          <div style={{ display:"flex", gap:8 }}>
-            <input
-              className="field f-sans"
-              type="text"
-              placeholder="その他の作物を入力してEnter"
-              value={cropInput}
-              onChange={e => setCropInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && addCustomCrop()}
-              style={{ flex:1, border:`1px solid ${C.border}`, borderRadius:12, padding:"14px 16px" }}
-            />
-          </div>
-          {selectedCrops.length > 0 && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:10 }}>
-              {selectedCrops.map(crop => (
-                <span key={crop} style={{
-                  padding:"4px 10px", borderRadius:20,
-                  background:C.accent, color:"#fff",
-                  fontSize:12, fontWeight:600,
-                  display:"flex", alignItems:"center", gap:4,
-                }}>
-                  {crop}
-                  <button
-                    onClick={() => setSelectedCrops(prev => prev.filter(c => c !== crop))}
-                    style={{ background:"none", border:"none", color:"#fff", fontSize:14, cursor:"pointer", padding:0, lineHeight:1 }}
-                  >×</button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+    // 4: 専業/兼業
+    <div style={{ marginTop:24 }}>
+      <CardBtn selected={obFarmingType === "fulltime"} onClick={() => setObFarmingType("fulltime")}>専業農家（農業のみ）</CardBtn>
+      <CardBtn selected={obFarmingType === "parttime"} onClick={() => setObFarmingType("parttime")}>兼業農家（他の仕事も）</CardBtn>
+    </div>,
 
-        <button
-          onClick={handleSubmit}
+    // 5: 経営面積
+    <div style={{ textAlign:"center", marginTop:48 }}>
+      <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"center", gap:12 }}>
+        <input
+          type="number" min="0" value={obArea} autoFocus
+          onChange={e => setObArea(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && goNext()}
           style={{
-            width:"100%", padding:"16px",
+            width:160, fontSize:48, textAlign:"center",
+            border:"none", borderBottom:`2px solid ${C.ink}`,
+            outline:"none", padding:"8px 0", background:"transparent",
+            color:C.ink, fontFamily:"'DM Mono','Courier New',monospace",
+          }}
+        />
+        <span className="f-sans" style={{ fontSize:24, color:C.mid, marginBottom:10 }}>反</span>
+      </div>
+      <p className="f-sans" style={{ fontSize:12, color:C.ghost, marginTop:20 }}>1反 = 約1,000㎡ = 約10a</p>
+    </div>,
+
+    // 6: 栽培作物
+    <div style={{ marginTop:20 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+        <input
+          type="text" placeholder="作物名を入力してEnter" value={cropInput}
+          onChange={e => setCropInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && addCustomCrop()}
+          style={{
+            flex:1, border:`1px solid ${C.border}`, borderRadius:12,
+            padding:"10px 14px", fontSize:14, outline:"none",
+            fontFamily:"'Noto Sans JP',sans-serif",
+          }}
+        />
+        <span className="f-mono" style={{ fontSize:13, color:C.mid, fontWeight:600, whiteSpace:"nowrap" }}>
+          {obCrops.length}/5
+        </span>
+      </div>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8, maxHeight:"42vh", overflowY:"auto" }}>
+        {[...new Set([...obCrops, ...cropCandidates])].map(crop => {
+          const sel = obCrops.includes(crop);
+          return (
+            <button key={crop} onClick={() => toggleCrop(crop)} style={{
+              padding:"8px 16px", borderRadius:20,
+              border:`1px solid ${sel ? C.accent : C.border}`,
+              background: sel ? C.accent : "#fff",
+              color: sel ? "#fff" : C.ink,
+              fontSize:13, fontWeight: sel ? 600 : 400,
+              cursor: !sel && obCrops.length >= 5 ? "not-allowed" : "pointer",
+              opacity: !sel && obCrops.length >= 5 ? 0.35 : 1,
+              transition:"all .12s",
+            }}>{crop}</button>
+          );
+        })}
+      </div>
+    </div>,
+
+    // 7: 販売先
+    <div style={{ marginTop:24 }}>
+      {OB_SALES_CHANNELS.map(({ label, value }) => {
+        const sel = obChannels.includes(value);
+        return (
+          <button key={value} onClick={() => toggleChannel(value)} style={{
+            width:"100%", textAlign:"left", padding:"18px 20px", borderRadius:16,
+            border: sel ? `2px solid ${C.accent}` : `2px solid ${C.border}`,
+            background: sel ? C.accentLight : "#fff",
+            fontSize:15, fontWeight: sel ? 600 : 400,
+            color:C.ink, cursor:"pointer", transition:"all .15s", marginBottom:8, display:"block",
+          }}>{label}</button>
+        );
+      })}
+    </div>,
+  ];
+
+  const stepMeta = [
+    { title:"お名前を教えてください",    sub:"五年計画書に表示されます" },
+    { title:"どちらにお住まいですか？",   sub:"地域の経営指標を参照します" },
+    { title:"農業の経験は？",            sub:"同じ経験年数の農家と比較できます" },
+    { title:"農業は専業ですか？",         sub:"収支構造の参考にします" },
+    { title:"経営面積を教えてください",   sub:"おおよそで構いません（反）" },
+    { title:"何を栽培していますか？",     sub:"最大5つまで選べます（予定でもOK）" },
+    { title:"主な販売先は？",            sub:"複数選べます（予定でもOK）" },
+  ];
+
+  const { title, sub } = stepMeta[obStep - 1];
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:9999 }}>
+      {/* プログレスバー */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:4, background:C.border }}>
+        <div style={{
+          height:4, background:C.accent,
+          width:`${(obStep / totalSteps) * 100}%`,
+          transition:"width 0.3s ease",
+        }} />
+      </div>
+
+      {/* コンテンツ */}
+      <div style={{ maxWidth:480, margin:"0 auto", padding:"56px 24px 140px", overflowY:"auto", height:"100%" }}>
+        <div key={obStep} className="fade-in">
+          <h1 className="f-sans" style={{ fontSize:26, fontWeight:700, color:C.ink, marginBottom:8, lineHeight:1.35 }}>
+            {title}
+          </h1>
+          <p className="f-sans" style={{ fontSize:13, color:C.mid }}>{sub}</p>
+          {stepContent[obStep - 1]}
+        </div>
+      </div>
+
+      {/* ボトムナビ */}
+      <div style={{
+        position:"fixed", bottom:0, left:0, right:0,
+        background:"#fff", borderTop:`1px solid ${C.border}`,
+        padding:"20px 24px calc(20px + env(safe-area-inset-bottom, 0px))",
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+      }}>
+        {obStep > 1
+          ? <button onClick={goBack} className="f-sans" style={{
+              background:"none", border:"none", fontSize:15,
+              color:C.ink, cursor:"pointer", padding:"8px 0",
+            }}>← 戻る</button>
+          : <div />
+        }
+        <button
+          onClick={canGoNext ? goNext : undefined}
+          style={{
             background:C.accent, color:"#fff",
-            border:"none", borderRadius:16,
-            fontSize:15, fontWeight:700,
-            cursor: canSubmit && !saving ? "pointer" : "not-allowed",
-            opacity: canSubmit && !saving ? 1 : 0.5,
-            pointerEvents: canSubmit && !saving ? "auto" : "none",
+            border:"none", borderRadius:12,
+            padding:"16px 32px", fontSize:16, fontWeight:700,
+            cursor: canGoNext ? "pointer" : "not-allowed",
+            opacity: canGoNext ? 1 : 0.5,
+            pointerEvents: canGoNext ? "auto" : "none",
+            transition:"opacity .2s",
           }}
         >
-          {saving ? "保存中..." : "始める"}
+          {saving ? "保存中..." : obStep === totalSteps ? "始める" : "次へ →"}
         </button>
       </div>
-      <style>{`
-        @media (max-width: 640px) {
-          .onboarding-inner { padding: 24px 16px !important; }
-        }
-      `}</style>
     </div>
   );
 }
