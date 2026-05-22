@@ -2931,16 +2931,18 @@ const OB_SALES_CHANNELS = [
   { label:"まだ決めていない",          value:"undecided" },
 ];
 
-function OnboardingModal({ me, onComplete }) {
+function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
   const totalSteps = 7;
   const [obStep, setObStep] = useState(1);
   const [obName,        setObName]        = useState(me.name || "");
   const [obPrefecture,  setObPrefecture]  = useState(me.prefecture || "");
   const [obTier,        setObTier]        = useState(me.experience_tier || "");
-  const [obFarmingType, setObFarmingType] = useState("");
-  const [obArea,        setObArea]        = useState("");
+  const [obFarmingType, setObFarmingType] = useState(localStorage.getItem('ob_farming_type') || "");
+  const [obArea,        setObArea]        = useState(localStorage.getItem('ob_area_tan') || "");
   const [obCrops,       setObCrops]       = useState(me.planned_crops || []);
-  const [obChannels,    setObChannels]    = useState([]);
+  const [obChannels,    setObChannels]    = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ob_sales_channels') || '[]'); } catch { return []; }
+  });
   const [cropInput,     setCropInput]     = useState("");
   const [cropCandidates,setCropCandidates]= useState([]);
   const [saving,        setSaving]        = useState(false);
@@ -3154,6 +3156,19 @@ function OnboardingModal({ me, onComplete }) {
         }} />
       </div>
 
+      {/* 閉じるボタン（編集時のみ） */}
+      {isEditing && (
+        <button
+          onClick={onClose}
+          style={{
+            position:"absolute", top:16, right:20,
+            background:"none", border:"none",
+            fontSize:22, color:C.mid, cursor:"pointer",
+            lineHeight:1, padding:4, zIndex:1,
+          }}
+        >✕</button>
+      )}
+
       {/* コンテンツ */}
       <div style={{ maxWidth:480, margin:"0 auto", padding:"56px 24px 140px", overflowY:"auto", height:"100%" }}>
         <div key={obStep} className="fade-in">
@@ -3211,6 +3226,8 @@ export default function App(){
   const [me,setMe]=useState(null);
   const [authV,setAuthV]=useState("login");
   const [showTerms,setShowTerms]=useState(false);
+  const [showOnboarding,setShowOnboarding]=useState(false);
+  const [obModalKey,setObModalKey]=useState(0);
   const [notifs,setNotifs]=useState([]);
   const [showNotifs,setShowNotifs]=useState(false);
   useEffect(()=>{
@@ -3288,6 +3305,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
         return updated?updated:prev;
       });
     }
+    setShowOnboarding(false);
     setTab("board");
   },[]);
 
@@ -3492,6 +3510,13 @@ const subDest=useCallback(async d=>{
             }}>
               <span style={{fontSize:11}}>🌾</span>
               <span className="f-sans" style={{fontSize:11,fontWeight:500,color:"#222222"}}>{me.name}</span>
+              <button
+                onClick={()=>{setShowOnboarding(true);setObModalKey(k=>k+1);}}
+                title="プロフィール編集"
+                style={{
+                  fontSize:13,background:"transparent",border:"none",
+                  cursor:"pointer",padding:"2px 4px",color:"#717171",lineHeight:1,
+                }}>⚙</button>
               <button onClick={()=>{setMe(null);setTab("board");setNotifs([]);setShowNotifs(false);}} className="f-sans" style={{
                 fontSize:9,color:"#717171",background:"transparent",
                 border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",
@@ -3616,8 +3641,14 @@ const subDest=useCallback(async d=>{
         </div>
       </footer>
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
-      {me&&(!me.name?.trim()||!me.prefecture)&&(
-        <OnboardingModal me={me} onComplete={completeOnboarding}/>
+      {me&&((!me.name?.trim()||!me.prefecture)||showOnboarding)&&(
+        <OnboardingModal
+          key={obModalKey}
+          me={me}
+          onComplete={completeOnboarding}
+          isEditing={showOnboarding&&!!(me.name?.trim()&&me.prefecture)}
+          onClose={()=>setShowOnboarding(false)}
+        />
       )}
     </div>
   );
