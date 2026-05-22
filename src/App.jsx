@@ -59,6 +59,7 @@ const SEED_DESTS = [];
 const THIS_YEAR   = 2025;
 const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 const MONTHS    = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+const PREFECTURES = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 
 async function sGet(k){try{const r=await window.storage.get(k,true);return r?JSON.parse(r.value):null;}catch{return null;}}
 async function sSet(k,v){try{await window.storage.set(k,JSON.stringify(v),true);}catch{}};
@@ -2857,6 +2858,170 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 }
 
 
+// ── OnboardingModal ──────────────────────────────────────────
+function OnboardingModal({ me, onComplete }) {
+  const [name, setName] = useState(me.name || "");
+  const [prefecture, setPrefecture] = useState(me.prefecture || "");
+  const [selectedCrops, setSelectedCrops] = useState(me.planned_crops || []);
+  const [cropInput, setCropInput] = useState("");
+  const [cropCandidates, setCropCandidates] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.from('market_stats').select('crop').then(({ data }) => {
+      if (data) setCropCandidates([...new Set(data.map(d => d.crop).filter(Boolean))].sort());
+    });
+  }, []);
+
+  const toggleCrop = (crop) => {
+    setSelectedCrops(prev => {
+      if (prev.includes(crop)) return prev.filter(c => c !== crop);
+      if (prev.length >= 5) return prev;
+      return [...prev, crop];
+    });
+  };
+
+  const addCustomCrop = () => {
+    const c = cropInput.trim();
+    if (!c) return;
+    if (!selectedCrops.includes(c) && selectedCrops.length < 5) {
+      setSelectedCrops(prev => [...prev, c]);
+    }
+    setCropInput("");
+  };
+
+  const canSubmit = name.trim() && prefecture;
+
+  const handleSubmit = async () => {
+    if (!canSubmit || saving) return;
+    setSaving(true);
+    const { error } = await supabase.from('farmers').update({
+      name: name.trim(),
+      prefecture,
+      planned_crops: selectedCrops,
+    }).eq('auth_id', me.id);
+    if (!error) await onComplete({ name: name.trim(), prefecture, planned_crops: selectedCrops });
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:9999, overflowY:"auto" }}>
+      <div style={{ maxWidth:480, margin:"0 auto", padding:"40px 24px" }}>
+        <div style={{ marginBottom:32 }}>
+          <h1 className="f-sans" style={{ fontSize:22, fontWeight:700, color:C.ink, marginBottom:8 }}>
+            はじめに教えてください
+          </h1>
+          <p className="f-sans" style={{ fontSize:13, color:C.mid }}>五年計画書の作成に使用します</p>
+        </div>
+
+        {/* 名前 */}
+        <div style={{ marginBottom:20 }}>
+          <label className="lbl f-sans">名前</label>
+          <input
+            className="field f-sans"
+            type="text"
+            placeholder="例：田中太郎"
+            value={name}
+            autoFocus
+            onChange={e => setName(e.target.value)}
+            style={{ border:`1px solid ${C.border}`, borderRadius:12, padding:"14px 16px" }}
+          />
+        </div>
+
+        {/* 都道府県 */}
+        <div style={{ marginBottom:20 }}>
+          <label className="lbl f-sans">都道府県</label>
+          <select
+            className="field f-sans"
+            value={prefecture}
+            onChange={e => setPrefecture(e.target.value)}
+            style={{ border:`1px solid ${C.border}`, borderRadius:12, padding:"14px 16px", appearance:"auto", width:"100%" }}
+          >
+            <option value="">選択してください</option>
+            {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+
+        {/* 栽培作物 */}
+        <div style={{ marginBottom:36 }}>
+          <label className="lbl f-sans">栽培作物</label>
+          <p className="f-sans" style={{ fontSize:11, color:C.ghost, marginBottom:10 }}>最大5つまで</p>
+          {cropCandidates.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
+              {cropCandidates.map(crop => {
+                const sel = selectedCrops.includes(crop);
+                return (
+                  <button
+                    key={crop}
+                    onClick={() => toggleCrop(crop)}
+                    style={{
+                      padding:"6px 14px", borderRadius:20,
+                      border:`1px solid ${sel ? C.accent : C.border}`,
+                      background: sel ? C.accent : "#fff",
+                      color: sel ? "#fff" : C.ink,
+                      fontSize:13, fontWeight: sel ? 600 : 400,
+                      cursor:"pointer", transition:"all .15s",
+                    }}
+                  >{crop}</button>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ display:"flex", gap:8 }}>
+            <input
+              className="field f-sans"
+              type="text"
+              placeholder="その他の作物を入力してEnter"
+              value={cropInput}
+              onChange={e => setCropInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addCustomCrop()}
+              style={{ flex:1, border:`1px solid ${C.border}`, borderRadius:12, padding:"14px 16px" }}
+            />
+          </div>
+          {selectedCrops.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:10 }}>
+              {selectedCrops.map(crop => (
+                <span key={crop} style={{
+                  padding:"4px 10px", borderRadius:20,
+                  background:C.accent, color:"#fff",
+                  fontSize:12, fontWeight:600,
+                  display:"flex", alignItems:"center", gap:4,
+                }}>
+                  {crop}
+                  <button
+                    onClick={() => setSelectedCrops(prev => prev.filter(c => c !== crop))}
+                    style={{ background:"none", border:"none", color:"#fff", fontSize:14, cursor:"pointer", padding:0, lineHeight:1 }}
+                  >×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          style={{
+            width:"100%", padding:"16px",
+            background:C.accent, color:"#fff",
+            border:"none", borderRadius:16,
+            fontSize:15, fontWeight:700,
+            cursor: canSubmit && !saving ? "pointer" : "not-allowed",
+            opacity: canSubmit && !saving ? 1 : 0.5,
+            pointerEvents: canSubmit && !saving ? "auto" : "none",
+          }}
+        >
+          {saving ? "保存中..." : "始める"}
+        </button>
+      </div>
+      <style>{`
+        @media (max-width: 640px) {
+          .onboarding-inner { padding: 24px 16px !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   const [tab,setTab]=useState("board");
@@ -2892,7 +3057,7 @@ export default function App(){
       await sSet("yw_pres_v3",true);
     }
   　const { data: dbFarmers } = await supabase.from('farmers').select('*');
-    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year })) : [];
+    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year, prefecture: fr.prefecture || "", planned_crops: fr.planned_crops || [] })) : [];
     const fp=await sGet("yw_farmers_pend")||[];
     const { data: dbDestsOk } = await supabase.from('dests').select('*').eq('status', 'approved');
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
@@ -2935,6 +3100,19 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const pushNotif=useCallback(async(farmerId,type,message)=>{
     const{data}=await supabase.from('notifications').insert({farmer_id:farmerId,type,message}).select().single();
     if(data)setNotifs(prev=>[data,...prev].slice(0,10));
+  },[]);
+
+  const completeOnboarding=useCallback(async(updates)=>{
+    const{data:dbFarmers}=await supabase.from('farmers').select('*');
+    if(dbFarmers){
+      const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",planned_crops:fr.planned_crops||[]}));
+      setFarmers(f);
+      setMe(prev=>{
+        const updated=f.find(x=>x.id===prev?.id);
+        return updated?updated:prev;
+      });
+    }
+    setTab("board");
   },[]);
 
 const addRec=useCallback(async(fid,yr,mi,e)=>{
@@ -3262,6 +3440,9 @@ const subDest=useCallback(async d=>{
         </div>
       </footer>
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
+      {me&&(!me.name?.trim()||!me.prefecture)&&(
+        <OnboardingModal me={me} onComplete={completeOnboarding}/>
+      )}
     </div>
   );
 }
