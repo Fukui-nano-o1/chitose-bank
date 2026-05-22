@@ -2922,9 +2922,17 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 
 // ── OnboardingModal ──────────────────────────────────────────
+const EXPERIENCE_TIERS = [
+  { label:"未就農", value:"0" },
+  { label:"1〜3年", value:"1-3" },
+  { label:"4〜10年", value:"4-10" },
+  { label:"10年以上", value:"10+" },
+];
+
 function OnboardingModal({ me, onComplete }) {
   const [name, setName] = useState(me.name || "");
   const [prefecture, setPrefecture] = useState(me.prefecture || "");
+  const [selectedTier, setSelectedTier] = useState(me.experience_tier || "");
   const [selectedCrops, setSelectedCrops] = useState(me.planned_crops || []);
   const [cropInput, setCropInput] = useState("");
   const [cropCandidates, setCropCandidates] = useState([]);
@@ -2953,7 +2961,7 @@ function OnboardingModal({ me, onComplete }) {
     setCropInput("");
   };
 
-  const canSubmit = name.trim() && prefecture;
+  const canSubmit = name.trim() && prefecture && selectedTier;
 
   const handleSubmit = async () => {
     if (!canSubmit || saving) return;
@@ -2962,8 +2970,9 @@ function OnboardingModal({ me, onComplete }) {
       name: name.trim(),
       prefecture,
       planned_crops: selectedCrops,
+      experience_tier: selectedTier,
     }).eq('auth_id', me.id);
-    if (!error) await onComplete({ name: name.trim(), prefecture, planned_crops: selectedCrops });
+    if (!error) await onComplete({ name: name.trim(), prefecture, planned_crops: selectedCrops, experience_tier: selectedTier });
     setSaving(false);
   };
 
@@ -3003,6 +3012,27 @@ function OnboardingModal({ me, onComplete }) {
             <option value="">選択してください</option>
             {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
+        </div>
+
+        {/* 就農歴 */}
+        <div style={{ marginBottom:20 }}>
+          <label className="lbl f-sans">就農歴</label>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {EXPERIENCE_TIERS.map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => setSelectedTier(value)}
+                style={{
+                  padding:"10px 20px", borderRadius:12,
+                  border: selectedTier === value ? "none" : `1px solid ${C.border}`,
+                  background: selectedTier === value ? C.accent : "#fff",
+                  color: selectedTier === value ? "#fff" : C.ink,
+                  fontSize:13, fontWeight: selectedTier === value ? 600 : 400,
+                  cursor:"pointer", transition:"all .15s",
+                }}
+              >{label}</button>
+            ))}
+          </div>
         </div>
 
         {/* 栽培作物 */}
@@ -3122,7 +3152,7 @@ export default function App(){
       await sSet("yw_pres_v3",true);
     }
   　const { data: dbFarmers } = await supabase.from('farmers').select('*');
-    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year, prefecture: fr.prefecture || "", planned_crops: fr.planned_crops || [] })) : [];
+    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year, prefecture: fr.prefecture || "", planned_crops: fr.planned_crops || [], experience_tier: fr.experience_tier || "" })) : [];
     const fp=await sGet("yw_farmers_pend")||[];
     const { data: dbDestsOk } = await supabase.from('dests').select('*').eq('status', 'approved');
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
@@ -3170,7 +3200,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const completeOnboarding=useCallback(async(updates)=>{
     const{data:dbFarmers}=await supabase.from('farmers').select('*');
     if(dbFarmers){
-      const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",planned_crops:fr.planned_crops||[]}));
+      const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",planned_crops:fr.planned_crops||[],experience_tier:fr.experience_tier||""}));
       setFarmers(f);
       setMe(prev=>{
         const updated=f.find(x=>x.id===prev?.id);
