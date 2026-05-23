@@ -2043,157 +2043,6 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   );
 }
 
-// ── MyLedger ─────────────────────────────────────────────────
-function MyLedger({ loggedInFarmer, records, destApproved }) {
-  const fid = loggedInFarmer.id;
-
-  const getMonthData = (year, mi) => {
-    const rs = records[`${fid}_${year}_${mi}`] || [];
-    let rev = 0, cost = 0;
-    rs.forEach(r => {
-      rev += (r.boxes || 0) * (r.ppb || 0);
-      cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
-    });
-    return { rev, cost, profit: rev - cost };
-  };
-
-  const getMonthCosts = (year, mi) => {
-    const rs = records[`${fid}_${year}_${mi}`] || [];
-    const map = {};
-    rs.forEach(r => (r.costs || []).forEach(c => { if (c.l) map[c.l] = (map[c.l] || 0) + (c.a || 0); }));
-    return Object.entries(map).sort((a,b) => b[1]-a[1]).map(([l,a]) => ({l,a}));
-  };
-
-  const topN = (items, n) => {
-    if (items.length <= n) return items;
-    const rest = items.slice(n).reduce((s,c) => s + c.a, 0);
-    return [...items.slice(0, n), { l:"その他", a:rest }];
-  };
-
-  const monthlyData = MONTHS.map((label, mi) => ({ label, mi, ...getMonthData(THIS_YEAR, mi) }));
-
-  const destMap = {};
-  Object.entries(records).forEach(([k, arr]) => {
-    if (!k.startsWith(fid + "_")) return;
-    arr.forEach(r => {
-      if (!destMap[r.destId]) destMap[r.destId] = { rev: 0, cost: 0 };
-      destMap[r.destId].rev += (r.boxes || 0) * (r.ppb || 0);
-      destMap[r.destId].cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
-    });
-  });
-  const destCards = Object.entries(destMap).map(([id, d]) => {
-    const dest = destApproved.find(x => x.id === id);
-    const profit = d.rev - d.cost;
-    const costRate = d.rev > 0 ? Math.round(d.cost / d.rev * 100) : 0;
-    return { id, name: dest?.name || "不明", ...d, profit, costRate };
-  }).sort((a, b) => a.costRate - b.costRate);
-
-  const curMi = new Date().getMonth();
-  const curData = getMonthData(THIS_YEAR, curMi);
-  const prevData = getMonthData(THIS_YEAR - 1, curMi);
-  const hasPrev = (records[`${fid}_${THIS_YEAR - 1}_${curMi}`] || []).length > 0;
-
-  const costLabels = {};
-  Object.entries(records).forEach(([k, arr]) => {
-    if (!k.startsWith(fid + "_")) return;
-    arr.forEach(r => {
-      (r.costs || []).forEach(c => {
-        if (!c.l) return;
-        costLabels[c.l] = (costLabels[c.l] || 0) + (c.a || 0);
-      });
-    });
-  });
-  const costItems = Object.entries(costLabels).sort((a, b) => b[1] - a[1]);
-  const totalCost = costItems.reduce((s, [, v]) => s + v, 0);
-
-  const totalRev = monthlyData.reduce((s, d) => s + d.rev, 0);
-
-  const getDestCosts = (destId) => {
-    const map = {};
-    Object.entries(records).forEach(([k, arr]) => {
-      if (!k.startsWith(fid + "_")) return;
-      arr.filter(r => r.destId === destId).forEach(r => {
-        (r.costs || []).forEach(c => {
-          if (!c.l) return;
-          map[c.l] = (map[c.l] || 0) + (c.a || 0);
-        });
-      });
-    });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([l, a]) => ({l, a}));
-  };
-
-  return (
-    <div className="appear" style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 24 }}>
-
-      {/* 1. 月次推移 */}
-      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-        <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>月次推移（{THIS_YEAR}年）</p>
-        <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
-          {monthlyData.map((d, i) => (
-            <div key={i} style={{ flexShrink:0, width:280, padding:"14px 16px", background:"#fff", border:`1px solid ${C.rule}`, borderRadius:16 }}>
-              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:C.ink, marginBottom:10 }}>{d.label}</p>
-              <BalanceSheet revenue={d.rev} costs={getMonthCosts(THIS_YEAR, d.mi)} compact={true} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 2. 出荷先別採算 */}
-      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-        <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>出荷先別採算（経費率 低い順）</p>
-        {destCards.length === 0
-          ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost }}>データがありません</p>
-          : <div style={{ display: "grid", gap: 12 }}>
-              {destCards.map(d => (
-                <div key={d.id} style={{ padding: "14px 16px", border: `1px solid ${C.rule}`, borderRadius: 16, background: "#fff" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-                    <DestMark name={d.name} sz={28} showLabel={true} />
-                  </div>
-                  <BalanceSheet revenue={d.rev} costs={getDestCosts(d.id)} />
-                </div>
-              ))}
-            </div>
-        }
-      </div>
-
-      {/* 3. 前年同月比較 */}
-      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-        <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 4 }}>前年同月比較 — {MONTHS[curMi]}</p>
-        {!hasPrev
-          ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost, marginTop: 12 }}>前年データなし</p>
-          : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginTop: 14 }}>
-              {[{lbl:"売上",cur:curData.rev,prev:prevData.rev},{lbl:"経費",cur:curData.cost,prev:prevData.cost},{lbl:"利益",cur:curData.profit,prev:prevData.profit}].map(row => {
-                const diff = row.cur - row.prev;
-                const up = diff >= 0;
-                const color = row.lbl === "経費" ? (up ? C.shu : C.bamboo) : (up ? C.bamboo : C.shu);
-                return (
-                  <div key={row.lbl} style={{ padding: "12px 14px", background: C.ivory, borderRadius: 10 }}>
-                    <p className="f-sans" style={{ fontSize: 10, color: C.ghost, marginBottom: 4 }}>{row.lbl}</p>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
-                      <span className="f-mono" style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>{man(row.cur)}</span>
-                      <span className="f-sans" style={{ fontSize: 11, color, fontWeight: 700 }}>{up ? "↑" : "↓"} {man(Math.abs(diff))}</span>
-                    </div>
-                    <p className="f-sans" style={{ fontSize: 9, color: C.ghost, marginTop: 2 }}>前年: {man(row.prev)}</p>
-                  </div>
-                );
-              })}
-            </div>
-        }
-      </div>
-
-      {/* 4. 経費内訳（全期間） */}
-      <div className="ledger-card" style={{ padding: 24, background: C.cream, borderRadius: 12 }}>
-        <p className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: C.ink, marginBottom: 16 }}>経費内訳（全期間）</p>
-        {costItems.length === 0
-          ? <p className="f-sans" style={{ fontSize: 12, color: C.ghost }}>経費データなし</p>
-          : <BalanceSheet revenue={totalRev} costs={costItems.map(([l, a]) => ({l, a}))} />
-        }
-      </div>
-
-    </div>
-  );
-}
-
 // ── FiveYearPlanTab ──────────────────────────────────────────
 function FiveYearPlanTab({ loggedInFarmer, records }) {
   const PLAN_YEARS = Array.from({ length: 5 }, (_, i) => THIS_YEAR + i); // kept for compat
@@ -2721,15 +2570,12 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             const detailRows = [
               { label:"都道府県",   value: f.prefecture || "未設定" },
               { label:"栽培作物",   crops },
-              { label:"経営面積",   value: f.farm_area || "未設定" },
-              { label:"専業/兼業",  value: f.farming_type || "未設定" },
-              { label:"主な販売先", value: f.main_sales_channel || "未設定" },
               { label:"登録日",     value: f.created_at ? new Date(f.created_at).toLocaleDateString("ja-JP") : "—" },
               { label:"最終入力日", value: lastRecDate ? new Date(lastRecDate).toLocaleDateString("ja-JP") : "未入力" },
             ];
             return (
               <div key={f.id} style={{ borderRadius:12, border:"1px solid #EBEBEB", background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-                {/* 閉じた状態 — タップで展開 */}
+                {/* 閉じた状態 */}
                 <div
                   onClick={() => setExpandedFarmer(isOpen ? null : f.id)}
                   style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", cursor:"pointer", userSelect:"none" }}
@@ -2746,7 +2592,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 </div>
 
                 {/* 展開コンテンツ */}
-                <div style={{ overflow:"hidden", maxHeight: isOpen ? "600px" : "0", transition:"max-height 0.3s ease" }}>
+                <div style={{ overflow:"hidden", maxHeight: isOpen ? "400px" : "0", transition:"max-height 0.3s ease" }}>
                   <div style={{ padding:"2px 16px 14px", borderTop:"1px solid #F7F7F7" }}>
                     {detailRows.map(({ label, value, crops: rowCrops }) => (
                       <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"6px 0", borderBottom:"1px solid #F7F7F7" }}>
@@ -3504,7 +3350,6 @@ const subDest=useCallback(async d=>{
     {k:"board",l:"公開ボード"},
     {k:"input",l:isMember?"データ入力":"🔒 データ入力",locked:!isMember},
     ...(isMember?[{k:"plan",l:"五年計画書",locked:!isContributor}]:[]),
-    ...(isContributor?[{k:"ledger",l:"マイ台帳"}]:[]),
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
@@ -3648,7 +3493,6 @@ const subDest=useCallback(async d=>{
           {k:"board", icon:"📋", l:"ボード"},
           {k:"input", icon:"✏️", l:"入力"},
           ...(isMember?[{k:"plan", icon:"📄", l:"計画書"}]:[]),
-          ...(isContributor?[{k:"ledger", icon:"📓", l:"台帳"}]:[]),
           ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
         ].map(({k,icon,l})=>(
           <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}>
@@ -3668,7 +3512,6 @@ const subDest=useCallback(async d=>{
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>
         )}
-        {tab==="ledger"&&isContributor&&<MyLedger loggedInFarmer={me} records={recs} destApproved={destOk}/>}
         {tab==="plan"&&isMember&&(
           isContributor
             ? <FiveYearPlanTab loggedInFarmer={me} records={recs} destApproved={destOk} farmers={farmers}/>
