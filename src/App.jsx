@@ -3366,10 +3366,6 @@ const subDest=useCallback(async d=>{
         padding:"0 24px",
         position:"sticky",top:0,zIndex:50,
       }}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginRight:"auto"}}>
-          <span style={{fontSize:20}}>🥦</span>
-          <span className="f-sans" style={{fontSize:14,fontWeight:700,color:"#222222",letterSpacing:".02em"}}>吉野川 農家記録</span>
-        </div>
         {me&&(
           <div style={{display:"flex",alignItems:"center",gap:8,marginRight:12}}>
             {/* 通知ベル */}
