@@ -69,6 +69,12 @@ const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/1000)/10).
 function uid(){ return Math.random().toString(36).slice(2,9); }
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
 
+const CROP_EMOJIS = ['🥦','🍅','🍆','🥕','🌽','🥬','🍓','🥒','🧅','🥔','🍈','🌶️','🥜','🫛','🧄'];
+function getDefaultAvatar(farmerId) {
+  const index = farmerId ? farmerId.charCodeAt(0) % CROP_EMOJIS.length : 0;
+  return CROP_EMOJIS[index];
+}
+
 // ── CSS ────────────────────────────────────────────────────
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
@@ -3134,6 +3140,174 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
   );
 }
 
+// ── ProfileModal ─────────────────────────────────────────────
+const SALES_LABELS = { ja:"JA出荷", market:"市場出荷", direct_store:"直売所", direct_trade:"直接取引", online:"ネット販売", undecided:"未定" };
+const TIER_LABELS  = { "1-3":"1〜3年", "4-10":"4〜10年", "10+":"10年以上" };
+
+function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfile, onLogout, onAvatarChange }) {
+  const [delConfirm, setDelConfirm] = useState(false);
+  const [uploading,  setUploading]  = useState(false);
+  const fileRef = useRef(null);
+
+  const fid = me.id;
+  const myRecs = Object.entries(recs)
+    .filter(([k]) => k.startsWith(fid + "_"))
+    .flatMap(([, v]) => v);
+  const recCount = myRecs.length;
+  const lastDates = myRecs.map(r => r.created_at).filter(Boolean);
+  const lastDate  = lastDates.length > 0
+    ? new Date(Math.max(...lastDates.map(d => new Date(d)))).toLocaleDateString("ja-JP")
+    : "未入力";
+
+  const crops      = Array.isArray(me.planned_crops) ? me.planned_crops : [];
+  const farmType   = localStorage.getItem('ob_farming_type');
+  const areaTan    = localStorage.getItem('ob_area_tan');
+  const salesRaw   = localStorage.getItem('ob_sales_channels');
+  let salesChannels = [];
+  try { salesChannels = JSON.parse(salesRaw || '[]'); } catch {}
+
+  const handleFile = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const path = 'farmer_' + me.id + '.jpg';
+    await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+    const url = urlData?.publicUrl || '';
+    try { localStorage.setItem('avatarUrl_' + me.id, url); } catch {}
+    onAvatarChange(url);
+    setUploading(false);
+  };
+
+  const displayUrl = avatarUrl || me.avatar_url || null;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:9000, overflowY:"auto" }}>
+      {/* 閉じるボタン */}
+      <button onClick={onClose} style={{
+        position:"absolute", top:16, right:16,
+        width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB",
+        background:"#F7F7F7", fontSize:18, cursor:"pointer",
+        display:"flex", alignItems:"center", justifyContent:"center", zIndex:1,
+      }}>✕</button>
+
+      <div style={{ maxWidth:480, margin:"0 auto", padding:"52px 20px 40px" }}>
+
+        {/* アバターエリア */}
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:20 }}>
+          <div style={{ position:"relative", width:100, height:100, marginBottom:14 }}>
+            <div style={{
+              width:100, height:100, borderRadius:"50%",
+              background:"#E6F7EF", border:"2px solid #00A86B",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              overflow:"hidden", fontSize:48,
+            }}>
+              {displayUrl
+                ? <img src={displayUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                : getDefaultAvatar(me.id)
+              }
+            </div>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              style={{
+                position:"absolute", bottom:2, right:2,
+                width:28, height:28, borderRadius:"50%",
+                background:"#00A86B", border:"none",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:13, cursor:"pointer",
+              }}
+            >📷</button>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFile} />
+          </div>
+          <p className="f-sans" style={{ fontSize:24, fontWeight:600, color:"#222", textAlign:"center", margin:0 }}>{me.name}</p>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", marginTop:4 }}>{me.email}</p>
+        </div>
+
+        {/* 情報カード */}
+        <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:20, marginBottom:16 }}>
+          {[
+            { icon:"📍", label:"都道府県",   value: me.prefecture || "未設定" },
+            { icon:"📅", label:"就農歴",     value: TIER_LABELS[me.experience_tier] || "未設定" },
+            { icon:"🏠", label:"専業/兼業",  value: farmType === "fulltime" ? "専業農家" : farmType === "parttime" ? "兼業農家" : "未設定" },
+            { icon:"📐", label:"経営面積",   value: areaTan ? areaTan + " 反" : "未設定" },
+          ].map(({ icon, label, value }) => (
+            <div key={label} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+              <span style={{ fontSize:14, width:20, textAlign:"center", flexShrink:0 }}>{icon}</span>
+              <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", minWidth:80, flexShrink:0 }}>{label}</span>
+              <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{value}</span>
+            </div>
+          ))}
+          {/* 栽培作物 */}
+          <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+            <span style={{ fontSize:14, width:20, textAlign:"center", flexShrink:0 }}>🌱</span>
+            <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", minWidth:80, flexShrink:0 }}>栽培作物</span>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+              {crops.length > 0
+                ? crops.map(c => <span key={c} style={{ padding:"2px 8px", borderRadius:8, background:"#E6F7EF", color:"#00A86B", fontSize:11, fontWeight:600 }}>{c}</span>)
+                : <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>未設定</span>
+              }
+            </div>
+          </div>
+          {/* 販売先 */}
+          <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0" }}>
+            <span style={{ fontSize:14, width:20, textAlign:"center", flexShrink:0 }}>🚛</span>
+            <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", minWidth:80, flexShrink:0 }}>販売先</span>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+              {salesChannels.length > 0
+                ? salesChannels.map(v => <span key={v} style={{ padding:"2px 8px", borderRadius:8, background:"#F7F7F7", color:"#222", fontSize:11, fontWeight:500 }}>{SALES_LABELS[v] || v}</span>)
+                : <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>未設定</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        {/* データ状況カード */}
+        <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:20, marginBottom:24 }}>
+          {[
+            { label:"入力データ数", value: recCount + " 件" },
+            { label:"最終入力日",   value: lastDate },
+            { label:"ステータス",   value: isContributor ? "✅ 貢献者" : "⚠ 会員（入力でアクセス復活）" },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+              <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>{label}</span>
+              <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:500 }}>{value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ボタンエリア */}
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          <button onClick={onEditProfile} className="btn-primary" style={{ width:"100%", padding:"13px" }}>
+            プロフィールを編集
+          </button>
+          <button onClick={onLogout} className="btn-outline" style={{ width:"100%", padding:"12px" }}>
+            ログアウト
+          </button>
+          {!delConfirm
+            ? <button onClick={() => setDelConfirm(true)} className="f-sans" style={{
+                width:"100%", padding:"12px", border:"none", background:"none",
+                fontSize:13, color:"#E24B4A", cursor:"pointer",
+              }}>退会する</button>
+            : <div style={{ padding:16, background:"#FCEBEB", borderRadius:12, border:"1px solid #E24B4A44" }}>
+                <p className="f-sans" style={{ fontSize:13, color:"#E24B4A", marginBottom:12, lineHeight:1.7 }}>
+                  本当に退会しますか？<br/>データは30日以内に削除されます。
+                </p>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={() => setDelConfirm(false)} className="btn-outline" style={{ flex:1, padding:"10px" }}>キャンセル</button>
+                  <button onClick={async () => { await supabase.auth.signOut(); onLogout(); }} style={{
+                    flex:1, padding:"10px", background:"#E24B4A", color:"#fff", border:"none",
+                    borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer",
+                  }}>退会する</button>
+                </div>
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   const [tab,setTab]=useState("board");
@@ -3151,6 +3325,12 @@ export default function App(){
   const [obModalKey,setObModalKey]=useState(0);
   const [notifs,setNotifs]=useState([]);
   const [showNotifs,setShowNotifs]=useState(false);
+  const [showProfile,setShowProfile]=useState(false);
+  const [avatarUrl,setAvatarUrl]=useState("");
+  useEffect(()=>{
+    if(!me?.id)return;
+    try { setAvatarUrl(localStorage.getItem('avatarUrl_'+me.id)||""); } catch {}
+  },[me?.id]);
   useEffect(()=>{
     if(!showNotifs)return;
     const close=e=>{ if(!e.target.closest('[data-notif-bell]'))setShowNotifs(false); };
@@ -3443,20 +3623,35 @@ const subDest=useCallback(async d=>{
               )}
             </div>
             {/* ユーザーピル */}
-            <div style={{
-              display:"flex",alignItems:"center",gap:6,
-              padding:"5px 10px",background:"#F7F7F7",
-              borderRadius:20,border:"1px solid #EBEBEB",
-            }}>
+            <div
+              onClick={()=>setShowProfile(true)}
+              style={{
+                display:"flex",alignItems:"center",gap:6,
+                padding:"4px 10px 4px 4px",background:"#F7F7F7",
+                borderRadius:20,border:"1px solid #EBEBEB",cursor:"pointer",
+              }}
+            >
+              {/* ミニアバター */}
+              <div style={{
+                width:28,height:28,borderRadius:"50%",
+                background:"#E6F7EF",border:"1.5px solid #00A86B",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                overflow:"hidden",flexShrink:0,fontSize:16,
+              }}>
+                {(avatarUrl||me.avatar_url)
+                  ? <img src={avatarUrl||me.avatar_url} alt="avatar" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  : getDefaultAvatar(me.id)
+                }
+              </div>
               <span className="f-sans" style={{
                 fontSize:11,fontWeight:500,color:"#222222",
                 maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
               }}>{me.name}</span>
               <button
-                onClick={()=>{setShowOnboarding(true);setObModalKey(k=>k+1);}}
+                onClick={e=>{e.stopPropagation();setShowOnboarding(true);setObModalKey(k=>k+1);}}
                 title="プロフィール編集"
                 style={{fontSize:13,background:"transparent",border:"none",cursor:"pointer",padding:"2px 2px",color:"#717171",lineHeight:1,flexShrink:0}}>⚙</button>
-              <button onClick={()=>{setMe(null);setTab("board");setNotifs([]);setShowNotifs(false);}} className="f-sans" style={{
+              <button onClick={e=>{e.stopPropagation();setMe(null);setTab("board");setNotifs([]);setShowNotifs(false);}} className="f-sans" style={{
                 fontSize:9,color:"#717171",background:"transparent",
                 border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",flexShrink:0,
               }}>ログアウト</button>
@@ -3564,6 +3759,18 @@ const subDest=useCallback(async d=>{
           onComplete={completeOnboarding}
           isEditing={showOnboarding&&!!(me.name?.trim()&&me.prefecture)}
           onClose={()=>setShowOnboarding(false)}
+        />
+      )}
+      {showProfile&&me&&(
+        <ProfileModal
+          me={me}
+          recs={recs}
+          isContributor={isContributor}
+          avatarUrl={avatarUrl}
+          onClose={()=>setShowProfile(false)}
+          onEditProfile={()=>{setShowProfile(false);setShowOnboarding(true);setObModalKey(k=>k+1);}}
+          onLogout={()=>{setMe(null);setTab("board");setNotifs([]);setShowNotifs(false);setShowProfile(false);}}
+          onAvatarChange={url=>setAvatarUrl(url)}
         />
       )}
     </div>
