@@ -3145,8 +3145,9 @@ const SALES_LABELS = { ja:"JA出荷", market:"市場出荷", direct_store:"直�
 const TIER_LABELS  = { "1-3":"1〜3年", "4-10":"4〜10年", "10+":"10年以上" };
 
 function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfile, onLogout, onAvatarChange }) {
-  const [delConfirm, setDelConfirm] = useState(false);
-  const [uploading,  setUploading]  = useState(false);
+  const [delConfirm,   setDelConfirm]   = useState(false);
+  const [uploading,    setUploading]    = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   const fileRef = useRef(null);
 
   const fid = me.id;
@@ -3170,7 +3171,8 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const path = 'farmer_' + me.id + '.jpg';
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = me.id + '/avatar.' + ext;
     await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
     const url = urlData?.publicUrl || '';
@@ -3196,12 +3198,16 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
         {/* アバターエリア */}
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:20 }}>
           <div style={{ position:"relative", width:100, height:100, marginBottom:14 }}>
-            <div style={{
-              width:100, height:100, borderRadius:"50%",
-              background:"#E6F7EF", border:"2px solid #00A86B",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              overflow:"hidden", fontSize:48,
-            }}>
+            <div
+              onClick={displayUrl ? () => setShowLightbox(true) : undefined}
+              style={{
+                width:100, height:100, borderRadius:"50%",
+                background:"#E6F7EF", border:"2px solid #00A86B",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                overflow:"hidden", fontSize:48,
+                cursor: displayUrl ? "pointer" : "default",
+              }}
+            >
               {displayUrl
                 ? <img src={displayUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                 : getDefaultAvatar(me.id)
@@ -3218,7 +3224,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
                 fontSize:13, cursor:"pointer",
               }}
             >📷</button>
-            <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFile} />
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={handleFile} />
           </div>
           <p className="f-sans" style={{ fontSize:24, fontWeight:600, color:"#222", textAlign:"center", margin:0 }}>{me.name}</p>
           <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", marginTop:4 }}>{me.email}</p>
@@ -3304,6 +3310,34 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
           }
         </div>
       </div>
+
+      {showLightbox && displayUrl && (
+        <div onClick={() => setShowLightbox(false)} style={{
+          position:"fixed", inset:0, zIndex:10000,
+          background:"rgba(0,0,0,0.92)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          cursor:"pointer",
+          animation:"fadeIn .2s ease",
+        }}>
+          <button onClick={e => { e.stopPropagation(); setShowLightbox(false); }} style={{
+            position:"absolute", top:20, right:20,
+            width:40, height:40, borderRadius:"50%",
+            background:"rgba(255,255,255,0.15)", border:"none",
+            color:"#fff", fontSize:22, cursor:"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>✕</button>
+          <img
+            src={displayUrl}
+            alt="avatar full"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth:"90vw", maxHeight:"90vh",
+              objectFit:"contain", borderRadius:4,
+              cursor:"default",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
