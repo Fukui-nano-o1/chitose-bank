@@ -195,7 +195,8 @@ input:focus { outline: none; }
     background: #FFFFFF;
     border-top: 1px solid #EBEBEB;
     z-index: 100;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding: 8px 0;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
   }
   .bottom-tab-bar button {
     flex: 1;
@@ -203,19 +204,19 @@ input:focus { outline: none; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 8px 4px 6px;
+    padding: 4px 4px 2px;
     border: none;
     background: transparent;
-    font-size: 9px;
+    font-size: 10px;
     font-family: 'Noto Sans JP', sans-serif;
     gap: 3px;
     cursor: pointer;
-    color: #B0B0B0;
+    color: #717171;
   }
-  .bottom-tab-bar button.active { color: #00A86B; }
+  .bottom-tab-bar button.active { color: #00A86B; font-weight: 600; }
   .bottom-tab-bar button span.icon { font-size: 20px; line-height: 1; }
   /* Hide desktop header nav on mobile */
-  header nav { display: none !important; }
+  .header-nav { display: none !important; }
   header { padding: 0 16px !important; height: 52px !important; }
   main { padding: 16px 12px 90px !important; }
   .ledger-card { padding: 16px !important; }
@@ -3366,8 +3367,32 @@ const subDest=useCallback(async d=>{
         padding:"0 24px",
         position:"sticky",top:0,zIndex:50,
       }}>
+        {/* PC: タブ（左）*/}
+        <nav style={{display:"flex",flex:1}} className="header-nav">
+          {TABS.map(({k,l,badge,locked})=>(
+            <button key={k} onClick={()=>setTab(k)}
+              className={`nav-item ${tab===k?"active":""}`}
+              style={{
+                padding:"0 16px",height:52,border:"none",borderRadius:0,
+                background:"transparent",
+                color:tab===k?"#222222":locked?"#D0D0D0":"#717171",
+                fontSize:12,fontWeight:tab===k?600:400,
+                letterSpacing:".02em",position:"relative",
+              }}>
+              {l}
+              {badge>0&&<span style={{
+                position:"absolute",top:10,right:4,
+                width:14,height:14,borderRadius:"50%",
+                background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,
+                display:"flex",alignItems:"center",justifyContent:"center",
+              }}>{badge}</span>}
+            </button>
+          ))}
+        </nav>
+
+        {/* 右：通知ベル＋ユーザーピル（PC）／全幅（スマホ） */}
         {me&&(
-          <div style={{display:"flex",alignItems:"center",gap:8,marginRight:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}}>
             {/* 通知ベル */}
             <div data-notif-bell="" style={{position:"relative"}}>
               <button onClick={()=>setShowNotifs(v=>!v)} style={{
@@ -3419,47 +3444,25 @@ const subDest=useCallback(async d=>{
             </div>
             {/* ユーザーピル */}
             <div style={{
-              display:"flex",alignItems:"center",gap:8,
-              padding:"5px 12px",background:"#F7F7F7",
+              display:"flex",alignItems:"center",gap:6,
+              padding:"5px 10px",background:"#F7F7F7",
               borderRadius:20,border:"1px solid #EBEBEB",
             }}>
-              <span style={{fontSize:11}}>🌾</span>
-              <span className="f-sans" style={{fontSize:11,fontWeight:500,color:"#222222"}}>{me.name}</span>
+              <span className="f-sans" style={{
+                fontSize:11,fontWeight:500,color:"#222222",
+                maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+              }}>{me.name}</span>
               <button
                 onClick={()=>{setShowOnboarding(true);setObModalKey(k=>k+1);}}
                 title="プロフィール編集"
-                style={{
-                  fontSize:13,background:"transparent",border:"none",
-                  cursor:"pointer",padding:"2px 4px",color:"#717171",lineHeight:1,
-                }}>⚙</button>
+                style={{fontSize:13,background:"transparent",border:"none",cursor:"pointer",padding:"2px 2px",color:"#717171",lineHeight:1,flexShrink:0}}>⚙</button>
               <button onClick={()=>{setMe(null);setTab("board");setNotifs([]);setShowNotifs(false);}} className="f-sans" style={{
                 fontSize:9,color:"#717171",background:"transparent",
-                border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",
+                border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",flexShrink:0,
               }}>ログアウト</button>
             </div>
           </div>
         )}
-        <nav style={{display:"flex"}}>
-          {TABS.map(({k,l,badge,locked})=>(
-            <button key={k} onClick={()=>setTab(k)}
-              className={`nav-item ${tab===k?"active":""}`}
-              style={{
-                padding:"0 16px",height:52,border:"none",borderRadius:0,
-                background:"transparent",
-                color:tab===k?"#222222":locked?"#D0D0D0":"#717171",
-                fontSize:12,fontWeight:tab===k?600:400,
-                letterSpacing:".02em",position:"relative",
-              }}>
-              {l}
-              {badge>0&&<span style={{
-                position:"absolute",top:10,right:4,
-                width:14,height:14,borderRadius:"50%",
-                background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,
-                display:"flex",alignItems:"center",justifyContent:"center",
-              }}>{badge}</span>}
-            </button>
-          ))}
-        </nav>
       </header>
 
       {/* ── 格下げカウントダウン通知 ── */}
@@ -3486,9 +3489,9 @@ const subDest=useCallback(async d=>{
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       <div className="bottom-tab-bar">
         {[
-          {k:"board", icon:"📋", l:"ボード"},
+          {k:"board", icon:"📊", l:"ボード"},
           {k:"input", icon:"✏️", l:"入力"},
-          ...(isMember?[{k:"plan", icon:"📄", l:"計画書"}]:[]),
+          ...(isMember?[{k:"plan", icon:"📋", l:"計画書"}]:[]),
           ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
         ].map(({k,icon,l})=>(
           <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}>
