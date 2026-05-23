@@ -2708,58 +2708,72 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
       {/* ── 農家管理 ── */}
       {!loading && sub==="farmers" && (
-        <div className="fade-in" style={{ display:"grid", gap:10 }}>
+        <div className="fade-in" style={{ display:"grid", gap:8 }}>
           {farmers.length===0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>農家がいません</p>}
           {farmers.map(f => {
-            const tier = f.experience_tier || "未設定";
+            const isOpen = expandedFarmer === f.id;
+            const tier = f.experience_tier || "1-3";
             const fRecs = records.filter(r => r.farmer_id === f.id);
             const lastRecDate = fRecs.length > 0
               ? fRecs.reduce((a, b) => (a.created_at > b.created_at ? a : b)).created_at
               : null;
             const crops = Array.isArray(f.planned_crops) ? f.planned_crops : [];
-            const rows = [
-              { label:"メールアドレス", value: f.email || "—" },
-              { label:"都道府県",       value: f.prefecture || "未設定" },
-              { label:"就農歴",         value: tier !== "未設定" ? `${tier}年` : "未設定" },
-              { label:"栽培作物",       crops },
-              { label:"専業/兼業",      value: "未設定" },
-              { label:"経営面積",       value: "未設定" },
-              { label:"登録日",         value: f.created_at ? new Date(f.created_at).toLocaleDateString("ja-JP") : "—" },
-              { label:"最終入力日",     value: lastRecDate ? new Date(lastRecDate).toLocaleDateString("ja-JP") : "未入力" },
+            const detailRows = [
+              { label:"都道府県",   value: f.prefecture || "未設定" },
+              { label:"栽培作物",   crops },
+              { label:"経営面積",   value: f.farm_area || "未設定" },
+              { label:"専業/兼業",  value: f.farming_type || "未設定" },
+              { label:"主な販売先", value: f.main_sales_channel || "未設定" },
+              { label:"登録日",     value: f.created_at ? new Date(f.created_at).toLocaleDateString("ja-JP") : "—" },
+              { label:"最終入力日", value: lastRecDate ? new Date(lastRecDate).toLocaleDateString("ja-JP") : "未入力" },
             ];
             return (
               <div key={f.id} style={{ borderRadius:12, border:"1px solid #EBEBEB", background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-                {/* ヘッダー */}
-                <div style={{ padding:"14px 16px 12px", borderBottom:"1px solid #F7F7F7", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{f.name}</p>
-                  <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
-                    <select value={f.experience_tier||"1-3"} onChange={e=>updateTier(f.id,e.target.value)} style={{
-                      padding:"5px 9px", border:"1px solid #EBEBEB", borderRadius:8, fontSize:11, background:"#fff", cursor:"pointer", fontFamily:"inherit", color:"#717171",
-                    }}>
-                      {TIERS.map(t=><option key={t} value={t}>{t}年</option>)}
-                    </select>
-                    <DangerBtn onClick={()=>deleteFarmer(f)}>削除</DangerBtn>
+                {/* 閉じた状態 — タップで展開 */}
+                <div
+                  onClick={() => setExpandedFarmer(isOpen ? null : f.id)}
+                  style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", cursor:"pointer", userSelect:"none" }}
+                >
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{f.name}</p>
+                    <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"2px 0 0" }}>{f.email}</p>
                   </div>
+                  <span style={{
+                    padding:"3px 9px", borderRadius:8, fontSize:10, fontWeight:700, flexShrink:0, whiteSpace:"nowrap",
+                    background:"#E6F7EF", color:"#00A86B",
+                  }}>{tier}年</span>
+                  <span style={{ color:"#B0B0B0", fontSize:11, flexShrink:0 }}>{isOpen ? "▲" : "▼"}</span>
                 </div>
-                {/* フィールド一覧 */}
-                <div style={{ padding:"8px 16px 12px" }}>
-                  {rows.map(({ label, value, crops: rowCrops }) => (
-                    <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"5px 0", borderBottom:"1px solid #F7F7F7" }}>
-                      <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:88, flexShrink:0 }}>{label}</span>
-                      {rowCrops !== undefined ? (
-                        <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                          {rowCrops.length > 0
-                            ? rowCrops.map(c => (
-                                <span key={c} style={{ padding:"2px 8px", borderRadius:8, background:"#E6F7EF", color:"#00A86B", fontSize:11, fontWeight:600 }}>{c}</span>
-                              ))
-                            : <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>未設定</span>
-                          }
-                        </div>
-                      ) : (
-                        <span className="f-sans" style={{ fontSize:12, color:"#222" }}>{value}</span>
-                      )}
+
+                {/* 展開コンテンツ */}
+                <div style={{ overflow:"hidden", maxHeight: isOpen ? "600px" : "0", transition:"max-height 0.3s ease" }}>
+                  <div style={{ padding:"2px 16px 14px", borderTop:"1px solid #F7F7F7" }}>
+                    {detailRows.map(({ label, value, crops: rowCrops }) => (
+                      <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"6px 0", borderBottom:"1px solid #F7F7F7" }}>
+                        <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", minWidth:88, flexShrink:0 }}>{label}</span>
+                        {rowCrops !== undefined ? (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                            {rowCrops.length > 0
+                              ? rowCrops.map(c => (
+                                  <span key={c} style={{ padding:"2px 8px", borderRadius:8, background:"#E6F7EF", color:"#00A86B", fontSize:11, fontWeight:600 }}>{c}</span>
+                                ))
+                              : <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>未設定</span>
+                            }
+                          </div>
+                        ) : (
+                          <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{value}</span>
+                        )}
+                      </div>
+                    ))}
+                    <div style={{ display:"flex", gap:8, marginTop:12, justifyContent:"flex-end" }}>
+                      <select value={f.experience_tier||"1-3"} onChange={e=>{ e.stopPropagation(); updateTier(f.id,e.target.value); }} style={{
+                        padding:"5px 9px", border:"1px solid #EBEBEB", borderRadius:8, fontSize:11, background:"#fff", cursor:"pointer", fontFamily:"inherit", color:"#717171",
+                      }}>
+                        {TIERS.map(t=><option key={t} value={t}>{t}年</option>)}
+                      </select>
+                      <DangerBtn onClick={e=>{ e.stopPropagation(); deleteFarmer(f); }}>削除</DangerBtn>
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             );
