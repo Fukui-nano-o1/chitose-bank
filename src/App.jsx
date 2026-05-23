@@ -2569,7 +2569,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           {farmers.map(f => {
             const isOpen = expandedFarmer === f.id;
             const tier = f.experience_tier || "1-3";
-            const fRecs = records.filter(r => r.farmer_id === f.id);
+            const fRecs = records.filter(r => r.farmer_id === f.id || r.farmer_id === f.auth_id);
             const lastRecDate = fRecs.length > 0
               ? fRecs.reduce((a, b) => (a.created_at > b.created_at ? a : b)).created_at
               : null;
@@ -3181,6 +3181,23 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
     setUploading(false);
   };
 
+  const handleDeleteAvatar = async () => {
+    if (!displayUrl) return;
+    setUploading(true);
+    try {
+      const { data: files } = await supabase.storage.from('avatars').list(me.id + '/');
+      if (files && files.length > 0) {
+        const paths = files.map(f => me.id + '/' + f.name);
+        await supabase.storage.from('avatars').remove(paths);
+      }
+      try { localStorage.removeItem('avatarUrl_' + me.id); } catch {}
+      onAvatarChange("");
+    } catch (err) {
+      console.error('Avatar delete error:', err);
+    }
+    setUploading(false);
+  };
+
   const displayUrl = avatarUrl || me.avatar_url || null;
 
   return (
@@ -3224,6 +3241,19 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
                 fontSize:13, cursor:"pointer",
               }}
             >📷</button>
+            {displayUrl && (
+              <button
+                onClick={handleDeleteAvatar}
+                disabled={uploading}
+                style={{
+                  position:"absolute", bottom:2, left:2,
+                  width:28, height:28, borderRadius:"50%",
+                  background:"#E24B4A", border:"none",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:13, cursor:"pointer", color:"#fff",
+                }}
+              >🗑</button>
+            )}
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={handleFile} />
           </div>
           <p className="f-sans" style={{ fontSize:24, fontWeight:600, color:"#222", textAlign:"center", margin:0 }}>{me.name}</p>
