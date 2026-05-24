@@ -1293,6 +1293,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
   const [showAllStats, setShowAllStats] = useState(false);
   const [statSort, setStatSort] = useState("default");
   const [activeAudience, setActiveAudience] = useState(null);
+  const [selectedStatCrop, setSelectedStatCrop] = useState(null);
   const [showMarketChart, setShowMarketChart] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [visibleCrops, setVisibleCrops] = useState([]);
@@ -1541,7 +1542,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
                   s.labor_hours_per_10a != null && { label:'労働時間', value:s.labor_hours_per_10a + "時間/10a" },
                 ].filter(Boolean);
                 return (
-                  <div key={s.crop} className="ledger-card" style={{ padding:"20px 22px" }}>
+                  <div key={s.crop} className="ledger-card" onClick={() => setSelectedStatCrop(s.crop)} style={{ padding:"20px 22px", cursor:"pointer" }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:C.ink, margin:0 }}>{s.crop}</p>
@@ -2062,6 +2063,153 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
               </div>
               <div style={{ padding:"24px 28px 32px" }}>
                 {content.body}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══ 公的統計モーダル ══════════════════════════════ */}
+      {selectedStatCrop && (() => {
+        const cropStats = enrichedStats.filter(s => s.crop === selectedStatCrop).sort((a,b) => a.year - b.year);
+        if (cropStats.length === 0) return null;
+
+        const latest = cropStats[cropStats.length - 1];
+        const years = cropStats.map(s => s.year);
+        const hasMultiYear = cropStats.length > 1;
+
+        const metrics = [
+          { key:"acreage_ha",          label:"作付面積",   unit:"ha",       color:"#00A86B" },
+          { key:"harvest_t",           label:"収穫量",     unit:"t",        color:"#4A90D9" },
+          { key:"yield_kg_per_10a",    label:"10a収量",    unit:"kg",       color:"#F5A623" },
+          { key:"labor_hours_per_10a", label:"労働時間",   unit:"時間/10a", color:"#E85D5D" },
+        ].filter(m => cropStats.some(s => s[m.key] != null));
+
+        const fmtVal = (v, unit) => {
+          if (v == null) return "—";
+          if (unit === "ha" || unit === "t") {
+            if (v >= 10000) return (v / 10000).toFixed(1) + "万";
+          }
+          return Math.round(v).toLocaleString("ja-JP");
+        };
+
+        const MiniChart = ({ data, color }) => {
+          if (data.length < 2) return null;
+          const vals = data.map(d => d.val).filter(v => v != null);
+          if (vals.length < 2) return null;
+          const min = Math.min(...vals), max = Math.max(...vals);
+          const range = max - min || 1;
+          const w = 200, h = 60, pad = 4;
+          const pts = data
+            .filter(d => d.val != null)
+            .map((d, i, arr) => {
+              const x = pad + (i / (arr.length - 1)) * (w - pad * 2);
+              const y = pad + (1 - (d.val - min) / range) * (h - pad * 2);
+              return x + "," + y;
+            }).join(" ");
+          return (
+            <svg viewBox={"0 0 " + w + " " + h} style={{ width:"100%", height:60, display:"block" }}>
+              <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+              {data.filter(d => d.val != null).map((d, i, arr) => {
+                const x = pad + (i / (arr.length - 1)) * (w - pad * 2);
+                const y = pad + (1 - (d.val - min) / range) * (h - pad * 2);
+                return <circle key={i} cx={x} cy={y} r="3" fill={color} stroke="#fff" strokeWidth="1.5"/>;
+              })}
+            </svg>
+          );
+        };
+
+        return (
+          <div
+            onClick={() => setSelectedStatCrop(null)}
+            style={{
+              position:"fixed", inset:0, zIndex:9000,
+              background:"rgba(0,0,0,0.5)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              padding:16, animation:"fadeIn .2s ease",
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              className="appear"
+              style={{
+                background:"#fff", borderRadius:20,
+                maxWidth:520, width:"100%",
+                maxHeight:"85vh", overflowY:"auto",
+                boxShadow:"0 12px 48px rgba(0,0,0,0.15)",
+              }}
+            >
+              <div style={{
+                padding:"24px 28px 16px",
+                borderBottom:"1px solid #EBEBEB",
+                position:"relative",
+              }}>
+                <button
+                  onClick={() => setSelectedStatCrop(null)}
+                  style={{
+                    position:"absolute", top:16, right:16,
+                    width:32, height:32, borderRadius:"50%",
+                    background:"#F7F7F7", border:"none",
+                    fontSize:16, cursor:"pointer",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}
+                >✕</button>
+                <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 4px" }}>
+                  {selectedStatCrop}
+                </h2>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>
+                  {years[0]}〜{years[years.length - 1]}年 · 出典：農水省 作物統計調査
+                </p>
+              </div>
+
+              <div style={{ padding:"20px 28px 28px" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:10, marginBottom:24 }}>
+                  {metrics.map(m => (
+                    <div key={m.key} style={{
+                      padding:"14px 16px", background:"#F7F7F7",
+                      borderRadius:12, borderLeft:"3px solid " + m.color,
+                    }}>
+                      <p className="f-sans" style={{ fontSize:10, color:"#717171", marginBottom:4 }}>{m.label}</p>
+                      <p className="f-mono" style={{ fontSize:18, fontWeight:700, color:"#222", margin:0 }}>
+                        {fmtVal(latest[m.key], m.unit)}
+                      </p>
+                      <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:0 }}>{m.unit}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {hasMultiYear && (
+                  <div style={{ display:"grid", gap:20 }}>
+                    {metrics.map(m => {
+                      const data = cropStats.map(s => ({ year: s.year, val: s[m.key] }));
+                      if (data.every(d => d.val == null)) return null;
+                      return (
+                        <div key={m.key}>
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:6 }}>
+                            <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:m.color, margin:0 }}>{m.label}</p>
+                            <div className="f-sans" style={{ display:"flex", gap:8, fontSize:9, color:"#B0B0B0" }}>
+                              {data.filter(d => d.val != null).map(d => (
+                                <span key={d.year}>{d.year}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <MiniChart data={data} color={m.color} />
+                          <div className="f-mono" style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#717171", marginTop:4 }}>
+                            {data.filter(d => d.val != null).map(d => (
+                              <span key={d.year}>{fmtVal(d.val, m.unit)}</span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {!hasMultiYear && (
+                  <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"20px 0" }}>
+                    複数年のデータが蓄積されるとグラフが表示されます
+                  </p>
+                )}
               </div>
             </div>
           </div>
