@@ -1373,6 +1373,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
   const hasNoData = filteredCropCards.length === 0 && filteredDestCards.length === 0;
 
   const lastUpdated = new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"2-digit", day:"2-digit" });
+  const regions = [...new Set(farmers.map(f => f.municipality).filter(Boolean))];
+  const regionText = regions.length > 0 ? "（" + regions.slice(0,3).join("・") + "）" : "";
   const MIN_FARMERS = 5;
 
   return (
@@ -1652,7 +1654,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
         display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8,
       }}>
         <span className="f-sans" style={{ fontSize:13, color:C.ink }}>
-          現在 <strong style={{ color:C.bamboo }}>{farmers.length}</strong> 名の農家が参加中
+          現在 <strong style={{ color:C.bamboo }}>{farmers.length}</strong> 名の農家が参加中{regionText}
         </span>
         <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>最終更新 {lastUpdated}</span>
       </div>
@@ -2713,6 +2715,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             const crops = Array.isArray(f.planned_crops) ? f.planned_crops : [];
             const detailRows = [
               { label:"都道府県",   value: f.prefecture || "未設定" },
+              { label:"市区町村",   value: f.municipality || "未設定" },
               { label:"栽培作物",   crops },
               { label:"登録日",     value: f.created_at ? new Date(f.created_at).toLocaleDateString("ja-JP") : "—" },
               { label:"最終入力日", value: lastRecDate ? new Date(lastRecDate).toLocaleDateString("ja-JP") : "未入力" },
@@ -2968,11 +2971,12 @@ const OB_SALES_CHANNELS = [
 ];
 
 function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
-  const totalSteps = 7;
+  const totalSteps = 8;
   const [obStep, setObStep] = useState(1);
-  const [obName,        setObName]        = useState(me.name || "");
-  const [obPrefecture,  setObPrefecture]  = useState(me.prefecture || "");
-  const [obTier,        setObTier]        = useState(me.experience_tier || "");
+  const [obName,         setObName]         = useState(me.name || "");
+  const [obPrefecture,   setObPrefecture]   = useState(me.prefecture || "");
+  const [obMunicipality, setObMunicipality] = useState(me.municipality || "");
+  const [obTier,         setObTier]         = useState(me.experience_tier || "");
   const [obFarmingType, setObFarmingType] = useState(localStorage.getItem('ob_farming_type') || "");
   const [obArea,        setObArea]        = useState(localStorage.getItem('ob_area_tan') || "");
   const [obCrops,       setObCrops]       = useState(me.planned_crops || []);
@@ -2989,7 +2993,7 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
     });
   }, []);
 
-  const canGoNext = [null, !!obName.trim(), !!obPrefecture, !!obTier, !!obFarmingType, true, true, true][obStep] ?? true;
+  const canGoNext = [null, !!obName.trim(), !!obPrefecture, true, !!obTier, !!obFarmingType, true, true, true][obStep] ?? true;
 
   const goNext = () => { if (obStep < totalSteps) setObStep(s => s + 1); else handleSubmit(); };
   const goBack = () => setObStep(s => s - 1);
@@ -3024,6 +3028,7 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
     const { error } = await supabase.from('farmers').update({
       name: obName.trim(),
       prefecture: obPrefecture,
+      municipality: obMunicipality.trim(),
       experience_tier: obTier,
       planned_crops: obCrops,
     }).eq('auth_id', me.id);
@@ -3031,7 +3036,7 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
       localStorage.setItem('ob_farming_type', obFarmingType);
       localStorage.setItem('ob_area_tan', obArea);
       localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels));
-      await onComplete({ name: obName.trim(), prefecture: obPrefecture, experience_tier: obTier, planned_crops: obCrops });
+      await onComplete({ name: obName.trim(), prefecture: obPrefecture, municipality: obMunicipality.trim(), experience_tier: obTier, planned_crops: obCrops });
     }
     setSaving(false);
   };
@@ -3079,7 +3084,25 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
       ))}
     </div>,
 
-    // 3: 就農歴
+    // 3: 市町村
+    <div style={{ marginTop:32 }}>
+      <input
+        type="text" placeholder="例：吉野川市山川町" value={obMunicipality} autoFocus
+        onChange={e => setObMunicipality(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && goNext()}
+        style={{
+          width:"100%", fontSize:20, textAlign:"center",
+          border:"none", borderBottom:`2px solid ${C.ink}`,
+          outline:"none", padding:"12px 0", background:"transparent",
+          color:C.ink, fontFamily:"'Noto Sans JP',sans-serif",
+        }}
+      />
+      <p className="f-sans" style={{ fontSize:12, color:C.ghost, marginTop:16, textAlign:"center" }}>
+        地域の経営指標をより正確に参照できます
+      </p>
+    </div>,
+
+    // 4: 就農歴
     <div style={{ marginTop:24 }}>
       {[
         { label:"まだ始めていない（未就農）", value:"0" },
@@ -3179,6 +3202,11 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
       title:"どちらにお住まいですか？",
       sub:"地域の経営指標を参照します",
       desc:"お住まいの地域の経営指標を自動で参照します。より正確な五年計画書を作成できます。",
+    },
+    {
+      title:"市区町村を教えてください",
+      sub:"地域の経営データに活用します",
+      desc:"同じ地域の農家同士で経営データを比較できます。例：吉野川市、阿南市、美馬市など。",
     },
     {
       title:"農業の経験は？",
@@ -3400,7 +3428,8 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
         {/* 情報カード */}
         <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:20, marginBottom:16 }}>
           {[
-            { icon:"📍", label:"都道府県",   value: me.prefecture || "未設定" },
+            { icon:"🗾", label:"都道府県",   value: me.prefecture || "未設定" },
+            { icon:"📍", label:"市区町村",   value: me.municipality || "未設定" },
             { icon:"📅", label:"就農歴",     value: TIER_LABELS[me.experience_tier] || "未設定" },
             { icon:"🏠", label:"専業/兼業",  value: farmType === "fulltime" ? "専業農家" : farmType === "parttime" ? "兼業農家" : "未設定" },
             { icon:"📐", label:"経営面積",   value: areaTan ? areaTan + " 反" : "未設定" },
@@ -3552,7 +3581,7 @@ export default function App(){
       await sSet("yw_pres_v3",true);
     }
   　const { data: dbFarmers } = await supabase.from('farmers').select('*');
-    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year, prefecture: fr.prefecture || "", planned_crops: fr.planned_crops || [], experience_tier: fr.experience_tier || "" })) : [];
+    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year, prefecture: fr.prefecture || "", municipality: fr.municipality || "", planned_crops: fr.planned_crops || [], experience_tier: fr.experience_tier || "" })) : [];
     const fp=await sGet("yw_farmers_pend")||[];
     const { data: dbDestsOk } = await supabase.from('dests').select('*').eq('status', 'approved');
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
@@ -3600,7 +3629,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const completeOnboarding=useCallback(async(updates)=>{
     const{data:dbFarmers}=await supabase.from('farmers').select('*');
     if(dbFarmers){
-      const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",planned_crops:fr.planned_crops||[],experience_tier:fr.experience_tier||""}));
+      const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",municipality:fr.municipality||"",planned_crops:fr.planned_crops||[],experience_tier:fr.experience_tier||""}));
       setFarmers(f);
       setMe(prev=>{
         const updated=f.find(x=>x.id===prev?.id);
