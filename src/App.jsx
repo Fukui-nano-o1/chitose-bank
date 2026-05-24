@@ -1378,59 +1378,61 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
   return (
     <div className="appear">
 
-      {/* ══ HERO ══════════════════════════════════════════ */}
-      <div style={{
-        background:"#fff", border:"1px solid #EBEBEB", borderRadius:16,
-        padding:"48px 40px 40px", marginBottom:24,
-        position:"relative", overflow:"hidden",
-        boxShadow:"0 2px 16px rgba(0,0,0,0.06)",
-      }}>
-        <div style={{ position:"relative", zIndex:1 }}>
-          <div className="f-sans" style={{ fontSize:9, letterSpacing:".2em", color:C.dim, textTransform:"uppercase", marginBottom:16 }}>
-            吉野川 · {farmers.length}農家が参加中
-          </div>
-          <h1 className="f-sans" style={{ fontSize:28, fontWeight:800, color:C.ink, lineHeight:1.4, letterSpacing:".02em", margin:"0 0 12px" }}>
-            五年計画書を、10分で作れる。
-          </h1>
-          <p className="f-sans" style={{ fontSize:15, color:C.mid, lineHeight:1.9, marginBottom:8 }}>
-            売上と経費を入力するだけ。<br/>
-            JA融資で使える収支計画書がPDFで出力できます。
-          </p>
-          <p className="f-sans" style={{ fontSize:13, color:C.ghost, lineHeight:1.8, marginBottom:28 }}>
-            他の農家の経費率と比較して、自分の経営を見直せます。
-          </p>
-          <div className="hero-cta" style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-            <button onClick={onLogin} className="btn-primary" style={{ padding:"14px 32px", fontSize:14, borderRadius:12 }}>
-              無料で始める（10秒）
+      {/* ══ 対象者別導線 ══════════════════════════════════ */}
+      <div style={{ marginBottom:28 }}>
+        <div style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",
+          gap:12,
+        }}>
+          {[
+            { id:"for-institutions", icon:"🏛", title:"JA・支援センターの方へ",   desc:"融資審査に必要な収支計画書を標準化。確認負担を減らします。",           color:"#1A5E5E", bg:"#E8F5F0" },
+            { id:"for-newcomers",    icon:"🌱", title:"新規就農者の方へ",           desc:"何から始めるか分からなくても、10分で五年計画書が作れます。",           color:"#00A86B", bg:"#E6F7EF" },
+            { id:"for-veterans",     icon:"🌾", title:"ベテラン・中堅農家の方へ",   desc:"あなたの経費データが地域の基準になります。",                           color:"#B87A1A", bg:"#FEF3E2" },
+            { id:"for-non-farmers",  icon:"👀", title:"これから農業を始める方へ",   desc:"就農前にリアルな経費・収支データを見て判断できます。",                 color:"#4A90D9", bg:"#EBF3FC" },
+          ].map(card => (
+            <button
+              key={card.id}
+              onClick={() => {
+                const el = document.getElementById(card.id);
+                if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+              }}
+              style={{
+                padding:"22px 20px", background:card.bg,
+                border:"1px solid " + card.color + "22",
+                borderRadius:16, cursor:"pointer",
+                textAlign:"left", display:"block",
+                transition:"transform .15s, box-shadow .15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)";    e.currentTarget.style.boxShadow="none"; }}
+            >
+              <div style={{ fontSize:28, marginBottom:10 }}>{card.icon}</div>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:card.color, marginBottom:6 }}>{card.title}</p>
+              <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7 }}>{card.desc}</p>
             </button>
-            <button onClick={() => {
-              const el = document.getElementById('public-stats-section');
-              if (el) el.scrollIntoView({ behavior:'smooth' });
-            }} className="btn-outline" style={{ padding:"13px 24px", fontSize:13, borderRadius:12 }}>
-              公開データを見る ↓
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* ══ 不安除去ブロック ══════════════════════════════ */}
+      {/* ══ 不安除去ピル ══════════════════════════════════ */}
       <div style={{
-        display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))",
-        gap:12, marginBottom:24,
+        display:"flex", gap:16, overflowX:"auto", paddingBottom:8,
+        marginBottom:24, WebkitOverflowScrolling:"touch",
       }}>
         {[
-          { icon:"🔒", title:"個人名は非公開",     desc:"公開されるのは地域・品目単位の集計値だけです" },
-          { icon:"📊", title:"ランキングしない",    desc:"農家を評価・格付けする目的では使いません" },
-          { icon:"📄", title:"融資資料になる",      desc:"JA・支援センター向けの五年計画書をPDF出力" },
-          { icon:"🤝", title:"本人の同意が前提",    desc:"個別データは同意なく第三者に共有しません" },
+          { icon:"🔒", text:"個人名は非公開" },
+          { icon:"📊", text:"ランキングしない" },
+          { icon:"📄", text:"融資資料になる" },
+          { icon:"🤝", text:"同意なく共有しない" },
         ].map(item => (
-          <div key={item.title} style={{
-            padding:"20px 18px", background:"#F7F7F7",
-            border:"1px solid #EBEBEB", borderRadius:12,
+          <div key={item.text} style={{
+            flexShrink:0, display:"flex", alignItems:"center", gap:8,
+            padding:"10px 16px", background:"#F7F7F7",
+            border:"1px solid #EBEBEB", borderRadius:20,
           }}>
-            <div style={{ fontSize:24, marginBottom:10 }}>{item.icon}</div>
-            <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:6 }}>{item.title}</p>
-            <p className="f-sans" style={{ fontSize:11, color:C.mid, lineHeight:1.7 }}>{item.desc}</p>
+            <span style={{ fontSize:16 }}>{item.icon}</span>
+            <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:500, whiteSpace:"nowrap" }}>{item.text}</span>
           </div>
         ))}
       </div>
@@ -1768,6 +1770,114 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
           }}>無料で登録する（10秒）</button>
         </div>
       )}
+
+      {/* ══ JA・支援センター向け ══════════════════════════ */}
+      <div id="for-institutions" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
+        <div style={{ background:"#E8F5F0", border:"1px solid #1A5E5E22", borderRadius:16, padding:"32px 28px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+            <span style={{ fontSize:28 }}>🏛</span>
+            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#1A5E5E", margin:0 }}>JA・支援センターの方へ</h2>
+          </div>
+          <div style={{ display:"grid", gap:20, marginBottom:24 }}>
+            <div>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:6 }}>課題</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8 }}>
+                新規就農者の融資審査で、収支計画書の作成指導に時間がかかる。<br/>
+                提出される計画書のフォーマットがバラバラで、確認作業が非効率。
+              </p>
+            </div>
+            <div>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:6 }}>このサービスで解決できること</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8 }}>
+                農家が売上・経費を入力するだけで、JA融資審査フォーマットの五年計画書がPDF出力されます。<br/>
+                公的統計データ（作付面積・収穫量・10a収量）が自動で参照され、保守的な数値が入ります。<br/>
+                収支計画書のフォーマットが統一されるため、確認負担が軽減されます。
+              </p>
+            </div>
+          </div>
+          <button onClick={onLogin} className="btn-primary" style={{ padding:"13px 28px", fontSize:13 }}>
+            導入について相談する →
+          </button>
+        </div>
+      </div>
+
+      {/* ══ 新規就農者向け ═══════════════════════════════ */}
+      <div id="for-newcomers" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
+        <div style={{ background:"#E6F7EF", border:"1px solid #00A86B22", borderRadius:16, padding:"32px 28px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+            <span style={{ fontSize:28 }}>🌱</span>
+            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#00A86B", margin:0 }}>新規就農者の方へ</h2>
+          </div>
+          <div style={{ display:"grid", gap:16, marginBottom:24 }}>
+            {[
+              { n:"1", title:"作物と出荷先を選ぶ",       desc:"栽培予定の作物を選び、出荷先を登録します。" },
+              { n:"2", title:"売上と経費を月ごとに入力",  desc:"出荷箱数と単価、経費項目を入れるだけ。1回3分。" },
+              { n:"3", title:"五年計画書をPDF出力",       desc:"JA融資に使える収支計画書が自動生成されます。支援センターにそのまま提出可能。" },
+            ].map(({ n, title, desc }) => (
+              <div key={n} style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+                <span className="f-mono" style={{ fontSize:20, fontWeight:700, color:"#00A86B", flexShrink:0 }}>{n}</span>
+                <div>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{title}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={onLogin} className="btn-primary" style={{ padding:"13px 28px", fontSize:13 }}>
+            無料で始める →
+          </button>
+        </div>
+      </div>
+
+      {/* ══ ベテラン・中堅農家向け ═══════════════════════ */}
+      <div id="for-veterans" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
+        <div style={{ background:"#FEF3E2", border:"1px solid #B87A1A22", borderRadius:16, padding:"32px 28px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+            <span style={{ fontSize:28 }}>🌾</span>
+            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#B87A1A", margin:0 }}>ベテラン・中堅農家の方へ</h2>
+          </div>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:20 }}>
+            あなたが入力した経費データは、匿名で集計され、地域の経営基準になります。<br/>
+            新規就農者が参考にする数字を、現場の経験者が作る。<br/>
+            それが吉野川の農業を強くします。
+          </p>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
+            貢献者として継続入力すると、他の農家の集計データや出荷先別の採算比較が利用できます。
+          </p>
+          <button onClick={onLogin} className="btn-primary" style={{ padding:"13px 28px", fontSize:13, background:"#B87A1A" }}>
+            データを入力する →
+          </button>
+        </div>
+      </div>
+
+      {/* ══ これから農業を始める方へ ══════════════════════ */}
+      <div id="for-non-farmers" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
+        <div style={{ background:"#EBF3FC", border:"1px solid #4A90D922", borderRadius:16, padding:"32px 28px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+            <span style={{ fontSize:28 }}>👀</span>
+            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#4A90D9", margin:0 }}>これから農業を始める方へ</h2>
+          </div>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:20 }}>
+            就農する前に、リアルな数字を見てください。<br/>
+            作物ごとの作付面積・収穫量・労働時間。農家が実際に入力した経費率。<br/>
+            「思っていたのと違った」を減らすために、このデータがあります。
+          </p>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
+            登録は無料。公的統計データは登録なしでも閲覧できます。
+          </p>
+          <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+            <button onClick={() => {
+              const el = document.getElementById('public-stats-section');
+              if (el) el.scrollIntoView({ behavior:'smooth' });
+            }} className="btn-outline" style={{ padding:"12px 24px", fontSize:13 }}>
+              公開データを見る ↓
+            </button>
+            <button onClick={onLogin} className="btn-primary" style={{ padding:"13px 28px", fontSize:13, background:"#4A90D9" }}>
+              無料で登録する →
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* ══ 注記 ════════════════════════════════════════ */}
       <div style={{ marginTop:8, padding:"12px 18px", borderTop:`1px solid ${C.rule}` }}>
