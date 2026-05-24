@@ -3904,6 +3904,49 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
   );
 }
 
+// ── PrivacyPolicy ────────────────────────────────────────────
+function PrivacyPolicy({ onClose }) {
+  const sections = [
+    { title:"1. 運営者・サービス概要", body:["日本農業研究所（以下「当研究所」）は、chitose-bank（以下「本サービス」）を運営し、農業経営データの記録・集計・資料作成支援を提供します。","本ポリシーは、本サービスが取得する情報の取り扱いについて定めます。"] },
+    { title:"2. 取得する情報", body:["本サービスは、登録時に、氏名、メールアドレス、都道府県、市区町村、就農歴、専業兼業の別、経営面積、栽培作物、販売先分類等を取得します。","利用中に、売上データ（出荷箱数・単価）、経費データ（項目・金額）、出荷先情報、五年計画書の入力内容、プロフィール画像等を取得します。","また、アクセス日時、利用端末情報、操作ログ等を自動的に取得する場合があります。","今後、伝票写真のアップロード機能およびAI読取機能を追加する場合があります。その際は、本ポリシーを更新し、利用者に通知します。"] },
+    { title:"3. 利用目的", body:["取得した情報は、利用者本人の経営記録の作成・表示、売上・経費データの本人確認・修正、重複・異常値・不正投稿の確認、個人が特定されにくいよう加工した集計データの作成、集計データのサイト上での表示、五年計画書の作成支援・PDF出力、サービスの改善・品質向上、将来の農業人材マッチング機能における貢献者特典の算定のために利用します。","利用目的を追加する場合は、利用者に通知し、必要に応じて同意を得ます。"] },
+    { title:"4. 公開範囲", body:["本サービスが公開するデータは、個人、個別農家、個別取引、個別販売先が特定されにくいよう加工した、地域・品目・期間単位の集計値に限ります。","氏名、住所、電話番号、口座番号、振込先、個別農家の売上・経費・利益・出荷量、販売先名・業者名・担当者名、アップロードされた画像・証憑資料は公開しません。","集計データは、原則として5農家以上のデータが集まるまで表示しません。5農家以上であっても、地域・品目等の組み合わせから個別農家が推定されるおそれがある場合は、表示しない、または地域・期間を広げる措置を行います。"] },
+    { title:"5. 第三者提供", body:["当研究所は、利用者の個人データを、本人の同意なく第三者に提供しません。ただし、法令に基づく場合、人の生命・身体・財産の保護のために必要な場合を除きます。","利用者本人がPDF等をダウンロードし、金融機関・支援センター等に自ら提出する場合、当研究所による第三者提供には該当しません。","当研究所が、利用者に代わってJA、金融機関、行政機関、支援センター等へ個別データまたは個別レポートを提供する場合は、その都度、利用者本人の明示的な同意を得ます。"] },
+    { title:"6. 外部サービス・委託先の利用", body:["本サービスは、認証、データ保存、メール送信、AI読取、保守運用等のため、必要な範囲で外部サービスまたは委託先を利用する場合があります。","この場合、当研究所は、委託先に対して必要かつ適切な監督を行い、利用目的の達成に必要な範囲を超えて情報を取り扱わせないよう努めます。"] },
+    { title:"7. 安全管理", body:["当研究所は、取得した情報の漏えい、滅失、毀損を防ぐため、アクセス権限の制限、管理者操作ログの記録、通信の暗号化（HTTPS）、パスワードを保存しない認証方式（メールOTP）、管理画面へのアクセス制限、データベース・ストレージの権限管理等の措置を講じます。","個人情報、原本資料、個別収支、取引情報の漏えい、誤公開、不正閲覧のおそれがある場合は、速やかに公開停止、影響範囲確認、本人通知、必要な報告、再発防止を行います。"] },
+    { title:"8. 保存期間", body:["利用者の経営記録は、利用中は保存します。退会後は、原則1か月以内に個人との紐づけを削除または解除します。","未確認の入力データは、30日以内に確定・修正・削除します。","操作ログは、3年を目安に保存します。","退会後の同意履歴・削除履歴については、法令対応・不正防止の目的で、最小限の記録を目的と期間を限定して保存する場合があります。"] },
+    { title:"9. 利用者の権利", body:["利用者は、自己のデータの開示、訂正、削除、利用停止を請求できます。","請求は、本サービスのプロフィール画面の退会機能、または本ポリシー記載の問い合わせ先への連絡により行うことができます。"] },
+    { title:"10. Cookieおよびローカルストレージ", body:["本サービスは、利用者の利便性向上のため、Cookieおよびブラウザのローカルストレージを使用する場合があります。認証情報の保持、入力内容の一時保存等に利用します。","Cookieまたはローカルストレージを無効化・削除した場合、一部機能が正常に動作しない場合があります。"] },
+    { title:"11. 当サービスについて", body:["本サービス（chitose-bank）は銀行ではありません。預金、融資実行、為替取引、金融商品の販売は行いません。農業経営データの記録・集計・資料作成支援を目的とする情報サービスです。","表示されるデータ、集計値、シミュレーション、資料出力は、農業経営の判断を補助するための参考情報です。融資採択、補助金採択、収益改善を保証するものではありません。"] },
+    { title:"12. お問い合わせ", body:["個人情報の取り扱いに関するお問い合わせ：t5fki6643qty@gmail.com"] },
+    { title:"13. 改定", body:["本ポリシーは、サービスの発展・法令の改正に伴い改定する場合があります。重要な変更がある場合は、サイト上で利用者に通知します。"] },
+  ];
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:"#fff", borderRadius:20, maxWidth:640, width:"100%", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.15)" }}>
+        <div style={{ padding:"28px 28px 16px", borderBottom:"1px solid #EBEBEB", position:"sticky", top:0, background:"#fff", borderRadius:"20px 20px 0 0", zIndex:1 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>プライバシーポリシー</h2>
+            <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", background:"#F7F7F7", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+          </div>
+          <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>日本農業研究所（chitose-bank） · 最終更新日：2026年5月25日</p>
+        </div>
+        <div style={{ padding:"24px 28px 36px" }}>
+          {sections.map((s, i) => (
+            <div key={i} style={{ marginBottom:24 }}>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>{s.title}</p>
+              {s.body.map((p, j) => (
+                <p key={j} className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:8 }}>{p}</p>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── DataConstitution ─────────────────────────────────────────
 function DataConstitution({ onClose }) {
   const articles = [
@@ -4196,6 +4239,7 @@ export default function App(){
   const [authV,setAuthV]=useState("login");
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
+  const [showPrivacy,setShowPrivacy]=useState(false);
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [obModalKey,setObModalKey]=useState(0);
   const [notifs,setNotifs]=useState([]);
@@ -4628,10 +4672,15 @@ const subDest=useCallback(async d=>{
             fontSize:11,color:"#717171",background:"none",border:"none",
             cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,padding:0,
           }}>データ憲法</button>
+          <button onClick={()=>setShowPrivacy(true)} style={{
+            fontSize:11,color:"#717171",background:"none",border:"none",
+            cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,padding:0,
+          }}>プライバシーポリシー</button>
         </div>
       </footer>
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
       {showConstitution&&<DataConstitution onClose={()=>setShowConstitution(false)}/>}
+      {showPrivacy&&<PrivacyPolicy onClose={()=>setShowPrivacy(false)}/>}
       {me&&((!me.name?.trim()||!me.prefecture)||showOnboarding)&&(
         <OnboardingModal
           key={obModalKey}
