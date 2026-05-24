@@ -1445,10 +1445,9 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
 
       {/* ══ 公的統計 ════════════════════════════════════ */}
       {(() => {
-        const fmtHarvest = t => t >= 10000 ? `${(t / 10000).toFixed(1)}万t` : `${t.toLocaleString('ja-JP')}t`;
-        const fmtAcreage = h => h >= 10000 ? `${(h / 10000).toFixed(1)}万ha` : `${h.toLocaleString('ja-JP')}ha`;
+        const fmtHarvest = t => t >= 10000 ? (t / 10000).toFixed(1) + "万t" : t.toLocaleString('ja-JP') + "t";
+        const fmtAcreage = h => h >= 10000 ? (h / 10000).toFixed(1) + "万ha" : h.toLocaleString('ja-JP') + "ha";
 
-        // crop別に最新年のデータを抽出（enrichedStats使用）
         const byCrop = {};
         enrichedStats.forEach(s => {
           if (!byCrop[s.crop] || s.year > byCrop[s.crop].year) byCrop[s.crop] = s;
@@ -1457,6 +1456,15 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
         const filtered = selectedCrop === 'すべて'
           ? Object.values(byCrop)
           : Object.values(byCrop).filter(s => s.crop === selectedCrop);
+
+        const getComment = (s) => {
+          const labor = s.labor_hours_per_10a;
+          if (!labor) return null;
+          if (labor >= 400) return "労働集約型。人手の確保が重要";
+          if (labor >= 200) return "労働時間が多め。計画的な作業管理が必要";
+          if (labor >= 100) return "標準的な労働時間";
+          return "比較的省力。初心者にも取り組みやすい";
+        };
 
         if (enrichedStats.length === 0) {
           return (
@@ -1469,37 +1477,55 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
 
         return (
           <div id="public-stats-section" style={{ marginBottom: 24 }}>
-            <h2 className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 12, letterSpacing: '.04em' }}>
-              公的統計（作物統計調査）
-            </h2>
-            <Carousel
-              className="carousel-scroll"
-              style={{ display:'flex', gap:16, overflowX:'auto', paddingBottom:8, WebkitOverflowScrolling:'touch' }}
-            >
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:16 }}>
+              <h2 className="f-sans" style={{ fontSize:15, fontWeight:700, color:C.ink, letterSpacing:'.03em', margin:0 }}>
+                公的統計（作物統計調査）
+              </h2>
+              <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>{filtered.length}品目</span>
+            </div>
+            <div style={{
+              display:"grid",
+              gridTemplateColumns:"repeat(auto-fill, minmax(260px, 1fr))",
+              gap:12,
+            }}>
               {filtered.map(s => {
+                const comment = getComment(s);
                 const statRows = [
-                  s.acreage_ha          != null && { label: '作付面積',      value: fmtAcreage(s.acreage_ha) },
-                  s.harvest_t           != null && { label: '収穫量',        value: fmtHarvest(s.harvest_t) },
-                  s.yield_kg_per_10a    != null && { label: '10a収量',       value: `${s.yield_kg_per_10a.toLocaleString('ja-JP')}kg` },
-                  s.labor_hours_per_10a != null && { label: '労働時間',      value: `${s.labor_hours_per_10a}時間/10a` },
+                  s.acreage_ha          != null && { label:'作付面積', value:fmtAcreage(s.acreage_ha) },
+                  s.harvest_t           != null && { label:'収穫量',   value:fmtHarvest(s.harvest_t) },
+                  s.yield_kg_per_10a    != null && { label:'10a収量',  value:s.yield_kg_per_10a.toLocaleString('ja-JP') + "kg" },
+                  s.labor_hours_per_10a != null && { label:'労働時間', value:s.labor_hours_per_10a + "時間/10a" },
                 ].filter(Boolean);
                 return (
-                  <div key={s.crop} style={{ flex:'0 0 280px', background:'#fff', borderRadius:16, padding:'18px 20px', border:`1px solid ${C.rule}` }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
-                      <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:C.ink, margin:0 }}>{s.crop}</p>
+                  <div key={s.crop} className="ledger-card" style={{ padding:"20px 22px" }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+                      <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:C.ink, margin:0 }}>{s.crop}</p>
                       <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>{s.year}年産</span>
                     </div>
                     {statRows.map(r => (
-                      <div key={r.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-                        <span className="f-sans" style={{ fontSize:11, color:C.mid }}>{r.label}</span>
-                        <span className="f-mono" style={{ fontSize:12, fontWeight:600, color:C.ink }}>{r.value}</span>
+                      <div key={r.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+                        <span className="f-sans" style={{ fontSize:12, color:C.mid }}>{r.label}</span>
+                        <span className="f-mono" style={{ fontSize:13, fontWeight:600, color:C.ink }}>{r.value}</span>
                       </div>
                     ))}
-                    <p className="f-sans" style={{ fontSize:9, color:C.ghost, marginTop:10, lineHeight:1.6 }}>出典：農水省 作物統計調査</p>
+                    {comment && (
+                      <div style={{
+                        marginTop:10, padding:"8px 12px",
+                        background:C.bgSoft, borderRadius:8,
+                        borderLeft:"3px solid " + C.accent,
+                      }}>
+                        <p className="f-sans" style={{ fontSize:10, color:C.mid, lineHeight:1.6, margin:0 }}>
+                          💡 {comment}
+                        </p>
+                      </div>
+                    )}
+                    <p className="f-sans" style={{ fontSize:8, color:C.ghost, margin:"10px 0 0" }}>
+                      出典：農水省 作物統計調査
+                    </p>
                   </div>
                 );
               })}
-            </Carousel>
+            </div>
           </div>
         );
       })()}
