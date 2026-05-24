@@ -1290,6 +1290,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
     labor_hours_per_10a: s.labor_hours_per_10a || LABOR_HOURS[s.crop] || null,
   }));
 
+  const [showAllStats, setShowAllStats] = useState(false);
   const [showMarketChart, setShowMarketChart] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [visibleCrops, setVisibleCrops] = useState([]);
@@ -1488,7 +1489,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
               gridTemplateColumns:"repeat(auto-fill, minmax(260px, 1fr))",
               gap:12,
             }}>
-              {filtered.map(s => {
+              {(showAllStats ? filtered : filtered.slice(0, 5)).map(s => {
                 const comment = getComment(s);
                 const statRows = [
                   s.acreage_ha          != null && { label:'作付面積', value:fmtAcreage(s.acreage_ha) },
@@ -1526,6 +1527,33 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
                 );
               })}
             </div>
+            {filtered.length > 5 && (
+              <button
+                onClick={() => setShowAllStats(v => !v)}
+                className="f-sans"
+                style={{
+                  display:"block",
+                  width:"100%",
+                  marginTop:16,
+                  padding:"14px",
+                  background:"#fff",
+                  border:"1px solid #EBEBEB",
+                  borderRadius:12,
+                  fontSize:13,
+                  fontWeight:600,
+                  color:C.ink,
+                  cursor:"pointer",
+                  transition:"background .15s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "#F7F7F7"}
+                onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+              >
+                {showAllStats
+                  ? "閉じる ▲"
+                  : "もっと見る（残り" + (filtered.length - 5) + "品目） ▼"
+                }
+              </button>
+            )}
           </div>
         );
       })()}
