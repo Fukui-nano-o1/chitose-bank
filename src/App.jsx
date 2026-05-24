@@ -1260,7 +1260,7 @@ function Carousel({ children, style, className, wrapperStyle }) {
 }
 
 // ── BoardTab ─────────────────────────────────────────────────
-function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }) {
+function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, onGoPlan }) {
   const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
 
   const [selectedCrop, setSelectedCrop] = useState(() => {
@@ -2210,6 +2210,22 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
                     複数年のデータが蓄積されるとグラフが表示されます
                   </p>
                 )}
+
+                <div style={{
+                  marginTop:24, paddingTop:20,
+                  borderTop:"1px solid #EBEBEB",
+                  display:"grid", gap:10,
+                }}>
+                  {userLevel === 1 ? (
+                    <button onClick={() => { setSelectedStatCrop(null); onLogin(); }} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14 }}>
+                      無料で登録して詳しいデータを見る →
+                    </button>
+                  ) : (
+                    <button onClick={() => { setSelectedStatCrop(null); if(onGoPlan) onGoPlan(); }} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14 }}>
+                      この作物で五年計画書を作る →
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -4262,7 +4278,7 @@ const subDest=useCallback(async d=>{
 
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
-        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me}/>}
+        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")}/>}
         {tab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")}/>
