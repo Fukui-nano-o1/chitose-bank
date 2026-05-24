@@ -1386,11 +1386,9 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
       {userLevel === 1 && (<>
 
       {/* ══ 対象者別導線 ══════════════════════════════════ */}
-      <div style={{
-        display:"flex", gap:0, marginBottom:16,
-        borderBottom:"1px solid #EBEBEB",
-        overflowX:"auto",
-        WebkitOverflowScrolling:"touch",
+      <div className="filter-scroll" style={{
+        display:"flex", gap:8, overflowX:"auto", paddingBottom:10, marginBottom:16,
+        scrollbarWidth:"none", msOverflowStyle:"none",
       }}>
         {[
           { id:"for-institutions", label:"JA・支援センター" },
@@ -1404,19 +1402,19 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
             className="f-sans"
             style={{
               flexShrink:0,
-              padding:"12px 16px",
-              background:"transparent",
-              border:"none",
-              borderBottom:"2px solid transparent",
-              fontSize:12,
-              fontWeight:500,
-              color:"#717171",
-              cursor:"pointer",
+              padding:"8px 20px",
+              borderRadius:20,
+              fontSize:13,
+              fontWeight:400,
+              background:"#fff",
+              color:"#222",
+              border:"1px solid #EBEBEB",
               whiteSpace:"nowrap",
-              transition:"all .15s",
+              cursor:"pointer",
+              transition:"all .15s ease",
             }}
-            onMouseEnter={e => { e.currentTarget.style.color="#222"; e.currentTarget.style.borderBottomColor="#EBEBEB"; }}
-            onMouseLeave={e => { e.currentTarget.style.color="#717171"; e.currentTarget.style.borderBottomColor="transparent"; }}
+            onMouseEnter={e => { e.currentTarget.style.background="#F7F7F7"; }}
+            onMouseLeave={e => { e.currentTarget.style.background="#fff"; }}
           >
             {tab.label}
           </button>
