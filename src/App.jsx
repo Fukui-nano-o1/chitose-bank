@@ -3468,7 +3468,49 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           </div>
 
           <div style={{ marginBottom:32 }}>
-            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>6. 保存期間</h3>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>6. 利用目的分類</h3>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ borderBottom:"2px solid #EBEBEB" }}>
+                    {["目的ID","利用目的","対象","同意"].map(h => (
+                      <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontWeight:600, color:"#717171", fontSize:10, whiteSpace:"nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { id:"P1",  purpose:"本人の経営記録作成",         target:"入力データ",         consent:"必須",            bg:"#fff" },
+                    { id:"P2",  purpose:"AI読取・入力補助",           target:"証憑画像",           consent:"機能利用時",      bg:"#F7F7F7" },
+                    { id:"P3",  purpose:"本人確認・修正",             target:"未確認データ",       consent:"必須",            bg:"#fff" },
+                    { id:"P4",  purpose:"重複・不正・異常値確認",     target:"原本・入力データ",   consent:"必須",            bg:"#F7F7F7" },
+                    { id:"P5",  purpose:"貢献スコア算定",             target:"確認済みデータ",     consent:"任意または準必須", bg:"#fff" },
+                    { id:"P6",  purpose:"集計データ作成",             target:"確認済みデータ",     consent:"同意取得",        bg:"#F7F7F7" },
+                    { id:"P7",  purpose:"サイト上の集計表示",         target:"集計済みデータ",     consent:"任意",            bg:"#fff" },
+                    { id:"P8",  purpose:"支援センター・JA向け資料",   target:"本人同意済み資料",   consent:"個別同意",        bg:"#FEF3E2" },
+                    { id:"P9",  purpose:"金融機関向け資料",           target:"本人提出データ",     consent:"都度同意",        bg:"#FEF3E2" },
+                    { id:"P10", purpose:"行政・研究向け分析",         target:"加工済みデータ",     consent:"任意または別同意", bg:"#F7F7F7" },
+                    { id:"P11", purpose:"サービス改善",               target:"仮名化・集計データ中心", consent:"同意範囲内",  bg:"#fff" },
+                    { id:"P12", purpose:"将来の農業人材マッチング特典", target:"貢献スコア",       consent:"任意",            bg:"#F7F7F7" },
+                  ].map(r => (
+                    <tr key={r.id} style={{ borderBottom:"1px solid #F7F7F7", background:r.bg }}>
+                      <td style={{ padding:"10px 12px", fontWeight:700, fontFamily:"'DM Mono',monospace" }}>{r.id}</td>
+                      <td style={{ padding:"10px 12px", fontWeight:500 }}>{r.purpose}</td>
+                      <td style={{ padding:"10px 12px", color:"#717171" }}>{r.target}</td>
+                      <td style={{ padding:"10px 12px", fontWeight:600, color:r.consent==="必須"?"#E24B4A":r.consent.includes("都度")?"#F5A623":"#00A86B" }}>{r.consent}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="f-sans" style={{ fontSize:11, color:"#717171", marginTop:10, lineHeight:1.8 }}>
+              ※ P8・P9は都度本人同意が必要。「最初に同意したから全部出していい」は不可。<br/>
+              ※ 利用目的を追加する場合は、本人に通知し必要に応じて同意を得る（データ憲法第9条）。
+            </p>
+          </div>
+
+          <div style={{ marginBottom:32 }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>7. 保存期間</h3>
             <div style={{ overflowX:"auto" }}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                 <thead>
