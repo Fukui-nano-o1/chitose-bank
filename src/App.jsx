@@ -99,6 +99,8 @@ body { background: #fff; }
   main { padding: 0 !important; max-width: 100% !important; }
   body, html { background: #fff !important; }
   .ledger-card { box-shadow: none !important; border: 1px solid #EBEBEB !important; }
+  #data-definition-print, #data-definition-print * { visibility: visible !important; }
+  #data-definition-print { position: absolute; left: 0; top: 0; width: 100%; }
 }
 
 .f-serif { font-family: 'Noto Sans JP', 'Inter', sans-serif; font-weight: 700; }
@@ -3498,7 +3500,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
           <div style={{ paddingTop:20, borderTop:"2px solid #222" }}>
             <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", lineHeight:1.8 }}>
-              本文書は日本農業研究所（chitose-bank）の内部判断基準です。外部公開は管理者の判断で行います。<br/>
+              本文書は日本農業研究所（chitose-bank）の内部判断基準です。外部共有は、管理者による確認および必要な範囲での承認を経て行います。<br/>
               法令上の匿名加工情報として扱う場合は、別途加工基準と法務確認を満たす必要があります。<br/>
               本文書の内容は、サービスの発展に伴い改訂される場合があります。
             </p>
