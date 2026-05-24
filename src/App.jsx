@@ -1386,37 +1386,41 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
       {userLevel === 1 && (<>
 
       {/* ══ 対象者別導線 ══════════════════════════════════ */}
-      <div style={{ marginBottom:28 }}>
-        <div style={{
-          display:"grid",
-          gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",
-          gap:12,
-        }}>
-          {[
-            { id:"for-institutions", icon:"🏛", title:"JA・支援センターの方へ",   desc:"融資審査に必要な収支計画書を標準化。確認負担を減らします。",           color:"#1A5E5E", bg:"#E8F5F0" },
-            { id:"for-newcomers",    icon:"🌱", title:"新規就農者の方へ",           desc:"何から始めるか分からなくても、10分で五年計画書が作れます。",           color:"#00A86B", bg:"#E6F7EF" },
-            { id:"for-veterans",     icon:"🌾", title:"ベテラン・中堅農家の方へ",   desc:"あなたの経費データが地域の基準になります。",                           color:"#B87A1A", bg:"#FEF3E2" },
-            { id:"for-non-farmers",  icon:"👀", title:"これから農業を始める方へ",   desc:"就農前にリアルな経費・収支データを見て判断できます。",                 color:"#4A90D9", bg:"#EBF3FC" },
-          ].map(card => (
-            <button
-              key={card.id}
-              onClick={() => setActiveAudience(card.id)}
-              style={{
-                padding:"22px 20px", background:card.bg,
-                border:"1px solid " + card.color + "22",
-                borderRadius:16, cursor:"pointer",
-                textAlign:"left", display:"block",
-                transition:"transform .15s, box-shadow .15s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)";    e.currentTarget.style.boxShadow="none"; }}
-            >
-              <div style={{ fontSize:28, marginBottom:10 }}>{card.icon}</div>
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:card.color, marginBottom:6 }}>{card.title}</p>
-              <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7 }}>{card.desc}</p>
-            </button>
-          ))}
-        </div>
+      <div style={{
+        display:"flex", gap:0, marginBottom:16,
+        borderBottom:"1px solid #EBEBEB",
+        overflowX:"auto",
+        WebkitOverflowScrolling:"touch",
+      }}>
+        {[
+          { id:"for-institutions", label:"JA・支援センター" },
+          { id:"for-newcomers",    label:"新規就農者" },
+          { id:"for-veterans",     label:"ベテラン農家" },
+          { id:"for-non-farmers",  label:"就農希望者" },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveAudience(tab.id)}
+            className="f-sans"
+            style={{
+              flexShrink:0,
+              padding:"12px 16px",
+              background:"transparent",
+              border:"none",
+              borderBottom:"2px solid transparent",
+              fontSize:12,
+              fontWeight:500,
+              color:"#717171",
+              cursor:"pointer",
+              whiteSpace:"nowrap",
+              transition:"all .15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color="#222"; e.currentTarget.style.borderBottomColor="#EBEBEB"; }}
+            onMouseLeave={e => { e.currentTarget.style.color="#717171"; e.currentTarget.style.borderBottomColor="transparent"; }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* ══ 不安除去ピル ══════════════════════════════════ */}
