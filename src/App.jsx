@@ -2991,11 +2991,12 @@ CREATE INDEX idx_notifications_farmer
 ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
   const SUB_TABS = [
-    { k:"farmers", l:"農家",     n: farmers.length },
-    { k:"dests",   l:"出荷先",   n: dests.filter(d=>d.status==="pending").length },
+    { k:"farmers", l:"農家",      n: farmers.length },
+    { k:"dests",   l:"出荷先",    n: dests.filter(d=>d.status==="pending").length },
     { k:"records", l:"記録データ", n: records.length },
-    { k:"stats",   l:"統計",     n: null },
-    { k:"sql",     l:"SQL",      n: null },
+    { k:"stats",   l:"統計",      n: null },
+    { k:"sql",     l:"SQL",       n: null },
+    { k:"datadef", l:"データ定義", n: null },
   ];
 
   const Card = ({ children, style }) => (
@@ -3301,6 +3302,207 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",
             }}>SQLをコピー</button>
           </Card>
+        </div>
+      )}
+
+      {/* ── データ定義 ── */}
+      {!loading && sub==="datadef" && (
+        <div className="fade-in" id="data-definition-print">
+          <div className="no-print" style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
+            <button onClick={() => window.print()} className="btn-primary" style={{ padding:"10px 24px", fontSize:13 }}>
+              PDF印刷 / 保存
+            </button>
+          </div>
+
+          <div style={{ marginBottom:32, paddingBottom:20, borderBottom:"2px solid #222" }}>
+            <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>データ定義・分類表</h2>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>日本農業研究所（chitose-bank） v1.0 · 制定日：2026年5月25日</p>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:8, lineHeight:1.8 }}>本文書は内部判断基準です。すべてのデータ公開・アクセス権限・保存期間の判断はこの分類表に基づきます。</p>
+          </div>
+
+          <div style={{ marginBottom:32 }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>1. 危険度分類（Rランク）</h3>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ borderBottom:"2px solid #EBEBEB" }}>
+                    {["ランク","名称","具体例","原則","公開可否"].map(h => (
+                      <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontWeight:600, color:"#717171", fontSize:10, whiteSpace:"nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { rank:"R5", name:"原本核情報",     ex:"伝票写真、精算書画像、証憑資料",                                          rule:"非公開・厳重保管",       pub:"不可",    bg:"#FCEBEB" },
+                    { rank:"R4", name:"直接識別情報",   ex:"氏名、住所、電話番号、メール、口座番号、振込先、農園名、屋号",             rule:"非公開",                 pub:"不可",    bg:"#FCEBEB" },
+                    { rank:"R3", name:"取引特定情報",   ex:"販売先名、業者名、担当者名、伝票番号、単価、控除額、入金日数",             rule:"本人画面・内部確認のみ", pub:"原則不可", bg:"#FEF3E2" },
+                    { rank:"R2", name:"再特定リスク情報", ex:"市町村、町名、品目、面積、出荷量、就農年数、特殊作物",                   rule:"集計条件つき",           pub:"条件付き", bg:"#FEF3E2" },
+                    { rank:"R1", name:"集計候補情報",   ex:"地域×品目×期間×5農家以上の平均値・中央値",                              rule:"公開判定を満たす場合のみ", pub:"判定後に可", bg:"#E6F7EF" },
+                    { rank:"R0", name:"公開情報",       ex:"公的統計、一般作物情報、出典明記済みデータ",                              rule:"通常公開",               pub:"可",      bg:"#E6F7EF" },
+                  ].map(r => (
+                    <tr key={r.rank} style={{ borderBottom:"1px solid #F7F7F7", background:r.bg }}>
+                      <td style={{ padding:"10px 12px", fontWeight:700, fontFamily:"'DM Mono',monospace" }}>{r.rank}</td>
+                      <td style={{ padding:"10px 12px", fontWeight:600 }}>{r.name}</td>
+                      <td style={{ padding:"10px 12px", color:"#717171", maxWidth:200 }}>{r.ex}</td>
+                      <td style={{ padding:"10px 12px" }}>{r.rule}</td>
+                      <td style={{ padding:"10px 12px", fontWeight:600 }}>{r.pub}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="f-sans" style={{ fontSize:11, color:"#717171", marginTop:10, lineHeight:1.8 }}>
+              ※ 危険度ランクは原データでは固定されるが、十分な集計・加工・再特定リスク確認を経た場合、下位ランクへ変換される場合がある。ただし1農家の寄与率が高い場合はランク据え置き。
+            </p>
+          </div>
+
+          <div style={{ marginBottom:32 }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>2. データ状態分類（Sステージ）</h3>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ borderBottom:"2px solid #EBEBEB" }}>
+                    {["状態","名称","定義","利用範囲"].map(h => (
+                      <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontWeight:600, color:"#717171", fontSize:10 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { s:"S0", name:"原本",             def:"アップロードされた画像・証憑・根拠資料",               use:"証拠保管・再確認のみ" },
+                    { s:"S1", name:"未確認入力",        def:"手入力直後、AI読取直後、本人確認前",                   use:"本人画面の下書き" },
+                    { s:"S2", name:"本人確認済み",      def:"農家本人が確認・修正・確定したデータ",                 use:"本人記録・内部集計候補" },
+                    { s:"S3", name:"管理者確認済み",    def:"重複・異常値・個人情報混入を確認済み",                 use:"集計候補" },
+                    { s:"S4", name:"仮名化済み",        def:"farmer_id等に置換、直接識別情報を分離",                use:"内部分析" },
+                    { s:"S5", name:"集計済み",          def:"5農家以上など条件を満たした統計",                      use:"条件付き表示" },
+                    { s:"S6", name:"外部提供用加工済み", def:"再特定困難な形に加工した提供用データ",                use:"外部提供候補（法務確認要）" },
+                    { s:"S7", name:"公開済み",          def:"サイトや資料に表示したデータ",                         use:"公開ログ保存" },
+                  ].map(r => (
+                    <tr key={r.s} style={{ borderBottom:"1px solid #F7F7F7" }}>
+                      <td style={{ padding:"10px 12px", fontWeight:700, fontFamily:"'DM Mono',monospace" }}>{r.s}</td>
+                      <td style={{ padding:"10px 12px", fontWeight:600 }}>{r.name}</td>
+                      <td style={{ padding:"10px 12px", color:"#717171" }}>{r.def}</td>
+                      <td style={{ padding:"10px 12px" }}>{r.use}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ marginBottom:32 }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>3. 公開判定ルール</h3>
+            <div style={{ padding:20, background:"#F7F7F7", borderRadius:12, border:"1px solid #EBEBEB" }}>
+              <pre className="f-mono" style={{ fontSize:13, color:"#222", lineHeight:2, margin:0, whiteSpace:"pre-wrap" }}>{`公開可能 =\n  R1以下\n  × S5以上\n  × 原則5農家以上\n  × 特定農家の寄与率が高すぎない\n  × 再特定リスク低\n  × 利用目的内`}</pre>
+            </div>
+            <p className="f-sans" style={{ fontSize:11, color:"#717171", marginTop:10, lineHeight:1.8 }}>
+              5農家以上であっても、特定農家の寄与率が高い場合、または地域・品目・期間の組み合わせから個別農家が推定される場合は、非公開・広域化・期間拡大・数値の丸め処理を行う。
+            </p>
+          </div>
+
+          <div style={{ marginBottom:32 }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>4. 現フェーズでの適用</h3>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ borderBottom:"2px solid #EBEBEB" }}>
+                    {["データ","危険度","状態","公開可否"].map(h => (
+                      <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontWeight:600, color:"#717171", fontSize:10 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { data:"農家名・メール",           r:"R4", s:"S2",    pub:"不可" },
+                    { data:"市町村・作物・就農年数",   r:"R2", s:"S2",    pub:"条件付き（現状不可：5農家未満）" },
+                    { data:"売上・経費・利益",         r:"R3", s:"S1〜S2", pub:"不可" },
+                    { data:"販売先名",                 r:"R3", s:"S1〜S2", pub:"不可" },
+                    { data:"公的統計",                 r:"R0", s:"S7",    pub:"公開可" },
+                    { data:"運営メタ情報（参加農家数等）", r:"—", s:"—",  pub:"個人特定されない範囲で可" },
+                  ].map((r,i) => (
+                    <tr key={i} style={{ borderBottom:"1px solid #F7F7F7" }}>
+                      <td style={{ padding:"10px 12px", fontWeight:500 }}>{r.data}</td>
+                      <td style={{ padding:"10px 12px", fontFamily:"'DM Mono',monospace", fontWeight:600 }}>{r.r}</td>
+                      <td style={{ padding:"10px 12px", fontFamily:"'DM Mono',monospace" }}>{r.s}</td>
+                      <td style={{ padding:"10px 12px", fontWeight:600, color:r.pub==="公開可"?"#00A86B":r.pub==="不可"?"#E24B4A":"#F5A623" }}>{r.pub}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", marginTop:12 }}>
+              結論：現時点で公開できる実データはR0の公的統計のみ。運営メタ情報は個人特定されない範囲で表示可能。
+            </p>
+          </div>
+
+          <div style={{ marginBottom:32 }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>5. アクセス権限</h3>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ borderBottom:"2px solid #EBEBEB" }}>
+                    {["権限","閲覧可能","閲覧不可"].map(h => (
+                      <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontWeight:600, color:"#717171", fontSize:10 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { role:"未ログイン",           yes:"公的統計、サービス説明、公開済み集計",     no:"個別農家データ" },
+                    { role:"登録農家本人",         yes:"自分のデータ・集計・販売先",               no:"他農家の個別データ" },
+                    { role:"管理者",               yes:"承認・確認に必要な範囲",                   no:"目的外閲覧は禁止" },
+                    { role:"支援センター・金融機関", yes:"本人同意済み資料・集計データ",           no:"同意なき個別データ" },
+                    { role:"行政・研究機関",       yes:"集計・加工済みデータ",                     no:"個別農家情報" },
+                  ].map((r,i) => (
+                    <tr key={i} style={{ borderBottom:"1px solid #F7F7F7" }}>
+                      <td style={{ padding:"10px 12px", fontWeight:600 }}>{r.role}</td>
+                      <td style={{ padding:"10px 12px", color:"#00A86B" }}>{r.yes}</td>
+                      <td style={{ padding:"10px 12px", color:"#E24B4A" }}>{r.no}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ marginBottom:32 }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>6. 保存期間</h3>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ borderBottom:"2px solid #EBEBEB" }}>
+                    {["データ","保存期間","備考"].map(h => (
+                      <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontWeight:600, color:"#717171", fontSize:10 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { data:"原本画像",              period:"読取確定後1年以内を目安",           note:"将来フェーズ" },
+                    { data:"未確認入力",             period:"30日以内に確定・修正・削除",        note:"放置禁止" },
+                    { data:"本人確認済み記録",       period:"利用中は保存",                      note:"本人記録" },
+                    { data:"集計・加工済みデータ",   period:"継続保存可",                        note:"再特定リスクを定期確認" },
+                    { data:"操作ログ",               period:"3年目安",                           note:"法令・紛争対応により変動" },
+                    { data:"退会後の個人紐づけ",     period:"1か月以内に削除または解除",         note:"最小限の履歴は目的限定で保存" },
+                  ].map((r,i) => (
+                    <tr key={i} style={{ borderBottom:"1px solid #F7F7F7" }}>
+                      <td style={{ padding:"10px 12px", fontWeight:500 }}>{r.data}</td>
+                      <td style={{ padding:"10px 12px" }}>{r.period}</td>
+                      <td style={{ padding:"10px 12px", color:"#717171" }}>{r.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ paddingTop:20, borderTop:"2px solid #222" }}>
+            <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", lineHeight:1.8 }}>
+              本文書は日本農業研究所（chitose-bank）の内部判断基準です。外部公開は管理者の判断で行います。<br/>
+              法令上の匿名加工情報として扱う場合は、別途加工基準と法務確認を満たす必要があります。<br/>
+              本文書の内容は、サービスの発展に伴い改訂される場合があります。
+            </p>
+          </div>
         </div>
       )}
 
