@@ -1292,6 +1292,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
 
   const [showAllStats, setShowAllStats] = useState(false);
   const [statSort, setStatSort] = useState("default");
+  const [activeAudience, setActiveAudience] = useState(null);
   const [showMarketChart, setShowMarketChart] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [visibleCrops, setVisibleCrops] = useState([]);
@@ -1399,10 +1400,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
           ].map(card => (
             <button
               key={card.id}
-              onClick={() => {
-                const el = document.getElementById(card.id);
-                if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
-              }}
+              onClick={() => setActiveAudience(card.id)}
               style={{
                 padding:"22px 20px", background:card.bg,
                 border:"1px solid " + card.color + "22",
@@ -1882,117 +1880,6 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
         </div>
       )}
 
-      {userLevel === 1 && (<>
-
-      {/* ══ JA・支援センター向け ══════════════════════════ */}
-      <div id="for-institutions" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
-        <div style={{ background:"#E8F5F0", border:"1px solid #1A5E5E22", borderRadius:16, padding:"32px 28px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-            <span style={{ fontSize:28 }}>🏛</span>
-            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#1A5E5E", margin:0 }}>JA・支援センターの方へ</h2>
-          </div>
-          <div style={{ display:"grid", gap:20, marginBottom:24 }}>
-            <div>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:6 }}>課題</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8 }}>
-                新規就農者の融資審査で、収支計画書の作成指導に時間がかかる。<br/>
-                提出される計画書のフォーマットがバラバラで、確認作業が非効率。
-              </p>
-            </div>
-            <div>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:6 }}>このサービスで解決できること</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8 }}>
-                農家が売上・経費を入力するだけで、JA融資審査フォーマットの五年計画書がPDF出力されます。<br/>
-                公的統計データ（作付面積・収穫量・10a収量）が自動で参照され、保守的な数値が入ります。<br/>
-                収支計画書のフォーマットが統一されるため、確認負担が軽減されます。
-              </p>
-            </div>
-          </div>
-          <button onClick={onLogin} className="btn-primary" style={{ padding:"13px 28px", fontSize:13 }}>
-            導入について相談する →
-          </button>
-        </div>
-      </div>
-
-      {/* ══ 新規就農者向け ═══════════════════════════════ */}
-      <div id="for-newcomers" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
-        <div style={{ background:"#E6F7EF", border:"1px solid #00A86B22", borderRadius:16, padding:"32px 28px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-            <span style={{ fontSize:28 }}>🌱</span>
-            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#00A86B", margin:0 }}>新規就農者の方へ</h2>
-          </div>
-          <div style={{ display:"grid", gap:16, marginBottom:24 }}>
-            {[
-              { n:"1", title:"作物と出荷先を選ぶ",       desc:"栽培予定の作物を選び、出荷先を登録します。" },
-              { n:"2", title:"売上と経費を月ごとに入力",  desc:"出荷箱数と単価、経費項目を入れるだけ。1回3分。" },
-              { n:"3", title:"五年計画書をPDF出力",       desc:"JA融資に使える収支計画書が自動生成されます。支援センターにそのまま提出可能。" },
-            ].map(({ n, title, desc }) => (
-              <div key={n} style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
-                <span className="f-mono" style={{ fontSize:20, fontWeight:700, color:"#00A86B", flexShrink:0 }}>{n}</span>
-                <div>
-                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{title}</p>
-                  <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button onClick={onLogin} className="btn-primary" style={{ padding:"13px 28px", fontSize:13 }}>
-            無料で始める →
-          </button>
-        </div>
-      </div>
-
-      {/* ══ ベテラン・中堅農家向け ═══════════════════════ */}
-      <div id="for-veterans" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
-        <div style={{ background:"#FEF3E2", border:"1px solid #B87A1A22", borderRadius:16, padding:"32px 28px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-            <span style={{ fontSize:28 }}>🌾</span>
-            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#B87A1A", margin:0 }}>ベテラン・中堅農家の方へ</h2>
-          </div>
-          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:20 }}>
-            あなたが入力した経費データは、匿名で集計され、地域の経営基準になります。<br/>
-            新規就農者が参考にする数字を、現場の経験者が作る。<br/>
-            それが吉野川の農業を強くします。
-          </p>
-          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
-            貢献者として継続入力すると、他の農家の集計データや出荷先別の採算比較が利用できます。
-          </p>
-          <button onClick={onLogin} className="btn-primary" style={{ padding:"13px 28px", fontSize:13, background:"#B87A1A" }}>
-            データを入力する →
-          </button>
-        </div>
-      </div>
-
-      {/* ══ これから農業を始める方へ ══════════════════════ */}
-      <div id="for-non-farmers" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
-        <div style={{ background:"#EBF3FC", border:"1px solid #4A90D922", borderRadius:16, padding:"32px 28px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-            <span style={{ fontSize:28 }}>👀</span>
-            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#4A90D9", margin:0 }}>これから農業を始める方へ</h2>
-          </div>
-          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:20 }}>
-            就農する前に、リアルな数字を見てください。<br/>
-            作物ごとの作付面積・収穫量・労働時間。農家が実際に入力した経費率。<br/>
-            「思っていたのと違った」を減らすために、このデータがあります。
-          </p>
-          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
-            登録は無料。公的統計データは登録なしでも閲覧できます。
-          </p>
-          <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-            <button onClick={() => {
-              const el = document.getElementById('public-stats-section');
-              if (el) el.scrollIntoView({ behavior:'smooth' });
-            }} className="btn-outline" style={{ padding:"12px 24px", fontSize:13 }}>
-              公開データを見る ↓
-            </button>
-            <button onClick={onLogin} className="btn-primary" style={{ padding:"13px 28px", fontSize:13, background:"#4A90D9" }}>
-              無料で登録する →
-            </button>
-          </div>
-        </div>
-      </div>
-
-      </>)}
 
       {/* ══ 注記 ════════════════════════════════════════ */}
       <div style={{ marginTop:8, padding:"12px 18px", borderTop:`1px solid ${C.rule}` }}>
@@ -2000,6 +1887,150 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }
           このデータは参加農家の入力に基づく集計値です。個人の情報は公開されません。
         </p>
       </div>
+
+      {/* ══ 対象者モーダル ═══════════════════════════════ */}
+      {activeAudience && userLevel === 1 && (() => {
+        const contents = {
+          "for-institutions": {
+            icon:"🏛", title:"JA・支援センターの方へ", color:"#1A5E5E", bg:"#E8F5F0",
+            body: (
+              <>
+                <div style={{ marginBottom:20 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>課題</p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>
+                    新規就農者の融資審査で、収支計画書の作成指導に時間がかかる。
+                    提出される計画書のフォーマットがバラバラで、確認作業が非効率。
+                  </p>
+                </div>
+                <div style={{ marginBottom:24 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>このサービスで解決できること</p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>
+                    農家が売上・経費を入力するだけで、JA融資審査フォーマットの五年計画書がPDF出力されます。
+                    公的統計データが自動参照され、保守的な数値が入ります。
+                    収支計画書のフォーマットが統一されるため、確認負担が軽減されます。
+                  </p>
+                </div>
+                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14 }}>
+                  導入について相談する →
+                </button>
+              </>
+            ),
+          },
+          "for-newcomers": {
+            icon:"🌱", title:"新規就農者の方へ", color:"#00A86B", bg:"#E6F7EF",
+            body: (
+              <>
+                <div style={{ display:"grid", gap:18, marginBottom:24 }}>
+                  {[
+                    { n:"1", t:"作物と出荷先を選ぶ",      d:"栽培予定の作物を選び、出荷先を登録します。" },
+                    { n:"2", t:"売上と経費を月ごとに入力", d:"出荷箱数と単価、経費項目を入れるだけ。1回3分。" },
+                    { n:"3", t:"五年計画書をPDF出力",      d:"JA融資に使える収支計画書が自動生成されます。支援センターにそのまま提出可能。" },
+                  ].map(step => (
+                    <div key={step.n} style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
+                      <span className="f-mono" style={{ fontSize:22, fontWeight:700, color:"#00A86B", flexShrink:0, lineHeight:1 }}>{step.n}</span>
+                      <div>
+                        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:4 }}>{step.t}</p>
+                        <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>{step.d}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14 }}>
+                  無料で始める →
+                </button>
+              </>
+            ),
+          },
+          "for-veterans": {
+            icon:"🌾", title:"ベテラン・中堅農家の方へ", color:"#B87A1A", bg:"#FEF3E2",
+            body: (
+              <>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:16 }}>
+                  あなたが入力した経費データは、匿名で集計され、地域の経営基準になります。
+                  新規就農者が参考にする数字を、現場の経験者が作る。
+                  それが吉野川の農業を強くします。
+                </p>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
+                  貢献者として継続入力すると、他の農家の集計データや出荷先別の採算比較が利用できます。
+                </p>
+                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, background:"#B87A1A" }}>
+                  データを入力する →
+                </button>
+              </>
+            ),
+          },
+          "for-non-farmers": {
+            icon:"👀", title:"これから農業を始める方へ", color:"#4A90D9", bg:"#EBF3FC",
+            body: (
+              <>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:16 }}>
+                  就農する前に、リアルな数字を見てください。
+                  作物ごとの作付面積・収穫量・労働時間。農家が実際に入力した経費率。
+                  「思っていたのと違った」を減らすために、このデータがあります。
+                </p>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
+                  登録は無料。公的統計データは登録なしでも閲覧できます。
+                </p>
+                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, background:"#4A90D9" }}>
+                  無料で登録する →
+                </button>
+              </>
+            ),
+          },
+        };
+        const content = contents[activeAudience];
+        if (!content) return null;
+        return (
+          <div
+            onClick={() => setActiveAudience(null)}
+            style={{
+              position:"fixed", inset:0, zIndex:9000,
+              background:"rgba(0,0,0,0.5)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              padding:16,
+              animation:"fadeIn .2s ease",
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              className="appear"
+              style={{
+                background:"#fff", borderRadius:20,
+                maxWidth:480, width:"100%",
+                maxHeight:"85vh", overflowY:"auto",
+                boxShadow:"0 12px 48px rgba(0,0,0,0.15)",
+              }}
+            >
+              <div style={{
+                padding:"28px 28px 20px",
+                background:content.bg,
+                borderRadius:"20px 20px 0 0",
+                position:"relative",
+              }}>
+                <button
+                  onClick={() => setActiveAudience(null)}
+                  style={{
+                    position:"absolute", top:16, right:16,
+                    width:32, height:32, borderRadius:"50%",
+                    background:"rgba(0,0,0,0.08)", border:"none",
+                    fontSize:16, cursor:"pointer",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    color:"#666",
+                  }}
+                >✕</button>
+                <div style={{ fontSize:36, marginBottom:12 }}>{content.icon}</div>
+                <h2 className="f-sans" style={{
+                  fontSize:20, fontWeight:800, color:content.color,
+                  margin:0, lineHeight:1.3,
+                }}>{content.title}</h2>
+              </div>
+              <div style={{ padding:"24px 28px 32px" }}>
+                {content.body}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
