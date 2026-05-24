@@ -2977,10 +2977,11 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
   const [obPrefecture,   setObPrefecture]   = useState(me.prefecture || "");
   const [obMunicipality, setObMunicipality] = useState(me.municipality || "");
   const [obTier,         setObTier]         = useState(me.experience_tier || "");
-  const [obFarmingType, setObFarmingType] = useState(localStorage.getItem('ob_farming_type') || "");
-  const [obArea,        setObArea]        = useState(localStorage.getItem('ob_area_tan') || "");
+  const [obFarmingType, setObFarmingType] = useState(me.farming_type || localStorage.getItem('ob_farming_type') || "");
+  const [obArea,        setObArea]        = useState(me.area_tan || localStorage.getItem('ob_area_tan') || "");
   const [obCrops,       setObCrops]       = useState(me.planned_crops || []);
   const [obChannels,    setObChannels]    = useState(() => {
+    if (me.sales_channels && Array.isArray(me.sales_channels) && me.sales_channels.length > 0) return me.sales_channels;
     try { return JSON.parse(localStorage.getItem('ob_sales_channels') || '[]'); } catch { return []; }
   });
   const [cropInput,     setCropInput]     = useState("");
@@ -3031,11 +3032,14 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
       municipality: obMunicipality.trim(),
       experience_tier: obTier,
       planned_crops: obCrops,
+      farming_type: obFarmingType,
+      area_tan: obArea,
+      sales_channels: obChannels,
     }).eq('auth_id', me.id);
     if (!error) {
-      localStorage.setItem('ob_farming_type', obFarmingType);
-      localStorage.setItem('ob_area_tan', obArea);
-      localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels));
+      try { localStorage.setItem('ob_farming_type', obFarmingType); } catch {}
+      try { localStorage.setItem('ob_area_tan', obArea); } catch {}
+      try { localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels)); } catch {}
       await onComplete({ name: obName.trim(), prefecture: obPrefecture, municipality: obMunicipality.trim(), experience_tier: obTier, planned_crops: obCrops });
     }
     setSaving(false);
@@ -3326,11 +3330,11 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
     : "未入力";
 
   const crops      = Array.isArray(me.planned_crops) ? me.planned_crops : [];
-  const farmType   = localStorage.getItem('ob_farming_type');
-  const areaTan    = localStorage.getItem('ob_area_tan');
-  const salesRaw   = localStorage.getItem('ob_sales_channels');
-  let salesChannels = [];
-  try { salesChannels = JSON.parse(salesRaw || '[]'); } catch {}
+  const farmType     = me.farming_type || localStorage.getItem('ob_farming_type') || "";
+  const areaTan      = me.area_tan || localStorage.getItem('ob_area_tan') || "";
+  const salesChannels = (me.sales_channels && Array.isArray(me.sales_channels) && me.sales_channels.length > 0)
+    ? me.sales_channels
+    : (() => { try { return JSON.parse(localStorage.getItem('ob_sales_channels') || '[]'); } catch { return []; } })();
 
   const handleFile = async e => {
     const file = e.target.files?.[0];
@@ -3341,6 +3345,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
     await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
     const url = urlData?.publicUrl || '';
+    await supabase.from('farmers').update({ avatar_url: url }).eq('auth_id', me.id);
     try { localStorage.setItem('avatarUrl_' + me.id, url); } catch {}
     onAvatarChange(url);
     setUploading(false);
@@ -3355,6 +3360,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
         const paths = files.map(f => me.id + '/' + f.name);
         await supabase.storage.from('avatars').remove(paths);
       }
+      await supabase.from('farmers').update({ avatar_url: '' }).eq('auth_id', me.id);
       try { localStorage.removeItem('avatarUrl_' + me.id); } catch {}
       onAvatarChange("");
     } catch (err) {
@@ -3559,8 +3565,8 @@ export default function App(){
   const [avatarUrl,setAvatarUrl]=useState("");
   useEffect(()=>{
     if(!me?.id)return;
-    try { setAvatarUrl(localStorage.getItem('avatarUrl_'+me.id)||""); } catch {}
-  },[me?.id]);
+    setAvatarUrl(me.avatar_url || localStorage.getItem('avatarUrl_'+me.id) || "");
+  },[me?.id, me?.avatar_url]);
   useEffect(()=>{
     if(!showNotifs)return;
     const close=e=>{ if(!e.target.closest('[data-notif-bell]'))setShowNotifs(false); };
@@ -3581,7 +3587,7 @@ export default function App(){
       await sSet("yw_pres_v3",true);
     }
   　const { data: dbFarmers } = await supabase.from('farmers').select('*');
-    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year, prefecture: fr.prefecture || "", municipality: fr.municipality || "", planned_crops: fr.planned_crops || [], experience_tier: fr.experience_tier || "" })) : [];
+    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year, prefecture: fr.prefecture || "", municipality: fr.municipality || "", planned_crops: fr.planned_crops || [], experience_tier: fr.experience_tier || "", farming_type: fr.farming_type || "", area_tan: fr.area_tan || "", sales_channels: fr.sales_channels || [], avatar_url: fr.avatar_url || "" })) : [];
     const fp=await sGet("yw_farmers_pend")||[];
     const { data: dbDestsOk } = await supabase.from('dests').select('*').eq('status', 'approved');
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
@@ -3629,7 +3635,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const completeOnboarding=useCallback(async(updates)=>{
     const{data:dbFarmers}=await supabase.from('farmers').select('*');
     if(dbFarmers){
-      const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",municipality:fr.municipality||"",planned_crops:fr.planned_crops||[],experience_tier:fr.experience_tier||""}));
+      const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",municipality:fr.municipality||"",planned_crops:fr.planned_crops||[],experience_tier:fr.experience_tier||"",farming_type:fr.farming_type||"",area_tan:fr.area_tan||"",sales_channels:fr.sales_channels||[],avatar_url:fr.avatar_url||""}));
       setFarmers(f);
       setMe(prev=>{
         const updated=f.find(x=>x.id===prev?.id);
