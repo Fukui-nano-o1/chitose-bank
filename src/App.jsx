@@ -1380,6 +1380,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
   return (
     <div className="appear">
 
+      {userLevel === 1 && (<>
+
       {/* ══ 対象者別導線 ══════════════════════════════════ */}
       <div style={{ marginBottom:28 }}>
         <div style={{
@@ -1438,6 +1440,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
           </div>
         ))}
       </div>
+
+      </>)}
 
       {/* ══ 公的統計 ════════════════════════════════════ */}
       {(() => {
@@ -1773,6 +1777,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
         </div>
       )}
 
+      {userLevel === 1 && (<>
+
       {/* ══ JA・支援センター向け ══════════════════════════ */}
       <div id="for-institutions" style={{ scrollMarginTop:60, marginBottom:40, paddingTop:20 }}>
         <div style={{ background:"#E8F5F0", border:"1px solid #1A5E5E22", borderRadius:16, padding:"32px 28px" }}>
@@ -1880,6 +1886,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
           </div>
         </div>
       </div>
+
+      </>)}
 
       {/* ══ 注記 ════════════════════════════════════════ */}
       <div style={{ marginTop:8, padding:"12px 18px", borderTop:`1px solid ${C.rule}` }}>
