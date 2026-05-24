@@ -1380,32 +1380,59 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
 
       {/* ══ HERO ══════════════════════════════════════════ */}
       <div style={{
-        background: C.cream, border:`1px solid ${C.rule}`, borderRadius:16,
-        padding:"44px 40px 36px", marginBottom:24,
+        background:"#fff", border:"1px solid #EBEBEB", borderRadius:16,
+        padding:"48px 40px 40px", marginBottom:24,
         position:"relative", overflow:"hidden",
-        boxShadow:"0 2px 16px rgba(8,6,4,.06)",
+        boxShadow:"0 2px 16px rgba(0,0,0,0.06)",
       }}>
-        <div style={{ position:"absolute", top:-60, right:-60, width:240, height:240, borderRadius:"50%", background:`${C.gold}07`, pointerEvents:"none" }}/>
-        <div style={{ position:"absolute", bottom:-40, left:120, width:140, height:140, borderRadius:"50%", background:`${C.bamboo}05`, pointerEvents:"none" }}/>
         <div style={{ position:"relative", zIndex:1 }}>
-          <div className="f-sans" style={{ fontSize:9, letterSpacing:".2em", color:C.dim, textTransform:"uppercase", marginBottom:14 }}>
-            {THIS_YEAR} · 吉野川 · {farmers.length}農家
+          <div className="f-sans" style={{ fontSize:9, letterSpacing:".2em", color:C.dim, textTransform:"uppercase", marginBottom:16 }}>
+            吉野川 · {farmers.length}農家が参加中
           </div>
-          <h1 className="f-sans" style={{ fontSize:36, fontWeight:800, color:C.ink, lineHeight:1.3, letterSpacing:".03em", margin:"0 0 14px" }}>
-            日本農業研究所。
+          <h1 className="f-sans" style={{ fontSize:28, fontWeight:800, color:C.ink, lineHeight:1.4, letterSpacing:".02em", margin:"0 0 12px" }}>
+            五年計画書を、10分で作れる。
           </h1>
-          <p className="f-sans" style={{ fontSize:14, color:C.mid, lineHeight:1.8, marginBottom:28 }}>
-            吉野川の農家が、実際の経費を公開するサイトです。
+          <p className="f-sans" style={{ fontSize:15, color:C.mid, lineHeight:1.9, marginBottom:8 }}>
+            売上と経費を入力するだけ。<br/>
+            JA融資で使える収支計画書がPDFで出力できます。
           </p>
-          <div style={{ marginTop:28, paddingTop:16, borderTop:`1px solid ${C.rule}`, display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
-            {["個人名は非公開","格付け・ランキングを目的としない","データは農家本人が入力"].map(t => (
-              <span key={t} className="f-sans" style={{ fontSize:9, color:C.ghost, letterSpacing:".08em", display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ width:5, height:5, borderRadius:"50%", background:C.accent, display:"inline-block" }}/>
-                {t}
-              </span>
-            ))}
+          <p className="f-sans" style={{ fontSize:13, color:C.ghost, lineHeight:1.8, marginBottom:28 }}>
+            他の農家の経費率と比較して、自分の経営を見直せます。
+          </p>
+          <div className="hero-cta" style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+            <button onClick={onLogin} className="btn-primary" style={{ padding:"14px 32px", fontSize:14, borderRadius:12 }}>
+              無料で始める（10秒）
+            </button>
+            <button onClick={() => {
+              const el = document.getElementById('public-stats-section');
+              if (el) el.scrollIntoView({ behavior:'smooth' });
+            }} className="btn-outline" style={{ padding:"13px 24px", fontSize:13, borderRadius:12 }}>
+              公開データを見る ↓
+            </button>
           </div>
         </div>
+      </div>
+
+      {/* ══ 不安除去ブロック ══════════════════════════════ */}
+      <div style={{
+        display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))",
+        gap:12, marginBottom:24,
+      }}>
+        {[
+          { icon:"🔒", title:"個人名は非公開",     desc:"公開されるのは地域・品目単位の集計値だけです" },
+          { icon:"📊", title:"ランキングしない",    desc:"農家を評価・格付けする目的では使いません" },
+          { icon:"📄", title:"融資資料になる",      desc:"JA・支援センター向けの五年計画書をPDF出力" },
+          { icon:"🤝", title:"本人の同意が前提",    desc:"個別データは同意なく第三者に共有しません" },
+        ].map(item => (
+          <div key={item.title} style={{
+            padding:"20px 18px", background:"#F7F7F7",
+            border:"1px solid #EBEBEB", borderRadius:12,
+          }}>
+            <div style={{ fontSize:24, marginBottom:10 }}>{item.icon}</div>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:6 }}>{item.title}</p>
+            <p className="f-sans" style={{ fontSize:11, color:C.mid, lineHeight:1.7 }}>{item.desc}</p>
+          </div>
+        ))}
       </div>
 
       {/* ══ 公的統計 ════════════════════════════════════ */}
@@ -1433,7 +1460,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
         if (filtered.length === 0) return null;
 
         return (
-          <div style={{ marginBottom: 24 }}>
+          <div id="public-stats-section" style={{ marginBottom: 24 }}>
             <h2 className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 12, letterSpacing: '.04em' }}>
               公的統計（作物統計調査）
             </h2>
