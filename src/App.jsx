@@ -1260,7 +1260,7 @@ function Carousel({ children, style, className, wrapperStyle }) {
 }
 
 // ── BoardTab ─────────────────────────────────────────────────
-function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
+function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me }) {
   const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
 
   const [selectedCrop, setSelectedCrop] = useState(() => {
@@ -1291,6 +1291,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
   }));
 
   const [showAllStats, setShowAllStats] = useState(false);
+  const [statSort, setStatSort] = useState("default");
   const [showMarketChart, setShowMarketChart] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [visibleCrops, setVisibleCrops] = useState([]);
@@ -1467,6 +1468,21 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
           return "比較的省力。初心者にも取り組みやすい";
         };
 
+        // ソート＋パーソナライズ
+        const myCrops = me?.planned_crops || [];
+
+        const sorted = [...filtered].sort((a, b) => {
+          const aIsMine = myCrops.includes(a.crop) ? 0 : 1;
+          const bIsMine = myCrops.includes(b.crop) ? 0 : 1;
+          if (aIsMine !== bIsMine) return aIsMine - bIsMine;
+          if (statSort === "labor_asc")    return (a.labor_hours_per_10a || 9999) - (b.labor_hours_per_10a || 9999);
+          if (statSort === "labor_desc")   return (b.labor_hours_per_10a || 0) - (a.labor_hours_per_10a || 0);
+          if (statSort === "yield_desc")   return (b.yield_kg_per_10a || 0) - (a.yield_kg_per_10a || 0);
+          if (statSort === "yield_asc")    return (a.yield_kg_per_10a || 0) - (b.yield_kg_per_10a || 0);
+          if (statSort === "acreage_desc") return (b.acreage_ha || 0) - (a.acreage_ha || 0);
+          return a.crop.localeCompare(b.crop, 'ja');
+        });
+
         if (enrichedStats.length === 0) {
           return (
             <div style={{ marginBottom: 24 }}>
@@ -1482,14 +1498,41 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
               <h2 className="f-sans" style={{ fontSize:15, fontWeight:700, color:C.ink, letterSpacing:'.03em', margin:0 }}>
                 公的統計（作物統計調査）
               </h2>
-              <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>{filtered.length}品目</span>
+              <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>{sorted.length}品目</span>
+            </div>
+            <div className="filter-scroll" style={{
+              display:"flex", gap:6, overflowX:"auto", paddingBottom:8, marginBottom:12,
+              scrollbarWidth:"none", msOverflowStyle:"none",
+            }}>
+              {[
+                { key:"default",      label:"五十音順" },
+                { key:"labor_asc",    label:"労働時間 少→多" },
+                { key:"labor_desc",   label:"労働時間 多→少" },
+                { key:"yield_desc",   label:"10a収量 多→少" },
+                { key:"yield_asc",    label:"10a収量 少→多" },
+                { key:"acreage_desc", label:"作付面積 大→小" },
+              ].map(opt => {
+                const active = statSort === opt.key;
+                return (
+                  <button key={opt.key} onClick={() => setStatSort(opt.key)} className="f-sans" style={{
+                    flexShrink:0, padding:"6px 14px", borderRadius:20, fontSize:11,
+                    border: active ? "1px solid " + C.accent : "1px solid " + C.border,
+                    background: active ? C.accent : "#fff",
+                    color: active ? "#fff" : C.mid,
+                    fontWeight: active ? 600 : 400,
+                    cursor:"pointer", transition:"all .15s", whiteSpace:"nowrap",
+                  }}>
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
             <div style={{
               display:"grid",
               gridTemplateColumns:"repeat(auto-fill, minmax(260px, 1fr))",
               gap:12,
             }}>
-              {(showAllStats ? filtered : filtered.slice(0, 5)).map(s => {
+              {(showAllStats ? sorted : sorted.slice(0, 5)).map(s => {
                 const comment = getComment(s);
                 const statRows = [
                   s.acreage_ha          != null && { label:'作付面積', value:fmtAcreage(s.acreage_ha) },
@@ -1500,7 +1543,15 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
                 return (
                   <div key={s.crop} className="ledger-card" style={{ padding:"20px 22px" }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-                      <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:C.ink, margin:0 }}>{s.crop}</p>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:C.ink, margin:0 }}>{s.crop}</p>
+                        {myCrops.includes(s.crop) && (
+                          <span style={{
+                            padding:"2px 8px", borderRadius:8, fontSize:9, fontWeight:700,
+                            background:C.accentLight, color:C.accent,
+                          }}>栽培中</span>
+                        )}
+                      </div>
                       <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>{s.year}年産</span>
                     </div>
                     {statRows.map(r => (
@@ -1527,7 +1578,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
                 );
               })}
             </div>
-            {filtered.length > 5 && (
+            {sorted.length > 5 && (
               <button
                 onClick={() => setShowAllStats(v => !v)}
                 className="f-sans"
@@ -1550,7 +1601,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin }) {
               >
                 {showAllStats
                   ? "閉じる ▲"
-                  : "もっと見る（残り" + (filtered.length - 5) + "品目） ▼"
+                  : "もっと見る（残り" + (sorted.length - 5) + "品目） ▼"
                 }
               </button>
             )}
@@ -3996,7 +4047,7 @@ const subDest=useCallback(async d=>{
 
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
-        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")}/>}
+        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me}/>}
         {tab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")}/>
