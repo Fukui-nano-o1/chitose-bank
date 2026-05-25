@@ -4661,9 +4661,6 @@ const subDest=useCallback(async d=>{
           © {THIS_YEAR} chitose-bank · 吉野川農家 記録プロジェクト
         </span>
         <div style={{display:"flex",gap:16,alignItems:"center"}}>
-          <span className="f-sans" style={{fontSize:11,color:"#B0B0B0"}}>
-            chitose-bankは銀行ではありません。表示データは参考情報であり、融資・収益を保証しません。
-          </span>
           <button onClick={()=>setShowTerms(true)} style={{
             fontSize:11,color:"#717171",background:"none",border:"none",
             cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,padding:0,
@@ -4677,6 +4674,12 @@ const subDest=useCallback(async d=>{
             cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,padding:0,
           }}>プライバシーポリシー</button>
         </div>
+        <p className="f-sans" style={{
+          width:"100%", fontSize:10, color:"#B0B0B0",
+          lineHeight:1.8, textAlign:"center", marginTop:12, margin:0, marginTop:12,
+        }}>
+          chitose-bankは銀行ではありません。表示データは参考情報であり、融資採択・補助金採択・収益改善を保証しません。
+        </p>
       </footer>
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
       {showConstitution&&<DataConstitution onClose={()=>setShowConstitution(false)}/>}
