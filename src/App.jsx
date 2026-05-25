@@ -2244,6 +2244,16 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
 }
 
 // ── InputTab ─────────────────────────────────────────────────
+const COST_TEMPLATES = [
+  { label: "手数料",  mode: "pct"     },
+  { label: "運賃",   mode: "per_box" },
+  { label: "箱代",   mode: "per_box" },
+  { label: "選果料", mode: "per_box" },
+  { label: "肥料費", mode: "fixed"   },
+  { label: "農薬費", mode: "fixed"   },
+  { label: "種苗費", mode: "fixed"   },
+];
+
 function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRecord, onSubmitDest, onGoBoard }) {
   const [step,setStep]=useState(1);
   const [crop,setCrop]=useState("");
@@ -2493,6 +2503,26 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               </div>}
               <div>
                 <label className="lbl f-sans">経費項目（省略可）</label>
+                <div style={{marginBottom:10}}>
+                  <p className="f-sans" style={{fontSize:11,color:"#888",marginBottom:6}}>よくある経費を追加</p>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {COST_TEMPLATES.map(tmpl=>{
+                      const already=costs.some(c=>c.l===tmpl.label);
+                      return(
+                        <button key={tmpl.label} onClick={()=>{
+                          if(already)return;
+                          setCosts(prev=>[...prev,{l:tmpl.label,v:"",mode:tmpl.mode}]);
+                        }} style={{
+                          fontSize:12,borderRadius:999,
+                          border:`1px solid ${already?"#D0D0D0":"#EBEBEB"}`,
+                          background:already?"#F0F0F0":"#fff",
+                          padding:"8px 12px",color:already?"#B0B0B0":"#222",
+                          cursor:already?"default":"pointer",fontFamily:"inherit",
+                        }}>{tmpl.label}</button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div style={{display:"grid",gap:8}}>
                   {costs.map((c,i)=>{
                     return(
@@ -2519,7 +2549,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                       </div>
                     );
                   })}
-                  {costs.length<5&&<button onClick={()=>setCosts([...costs,{l:"",v:"",mode:"fixed"}])} style={{padding:"8px",border:`1px dashed ${C.rule}`,borderRadius:8,background:"transparent",color:C.mid,fontSize:11,fontFamily:"inherit"}}>＋ 経費追加</button>}
+                  {costs.length<10&&<button onClick={()=>setCosts([...costs,{l:"",v:"",mode:"fixed"}])} style={{padding:"8px",border:`1px dashed ${C.rule}`,borderRadius:8,background:"transparent",color:C.mid,fontSize:11,fontFamily:"inherit"}}>＋ 経費追加</button>}
                 </div>
               </div>
             </div>
