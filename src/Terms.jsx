@@ -4,7 +4,7 @@ export default function Terms({ onClose }) {
     { title:"第2条　適用範囲・同意",         body:"本規約は、本サービスを閲覧または利用するすべての利用者（以下「利用者」）に適用されます。利用者は、本サービスの閲覧または利用により本規約に同意したものとみなします。登録機能を利用する場合は、登録時に本規約およびプライバシーポリシーを確認し、同意するものとします。" },
     { title:"第3条　登録",                   body:"利用者は、メールアドレスによる認証を経て登録します。登録時に虚偽の情報を提供してはなりません。1人の利用者が複数のアカウントを登録することはできません。" },
     { title:"第4条　利用者の責任",           body:"利用者は、自己が入力するデータの正確性について責任を負います。利用者は、自己の認証情報を第三者に共有してはなりません。利用者が本規約に違反した場合、当研究所は当該利用者の利用を制限または停止できるものとします。" },
-    { title:"第5条　禁止事項", body:null,
+    { title:"第5条　禁止事項", body:"利用者は、以下の行為を行ってはなりません。",
       bullets:[
         "虚偽のデータを入力すること",
         "他人のデータまたは他人の伝票・証憑を投稿すること",
@@ -87,7 +87,7 @@ export default function Terms({ onClose }) {
                 <p style={{ fontSize: 14, color: "#444", lineHeight: 2, marginTop: 8, marginBottom: 8 }}>{a.bulletsLabel}</p>
               )}
               {a.bullets && (
-                <ul style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8 }}>
+                <ul style={{ margin: 0, marginTop: a.body || a.bulletsLabel ? 10 : 0, paddingLeft: 20, display: "grid", gap: 8 }}>
                   {a.bullets.map((b, j) => (
                     <li key={j} style={{ fontSize: 14, color: "#444", lineHeight: 1.9 }}>{b}</li>
                   ))}
