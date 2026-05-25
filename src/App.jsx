@@ -4662,7 +4662,7 @@ const subDest=useCallback(async d=>{
         </span>
         <div style={{display:"flex",gap:16,alignItems:"center"}}>
           <span className="f-sans" style={{fontSize:11,color:"#B0B0B0"}}>
-            本データは農家本人の入力による参考値です
+            chitose-bankは銀行ではありません。表示データは参考情報であり、融資・収益を保証しません。
           </span>
           <button onClick={()=>setShowTerms(true)} style={{
             fontSize:11,color:"#717171",background:"none",border:"none",

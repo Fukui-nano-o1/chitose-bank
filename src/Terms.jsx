@@ -81,15 +81,15 @@ export default function Terms({ onClose }) {
             }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#222", marginBottom: 12 }}>{a.title}</h2>
               {a.body && (
-                <p style={{ fontSize: 14, color: "#444", lineHeight: 2, margin: 0 }}>{a.body}</p>
+                <p style={{ fontSize: 14, color: "#444", lineHeight: 1.9, margin: 0, textAlign: "left" }}>{a.body}</p>
               )}
               {a.bulletsLabel && (
-                <p style={{ fontSize: 14, color: "#444", lineHeight: 2, marginTop: 8, marginBottom: 8 }}>{a.bulletsLabel}</p>
+                <p style={{ fontSize: 14, color: "#444", lineHeight: 1.9, marginTop: 8, marginBottom: 8, textAlign: "left" }}>{a.bulletsLabel}</p>
               )}
               {a.bullets && (
                 <ul style={{ margin: 0, marginTop: a.body || a.bulletsLabel ? 10 : 0, paddingLeft: 20, display: "grid", gap: 8 }}>
                   {a.bullets.map((b, j) => (
-                    <li key={j} style={{ fontSize: 14, color: "#444", lineHeight: 1.9 }}>{b}</li>
+                    <li key={j} style={{ fontSize: 14, color: "#444", lineHeight: 1.9, textAlign: "left" }}>{b}</li>
                   ))}
                 </ul>
               )}
