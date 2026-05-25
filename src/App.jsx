@@ -4361,7 +4361,8 @@ const loadNotifs=useCallback(async(farmerId)=>{
 
 const addRec=useCallback(async(fid,yr,mi,e)=>{
     const k=`${fid}_${yr}_${mi}`;
-    const newRecs={...recs,[k]:[...(recs[k]||[]).filter(x=>x.destId!==e.destId),e]};
+    const newEntry = { ...e, created_at: new Date().toISOString() };
+    const newRecs={...recs,[k]:[...(recs[k]||[]).filter(x=>x.destId!==e.destId),newEntry]};
     setRecs(newRecs);
     const { error } = await supabase.from('records').upsert({
       farmer_id: fid,
