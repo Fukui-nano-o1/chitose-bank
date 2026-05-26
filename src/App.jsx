@@ -1476,7 +1476,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
             </p>
           </div>
           <img
-            src="https://aegwepgtmwcnwzybpgsh.supabase.co/storage/v1/object/public/assets/demo-dashboard.png.png"
+            src="https://aegwepgtmwcnwzybpgsh.supabase.co/storage/v1/object/public/assets/dashboard.png.png"
             alt="経営ダッシュボードのイメージ"
             style={{
               width:"100%",
