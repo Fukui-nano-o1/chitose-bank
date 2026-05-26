@@ -1453,6 +1453,47 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
 
       </>)}
 
+      {userLevel === 1 && (
+        <div style={{
+          marginBottom:28,
+          background:"#fff",
+          border:"1px solid #EBEBEB",
+          borderRadius:16,
+          overflow:"hidden",
+          boxShadow:"0 2px 12px rgba(0,0,0,0.06)",
+        }}>
+          <div style={{ padding:"24px 24px 16px" }}>
+            <p className="f-sans" style={{
+              fontSize:18, fontWeight:800, color:"#222",
+              marginBottom:6, lineHeight:1.4,
+            }}>
+              入力すると、あなたの経営がこう見えます
+            </p>
+            <p className="f-sans" style={{
+              fontSize:12, color:"#717171", lineHeight:1.7,
+            }}>
+              月1回、作物・箱数・単価・経費を入力するだけ。売上・経費・手残り・推移が見える化されます。
+            </p>
+          </div>
+          <img
+            src="/demo-dashboard.png"
+            alt="経営ダッシュボードのイメージ"
+            style={{
+              width:"100%",
+              display:"block",
+              borderTop:"1px solid #EBEBEB",
+            }}
+          />
+          <div style={{ padding:"16px 24px 20px" }}>
+            <button onClick={onLogin} className="btn-primary" style={{
+              width:"100%", padding:"14px", fontSize:14,
+            }}>
+              無料で始める（10秒）→
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ══ 公的統計 ════════════════════════════════════ */}
       {(() => {
         const fmtHarvest = t => t >= 10000 ? (t / 10000).toFixed(1) + "万t" : t.toLocaleString('ja-JP') + "t";
