@@ -2784,6 +2784,60 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               </button>
             </div>
             {saved&&<div style={{marginTop:12,textAlign:"center",display:"grid",gap:8}}>
+              {saved && (() => {
+                const savedRev = (parseFloat(boxes) || 0) * (parseFloat(ppb) || 0);
+                const savedCost = costs.filter(c => c.l && c.v).reduce((s, c) => {
+                  const v = parseFloat(c.v) || 0;
+                  if (c.mode === "pct") return s + Math.round(savedRev * v / 100);
+                  if (c.mode === "per_box") return s + Math.round(parseFloat(boxes) * v);
+                  return s + Math.round(v);
+                }, 0);
+                const savedProfit = savedRev - savedCost;
+                const savedRate = savedRev > 0 ? Math.round(savedCost / savedRev * 100) : 0;
+
+                const fmtYen = v => {
+                  if (Math.abs(v) >= 10000) return (Math.round(v / 1000) / 10).toFixed(1) + "万";
+                  return Math.round(v).toLocaleString("ja-JP");
+                };
+
+                return (
+                  <div style={{
+                    marginTop: 16, marginBottom: 16,
+                    padding: "20px", background: "#F7F7F7",
+                    borderRadius: 12, border: "1px solid #EBEBEB",
+                  }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+                      <div style={{ textAlign: "center", padding: "12px 8px", background: "#E6F7EF", borderRadius: 8 }}>
+                        <p className="f-sans" style={{ fontSize: 9, color: "#00A86B", fontWeight: 600, marginBottom: 4 }}>売上</p>
+                        <p className="f-mono" style={{ fontSize: 16, fontWeight: 700, color: "#00A86B", margin: 0 }}>{fmtYen(savedRev)}</p>
+                      </div>
+                      <div style={{ textAlign: "center", padding: "12px 8px", background: "#FEF3E2", borderRadius: 8 }}>
+                        <p className="f-sans" style={{ fontSize: 9, color: "#F5A623", fontWeight: 600, marginBottom: 4 }}>経費</p>
+                        <p className="f-mono" style={{ fontSize: 16, fontWeight: 700, color: "#F5A623", margin: 0 }}>{fmtYen(savedCost)}</p>
+                      </div>
+                      <div style={{ textAlign: "center", padding: "12px 8px", background: savedProfit >= 0 ? "#E6F7EF" : "#FCEBEB", borderRadius: 8 }}>
+                        <p className="f-sans" style={{ fontSize: 9, color: savedProfit >= 0 ? "#00A86B" : "#E24B4A", fontWeight: 600, marginBottom: 4 }}>手残り</p>
+                        <p className="f-mono" style={{ fontSize: 16, fontWeight: 700, color: savedProfit >= 0 ? "#00A86B" : "#E24B4A", margin: 0 }}>{fmtYen(savedProfit)}</p>
+                      </div>
+                    </div>
+                    {savedRev > 0 && (
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span className="f-sans" style={{ fontSize: 11, fontWeight: 600, color: "#222" }}>経費率</span>
+                          <span className="f-mono" style={{ fontSize: 14, fontWeight: 700, color: savedRate > 60 ? "#E24B4A" : savedRate > 40 ? "#F5A623" : "#00A86B" }}>{savedRate}%</span>
+                        </div>
+                        <div style={{ height: 6, background: "#EBEBEB", borderRadius: 3, overflow: "hidden" }}>
+                          <div style={{
+                            height: 6, borderRadius: 3,
+                            width: Math.min(savedRate, 100) + "%",
+                            background: savedRate > 60 ? "#E24B4A" : savedRate > 40 ? "#F5A623" : "#00A86B",
+                          }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <button onClick={()=>{setStep(1);setSaved(false);setCosts([{l:"",v:"",mode:"fixed"}]);setCrop("");setCropInput("");}} className="f-sans" style={{fontSize:12,color:C.mid,background:"none",border:"none",textDecoration:"underline",textUnderlineOffset:3}}>入力を続ける</button>
               <button onClick={()=>onGoBoard&&onGoBoard()} className="btn-primary" style={{width:"100%"}}>公開ボードを見る →</button>
             </div>}
