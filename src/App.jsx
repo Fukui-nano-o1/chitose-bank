@@ -56,7 +56,7 @@ const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#
 const SEED_FARMERS = [];
 const SEED_DESTS = [];
 
-const THIS_YEAR   = 2025;
+const THIS_YEAR   = new Date().getFullYear();
 const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 const MONTHS    = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 const PREFECTURES = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
@@ -1498,9 +1498,11 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
       {userLevel >= 2 && me && (() => {
         const now = new Date();
         const thisMonth = now.getMonth();
-        const thisYear = THIS_YEAR;
+        const myRecordKeys = Object.keys(records).filter(k => k.startsWith(me.id + "_"));
+        const myYears = myRecordKeys.map(k => parseInt(k.split("_")[1])).filter(y => !isNaN(y));
+        const thisYear = myYears.length > 0 ? Math.max(...myYears) : THIS_YEAR;
         const prevMonth = thisMonth === 0 ? 11 : thisMonth - 1;
-        const prevYear = thisMonth === 0 ? THIS_YEAR - 1 : THIS_YEAR;
+        const prevYear = thisMonth === 0 ? thisYear - 1 : thisYear;
 
         const myRecsThisMonth = records[me.id + "_" + thisYear + "_" + thisMonth] || [];
         const myRecsPrevMonth = records[me.id + "_" + prevYear + "_" + prevMonth] || [];
@@ -1543,7 +1545,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
         };
 
         const monthlyData = Array.from({ length: 12 }, (_, i) => {
-          const recs = records[me.id + "_" + THIS_YEAR + "_" + i] || [];
+          const recs = records[me.id + "_" + thisYear + "_" + i] || [];
           const t = calcTotals(recs);
           return { month: i, rev: t.rev, cost: t.cost, profit: t.profit };
         });
@@ -2468,6 +2470,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const [cropInput,setCropInput]=useState("");
   const [variety,setVariety]=useState("");
   const [isBrand,setIsBrand]=useState(false);
+  const [selectedYear, setSelectedYear] = useState(THIS_YEAR);
   const [mon,setMon]=useState(new Date().getMonth());
   const [dest,setDest]=useState(null);
   const [boxes,setBoxes]=useState("");
@@ -2499,7 +2502,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
       else a=Math.round(v);
       return {l:c.l,v,mode:c.mode,a};
     });
-    await onAddRecord(loggedInFarmer.id,THIS_YEAR,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci,crop:crop,variety:variety.trim(),is_brand:isBrand});
+    await onAddRecord(loggedInFarmer.id,selectedYear,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci,crop:crop,variety:variety.trim(),is_brand:isBrand});
     setSaved(true);
   };
   const submitDest=async()=>{
@@ -2602,9 +2605,22 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
         {step===2&&(
           <div className="fade-in">
             <p className="f-sans" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:20}}>何月のデータを入力しますか？</p>
+            <div style={{ display:"flex", gap:8, marginBottom:16, alignItems:"center" }}>
+              <label className="lbl f-sans" style={{ marginBottom:0 }}>年</label>
+              <select
+                className="field f-sans"
+                value={selectedYear}
+                onChange={e => setSelectedYear(Number(e.target.value))}
+                style={{ width:"auto", padding:"10px 14px", fontSize:14 }}
+              >
+                {Array.from({ length: THIS_YEAR - 2019 }, (_, i) => THIS_YEAR - i).map(y => (
+                  <option key={y} value={y}>{y}年</option>
+                ))}
+              </select>
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:22}}>
               {MONTHS.map((m,i)=>{
-                const has=(records[`${loggedInFarmer.id}_${THIS_YEAR}_${i}`]||[]).length>0;
+                const has=(records[`${loggedInFarmer.id}_${selectedYear}_${i}`]||[]).length>0;
                 const act=mon===i;
                 return(
                   <button key={i} onClick={()=>setMon(i)} style={{
