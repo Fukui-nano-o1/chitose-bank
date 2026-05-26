@@ -1498,9 +1498,9 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
       {userLevel >= 2 && me && (() => {
         const now = new Date();
         const thisMonth = now.getMonth();
-        const thisYear = now.getFullYear();
+        const thisYear = THIS_YEAR;
         const prevMonth = thisMonth === 0 ? 11 : thisMonth - 1;
-        const prevYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+        const prevYear = thisMonth === 0 ? THIS_YEAR - 1 : THIS_YEAR;
 
         const myRecsThisMonth = records[me.id + "_" + thisYear + "_" + thisMonth] || [];
         const myRecsPrevMonth = records[me.id + "_" + prevYear + "_" + prevMonth] || [];
@@ -1543,7 +1543,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
         };
 
         const monthlyData = Array.from({ length: 12 }, (_, i) => {
-          const recs = records[me.id + "_" + thisYear + "_" + i] || [];
+          const recs = records[me.id + "_" + THIS_YEAR + "_" + i] || [];
           const t = calcTotals(recs);
           return { month: i, rev: t.rev, cost: t.cost, profit: t.profit };
         });
