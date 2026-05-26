@@ -1494,6 +1494,173 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
         </div>
       )}
 
+      {/* ══ 今月のサマリー ══════════════════════════════ */}
+      {userLevel >= 2 && me && (() => {
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+        const prevMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+        const prevYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+
+        const myRecsThisMonth = records[me.id + "_" + thisYear + "_" + thisMonth] || [];
+        const myRecsPrevMonth = records[me.id + "_" + prevYear + "_" + prevMonth] || [];
+
+        const calcTotals = (recs) => {
+          const rev = recs.reduce((s, r) => s + (r.boxes || 0) * (r.ppb || 0), 0);
+          const cost = recs.reduce((s, r) => s + (r.costs || []).reduce((a, c) => a + (c.a || 0), 0), 0);
+          return { rev, cost, profit: rev - cost };
+        };
+
+        const thisM = calcTotals(myRecsThisMonth);
+        const prevM = calcTotals(myRecsPrevMonth);
+
+        const costRate = thisM.rev > 0 ? Math.round(thisM.cost / thisM.rev * 100) : 0;
+        const pctChange = (cur, prev) => {
+          if (prev === 0) return null;
+          return Math.round((cur - prev) / prev * 100);
+        };
+
+        const revChange = pctChange(thisM.rev, prevM.rev);
+        const costChange = pctChange(thisM.cost, prevM.cost);
+        const profitChange = pctChange(thisM.profit, prevM.profit);
+
+        const fmtYen = v => {
+          if (Math.abs(v) >= 10000) return "¥" + (Math.round(v / 1000) / 10).toFixed(1) + "万";
+          return "¥" + Math.round(v).toLocaleString("ja-JP");
+        };
+
+        const ChangeBadge = ({ val }) => {
+          if (val === null) return null;
+          const isUp = val >= 0;
+          return (
+            <span className="f-sans" style={{
+              fontSize: 10, fontWeight: 600,
+              color: isUp ? "#00A86B" : "#E24B4A",
+            }}>
+              前月比 {isUp ? "+" : ""}{val}%
+            </span>
+          );
+        };
+
+        const monthlyData = Array.from({ length: 12 }, (_, i) => {
+          const recs = records[me.id + "_" + thisYear + "_" + i] || [];
+          const t = calcTotals(recs);
+          return { month: i, rev: t.rev, cost: t.cost, profit: t.profit };
+        });
+
+        const hasAnyData = monthlyData.some(d => d.rev > 0 || d.cost > 0);
+
+        const maxVal = Math.max(...monthlyData.map(d => Math.max(d.rev, d.cost)), 1);
+        const chartW = 300, chartH = 80, padL = 4, padR = 4, padT = 8, padB = 20;
+        const cW = chartW - padL - padR, cH = chartH - padT - padB;
+        const toX = i => padL + (i / 11) * cW;
+        const toY = v => padT + cH - (v / maxVal) * cH;
+        const pts = arr => arr.map((d, i) => toX(i) + "," + toY(d)).join(" ");
+
+        if (!hasAnyData && myRecsThisMonth.length === 0) {
+          return (
+            <div style={{
+              marginBottom: 24, padding: "24px",
+              background: "#F7F7F7", border: "1px solid #EBEBEB",
+              borderRadius: 16, textAlign: "center",
+            }}>
+              <p className="f-sans" style={{ fontSize: 14, fontWeight: 600, color: "#222", marginBottom: 8 }}>
+                まず先月の1件を記録しましょう
+              </p>
+              <p className="f-sans" style={{ fontSize: 12, color: "#717171", marginBottom: 16 }}>
+                売上・経費・手残り・経費率がここに表示されます
+              </p>
+              <button onClick={() => { if (onLogin) onLogin(); }} className="btn-primary" style={{ padding: "12px 28px", fontSize: 13 }}>
+                記録を入力する →
+              </button>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
+              <h2 className="f-sans" style={{ fontSize: 15, fontWeight: 700, color: "#222", margin: 0 }}>
+                今月のサマリー
+                <span className="f-sans" style={{ fontSize: 10, color: "#717171", fontWeight: 400, marginLeft: 8 }}>
+                  {thisMonth + 1}月
+                </span>
+              </h2>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+              {[
+                { label: "売上", val: thisM.rev, color: "#00A86B", bg: "#E6F7EF", change: revChange },
+                { label: "経費", val: thisM.cost, color: "#F5A623", bg: "#FEF3E2", change: costChange },
+                { label: "手残り", val: thisM.profit, color: thisM.profit >= 0 ? "#00A86B" : "#E24B4A", bg: thisM.profit >= 0 ? "#E6F7EF" : "#FCEBEB", change: profitChange },
+              ].map(card => (
+                <div key={card.label} style={{
+                  padding: "16px 14px", background: card.bg,
+                  borderRadius: 12, textAlign: "center",
+                }}>
+                  <p className="f-sans" style={{ fontSize: 10, color: card.color, fontWeight: 600, marginBottom: 6 }}>{card.label}</p>
+                  <p className="f-mono" style={{ fontSize: 18, fontWeight: 700, color: card.color, margin: "0 0 4px" }}>
+                    {fmtYen(card.val)}
+                  </p>
+                  <ChangeBadge val={card.change} />
+                </div>
+              ))}
+            </div>
+
+            {thisM.rev > 0 && (
+              <div style={{
+                padding: "12px 16px", background: "#fff",
+                border: "1px solid #EBEBEB", borderRadius: 12, marginBottom: 14,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: "#222" }}>経費率</span>
+                  <span className="f-mono" style={{ fontSize: 16, fontWeight: 700, color: costRate > 60 ? "#E24B4A" : costRate > 40 ? "#F5A623" : "#00A86B" }}>
+                    {costRate}%
+                  </span>
+                </div>
+                <div style={{ height: 8, background: "#F7F7F7", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{
+                    height: 8, borderRadius: 4,
+                    width: Math.min(costRate, 100) + "%",
+                    background: costRate > 60 ? "#E24B4A" : costRate > 40 ? "#F5A623" : "#00A86B",
+                    transition: "width 0.6s ease",
+                  }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                  <span className="f-sans" style={{ fontSize: 9, color: "#B0B0B0" }}>0%</span>
+                  <span className="f-sans" style={{ fontSize: 9, color: "#B0B0B0" }}>目安：60%以下</span>
+                  <span className="f-sans" style={{ fontSize: 9, color: "#B0B0B0" }}>100%</span>
+                </div>
+              </div>
+            )}
+
+            {hasAnyData && (
+              <div style={{
+                padding: "16px", background: "#fff",
+                border: "1px solid #EBEBEB", borderRadius: 12,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <span className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: "#222" }}>年間推移</span>
+                  <div className="f-sans" style={{ display: "flex", gap: 12, fontSize: 9 }}>
+                    <span style={{ color: "#00A86B" }}>● 売上</span>
+                    <span style={{ color: "#F5A623" }}>● 経費</span>
+                  </div>
+                </div>
+                <svg viewBox={"0 0 " + chartW + " " + chartH} style={{ width: "100%", height: "auto", display: "block" }}>
+                  {monthlyData.map((d, i) => (
+                    i % 2 === 0 && <text key={i} x={toX(i)} y={chartH - 4} textAnchor="middle" fontSize="8" fill="#B0B0B0">{i + 1}月</text>
+                  ))}
+                  <polyline points={pts(monthlyData.map(d => d.rev))} fill="none" stroke="#00A86B" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                  <polyline points={pts(monthlyData.map(d => d.cost))} fill="none" stroke="#F5A623" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                  {monthlyData.map((d, i) => d.rev > 0 && <circle key={"r" + i} cx={toX(i)} cy={toY(d.rev)} r="3" fill="#00A86B" />)}
+                  {monthlyData.map((d, i) => d.cost > 0 && <circle key={"c" + i} cx={toX(i)} cy={toY(d.cost)} r="3" fill="#F5A623" />)}
+                </svg>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ══ 公的統計 ════════════════════════════════════ */}
       {(() => {
         const fmtHarvest = t => t >= 10000 ? (t / 10000).toFixed(1) + "万t" : t.toLocaleString('ja-JP') + "t";
