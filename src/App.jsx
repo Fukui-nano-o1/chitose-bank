@@ -3422,8 +3422,9 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             const isOpen = expandedFarmer === f.id;
             const tier = f.experience_tier || "1-3";
             const fRecs = records.filter(r => r.farmer_id === f.id || r.farmer_id === f.auth_id);
-            const lastRecDate = fRecs.length > 0
-              ? fRecs.reduce((a, b) => (a.created_at > b.created_at ? a : b)).created_at
+            const fRecsWithDate = fRecs.filter(r => r.created_at);
+            const lastRecDate = fRecsWithDate.length > 0
+              ? fRecsWithDate.reduce((a, b) => (a.created_at > b.created_at ? a : b)).created_at
               : null;
             const crops = Array.isArray(f.planned_crops) ? f.planned_crops : [];
             const detailRows = [
