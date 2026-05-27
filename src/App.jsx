@@ -2464,7 +2464,7 @@ const COST_TEMPLATES = [
   { label: "種苗費", mode: "fixed"   },
 ];
 
-function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRecord, onSubmitDest, onGoBoard }) {
+function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRecord, onSubmitDest, onGoBoard, onDeleteRec }) {
   const [step,setStep]=useState(1);
   const [crop,setCrop]=useState("");
   const [cropInput,setCropInput]=useState("");
@@ -2777,6 +2777,56 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
                 </div>
               </div>
             </div>
+            {(() => {
+              const existingRecs = (records[loggedInFarmer.id + "_" + selectedYear + "_" + mon] || [])
+                .filter(r => r.destId === dest?.id);
+              if (existingRecs.length === 0) return null;
+              const totalRev = existingRecs.reduce((s, r) => s + (r.boxes || 0) * (r.ppb || 0), 0);
+              return (
+                <div style={{ marginBottom: 18, padding: "16px", background: "#F7F7F7", borderRadius: 12, border: "1px solid #EBEBEB" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <span className="f-sans" style={{ fontSize: 12, fontWeight: 700, color: "#222" }}>
+                      この月の入力済みデータ（{existingRecs.length}件）
+                    </span>
+                    <span className="f-mono" style={{ fontSize: 12, fontWeight: 600, color: "#00A86B" }}>
+                      合計 {totalRev >= 10000 ? (Math.round(totalRev / 1000) / 10).toFixed(1) + "万" : totalRev.toLocaleString("ja-JP")}円
+                    </span>
+                  </div>
+                  {existingRecs.map((r, i) => {
+                    const rRev = (r.boxes || 0) * (r.ppb || 0);
+                    const rCost = (r.costs || []).reduce((a, c) => a + (c.a || 0), 0);
+                    return (
+                      <div key={r.id || i} style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 12px", background: "#fff", borderRadius: 8,
+                        marginBottom: 6, border: "1px solid #EBEBEB",
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="f-sans" style={{ fontSize: 12, color: "#222" }}>
+                            {r.boxes}箱 × {r.ppb}円 = <span className="f-mono" style={{ fontWeight: 600, color: "#00A86B" }}>{rRev >= 10000 ? (Math.round(rRev / 1000) / 10).toFixed(1) + "万" : rRev.toLocaleString("ja-JP")}円</span>
+                          </div>
+                          {rCost > 0 && (
+                            <div className="f-sans" style={{ fontSize: 10, color: "#F5A623", marginTop: 2 }}>
+                              経費 {rCost.toLocaleString("ja-JP")}円
+                            </div>
+                          )}
+                        </div>
+                        <button onClick={() => {
+                          if (window.confirm("この記録を削除しますか？")) {
+                            onDeleteRec(loggedInFarmer.id, selectedYear, mon, r.id);
+                          }
+                        }} style={{
+                          padding: "4px 10px", border: "1px solid #E24B4A44",
+                          borderRadius: 8, background: "transparent",
+                          color: "#E24B4A", fontSize: 10, fontWeight: 600,
+                          cursor: "pointer", flexShrink: 0,
+                        }}>削除</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             <div style={{display:"flex",gap:8}}>
               <button className="btn-outline" onClick={()=>setStep(3)}>← 戻る</button>
               <button className="btn-primary" style={{flex:1,background:saved?C.bamboo:undefined}} disabled={!boxes||!ppb} onClick={save}>
@@ -4590,7 +4640,7 @@ export default function App(){
       dbRecs.forEach(rec => {
         const k = `${rec.farmer_id}_${rec.year}_${rec.month}`;
         if (!r[k]) r[k] = [];
-        r[k].push({ destId: rec.dest_id, boxes: rec.boxes, ppb: rec.ppb, costs: rec.costs || [], created_at: rec.created_at });
+        r[k].push({ id: rec.id, destId: rec.dest_id, boxes: rec.boxes, ppb: rec.ppb, costs: rec.costs || [], crop: rec.crop, variety: rec.variety, is_brand: rec.is_brand, created_at: rec.created_at });
       });
     }
     setFarmers(f);setFarmPend(fp);setDestOk(da);setDestPend(dp);setRecs(r);
@@ -4639,10 +4689,9 @@ const loadNotifs=useCallback(async(farmerId)=>{
 
 const addRec=useCallback(async(fid,yr,mi,e)=>{
     const k=`${fid}_${yr}_${mi}`;
-    const newEntry = { ...e, created_at: new Date().toISOString() };
-    const newRecs={...recs,[k]:[...(recs[k]||[]).filter(x=>x.destId!==e.destId),newEntry]};
-    setRecs(newRecs);
-    const { error } = await supabase.from('records').upsert({
+    const newEntry = { ...e, id: Math.random().toString(36).slice(2,11), created_at: new Date().toISOString() };
+    const newRecs={...recs,[k]:[...(recs[k]||[]),newEntry]};
+    const { data: insertedData, error } = await supabase.from('records').insert({
       farmer_id: fid,
       year: yr,
       month: mi,
@@ -4653,8 +4702,13 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
       crop: e.crop,
       variety: e.variety || '',
       is_brand: e.is_brand || false,
-    }, { onConflict: 'farmer_id,year,month,dest_id' });
-    if (error) { console.error('records upsert error:', error); return; }
+    }).select().single();
+    if (error) { console.error('records insert error:', error); return; }
+    if (insertedData) {
+      const finalEntry = { ...newEntry, id: insertedData.id, created_at: insertedData.created_at };
+      const finalRecs = {...recs,[k]:[...(recs[k]||[]),finalEntry]};
+      setRecs(finalRecs);
+    }
 
     // ── 経営インサイト通知 ──
     const rev = e.boxes * e.ppb;
@@ -4707,7 +4761,17 @@ const addRec=useCallback(async(fid,yr,mi,e)=>{
       }
     }
   },[recs,pushNotif,destOk]);
-  
+
+  const deleteRec = useCallback(async (fid, yr, mi, recId) => {
+    const { error } = await supabase.from('records').delete().eq('id', recId);
+    if (error) { console.error('record delete error:', error); return; }
+    const k = fid + "_" + yr + "_" + mi;
+    setRecs(prev => ({
+      ...prev,
+      [k]: (prev[k] || []).filter(r => r.id !== recId),
+    }));
+  }, []);
+
 const subDest=useCallback(async d=>{
     await supabase.from('dests').insert({ id: d.id, name: d.name, status: 'approved', submitted_by: d.submittedBy });
     await savDA([...destOk,{...d,status:"approved"}]);
@@ -4929,7 +4993,7 @@ const subDest=useCallback(async d=>{
         {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)}/>}
         {tab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
-              records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")}/>
+              records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
           : authV==="register"
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>
