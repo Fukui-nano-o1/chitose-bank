@@ -3313,7 +3313,10 @@ function AdminTab() {
   );
 
   // 派生データ
-  const farmerMap = Object.fromEntries(farmers.map(f => [f.id, f]));
+  const farmerMap = Object.fromEntries([
+    ...farmers.map(f => [f.id, f]),
+    ...farmers.filter(f => f.auth_id).map(f => [f.auth_id, f]),
+  ]);
   const destMap   = Object.fromEntries(dests.map(d => [d.id, d]));
   const filteredRecs = records.filter(r => {
     const fn = farmerMap[r.farmer_id]?.name || "";
