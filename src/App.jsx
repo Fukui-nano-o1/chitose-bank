@@ -1394,10 +1394,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
         scrollbarWidth:"none", msOverflowStyle:"none",
       }}>
         {[
-          { id:"for-institutions", label:"JA・支援センター" },
-          { id:"for-newcomers",    label:"新規就農者" },
-          { id:"for-veterans",     label:"ベテラン農家" },
-          { id:"for-non-farmers",  label:"就農希望者" },
+          { id:"for-ja",             label:"JA" },
+          { id:"for-support-center", label:"支援センター" },
         ].map(tab => (
           <button
             key={tab.id}
@@ -1432,7 +1430,6 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
         {[
           { icon:"🔒", text:"個人名は非公開" },
           { icon:"📊", text:"ランキングしない" },
-          { icon:"📄", text:"融資資料になる" },
           { icon:"🤝", text:"同意なく共有しない" },
         ].map(item => (
           <div key={item.text} style={{
@@ -1453,56 +1450,6 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
 
       </>)}
 
-      {!me && (
-        <div style={{
-          marginBottom:28,
-          background:"#fff",
-          border:"1px solid #EBEBEB",
-          borderRadius:16,
-          overflow:"hidden",
-          boxShadow:"0 2px 12px rgba(0,0,0,0.06)",
-        }}>
-          <div style={{ padding:"24px 24px 16px" }}>
-            <p className="f-sans" style={{
-              fontSize:18, fontWeight:800, color:"#222",
-              marginBottom:6, lineHeight:1.4,
-            }}>
-              月1回の記録が、将来の人手確保につながります
-            </p>
-            <div style={{ display:"grid", gap:10, marginBottom:12 }}>
-              {[
-                { icon:"🤝", text:"将来の農業バイト優先案内・手数料割引予定" },
-                { icon:"📄", text:"五年計画書・融資相談の土台になる" },
-                { icon:"📊", text:"5農家以上で地域平均との差が見える" },
-              ].map(item => (
-                <div key={item.text} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontSize:18, flexShrink:0 }}>{item.icon}</span>
-                  <span className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.6 }}>{item.text}</span>
-                </div>
-              ))}
-            </div>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>
-              個人名・個別収支・販売先名は公開しません。
-            </p>
-          </div>
-          <img
-            src="https://aegwepgtmwcnwzybpgsh.supabase.co/storage/v1/object/public/assets/dashboard.png.png"
-            alt="経営ダッシュボードのイメージ"
-            style={{
-              width:"100%",
-              display:"block",
-              borderTop:"1px solid #EBEBEB",
-            }}
-          />
-          <div style={{ padding:"16px 24px 20px" }}>
-            <button onClick={onLogin} className="btn-primary" style={{
-              width:"100%", padding:"14px", fontSize:14,
-            }}>
-              実証に参加する →
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ══ 今月のサマリー ══════════════════════════════ */}
       {userLevel >= 2 && me && (() => {
@@ -2119,10 +2066,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
           marginBottom:24,
         }}>
           {[
-            { id:"for-institutions", icon:"🏛", title:"JA・支援センターの方へ",  desc:"融資審査に必要な収支計画書を標準化。確認負担を減らします。",          color:"#1A5E5E", bg:"#E8F5F0" },
-            { id:"for-newcomers",    icon:"🌱", title:"新規就農者の方へ",          desc:"何から始めるか分からなくても、10分で五年計画書が作れます。",          color:"#00A86B", bg:"#E6F7EF" },
-            { id:"for-veterans",     icon:"🌾", title:"ベテラン・中堅農家の方へ",  desc:"あなたの経費データが地域の基準になります。",                          color:"#B87A1A", bg:"#FEF3E2" },
-            { id:"for-non-farmers",  icon:"👀", title:"これから農業を始める方へ",  desc:"就農前にリアルな経費・収支データを見て判断できます。",                color:"#4A90D9", bg:"#EBF3FC" },
+            { id:"for-ja",             icon:"🏛", title:"JAの方へ",       desc:"融資審査に必要な収支計画書を標準化。確認負担を減らします。", color:"#1A5E5E", bg:"#E8F5F0" },
+            { id:"for-support-center", icon:"🌿", title:"支援センターの方へ", desc:"新規就農者の計画書作成を効率化。フォーマットを統一します。", color:"#1A5E5E", bg:"#E8F5F0" },
           ].map(card => (
             <button
               key={card.id}
@@ -2153,93 +2098,37 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
       </div>
 
       {/* ══ 対象者モーダル ═══════════════════════════════ */}
-      {activeAudience && userLevel === 1 && (() => {
+      {activeAudience && !me && (() => {
+        const institutionsBody = (
+          <>
+            <div style={{ marginBottom:20 }}>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>課題</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>
+                新規就農者の融資審査で、収支計画書の作成指導に時間がかかる。
+                提出される計画書のフォーマットがバラバラで、確認作業が非効率。
+              </p>
+            </div>
+            <div style={{ marginBottom:24 }}>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>このサービスで解決できること</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>
+                農家が売上・経費を入力するだけで、JA融資審査フォーマットの五年計画書がPDF出力されます。
+                公的統計データが自動参照され、保守的な数値が入ります。
+                収支計画書のフォーマットが統一されるため、確認負担が軽減されます。
+              </p>
+            </div>
+            <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14 }}>
+              導入について相談する →
+            </button>
+          </>
+        );
         const contents = {
-          "for-institutions": {
-            icon:"🏛", title:"JA・支援センターの方へ", color:"#1A5E5E", bg:"#E8F5F0",
-            body: (
-              <>
-                <div style={{ marginBottom:20 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>課題</p>
-                  <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>
-                    新規就農者の融資審査で、収支計画書の作成指導に時間がかかる。
-                    提出される計画書のフォーマットがバラバラで、確認作業が非効率。
-                  </p>
-                </div>
-                <div style={{ marginBottom:24 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>このサービスで解決できること</p>
-                  <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>
-                    農家が売上・経費を入力するだけで、JA融資審査フォーマットの五年計画書がPDF出力されます。
-                    公的統計データが自動参照され、保守的な数値が入ります。
-                    収支計画書のフォーマットが統一されるため、確認負担が軽減されます。
-                  </p>
-                </div>
-                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14 }}>
-                  導入について相談する →
-                </button>
-              </>
-            ),
+          "for-ja": {
+            icon:"🏛", title:"JAの方へ", color:"#1A5E5E", bg:"#E8F5F0",
+            body: institutionsBody,
           },
-          "for-newcomers": {
-            icon:"🌱", title:"新規就農者の方へ", color:"#00A86B", bg:"#E6F7EF",
-            body: (
-              <>
-                <div style={{ display:"grid", gap:18, marginBottom:24 }}>
-                  {[
-                    { n:"1", t:"作物と出荷先を選ぶ",      d:"栽培予定の作物を選び、出荷先を登録します。" },
-                    { n:"2", t:"売上と経費を月ごとに入力", d:"出荷箱数と単価、経費項目を入れるだけ。1回3分。" },
-                    { n:"3", t:"五年計画書をPDF出力",      d:"JA融資に使える収支計画書が自動生成されます。支援センターにそのまま提出可能。" },
-                  ].map(step => (
-                    <div key={step.n} style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
-                      <span className="f-mono" style={{ fontSize:22, fontWeight:700, color:"#00A86B", flexShrink:0, lineHeight:1 }}>{step.n}</span>
-                      <div>
-                        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:4 }}>{step.t}</p>
-                        <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>{step.d}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14 }}>
-                  無料で始める →
-                </button>
-              </>
-            ),
-          },
-          "for-veterans": {
-            icon:"🌾", title:"ベテラン・中堅農家の方へ", color:"#B87A1A", bg:"#FEF3E2",
-            body: (
-              <>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:16 }}>
-                  あなたが入力した経費データは、匿名で集計され、地域の経営基準になります。
-                  新規就農者が参考にする数字を、現場の経験者が作る。
-                  それが吉野川の農業を強くします。
-                </p>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
-                  貢献者として継続入力すると、他の農家の集計データや出荷先別の採算比較が利用できます。
-                </p>
-                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, background:"#B87A1A" }}>
-                  データを入力する →
-                </button>
-              </>
-            ),
-          },
-          "for-non-farmers": {
-            icon:"👀", title:"これから農業を始める方へ", color:"#4A90D9", bg:"#EBF3FC",
-            body: (
-              <>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:16 }}>
-                  就農する前に、リアルな数字を見てください。
-                  作物ごとの作付面積・収穫量・労働時間。農家が実際に入力した経費率。
-                  「思っていたのと違った」を減らすために、このデータがあります。
-                </p>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
-                  登録は無料。公的統計データは登録なしでも閲覧できます。
-                </p>
-                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, background:"#4A90D9" }}>
-                  無料で登録する →
-                </button>
-              </>
-            ),
+          "for-support-center": {
+            icon:"🌿", title:"支援センターの方へ", color:"#1A5E5E", bg:"#E8F5F0",
+            body: institutionsBody,
           },
         };
         const content = contents[activeAudience];
