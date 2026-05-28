@@ -4116,7 +4116,7 @@ const OB_SALES_CHANNELS = [
 ];
 
 function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
-  const totalSteps = 8;
+  const totalSteps = 9;
   const [obStep, setObStep] = useState(1);
   const [obName,         setObName]         = useState(me.name || "");
   const [obPrefecture,   setObPrefecture]   = useState(me.prefecture || "");
@@ -4139,7 +4139,7 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
     });
   }, []);
 
-  const canGoNext = [null, !!obName.trim(), !!obPrefecture, true, !!obTier, !!obFarmingType, true, true, true][obStep] ?? true;
+  const canGoNext = [null, !!obName.trim(), !!obPrefecture, !!obMunicipality.trim(), !!obTier, !!obFarmingType, Number(obArea) > 0, obCrops.length > 0, obChannels.length > 0, true][obStep] ?? true;
 
   const goNext = () => { if (obStep < totalSteps) setObStep(s => s + 1); else handleSubmit(); };
   const goBack = () => setObStep(s => s - 1);
@@ -4339,6 +4339,44 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
         );
       })}
     </div>,
+
+    // 8: 確認画面
+    <div style={{ maxWidth:400, margin:"0 auto", padding:24, background:"#F7F7F7", borderRadius:20 }}>
+      <div style={{ textAlign:"center", marginBottom:20 }}>
+        <div style={{ width:80, height:80, borderRadius:"50%", background:"#00A86B22", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", fontSize:36 }}>🌾</div>
+        <p className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222" }}>{obName}</p>
+      </div>
+      <div style={{ display:"grid", gap:12 }}>
+        {[
+          { icon:"📍", label:"都道府県", value: obPrefecture },
+          { icon:"📍", label:"市区町村", value: obMunicipality },
+          { icon:"📅", label:"就農歴", value: obTier },
+          { icon:"🌾", label:"専業/兼業", value: obFarmingType === "fulltime" ? "専業農家" : "兼業農家" },
+          { icon:"📐", label:"経営面積", value: obArea + " 反" },
+        ].map(item => (
+          <div key={item.label} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#fff", borderRadius:10 }}>
+            <span style={{ fontSize:18 }}>{item.icon}</span>
+            <span className="f-sans" style={{ fontSize:12, color:"#717171", width:80 }}>{item.label}</span>
+            <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>{item.value}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop:12, display:"flex", flexWrap:"wrap", gap:6 }}>
+        <span className="f-sans" style={{ fontSize:11, color:"#717171", marginRight:4 }}>栽培作物:</span>
+        {obCrops.map(c => (
+          <span key={c} style={{ padding:"4px 10px", background:"#E6F7EF", borderRadius:999, fontSize:12, color:"#00A86B", fontWeight:600 }}>{c}</span>
+        ))}
+      </div>
+      <div style={{ marginTop:8, display:"flex", flexWrap:"wrap", gap:6 }}>
+        <span className="f-sans" style={{ fontSize:11, color:"#717171", marginRight:4 }}>販売先:</span>
+        {obChannels.map(s => {
+          const ch = OB_SALES_CHANNELS.find(c => c.value === s);
+          return (
+            <span key={s} style={{ padding:"4px 10px", background:"#FEF3E2", borderRadius:999, fontSize:12, color:"#F5A623", fontWeight:600 }}>{ch ? ch.label : s}</span>
+          );
+        })}
+      </div>
+    </div>,
   ];
 
   const stepMeta = [
@@ -4381,6 +4419,11 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
       title:"主な販売先は？",
       sub:"複数選べます（予定でもOK）",
       desc:"販売先によって手数料や運賃などの経費構造が変わります。将来の収支比較にも活用されます。",
+    },
+    {
+      title:"プロフィール確認",
+      sub:"内容をご確認ください",
+      desc:"以下の内容で登録します。修正したい場合は「戻る」を押してください。",
     },
   ];
 
@@ -4447,7 +4490,7 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
             transition:"opacity .2s",
           }}
         >
-          {saving ? "保存中..." : obStep === totalSteps ? "始める" : "次へ →"}
+          {saving ? "保存中..." : obStep === totalSteps ? "この内容で始める →" : "次へ →"}
         </button>
       </div>
     </div>
