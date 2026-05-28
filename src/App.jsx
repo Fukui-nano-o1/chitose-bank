@@ -3241,7 +3241,7 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 
 // ── LandingFlow ──────────────────────────────────────────────
 function LandingFlow({ onComplete, onSkip, onLogin }) {
-  const totalSteps = 5;
+  const totalSteps = 6;
   const [step, setStep] = useState(1);
   const [userType, setUserType] = useState("");
   const [painPoint, setPainPoint] = useState("");
@@ -3251,6 +3251,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
 
   const canGoNext = [
     null,
+    true,
     !!userType,
     !!painPoint,
     true,
@@ -3258,13 +3259,13 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
     true,
   ][step] ?? true;
 
-  const step2Question = (userType === "veteran" || userType === "mid")
+  const step3Question = (userType === "veteran" || userType === "mid")
     ? "収穫の時期、人手は足りていますか？"
     : userType === "newcomer"
     ? "融資・補助金の計画書は作成済みですか？"
     : "就農時期は決まっていますか？";
 
-  const step2Options = (userType === "veteran" || userType === "mid")
+  const step3Options = (userType === "veteran" || userType === "mid")
     ? [
         { label: "足りない。毎年困っている", value: "not_enough" },
         { label: "なんとかやっている", value: "barely" },
@@ -3282,7 +3283,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
         { label: "まだ先", value: "later" },
       ];
 
-  const step3Content = (userType === "veteran" || userType === "mid")
+  const step4Content = (userType === "veteran" || userType === "mid")
     ? {
         title: "月1回の記録が、将来の人手確保につながります",
         desc: "記録を続けた農家から、将来の農業バイト優先案内・手数料割引の対象にする予定です。",
@@ -3290,7 +3291,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
     : userType === "newcomer"
     ? {
         title: "売上と経費を入力するだけで、融資用の五年計画書が作れます",
-        desc: "JA・支援センターに提出できる収支計画書がPDF出力されます。公的統計データが自動参照されます。",
+        desc: "JA・支援センターへの相談に使いやすい収支計画書のたたき台をPDF出力できます。公的統計データが自動参照されます。",
       }
     : {
         title: "農家の実際の経費データで、リアルな計画が立てられます",
@@ -3330,8 +3331,25 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
       <div style={{ maxWidth:480, margin:"0 auto", padding:"60px 24px 140px", overflowY:"auto", height:"100%" }}>
         <div key={step} className="fade-in">
 
-          {/* ── ステップ1: あなたはどなたですか？ ── */}
+          {/* ── ステップ1: サイトの目的 ── */}
           {step === 1 && (
+            <>
+              <div style={{ textAlign:"center", marginBottom:24 }}>
+                <div style={{ fontSize:48, marginBottom:16 }}>🌾</div>
+              </div>
+              <h1 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12, lineHeight:1.4, textAlign:"center" }}>
+                農家の月次記録を、
+                <br/>人手確保・融資資料・地域比較に変える
+                <br/>実証サイトです。
+              </h1>
+              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.9, marginBottom:28, textAlign:"center" }}>
+                月1回の記録が、将来の農業バイト優先案内・手数料割引、五年計画書、地域比較の土台になります。
+              </p>
+            </>
+          )}
+
+          {/* ── ステップ2: あなたはどなたですか？ ── */}
+          {step === 2 && (
             <>
               <h1 className="f-sans" style={{ fontSize:26, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
                 あなたはどなたですか？
@@ -3354,16 +3372,16 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </>
           )}
 
-          {/* ── ステップ2: 分岐質問 ── */}
-          {step === 2 && (
+          {/* ── ステップ3: 分岐質問 ── */}
+          {step === 3 && (
             <>
               <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
-                {step2Question}
+                {step3Question}
               </h1>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
                 現状を教えてください。
               </p>
-              {step2Options.map(opt => (
+              {step3Options.map(opt => (
                 <CardBtn key={opt.value} selected={painPoint===opt.value} onClick={() => setPainPoint(opt.value)}>
                   {opt.label}
                 </CardBtn>
@@ -3371,14 +3389,14 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </>
           )}
 
-          {/* ── ステップ3: 価値提案 ── */}
-          {step === 3 && (
+          {/* ── ステップ4: 価値提案 ── */}
+          {step === 4 && (
             <>
               <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
-                {step3Content.title}
+                {step4Content.title}
               </h1>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:20 }}>
-                {step3Content.desc}
+                {step4Content.desc}
               </p>
               <div style={{ display:"grid", gap:10, marginBottom:20 }}>
                 {[
@@ -3400,8 +3418,8 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </>
           )}
 
-          {/* ── ステップ4: データは守られます ── */}
-          {step === 4 && (
+          {/* ── ステップ5: データは守られます ── */}
+          {step === 5 && (
             <>
               <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
                 あなたのデータは守られます
@@ -3429,8 +3447,8 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </>
           )}
 
-          {/* ── ステップ5: 実証に参加する ── */}
-          {step === 5 && (
+          {/* ── ステップ6: 実証に参加する ── */}
+          {step === 6 && (
             <>
               <div style={{ textAlign:"center", marginBottom:28 }}>
                 <div style={{ fontSize:48, marginBottom:16 }}>🌾</div>
@@ -3459,7 +3477,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
       </div>
 
       {/* ボトムナビ */}
-      {step < 5 && (
+      {step < 6 && (
         <div style={{
           position:"fixed", bottom:0, left:0, right:0,
           background:"#fff", borderTop:"1px solid #EBEBEB",
