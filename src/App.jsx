@@ -1386,7 +1386,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
   return (
     <div className="appear">
 
-      {userLevel === 1 && (<>
+      {!me && (<>
 
       {/* ══ 対象者別導線 ══════════════════════════════════ */}
       <div className="filter-scroll" style={{
@@ -1453,7 +1453,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
 
       </>)}
 
-      {userLevel === 1 && (
+      {!me && (
         <div style={{
           marginBottom:28,
           background:"#fff",
