@@ -3249,54 +3249,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const goNext = () => { if (step < totalSteps) setStep(s => s + 1); };
   const goBack = () => { if (step > 1) setStep(s => s - 1); };
 
-  const canGoNext = [
-    null,
-    true,
-    !!userType,
-    !!painPoint,
-    true,
-    true,
-    true,
-  ][step] ?? true;
-
-  const step3Question = (userType === "veteran" || userType === "mid")
-    ? "収穫の時期、人手は足りていますか？"
-    : userType === "newcomer"
-    ? "融資・補助金の計画書は作成済みですか？"
-    : "就農時期は決まっていますか？";
-
-  const step3Options = (userType === "veteran" || userType === "mid")
-    ? [
-        { label: "足りない。毎年困っている", value: "not_enough" },
-        { label: "なんとかやっている", value: "barely" },
-        { label: "足りている", value: "enough" },
-      ]
-    : userType === "newcomer"
-    ? [
-        { label: "まだ作っていない", value: "not_yet" },
-        { label: "作成中だが難しい", value: "in_progress" },
-        { label: "完成している", value: "done" },
-      ]
-    : [
-        { label: "1年以内に就農予定", value: "soon" },
-        { label: "検討中", value: "considering" },
-        { label: "まだ先", value: "later" },
-      ];
-
-  const step4Content = (userType === "veteran" || userType === "mid")
-    ? {
-        title: "月1回の記録が、将来の人手確保につながります",
-        desc: "記録を続けた農家から、将来の農業バイト優先案内・手数料割引の対象にする予定です。",
-      }
-    : userType === "newcomer"
-    ? {
-        title: "売上と経費を入力するだけで、融資用の五年計画書が作れます",
-        desc: "JA・支援センターへの相談に使いやすい収支計画書のたたき台をPDF出力できます。公的統計データが自動参照されます。",
-      }
-    : {
-        title: "農家の実際の経費データで、リアルな計画が立てられます",
-        desc: "就農前に、作物ごとの経費率・労働時間・収量を確認できます。机上ではない現場のデータです。",
-      };
+  const canGoNext = [null, true, !!userType, !!painPoint, true, true, true][step] ?? true;
 
   const CardBtn = ({ selected, onClick, children }) => (
     <button onClick={onClick} style={{
@@ -3311,105 +3264,86 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
-      {/* プログレスバー */}
       <div style={{ position:"absolute", top:0, left:0, right:0, height:4, background:"#EBEBEB" }}>
-        <div style={{
-          height:4, background:"#00A86B",
-          width: (step / totalSteps * 100) + "%",
-          transition:"width 0.3s ease",
-        }} />
+        <div style={{ height:4, background:"#00A86B", width:(step/totalSteps*100)+"%", transition:"width 0.3s ease" }} />
       </div>
 
-      {/* スキップボタン */}
       <button onClick={onSkip} className="f-sans" style={{
-        position:"absolute", top:16, right:20,
-        background:"none", border:"none", fontSize:13,
-        color:"#B0B0B0", cursor:"pointer", zIndex:1,
+        position:"absolute", top:16, right:20, background:"none", border:"none",
+        fontSize:13, color:"#B0B0B0", cursor:"pointer", zIndex:1,
       }}>スキップ →</button>
 
-      {/* コンテンツ */}
       <div style={{ maxWidth:480, margin:"0 auto", padding:"60px 24px 140px", overflowY:"auto", height:"100%" }}>
         <div key={step} className="fade-in">
 
-          {/* ── ステップ1: サイトの目的 ── */}
           {step === 1 && (
-            <>
-              <div style={{ textAlign:"center", marginBottom:24 }}>
-                <div style={{ fontSize:48, marginBottom:16 }}>🌾</div>
-              </div>
-              <h1 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12, lineHeight:1.4, textAlign:"center" }}>
-                農家の月次記録を、
-                <br/>人手確保・融資資料・地域比較に変える
-                <br/>実証サイトです。
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontSize:48, marginBottom:20 }}>🌾</div>
+              <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:14, lineHeight:1.4 }}>
+                月1回の記録が、<br/>あとで人手確保に役立ちます
               </h1>
-              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.9, marginBottom:28, textAlign:"center" }}>
-                月1回の記録が、将来の農業バイト優先案内・手数料割引、五年計画書、地域比較の土台になります。
+              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.9 }}>
+                売上・経費・出荷の記録を残した農家から、将来の農業バイト優先案内や手数料割引につなげる予定です。
               </p>
-            </>
+            </div>
           )}
 
-          {/* ── ステップ2: あなたはどなたですか？ ── */}
           {step === 2 && (
             <>
-              <h1 className="f-sans" style={{ fontSize:26, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
-                あなたはどなたですか？
+              <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
+                あなたはどちらに近いですか？
               </h1>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
                 あなたに合った情報をお見せします。
               </p>
-              <CardBtn selected={userType==="veteran"} onClick={() => setUserType("veteran")}>
-                🌾 ベテラン農家（10年以上）
-              </CardBtn>
-              <CardBtn selected={userType==="mid"} onClick={() => setUserType("mid")}>
-                🌱 中堅農家（4〜10年）
-              </CardBtn>
-              <CardBtn selected={userType==="newcomer"} onClick={() => setUserType("newcomer")}>
-                🔰 新規就農者（1〜3年）
-              </CardBtn>
-              <CardBtn selected={userType==="pre"} onClick={() => setUserType("pre")}>
-                👀 これから農業を始める方
-              </CardBtn>
+              <CardBtn selected={userType==="veteran"} onClick={() => setUserType("veteran")}>🌾 ベテラン農家（10年以上）</CardBtn>
+              <CardBtn selected={userType==="mid"} onClick={() => setUserType("mid")}>🌱 中堅農家（4〜10年）</CardBtn>
+              <CardBtn selected={userType==="newcomer"} onClick={() => setUserType("newcomer")}>🔰 新規就農者（1〜3年）</CardBtn>
+              <CardBtn selected={userType==="pre"} onClick={() => setUserType("pre")}>👀 これから農業を始める方</CardBtn>
             </>
           )}
 
-          {/* ── ステップ3: 分岐質問 ── */}
           {step === 3 && (
             <>
               <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
-                {step3Question}
+                今いちばん困っていることは？
               </h1>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
-                現状を教えてください。
+                あなたに合った使い方をご提案します。
               </p>
-              {step3Options.map(opt => (
-                <CardBtn key={opt.value} selected={painPoint===opt.value} onClick={() => setPainPoint(opt.value)}>
-                  {opt.label}
-                </CardBtn>
-              ))}
+              <CardBtn selected={painPoint==="labor"} onClick={() => setPainPoint("labor")}>🤝 人手が足りない</CardBtn>
+              <CardBtn selected={painPoint==="docs"} onClick={() => setPainPoint("docs")}>📄 計画書や資料づくりが面倒</CardBtn>
+              <CardBtn selected={painPoint==="costs"} onClick={() => setPainPoint("costs")}>💰 経費や販売先を見直したい</CardBtn>
+              <CardBtn selected={painPoint==="start"} onClick={() => setPainPoint("start")}>🤔 まだ何から始めるか分からない</CardBtn>
             </>
           )}
 
-          {/* ── ステップ4: 価値提案 ── */}
           {step === 4 && (
-            <>
-              <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
-                {step4Content.title}
+            <div style={{ textAlign:"center" }}>
+              <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:14, lineHeight:1.35 }}>
+                入力は、まず先月の1件だけ
               </h1>
-              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:20 }}>
-                {step4Content.desc}
+              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
+                毎日入力する必要はありません。<br/>月合計の箱数、月平均単価、主な経費だけで始められます。
               </p>
-              <div style={{ display:"grid", gap:10, marginBottom:20 }}>
-                {[
-                  { icon:"🤝", text:"将来の農業バイト優先案内・手数料割引予定" },
-                  { icon:"📄", text:"五年計画書・融資相談の土台になる" },
-                  { icon:"📊", text:"5農家以上で地域平均との差が見える" },
-                ].map(item => (
-                  <div key={item.text} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px", background:"#F7F7F7", borderRadius:10 }}>
-                    <span style={{ fontSize:20, flexShrink:0 }}>{item.icon}</span>
-                    <span className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.6 }}>{item.text}</span>
+              <div style={{ display:"grid", gap:12 }}>
+                {["① 作物を選ぶ","② 月を選ぶ","③ 出荷先を選ぶ","④ 箱数・単価・経費を入力"].map(t => (
+                  <div key={t} style={{ padding:"14px 18px", background:"#F7F7F7", borderRadius:10, textAlign:"left" }}>
+                    <span className="f-sans" style={{ fontSize:14, color:"#222" }}>{t}</span>
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {step === 5 && (
+            <>
+              <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:14, lineHeight:1.35, textAlign:"center" }}>
+                入力すると、こう見えます
+              </h1>
+              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.9, marginBottom:20, textAlign:"center" }}>
+                売上・経費・手残り・経費率・月別推移が確認できます。
+              </p>
               <img
                 src="https://aegwepgtmwcnwzybpgsh.supabase.co/storage/v1/object/public/assets/dashboard.png.png"
                 alt="ダッシュボードイメージ"
@@ -3418,88 +3352,55 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </>
           )}
 
-          {/* ── ステップ5: データは守られます ── */}
-          {step === 5 && (
-            <>
-              <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
-                あなたのデータは守られます
-              </h1>
-              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
-                入力前に知っておいてください。
-              </p>
-              {[
-                { icon:"🔒", title:"個人名は公開しません", desc:"氏名・住所・電話番号・メールアドレスは非公開です" },
-                { icon:"📊", title:"個別の収支は公開しません", desc:"公開するのは5農家以上の集計値だけです" },
-                { icon:"🚫", title:"販売先名は公開しません", desc:"出荷先・業者名は本人画面のみ表示されます" },
-                { icon:"🤝", title:"同意なく第三者に共有しません", desc:"金融機関等への提出はその都度本人の同意を得ます" },
-              ].map(item => (
-                <div key={item.title} style={{
-                  display:"flex", gap:14, padding:"18px 16px",
-                  background:"#F7F7F7", borderRadius:12, marginBottom:10,
-                }}>
-                  <span style={{ fontSize:24, flexShrink:0 }}>{item.icon}</span>
-                  <div>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:4 }}>{item.title}</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.6 }}>{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* ── ステップ6: 実証に参加する ── */}
           {step === 6 && (
             <>
-              <div style={{ textAlign:"center", marginBottom:28 }}>
-                <div style={{ fontSize:48, marginBottom:16 }}>🌾</div>
-                <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:10, lineHeight:1.35 }}>
-                  実証に参加しませんか？
-                </h1>
-                <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8 }}>
-                  吉野川の農家と一緒に、農業経営データの基盤を作る実証実験です。
-                </p>
+              <h1 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:20, lineHeight:1.4, textAlign:"center" }}>
+                個人名・個別収支・販売先名は<br/>公開しません
+              </h1>
+              <div style={{ display:"grid", gap:10, marginBottom:28 }}>
+                {[
+                  { icon:"🔒", text:"氏名・住所・電話番号は非公開" },
+                  { icon:"📊", text:"公開するのは5農家以上の集計値だけ" },
+                  { icon:"🚫", text:"販売先名は本人画面のみ表示" },
+                  { icon:"🤝", text:"同意なく第三者に共有しません" },
+                ].map(item => (
+                  <div key={item.text} style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"#F7F7F7", borderRadius:10 }}>
+                    <span style={{ fontSize:20, flexShrink:0 }}>{item.icon}</span>
+                    <span className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.6 }}>{item.text}</span>
+                  </div>
+                ))}
               </div>
               <button onClick={onLogin} className="btn-primary" style={{
-                width:"100%", padding:"16px", fontSize:16, fontWeight:700,
-                borderRadius:12, marginBottom:12,
-              }}>
-                実証に参加する →
-              </button>
+                width:"100%", padding:"16px", fontSize:16, fontWeight:700, borderRadius:12, marginBottom:12,
+              }}>実証に参加する →</button>
               <button onClick={onSkip} className="f-sans" style={{
                 width:"100%", padding:"12px", background:"none", border:"1px solid #EBEBEB",
                 borderRadius:12, fontSize:13, color:"#717171", cursor:"pointer",
-              }}>
-                まず公開データを見る
-              </button>
+              }}>まず公開データを見る</button>
             </>
           )}
+
         </div>
       </div>
 
-      {/* ボトムナビ */}
       {step < 6 && (
         <div style={{
-          position:"fixed", bottom:0, left:0, right:0,
-          background:"#fff", borderTop:"1px solid #EBEBEB",
+          position:"fixed", bottom:0, left:0, right:0, background:"#fff",
+          borderTop:"1px solid #EBEBEB",
           padding:"20px 24px calc(20px + env(safe-area-inset-bottom, 0px))",
           display:"flex", alignItems:"center", justifyContent:"space-between",
         }}>
           {step > 1
-            ? <button onClick={goBack} className="f-sans" style={{
-                background:"none", border:"none", fontSize:15,
-                color:"#222", cursor:"pointer", padding:"8px 0",
-              }}>← 戻る</button>
+            ? <button onClick={goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
             : <div />
           }
           <button onClick={canGoNext ? goNext : undefined} style={{
-            background:"#00A86B", color:"#fff",
-            border:"none", borderRadius:12,
+            background:"#00A86B", color:"#fff", border:"none", borderRadius:12,
             padding:"16px 32px", fontSize:16, fontWeight:700,
-            cursor: canGoNext ? "pointer" : "not-allowed",
-            opacity: canGoNext ? 1 : 0.5,
+            cursor:canGoNext?"pointer":"not-allowed", opacity:canGoNext?1:0.5,
             transition:"opacity .2s",
           }}>
-            次へ →
+            {step === 1 ? "自分に合う使い方を見る →" : "次へ →"}
           </button>
         </div>
       )}
@@ -4939,7 +4840,7 @@ export default function App(){
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       const loggedIn = f.find(x => x.email?.toLowerCase() === session.user.email?.toLowerCase());
-      if (loggedIn) { setMe({ ...loggedIn, id: session.user.id }); setTab("input"); }
+      if (loggedIn) { setMe({ ...loggedIn, id: session.user.id }); setTab("board"); }
     }
     setBadgeCnt(fp.length+dp.length);setLoaded(true);
   })();},[]);
