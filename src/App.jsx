@@ -1467,12 +1467,22 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
               fontSize:18, fontWeight:800, color:"#222",
               marginBottom:6, lineHeight:1.4,
             }}>
-              入力すると、あなたの経営がこう見えます
+              月1回の記録が、将来の人手確保につながります
             </p>
-            <p className="f-sans" style={{
-              fontSize:12, color:"#717171", lineHeight:1.7,
-            }}>
-              月1回、作物・箱数・単価・経費を入力するだけ。売上・経費・手残り・推移が見える化されます。
+            <div style={{ display:"grid", gap:10, marginBottom:16 }}>
+              {[
+                { icon:"🤝", text:"将来の農業バイト優先案内・手数料割引予定" },
+                { icon:"📄", text:"五年計画書・融資相談の土台になる" },
+                { icon:"📊", text:"5農家以上で地域平均との差が見える" },
+              ].map(item => (
+                <div key={item.text} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:20, flexShrink:0 }}>{item.icon}</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.6 }}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>
+              個人名・個別収支・販売先名は公開しません。
             </p>
           </div>
           <img
@@ -1488,7 +1498,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
             <button onClick={onLogin} className="btn-primary" style={{
               width:"100%", padding:"14px", fontSize:14,
             }}>
-              無料で始める（10秒）→
+              実証に参加する →
             </button>
           </div>
         </div>
