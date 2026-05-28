@@ -3265,7 +3265,7 @@ function AdminTab() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, sub]);
 
   const ask = (msg, onOk) => setConfirm({ msg, onOk });
   const closeConfirm = () => setConfirm(null);
@@ -3390,9 +3390,18 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      <div style={{ marginBottom:20 }}>
-        <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
-        <p className="f-sans" style={{ fontSize:12,color:"#717171" }}>農家・出荷先・記録データの管理</p>
+      <div style={{ marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+        <div>
+          <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
+          <p className="f-sans" style={{ fontSize:12,color:"#717171" }}>農家・出荷先・記録データの管理</p>
+        </div>
+        <button onClick={() => { setLoading(true); load(); }} style={{
+          padding:"8px 16px", borderRadius:10, border:"1px solid #EBEBEB",
+          background:"#fff", fontSize:12, fontWeight:600, color:"#222",
+          cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:6,
+        }}>
+          🔄 更新
+        </button>
       </div>
 
       {/* サブタブ */}
