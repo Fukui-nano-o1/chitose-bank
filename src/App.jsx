@@ -1469,14 +1469,14 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
             }}>
               月1回の記録が、将来の人手確保につながります
             </p>
-            <div style={{ display:"grid", gap:10, marginBottom:16 }}>
+            <div style={{ display:"grid", gap:10, marginBottom:12 }}>
               {[
                 { icon:"🤝", text:"将来の農業バイト優先案内・手数料割引予定" },
                 { icon:"📄", text:"五年計画書・融資相談の土台になる" },
                 { icon:"📊", text:"5農家以上で地域平均との差が見える" },
               ].map(item => (
                 <div key={item.text} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontSize:20, flexShrink:0 }}>{item.icon}</span>
+                  <span style={{ fontSize:18, flexShrink:0 }}>{item.icon}</span>
                   <span className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.6 }}>{item.text}</span>
                 </div>
               ))}
