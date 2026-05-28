@@ -2101,12 +2101,12 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
           padding:"40px 24px", textAlign:"center", marginBottom:32,
         }}>
           <p className="f-sans" style={{ fontSize:14, color:C.ink, fontWeight:600, marginBottom:12 }}>
-            登録すると産地の実績データが見れます
+            実証に参加すると産地の実績データが見れます
           </p>
           <button onClick={onLogin} style={{
             padding:"10px 28px", borderRadius:20, background:C.accent,
             color:"#fff", border:"none", fontSize:13, fontWeight:600, cursor:"pointer",
-          }}>無料で登録する（10秒）</button>
+          }}>実証に参加する</button>
         </div>
       )}
 
