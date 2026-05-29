@@ -4798,6 +4798,15 @@ const loadNotifs=useCallback(async(farmerId)=>{
     if(data)setNotifs(prev=>[data,...prev].slice(0,10));
   },[]);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setMe(null);
+    setTab("board");
+    setShowLanding(true);
+    localStorage.removeItem('sb-aegwepgtmwcnwzybpgsh-auth-token');
+    window.location.reload();
+  };
+
   const completeOnboarding=useCallback(async(updates)=>{
     const{data:dbFarmers}=await supabase.from('farmers').select('*');
     if(dbFarmers){
@@ -5068,7 +5077,7 @@ const subDest=useCallback(async d=>{
                 onClick={e=>{e.stopPropagation();setShowOnboarding(true);setObModalKey(k=>k+1);}}
                 title="プロフィール編集"
                 style={{fontSize:13,background:"transparent",border:"none",cursor:"pointer",padding:"2px 2px",color:"#717171",lineHeight:1,flexShrink:0}}>⚙</button>
-              <button onClick={e=>{e.stopPropagation();setMe(null);setTab("board");setNotifs([]);setShowNotifs(false);}} className="f-sans" style={{
+              <button onClick={e=>{e.stopPropagation();handleLogout();}} className="f-sans" style={{
                 fontSize:9,color:"#717171",background:"transparent",
                 border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",flexShrink:0,
               }}>ログアウト</button>
@@ -5206,7 +5215,7 @@ const subDest=useCallback(async d=>{
           avatarUrl={avatarUrl}
           onClose={()=>setShowProfile(false)}
           onEditProfile={()=>{setShowProfile(false);setShowOnboarding(true);setObModalKey(k=>k+1);}}
-          onLogout={()=>{setMe(null);setTab("board");setNotifs([]);setShowNotifs(false);setShowProfile(false);}}
+          onLogout={handleLogout}
           onAvatarChange={url=>setAvatarUrl(url)}
         />
       )}
