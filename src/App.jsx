@@ -5115,7 +5115,8 @@ const subDest=useCallback(async d=>{
           ...(isMember?[{k:"plan", icon:"📋", l:"計画書"}]:[]),
           ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
         ].map(({k,icon,l})=>(
-          <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}>
+          <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}
+            style={k==="input"&&tab!==k?{color:"#00A86B"}:undefined}>
             <span className="icon">{icon}</span>
             {l}
           </button>
