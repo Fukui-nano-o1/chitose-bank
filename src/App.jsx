@@ -748,14 +748,9 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const requestCode = async () => {
     let f = farmers.find(x => x.email?.toLowerCase()===email.trim().toLowerCase());
     if (!f) {
-      const { error: insertErr } = await supabase.from('farmers').insert({
-        name: email.trim().split('@')[0],
-        email: email.trim().toLowerCase(),
-        joined_year: 2025,
-        status: 'approved',
-      });
-      if (insertErr) { setErr("登録に失敗しました。しばらく経ってから再度お試しください"); bounce(); return; }
-      f = { id: null, name: email.trim().split('@')[0], email: email.trim().toLowerCase(), joinedYear: 2025 };
+      setErr("このメールアドレスは登録されていません。「新規登録申請」から登録してください。");
+      bounce();
+      return;
     }
     setSending(true); setErr("");
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
@@ -2394,6 +2389,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   )];
 
   const save=async()=>{
+    if(!dest?.id){alert("出荷先を選択してください");return;}
     if(!boxes||!ppb)return;
     const ci=costs.filter(c=>c.l&&c.v).map(c=>{
       const v=parseFloat(c.v)||0;
@@ -4005,7 +4001,7 @@ const OB_SALES_CHANNELS = [
   { label:"まだ決めていない",          value:"undecided" },
 ];
 
-function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
+function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) {
   const totalSteps = 9;
   const [obStep, setObStep] = useState(1);
   const [obName,         setObName]         = useState(isEditing ? (me.name || "") : "");
@@ -4079,6 +4075,8 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
       try { localStorage.setItem('ob_farming_type', obFarmingType); } catch {}
       try { localStorage.setItem('ob_area_tan', obArea); } catch {}
       try { localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels)); } catch {}
+      const { data: farmer } = await supabase.from('farmers').select('*').eq('email', user.email).single();
+      if (farmer) setMe(farmer);
       await onComplete({ name: obName.trim(), prefecture: obPrefecture, municipality: obMunicipality.trim(), experience_tier: obTier, planned_crops: obCrops });
     } else {
       console.error('onboarding save error:', error);
@@ -5211,6 +5209,7 @@ const subDest=useCallback(async d=>{
         <OnboardingModal
           key={obModalKey}
           me={me}
+          setMe={setMe}
           onComplete={completeOnboarding}
           isEditing={showOnboarding&&!!(me.name?.trim()&&me.prefecture)}
           onClose={()=>setShowOnboarding(false)}
