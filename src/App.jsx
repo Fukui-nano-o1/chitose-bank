@@ -221,6 +221,7 @@ input:focus { outline: none; }
     cursor: pointer;
     color: #717171;
   }
+  .bottom-tab-bar button:hover { color: #008F5B; }
   .bottom-tab-bar button.active { color: #00A86B; font-weight: 600; }
   .bottom-tab-bar button span.icon { font-size: 20px; line-height: 1; }
   /* Hide desktop header nav on mobile */
@@ -267,7 +268,8 @@ input:focus { outline: none; }
   font-weight: 600;
   letter-spacing: .02em;
 }
-.btn-primary:hover, .btn-dark:hover { background: #009960; }
+.btn-primary:hover, .btn-dark:hover { background: #008F5B; }
+.btn-primary:active, .btn-dark:active { background: #007A4D; }
 .btn-primary:disabled, .btn-dark:disabled { opacity: .35; cursor: not-allowed; transform: none; }
 
 .btn-outline {
@@ -3283,11 +3285,10 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             ? <button onClick={goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
             : <div />
           }
-          <button onClick={canGoNext ? goNext : undefined} style={{
-            background:"#00A86B", color:"#fff", border:"none", borderRadius:12,
+          <button onClick={canGoNext ? goNext : undefined} className="btn-primary" style={{
             padding:"16px 32px", fontSize:16, fontWeight:700,
             cursor:canGoNext?"pointer":"not-allowed", opacity:canGoNext?1:0.5,
-            transition:"opacity .2s",
+            transition:"background 0.15s, opacity .2s",
           }}>
             {step === 1 ? "自分に合う使い方を見る →" : "次へ →"}
           </button>
