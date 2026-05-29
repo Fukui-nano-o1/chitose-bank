@@ -4008,7 +4008,7 @@ const OB_SALES_CHANNELS = [
 function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
   const totalSteps = 9;
   const [obStep, setObStep] = useState(1);
-  const [obName,         setObName]         = useState(me.name || "");
+  const [obName,         setObName]         = useState(isEditing ? (me.name || "") : "");
   const [obPrefecture,   setObPrefecture]   = useState(me.prefecture || "");
   const [obMunicipality, setObMunicipality] = useState(me.municipality || "");
   const [obTier,         setObTier]         = useState(me.experience_tier || "");
@@ -4061,21 +4061,28 @@ function OnboardingModal({ me, onComplete, isEditing = false, onClose }) {
   const handleSubmit = async () => {
     if (saving) return;
     setSaving(true);
-    const { error } = await supabase.from('farmers').update({
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+    const { error } = await supabase.from('farmers').upsert({
+      email: user.email,
+      auth_id: user.id,
       name: obName.trim(),
       prefecture: obPrefecture,
       municipality: obMunicipality.trim(),
       experience_tier: obTier,
-      planned_crops: obCrops,
       farming_type: obFarmingType,
-      area_tan: obArea,
+      area_tan: parseFloat(obArea) || 0,
+      planned_crops: obCrops,
       sales_channels: obChannels,
-    }).eq('auth_id', me.id);
+    }, { onConflict: 'email' });
     if (!error) {
       try { localStorage.setItem('ob_farming_type', obFarmingType); } catch {}
       try { localStorage.setItem('ob_area_tan', obArea); } catch {}
       try { localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels)); } catch {}
       await onComplete({ name: obName.trim(), prefecture: obPrefecture, municipality: obMunicipality.trim(), experience_tier: obTier, planned_crops: obCrops });
+    } else {
+      console.error('onboarding save error:', error);
+      alert('保存に失敗しました。もう一度お試しください。');
     }
     setSaving(false);
   };
