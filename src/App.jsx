@@ -748,9 +748,17 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const requestCode = async () => {
     let f = farmers.find(x => x.email?.toLowerCase()===email.trim().toLowerCase());
     if (!f) {
-      setErr("このメールアドレスは登録されていません。「新規登録申請」から登録してください。");
-      bounce();
-      return;
+      const { data: newFarmer, error: insertErr } = await supabase.from('farmers').insert({
+        name: email.trim().split('@')[0],
+        email: email.trim().toLowerCase(),
+        status: 'approved',
+      }).select().single();
+      if (insertErr) {
+        setErr("登録に失敗しました。もう一度お試しください。");
+        bounce();
+        return;
+      }
+      f = { id: newFarmer.id, name: newFarmer.name, email: newFarmer.email };
     }
     setSending(true); setErr("");
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
@@ -784,13 +792,13 @@ const verifyCode = async () => {
         </div>
 
         <div className="ledger-card" style={{ padding:32 }}>
-          <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:24,letterSpacing:".04em" }}>ログイン</div>
+          <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:24,letterSpacing:".04em" }}>ログイン / 新規登録</div>
 
           {!pending ? (
             /* ── STEP 1: メールアドレス入力 ── */
             <div className="fade-in">
               <div style={{ marginBottom:20 }}>
-                <label className="lbl f-sans">登録済みのメールアドレス</label>
+                <label className="lbl f-sans">メールアドレス</label>
                 <input className="field f-sans" type="email" placeholder="your@email.com"
                   value={email} autoFocus
                   onChange={e=>{setEmail(e.target.value);setErr("");}}
@@ -843,13 +851,11 @@ const verifyCode = async () => {
             </div>
           )}
 
-          <div className="rule-text f-sans" style={{ margin:"22px 0" }}>or</div>
-          <div style={{ textAlign:"center" }}>
-            <span className="f-sans" style={{ fontSize:12,color:C.dim }}>まだ登録していない方は </span>
-            <button onClick={onGoRegister} className="f-sans" style={{
-              background:"none",border:"none",fontSize:12,color:C.gold,
-              fontWeight:700,textDecoration:"underline",textUnderlineOffset:3,
-            }}>新規登録申請</button>
+          <div style={{ textAlign:"center", marginTop:22 }}>
+            <p className="f-sans" style={{ fontSize:11, color:C.dim, lineHeight:1.8 }}>
+              初めての方もこのフォームから登録できます。<br/>
+              メールアドレスを入力して認証コードを送信してください。
+            </p>
           </div>
         </div>
       </div>
