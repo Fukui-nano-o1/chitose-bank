@@ -3132,6 +3132,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const [step, setStep] = useState(1);
   const [userType, setUserType] = useState("");
   const [painPoint, setPainPoint] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   const goNext = () => { if (step < totalSteps) setStep(s => s + 1); };
   const goBack = () => { if (step > 1) setStep(s => s - 1); };
@@ -3215,9 +3216,16 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
               </p>
               <div style={{ display:"grid", gap:12 }}>
                 {["① 作物を選ぶ","② 月を選ぶ","③ 出荷先を選ぶ","④ 箱数・単価・経費を入力"].map(t => (
-                  <div key={t} style={{ padding:"14px 18px", background:"#F7F7F7", borderRadius:10, textAlign:"left" }}>
+                  <button key={t} onClick={onLogin} style={{
+                    width:"100%", padding:"14px 18px", background:"#F7F7F7", borderRadius:10, textAlign:"left",
+                    border:"1px solid #EBEBEB", cursor:"pointer", transition:"background .15s",
+                    display:"block",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background="#EBEBEB"}
+                  onMouseLeave={e => e.currentTarget.style.background="#F7F7F7"}
+                  >
                     <span className="f-sans" style={{ fontSize:14, color:"#222" }}>{t}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -3257,8 +3265,26 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
                   </div>
                 ))}
               </div>
-              <button onClick={onLogin} className="btn-primary" style={{
+              <label style={{
+                display:"flex", alignItems:"flex-start", gap:10,
+                marginBottom:16, cursor:"pointer",
+              }}>
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={e => setAgreed(e.target.checked)}
+                  style={{ marginTop:3, width:18, height:18, flexShrink:0, accentColor:"#00A86B" }}
+                />
+                <span className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>
+                  <button onClick={e => { e.preventDefault(); window.open('/terms','_blank'); }} style={{ background:"none", border:"none", color:"#00A86B", textDecoration:"underline", fontSize:12, cursor:"pointer", padding:0, fontFamily:"inherit" }}>利用規約</button>
+                  と
+                  <button onClick={e => { e.preventDefault(); window.open('/privacy','_blank'); }} style={{ background:"none", border:"none", color:"#00A86B", textDecoration:"underline", fontSize:12, cursor:"pointer", padding:0, fontFamily:"inherit" }}>プライバシーポリシー</button>
+                  に同意する
+                </span>
+              </label>
+              <button onClick={agreed ? onLogin : undefined} className="btn-primary" style={{
                 width:"100%", padding:"16px", fontSize:16, fontWeight:700, borderRadius:12, marginBottom:12,
+                opacity: agreed ? 1 : 0.4, cursor: agreed ? "pointer" : "not-allowed",
               }}>実証に参加する →</button>
               <button onClick={onSkip} className="f-sans" style={{
                 width:"100%", padding:"12px", background:"none", border:"1px solid #EBEBEB",
