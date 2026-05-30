@@ -3128,7 +3128,7 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 
 // ── LandingFlow ──────────────────────────────────────────────
 function LandingFlow({ onComplete, onSkip, onLogin }) {
-  const totalSteps = 6;
+  const totalSteps = 5;
   const [step, setStep] = useState(1);
   const [userType, setUserType] = useState("");
   const [painPoint, setPainPoint] = useState("");
@@ -3137,7 +3137,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const goNext = () => { if (step < totalSteps) setStep(s => s + 1); };
   const goBack = () => { if (step > 1) setStep(s => s - 1); };
 
-  const canGoNext = [null, true, !!userType, !!painPoint, true, true, true][step] ?? true;
+  const canGoNext = [null, true, !!userType, !!painPoint, true, agreed][step] ?? true;
 
   const CardBtn = ({ selected, onClick, children }) => (
     <button onClick={onClick} style={{
@@ -3207,31 +3207,6 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           )}
 
           {step === 4 && (
-            <div style={{ textAlign:"center" }}>
-              <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:14, lineHeight:1.35 }}>
-                入力は、まず先月の1件だけ
-              </h1>
-              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
-                毎日入力する必要はありません。<br/>月合計の箱数、月平均単価、主な経費だけで始められます。
-              </p>
-              <div style={{ display:"grid", gap:12 }}>
-                {["① 作物を選ぶ","② 月を選ぶ","③ 出荷先を選ぶ","④ 箱数・単価・経費を入力"].map(t => (
-                  <button key={t} onClick={onLogin} style={{
-                    width:"100%", padding:"14px 18px", background:"#F7F7F7", borderRadius:10, textAlign:"left",
-                    border:"1px solid #EBEBEB", cursor:"pointer", transition:"background .15s",
-                    display:"block",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background="#EBEBEB"}
-                  onMouseLeave={e => e.currentTarget.style.background="#F7F7F7"}
-                  >
-                    <span className="f-sans" style={{ fontSize:14, color:"#222" }}>{t}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 5 && (
             <>
               <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", marginBottom:14, lineHeight:1.35, textAlign:"center" }}>
                 入力すると、こう見えます
@@ -3247,12 +3222,12 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </>
           )}
 
-          {step === 6 && (
+          {step === 5 && (
             <>
               <h1 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:20, lineHeight:1.4, textAlign:"center" }}>
                 個人名・個別収支・販売先名は<br/>公開しません
               </h1>
-              <div style={{ display:"grid", gap:10, marginBottom:28 }}>
+              <div style={{ display:"grid", gap:10, marginBottom:20 }}>
                 {[
                   { icon:"🔒", text:"氏名・住所・電話番号は非公開" },
                   { icon:"📊", text:"公開するのは5農家以上の集計値だけ" },
@@ -3276,9 +3251,9 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
                   style={{ marginTop:3, width:18, height:18, flexShrink:0, accentColor:"#00A86B" }}
                 />
                 <span className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>
-                  <button onClick={e => { e.preventDefault(); window.open('/terms','_blank'); }} style={{ background:"none", border:"none", color:"#00A86B", textDecoration:"underline", fontSize:12, cursor:"pointer", padding:0, fontFamily:"inherit" }}>利用規約</button>
+                  <span style={{ color:"#00A86B", textDecoration:"underline", cursor:"pointer" }} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>利用規約</span>
                   と
-                  <button onClick={e => { e.preventDefault(); window.open('/privacy','_blank'); }} style={{ background:"none", border:"none", color:"#00A86B", textDecoration:"underline", fontSize:12, cursor:"pointer", padding:0, fontFamily:"inherit" }}>プライバシーポリシー</button>
+                  <span style={{ color:"#00A86B", textDecoration:"underline", cursor:"pointer" }} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>プライバシーポリシー</span>
                   に同意する
                 </span>
               </label>
@@ -3296,7 +3271,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
         </div>
       </div>
 
-      {step < 6 && (
+      {step < 5 && (
         <div style={{
           position:"fixed", bottom:0, left:0, right:0, background:"#fff",
           borderTop:"1px solid #EBEBEB",
