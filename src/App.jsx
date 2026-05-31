@@ -746,25 +746,11 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
 
   const requestCode = async () => {
-    let f = farmers.find(x => x.email?.toLowerCase()===email.trim().toLowerCase());
-    if (!f) {
-      const { data: newFarmer, error: insertErr } = await supabase.from('farmers').insert({
-        name: email.trim().split('@')[0],
-        email: email.trim().toLowerCase(),
-        status: 'approved',
-      }).select().single();
-      if (insertErr) {
-        setErr("登録に失敗しました。もう一度お試しください。");
-        bounce();
-        return;
-      }
-      f = { id: newFarmer.id, name: newFarmer.name, email: newFarmer.email };
-    }
     setSending(true); setErr("");
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
     setSending(false);
     if (error) { setErr("メール送信に失敗しました。しばらく経ってから再度お試しください"); return; }
-    setPending({ farmer: f });
+    setPending({ email: email.trim().toLowerCase() });
     setCode("");
   };
 
@@ -784,7 +770,7 @@ const verifyCode = async () => {
       .upsert({
         email: normalizedEmail,
         auth_id: data.user.id,
-        name: pending.farmer?.name || normalizedEmail.split("@")[0],
+        name: normalizedEmail.split("@")[0],
         status: "approved",
       }, { onConflict: "email" })
       .select()
