@@ -778,8 +778,30 @@ const verifyCode = async () => {
     });
     setSending(false);
     if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
-    await supabase.from('farmers').update({ auth_id: data.user.id }).eq('email', email.trim().toLowerCase());
-    onLogin({ ...pending.farmer, id: data.user.id });
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data: farmer, error: farmerErr } = await supabase
+      .from("farmers")
+      .upsert({
+        email: normalizedEmail,
+        auth_id: data.user.id,
+        name: pending.farmer?.name || normalizedEmail.split("@")[0],
+        status: "approved",
+      }, { onConflict: "email" })
+      .select()
+      .single();
+    if (farmerErr) {
+      console.error("farmer auth_id link error:", farmerErr);
+      setErr(`農家情報の紐づけに失敗しました：${farmerErr.message}`);
+      bounce();
+      return;
+    }
+    onLogin({
+      ...farmer,
+      id: farmer.auth_id || data.user.id,
+      joinedYear: farmer.joined_year,
+      planned_crops: farmer.planned_crops || [],
+      sales_channels: farmer.sales_channels || [],
+    });
 };
 
   return (
@@ -4064,32 +4086,38 @@ function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) 
   const handleSubmit = async () => {
     if (saving) return;
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSaving(false); return; }
-    const { error } = await supabase.from('farmers').upsert({
-      email: user.email,
-      auth_id: user.id,
-      name: obName.trim(),
-      prefecture: obPrefecture,
-      municipality: obMunicipality.trim(),
-      experience_tier: obTier,
-      farming_type: obFarmingType,
-      area_tan: parseFloat(obArea) || 0,
-      planned_crops: obCrops,
-      sales_channels: obChannels,
-    }, { onConflict: 'email' });
-    if (!error) {
-      try { localStorage.setItem('ob_farming_type', obFarmingType); } catch {}
-      try { localStorage.setItem('ob_area_tan', obArea); } catch {}
-      try { localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels)); } catch {}
-      const { data: farmer } = await supabase.from('farmers').select('*').eq('email', user.email).single();
-      if (farmer) setMe(farmer);
-      await onComplete({ name: obName.trim(), prefecture: obPrefecture, municipality: obMunicipality.trim(), experience_tier: obTier, planned_crops: obCrops });
-    } else {
-      console.error('onboarding save error:', error);
-      alert('保存に失敗しました。もう一度お試しください。');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase.from('farmers').upsert({
+        email: user.email,
+        auth_id: user.id,
+        name: obName.trim(),
+        prefecture: obPrefecture,
+        municipality: obMunicipality.trim(),
+        experience_tier: obTier,
+        farming_type: obFarmingType,
+        area_tan: String(parseFloat(obArea) || 0),
+        planned_crops: obCrops,
+        sales_channels: obChannels,
+      }, { onConflict: 'email' });
+      if (!error) {
+        try { localStorage.setItem('ob_farming_type', obFarmingType); } catch {}
+        try { localStorage.setItem('ob_area_tan', obArea); } catch {}
+        try { localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels)); } catch {}
+        const { data: farmer } = await supabase.from('farmers').select('*').eq('email', user.email).single();
+        if (farmer) setMe(farmer);
+        await onComplete({ name: obName.trim(), prefecture: obPrefecture, municipality: obMunicipality.trim(), experience_tier: obTier, planned_crops: obCrops });
+      } else {
+        console.error('onboarding save error:', error);
+        alert(`保存に失敗しました。\n${error.message || JSON.stringify(error)}`);
+      }
+    } catch (e) {
+      console.error('onboarding save exception:', e);
+      alert(`保存に失敗しました。\n${e.message || String(e)}`);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const CardBtn = ({ selected, onClick, children }) => (
@@ -4821,6 +4849,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
   };
 
   const completeOnboarding=useCallback(async(updates)=>{
+    // TODO: 一般ユーザーではfarmers全件取得を避け、本人行のみ取得する
     const{data:dbFarmers}=await supabase.from('farmers').select('*');
     if(dbFarmers){
       const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",municipality:fr.municipality||"",planned_crops:fr.planned_crops||[],experience_tier:fr.experience_tier||"",farming_type:fr.farming_type||"",area_tan:fr.area_tan||"",sales_channels:fr.sales_channels||[],avatar_url:fr.avatar_url||""}));
