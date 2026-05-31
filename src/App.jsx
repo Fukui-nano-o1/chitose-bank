@@ -58,6 +58,41 @@ const SEED_DESTS = [];
 
 const THIS_YEAR   = new Date().getFullYear();
 const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
+
+// ── エラー監視ユーティリティ ──────────────────────────────────
+function getSessionId() {
+  try {
+    let sid = localStorage.getItem("cb_session_id");
+    if (!sid) { sid = crypto.randomUUID(); localStorage.setItem("cb_session_id", sid); }
+    return sid;
+  } catch { return "no-storage-" + Math.random().toString(36).slice(2); }
+}
+
+function sanitizeMessage(msg = "") {
+  return String(msg).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]").replace(/\d{2,4}-\d{2,4}-\d{3,4}/g, "[phone]").slice(0, 1000);
+}
+
+async function logAppError({ level = "error", source = "client", page = "", component = "", action = "", operation = "", error, metadata = {}, userId = null }) {
+  try {
+    await supabase.from("app_errors").insert({
+      session_id: getSessionId(), user_id: userId, level, source, page, component, action, operation,
+      error_code: error?.code || error?.status || null,
+      message: sanitizeMessage(error?.message || String(error || "")),
+      stack: sanitizeMessage(error?.stack || ""),
+      url: window.location.href, user_agent: navigator.userAgent, metadata,
+    });
+  } catch (e) { console.warn("error logging failed", e); }
+}
+
+function diagnoseError(e) {
+  const msg = (e.message || "").toLowerCase();
+  if (msg.includes("row-level security")) return { title: "RLSポリシーで拒否", fix: "対象テーブルのRLS policyを確認", severity: "high" };
+  if (msg.includes("unique") || msg.includes("duplicate key")) return { title: "重複データ", fix: "既存データを確認し重複を整理", severity: "medium" };
+  if (msg.includes("failed to fetch") || msg.includes("network")) return { title: "通信エラー", fix: "ネットワーク接続を確認", severity: "medium" };
+  if (msg.includes("cannot read properties of null")) return { title: "未選択データ参照", fix: "保存前にnullチェックを追加", severity: "high" };
+  if (msg.includes("auth_id") || msg.includes("null")) return { title: "Auth紐づけ失敗", fix: "farmersのauth_idを確認", severity: "high" };
+  return { title: "未分類エラー", fix: "message・component・operationを確認", severity: "unknown" };
+}
 const MONTHS    = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 const PREFECTURES = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 
@@ -3329,19 +3364,22 @@ function AdminTab() {
   const [newDestName, setNewDestName] = useState("");
   const [newDestNote, setNewDestNote] = useState("");
   const [addingDest, setAddingDest]   = useState(false);
+  const [appErrors, setAppErrors] = useState([]);
 
   const TIERS = ["1-3","4-10","10+"];
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re] = await Promise.all([
+    const [fr, de, re, ae] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
+      supabase.from("app_errors").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
     if (!re.error) setRecords(re.data || []);
+    if (!ae.error) setAppErrors(ae.data || []);
     setLoading(false);
   }, []);
 
@@ -3440,6 +3478,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
     { k:"stats",   l:"統計",      n: null },
     { k:"sql",     l:"SQL",       n: null },
     { k:"datadef", l:"データ定義", n: null },
+    { k:"errors",  l:"エラー",    n: null },
   ];
 
   const Card = ({ children, style }) => (
@@ -3998,6 +4037,63 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               本文書の内容は、サービスの発展に伴い改訂される場合があります。
             </p>
           </div>
+        </div>
+      )}
+
+      {/* ── エラー ── */}
+      {!loading && sub==="errors" && (
+        <div className="fade-in">
+          {appErrors.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"48px 0", color:"#B0B0B0" }}>
+              <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
+              <p className="f-sans" style={{ fontSize:14 }}>エラーは記録されていません</p>
+            </div>
+          ) : (
+            <div style={{ display:"grid", gap:8 }}>
+              {appErrors.map(e => {
+                const diag = diagnoseError(e);
+                return (
+                  <div key={e.id} style={{
+                    padding:"16px 20px", background:"#fff", border:"1px solid #EBEBEB",
+                    borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)",
+                  }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <span style={{
+                        padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700,
+                        background: diag.severity === "high" ? "#FCEBEB" : diag.severity === "medium" ? "#FEF3E2" : "#F7F7F7",
+                        color: diag.severity === "high" ? "#E24B4A" : diag.severity === "medium" ? "#F5A623" : "#717171",
+                      }}>{diag.severity === "high" ? "重大" : diag.severity === "medium" ? "注意" : "不明"}</span>
+                      <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
+                        {new Date(e.created_at).toLocaleString("ja-JP")}
+                      </span>
+                    </div>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", marginBottom:4 }}>{diag.title}</p>
+                    <p className="f-mono" style={{ fontSize:11, color:"#717171", marginBottom:8, wordBreak:"break-all" }}>{e.message}</p>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+                      {e.component && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{e.component}</span>}
+                      {e.action && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{e.action}</span>}
+                      {e.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{e.operation}</span>}
+                    </div>
+                    <div style={{ padding:"8px 12px", background:"#E6F7EF", borderRadius:8, borderLeft:"3px solid #00A86B" }}>
+                      <p className="f-sans" style={{ fontSize:11, color:"#00A86B" }}>💡 修正案: {diag.fix}</p>
+                    </div>
+                    {e.status === "open" && (
+                      <button onClick={async () => {
+                        await supabase.from("app_errors").update({ status:"fixed", resolved_at: new Date().toISOString() }).eq("id", e.id);
+                        setAppErrors(prev => prev.map(x => x.id === e.id ? { ...x, status:"fixed" } : x));
+                      }} style={{
+                        marginTop:8, padding:"6px 14px", border:"1px solid #00A86B44", borderRadius:8,
+                        background:"transparent", color:"#00A86B", fontSize:11, fontWeight:600, cursor:"pointer",
+                      }}>解決済みにする</button>
+                    )}
+                    {e.status === "fixed" && (
+                      <span className="f-sans" style={{ display:"inline-block", marginTop:8, fontSize:11, color:"#00A86B", fontWeight:600 }}>✅ 解決済み</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -4760,6 +4856,17 @@ export default function App(){
     if(!me?.id)return;
     setAvatarUrl(me.avatar_url || localStorage.getItem('avatarUrl_'+me.id) || "");
   },[me?.id, me?.avatar_url]);
+  useEffect(() => {
+    const onError = (event) => {
+      logAppError({ source: "window.onerror", component: "global", action: "runtime_error", error: event.error || { message: event.message }, userId: me?.id || null });
+    };
+    const onUnhandled = (event) => {
+      logAppError({ source: "unhandledrejection", component: "global", action: "promise_rejection", error: event.reason, userId: me?.id || null });
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandled);
+    return () => { window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onUnhandled); };
+  }, [me?.id]);
   useEffect(()=>{
     if(!showNotifs)return;
     const close=e=>{ if(!e.target.closest('[data-notif-bell]'))setShowNotifs(false); };
