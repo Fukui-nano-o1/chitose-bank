@@ -1946,13 +1946,14 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
       >
         {['すべて', ...allCrops].map(crop => {
           const active = selectedCrop === crop;
+          const isMatch = crop !== 'すべて' && sq && fuzzyMatch(sq, crop);
           return (
             <button key={crop} onClick={() => handleSetCrop(crop)} style={{
               flexShrink:0, padding:"8px 20px", borderRadius:20, fontSize:13,
-              fontWeight: active ? 700 : 400,
-              background: active ? C.accent : "#fff",
-              color: active ? "#fff" : C.ink,
-              border: active ? `1px solid ${C.accent}` : `1px solid ${C.border}`,
+              fontWeight: active ? 700 : isMatch ? 600 : 400,
+              background: active ? C.accent : isMatch ? "#E6F7EF" : "#fff",
+              color: active ? "#fff" : isMatch ? C.accent : C.ink,
+              border: active ? `1px solid ${C.accent}` : isMatch ? `1px solid ${C.accent}44` : `1px solid ${C.border}`,
               whiteSpace:"nowrap", cursor:"pointer",
               transition:"all .15s ease",
             }}>{crop}</button>
