@@ -1326,7 +1326,7 @@ function Carousel({ children, style, className, wrapperStyle }) {
 }
 
 // ── BoardTab ─────────────────────────────────────────────────
-function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, onGoPlan, onShowConstitution }) {
+function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, onGoPlan, onShowConstitution, onShowTerms, onShowPrivacy }) {
   const destMap = Object.fromEntries(destApproved.map(d => [d.id, d]));
 
   const [selectedCrop, setSelectedCrop] = useState(() => {
@@ -1451,30 +1451,26 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
 
       {!me && (<>
 
-      {/* ══ 不安除去ピル ══════════════════════════════════ */}
+      {/* ══ ドキュメントリンクピル ══════════════════════ */}
       <div style={{
-        display:"flex", gap:16, overflowX:"auto", paddingBottom:8,
+        display:"flex", gap:10, overflowX:"auto", paddingBottom:8,
         marginBottom:24, WebkitOverflowScrolling:"touch",
       }}>
         {[
-          { icon:"🔒", text:"個人名は非公開" },
-          { icon:"📊", text:"ランキングしない" },
-          { icon:"🤝", text:"同意なく共有しない" },
+          { label:"利用規約", action:() => onShowTerms && onShowTerms() },
+          { label:"データ憲法", action:() => onShowConstitution && onShowConstitution() },
+          { label:"プライバシーポリシー", action:() => onShowPrivacy && onShowPrivacy() },
         ].map(item => (
-          <div key={item.text} style={{
-            flexShrink:0, display:"flex", alignItems:"center", gap:8,
-            padding:"10px 16px", background:"#F7F7F7",
-            border:"1px solid #EBEBEB", borderRadius:20,
-          }}>
-            <span style={{ fontSize:16 }}>{item.icon}</span>
-            <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:500, whiteSpace:"nowrap" }}>{item.text}</span>
-          </div>
+          <button key={item.label} onClick={item.action} className="f-sans" style={{
+            flexShrink:0, padding:"10px 18px", background:"#fff",
+            border:"1px solid #EBEBEB", borderRadius:20, fontSize:12,
+            color:"#222", fontWeight:500, whiteSpace:"nowrap", cursor:"pointer",
+            transition:"all .15s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background="#F7F7F7"; }}
+          onMouseLeave={e => { e.currentTarget.style.background="#fff"; }}
+          >{item.label}</button>
         ))}
-        <button onClick={onShowConstitution} className="f-sans" style={{
-          flexShrink:0, padding:"10px 16px", background:"transparent",
-          border:"1px solid #EBEBEB", borderRadius:20, fontSize:12,
-          color:"#00A86B", fontWeight:600, whiteSpace:"nowrap", cursor:"pointer",
-        }}>データ憲法を読む →</button>
       </div>
 
       </>)}
@@ -5333,7 +5329,7 @@ const subDest=useCallback(async d=>{
 
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
-        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)}/>}
+        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {tab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
         {tab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
