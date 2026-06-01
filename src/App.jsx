@@ -104,6 +104,24 @@ const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/1000)/10).
 function uid(){ return Math.random().toString(36).slice(2,9); }
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
 
+function toKatakana(str) {
+  return str.replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+}
+function toHiragana(str) {
+  return str.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
+function fuzzyMatch(query, target) {
+  if (!query || !target) return false;
+  const q = query.trim().toLowerCase();
+  const t = target.trim().toLowerCase();
+  if (t.includes(q)) return true;
+  if (t.includes(toKatakana(q))) return true;
+  if (t.includes(toHiragana(q))) return true;
+  if (toKatakana(t).includes(toKatakana(q))) return true;
+  if (toHiragana(t).includes(toHiragana(q))) return true;
+  return false;
+}
+
 const CROP_EMOJIS = ['🥦','🍅','🍆','🥕','🌽','🥬','🍓','🥒','🧅','🥔','🍈','🌶️','🥜','🫛','🧄'];
 function getDefaultAvatar(farmerId) {
   const index = farmerId ? farmerId.charCodeAt(0) % CROP_EMOJIS.length : 0;
@@ -1417,8 +1435,8 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
   }).sort((a, b) => b.count - a.count);
 
   const sq = searchQuery.trim().toLowerCase();
-  const filteredCropCards = sq ? cropCards.filter(c => c.crop.toLowerCase().includes(sq)) : cropCards;
-  const filteredDestCards = sq ? destCards.filter(d => d.name.toLowerCase().includes(sq)) : destCards;
+  const filteredCropCards = sq ? cropCards.filter(c => fuzzyMatch(sq, c.crop)) : cropCards;
+  const filteredDestCards = sq ? destCards.filter(d => fuzzyMatch(sq, d.name)) : destCards;
 
   const isFiltered = selectedCrop !== 'すべて';
   const hasNoData = filteredCropCards.length === 0 && filteredDestCards.length === 0;
@@ -2440,7 +2458,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               onChange={e=>setDestSearch(e.target.value)}
               style={{marginBottom:12,fontSize:13}}/>
             <div style={{display:"grid",gap:8,marginBottom:14,maxHeight:240,overflowY:"auto"}}>
-              {destApproved.filter(d=>!destSearch||d.name.includes(destSearch)).map(d=>{
+              {destApproved.filter(d=>!destSearch||fuzzyMatch(destSearch, d.name)).map(d=>{
                 const sel=dest?.id===d.id,col=destColor(d.name);
                 return(
                   <button key={d.id} onClick={()=>{
@@ -3287,8 +3305,8 @@ function AdminTab() {
   const destMap   = Object.fromEntries(dests.map(d => [d.id, d]));
   const filteredRecs = records.filter(r => {
     const fn = farmerMap[r.farmer_id]?.name || "";
-    if (filterFarmer && !fn.includes(filterFarmer)) return false;
-    if (filterCrop && !(r.crop || "").includes(filterCrop)) return false;
+    if (filterFarmer && !fuzzyMatch(filterFarmer, fn)) return false;
+    if (filterCrop && !fuzzyMatch(filterCrop, r.crop || "")) return false;
     if (filterDest && r.dest_id !== filterDest) return false;
     if (filterMonth !== "" && r.month !== Number(filterMonth)) return false;
     return true;
