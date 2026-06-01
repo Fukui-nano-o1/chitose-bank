@@ -4102,6 +4102,161 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 }
 
 
+// ── LaborTab ─────────────────────────────────────────────────
+function LaborTab({ farmersCount, onLogin }) {
+  const TARGET = 30;
+  const progress = Math.min(Math.round((farmersCount / TARGET) * 100), 100);
+
+  return (
+    <div className="appear" style={{ maxWidth:640, margin:"0 auto" }}>
+
+      {/* ヘッダー */}
+      <div style={{ textAlign:"center", marginBottom:32 }}>
+        <div style={{ fontSize:48, marginBottom:16 }}>🤝</div>
+        <h1 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", lineHeight:1.4, marginBottom:10 }}>
+          助っ人マッチング
+        </h1>
+        <span style={{
+          display:"inline-block", padding:"4px 14px", borderRadius:20,
+          background:"#FEF3E2", color:"#F5A623", fontSize:12, fontWeight:700,
+        }}>準備中 — 30名到達で開始</span>
+      </div>
+
+      {/* 進捗バー */}
+      <div style={{
+        padding:"20px 24px", background:"#fff", border:"1px solid #EBEBEB",
+        borderRadius:16, marginBottom:24,
+      }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:10 }}>
+          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>参加農家</span>
+          <span className="f-mono" style={{ fontSize:20, fontWeight:700, color:"#00A86B" }}>
+            {farmersCount}<span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", fontWeight:400 }}> / {TARGET}名</span>
+          </span>
+        </div>
+        <div style={{ height:10, background:"#F7F7F7", borderRadius:5, overflow:"hidden" }}>
+          <div style={{
+            height:10, borderRadius:5, background:"#00A86B",
+            width: progress + "%", transition:"width 0.6s ease",
+          }} />
+        </div>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:8, textAlign:"center" }}>
+          あと{Math.max(TARGET - farmersCount, 0)}名で助っ人マッチング機能を開始します
+        </p>
+      </div>
+
+      {/* 3ステップ */}
+      <div style={{ marginBottom:32 }}>
+        <h2 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>人手確保への3ステップ</h2>
+        <div style={{ display:"grid", gap:12 }}>
+          {[
+            { num:"①", title:"月1回、売上・経費を記録する", desc:"貢献スコアが貯まります。記録を続けた農家から優先的に助っ人を案内します。", icon:"📝" },
+            { num:"②", title:"地域データが見える化される", desc:"5農家以上のデータが集まると、地域の経費率・雇用可能額が分かります。", icon:"📊" },
+            { num:"③", title:"収穫期に助っ人を優先案内", desc:"貢献スコアが高い農家ほど、手数料割引・優先マッチングの対象になります。", icon:"🤝" },
+          ].map(step => (
+            <div key={step.num} style={{
+              display:"flex", gap:16, padding:"20px", background:"#fff",
+              border:"1px solid #EBEBEB", borderRadius:16,
+            }}>
+              <div style={{
+                width:44, height:44, borderRadius:"50%", background:"#E6F7EF",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:22, flexShrink:0,
+              }}>{step.icon}</div>
+              <div>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:4 }}>{step.num} {step.title}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>{step.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 開発予定の機能 */}
+      <div style={{ marginBottom:32 }}>
+        <h2 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>30名到達後に追加される機能</h2>
+        <div style={{ display:"grid", gap:10 }}>
+          {[
+            { icon:"🗾", title:"地図から農家を探す", desc:"日本地図をズームして、地域ごとに助っ人を募集している農家を表示します。" },
+            { icon:"📋", title:"助っ人リスト", desc:"作物・作業内容・経験回数で検索・絞り込みができます。氏名・作物・作業内容・アイコンを表示し、タップで詳細を確認できます。" },
+            { icon:"📩", title:"双方向オファー", desc:"農家から助っ人へ、助っ人から農家へ、どちらからでもオファーを送れます。" },
+            { icon:"📊", title:"実績ベースの信頼性", desc:"主観的な評価ではなく、作業回数・作物経験・無断キャンセル0回などの事実を表示します。遅刻・欠勤・勤務態度も記録されます。" },
+            { icon:"🔒", title:"プライバシー保護", desc:"個別収支・住所は表示しません。表示するのは作業実績・作物・経験のみ。スクショされても問題ない設計です。" },
+          ].map(item => (
+            <div key={item.title} style={{
+              display:"flex", gap:14, padding:"16px 18px",
+              background:"#F7F7F7", borderRadius:12,
+            }}>
+              <span style={{ fontSize:22, flexShrink:0, marginTop:2 }}>{item.icon}</span>
+              <div>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:3 }}>{item.title}</p>
+                <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7 }}>{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Dayworkとの違い */}
+      <div style={{
+        padding:"20px 24px", background:"#fff", border:"1px solid #EBEBEB",
+        borderRadius:16, marginBottom:24,
+      }}>
+        <h2 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:14 }}>既存のバイトアプリとの違い</h2>
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+            <thead>
+              <tr style={{ borderBottom:"2px solid #EBEBEB" }}>
+                {["", "既存アプリ", "Chitose Bank"].map(h => (
+                  <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:600, color:"#717171", fontSize:10 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label:"目的", a:"人を探す", b:"誰を・いつ・いくらまで雇えるか判断する" },
+                { label:"評価", a:"主観（星5など）", b:"事実（作業回数・経験・欠勤0回）" },
+                { label:"経営連携", a:"なし", b:"月次記録から雇用可能額を逆算" },
+                { label:"コスト把握", a:"なし", b:"経費率から人件費の上限が見える" },
+              ].map(row => (
+                <tr key={row.label} style={{ borderBottom:"1px solid #F7F7F7" }}>
+                  <td style={{ padding:"10px", fontWeight:600, color:"#222" }}>{row.label}</td>
+                  <td style={{ padding:"10px", color:"#717171" }}>{row.a}</td>
+                  <td style={{ padding:"10px", color:"#00A86B", fontWeight:600 }}>{row.b}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div style={{
+        padding:"28px 24px", background:"#E6F7EF", border:"1px solid #00A86B22",
+        borderRadius:16, textAlign:"center", marginBottom:32,
+      }}>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:8 }}>
+          まず月1回の記録から始めましょう
+        </p>
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, marginBottom:16 }}>
+          記録を続けた農家が、助っ人マッチングで優先されます。
+        </p>
+        <button onClick={onLogin} className="btn-primary" style={{ padding:"14px 32px", fontSize:14 }}>
+          記録を始める →
+        </button>
+      </div>
+
+      {/* 開始予定 */}
+      <div style={{ textAlign:"center", padding:"16px 0" }}>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8 }}>
+          助っ人マッチング機能は参加農家30名到達後に開始予定です。<br/>
+          開始時期は参加状況により変動します。
+        </p>
+      </div>
+
+    </div>
+  );
+}
+
 // ── OnboardingModal ──────────────────────────────────────────
 const OB_SALES_CHANNELS = [
   { label:"JA（農協）出荷",           value:"ja" },
@@ -5090,6 +5245,7 @@ const subDest=useCallback(async d=>{
 
   const TABS=[
     {k:"board",l:"公開ボード"},
+    {k:"labor",l:"人手確保"},
     {k:"input",l:!me?"新規登録・ログイン":isMember?"データ入力":"🔒 データ入力",locked:!isMember},
     ...(isMember?[{k:"plan",l:"五年計画書",locked:!isContributor}]:[]),
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
@@ -5246,6 +5402,7 @@ const subDest=useCallback(async d=>{
       <div className="bottom-tab-bar">
         {[
           {k:"board", icon:"📊", l:"ボード"},
+          {k:"labor", icon:"🤝", l:"人手確保"},
           {k:"input", icon:"✏️", l:me?"入力":"新規登録"},
           ...(isMember?[{k:"plan", icon:"📋", l:"計画書"}]:[]),
           ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
@@ -5261,6 +5418,7 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
         {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)}/>}
+        {tab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
         {tab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
