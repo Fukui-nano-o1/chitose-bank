@@ -1340,7 +1340,6 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
 
   const [showAllStats, setShowAllStats] = useState(false);
   const [statSort, setStatSort] = useState("default");
-  const [activeAudience, setActiveAudience] = useState(null);
   const [selectedStatCrop, setSelectedStatCrop] = useState(null);
   const [showMarketChart, setShowMarketChart] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
@@ -1433,40 +1432,6 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     <div className="appear">
 
       {!me && (<>
-
-      {/* ══ 対象者別導線 ══════════════════════════════════ */}
-      <div className="filter-scroll" style={{
-        display:"flex", gap:8, overflowX:"auto", paddingBottom:10, marginBottom:16,
-        scrollbarWidth:"none", msOverflowStyle:"none",
-      }}>
-        {[
-          { id:"for-ja",             label:"JA" },
-          { id:"for-support-center", label:"支援センター" },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveAudience(tab.id)}
-            className="f-sans"
-            style={{
-              flexShrink:0,
-              padding:"8px 20px",
-              borderRadius:20,
-              fontSize:13,
-              fontWeight:400,
-              background:"#fff",
-              color:"#222",
-              border:"1px solid #EBEBEB",
-              whiteSpace:"nowrap",
-              cursor:"pointer",
-              transition:"all .15s ease",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background="#F7F7F7"; }}
-            onMouseLeave={e => { e.currentTarget.style.background="#fff"; }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
 
       {/* ══ 不安除去ピル ══════════════════════════════════ */}
       <div style={{
@@ -2104,132 +2069,12 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
       )}
 
 
-      {userLevel === 1 && (
-        <div style={{
-          display:"grid",
-          gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",
-          gap:12,
-          marginBottom:24,
-        }}>
-          {[
-            { id:"for-ja",             icon:"🏛", title:"JAの方へ",       desc:"融資審査に必要な収支計画書を標準化。確認負担を減らします。", color:"#1A5E5E", bg:"#E8F5F0" },
-            { id:"for-support-center", icon:"🌿", title:"支援センターの方へ", desc:"新規就農者の計画書作成を効率化。フォーマットを統一します。", color:"#1A5E5E", bg:"#E8F5F0" },
-          ].map(card => (
-            <button
-              key={card.id}
-              onClick={() => setActiveAudience(card.id)}
-              style={{
-                padding:"22px 20px", background:card.bg,
-                border:"1px solid " + card.color + "22",
-                borderRadius:16, cursor:"pointer",
-                textAlign:"left", display:"block",
-                transition:"transform .15s, box-shadow .15s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)";    e.currentTarget.style.boxShadow="none"; }}
-            >
-              <div style={{ fontSize:28, marginBottom:10 }}>{card.icon}</div>
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:card.color, marginBottom:6 }}>{card.title}</p>
-              <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7 }}>{card.desc}</p>
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* ══ 注記 ════════════════════════════════════════ */}
       <div style={{ marginTop:8, padding:"12px 18px", borderTop:`1px solid ${C.rule}` }}>
         <p className="f-sans" style={{ fontSize:10, color:C.ghost, lineHeight:1.9 }}>
           このデータは参加農家の入力に基づく集計値です。個人の情報は公開されません。
         </p>
       </div>
-
-      {/* ══ 対象者モーダル ═══════════════════════════════ */}
-      {activeAudience && !me && (() => {
-        const institutionsBody = (
-          <>
-            <div style={{ marginBottom:20 }}>
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>課題</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>
-                新規就農者の融資審査で、収支計画書の作成指導に時間がかかる。
-                提出される計画書のフォーマットがバラバラで、確認作業が非効率。
-              </p>
-            </div>
-            <div style={{ marginBottom:24 }}>
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>このサービスで解決できること</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>
-                農家が売上・経費を入力するだけで、JA融資審査フォーマットの五年計画書がPDF出力されます。
-                公的統計データが自動参照され、保守的な数値が入ります。
-                収支計画書のフォーマットが統一されるため、確認負担が軽減されます。
-              </p>
-            </div>
-            <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14 }}>
-              導入について相談する →
-            </button>
-          </>
-        );
-        const contents = {
-          "for-ja": {
-            icon:"🏛", title:"JAの方へ", color:"#1A5E5E", bg:"#E8F5F0",
-            body: institutionsBody,
-          },
-          "for-support-center": {
-            icon:"🌿", title:"支援センターの方へ", color:"#1A5E5E", bg:"#E8F5F0",
-            body: institutionsBody,
-          },
-        };
-        const content = contents[activeAudience];
-        if (!content) return null;
-        return (
-          <div
-            onClick={() => setActiveAudience(null)}
-            style={{
-              position:"fixed", inset:0, zIndex:9000,
-              background:"rgba(0,0,0,0.5)",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              padding:16,
-              animation:"fadeIn .2s ease",
-            }}
-          >
-            <div
-              onClick={e => e.stopPropagation()}
-              className="appear"
-              style={{
-                background:"#fff", borderRadius:20,
-                maxWidth:480, width:"100%",
-                maxHeight:"85vh", overflowY:"auto",
-                boxShadow:"0 12px 48px rgba(0,0,0,0.15)",
-              }}
-            >
-              <div style={{
-                padding:"28px 28px 20px",
-                background:content.bg,
-                borderRadius:"20px 20px 0 0",
-                position:"relative",
-              }}>
-                <button
-                  onClick={() => setActiveAudience(null)}
-                  style={{
-                    position:"absolute", top:16, right:16,
-                    width:32, height:32, borderRadius:"50%",
-                    background:"rgba(0,0,0,0.08)", border:"none",
-                    fontSize:16, cursor:"pointer",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    color:"#666",
-                  }}
-                >✕</button>
-                <div style={{ fontSize:36, marginBottom:12 }}>{content.icon}</div>
-                <h2 className="f-sans" style={{
-                  fontSize:20, fontWeight:800, color:content.color,
-                  margin:0, lineHeight:1.3,
-                }}>{content.title}</h2>
-              </div>
-              <div style={{ padding:"24px 28px 32px" }}>
-                {content.body}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ══ 公的統計モーダル ══════════════════════════════ */}
       {selectedStatCrop && (() => {
