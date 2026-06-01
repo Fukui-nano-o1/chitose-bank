@@ -4907,11 +4907,6 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
             }}>プロフィール写真を削除</button>
           )}
 
-          <button onClick={onLogout} style={{
-            width:"100%", padding:"13px", fontSize:13,
-            background:"#fff", border:"1px solid #EBEBEB", borderRadius:14,
-            color:"#717171", cursor:"pointer", fontFamily:"inherit",
-          }}>ログアウト</button>
         </div>
 
         {/* 退会セクション */}
@@ -4937,6 +4932,10 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
                 </div>
               </div>
           }
+          <button onClick={() => { if (window.confirm("ログアウトしますか？")) onLogout(); }} className="f-sans" style={{
+            width:"100%", padding:"12px", border:"none", background:"none",
+            fontSize:12, color:"#B0B0B0", cursor:"pointer", textAlign:"center", marginTop:8,
+          }}>ログアウト</button>
         </div>
       </div>
 
@@ -5346,10 +5345,6 @@ const subDest=useCallback(async d=>{
                 onClick={e=>{e.stopPropagation();setShowOnboarding(true);setObModalKey(k=>k+1);}}
                 title="プロフィール編集"
                 style={{fontSize:13,background:"transparent",border:"none",cursor:"pointer",padding:"2px 2px",color:"#717171",lineHeight:1,flexShrink:0}}>⚙</button>
-              <button onClick={e=>{e.stopPropagation();handleLogout();}} className="f-sans" style={{
-                fontSize:9,color:"#717171",background:"transparent",
-                border:"1px solid #EBEBEB",borderRadius:16,padding:"2px 8px",flexShrink:0,
-              }}>ログアウト</button>
             </div>
           </div>
         )}
