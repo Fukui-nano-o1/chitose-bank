@@ -3206,8 +3206,12 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
       </div>
 
       <button onClick={onSkip} className="f-sans" style={{
-        position:"absolute", top:16, right:20, background:"none", border:"none",
-        fontSize:13, color:"#B0B0B0", cursor:"pointer", zIndex:1,
+        position:"absolute", top:16, right:20,
+        background:"#fff", border:"1px solid #EBEBEB",
+        borderRadius:20, padding:"8px 18px",
+        fontSize:13, color:"#222", fontWeight:600,
+        cursor:"pointer", zIndex:1,
+        boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
       }}>スキップ →</button>
 
       <div style={{ maxWidth:480, margin:"0 auto", padding:"60px 24px 140px", overflowY:"auto", height:"100%" }}>
@@ -5485,7 +5489,7 @@ const subDest=useCallback(async d=>{
       {!me&&showLanding&&(
         <LandingFlow
           onComplete={()=>setShowLanding(false)}
-          onSkip={()=>setShowLanding(false)}
+          onSkip={()=>{setShowLanding(false);setTab("input");}}
           onLogin={()=>{setShowLanding(false);setTab("input");}}
         />
       )}
