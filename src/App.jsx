@@ -4051,13 +4051,17 @@ function LaborTab({ farmersCount, onLogin }) {
             { icon:"🔒", title:"プライバシー保護", desc:"個別収支・住所は表示しません。表示するのは作業実績・作物・経験のみ。スクショされても問題ない設計です。" },
           ].map(item => (
             <div key={item.title} style={{
-              display:"flex", gap:14, padding:"16px 18px",
-              background:"#F7F7F7", borderRadius:12,
+              display:"flex", alignItems:"flex-start", gap:14,
+              padding:"16px 18px", background:"#F7F7F7", borderRadius:12,
             }}>
-              <span style={{ fontSize:22, flexShrink:0, marginTop:2 }}>{item.icon}</span>
-              <div>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:3 }}>{item.title}</p>
-                <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7 }}>{item.desc}</p>
+              <div style={{
+                width:40, height:40, borderRadius:10, background:"#fff",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:20, flexShrink:0, border:"1px solid #EBEBEB",
+              }}>{item.icon}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px", textAlign:"left" }}>{item.title}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:0, textAlign:"left" }}>{item.desc}</p>
               </div>
             </div>
           ))}
