@@ -284,6 +284,72 @@ input:focus { outline: none; }
   .ledger-card { padding: 16px !important; }
 }
 
+/* ── Fixed footer ── */
+.site-footer-fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid #EBEBEB;
+  padding: 10px 24px;
+  text-align: center;
+}
+.site-footer-fixed .footer-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.site-footer-fixed .footer-copy {
+  font-size: 11px;
+  color: #B0B0B0;
+}
+.site-footer-fixed .footer-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.site-footer-fixed .footer-note {
+  width: 100%;
+  font-size: 10px;
+  color: #B0B0B0;
+  line-height: 1.6;
+}
+@media (min-width: 641px) {
+  main {
+    padding-bottom: 96px !important;
+  }
+}
+@media (max-width: 640px) {
+  .site-footer-fixed {
+    bottom: 62px;
+    padding: 8px 12px;
+  }
+  .site-footer-fixed .footer-inner {
+    justify-content: center;
+    gap: 8px 14px;
+  }
+  .site-footer-fixed .footer-copy {
+    font-size: 10px;
+  }
+  .site-footer-fixed .footer-links {
+    gap: 12px;
+  }
+  .site-footer-fixed .footer-note {
+    font-size: 9px;
+  }
+  main {
+    padding-bottom: 150px !important;
+  }
+}
+
 /* ── Input ── */
 .field {
   width: 100%;
@@ -5362,37 +5428,30 @@ const subDest=useCallback(async d=>{
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}/>}
       </main>
 
-      {/* ── FOOTER ── */}
-      <footer style={{
-        borderTop:"1px solid #EBEBEB",
-        padding:"16px 28px",
-        display:"flex",justifyContent:"space-between",alignItems:"center",
-        background:"#F7F7F7",
-        flexWrap:"wrap",gap:8,
-      }}>
-        <span className="f-sans" style={{fontSize:11,color:"#B0B0B0"}}>
-          © {THIS_YEAR} chitose-bank · 吉野川農家 記録プロジェクト
-        </span>
-        <div style={{display:"flex",gap:16,alignItems:"center"}}>
-          <button onClick={()=>setShowTerms(true)} style={{
-            fontSize:11,color:"#717171",background:"none",border:"none",
-            cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,padding:0,
-          }}>利用規約</button>
-          <button onClick={()=>setShowConstitution(true)} style={{
-            fontSize:11,color:"#717171",background:"none",border:"none",
-            cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,padding:0,
-          }}>データ憲法</button>
-          <button onClick={()=>setShowPrivacy(true)} style={{
-            fontSize:11,color:"#717171",background:"none",border:"none",
-            cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3,padding:0,
-          }}>プライバシーポリシー</button>
+      {/* ── FOOTER（固定） ── */}
+      <footer className="site-footer-fixed">
+        <div className="footer-inner">
+          <span className="f-sans footer-copy">
+            © {THIS_YEAR} chitose-bank · 吉野川農家 記録プロジェクト
+          </span>
+          <div className="footer-links">
+            <button onClick={()=>setShowTerms(true)} className="f-sans" style={{
+              fontSize:11, color:"#717171", background:"none", border:"none",
+              cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
+            }}>利用規約</button>
+            <button onClick={()=>setShowConstitution(true)} className="f-sans" style={{
+              fontSize:11, color:"#717171", background:"none", border:"none",
+              cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
+            }}>データ憲法</button>
+            <button onClick={()=>setShowPrivacy(true)} className="f-sans" style={{
+              fontSize:11, color:"#717171", background:"none", border:"none",
+              cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
+            }}>プライバシーポリシー</button>
+          </div>
+          <p className="f-sans footer-note">
+            chitose-bankは銀行ではありません。表示データは参考情報であり、融資採択・補助金採択・収益改善を保証しません。
+          </p>
         </div>
-        <p className="f-sans" style={{
-          width:"100%", fontSize:10, color:"#B0B0B0",
-          lineHeight:1.8, textAlign:"center", marginTop:12, margin:0, marginTop:12,
-        }}>
-          chitose-bankは銀行ではありません。表示データは参考情報であり、融資採択・補助金採択・収益改善を保証しません。
-        </p>
       </footer>
       {!me&&showLanding&&(
         <LandingFlow
