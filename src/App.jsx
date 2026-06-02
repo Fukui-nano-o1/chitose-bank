@@ -4407,32 +4407,49 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
                 {showCalendar && <CalendarPicker />}
               </div>
               {/* 4. 勤務時間（分割セレクト） */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:8 }}>開始時間と終了時間を選んでください。</p>
-                <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                  {[
-                    { val:startHour,   set:setStartHour,   opts:Array.from({length:18},(_,i)=>String(i+5)), label:"開始時" },
-                    { val:startMinute, set:setStartMinute, opts:["00","05","10","15","20","25","30","35","40","45","50","55"], label:"開始分" },
-                  ].map(({ val, set, opts, label }) => (
-                    <select key={label} value={val} onChange={e => set(e.target.value)} className="f-mono" style={{
-                      padding:"8px 10px", borderRadius:10, border:"1px solid #EBEBEB",
-                      fontSize:15, background:"#fff", cursor:"pointer", appearance:"auto",
-                    }}>{opts.map(o => <option key={o} value={o}>{o}</option>)}</select>
-                  ))}
-                  <span className="f-sans" style={{ fontSize:14, color:"#B0B0B0", padding:"0 4px" }}>〜</span>
-                  {[
-                    { val:endHour,   set:setEndHour,   opts:Array.from({length:18},(_,i)=>String(i+5)), label:"終了時" },
-                    { val:endMinute, set:setEndMinute, opts:["00","05","10","15","20","25","30","35","40","45","50","55"], label:"終了分" },
-                  ].map(({ val, set, opts, label }) => (
-                    <select key={label} value={val} onChange={e => set(e.target.value)} className="f-mono" style={{
-                      padding:"8px 10px", borderRadius:10, border:"1px solid #EBEBEB",
-                      fontSize:15, background:"#fff", cursor:"pointer", appearance:"auto",
-                    }}>{opts.map(o => <option key={o} value={o}>{o}</option>)}</select>
-                  ))}
-                </div>
-                <p className="f-sans" style={{ fontSize:12, color:"#00A86B", marginTop:6 }}>→ {workTimeLabel}</p>
-              </div>
+              {(() => {
+                const hourOpts = Array.from({ length: 18 }, (_, i) => String(i + 5));
+                const minOpts  = ["00","05","10","15","20","25","30","35","40","45","50","55"];
+                const selStyle = {
+                  width:72, height:48, borderRadius:12,
+                  border:"1px solid #EBEBEB",
+                  background:"#FFFFFF", color:"#222222",
+                  fontSize:16, fontWeight:700,
+                  textAlign:"center", textAlignLast:"center",
+                  padding:"0 10px", outline:"none",
+                  appearance:"auto", WebkitAppearance:"menulist",
+                  cursor:"pointer",
+                };
+                const rowStyle = {
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  gap:8, flexWrap:"wrap", marginTop:12,
+                };
+                const sepStyle = { fontSize:18, fontWeight:700, color:"#222" };
+                return (
+                  <div style={{ marginBottom:14 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
+                    <div style={rowStyle}>
+                      <select value={startHour}   onChange={e => setStartHour(e.target.value)}   style={selStyle}>
+                        {hourOpts.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span style={sepStyle}>：</span>
+                      <select value={startMinute} onChange={e => setStartMinute(e.target.value)} style={selStyle}>
+                        {minOpts.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <span style={{ margin:"0 6px", color:"#717171", fontWeight:700, fontSize:16 }}>〜</span>
+                      <select value={endHour}     onChange={e => setEndHour(e.target.value)}     style={selStyle}>
+                        {hourOpts.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span style={sepStyle}>：</span>
+                      <select value={endMinute}   onChange={e => setEndMinute(e.target.value)}   style={selStyle}>
+                        {minOpts.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    <p className="f-sans" style={{ fontSize:12, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
+                  </div>
+                );
+              })()}
               {/* 5. 募集人数 */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集人数</label>
