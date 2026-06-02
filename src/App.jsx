@@ -330,6 +330,22 @@ input:focus { outline: none; }
   }
 }
 
+/* ── LandingFlow Step6 grid ── */
+.lf-map-hero { height: 360px; }
+.lf-preview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+@media (max-width: 800px) {
+  .lf-map-hero { height: 240px; }
+  .lf-preview-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Fixed footer ── */
 .site-footer-fixed {
   position: fixed;
@@ -4383,6 +4399,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           </>)}
 
           {/* ── 農家 Step6: Airbnb風 掲載プレビュー確認 ── */}
+          {/* ── 農家 Step6: Airbnb風 掲載プレビュー確認 ── */}
           {isFarmer && step === 6 && (() => {
             const JT_MAP = {
               "収穫補助": { body:"作物の収穫、運搬補助、簡単な選別作業をお願いします。未経験の方でも、当日説明します。", items:["汚れてもよい服","長靴","手袋","飲み物","帽子"], notes:"屋外作業のため、天候により時間変更の可能性があります。" },
@@ -4392,116 +4409,242 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             };
             const tmpl = JT_MAP[jobTemplate] || JT_MAP["収穫補助"];
             const listingTitle = `${farmerCrop || "作物"}${farmerTask || "作業"}スタッフ募集`;
-            const subInfo = [
-              farmerRegion || "地域未入力",
-              jobDateLabel !== "日程を選択してください" ? jobDateLabel : "日程未設定",
-              workTimeLabel,
-            ].join("・");
+            const subInfo = [farmerRegion || "地域未入力", jobDateLabel !== "日程を選択してください" ? jobDateLabel : "日程未設定", workTimeLabel].join("・");
             const rewardLabel = hourlyWage > 0 ? `¥${hourlyWage.toLocaleString()} / 時` : dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定";
             const wageType = hourlyWage > 0 ? "時給" : "日給";
             const wageNum  = hourlyWage > 0 ? hourlyWage : dailyWage;
             const avgWage  = hourlyWage > 0 ? AVG_HOURLY : AVG_DAILY;
-            const diffWage = wageNum - avgWage;
+            const diffWage = wageNum > 0 ? wageNum - avgWage : 0;
+
+            // プロフィール完成度
+            const profileFields = [farmerDisplayName, farmerRegion, farmerCrop, farmerTask, farmerWanted, farmerPayType, jobCount, jobDateStart, workTimeLabel, hourlyWageInput || dailyWageInput];
+            const fieldNames     = ["表示名","地域","作物","作業","希望する働き手","支払い方式","募集人数","開催日","勤務時間","報酬"];
+            const filledCount   = profileFields.filter(Boolean).length;
+            const profilePct    = Math.round(filledCount / profileFields.length * 100);
+            const missingFields = fieldNames.filter((_, i) => !profileFields[i]);
+
+            // ドラフト保存（ログイン前に入力内容を保持）
+            const saveDraft = () => {
+              try {
+                const draft = { role, step, farmerExp, farmerDisplayName, farmerRegion, farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText, farmerWanted, farmerPayType, startHour, startMinute, endHour, endMinute, jobCount, hourlyWageInput, dailyWageInput, jobExp, jobTemplate, jobNotes };
+                localStorage.setItem('landingFlowDraft_v1', JSON.stringify(draft));
+                localStorage.setItem('postLoginReturnTo', 'landingFlowFarmerConfirm');
+                // TODO: App側でログイン成功後に postLoginReturnTo を確認し、
+                //       landingFlowDraft_v1 を読み込んでstateを復元し step=6 に戻す
+              } catch {}
+            };
+
+            const tagStyle = { padding:"6px 14px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:13 };
+            const inputSt = { width:"100%", height:48, borderRadius:14, border:"1px solid #E5E5E5", fontSize:15, padding:"0 14px", outline:"none", boxSizing:"border-box" };
+
             return (<>
               {/* タイトル */}
-              <h2 className="f-sans" style={{ fontSize:"clamp(22px,3vw,32px)", fontWeight:850, color:"#222", marginBottom:6, lineHeight:1.3 }}>
-                {listingTitle}
+              <h2 className="f-sans" style={{ fontSize:"clamp(20px,3vw,30px)", fontWeight:850, color:"#222", marginBottom:6, lineHeight:1.3 }}>
+                掲載イメージを確認してください
               </h2>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>{subInfo}</p>
-              <div style={{ borderBottom:"1px solid #EBEBEB", marginBottom:20 }} />
+              <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手には、以下のように表示されます。</p>
 
-              {/* 地図プレビュー */}
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:10 }}>勤務地エリア</p>
-              <div style={{ height:280, borderRadius:24, border:"1px solid #EBEBEB", overflow:"hidden", position:"relative", background:"linear-gradient(135deg,#EEF7F1 0%,#F7F7F7 45%,#EAF4FF 100%)", boxShadow:"0 10px 30px rgba(0,0,0,0.06)", marginBottom:8 }}>
-                <div style={{ position:"absolute", top:"42%", left:0, right:0, height:3, background:"rgba(255,255,255,0.6)", transform:"rotate(-2deg)" }} />
-                <div style={{ position:"absolute", top:"25%", left:"15%", right:"8%", height:2, background:"rgba(255,255,255,0.45)", transform:"rotate(7deg)" }} />
-                <div style={{ position:"absolute", top:0, bottom:0, left:"38%", width:2, background:"rgba(255,255,255,0.4)" }} />
-                <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-130%)", display:"flex", flexDirection:"column", alignItems:"center" }}>
-                  <div style={{ width:40, height:40, borderRadius:"50%", background:"#222", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, boxShadow:"0 4px 14px rgba(0,0,0,0.25)" }}>📍</div>
-                  <div style={{ width:0, height:0, borderLeft:"6px solid transparent", borderRight:"6px solid transparent", borderTop:"8px solid #222", marginTop:-1 }} />
+              {/* ═══ 大きな地図 ═══ */}
+              <div className="lf-map-hero" style={{ width:"100%", maxWidth:1120, margin:"0 auto 28px", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)" }}>
+                {/* 道路ダミー */}
+                <div style={{ position:"absolute", top:"40%", left:0, right:0, height:4, background:"rgba(255,255,255,0.6)", transform:"rotate(-1.5deg)" }} />
+                <div style={{ position:"absolute", top:"22%", left:"8%", right:"6%", height:3, background:"rgba(255,255,255,0.45)", transform:"rotate(6deg)" }} />
+                <div style={{ position:"absolute", top:0, bottom:0, left:"36%", width:3, background:"rgba(255,255,255,0.4)" }} />
+                <div style={{ position:"absolute", top:"58%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-4deg)" }} />
+                {/* ラベル */}
+                <div style={{ position:"absolute", top:14, left:14, padding:"4px 12px", background:"rgba(255,255,255,0.92)", borderRadius:12, backdropFilter:"blur(4px)" }}>
+                  <span className="f-sans" style={{ fontSize:10, color:"#555", fontWeight:600 }}>勤務地エリア</span>
                 </div>
-                <div style={{ position:"absolute", bottom:"30%", left:"50%", transform:"translateX(-50%)", padding:"5px 14px", background:"rgba(255,255,255,0.95)", borderRadius:12, boxShadow:"0 2px 10px rgba(0,0,0,0.1)", whiteSpace:"nowrap" }}>
-                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{farmerRegion ? `${farmerRegion} 周辺` : "地域未入力"}</p>
+                {/* ピン */}
+                <div style={{ position:"absolute", top:"46%", left:"50%", transform:"translate(-50%,-130%)", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                  <div style={{ width:48, height:48, borderRadius:"50%", background:"#1a1a1a", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, boxShadow:"0 6px 20px rgba(0,0,0,0.3)" }}>📍</div>
+                  <div style={{ width:0, height:0, borderLeft:"7px solid transparent", borderRight:"7px solid transparent", borderTop:"10px solid #1a1a1a", marginTop:-1 }} />
+                </div>
+                {/* 地域ラベル */}
+                <div style={{ position:"absolute", bottom:"24%", left:"50%", transform:"translateX(-50%)", padding:"8px 20px", background:"rgba(255,255,255,0.96)", borderRadius:16, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", whiteSpace:"nowrap", backdropFilter:"blur(6px)" }}>
+                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{farmerRegion ? `${farmerRegion} 周辺` : "地域未入力"}</p>
+                </div>
+                {/* 注記 */}
+                <div style={{ position:"absolute", bottom:10, right:12, padding:"3px 10px", background:"rgba(255,255,255,0.88)", borderRadius:10 }}>
+                  <span className="f-sans" style={{ fontSize:9, color:"#B0B0B0" }}>詳細住所は公開されません。マッチング成立後に案内します。</span>
                 </div>
               </div>
-              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:20 }}>詳細住所は公開されません。マッチング成立後に必要な範囲で案内します。</p>
 
-              {/* 募集カード */}
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:10 }}>募集の概要</p>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
-                {[
-                  { label:"作物", value:farmerCrop || "未設定" },
-                  { label:"作業", value:farmerTask || "未設定" },
-                  { label:"人数", value:jobCount ? `${jobCount}人募集` : "未設定" },
-                  { label:"経験", value:jobExp || "未設定" },
-                ].map(item => (
-                  <div key={item.label} style={{ padding:"14px 16px", background:"#F7F7F7", borderRadius:16 }}>
-                    <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginBottom:4 }}>{item.label}</p>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{item.value}</p>
+              {/* ═══ 2カラムグリッド ═══ */}
+              <div className="lf-preview-grid">
+
+                {/* ── 左: 掲載プレビュー ── */}
+                <div>
+                  <h3 className="f-sans" style={{ fontSize:"clamp(20px,2.5vw,26px)", fontWeight:800, color:"#222", marginBottom:6, lineHeight:1.3 }}>{listingTitle}</h3>
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:18 }}>{subInfo}</p>
+                  <div style={{ borderBottom:"1px solid #EBEBEB", marginBottom:20 }} />
+
+                  {/* 募集概要カード */}
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
+                    {[
+                      { label:"作物",   value:farmerCrop || "未設定" },
+                      { label:"作業",   value:farmerTask || "未設定" },
+                      { label:"人数",   value:jobCount ? `${jobCount}人募集` : "未設定" },
+                      { label:"経験",   value:jobExp || "未設定" },
+                    ].map(item => (
+                      <div key={item.label} style={{ padding:"14px 16px", background:"#F7F7F7", borderRadius:16 }}>
+                        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginBottom:4 }}>{item.label}</p>
+                        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{item.value}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              {/* 報酬・日程カード */}
-              <div style={{ padding:"20px 22px", border:"1px solid #EBEBEB", borderRadius:20, marginBottom:20, boxShadow:"0 4px 16px rgba(0,0,0,0.05)" }}>
-                <p className="f-mono" style={{ fontSize:26, fontWeight:800, color:"#222", marginBottom:4 }}>{rewardLabel}</p>
-                {wageNum > 0 && AVG_COUNT >= 5 && (
-                  <p className="f-sans" style={{ fontSize:12, color: diffWage >= 0 ? "#00A86B" : "#F5A623", marginBottom:12 }}>
-                    この条件の平均{wageType}：{avgWage.toLocaleString()}円　平均より {diffWage >= 0 ? "+" : ""}{diffWage.toLocaleString()}円
-                  </p>
-                )}
-                <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:12 }}>
-                  {[
-                    { label:"開催日",   value: jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定" },
-                    { label:"勤務時間", value: workTimeLabel },
-                    { label:"募集人数", value: jobCount ? `${jobCount}人` : "未設定" },
-                  ].map(r => (
-                    <div key={r.label} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                      <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>{r.label}</span>
-                      <span className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222" }}>{r.value}</span>
+                  {/* 報酬カード */}
+                  <div style={{ padding:"18px 20px", border:"1px solid #EBEBEB", borderRadius:20, marginBottom:20, boxShadow:"0 4px 14px rgba(0,0,0,0.05)" }}>
+                    <p className="f-mono" style={{ fontSize:28, fontWeight:800, color:"#222", marginBottom:4 }}>{rewardLabel}</p>
+                    {wageNum > 0 && AVG_COUNT >= 5 && (
+                      <p className="f-sans" style={{ fontSize:12, color: diffWage >= 0 ? "#00A86B" : "#F5A623", marginBottom:10 }}>
+                        この条件の平均{wageType}：{avgWage.toLocaleString()}円　平均より {diffWage >= 0 ? "+" : ""}{diffWage.toLocaleString()}円
+                      </p>
+                    )}
+                    <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:10 }}>
+                      {[
+                        { label:"開催日",   value: jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定" },
+                        { label:"勤務時間", value: workTimeLabel },
+                        { label:"募集人数", value: jobCount ? `${jobCount}人` : "未設定" },
+                      ].map(r => (
+                        <div key={r.label} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid #F7F7F7" }}>
+                          <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>{r.label}</span>
+                          <span className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222" }}>{r.value}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                    <button onClick={() => alert("現在はプレビューです。実際の応募は送信されません。")} className="btn-primary" style={{ width:"100%", padding:"13px", fontSize:14, borderRadius:14, marginTop:14 }}>
+                      応募画面のプレビュー
+                    </button>
+                    <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>現在は構想段階のため、実際の応募は送信されません。</p>
+                  </div>
+
+                  {/* 募集本文 */}
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>募集内容</p>
+                  <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16 }}>{tmpl.body}</p>
+
+                  {/* 持ち物・注意事項 */}
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>持ち物・注意事項</p>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
+                    {tmpl.items.map(item => <span key={item} style={tagStyle}>✓ {item}</span>)}
+                    {jobNotes && jobNotes.split(/[、,，\n]/).filter(Boolean).map((n,i) => (
+                      <span key={i} style={{ ...tagStyle, background:"#FEF3E2", color:"#F5A623" }}>📌 {n.trim()}</span>
+                    ))}
+                  </div>
+                  <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:28 }}>{tmpl.notes}</p>
                 </div>
-                <button onClick={() => alert("現在はプレビューです。実際の応募は送信されません。")} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:14, marginTop:14 }}>
-                  応募画面のプレビュー
-                </button>
-                <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:8, textAlign:"center" }}>現在は構想段階のため、実際の応募は送信されません。</p>
+
+                {/* ── 右: 編集パネル ── */}
+                <div style={{ position:"sticky", top:88, border:"1px solid #EBEBEB", borderRadius:28, padding:24, background:"#fff", boxShadow:"0 16px 40px rgba(0,0,0,0.10)" }}>
+                  <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", marginBottom:4 }}>プロフィールを整える</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:16 }}>未入力を埋めるほど、働き手に伝わりやすくなります。</p>
+
+                  {/* 完成度ゲージ */}
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                      <span className="f-sans" style={{ fontSize:12, color:"#717171" }}>プロフィール完成度</span>
+                      <span className="f-mono" style={{ fontSize:12, fontWeight:700, color: profilePct >= 80 ? "#00A86B" : profilePct >= 50 ? "#F5A623" : "#E24B4A" }}>{profilePct}%</span>
+                    </div>
+                    <div style={{ height:6, background:"#F7F7F7", borderRadius:3, overflow:"hidden" }}>
+                      <div style={{ height:6, borderRadius:3, background: profilePct >= 80 ? "#00A86B" : profilePct >= 50 ? "#F5A623" : "#E24B4A", width:`${profilePct}%`, transition:"width 0.4s ease" }} />
+                    </div>
+                  </div>
+
+                  {/* 未入力リスト */}
+                  {missingFields.length > 0 ? (
+                    <div style={{ padding:"10px 14px", background:"#FEF9F0", borderRadius:12, marginBottom:16, border:"1px solid #F5A62322" }}>
+                      <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginBottom:6 }}>あと{missingFields.length}項目で完成します</p>
+                      {missingFields.map(f => <p key={f} className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"2px 0" }}>・{f}</p>)}
+                    </div>
+                  ) : (
+                    <div style={{ padding:"10px 14px", background:"#E6F7EF", borderRadius:12, marginBottom:16 }}>
+                      <p className="f-sans" style={{ fontSize:12, color:"#00A86B" }}>✅ 掲載に必要な情報はそろっています。</p>
+                    </div>
+                  )}
+
+                  {/* 基本情報 */}
+                  <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>基本情報</p>
+                  <div style={{ marginBottom:10 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>表示名</label>
+                    <input value={farmerDisplayName} onChange={e => setFarmerDisplayName(e.target.value)} placeholder="例：○○農園" style={{ ...inputSt, borderColor: !farmerDisplayName ? "#F5A623" : "#E5E5E5" }} />
+                    {!farmerDisplayName && <p className="f-sans" style={{ fontSize:11, color:"#F5A623", marginTop:3 }}>ここを埋めると伝わりやすくなります</p>}
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>地域</label>
+                    <input value={farmerRegion} onChange={e => setFarmerRegion(e.target.value)} placeholder="例：徳島県吉野川市" style={{ ...inputSt, borderColor: !farmerRegion ? "#F5A623" : "#E5E5E5" }} />
+                  </div>
+
+                  {/* 作物・作業 */}
+                  <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>作物・作業</p>
+                  <div style={{ marginBottom:10 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>主な作物</label>
+                    <LFPillSelect options={["トマト","キュウリ","ナス","イチゴ","米","ブドウ","リンゴ"]} value={farmerCropPill} onSelect={v => { setFarmerCropPill(v); setFarmerCropText(""); }} />
+                    <input value={farmerCropText} onChange={e => { setFarmerCropText(e.target.value); setFarmerCropPill(""); }} placeholder="その他を入力" style={{ ...inputSt, marginTop:6 }} />
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>募集したい作業</label>
+                    <LFPillSelect options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]} value={farmerTaskPill} onSelect={v => { setFarmerTaskPill(v); setFarmerTaskText(""); }} />
+                    <input value={farmerTaskText} onChange={e => { setFarmerTaskText(e.target.value); setFarmerTaskPill(""); }} placeholder="例：畝立て、マルチ張り" style={{ ...inputSt, marginTop:6 }} />
+                  </div>
+
+                  {/* 条件 */}
+                  <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>条件</p>
+                  <div style={{ marginBottom:10 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>希望する働き手</label>
+                    <LFPillSelect options={["未経験歓迎","経験者優遇","どちらでも"]} value={farmerWanted} onSelect={setFarmerWanted} />
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>支払い方式</label>
+                    <LFPillSelect options={["時給","日給","どちらでも"]} value={farmerPayType} onSelect={setFarmerPayType} />
+                  </div>
+
+                  {/* 報酬 */}
+                  <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>報酬</p>
+                  <div style={{ marginBottom:10 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>時給（円）</label>
+                    <input inputMode="numeric" value={hourlyWageInput} onChange={e => setHourlyWageInput(e.target.value.replace(/[^\d]/g,""))} placeholder="例：1200" style={{ ...inputSt, fontFamily:"'DM Mono',monospace" }} />
+                  </div>
+                  <div style={{ marginBottom:20 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>日給（円）</label>
+                    <input inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g,""))} placeholder="例：9000" style={{ ...inputSt, fontFamily:"'DM Mono',monospace" }} />
+                  </div>
+
+                  {/* 保存ボタン */}
+                  <button
+                    onClick={() => { saveDraft(); onLogin(); }}
+                    className="btn-primary"
+                    style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginBottom:10 }}
+                  >
+                    実証に参加して保存する
+                  </button>
+                  <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center" }}>
+                    ログイン後にこの確認画面へ戻せるよう入力内容を保存します。
+                  </p>
+                </div>
               </div>
 
-              {/* 募集本文 */}
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:10 }}>募集内容</p>
-              <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16 }}>{tmpl.body}</p>
-
-              {/* 持ち物・注意事項 */}
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:10 }}>持ち物・注意事項</p>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
-                {tmpl.items.map(item => (
-                  <span key={item} style={{ padding:"6px 14px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:13 }}>✓ {item}</span>
-                ))}
-                {jobNotes && jobNotes.split(/[、,，\n]/).filter(Boolean).map((n,i) => (
-                  <span key={i} style={{ padding:"6px 14px", borderRadius:20, background:"#FEF3E2", color:"#F5A623", fontSize:13 }}>📌 {n.trim()}</span>
-                ))}
+              {/* ═══ 詳細確認ミニ表（下部格下げ） ═══ */}
+              <div style={{ maxWidth:1120, margin:"24px auto 0" }}>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>入力内容の詳細</p>
+                <LFWizCard>
+                  <LFSummaryRow label="表示名"   value={farmerDisplayName || "未入力"} />
+                  <LFSummaryRow label="地域"     value={farmerRegion || "未入力"} />
+                  <LFSummaryRow label="作物"     value={farmerCrop || "未入力"} />
+                  <LFSummaryRow label="作業"     value={farmerTask || "未入力"} />
+                  <LFSummaryRow label="開催日"   value={jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定"} />
+                  <LFSummaryRow label="勤務時間" value={workTimeLabel} />
+                  <LFSummaryRow label="募集人数" value={jobCount ? `${jobCount}人` : "未設定"} />
+                  <LFSummaryRow label="報酬"     value={rewardLabel} />
+                  <LFSummaryRow label="必要経験" value={jobExp || "未設定"} />
+                  <LFSummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
+                  <LFSummaryRow label="目的"     value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
+                </LFWizCard>
               </div>
-              <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:24 }}>{tmpl.notes}</p>
-
-              {/* 詳細確認ミニ表 */}
-              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>入力内容の詳細</p>
-              <LFWizCard>
-                <LFSummaryRow label="表示名"   value={farmerDisplayName || "未入力"} />
-                <LFSummaryRow label="地域"     value={farmerRegion || "未入力"} />
-                <LFSummaryRow label="作物"     value={farmerCrop || "未入力"} />
-                <LFSummaryRow label="作業"     value={farmerTask || "未入力"} />
-                <LFSummaryRow label="開催日"   value={jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定"} />
-                <LFSummaryRow label="勤務時間" value={workTimeLabel} />
-                <LFSummaryRow label="募集人数" value={jobCount ? `${jobCount}人` : "未設定"} />
-                <LFSummaryRow label="報酬"     value={rewardLabel} />
-                <LFSummaryRow label="必要経験" value={jobExp || "未設定"} />
-                <LFSummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
-                <LFSummaryRow label="目的"     value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
-              </LFWizCard>
             </>);
           })()}
 
+          {/* ── 農家 Step7: 完了 ── */}
           {/* ── 農家 Step7: 完了 ── */}
           {isFarmer && step === 7 && (<>
             <div style={{ textAlign:"center", paddingTop:20 }}>
