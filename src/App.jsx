@@ -4261,16 +4261,120 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           </>)}
 
           {isFarmer && step === 5 && (<>
-            <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィール確認</h2>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>公開前に表示内容を確認してください</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>公開プロフィールを作ります</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>働き手から見える内容を確認してください。</p>
+
+            {/* 1. 地図風プレビュー */}
+            <div style={{ borderRadius:24, height:220, position:"relative", overflow:"hidden", marginBottom:16,
+              background:"linear-gradient(145deg,#c8e6c9 0%,#a5d6a7 40%,#81c784 70%,#c8e6c9 100%)",
+              border:"1px solid #EBEBEB", boxShadow:"0 8px 24px rgba(0,0,0,0.06)"
+            }}>
+              {/* 道路ダミー */}
+              <div style={{ position:"absolute", top:"45%", left:0, right:0, height:3, background:"rgba(255,255,255,0.55)", transform:"rotate(-2deg)" }} />
+              <div style={{ position:"absolute", top:"28%", left:"10%", right:"5%", height:2, background:"rgba(255,255,255,0.4)", transform:"rotate(6deg)" }} />
+              <div style={{ position:"absolute", top:0, bottom:0, left:"42%", width:2, background:"rgba(255,255,255,0.4)" }} />
+              {/* ラベル */}
+              <div style={{ position:"absolute", top:10, left:10, padding:"3px 10px", background:"rgba(255,255,255,0.9)", borderRadius:10 }}>
+                <span className="f-sans" style={{ fontSize:9, color:"#555" }}>勤務地の表示</span>
+              </div>
+              {/* ピン */}
+              <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-120%)", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                <div style={{ width:36, height:36, borderRadius:"50%", background:"#00A86B", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, boxShadow:"0 4px 12px rgba(0,168,107,0.4)" }}>📍</div>
+                <div style={{ marginTop:6, padding:"4px 12px", background:"rgba(255,255,255,0.95)", borderRadius:10, boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:0 }}>
+                    {farmerRegion ? `${farmerRegion} 周辺` : "地域を入力してください"}
+                  </p>
+                </div>
+              </div>
+              {/* 注記 */}
+              <div style={{ position:"absolute", bottom:8, right:8, padding:"3px 8px", background:"rgba(255,255,255,0.85)", borderRadius:8 }}>
+                <span className="f-sans" style={{ fontSize:8, color:"#B0B0B0" }}>詳細住所は公開されません</span>
+              </div>
+            </div>
+
+            {/* 2. 公開プロフィールカード */}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>働き手にはこう表示されます</p>
+            <div style={{ maxWidth:720, margin:"0 auto 20px", borderRadius:24, padding:"20px 22px", border:"1px solid #EBEBEB", boxShadow:"0 12px 32px rgba(0,0,0,0.06)", background:"#fff" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
+                <div style={{ width:52, height:52, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>🚜</div>
+                <div>
+                  <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>
+                    {farmerDisplayName || <span style={{ color:"#B0B0B0", fontWeight:400 }}>農園名を入力してください</span>}
+                  </p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", marginTop:2 }}>
+                    {farmerRegion ? `${farmerRegion} 周辺` : <span style={{ color:"#B0B0B0" }}>地域を入力してください</span>}
+                  </p>
+                </div>
+              </div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:12 }}>
+                {farmerCrop && <span style={{ padding:"4px 12px", borderRadius:20, background:"#E6F7EF", color:"#00A86B", fontSize:12, fontWeight:600 }}>{farmerCrop}</span>}
+                {farmerTask && <span style={{ padding:"4px 12px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:12 }}>{farmerTask}</span>}
+                {farmerWanted && <span style={{ padding:"4px 12px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:12 }}>{farmerWanted}</span>}
+                {farmerPayType && <span style={{ padding:"4px 12px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:12 }}>{farmerPayType}</span>}
+              </div>
+              {(!farmerCrop || !farmerTask) && (
+                <p className="f-sans" style={{ fontSize:12, color:"#F5A623" }}>作物・作業を入力すると表示されます</p>
+              )}
+              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", borderTop:"1px solid #F7F7F7", paddingTop:10, marginTop:4 }}>
+                ※ 本名・電話番号・詳細住所は表示されません
+              </p>
+            </div>
+
+            {/* 3. 編集フォーム */}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>基本情報</p>
+            <LFWizCard>
+              <div style={{ marginBottom:16 }}>
+                <label className="f-sans" style={lfStyles.inputLabel}>表示名</label>
+                <input value={farmerDisplayName} onChange={e => setFarmerDisplayName(e.target.value)}
+                  placeholder="例：○○農園" className="field f-sans" style={{ fontSize:15 }} />
+              </div>
+              <div>
+                <label className="f-sans" style={lfStyles.inputLabel}>地域</label>
+                <input value={farmerRegion} onChange={e => setFarmerRegion(e.target.value)}
+                  placeholder="例：徳島県吉野川市" className="field f-sans" style={{ fontSize:15 }} />
+              </div>
+            </LFWizCard>
+
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>作物・作業</p>
+            <LFWizCard>
+              <div style={{ marginBottom:16 }}>
+                <label className="f-sans" style={lfStyles.inputLabel}>主な作物</label>
+                <LFPillSelect options={["トマト","キュウリ","ナス","イチゴ","米","ブドウ","リンゴ"]} value={farmerCropPill}
+                  onSelect={v => { setFarmerCropPill(v); setFarmerCropText(""); }} />
+                <input value={farmerCropText} onChange={e => { setFarmerCropText(e.target.value); setFarmerCropPill(""); }}
+                  placeholder="その他の作物を入力" className="field f-sans" style={{ fontSize:14, marginTop:6 }} />
+              </div>
+              <div>
+                <label className="f-sans" style={lfStyles.inputLabel}>募集したい作業</label>
+                <LFPillSelect options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]} value={farmerTaskPill}
+                  onSelect={v => { setFarmerTaskPill(v); setFarmerTaskText(""); }} />
+                <input value={farmerTaskText} onChange={e => { setFarmerTaskText(e.target.value); setFarmerTaskPill(""); }}
+                  placeholder="例：畝立て、支柱立て、マルチ張り" className="field f-sans" style={{ fontSize:14, marginTop:6 }} />
+              </div>
+            </LFWizCard>
+
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>募集条件</p>
+            <LFWizCard>
+              <div style={{ marginBottom:16 }}>
+                <label className="f-sans" style={lfStyles.inputLabel}>希望する働き手</label>
+                <LFPillSelect options={["未経験歓迎","経験者優遇","どちらでも"]} value={farmerWanted} onSelect={setFarmerWanted} />
+              </div>
+              <div>
+                <label className="f-sans" style={lfStyles.inputLabel}>支払い方式</label>
+                <LFPillSelect options={["時給","日給","どちらでも"]} value={farmerPayType} onSelect={setFarmerPayType} />
+              </div>
+            </LFWizCard>
+
+            {/* 4. 詳細確認ミニ表 */}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>入力内容の詳細</p>
             <LFWizCard>
               <LFSummaryRow label="表示名" value={farmerDisplayName || "未入力"} />
-              <LFSummaryRow label="就農歴" value={farmerExp} />
+              <LFSummaryRow label="就農歴" value={farmerExp || "未入力"} />
               <LFSummaryRow label="地域"   value={farmerRegion || "未入力"} />
               <LFSummaryRow label="作物"   value={farmerCrop || "未入力"} />
               <LFSummaryRow label="作業"   value={farmerTask || "未入力"} />
               <LFSummaryRow label="希望する働き手" value={farmerWanted || "未設定"} />
-              <LFSummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
+              <LFSummaryRow label="支払い方式"     value={farmerPayType || "未設定"} />
               <LFSummaryRow label="目的"   value={farmerPurpose==="post" ? "仕事を出す" : "オファーする"} />
             </LFWizCard>
           </>)}
