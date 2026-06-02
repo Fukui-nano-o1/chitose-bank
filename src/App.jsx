@@ -4469,159 +4469,469 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 function LaborTab({ farmersCount, onLogin }) {
   const TARGET = 30;
   const progress = Math.min(Math.round((farmersCount / TARGET) * 100), 100);
+  const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 12;
 
-  return (
-    <div className="appear" style={{ maxWidth:640, margin:"0 auto" }}>
+  const [role,    setRole]    = useState(""); // "" | "farmer" | "worker"
+  const [step,    setStep]    = useState(0);
 
-      {/* ヘッダー */}
-      <div style={{ textAlign:"center", marginBottom:32 }}>
-        <div style={{ fontSize:48, marginBottom:16 }}>🤝</div>
-        <h1 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", lineHeight:1.4, marginBottom:10 }}>
-          助っ人マッチング
-        </h1>
-        <span style={{
-          display:"inline-block", padding:"4px 14px", borderRadius:20,
-          background:"#FEF3E2", color:"#F5A623", fontSize:12, fontWeight:700,
-        }}>準備中 — 30名到達で開始</span>
-      </div>
+  const [farmerExp,     setFarmerExp]     = useState("");
+  const [farmerPurpose, setFarmerPurpose] = useState("");
+  const [farmerCrop,    setFarmerCrop]    = useState("");
+  const [farmerWork,    setFarmerWork]    = useState("");
+  const [farmerRegion,  setFarmerRegion]  = useState("");
+  const [farmerHourly,  setFarmerHourly]  = useState("");
+  const [farmerDaily,   setFarmerDaily]   = useState("");
 
-      {/* 進捗バー */}
-      <div style={{
-        padding:"20px 24px", background:"#fff", border:"1px solid #EBEBEB",
-        borderRadius:16, marginBottom:24,
-      }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:10 }}>
-          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>参加農家</span>
-          <span className="f-mono" style={{ fontSize:20, fontWeight:700, color:"#00A86B" }}>
-            {farmersCount}<span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", fontWeight:400 }}> / {TARGET}名</span>
-          </span>
-        </div>
-        <div style={{ height:10, background:"#F7F7F7", borderRadius:5, overflow:"hidden" }}>
-          <div style={{
-            height:10, borderRadius:5, background:"#00A86B",
-            width: progress + "%", transition:"width 0.6s ease",
-          }} />
-        </div>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:8, textAlign:"center" }}>
-          あと{Math.max(TARGET - farmersCount, 0)}名で助っ人マッチング機能を開始します
-        </p>
-      </div>
+  const [workerExp,     setWorkerExp]     = useState("");
+  const [workerPurpose, setWorkerPurpose] = useState("");
+  const [workerCrop,    setWorkerCrop]    = useState("");
+  const [workerWork,    setWorkerWork]    = useState("");
+  const [workerRegion,  setWorkerRegion]  = useState("");
+  const [workerHourly,  setWorkerHourly]  = useState("");
+  const [workerDaily,   setWorkerDaily]   = useState("");
+  const [workerHours,   setWorkerHours]   = useState("");
 
-      {/* 3ステップ */}
-      <div style={{ marginBottom:32 }}>
-        <h2 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>人手確保への3ステップ</h2>
-        <div style={{ display:"grid", gap:12 }}>
-          {[
-            { num:"①", title:"月1回、売上・経費を記録する", desc:"貢献スコアが貯まります。記録を続けた農家から優先的に助っ人を案内します。", icon:"📝" },
-            { num:"②", title:"地域データが見える化される", desc:"5農家以上のデータが集まると、地域の経費率・雇用可能額が分かります。", icon:"📊" },
-            { num:"③", title:"収穫期に助っ人を優先案内", desc:"貢献スコアが高い農家ほど、手数料割引・優先マッチングの対象になります。", icon:"🤝" },
-          ].map(step => (
-            <div key={step.num} style={{
-              display:"flex", gap:16, padding:"20px", background:"#fff",
-              border:"1px solid #EBEBEB", borderRadius:16,
-            }}>
-              <div style={{
-                width:44, height:44, borderRadius:"50%", background:"#E6F7EF",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:22, flexShrink:0,
-              }}>{step.icon}</div>
-              <div>
-                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:4 }}>{step.num} {step.title}</p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>{step.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+  const isFarmer = role === "farmer";
+  const isWorker = role === "worker";
+  const farmerStepLabels = ["就農歴","機能紹介","目的","プロフィール","確認","詳細","最終確認","完了"];
+  const workerStepLabels = ["経歴","目的","プロフィール","確認","詳細","最終確認","完了"];
+  const stepLabels = isFarmer ? farmerStepLabels : isWorker ? workerStepLabels : [];
 
-      {/* 開発予定の機能 */}
-      <div style={{ marginBottom:32 }}>
-        <h2 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>30名到達後に追加される機能</h2>
-        <div style={{ display:"grid", gap:10 }}>
-          {[
-            { icon:"🗾", title:"地図から農家を探す", desc:"日本地図をズームして、地域ごとに助っ人を募集している農家を表示します。" },
-            { icon:"📋", title:"助っ人リスト", desc:"作物・作業内容・経験回数で検索・絞り込みができます。氏名・作物・作業内容・アイコンを表示し、タップで詳細を確認できます。" },
-            { icon:"📩", title:"双方向オファー", desc:"農家から助っ人へ、助っ人から農家へ、どちらからでもオファーを送れます。" },
-            { icon:"📊", title:"実績ベースの信頼性", desc:"主観的な評価ではなく、作業回数・作物経験・無断キャンセル0回などの事実を表示します。遅刻・欠勤・勤務態度も記録されます。" },
-            { icon:"🔒", title:"プライバシー保護", desc:"個別収支・住所は表示しません。表示するのは作業実績・作物・経験のみ。スクショされても問題ない設計です。" },
-          ].map(item => (
-            <div key={item.title} style={{
-              display:"flex", alignItems:"flex-start", gap:14,
-              padding:"16px 18px", background:"#F7F7F7", borderRadius:12,
-            }}>
-              <div style={{
-                width:40, height:40, borderRadius:10, background:"#fff",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:20, flexShrink:0, border:"1px solid #EBEBEB",
-              }}>{item.icon}</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px", textAlign:"left" }}>{item.title}</p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:0, textAlign:"left" }}>{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+  const goNext = () => setStep(s => s + 1);
+  const goBack = () => { if (step <= 1) { setRole(""); setStep(0); } else setStep(s => s - 1); };
 
-      {/* Dayworkとの違い */}
-      <div style={{
-        padding:"20px 24px", background:"#fff", border:"1px solid #EBEBEB",
-        borderRadius:16, marginBottom:24,
-      }}>
-        <h2 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:14 }}>既存のバイトアプリとの違い</h2>
-        <div style={{ overflowX:"auto" }}>
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-            <thead>
-              <tr style={{ borderBottom:"2px solid #EBEBEB" }}>
-                {["", "既存アプリ", "Chitose Bank"].map(h => (
-                  <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:600, color:"#717171", fontSize:10 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { label:"目的", a:"人を探す", b:"誰を・いつ・いくらまで雇えるか判断する" },
-                { label:"評価", a:"主観（星5など）", b:"事実（作業回数・経験・欠勤0回）" },
-                { label:"経営連携", a:"なし", b:"月次記録から雇用可能額を逆算" },
-                { label:"コスト把握", a:"なし", b:"経費率から人件費の上限が見える" },
-              ].map(row => (
-                <tr key={row.label} style={{ borderBottom:"1px solid #F7F7F7" }}>
-                  <td style={{ padding:"10px", fontWeight:600, color:"#222" }}>{row.label}</td>
-                  <td style={{ padding:"10px", color:"#717171" }}>{row.a}</td>
-                  <td style={{ padding:"10px", color:"#00A86B", fontWeight:600 }}>{row.b}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* CTA */}
-      <div style={{
-        padding:"28px 24px", background:"#E6F7EF", border:"1px solid #00A86B22",
-        borderRadius:16, textAlign:"center", marginBottom:32,
-      }}>
-        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:8 }}>
-          まず月1回の記録から始めましょう
-        </p>
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, marginBottom:16 }}>
-          記録を続けた農家が、助っ人マッチングで優先されます。
-        </p>
-        <button onClick={onLogin} className="btn-primary" style={{ padding:"14px 32px", fontSize:14 }}>
-          記録を始める →
-        </button>
-      </div>
-
-      {/* 開始予定 */}
-      <div style={{ textAlign:"center", padding:"16px 0" }}>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8 }}>
-          助っ人マッチング機能は参加農家30名到達後に開始予定です。<br/>
-          開始時期は参加状況により変動します。
-        </p>
-      </div>
-
+  const CardBtn = ({ selected, onClick, children }) => (
+    <button onClick={onClick} style={{
+      width:"100%", textAlign:"left", padding:"20px 22px", borderRadius:16, display:"block", marginBottom:10,
+      border: selected ? "2px solid #00A86B" : "2px solid #EBEBEB",
+      background: selected ? "#E6F7EF" : "#fff",
+      fontSize:15, fontWeight: selected ? 600 : 400, color:"#222", cursor:"pointer", transition:"all .15s",
+    }}>{children}</button>
+  );
+  const WizCard = ({ children }) => (
+    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"24px", marginBottom:16, boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+      {children}
     </div>
   );
+  const NavRow = ({ canNext = true }) => (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:32, paddingTop:16, borderTop:"1px solid #EBEBEB" }}>
+      <button onClick={goBack} className="f-sans" style={{ padding:"14px 24px", borderRadius:12, fontSize:14, cursor:"pointer", background:"#F7F7F7", border:"none", color:"#222", fontWeight:600 }}>← 戻る</button>
+      <button onClick={goNext} className="btn-primary" style={{ padding:"14px 32px", fontSize:14, borderRadius:12, opacity: canNext ? 1 : 0.4, pointerEvents: canNext ? "auto" : "none" }}>次へ →</button>
+    </div>
+  );
+  const ProgressBar = () => (
+    <div style={{ marginBottom:28 }}>
+      <div style={{ display:"flex", gap:3, marginBottom:6 }}>
+        {stepLabels.map((_, i) => (
+          <div key={i} style={{ flex:1, height:4, borderRadius:2, background: i+1 <= step ? "#00A86B" : "#EBEBEB", transition:"background 0.3s" }} />
+        ))}
+      </div>
+      <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none" }}>
+        {stepLabels.map((label, i) => (
+          <span key={i} className="f-sans" style={{ flexShrink:0, fontSize:9, minWidth:56, textAlign:"center", fontWeight: i+1===step ? 700 : 400, color: i+1===step ? "#00A86B" : i+1<step ? "#717171" : "#B0B0B0" }}>{i+1} {label}</span>
+        ))}
+      </div>
+    </div>
+  );
+  const WageCompare = ({ type, value, avg, count }) => {
+    if (!value || value <= 0) return null;
+    if (count < 5) return <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4 }}>まだ同条件のデータが少ないため、平均は表示できません</p>;
+    const diff = value - avg;
+    return (
+      <div style={{ marginTop:8, padding:"10px 14px", background:"#F7F7F7", borderRadius:10 }}>
+        <p className="f-sans" style={{ fontSize:11, color:"#717171" }}>
+          この条件の平均{type}：<span className="f-mono" style={{ fontWeight:700, color:"#222" }}>{avg.toLocaleString()}円</span>　中央値：{Math.round(avg*0.97).toLocaleString()}円　件数：{count}件
+        </p>
+        <p className="f-sans" style={{ fontSize:11, marginTop:4, color: diff >= 0 ? "#00A86B" : "#F5A623" }}>
+          あなたの設定：{value.toLocaleString()}円　平均より {diff >= 0 ? "+" : ""}{diff.toLocaleString()}円
+          {diff < 0 ? "　※応募が集まりにくい可能性があります" : ""}
+        </p>
+      </div>
+    );
+  };
+  const PillSelect = ({ options, value, onSelect }) => (
+    <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
+      {options.map(o => (
+        <button key={o} onClick={() => onSelect(o)} className="f-sans" style={{
+          padding:"8px 14px", borderRadius:20, fontSize:12, cursor:"pointer", fontWeight:600,
+          border:"2px solid", borderColor: value===o ? "#00A86B" : "#EBEBEB",
+          background: value===o ? "#E6F7EF" : "#fff", color: value===o ? "#00A86B" : "#222",
+        }}>{o}</button>
+      ))}
+    </div>
+  );
+  const SummaryRow = ({ label, value }) => (
+    <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderBottom:"1px solid #F7F7F7" }}>
+      <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>{label}</span>
+      <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{value}</span>
+    </div>
+  );
+  const WageNote = () => (
+    <div style={{ padding:"10px 14px", background:"#FEF3E2", borderRadius:10, border:"1px solid #F5A62333", marginTop:8 }}>
+      <p className="f-sans" style={{ fontSize:11, color:"#F5A623" }}>⚠ 報酬は最低賃金を下回らないように設定してください</p>
+    </div>
+  );
+
+  const wrap = (children) => (
+    <div className="appear" style={{ maxWidth:560, margin:"0 auto", paddingBottom:40 }}>
+      <ProgressBar />{children}
+    </div>
+  );
+
+  // ── HOME ──
+  if (step === 0) return (
+    <div className="appear" style={{ maxWidth:560, margin:"0 auto", paddingBottom:40 }}>
+      <div style={{ textAlign:"center", marginBottom:32 }}>
+        <div style={{ fontSize:52, marginBottom:16 }}>🌾</div>
+        <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", lineHeight:1.4, marginBottom:12 }}>
+          農業の人手探しを、<br/>もっと分かりやすく
+        </h1>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:20 }}>
+          作物・作業内容・地域・希望条件を整理し、<br/>農家と働き手のミスマッチを減らす機能を準備しています。
+        </p>
+        <span style={{ display:"inline-block", padding:"6px 18px", background:"#FEF3E2", borderRadius:20, marginBottom:8 }}>
+          <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#F5A623" }}>構想段階</span>
+        </span>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7 }}>実装前に労働局・関係機関へ確認した上で、段階的に追加予定です。</p>
+      </div>
+      <div style={{ padding:"18px 22px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:28 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
+          <span className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222" }}>参加農家</span>
+          <span className="f-mono" style={{ fontSize:18, fontWeight:700, color:"#00A86B" }}>{farmersCount}<span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", fontWeight:400 }}> / {TARGET}名</span></span>
+        </div>
+        <div style={{ height:8, background:"#F7F7F7", borderRadius:4, overflow:"hidden" }}>
+          <div style={{ height:8, borderRadius:4, background:"#00A86B", width:progress+"%", transition:"width 0.6s ease" }} />
+        </div>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>あと{Math.max(TARGET-farmersCount,0)}名でマッチング機能を開始します</p>
+      </div>
+      <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:14 }}>あなたはどちらですか？</h2>
+      <CardBtn selected={false} onClick={() => { setRole("farmer"); setStep(1); }}>
+        🚜 農家として使う
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginTop:4, fontWeight:400 }}>人手を探したい・働き手を見つけたい</p>
+      </CardBtn>
+      <CardBtn selected={false} onClick={() => { setRole("worker"); setStep(1); }}>
+        👤 働き手として使う
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginTop:4, fontWeight:400 }}>農作業を手伝いたい・仕事を探したい</p>
+      </CardBtn>
+    </div>
+  );
+
+  // ── FARMER FLOW ──
+  if (isFarmer) {
+    if (step === 1) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>就農歴を教えてください</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>表示される機能の参考にします</p>
+      {["1〜3年","4〜10年","10年以上"].map(v => <CardBtn key={v} selected={farmerExp===v} onClick={() => setFarmerExp(v)}>{v}</CardBtn>)}
+      <NavRow canNext={!!farmerExp} />
+    </>);
+
+    if (step === 2) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>農家向け機能のご紹介</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>準備中の機能をご確認ください</p>
+      <WizCard>
+        {[
+          { icon:"📋", title:"募集を出す", desc:"作物・作業内容・日程・報酬を入力して、働き手を募集できます。" },
+          { icon:"👤", title:"候補者を探す", desc:"経験・作物・希望報酬で絞り込み、直接オファーを送れます。" },
+          { icon:"📊", title:"経営連携", desc:"月次記録から雇用可能額を自動試算し、無理のない採用判断を支援します。" },
+        ].map(item => (
+          <div key={item.title} style={{ display:"flex", alignItems:"flex-start", gap:14, marginBottom:16 }}>
+            <div style={{ width:40, height:40, borderRadius:10, background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{item.icon}</div>
+            <div style={{ flex:1 }}>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:3 }}>{item.title}</p>
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7 }}>{item.desc}</p>
+            </div>
+          </div>
+        ))}
+      </WizCard>
+      <NavRow canNext={true} />
+    </>);
+
+    if (step === 3) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>何をしたいですか？</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>あとから変更できます</p>
+      <CardBtn selected={farmerPurpose==="post"} onClick={() => setFarmerPurpose("post")}>
+        📋 仕事を出す
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginTop:4, fontWeight:400 }}>募集内容を入力して働き手を募集する</p>
+      </CardBtn>
+      <CardBtn selected={farmerPurpose==="offer"} onClick={() => setFarmerPurpose("offer")}>
+        👤 働き手にオファーする
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginTop:4, fontWeight:400 }}>候補者を探して直接声をかける</p>
+      </CardBtn>
+      <NavRow canNext={!!farmerPurpose} />
+    </>);
+
+    if (step === 4) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>農家プロフィール</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>働き手に見せる情報を入力してください</p>
+      <WizCard>
+        <div style={{ marginBottom:20 }}>
+          <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>主な作物</label>
+          <PillSelect options={["トマト","キュウリ","ナス","イチゴ","米","ブドウ","リンゴ"]} value={farmerCrop} onSelect={setFarmerCrop} />
+          <input value={farmerCrop} onChange={e => setFarmerCrop(e.target.value)} placeholder="その他の作物を入力" className="field f-sans" style={{ fontSize:14 }} />
+        </div>
+        <div style={{ marginBottom:20 }}>
+          <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>主な作業内容</label>
+          <PillSelect options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]} value={farmerWork} onSelect={setFarmerWork} />
+        </div>
+        <div>
+          <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>地域</label>
+          <input value={farmerRegion} onChange={e => setFarmerRegion(e.target.value)} placeholder="例：徳島県吉野川市" className="field f-sans" style={{ fontSize:14 }} />
+        </div>
+      </WizCard>
+      <NavRow canNext={!!farmerCrop && !!farmerWork} />
+    </>);
+
+    if (step === 5) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィール確認</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>この内容で進めます</p>
+      <WizCard>
+        <SummaryRow label="就農歴" value={farmerExp} />
+        <SummaryRow label="作物"   value={farmerCrop} />
+        <SummaryRow label="作業"   value={farmerWork} />
+        <SummaryRow label="地域"   value={farmerRegion || "未入力"} />
+        <SummaryRow label="目的"   value={farmerPurpose==="post" ? "仕事を出す" : "オファーする"} />
+      </WizCard>
+      <NavRow canNext={true} />
+    </>);
+
+    if (step === 6) {
+      if (farmerPurpose === "post") return wrap(<>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>募集内容を入力します</h2>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>これはプレビューです。実際の公開はまだ行いません</p>
+        <WizCard>
+          <div style={{ marginBottom:20 }}>
+            <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>希望時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
+            <input type="number" value={farmerHourly} onChange={e => setFarmerHourly(e.target.value)} placeholder="例：1200" className="field f-mono" style={{ fontSize:18, maxWidth:180 }} />
+            <WageCompare type="時給" value={parseFloat(farmerHourly)||0} avg={AVG_HOURLY} count={AVG_COUNT} />
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>希望日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
+            <input type="number" value={farmerDaily} onChange={e => setFarmerDaily(e.target.value)} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:180 }} />
+            <WageCompare type="日給" value={parseFloat(farmerDaily)||0} avg={AVG_DAILY} count={AVG_COUNT} />
+          </div>
+          <WageNote />
+        </WizCard>
+        <NavRow canNext={true} />
+      </>);
+
+      return wrap(<>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>候補者リスト（想定画面）</h2>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>実装後はこのような画面になる予定です</p>
+        <div style={{ padding:"12px 16px", background:"#F7F7F7", borderRadius:12, marginBottom:12 }}>
+          <p className="f-sans" style={{ fontSize:11, color:"#717171" }}>📱 スマホ：地図→検索・絞込→リスト　🖥 PC：左に地図、右にリスト</p>
+        </div>
+        <div style={{ display:"flex", gap:8, marginBottom:14, overflowX:"auto" }}>
+          {["地域","作物","作業内容","日付","経験","報酬","移動手段"].map(f => (
+            <span key={f} style={{ flexShrink:0, padding:"7px 14px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:11, color:"#717171" }}>{f}</span>
+          ))}
+        </div>
+        {[
+          { name:"A. T.", crop:"トマト・キュウリ", work:"収穫・定植", exp:"4〜10年", hourly:1200 },
+          { name:"K. N.", crop:"イチゴ",           work:"収穫・選果", exp:"1〜3年",  hourly:1100 },
+          { name:"S. M.", crop:"米・大豆",         work:"草刈り・農薬散布", exp:"10年以上", hourly:1300 },
+        ].map((c, i) => (
+          <div key={i} style={{ padding:"16px 18px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
+              <div style={{ width:44, height:44, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>👤</div>
+              <div>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{c.name}</p>
+                <p className="f-sans" style={{ fontSize:11, color:"#717171" }}>{c.exp}</p>
+              </div>
+              <div style={{ marginLeft:"auto", textAlign:"right" }}>
+                <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B" }}>¥{c.hourly.toLocaleString()}/h</p>
+                <p className="f-sans" style={{ fontSize:10, color: c.hourly>=AVG_HOURLY ? "#00A86B" : "#F5A623" }}>平均{c.hourly>=AVG_HOURLY?"+":""}{(c.hourly-AVG_HOURLY).toLocaleString()}円</p>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {[c.crop, c.work].map(t => <span key={t} style={{ padding:"3px 10px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:11 }}>{t}</span>)}
+            </div>
+          </div>
+        ))}
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", marginTop:4 }}>※ 表示名・アイコンのみ。本名・詳細住所は非公開</p>
+        <NavRow canNext={true} />
+      </>);
+    }
+
+    if (step === 7) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>内容の確認</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>この内容で登録します（構想段階のため、実際の公開は行いません）</p>
+      <WizCard>
+        <SummaryRow label="ロール"  value="農家" />
+        <SummaryRow label="就農歴"  value={farmerExp} />
+        <SummaryRow label="作物"    value={farmerCrop} />
+        <SummaryRow label="作業"    value={farmerWork} />
+        <SummaryRow label="地域"    value={farmerRegion || "未設定"} />
+        <SummaryRow label="目的"    value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
+        <SummaryRow label="希望時給" value={farmerHourly ? `¥${parseFloat(farmerHourly).toLocaleString()}/h` : "未設定"} />
+        <SummaryRow label="希望日給" value={farmerDaily ? `¥${parseFloat(farmerDaily).toLocaleString()}/日` : "未設定"} />
+      </WizCard>
+      <NavRow canNext={true} />
+    </>);
+
+    return wrap(<>
+      <div style={{ textAlign:"center", paddingTop:16 }}>
+        <div style={{ fontSize:64, marginBottom:20 }}>✅</div>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>ありがとうございます</h2>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
+          機能が正式リリースされた際にご案内します。<br/>
+          それまでは月次記録を続けることで、<br/>優先案内の対象になります。
+        </p>
+        <button onClick={() => { setRole(""); setStep(0); }} className="btn-primary" style={{ padding:"16px 40px", fontSize:15, borderRadius:14 }}>ホームへ戻る</button>
+      </div>
+    </>);
+  }
+
+  // ── WORKER FLOW ──
+  if (isWorker) {
+    if (step === 1) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>農業経験を教えてください</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>経験は問いません。当てはまるものをお選びください</p>
+      {["農業未経験","農業ボランティア経験あり","農業アルバイト経験あり","就農・研修経験あり"].map(v => (
+        <CardBtn key={v} selected={workerExp===v} onClick={() => setWorkerExp(v)}>{v}</CardBtn>
+      ))}
+      <NavRow canNext={!!workerExp} />
+    </>);
+
+    if (step === 2) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>何をしたいですか？</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>あとから変更できます</p>
+      <CardBtn selected={workerPurpose==="open"} onClick={() => setWorkerPurpose("open")}>
+        📅 働ける日を公開する
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginTop:4, fontWeight:400 }}>農家からオファーを受けたい</p>
+      </CardBtn>
+      <CardBtn selected={workerPurpose==="search"} onClick={() => setWorkerPurpose("search")}>
+        🔍 募集中の仕事を探す
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginTop:4, fontWeight:400 }}>自分から応募したい</p>
+      </CardBtn>
+      <NavRow canNext={!!workerPurpose} />
+    </>);
+
+    if (step === 3) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>働き手プロフィール</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>農家に見せる情報を入力してください</p>
+      <WizCard>
+        <div style={{ marginBottom:20 }}>
+          <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>得意な作物</label>
+          <PillSelect options={["トマト","キュウリ","ナス","イチゴ","米","なんでも"]} value={workerCrop} onSelect={setWorkerCrop} />
+        </div>
+        <div style={{ marginBottom:20 }}>
+          <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>できる作業</label>
+          <PillSelect options={["収穫","定植","選果","草刈り","農薬散布","梱包"]} value={workerWork} onSelect={setWorkerWork} />
+        </div>
+        <div>
+          <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>活動地域</label>
+          <input value={workerRegion} onChange={e => setWorkerRegion(e.target.value)} placeholder="例：徳島県内" className="field f-sans" style={{ fontSize:14 }} />
+        </div>
+      </WizCard>
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>※ 本名・電話番号・詳細住所は表示されません</p>
+      <NavRow canNext={true} />
+    </>);
+
+    if (step === 4) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィール確認</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>農家に表示される情報です</p>
+      <WizCard>
+        <SummaryRow label="経験" value={workerExp} />
+        <SummaryRow label="作物" value={workerCrop || "未設定"} />
+        <SummaryRow label="作業" value={workerWork || "未設定"} />
+        <SummaryRow label="地域" value={workerRegion || "未入力"} />
+        <SummaryRow label="目的" value={workerPurpose==="open" ? "働ける日を公開" : "募集を探す"} />
+      </WizCard>
+      <NavRow canNext={true} />
+    </>);
+
+    if (step === 5) {
+      if (workerPurpose === "open") return wrap(<>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>希望条件を入力します</h2>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>これはプレビューです。実際の公開はまだ行いません</p>
+        <WizCard>
+          <div style={{ marginBottom:20 }}>
+            <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>希望時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
+            <input type="number" value={workerHourly} onChange={e => setWorkerHourly(e.target.value)} placeholder="例：1200" className="field f-mono" style={{ fontSize:18, maxWidth:180 }} />
+            <WageCompare type="時給" value={parseFloat(workerHourly)||0} avg={AVG_HOURLY} count={AVG_COUNT} />
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>希望日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
+            <input type="number" value={workerDaily} onChange={e => setWorkerDaily(e.target.value)} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:180 }} />
+            <WageCompare type="日給" value={parseFloat(workerDaily)||0} avg={AVG_DAILY} count={AVG_COUNT} />
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>日給の場合の想定勤務時間 <span style={{ fontSize:11, color:"#B0B0B0" }}>（時間）</span></label>
+            <input type="number" value={workerHours} onChange={e => setWorkerHours(e.target.value)} placeholder="例：8" className="field f-mono" style={{ fontSize:18, maxWidth:140 }} />
+            {workerDaily && workerHours && parseFloat(workerHours) > 0 && (
+              <p className="f-sans" style={{ fontSize:11, color:"#717171", marginTop:4 }}>
+                時給換算：<span className="f-mono" style={{ fontWeight:700 }}>¥{Math.round(parseFloat(workerDaily)/parseFloat(workerHours)).toLocaleString()}/h</span>
+              </p>
+            )}
+          </div>
+          <WageNote />
+        </WizCard>
+        <NavRow canNext={true} />
+      </>);
+
+      return wrap(<>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>仕事リスト（想定画面）</h2>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>実装後はこのような画面になる予定です</p>
+        <div style={{ padding:"12px 16px", background:"#F7F7F7", borderRadius:12, marginBottom:12 }}>
+          <p className="f-sans" style={{ fontSize:11, color:"#717171" }}>📱 スマホ：地図→検索・絞込→リスト　🖥 PC：左に地図、右にリスト</p>
+        </div>
+        <div style={{ display:"flex", gap:8, marginBottom:14, overflowX:"auto" }}>
+          {["地域","作物","作業内容","日付","経験","報酬","移動手段"].map(f => (
+            <span key={f} style={{ flexShrink:0, padding:"7px 14px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:11, color:"#717171" }}>{f}</span>
+          ))}
+        </div>
+        {[
+          { farm:"○○農園", crop:"トマト", work:"収穫・選果",   date:"7月上旬〜中旬", hourly:1200 },
+          { farm:"△△農場", crop:"キュウリ", work:"収穫・定植", date:"6月〜9月",       hourly:1150 },
+          { farm:"□□農業", crop:"イチゴ",  work:"収穫",        date:"11月〜3月",      hourly:1100 },
+        ].map((j, i) => (
+          <div key={i} style={{ padding:"16px 18px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+              <div>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{j.farm}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>{j.date}</p>
+              </div>
+              <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B" }}>¥{j.hourly.toLocaleString()}/h</p>
+            </div>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {[j.crop, j.work].map(t => <span key={t} style={{ padding:"3px 10px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:11 }}>{t}</span>)}
+            </div>
+          </div>
+        ))}
+        <NavRow canNext={true} />
+      </>);
+    }
+
+    if (step === 6) return wrap(<>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>内容の確認</h2>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>この内容で登録します（構想段階のため、実際の公開は行いません）</p>
+      <WizCard>
+        <SummaryRow label="ロール"   value="働き手" />
+        <SummaryRow label="経験"     value={workerExp} />
+        <SummaryRow label="作物"     value={workerCrop || "未設定"} />
+        <SummaryRow label="作業"     value={workerWork || "未設定"} />
+        <SummaryRow label="地域"     value={workerRegion || "未設定"} />
+        <SummaryRow label="目的"     value={workerPurpose==="open" ? "働ける日を公開" : "募集を探す"} />
+        <SummaryRow label="希望時給" value={workerHourly ? `¥${parseFloat(workerHourly).toLocaleString()}/h` : "未設定"} />
+        <SummaryRow label="希望日給" value={workerDaily ? `¥${parseFloat(workerDaily).toLocaleString()}/日` : "未設定"} />
+      </WizCard>
+      <NavRow canNext={true} />
+    </>);
+
+    return wrap(<>
+      <div style={{ textAlign:"center", paddingTop:16 }}>
+        <div style={{ fontSize:64, marginBottom:20 }}>✅</div>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>ありがとうございます</h2>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
+          機能が正式リリースされた際にご案内します。<br/>
+          作業内容・経験・勤務条件を見える化し、<br/>ミスマッチを減らす機能を順次開発しています。
+        </p>
+        <button onClick={() => { setRole(""); setStep(0); }} className="btn-primary" style={{ padding:"16px 40px", fontSize:15, borderRadius:14 }}>ホームへ戻る</button>
+      </div>
+    </>);
+  }
+
+  return null;
 }
 
 // ── OnboardingModal ──────────────────────────────────────────
