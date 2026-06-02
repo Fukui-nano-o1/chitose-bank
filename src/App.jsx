@@ -122,6 +122,36 @@ function fuzzyMatch(query, target) {
   return false;
 }
 
+// ── 作物名正規化 ──────────────────────────────────────────────
+function normalizeCropKey(name = "") {
+  return toKatakana(String(name).trim().normalize("NFKC"))
+    .replace(/\s+/g, "").replace(/[・･]/g, "").toLowerCase();
+}
+const CROP_CANONICAL_MAP = {
+  "ブロッコリー":"ブロッコリー","ブロッコリ":"ブロッコリー","ぶろっこりー":"ブロッコリー",
+  "ぶろっこり":"ブロッコリー","ﾌﾞﾛｯｺﾘｰ":"ブロッコリー","broccoli":"ブロッコリー",
+  "ナス":"なす","なす":"なす","茄子":"なす",
+  "スイートコーン":"スイートコーン","すいーとこーん":"スイートコーン",
+  "トウモロコシ":"スイートコーン","とうもろこし":"スイートコーン","とうきび":"スイートコーン",
+  "ネギ":"ねぎ","ねぎ":"ねぎ","葱":"ねぎ",
+};
+function canonicalCropName(name = "") {
+  const raw = String(name).trim();
+  if (!raw) return "";
+  const key = normalizeCropKey(raw);
+  const found = Object.entries(CROP_CANONICAL_MAP).find(([k]) => normalizeCropKey(k) === key);
+  return found ? found[1] : raw.normalize("NFKC");
+}
+function uniqueCropsByCanonical(crops = []) {
+  const map = new Map();
+  crops.filter(Boolean).forEach(c => {
+    const canonical = canonicalCropName(c);
+    const key = normalizeCropKey(canonical);
+    if (!map.has(key)) map.set(key, canonical);
+  });
+  return [...map.values()];
+}
+
 const CROP_EMOJIS = ['🥦','🍅','🍆','🥕','🌽','🥬','🍓','🥒','🧅','🥔','🍈','🌶️','🥜','🫛','🧄'];
 function getDefaultAvatar(farmerId) {
   const index = farmerId ? farmerId.charCodeAt(0) % CROP_EMOJIS.length : 0;
@@ -2374,7 +2404,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
       else a=Math.round(v);
       return {l:c.l,v,mode:c.mode,a};
     });
-    await onAddRecord(loggedInFarmer.id,selectedYear,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci,crop:crop,variety:variety.trim(),is_brand:isBrand});
+    await onAddRecord(loggedInFarmer.id,selectedYear,mon,{destId:dest.id,boxes:parseFloat(boxes),ppb:parseFloat(ppb),costs:ci,crop:canonicalCropName(crop),variety:variety.trim(),is_brand:isBrand});
     setSaved(true);
   };
   const submitDest=async()=>{
@@ -2417,7 +2447,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
             {knownCrops.length>0&&(
               <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
                 {knownCrops.map(c=>(
-                  <button key={c} onClick={()=>{setCrop(c);setCropInput(c);setVariety("");}} style={{
+                  <button key={c} onClick={()=>{ const cc=canonicalCropName(c); setCrop(cc);setCropInput(cc);setVariety("");}} style={{
                     padding:"6px 12px",border:`1.5px solid ${crop===c?C.gold:C.rule}`,borderRadius:20,
                     background:crop===c?`${C.gold}12`:"#fff",
                     color:crop===c?C.gold:C.mid,fontSize:12,fontWeight:crop===c?700:400,
@@ -2426,7 +2456,7 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
               </div>
             )}
             <input className="field f-sans" placeholder="作物名を入力（例：トマト）" value={cropInput}
-              onChange={e=>{setCropInput(e.target.value);setCrop(e.target.value);setVariety("");}}
+              onChange={e=>{setCropInput(e.target.value);setCrop(canonicalCropName(e.target.value));setVariety("");}}
               style={{marginBottom:18,fontSize:14}}/>
 
             {/* 品種入力 */}
@@ -2798,14 +2828,14 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
   const myRecs = MONTHS.flatMap((_, mi) =>
     records[`${loggedInFarmer.id}_${THIS_YEAR}_${mi}`] || []
   );
-  const myCrops = [...new Set(myRecs.map(r => r.crop).filter(Boolean))];
-  const planCrops = loggedInFarmer.planned_crops || [];
-  const allCrops = [...new Set([...planCrops, ...myCrops])];
+  const myCrops = uniqueCropsByCanonical(myRecs.map(r => r.crop).filter(Boolean));
+  const planCrops = uniqueCropsByCanonical(loggedInFarmer.planned_crops || []);
+  const allCrops = uniqueCropsByCanonical([...planCrops, ...myCrops]);
 
   // 作物別売上実績（千円）
   const cropRev0 = crop =>
     Math.round(
-      myRecs.filter(r => r.crop === crop)
+      myRecs.filter(r => canonicalCropName(r.crop) === canonicalCropName(crop))
             .reduce((s, r) => s + (r.boxes || 0) * (r.ppb || 0), 0) / 1000
     );
 
@@ -2896,7 +2926,7 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
   };
 
   // ── Wizard state ──────────────────────────────────────────
-  const [planView, setPlanView] = useState("full"); // "full" | "wizard"
+  const [planView, setPlanView] = useState("wizard"); // "full" | "wizard"
   const [planStep, setPlanStep] = useState(1);
   const [selectedPlanCrop, setSelectedPlanCrop] = useState("");
   const [customCropInput, setCustomCropInput] = useState("");
@@ -3004,7 +3034,7 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 
       {/* ── 表示切替 ── */}
       <div className="no-print" style={{ display:"flex", gap:4, marginBottom:24, padding:"4px", background:"#F7F7F7", borderRadius:22, width:"fit-content" }}>
-        {[["full","完成版を見る"],["wizard","入力する"]].map(([v,l]) => (
+        {[["full","確認する"],["wizard","入力する"]].map(([v,l]) => (
           <button key={v} onClick={() => { setPlanView(v); if(v==="wizard") setPlanStep(1); }} className="f-sans" style={{
             padding:"10px 22px", borderRadius:18, fontSize:13, fontWeight:600, cursor:"pointer", border:"none",
             background: planView===v ? "#fff" : "transparent",
@@ -3054,7 +3084,7 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
                 {allCrops.length > 0 && (
                   <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:16 }}>
                     {allCrops.map(c => (
-                      <button key={c} onClick={() => setSelectedPlanCrop(c)} className="f-sans" style={{
+                      <button key={c} onClick={() => setSelectedPlanCrop(canonicalCropName(c))} className="f-sans" style={{
                         padding:"12px 20px", borderRadius:20, fontSize:14, fontWeight:600, cursor:"pointer",
                         border:"2px solid", borderColor: selectedPlanCrop===c ? "#00A86B" : "#EBEBEB",
                         background: selectedPlanCrop===c ? "#E6F7EF" : "#fff",
@@ -3067,9 +3097,9 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
                   <input value={customCropInput} onChange={e => setCustomCropInput(e.target.value)}
                     placeholder="作物名を入力（例：ブドウ）" className="field f-sans"
                     style={{ flex:1, fontSize:14 }}
-                    onKeyDown={e => { if(e.key==="Enter"&&customCropInput.trim()){ setSelectedPlanCrop(customCropInput.trim()); setCustomCropInput(""); }}}
+                    onKeyDown={e => { if(e.key==="Enter"&&customCropInput.trim()){ setSelectedPlanCrop(canonicalCropName(customCropInput.trim())); setCustomCropInput(""); }}}
                   />
-                  <button onClick={() => { if(customCropInput.trim()){ setSelectedPlanCrop(customCropInput.trim()); setCustomCropInput(""); }}} className="f-sans" style={{
+                  <button onClick={() => { if(customCropInput.trim()){ setSelectedPlanCrop(canonicalCropName(customCropInput.trim())); setCustomCropInput(""); }}} className="f-sans" style={{
                     padding:"12px 18px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer",
                     background:"#F7F7F7", border:"1px solid #EBEBEB", color:"#222",
                   }}>追加</button>
@@ -5012,7 +5042,7 @@ function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) 
         experience_tier: obTier,
         farming_type: obFarmingType,
         area_tan: String(parseFloat(obArea) || 0),
-        planned_crops: obCrops,
+        planned_crops: uniqueCropsByCanonical(obCrops),
         sales_channels: obChannels,
       }, { onConflict: 'email' });
       if (!error) {
@@ -5021,7 +5051,7 @@ function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) 
         try { localStorage.setItem('ob_sales_channels', JSON.stringify(obChannels)); } catch {}
         const { data: farmer } = await supabase.from('farmers').select('*').eq('email', user.email).single();
         if (farmer) setMe(farmer);
-        await onComplete({ name: obName.trim(), prefecture: obPrefecture, municipality: obMunicipality.trim(), experience_tier: obTier, planned_crops: obCrops });
+        await onComplete({ name: obName.trim(), prefecture: obPrefecture, municipality: obMunicipality.trim(), experience_tier: obTier, planned_crops: uniqueCropsByCanonical(obCrops) });
       } else {
         console.error('onboarding save error:', error);
         alert(`保存に失敗しました。\n${error.message || JSON.stringify(error)}`);
