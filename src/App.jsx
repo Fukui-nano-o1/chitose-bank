@@ -2895,6 +2895,61 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
     fontFamily: "'DM Mono',monospace", color: "inherit", outline: "none", display: "block",
   };
 
+  // ── Wizard state ──────────────────────────────────────────
+  const [planView, setPlanView] = useState("full"); // "full" | "wizard"
+  const [planStep, setPlanStep] = useState(1);
+  const [selectedPlanCrop, setSelectedPlanCrop] = useState("");
+  const [customCropInput, setCustomCropInput] = useState("");
+  const WIZ_YI = 1;
+  const TOTAL_STEPS = 7;
+  const STEP_LABELS = ["作物","生産規模","収入","経費","借入","償還財源","確認"];
+
+  const getStatus = (key, yi) => vals[`${key}_status_${yi}`] ?? "later";
+  const setStatus = (key, yi, status) => {
+    const next = { ...vals, [`${key}_status_${yi}`]: status };
+    setVals(next);
+    try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+  };
+
+  const loanHas = vals[`loan_has_status_${WIZ_YI}`] || "later";
+  const wizCrop = selectedPlanCrop || allCrops[0] || "";
+  const wizMd   = getMarketData(wizCrop);
+  const wizScale  = parseFloat(vals[`cr_${wizCrop}_scale_${WIZ_YI}`]) || 0;
+  const wizQty    = parseFloat(vals[`cr_${wizCrop}_qty_${WIZ_YI}`]) || (wizMd.yield_per_10a ?? 0);
+  const wizPrice  = parseFloat(vals[`cr_${wizCrop}_price_${WIZ_YI}`]) || (wizMd.price ?? 0);
+  const wizProdKg  = wizScale > 0 && wizQty > 0 ? Math.round(wizScale * wizQty / 10) : 0;
+  const wizRevAuto = wizScale > 0 && wizQty > 0 && wizPrice > 0 ? Math.round(wizProdKg * wizPrice / 1000) : 0;
+  const wizNonFarm  = getStatus("non_farm", WIZ_YI) === "none" ? 0 : (parseFloat(vals[`non_farm_${WIZ_YI}`]) || 0);
+  const wizPension  = getStatus("pension",  WIZ_YI) === "none" ? 0 : (parseFloat(vals[`pension_${WIZ_YI}`])  || 0);
+  const wizHousehold = parseFloat(vals[`household_${WIZ_YI}`]) || 1080;
+  const wizTax     = getStatus("tax", WIZ_YI) === "none" ? 0 : (parseFloat(vals[`tax_${WIZ_YI}`]) || 150);
+  const wizRepay   = parseFloat(vals[`repay_principal_${WIZ_YI}`]) || 0;
+  const wizFarmIncome = farmIncomeY(WIZ_YI);
+  const wizSurplus  = wizFarmIncome + wizNonFarm + wizPension - wizHousehold - wizTax - wizRepay;
+
+  // ── Wizard UIヘルパー ──────────────────────────────────────
+  const StatusButtons = ({ rowKey, yi = WIZ_YI }) => {
+    const status = getStatus(rowKey, yi);
+    return (
+      <div style={{ display:"flex", gap:8 }}>
+        {[["input","金額を入力"],["none","なし"],["later","あとで入力"]].map(([s,l]) => (
+          <button key={s} onClick={() => setStatus(rowKey, yi, s)} className="f-sans" style={{
+            padding:"8px 14px", borderRadius:20, fontSize:12, fontWeight:600,
+            cursor:"pointer", border:"none",
+            background: status === s ? "#00A86B" : "#F7F7F7",
+            color:       status === s ? "#fff"    : "#717171",
+          }}>{l}</button>
+        ))}
+      </div>
+    );
+  };
+  const WizCard = ({ children }) => (
+    <div style={{
+      background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+      padding:"24px", marginBottom:16, boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
+    }}>{children}</div>
+  );
+
   // ── セルコンポーネント ───────────────────────────────────
   const AutoCell = ({ v }) => (
     <td style={{ ...aus, color: v < 0 ? "#E24B4A" : undefined }}>{v.toLocaleString("ja-JP")}</td>
@@ -2947,155 +3002,533 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
   return (
     <div className="appear" id="five-year-plan">
 
-      {/* PDF出力ボタン */}
-      <div className="no-print" style={{ display:"flex", justifyContent:"flex-end", marginBottom:16, gap:8 }}>
-        <button onClick={() => window.print()} className="btn-primary" style={{ padding:"10px 24px", fontSize:13 }}>
-          収支計画書をPDF出力
-        </button>
+      {/* ── 表示切替 ── */}
+      <div className="no-print" style={{ display:"flex", gap:4, marginBottom:24, padding:"4px", background:"#F7F7F7", borderRadius:22, width:"fit-content" }}>
+        {[["full","完成版を見る"],["wizard","入力する"]].map(([v,l]) => (
+          <button key={v} onClick={() => { setPlanView(v); if(v==="wizard") setPlanStep(1); }} className="f-sans" style={{
+            padding:"10px 22px", borderRadius:18, fontSize:13, fontWeight:600, cursor:"pointer", border:"none",
+            background: planView===v ? "#fff" : "transparent",
+            color:       planView===v ? "#222" : "#717171",
+            boxShadow:   planView===v ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
+            transition:"all .15s",
+          }}>{l}</button>
+        ))}
       </div>
 
-      {/* 都道府県バナー */}
-      {loggedInFarmer.prefecture && (
-        <div className="no-print" style={{ maxWidth:900, margin:"0 auto 12px" }}>
-          <p className="f-sans" style={{
-            fontSize:11, color:C.mid,
-            background:C.bgSoft, padding:"8px 12px", borderRadius:8,
-            border:`1px solid ${C.border}`,
-          }}>
-            📍 {loggedInFarmer.prefecture}の経営指標を参照しています（※現在は全国データのみ）
-          </p>
+      {/* ━━━ WIZARD VIEW ━━━ */}
+      {planView === "wizard" && (
+        <div style={{ maxWidth:560, margin:"0 auto", paddingBottom:32 }}>
+
+          {/* 進捗バー */}
+          <div style={{ marginBottom:28 }}>
+            <div style={{ display:"flex", gap:3, marginBottom:8 }}>
+              {STEP_LABELS.map((_, i) => (
+                <div key={i} onClick={() => i+1 < planStep && setPlanStep(i+1)} style={{
+                  flex:1, height:4, borderRadius:2,
+                  cursor: i+1 < planStep ? "pointer" : "default",
+                  background: i+1 <= planStep ? "#00A86B" : "#EBEBEB",
+                  transition:"background 0.3s",
+                }} />
+              ))}
+            </div>
+            <div style={{ display:"flex", overflowX:"auto", gap:0, scrollbarWidth:"none" }}>
+              {STEP_LABELS.map((label, i) => (
+                <div key={i} style={{ flexShrink:0, textAlign:"center", minWidth:56, paddingRight:4 }}>
+                  <span className="f-sans" style={{
+                    fontSize:9, fontWeight: i+1===planStep ? 700 : 400,
+                    color: i+1===planStep ? "#00A86B" : i+1<planStep ? "#717171" : "#B0B0B0",
+                  }}>{i+1} {label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ─── STEP 1: 作物 ─── */}
+          {planStep === 1 && (
+            <div className="fade-in">
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>
+                どの作物の計画を作りますか？
+              </h2>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>複数ある場合は代表作物から始めましょう</p>
+              <WizCard>
+                {allCrops.length > 0 && (
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:16 }}>
+                    {allCrops.map(c => (
+                      <button key={c} onClick={() => setSelectedPlanCrop(c)} className="f-sans" style={{
+                        padding:"12px 20px", borderRadius:20, fontSize:14, fontWeight:600, cursor:"pointer",
+                        border:"2px solid", borderColor: selectedPlanCrop===c ? "#00A86B" : "#EBEBEB",
+                        background: selectedPlanCrop===c ? "#E6F7EF" : "#fff",
+                        color: selectedPlanCrop===c ? "#00A86B" : "#222",
+                      }}>{c}</button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display:"flex", gap:8 }}>
+                  <input value={customCropInput} onChange={e => setCustomCropInput(e.target.value)}
+                    placeholder="作物名を入力（例：ブドウ）" className="field f-sans"
+                    style={{ flex:1, fontSize:14 }}
+                    onKeyDown={e => { if(e.key==="Enter"&&customCropInput.trim()){ setSelectedPlanCrop(customCropInput.trim()); setCustomCropInput(""); }}}
+                  />
+                  <button onClick={() => { if(customCropInput.trim()){ setSelectedPlanCrop(customCropInput.trim()); setCustomCropInput(""); }}} className="f-sans" style={{
+                    padding:"12px 18px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer",
+                    background:"#F7F7F7", border:"1px solid #EBEBEB", color:"#222",
+                  }}>追加</button>
+                </div>
+              </WizCard>
+              {selectedPlanCrop && (
+                <div style={{ padding:"12px 18px", background:"#E6F7EF", borderRadius:12 }}>
+                  <span className="f-sans" style={{ fontSize:13, color:"#00A86B", fontWeight:600 }}>✓ {selectedPlanCrop} を選択中</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── STEP 2: 生産規模 ─── */}
+          {planStep === 2 && (
+            <div className="fade-in">
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>
+                {wizCrop}をどれくらい作りますか？
+              </h2>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>1年目の計画値（千円単位）</p>
+              <WizCard>
+                <div style={{ marginBottom:20 }}>
+                  <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>
+                    作付面積 <span style={{ fontSize:11, color:"#B0B0B0" }}>（a）</span>
+                  </label>
+                  <input type="number" value={vals[`cr_${wizCrop}_scale_${WIZ_YI}`] || ""}
+                    onChange={e => set(`cr_${wizCrop}_scale`, WIZ_YI, e.target.value)}
+                    placeholder="例：30" className="field f-mono" style={{ fontSize:18, maxWidth:200 }} />
+                </div>
+                <div style={{ marginBottom:20 }}>
+                  <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>
+                    10a収量 <span style={{ fontSize:11, color:"#B0B0B0" }}>（kg/10a）</span>
+                  </label>
+                  {wizMd.yield_per_10a && <p className="f-sans" style={{ fontSize:11, color:"#00A86B", marginBottom:6 }}>📊 全国参考値 {wizMd.yield_per_10a.toLocaleString()}kg</p>}
+                  <input type="number" value={vals[`cr_${wizCrop}_qty_${WIZ_YI}`] || ""}
+                    onChange={e => set(`cr_${wizCrop}_qty`, WIZ_YI, e.target.value)}
+                    placeholder={wizMd.yield_per_10a ? String(wizMd.yield_per_10a) : "例：1200"}
+                    className="field f-mono" style={{ fontSize:18, maxWidth:200 }} />
+                </div>
+                {wizProdKg > 0 && (
+                  <div style={{ padding:"12px 16px", background:"#F7F7F7", borderRadius:10, marginBottom:20 }}>
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>生産量（自動計算）</p>
+                    <p className="f-mono" style={{ fontSize:18, fontWeight:700, color:"#222" }}>{wizProdKg.toLocaleString("ja-JP")} kg</p>
+                  </div>
+                )}
+                <div style={{ marginBottom: wizRevAuto > 0 ? 20 : 0 }}>
+                  <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>
+                    単価 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円/kg）</span>
+                  </label>
+                  {wizMd.price && <p className="f-sans" style={{ fontSize:11, color:"#00A86B", marginBottom:6 }}>📊 全国参考値 {wizMd.price.toLocaleString()}円</p>}
+                  <input type="number" value={vals[`cr_${wizCrop}_price_${WIZ_YI}`] || ""}
+                    onChange={e => set(`cr_${wizCrop}_price`, WIZ_YI, e.target.value)}
+                    placeholder={wizMd.price ? String(wizMd.price) : "例：200"}
+                    className="field f-mono" style={{ fontSize:18, maxWidth:200 }} />
+                </div>
+                {wizRevAuto > 0 && (
+                  <div style={{ padding:"16px", background:"#E6F7EF", borderRadius:12, border:"1px solid #00A86B22" }}>
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:4 }}>収入金額（自動計算）</p>
+                    <p className="f-mono" style={{ fontSize:22, fontWeight:700, color:"#00A86B" }}>{wizRevAuto.toLocaleString("ja-JP")} 千円</p>
+                  </div>
+                )}
+              </WizCard>
+            </div>
+          )}
+
+          {/* ─── STEP 3: 農業収入 ─── */}
+          {planStep === 3 && (
+            <div className="fade-in">
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>農業収入を確認します</h2>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>金額は千円単位</p>
+              <WizCard>
+                <div style={{ marginBottom:24 }}>
+                  <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", marginBottom:8, display:"block" }}>{wizCrop}の収入</label>
+                  <div style={{ padding:"14px 18px", background:"#F7F7F7", borderRadius:12, marginBottom:8 }}>
+                    {wizRevAuto > 0
+                      ? <p className="f-mono" style={{ fontSize:18, fontWeight:700, color:"#222" }}>
+                          {wizRevAuto.toLocaleString("ja-JP")} 千円
+                          <span className="f-sans" style={{ fontSize:11, color:"#717171", marginLeft:8 }}>（Step 2から自動計算）</span>
+                        </p>
+                      : <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>Step 2で生産規模・単価を入力すると自動計算されます</p>
+                    }
+                  </div>
+                  {wizRevAuto > 0 && (
+                    <>
+                      <p className="f-sans" style={{ fontSize:11, color:"#717171", marginBottom:4 }}>手動で上書きする場合:</p>
+                      <input type="number" value={vals[`cr_${wizCrop}_rev_${WIZ_YI}`] || ""}
+                        onChange={e => set(`cr_${wizCrop}_rev`, WIZ_YI, e.target.value)}
+                        placeholder={String(wizRevAuto)} className="field f-mono"
+                        style={{ fontSize:16, maxWidth:180 }} />
+                    </>
+                  )}
+                </div>
+                {[
+                  { label:"作業受託収入", rowKey:"work_recv" },
+                  { label:"その他収入",   rowKey:"other_rev" },
+                ].map(({ label, rowKey }) => (
+                  <div key={rowKey} style={{ marginBottom:20 }}>
+                    <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>{label}</label>
+                    <StatusButtons rowKey={rowKey} />
+                    {getStatus(rowKey, WIZ_YI) === "input" && (
+                      <input type="number" value={vals[`${rowKey}_${WIZ_YI}`] || ""} onChange={e => set(rowKey, WIZ_YI, e.target.value)}
+                        placeholder="千円" className="field f-mono" style={{ fontSize:16, maxWidth:180, marginTop:8 }} />
+                    )}
+                    {getStatus(rowKey, WIZ_YI) === "none" && <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4 }}>0円として保存します</p>}
+                  </div>
+                ))}
+              </WizCard>
+              <div style={{ padding:"16px 20px", background:"#E6F7EF", borderRadius:16, border:"1px solid #00A86B22" }}>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:4 }}>農業粗収入（1年目）</p>
+                <p className="f-mono" style={{ fontSize:22, fontWeight:700, color:"#00A86B" }}>{grossRevY(WIZ_YI).toLocaleString("ja-JP")} 千円</p>
+              </div>
+            </div>
+          )}
+
+          {/* ─── STEP 4: 農業経費 ─── */}
+          {planStep === 4 && (
+            <div className="fade-in">
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>主な経費を入力します</h2>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>金額は千円単位。「なし」は0円として保存します</p>
+              <WizCard>
+                {[
+                  { label:"原材料費",     rowKey:"c_material",   hint:null },
+                  { label:"施設・機械費", rowKey:"c_facility",   hint:null },
+                  { label:"減価償却費",   rowKey:"c_deprec",     hint:null },
+                  { label:"出荷販売経費", rowKey:"c_shipping",   hint: shipping0 > 0 ? `記録から実績 ${shipping0.toLocaleString()}千円（参考）` : null },
+                  { label:"雇用労賃",     rowKey:"c_labor",      hint:null },
+                  { label:"支払利息",     rowKey:"c_interest",   hint:null },
+                  { label:"支払地代",     rowKey:"c_rent",       hint:null },
+                  { label:"その他",       rowKey:"c_other_cost", hint:null },
+                ].map(({ label, rowKey, hint }, idx, arr) => (
+                  <div key={rowKey} style={{ marginBottom:20, paddingBottom:20, borderBottom: idx < arr.length-1 ? "1px solid #F7F7F7" : "none" }}>
+                    <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>{label}</label>
+                    {hint && <p className="f-sans" style={{ fontSize:11, color:"#00A86B", marginBottom:6 }}>📊 {hint}</p>}
+                    <StatusButtons rowKey={rowKey} />
+                    {getStatus(rowKey, WIZ_YI) === "input" && (
+                      <input type="number" value={vals[`${rowKey}_${WIZ_YI}`] || ""} onChange={e => set(rowKey, WIZ_YI, e.target.value)}
+                        placeholder="千円" className="field f-mono" style={{ fontSize:16, maxWidth:180, marginTop:8 }} />
+                    )}
+                    {getStatus(rowKey, WIZ_YI) === "none" && <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4 }}>0円として保存します</p>}
+                  </div>
+                ))}
+              </WizCard>
+              <div style={{ padding:"16px 20px", background: totalCostY(WIZ_YI) > grossRevY(WIZ_YI) ? "#FCEBEB" : "#E6F7EF", borderRadius:16 }}>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:4 }}>農業経費合計（1年目）</p>
+                <p className="f-mono" style={{ fontSize:22, fontWeight:700, color: totalCostY(WIZ_YI) > grossRevY(WIZ_YI) ? "#E24B4A" : "#00A86B" }}>
+                  {totalCostY(WIZ_YI).toLocaleString("ja-JP")} 千円
+                </p>
+                <p className="f-sans" style={{ fontSize:11, color:"#717171", marginTop:4 }}>
+                  農業所得（見込み）：{farmIncomeY(WIZ_YI).toLocaleString("ja-JP")} 千円
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ─── STEP 5: 借入・返済 ─── */}
+          {planStep === 5 && (
+            <div className="fade-in">
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>借入や返済はありますか？</h2>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>農業のための借入金についてお答えください</p>
+              <WizCard>
+                <div style={{ display:"flex", gap:12, marginBottom:24 }}>
+                  {[["yes","ある"],["no","なし"]].map(([v,l]) => (
+                    <button key={v} onClick={() => {
+                      const next = { ...vals, [`loan_has_status_${WIZ_YI}`]: v };
+                      if(v==="no") {
+                        ["debt_short","debt_long","debt_nonfarm","repay_principal","c_interest"].forEach(k => {
+                          next[`${k}_${WIZ_YI}`] = "0";
+                          next[`${k}_status_${WIZ_YI}`] = "none";
+                        });
+                      }
+                      setVals(next);
+                      try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+                    }} className="f-sans" style={{
+                      flex:1, padding:"16px", borderRadius:16, fontSize:15, fontWeight:600, cursor:"pointer",
+                      border:"2px solid", borderColor: loanHas===v ? "#00A86B" : "#EBEBEB",
+                      background: loanHas===v ? "#E6F7EF" : "#fff",
+                      color: loanHas===v ? "#00A86B" : "#222",
+                    }}>{l}</button>
+                  ))}
+                </div>
+                {loanHas === "no" && (
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center" }}>借入関連の項目は0円として保存します</p>
+                )}
+                {loanHas === "yes" && (
+                  <div>
+                    {[
+                      { label:"借入金（残高）",       rowKey:"debt_long",        unit:"千円", placeholder:"例：5000" },
+                      { label:"年間返済額（償還元金）", rowKey:"repay_principal",  unit:"千円", placeholder:"例：600" },
+                      { label:"支払利息（年間）",      rowKey:"c_interest",       unit:"千円", placeholder:"例：50" },
+                    ].map(({ label, rowKey, unit, placeholder }) => (
+                      <div key={rowKey} style={{ marginBottom:20 }}>
+                        <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>
+                          {label} <span style={{ fontSize:11, color:"#B0B0B0" }}>（{unit}）</span>
+                        </label>
+                        <input type="number" value={vals[`${rowKey}_${WIZ_YI}`] || ""}
+                          onChange={e => set(rowKey, WIZ_YI, e.target.value)}
+                          placeholder={placeholder} className="field f-mono"
+                          style={{ fontSize:16, maxWidth:200 }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </WizCard>
+            </div>
+          )}
+
+          {/* ─── STEP 6: 償還財源 ─── */}
+          {planStep === 6 && (
+            <div className="fade-in">
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>返済に使えるお金を確認します</h2>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>金額は千円単位</p>
+              <WizCard>
+                <div style={{ padding:"12px 16px", background:"#F7F7F7", borderRadius:10, marginBottom:20 }}>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>農業所得（自動計算）</p>
+                  <p className="f-mono" style={{ fontSize:18, fontWeight:700, color: wizFarmIncome < 0 ? "#E24B4A" : "#222" }}>
+                    {wizFarmIncome.toLocaleString("ja-JP")} 千円
+                  </p>
+                </div>
+                {[
+                  { label:"農外所得",   rowKey:"non_farm" },
+                  { label:"年金・その他収入", rowKey:"pension" },
+                ].map(({ label, rowKey }) => (
+                  <div key={rowKey} style={{ marginBottom:20 }}>
+                    <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>{label}</label>
+                    <StatusButtons rowKey={rowKey} />
+                    {getStatus(rowKey, WIZ_YI) === "input" && (
+                      <input type="number" value={vals[`${rowKey}_${WIZ_YI}`] || ""} onChange={e => set(rowKey, WIZ_YI, e.target.value)}
+                        placeholder="千円" className="field f-mono" style={{ fontSize:16, maxWidth:180, marginTop:8 }} />
+                    )}
+                    {getStatus(rowKey, WIZ_YI) === "none" && <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4 }}>0円として保存します</p>}
+                  </div>
+                ))}
+                <div style={{ marginBottom:20 }}>
+                  <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>
+                    家計費 <span style={{ fontSize:11, color:"#B0B0B0" }}>（千円）</span>
+                  </label>
+                  <input type="number" value={vals[`household_${WIZ_YI}`] || ""}
+                    onChange={e => set("household", WIZ_YI, e.target.value)}
+                    placeholder="1080（参考値）" className="field f-mono" style={{ fontSize:16, maxWidth:200 }} />
+                </div>
+                <div style={{ marginBottom:20 }}>
+                  <label className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>租税公課</label>
+                  <StatusButtons rowKey="tax" />
+                  {getStatus("tax", WIZ_YI) === "input" && (
+                    <input type="number" value={vals[`tax_${WIZ_YI}`] || ""} onChange={e => set("tax", WIZ_YI, e.target.value)}
+                      placeholder="150（参考値）" className="field f-mono" style={{ fontSize:16, maxWidth:180, marginTop:8 }} />
+                  )}
+                  {getStatus("tax", WIZ_YI) === "none" && <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4 }}>0円として保存します</p>}
+                </div>
+                <div style={{ padding:"12px 16px", background:"#F7F7F7", borderRadius:10 }}>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>償還元金（Step 5から反映）</p>
+                  <p className="f-mono" style={{ fontSize:18, fontWeight:700, color:"#222" }}>{wizRepay.toLocaleString("ja-JP")} 千円</p>
+                </div>
+              </WizCard>
+              <div style={{ padding:"20px 24px", background: wizSurplus >= 0 ? "#E6F7EF" : "#FCEBEB", borderRadius:16, border:`1px solid ${wizSurplus >= 0 ? "#00A86B22" : "#E24B4A22"}` }}>
+                <p className="f-sans" style={{ fontSize:11, color:"#717171", marginBottom:6 }}>差引余剰 = 農業所得 + 農外所得 + 年金 − 家計費 − 租税 − 償還元金</p>
+                <p className="f-mono" style={{ fontSize:26, fontWeight:700, color: wizSurplus >= 0 ? "#00A86B" : "#E24B4A" }}>
+                  {wizSurplus.toLocaleString("ja-JP")} 千円
+                </p>
+                {wizSurplus < 0 && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:4 }}>⚠ 差引余剰がマイナスです。収入増加または経費削減を検討してください。</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── STEP 7: 確認 ─── */}
+          {planStep === 7 && (
+            <div className="fade-in">
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>この内容で五年計画書を作ります</h2>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>1年目の計画値サマリー（千円単位）</p>
+              <WizCard>
+                {[
+                  { label:"農業収入",  value:grossRevY(WIZ_YI),   accent:false },
+                  { label:"農業経費",  value:totalCostY(WIZ_YI),  accent:false },
+                  { label:"農業所得",  value:farmIncomeY(WIZ_YI), accent:true },
+                  { label:"農外所得",  value:wizNonFarm,           accent:false },
+                  { label:"家計費",    value:wizHousehold,         accent:false },
+                  { label:"償還元金",  value:wizRepay,             accent:false },
+                  { label:"差引余剰",  value:wizSurplus,           accent:true },
+                ].map(({ label, value, accent }) => (
+                  <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 0", borderBottom:"1px solid #F7F7F7" }}>
+                    <span className="f-sans" style={{ fontSize:14, color:"#222", fontWeight: accent ? 700 : 400 }}>{label}</span>
+                    <span className="f-mono" style={{ fontSize:16, fontWeight:700, color: accent ? (value >= 0 ? "#00A86B" : "#E24B4A") : "#222" }}>
+                      {value.toLocaleString("ja-JP")} 千円
+                    </span>
+                  </div>
+                ))}
+              </WizCard>
+              <div style={{ display:"grid", gap:10, marginTop:24 }}>
+                <button onClick={() => setPlanView("full")} className="btn-primary" style={{ width:"100%", padding:"16px", fontSize:15, borderRadius:14 }}>
+                  完成版を見る →
+                </button>
+                <button onClick={() => window.print()} style={{
+                  width:"100%", padding:"14px", fontSize:14, borderRadius:14,
+                  background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer", fontFamily:"inherit",
+                }}>PDF出力</button>
+                <button onClick={() => setPlanStep(1)} style={{
+                  width:"100%", padding:"12px", fontSize:13, borderRadius:14,
+                  background:"none", border:"none", color:"#717171", cursor:"pointer", fontFamily:"inherit",
+                }}>← 入力を修正する</button>
+              </div>
+            </div>
+          )}
+
+          {/* ナビゲーション（STEP 7以外） */}
+          {planStep < TOTAL_STEPS && (
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:32, paddingTop:16, borderTop:"1px solid #EBEBEB" }}>
+              {planStep > 1
+                ? <button onClick={() => setPlanStep(s => s-1)} className="f-sans" style={{
+                    padding:"14px 24px", borderRadius:12, fontSize:14, cursor:"pointer",
+                    background:"#F7F7F7", border:"none", color:"#222", fontWeight:600,
+                  }}>← 戻る</button>
+                : <div />
+              }
+              <button onClick={() => setPlanStep(s => s+1)} className="btn-primary" style={{
+                padding:"14px 32px", fontSize:14, borderRadius:12,
+                opacity: planStep===1 && !wizCrop ? 0.4 : 1,
+                pointerEvents: planStep===1 && !wizCrop ? "none" : "auto",
+              }}>次へ →</button>
+            </div>
+          )}
+
         </div>
       )}
 
-      {/* 表ヘッダー */}
-      <div style={{ maxWidth:900, margin:"0 auto 10px" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:6 }}>
-          <div>
-            <p className="f-sans" style={{ fontSize:13, color:C.ink, fontWeight:600 }}>{loggedInFarmer.name}</p>
-            <p className="f-sans" style={{ fontSize:10, color:C.mid }}>
-              作成日：{today}　　日本農業研究所（chitose-bank.com）
-            </p>
+      {/* ━━━ FULL TABLE VIEW ━━━ */}
+      {planView === "full" && (
+        <>
+          {/* PDF出力ボタン */}
+          <div className="no-print" style={{ display:"flex", justifyContent:"flex-end", marginBottom:16, gap:8 }}>
+            <button onClick={() => window.print()} className="btn-primary" style={{ padding:"10px 24px", fontSize:13 }}>
+              収支計画書をPDF出力
+            </button>
           </div>
-          <p className="f-sans" style={{ fontSize:11, color:C.mid }}>金額単位：千円</p>
-        </div>
-        <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:C.ink, letterSpacing:".03em" }}>
-          収支計画書（個人）
-        </h2>
-      </div>
 
-      {/* テーブル */}
-      <div style={{ overflowX:"auto", maxWidth:900, margin:"0 auto", printColorAdjust:"exact", WebkitPrintColorAdjust:"exact" }}>
-        <table style={{ minWidth:800, width:"100%", borderCollapse:"collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ ...cats, textAlign:"left", minWidth:170 }}>項目</th>
-              <th style={{ ...cats, textAlign:"center", width:44 }}>単位</th>
-              {YR_LABELS.map(l => (
-                <th key={l} style={{ ...cats, textAlign:"center", minWidth:86 }}>{l}</th>
-              ))}
-              <th style={{ ...cats, textAlign:"left", minWidth:80 }}>備考</th>
-            </tr>
-          </thead>
-          <tbody>
+          {/* 都道府県バナー */}
+          {loggedInFarmer.prefecture && (
+            <div className="no-print" style={{ maxWidth:900, margin:"0 auto 12px" }}>
+              <p className="f-sans" style={{
+                fontSize:11, color:C.mid,
+                background:C.bgSoft, padding:"8px 12px", borderRadius:8,
+                border:`1px solid ${C.border}`,
+              }}>
+                📍 {loggedInFarmer.prefecture}の経営指標を参照しています（※現在は全国データのみ）
+              </p>
+            </div>
+          )}
 
-            {/* ─── 農業粗収入 ─── */}
-            {CatRow({ label:"農業粗収入", calcFn:grossRevY })}
+          {/* 表ヘッダー */}
+          <div style={{ maxWidth:900, margin:"0 auto 10px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:6 }}>
+              <div>
+                <p className="f-sans" style={{ fontSize:13, color:C.ink, fontWeight:600 }}>{loggedInFarmer.name}</p>
+                <p className="f-sans" style={{ fontSize:10, color:C.mid }}>
+                  作成日：{today}　　日本農業研究所（chitose-bank.com）
+                </p>
+              </div>
+              <p className="f-sans" style={{ fontSize:11, color:C.mid }}>金額単位：千円</p>
+            </div>
+            <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:C.ink, letterSpacing:".03em" }}>
+              収支計画書（個人）
+            </h2>
+          </div>
 
-            {allCrops.flatMap(crop => {
-              const md = getMarketData(crop);
-              return [
-                <tr key={`${crop}_scale`}>
-                  <td style={ls}>{crop}（生産規模）</td>
-                  <td style={us}>a</td>
-                  {[0,1,2,3,4,5].map(yi => <InputCell key={yi} rowKey={`cr_${crop}_scale`} yi={yi} actDef={0} />)}
-                  <td style={cs}></td>
-                </tr>,
-                <tr key={`${crop}_qty`}>
-                  <td style={ls}>{crop}（生産量）</td>
-                  <td style={us}>kg/10a</td>
-                  {[0,1,2,3,4,5].map(yi => (
-                    <InputCell key={yi} rowKey={`cr_${crop}_qty`} yi={yi} actDef={yi === 0 ? 0 : (md.yield_per_10a ?? 0)} />
+          {/* テーブル */}
+          <div style={{ overflowX:"auto", maxWidth:900, margin:"0 auto", printColorAdjust:"exact", WebkitPrintColorAdjust:"exact" }}>
+            <table style={{ minWidth:800, width:"100%", borderCollapse:"collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...cats, textAlign:"left", minWidth:170 }}>項目</th>
+                  <th style={{ ...cats, textAlign:"center", width:44 }}>単位</th>
+                  {YR_LABELS.map(l => (
+                    <th key={l} style={{ ...cats, textAlign:"center", minWidth:86 }}>{l}</th>
                   ))}
-                  <td style={{ ...cs, fontSize:10, color:C.mid }}>
-                    {md.yield_per_10a != null ? `全国平均 ${md.yield_per_10a.toLocaleString("ja-JP")}kg` : ""}
-                  </td>
-                </tr>,
-                <tr key={`${crop}_price`}>
-                  <td style={ls}>{crop}（単価）</td>
-                  <td style={us}>円/kg</td>
-                  {[0,1,2,3,4,5].map(yi => (
-                    <InputCell key={yi} rowKey={`cr_${crop}_price`} yi={yi} actDef={md.price ?? 0} />
-                  ))}
-                  <td style={{ ...cs, fontSize:10, color:C.mid }}>
-                    {md.price != null ? `参考 ${md.price.toLocaleString("ja-JP")}円` : ""}
-                  </td>
-                </tr>,
-                <tr key={`${crop}_rev`}>
-                  <td style={ls}>{crop}（収入金額）</td>
+                  <th style={{ ...cats, textAlign:"left", minWidth:80 }}>備考</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CatRow({ label:"農業粗収入", calcFn:grossRevY })}
+                {allCrops.flatMap(crop => {
+                  const md = getMarketData(crop);
+                  return [
+                    <tr key={`${crop}_scale`}>
+                      <td style={ls}>{crop}（生産規模）</td>
+                      <td style={us}>a</td>
+                      {[0,1,2,3,4,5].map(yi => <InputCell key={yi} rowKey={`cr_${crop}_scale`} yi={yi} actDef={0} />)}
+                      <td style={cs}></td>
+                    </tr>,
+                    <tr key={`${crop}_qty`}>
+                      <td style={ls}>{crop}（生産量）</td>
+                      <td style={us}>kg/10a</td>
+                      {[0,1,2,3,4,5].map(yi => (
+                        <InputCell key={yi} rowKey={`cr_${crop}_qty`} yi={yi} actDef={yi === 0 ? 0 : (md.yield_per_10a ?? 0)} />
+                      ))}
+                      <td style={{ ...cs, fontSize:10, color:C.mid }}>
+                        {md.yield_per_10a != null ? `全国平均 ${md.yield_per_10a.toLocaleString("ja-JP")}kg` : ""}
+                      </td>
+                    </tr>,
+                    <tr key={`${crop}_price`}>
+                      <td style={ls}>{crop}（単価）</td>
+                      <td style={us}>円/kg</td>
+                      {[0,1,2,3,4,5].map(yi => (
+                        <InputCell key={yi} rowKey={`cr_${crop}_price`} yi={yi} actDef={md.price ?? 0} />
+                      ))}
+                      <td style={{ ...cs, fontSize:10, color:C.mid }}>
+                        {md.price != null ? `参考 ${md.price.toLocaleString("ja-JP")}円` : ""}
+                      </td>
+                    </tr>,
+                    <tr key={`${crop}_rev`}>
+                      <td style={ls}>{crop}（収入金額）</td>
+                      <td style={us}>千円</td>
+                      {[0,1,2,3,4,5].map(yi => <CropRevCell key={yi} crop={crop} yi={yi} />)}
+                      <td style={cs}></td>
+                    </tr>,
+                  ];
+                })}
+                {InpRow({ label:"作業受託収入", unit:"千円", rowKey:"work_recv", actDef:0 })}
+                {InpRow({ label:"その他", unit:"千円", rowKey:"other_rev", actDef:0 })}
+                {CatRow({ label:"農業経営費", calcFn:totalCostY })}
+                {InpRow({ label:"原材料費", unit:"千円", rowKey:"c_material", actDef:0 })}
+                {InpRow({ label:"施設・機械費", unit:"千円", rowKey:"c_facility", actDef:0 })}
+                {InpRow({ label:"減価償却費", unit:"千円", rowKey:"c_deprec", actDef:0 })}
+                <tr>
+                  <td style={ls}>出荷販売経費</td>
                   <td style={us}>千円</td>
-                  {[0,1,2,3,4,5].map(yi => <CropRevCell key={yi} crop={crop} yi={yi} />)}
+                  {[0,1,2,3,4,5].map(yi => <ShippingCell key={yi} yi={yi} />)}
                   <td style={cs}></td>
-                </tr>,
-              ];
-            })}
+                </tr>
+                {InpRow({ label:"雇用労賃", unit:"千円", rowKey:"c_labor", actDef:0 })}
+                {InpRow({ label:"支払利息", unit:"千円", rowKey:"c_interest", actDef:0 })}
+                {InpRow({ label:"支払地代", unit:"千円", rowKey:"c_rent", actDef:0 })}
+                {InpRow({ label:"その他", unit:"千円", rowKey:"c_other_cost", actDef:0 })}
+                {AutoRow({ label:"農業所得", calcFn:farmIncomeY })}
+                {InpRow({ label:"農外所得", unit:"千円", rowKey:"non_farm", actDef:0 })}
+                {InpRow({ label:"年金被贈等", unit:"千円", rowKey:"pension", actDef:0 })}
+                {AutoRow({ label:"農家総所得", calcFn:totalIncomeY })}
+                {InpRow({ label:"家計費", unit:"千円", rowKey:"household", actDef:1080 })}
+                {InpRow({ label:"租税公課", unit:"千円", rowKey:"tax", actDef:150 })}
+                {AutoRow({ label:"償還財源", calcFn:repaySourceY })}
+                {InpRow({ label:"償還元金", unit:"千円", rowKey:"repay_principal", actDef:0 })}
+                {AutoRow({ label:"差引余剰", calcFn:surplusY })}
+                {InpRow({ label:"施設・機械等の設備投資", unit:"千円", rowKey:"capex", actDef:0 })}
+                {InpRow({ label:"農業負債（短期）", unit:"千円", rowKey:"debt_short", actDef:0 })}
+                {InpRow({ label:"農業負債（長期）", unit:"千円", rowKey:"debt_long", actDef:0 })}
+                {InpRow({ label:"農外負債", unit:"千円", rowKey:"debt_nonfarm", actDef:0 })}
+                {AutoRow({ label:"負債合計", calcFn:totalDebtY })}
+              </tbody>
+            </table>
+          </div>
 
-            {InpRow({ label:"作業受託収入", unit:"千円", rowKey:"work_recv", actDef:0 })}
-            {InpRow({ label:"その他", unit:"千円", rowKey:"other_rev", actDef:0 })}
-
-            {/* ─── 農業経営費 ─── */}
-            {CatRow({ label:"農業経営費", calcFn:totalCostY })}
-            {InpRow({ label:"原材料費", unit:"千円", rowKey:"c_material", actDef:0 })}
-            {InpRow({ label:"施設・機械費", unit:"千円", rowKey:"c_facility", actDef:0 })}
-            {InpRow({ label:"減価償却費", unit:"千円", rowKey:"c_deprec", actDef:0 })}
-            <tr>
-              <td style={ls}>出荷販売経費</td>
-              <td style={us}>千円</td>
-              {[0,1,2,3,4,5].map(yi => <ShippingCell key={yi} yi={yi} />)}
-              <td style={cs}></td>
-            </tr>
-            {InpRow({ label:"雇用労賃", unit:"千円", rowKey:"c_labor", actDef:0 })}
-            {InpRow({ label:"支払利息", unit:"千円", rowKey:"c_interest", actDef:0 })}
-            {InpRow({ label:"支払地代", unit:"千円", rowKey:"c_rent", actDef:0 })}
-            {InpRow({ label:"その他", unit:"千円", rowKey:"c_other_cost", actDef:0 })}
-
-            {/* ─── 農業所得 ─── */}
-            {AutoRow({ label:"農業所得", calcFn:farmIncomeY })}
-
-            {InpRow({ label:"農外所得", unit:"千円", rowKey:"non_farm", actDef:0 })}
-            {InpRow({ label:"年金被贈等", unit:"千円", rowKey:"pension", actDef:0 })}
-
-            {/* ─── 農家総所得 ─── */}
-            {AutoRow({ label:"農家総所得", calcFn:totalIncomeY })}
-
-            {InpRow({ label:"家計費", unit:"千円", rowKey:"household", actDef:1080 })}
-            {InpRow({ label:"租税公課", unit:"千円", rowKey:"tax", actDef:150 })}
-
-            {/* ─── 償還財源 ─── */}
-            {AutoRow({ label:"償還財源", calcFn:repaySourceY })}
-
-            {InpRow({ label:"償還元金", unit:"千円", rowKey:"repay_principal", actDef:0 })}
-
-            {/* ─── 差引余剰 ─── */}
-            {AutoRow({ label:"差引余剰", calcFn:surplusY })}
-
-            {InpRow({ label:"施設・機械等の設備投資", unit:"千円", rowKey:"capex", actDef:0 })}
-            {InpRow({ label:"農業負債（短期）", unit:"千円", rowKey:"debt_short", actDef:0 })}
-            {InpRow({ label:"農業負債（長期）", unit:"千円", rowKey:"debt_long", actDef:0 })}
-            {InpRow({ label:"農外負債", unit:"千円", rowKey:"debt_nonfarm", actDef:0 })}
-
-            {/* ─── 負債合計 ─── */}
-            {AutoRow({ label:"負債合計", calcFn:totalDebtY })}
-
-          </tbody>
-        </table>
-      </div>
-
-      {/* 注釈 */}
-      <div className="f-sans" style={{ maxWidth:900, margin:"12px auto 40px", fontSize:10, color:C.mid, lineHeight:2 }}>
-        <p>注1：品目に合わせて生産規模・生産量の単位を記載してください。</p>
-        <p>注2：特別の事情があるときは直近実績欄に前期実績を記入可。</p>
-        <p>数値的根拠：農水省統計および日本農業研究所の実績データに基づく。</p>
-      </div>
+          {/* 注釈 */}
+          <div className="f-sans" style={{ maxWidth:900, margin:"12px auto 40px", fontSize:10, color:C.mid, lineHeight:2 }}>
+            <p>注1：品目に合わせて生産規模・生産量の単位を記載してください。</p>
+            <p>注2：特別の事情があるときは直近実績欄に前期実績を記入可。</p>
+            <p>数値的根拠：農水省統計および日本農業研究所の実績データに基づく。</p>
+          </div>
+        </>
+      )}
 
     </div>
   );
