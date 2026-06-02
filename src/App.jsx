@@ -314,6 +314,22 @@ input:focus { outline: none; }
   .ledger-card { padding: 16px !important; }
 }
 
+/* ── Job search layout ── */
+.job-search-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 760px) {
+  .job-search-layout {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  .job-search-layout .job-map-container {
+    height: 420px !important;
+  }
+}
+
 /* ── Fixed footer ── */
 .site-footer-fixed {
   position: fixed;
@@ -3564,6 +3580,202 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
   );
 }
 
+// ── JobSearchMapView ────────────────────────────────────────
+// 「募集中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
+// 将来: Google Maps / Mapbox / Leaflet に差し替え可能な構造にしてある。
+const JOB_SEARCH_SAMPLES = [
+  { id:1, crop:"ブロッコリー", task:"収穫補助", dateLabel:"6/10〜6/13", payType:"hourly", pay:1200, region:"吉野川市山川町周辺",  experience:"未経験可",   icon:"🥦", lat:34.05, lng:134.23 },
+  { id:2, crop:"なす",         task:"選果",     dateLabel:"6/15",        payType:"daily",  pay:8000, region:"阿波市周辺",          experience:"経験者歓迎", icon:"🍆", lat:34.10, lng:134.30 },
+  { id:3, crop:"ねぎ",         task:"定植",     dateLabel:"6/20〜6/22",  payType:"hourly", pay:1100, region:"吉野川市鴨島町周辺",  experience:"未経験可",   icon:"🌿", lat:34.07, lng:134.35 },
+  { id:4, crop:"トマト",       task:"収穫",     dateLabel:"6/25〜7/5",   payType:"daily",  pay:9000, region:"吉野川市周辺",        experience:"未経験可",   icon:"🍅", lat:34.06, lng:134.28 },
+];
+
+function JobSearchMapView() {
+  const [selectedPin, setSelectedPin] = useState(null);
+  const [expandedCard, setExpandedCard] = useState(null);
+  const [activeFilter, setActiveFilter] = useState(null);
+
+  const payLabel = j => j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`;
+  const pinLabel = j => j.payType === "hourly" ? `¥${j.pay.toLocaleString()}/h` : `¥${j.pay.toLocaleString()}/日`;
+
+  // 将来の実地図APIに差し替える際はこの座標変換を修正する
+  const MIN_LAT=34.04, MAX_LAT=34.12, MIN_LNG=134.20, MAX_LNG=134.38;
+  const pinX = lng => `${Math.max(6, Math.min(88, Math.round((lng-MIN_LNG)/(MAX_LNG-MIN_LNG)*86)))}%`;
+  const pinY = lat => `${Math.max(12, Math.min(75, Math.round((1-(lat-MIN_LAT)/(MAX_LAT-MIN_LAT))*70)))}%`;
+
+  const selectedJob = JOB_SEARCH_SAMPLES.find(j => j.id === selectedPin);
+
+  return (
+    <div>
+      {/* ヘッダー */}
+      <div style={{ marginBottom:14 }}>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>近くの仕事を探す</h2>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171" }}>地域・作物・日程・報酬で、通いやすい仕事を探せます。</p>
+      </div>
+
+      {/* 個人情報保護注記 */}
+      <div style={{ padding:"7px 12px", background:"#F7F7F7", borderRadius:8, marginBottom:12 }}>
+        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
+          詳細住所は初期表示しません。仕事の場所は市町村・地区単位で表示します。
+        </p>
+      </div>
+
+      {/* 検索・絞込ピル */}
+      <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", marginBottom:14, paddingBottom:2 }}>
+        {["地域","作物","作業","日付","報酬","経験"].map(f => (
+          <button key={f} onClick={() => setActiveFilter(activeFilter===f ? null : f)} className="f-sans" style={{
+            flexShrink:0, padding:"7px 14px", borderRadius:20, fontSize:12, cursor:"pointer", fontWeight:600, border:"2px solid",
+            borderColor: activeFilter===f ? "#00A86B" : "#EBEBEB",
+            background: activeFilter===f ? "#E6F7EF" : "#fff",
+            color: activeFilter===f ? "#00A86B" : "#717171",
+          }}>{f}</button>
+        ))}
+      </div>
+
+      {/* 地図 + リスト */}
+      <div className="job-search-layout">
+
+        {/* ─── 地図エリア ─── */}
+        <div className="job-map-container" style={{
+          position:"relative", borderRadius:16, overflow:"hidden",
+          height:240, border:"1px solid #EBEBEB",
+          background:"linear-gradient(145deg, #c8e6c9 0%, #a5d6a7 35%, #88c98a 65%, #b2dfb4 100%)",
+        }}>
+          {/* 道路（ダミー） */}
+          <div style={{ position:"absolute", top:"43%", left:0, right:0, height:3, background:"rgba(255,255,255,0.55)", transform:"rotate(-2deg)" }} />
+          <div style={{ position:"absolute", top:"22%", left:"15%", right:"5%", height:2, background:"rgba(255,255,255,0.4)", transform:"rotate(7deg)" }} />
+          <div style={{ position:"absolute", top:0, bottom:0, left:"40%", width:2, background:"rgba(255,255,255,0.4)", transform:"rotate(1deg)" }} />
+          <div style={{ position:"absolute", top:"60%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-5deg)" }} />
+          {/* 地名ラベル */}
+          <div style={{ position:"absolute", top:8, left:8, padding:"3px 8px", background:"rgba(255,255,255,0.85)", borderRadius:8 }}>
+            <span className="f-sans" style={{ fontSize:9, color:"#555" }}>吉野川流域・徳島県</span>
+          </div>
+          {/* 差し替え予告 */}
+          <div style={{ position:"absolute", bottom:6, right:6, padding:"2px 6px", background:"rgba(255,255,255,0.8)", borderRadius:6 }}>
+            <span className="f-sans" style={{ fontSize:8, color:"#B0B0B0" }}>📍 Google Maps / Leaflet に差替予定</span>
+          </div>
+
+          {/* ピン */}
+          {JOB_SEARCH_SAMPLES.map(job => (
+            <button key={job.id}
+              onClick={() => setSelectedPin(selectedPin===job.id ? null : job.id)}
+              style={{
+                position:"absolute", left:pinX(job.lng), top:pinY(job.lat),
+                transform:"translate(-50%, -100%)",
+                background: selectedPin===job.id ? "#00A86B" : "#fff",
+                color: selectedPin===job.id ? "#fff" : "#00A86B",
+                border:"2px solid #00A86B", borderRadius:20,
+                padding:"4px 9px", fontSize:11, fontWeight:700,
+                cursor:"pointer", whiteSpace:"nowrap",
+                boxShadow:"0 2px 6px rgba(0,0,0,0.18)",
+                fontFamily:"'DM Mono',monospace",
+                zIndex: selectedPin===job.id ? 10 : 1,
+                transition:"all .15s",
+              }}
+            >{pinLabel(job)}</button>
+          ))}
+
+          {/* ピンポップアップ */}
+          {selectedJob && (
+            <div style={{
+              position:"absolute", left:"50%", top:8, transform:"translateX(-50%)",
+              background:"#fff", border:"1px solid #EBEBEB", borderRadius:14,
+              padding:"12px 14px", minWidth:210, maxWidth:"90%",
+              boxShadow:"0 4px 16px rgba(0,0,0,0.14)", zIndex:20,
+            }}>
+              <button onClick={() => setSelectedPin(null)} style={{ position:"absolute", top:6, right:8, background:"none", border:"none", fontSize:14, cursor:"pointer", color:"#B0B0B0" }}>✕</button>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                <span style={{ fontSize:20 }}>{selectedJob.icon}</span>
+                <div>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{selectedJob.crop} {selectedJob.task}</p>
+                  <p className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(selectedJob)}</p>
+                </div>
+              </div>
+              {[
+                { label:"日程", value:selectedJob.dateLabel },
+                { label:"地域", value:selectedJob.region },
+                { label:"経験", value:selectedJob.experience },
+              ].map(row => (
+                <div key={row.label} style={{ display:"flex", gap:8, marginBottom:2 }}>
+                  <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0", width:28, flexShrink:0 }}>{row.label}</span>
+                  <span className="f-sans" style={{ fontSize:11, color:"#222" }}>{row.value}</span>
+                </div>
+              ))}
+              <button
+                onClick={() => { setSelectedPin(null); setExpandedCard(selectedJob.id); }}
+                style={{ marginTop:8, width:"100%", padding:"7px", background:"#00A86B", color:"#fff", border:"none", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer" }}
+              >詳細を見る →</button>
+            </div>
+          )}
+        </div>
+
+        {/* ─── 仕事リスト ─── */}
+        <div>
+          {JOB_SEARCH_SAMPLES.map(job => {
+            const open = expandedCard === job.id;
+            return (
+              <div key={job.id} style={{
+                background:"#fff", border:"1px solid", borderColor: open ? "#00A86B" : "#EBEBEB",
+                borderRadius:16, marginBottom:10, overflow:"hidden",
+                boxShadow: open ? "0 2px 10px rgba(0,168,107,0.08)" : "none",
+              }}>
+                <button
+                  onClick={() => { setExpandedCard(open ? null : job.id); setSelectedPin(job.id); }}
+                  style={{ width:"100%", textAlign:"left", padding:"14px 16px", background:"none", border:"none", cursor:"pointer" }}
+                >
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                    <div style={{ width:40, height:40, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
+                      {job.icon}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{job.crop} {job.task}</p>
+                      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:0 }}>{job.dateLabel}　{job.region}</p>
+                    </div>
+                    <div style={{ textAlign:"right", flexShrink:0 }}>
+                      <p className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(job)}</p>
+                      <p className="f-sans" style={{ fontSize:9, color:"#B0B0B0" }}>{open ? "▲" : "▼ 詳細"}</p>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+                    {[job.crop, job.task, job.experience].map(t => (
+                      <span key={t} style={{ padding:"2px 8px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:10 }}>{t}</span>
+                    ))}
+                  </div>
+                </button>
+                {open && (
+                  <div style={{ padding:"0 16px 14px", borderTop:"1px solid #F7F7F7" }}>
+                    <div style={{ paddingTop:10 }}>
+                      {[
+                        { label:"作物",     value:job.crop },
+                        { label:"作業内容", value:job.task },
+                        { label:"日程",     value:job.dateLabel },
+                        { label:"報酬",     value:payLabel(job) },
+                        { label:"地域",     value:job.region },
+                        { label:"経験条件", value:job.experience },
+                      ].map(row => (
+                        <div key={row.label} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #F7F7F7" }}>
+                          <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>{row.label}</span>
+                          <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600 }}>{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button style={{ marginTop:10, width:"100%", padding:"10px", background:"#00A86B", color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                      詳細を見る（準備中）
+                    </button>
+                    <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>
+                      本名・詳細住所は非公開です。マッチング成立後に開示します。
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
 function LandingFlow({ onComplete, onSkip, onLogin }) {
@@ -4189,48 +4401,9 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </WizCard>
           </>)}
 
-          {isWorker && step === 6 && workerPurpose === "search" && (() => {
-            const JOBS = [
-              { farm:"○○農園", crop:"トマト", work:"収穫・選果",   date:"7月上旬〜中旬", hourly:1200, region:"徳島県吉野川市", exp:"未経験可", notes:"長靴持参" },
-              { farm:"△△農場", crop:"キュウリ", work:"収穫・定植", date:"6月〜9月",       hourly:1150, region:"徳島県阿波市",   exp:"1回以上",  notes:"軍手持参" },
-              { farm:"□□農業", crop:"イチゴ",  work:"収穫",        date:"11月〜3月",      hourly:1100, region:"徳島県板野郡",  exp:"未経験可", notes:"なし" },
-            ];
-            return (<>
-              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>仕事リスト（想定画面）</h2>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:12 }}>作業内容・経験・勤務条件を見える化し、ミスマッチを減らすUI（構想）</p>
-              <FakeFilterRow />
-              {JOBS.map((j, i) => {
-                const open = expandedJob === i;
-                return (
-                  <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:10, overflow:"hidden" }}>
-                    <button onClick={() => setExpandedJob(open ? null : i)} style={{ width:"100%", textAlign:"left", padding:"14px 16px", background:"none", border:"none", cursor:"pointer" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-                        <div>
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{j.farm}</p>
-                          <p className="f-sans" style={{ fontSize:11, color:"#717171" }}>{j.date}　{j.region}</p>
-                        </div>
-                        <div style={{ textAlign:"right" }}>
-                          <p className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B" }}>¥{j.hourly.toLocaleString()}/h</p>
-                          <p className="f-sans" style={{ fontSize:9, color:"#B0B0B0" }}>{open ? "▲ 閉じる" : "▼ 詳細"}</p>
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
-                        {[j.crop, j.work, j.exp].map(t => <span key={t} style={{ padding:"2px 8px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:10 }}>{t}</span>)}
-                      </div>
-                    </button>
-                    {open && (
-                      <div style={{ padding:"0 16px 14px", borderTop:"1px solid #F7F7F7" }}>
-                        <div style={{ paddingTop:10 }}>
-                          <SummaryRow label="必要経験" value={j.exp} />
-                          <SummaryRow label="持ち物・注意" value={j.notes} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </>);
-          })()}
+          {isWorker && step === 6 && workerPurpose === "search" && (
+            <JobSearchMapView />
+          )}
 
           {isWorker && step === 7 && (<>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>内容の確認</h2>
@@ -5601,51 +5774,9 @@ function LaborTab({ farmersCount, onLogin }) {
         <NavRow canNext={true} />
       </>);
 
-      // 仕事を探す → タップ展開リスト
-      const JOBS = [
-        { farm:"○○農園", crop:"トマト", work:"収穫・選果",   date:"7月上旬〜中旬", hourly:1200, region:"徳島県吉野川市", exp:"未経験可", notes:"長靴持参" },
-        { farm:"△△農場", crop:"キュウリ", work:"収穫・定植", date:"6月〜9月",       hourly:1150, region:"徳島県阿波市",   exp:"1回以上",  notes:"軍手持参" },
-        { farm:"□□農業", crop:"イチゴ",  work:"収穫",        date:"11月〜3月",      hourly:1100, region:"徳島県板野郡",  exp:"未経験可", notes:"なし" },
-      ];
+      // 仕事を探す → 地図+リストUI（JobSearchMapViewで実装）
       return wrap(<>
-        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>仕事リスト（想定画面）</h2>
-        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:12 }}>作業内容・経験・勤務条件を見える化し、ミスマッチを減らすUI（構想）</p>
-        <MapNote />
-        <FakeFilterRow />
-        {JOBS.map((j, i) => {
-          const open = expandedJob === i;
-          return (
-            <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:10, overflow:"hidden" }}>
-              <button onClick={() => setExpandedJob(open ? null : i)} style={{
-                width:"100%", textAlign:"left", padding:"16px 18px", background:"none", border:"none", cursor:"pointer",
-              }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-                  <div>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{j.farm}</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>{j.date}　{j.region}</p>
-                  </div>
-                  <div style={{ textAlign:"right" }}>
-                    <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B" }}>¥{j.hourly.toLocaleString()}/h</p>
-                    <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>{open ? "▲ 閉じる" : "▼ 詳細"}</p>
-                  </div>
-                </div>
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                  {[j.crop, j.work, j.exp].map(t => <span key={t} style={{ padding:"3px 10px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:11 }}>{t}</span>)}
-                </div>
-              </button>
-              {open && (
-                <div style={{ padding:"0 18px 16px", borderTop:"1px solid #F7F7F7" }}>
-                  <div style={{ paddingTop:12, display:"grid", gap:6 }}>
-                    <SummaryRow label="作物"         value={j.crop} />
-                    <SummaryRow label="作業内容"     value={j.work} />
-                    <SummaryRow label="必要経験"     value={j.exp} />
-                    <SummaryRow label="持ち物・注意" value={j.notes} />
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        <JobSearchMapView />
         <NavRow canNext={true} />
       </>);
     }
