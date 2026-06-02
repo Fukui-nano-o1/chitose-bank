@@ -3888,9 +3888,10 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const [farmerPurpose,     setFarmerPurpose]     = useState("");
   const [farmerDisplayName, setFarmerDisplayName] = useState("");
   const [farmerRegion,      setFarmerRegion]      = useState("");
-  const [farmerCropPill,    setFarmerCropPill]    = useState(""); // ピル選択
-  const [farmerCropText,    setFarmerCropText]    = useState(""); // テキスト入力
-  const [farmerWork,        setFarmerWork]        = useState("");
+  const [farmerCropPill,    setFarmerCropPill]    = useState(""); // 作物ピル選択
+  const [farmerCropText,    setFarmerCropText]    = useState(""); // 作物自由入力
+  const [farmerTaskPill,    setFarmerTaskPill]    = useState(""); // 作業ピル選択
+  const [farmerTaskText,    setFarmerTaskText]    = useState(""); // 作業自由入力
   const [farmerWanted,      setFarmerWanted]      = useState("");
   const [farmerPayType,     setFarmerPayType]     = useState("");
   // 勤務時間（4分割）
@@ -3915,8 +3916,9 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const [jobExp,            setJobExp]            = useState("");
   const [jobNotes,          setJobNotes]          = useState("");
 
-  // ピル選択とテキスト入力の合成値
+  // ピル選択とテキスト入力の合成値（自由入力優先）
   const farmerCrop = farmerCropText.trim() || farmerCropPill;
+  const farmerTask = farmerTaskText.trim() || farmerTaskPill;
 
   // 働き手 state
   const [workerExp,         setWorkerExp]         = useState("");
@@ -4052,7 +4054,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   };
 
   // canGoNext per step
-  const farmerCanNext = [true, !!farmerExp, true, !!farmerPurpose, !!farmerCrop&&!!farmerWork, true, true, true, true];
+  const farmerCanNext = [true, !!farmerExp, true, !!farmerPurpose, !!farmerCrop&&!!farmerTask, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -4227,8 +4229,19 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
               </div>
               <div>
                 <label className="f-sans" style={lfStyles.inputLabel}>募集したい作業</label>
-                <LFPillSelect options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]} value={farmerWork} onSelect={setFarmerWork} />
-                {!farmerWork && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>作業内容を選んでください</p>}
+                <LFPillSelect
+                  options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]}
+                  value={farmerTaskPill}
+                  onSelect={v => { setFarmerTaskPill(v); setFarmerTaskText(""); }}
+                />
+                <input
+                  value={farmerTaskText}
+                  onChange={e => { setFarmerTaskText(e.target.value); setFarmerTaskPill(""); }}
+                  placeholder="例：畝立て、支柱立て、マルチ張り"
+                  className="field f-sans"
+                  style={{ fontSize:15, marginTop:6 }}
+                />
+                {!farmerTask && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>作業内容を選んでください</p>}
               </div>
             </LFWizCard>
 
@@ -4255,7 +4268,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
               <LFSummaryRow label="就農歴" value={farmerExp} />
               <LFSummaryRow label="地域"   value={farmerRegion || "未入力"} />
               <LFSummaryRow label="作物"   value={farmerCrop || "未入力"} />
-              <LFSummaryRow label="作業"   value={farmerWork || "未入力"} />
+              <LFSummaryRow label="作業"   value={farmerTask || "未入力"} />
               <LFSummaryRow label="希望する働き手" value={farmerWanted || "未設定"} />
               <LFSummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
               <LFSummaryRow label="目的"   value={farmerPurpose==="post" ? "仕事を出す" : "オファーする"} />
@@ -4274,7 +4287,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
               {/* 2. 作業内容 */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>作業内容</label>
-                <p className="f-sans" style={{ fontSize:14, color:"#222" }}>{farmerWork || "未入力"}</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#222" }}>{farmerTask || "未入力"}</p>
               </div>
               {/* 3. 開催日（カレンダー） */}
               <div style={{ marginBottom:14 }}>
@@ -4401,7 +4414,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
               <LFSummaryRow label="表示名"   value={farmerDisplayName || "未設定"} />
               <LFSummaryRow label="地域"     value={farmerRegion || "未設定"} />
               <LFSummaryRow label="作物"     value={farmerCrop || "未設定"} />
-              <LFSummaryRow label="作業"     value={farmerWork || "未設定"} />
+              <LFSummaryRow label="作業"     value={farmerTask || "未設定"} />
               <LFSummaryRow label="目的"     value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
               {farmerPurpose==="post" && <LFSummaryRow label="開催日"   value={jobDateLabel} />}
               {farmerPurpose==="post" && <LFSummaryRow label="勤務時間" value={workTimeLabel} />}
