@@ -3893,15 +3893,25 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const [farmerWork,        setFarmerWork]        = useState("");
   const [farmerWanted,      setFarmerWanted]      = useState("");
   const [farmerPayType,     setFarmerPayType]     = useState("");
-  const [farmerHourly,      setFarmerHourly]      = useState("");
-  const [farmerDaily,       setFarmerDaily]       = useState("");
-  const [jobDateStart,      setJobDateStart]      = useState(null); // Date|null
-  const [jobDateEnd,        setJobDateEnd]        = useState(null); // Date|null
-  const [showCalendar,      setShowCalendar]      = useState(false);
-  const [calYear,           setCalYear]           = useState(new Date().getFullYear());
-  const [calMonth,          setCalMonth]          = useState(new Date().getMonth());
-  const [jobTime,           setJobTime]           = useState("");
-  const [jobCount,          setJobCount]          = useState("");
+  // 勤務時間（4分割）
+  const [startHour,   setStartHour]   = useState("8");
+  const [startMinute, setStartMinute] = useState("00");
+  const [endHour,     setEndHour]     = useState("16");
+  const [endMinute,   setEndMinute]   = useState("00");
+  // 時給・日給（文字列で保持してカーソル飛び防止）
+  const [hourlyWageInput, setHourlyWageInput] = useState("");
+  const [dailyWageInput,  setDailyWageInput]  = useState("");
+  const [jobDateStart,    setJobDateStart]    = useState(null); // Date|null
+  const [jobDateEnd,      setJobDateEnd]      = useState(null); // Date|null
+  const [showCalendar,    setShowCalendar]    = useState(false);
+  const [calYear,         setCalYear]         = useState(new Date().getFullYear());
+  const [calMonth,        setCalMonth]        = useState(new Date().getMonth());
+  const [jobCount,        setJobCount]        = useState("");
+
+  // 派生値
+  const workTimeLabel = `${startHour}:${startMinute}〜${endHour}:${endMinute}`;
+  const hourlyWage = Number(hourlyWageInput.replace(/[^\d]/g, "")) || 0;
+  const dailyWage  = Number(dailyWageInput.replace(/[^\d]/g, "")) || 0;
   const [jobExp,            setJobExp]            = useState("");
   const [jobNotes,          setJobNotes]          = useState("");
 
@@ -4264,10 +4274,32 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
                 >{jobDateLabel}</button>
                 {showCalendar && <CalendarPicker />}
               </div>
-              {/* 4. 勤務時間 */}
+              {/* 4. 勤務時間（分割セレクト） */}
               <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>勤務時間</label>
-                <input value={jobTime} onChange={e => setJobTime(e.target.value)} placeholder="例：8:00〜16:00" className="field f-sans" style={{ fontSize:13 }} />
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:8 }}>開始時間と終了時間を選んでください。</p>
+                <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                  {[
+                    { val:startHour,   set:setStartHour,   opts:Array.from({length:18},(_,i)=>String(i+5)), label:"開始時" },
+                    { val:startMinute, set:setStartMinute, opts:["00","05","10","15","20","25","30","35","40","45","50","55"], label:"開始分" },
+                  ].map(({ val, set, opts, label }) => (
+                    <select key={label} value={val} onChange={e => set(e.target.value)} className="f-mono" style={{
+                      padding:"8px 10px", borderRadius:10, border:"1px solid #EBEBEB",
+                      fontSize:15, background:"#fff", cursor:"pointer", appearance:"auto",
+                    }}>{opts.map(o => <option key={o} value={o}>{o}</option>)}</select>
+                  ))}
+                  <span className="f-sans" style={{ fontSize:14, color:"#B0B0B0", padding:"0 4px" }}>〜</span>
+                  {[
+                    { val:endHour,   set:setEndHour,   opts:Array.from({length:18},(_,i)=>String(i+5)), label:"終了時" },
+                    { val:endMinute, set:setEndMinute, opts:["00","05","10","15","20","25","30","35","40","45","50","55"], label:"終了分" },
+                  ].map(({ val, set, opts, label }) => (
+                    <select key={label} value={val} onChange={e => set(e.target.value)} className="f-mono" style={{
+                      padding:"8px 10px", borderRadius:10, border:"1px solid #EBEBEB",
+                      fontSize:15, background:"#fff", cursor:"pointer", appearance:"auto",
+                    }}>{opts.map(o => <option key={o} value={o}>{o}</option>)}</select>
+                  ))}
+                </div>
+                <p className="f-sans" style={{ fontSize:12, color:"#00A86B", marginTop:6 }}>→ {workTimeLabel}</p>
               </div>
               {/* 5. 募集人数 */}
               <div style={{ marginBottom:14 }}>
@@ -4275,15 +4307,33 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
                 <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
               </div>
               {/* 6. 報酬 */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
-                <input type="number" value={farmerHourly} onChange={e => setFarmerHourly(e.target.value)} placeholder="例：1200" className="field f-mono" style={{ fontSize:16, maxWidth:160 }} />
-                <LFWageCompare type="時給" value={parseFloat(farmerHourly)||0} avg={AVG_HOURLY} count={AVG_COUNT} />
+              <div style={{ marginBottom:6 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>報酬</label>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:10 }}>時給または日給を入力してください。入力欄では数字だけで構いません。</p>
               </div>
               <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
-                <input type="number" value={farmerDaily} onChange={e => setFarmerDaily(e.target.value)} placeholder="例：9000" className="field f-mono" style={{ fontSize:16, maxWidth:160 }} />
-                <LFWageCompare type="日給" value={parseFloat(farmerDaily)||0} avg={AVG_DAILY} count={AVG_COUNT} />
+                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
+                <input
+                  inputMode="numeric"
+                  value={hourlyWageInput}
+                  onChange={e => setHourlyWageInput(e.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="例：1200"
+                  className="field f-mono"
+                  style={{ fontSize:18, maxWidth:160 }}
+                />
+                <LFWageCompare type="時給" value={hourlyWage} avg={AVG_HOURLY} count={AVG_COUNT} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
+                <input
+                  inputMode="numeric"
+                  value={dailyWageInput}
+                  onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="例：9000"
+                  className="field f-mono"
+                  style={{ fontSize:18, maxWidth:160 }}
+                />
+                <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
               </div>
               <LFWageNote />
               {/* 7. 必要経験 */}
@@ -4338,9 +4388,14 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
               <LFSummaryRow label="作物"     value={farmerCrop || "未設定"} />
               <LFSummaryRow label="作業"     value={farmerWork || "未設定"} />
               <LFSummaryRow label="目的"     value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
-              {farmerPurpose==="post" && <LFSummaryRow label="開催日" value={jobDateLabel} />}
-              {farmerPurpose==="post" && <LFSummaryRow label="人数"   value={jobCount ? `${jobCount}人` : "未設定"} />}
-              <LFSummaryRow label="希望時給" value={farmerHourly ? `¥${parseFloat(farmerHourly).toLocaleString()}/h` : "未設定"} />
+              {farmerPurpose==="post" && <LFSummaryRow label="開催日"   value={jobDateLabel} />}
+              {farmerPurpose==="post" && <LFSummaryRow label="勤務時間" value={workTimeLabel} />}
+              {farmerPurpose==="post" && <LFSummaryRow label="人数"     value={jobCount ? `${jobCount}人` : "未設定"} />}
+              {farmerPurpose==="post" && <LFSummaryRow label="報酬" value={
+                hourlyWage > 0 && dailyWage > 0 ? `時給${hourlyWage.toLocaleString()}円 / 日給${dailyWage.toLocaleString()}円` :
+                hourlyWage > 0 ? `時給${hourlyWage.toLocaleString()}円` :
+                dailyWage  > 0 ? `日給${dailyWage.toLocaleString()}円` : "未設定"
+              } />}
             </LFWizCard>
           </>)}
 
