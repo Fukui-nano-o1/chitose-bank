@@ -3577,17 +3577,25 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const [farmerPurpose,     setFarmerPurpose]     = useState("");
   const [farmerDisplayName, setFarmerDisplayName] = useState("");
   const [farmerRegion,      setFarmerRegion]      = useState("");
-  const [farmerCrop,        setFarmerCrop]        = useState("");
+  const [farmerCropPill,    setFarmerCropPill]    = useState(""); // ピル選択
+  const [farmerCropText,    setFarmerCropText]    = useState(""); // テキスト入力
   const [farmerWork,        setFarmerWork]        = useState("");
   const [farmerWanted,      setFarmerWanted]      = useState("");
   const [farmerPayType,     setFarmerPayType]     = useState("");
   const [farmerHourly,      setFarmerHourly]      = useState("");
   const [farmerDaily,       setFarmerDaily]       = useState("");
-  const [jobDate,           setJobDate]           = useState("");
+  const [jobDateStart,      setJobDateStart]      = useState(null); // Date|null
+  const [jobDateEnd,        setJobDateEnd]        = useState(null); // Date|null
+  const [showCalendar,      setShowCalendar]      = useState(false);
+  const [calYear,           setCalYear]           = useState(new Date().getFullYear());
+  const [calMonth,          setCalMonth]          = useState(new Date().getMonth());
   const [jobTime,           setJobTime]           = useState("");
   const [jobCount,          setJobCount]          = useState("");
   const [jobExp,            setJobExp]            = useState("");
   const [jobNotes,          setJobNotes]          = useState("");
+
+  // ピル選択とテキスト入力の合成値
+  const farmerCrop = farmerCropText.trim() || farmerCropPill;
 
   // 働き手 state
   const [workerExp,         setWorkerExp]         = useState("");
@@ -3695,6 +3703,64 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
     </div>
   );
 
+  // ── カレンダーヘルパー ──────────────────────────────────────
+  const WD = ["日","月","火","水","木","金","土"];
+  const fmtD = (d) => {
+    if (!d) return "";
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}（${WD[d.getDay()]}）`;
+  };
+  const jobDateLabel = (() => {
+    if (!jobDateStart) return "日程を選択してください";
+    const end = jobDateEnd || jobDateStart;
+    if (fmtD(jobDateStart) === fmtD(end)) return fmtD(jobDateStart);
+    return `${fmtD(jobDateStart)} 〜 ${fmtD(end)}`;
+  })();
+  const handleCalDay = (d) => {
+    const clicked = new Date(calYear, calMonth, d);
+    if (!jobDateStart || jobDateEnd) { setJobDateStart(clicked); setJobDateEnd(null); }
+    else if (clicked >= jobDateStart) { setJobDateEnd(clicked); }
+    else { setJobDateStart(clicked); setJobDateEnd(null); }
+  };
+  const isSameDay = (a, b) => a && b && a.toDateString() === b.toDateString();
+  const CalendarPicker = () => {
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const prevMo = () => { if (calMonth===0) { setCalYear(y=>y-1); setCalMonth(11); } else setCalMonth(m=>m-1); };
+    const nextMo = () => { if (calMonth===11) { setCalYear(y=>y+1); setCalMonth(0); } else setCalMonth(m=>m+1); };
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
+    return (
+      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginTop:8 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+          <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"‹"}</button>
+          <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{calYear}年{calMonth+1}月</span>
+          <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"›"}</button>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:8 }}>
+          {WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
+          {cells.map((dd, i) => {
+            if (!dd) return <div key={`e${i}`} />;
+            const dt = new Date(calYear, calMonth, dd);
+            const isStart = isSameDay(dt, jobDateStart);
+            const isEnd   = isSameDay(dt, jobDateEnd);
+            const inRange = jobDateStart && jobDateEnd && dt > jobDateStart && dt < jobDateEnd;
+            return (
+              <button key={dd} onClick={() => handleCalDay(dd)} style={{
+                padding:"7px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13, textAlign:"center",
+                background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
+                color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
+                fontWeight: (isStart||isEnd) ? 700 : 400,
+              }}>{dd}</button>
+            );
+          })}
+        </div>
+        <button onClick={() => setShowCalendar(false)} className="btn-primary" style={{ width:"100%", padding:"10px", fontSize:13, borderRadius:10 }}>決定</button>
+        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>終了日を選ばない場合は、1日募集として扱います</p>
+      </div>
+    );
+  };
+
   // canGoNext per step
   const farmerCanNext = [true, !!farmerExp, true, !!farmerPurpose, !!farmerCrop&&!!farmerWork, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
@@ -3763,13 +3829,13 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           {/* ── FARMER FLOW ── */}
           {isFarmer && step === 1 && (<>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>就農歴を教えてください</h2>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>表示される機能の参考にします</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>あなたに合う使い方を出すために使います</p>
             {["1年未満","1〜3年","4〜10年","10年以上"].map(v => <CardBtn key={v} selected={farmerExp===v} onClick={() => setFarmerExp(v)}>{v}</CardBtn>)}
           </>)}
 
           {isFarmer && step === 2 && (<>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>農家向け機能のご紹介</h2>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20 }}>準備中の機能をご確認ください</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20 }}>人手探しで何ができるか、30秒で確認できます</p>
             <WizCard>
               {[
                 { icon:"📋", title:"仕事を出す", desc:"作物・作業内容・日程・報酬を入力して働き手を募集できます。" },
@@ -3791,7 +3857,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
 
           {isFarmer && step === 3 && (<>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>何をしたいですか？</h2>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>あとから変更できます</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:24 }}>まずは「募集する」か「探して声をかける」かを選んでください</p>
             <CardBtn selected={farmerPurpose==="post"} onClick={() => setFarmerPurpose("post")}>
               📋 仕事を出す
               <p className="f-sans" style={{ fontSize:12, color:"#717171", marginTop:4, fontWeight:400 }}>募集内容を入力して働き手を募集する</p>
@@ -3804,25 +3870,60 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
 
           {isFarmer && step === 4 && (<>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>農家プロフィール</h2>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>働き手に見せる情報を入力してください</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>働き手が応募を判断するための基本情報です</p>
+
+            {/* 基本情報 */}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>基本情報</p>
             <WizCard>
               <div style={{ marginBottom:16 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>表示名</label>
-                <input value={farmerDisplayName} onChange={e => setFarmerDisplayName(e.target.value)} placeholder="例：○○農園" className="field f-sans" style={{ fontSize:14 }} />
+                <input
+                  value={farmerDisplayName}
+                  onChange={e => setFarmerDisplayName(e.target.value)}
+                  placeholder="例：○○農園"
+                  className="field f-sans"
+                  style={{ fontSize:14 }}
+                />
+                {!farmerDisplayName.trim() && <p className="f-sans" style={{ fontSize:11, color:"#F5A623", marginTop:4 }}>表示名を入力してください</p>}
               </div>
-              <div style={{ marginBottom:16 }}>
+              <div>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>地域</label>
-                <input value={farmerRegion} onChange={e => setFarmerRegion(e.target.value)} placeholder="例：徳島県吉野川市" className="field f-sans" style={{ fontSize:14 }} />
+                <input
+                  value={farmerRegion}
+                  onChange={e => setFarmerRegion(e.target.value)}
+                  placeholder="例：徳島県吉野川市"
+                  className="field f-sans"
+                  style={{ fontSize:14 }}
+                />
+                {!farmerRegion.trim() && <p className="f-sans" style={{ fontSize:11, color:"#F5A623", marginTop:4 }}>地域を入力してください</p>}
               </div>
+            </WizCard>
+
+            {/* 作物・作業 */}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>作物・作業</p>
+            <WizCard>
               <div style={{ marginBottom:16 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>主な作物</label>
-                <PillSelect options={["トマト","キュウリ","ナス","イチゴ","米","ブドウ","リンゴ"]} value={farmerCrop} onSelect={setFarmerCrop} />
-                <input value={farmerCrop} onChange={e => setFarmerCrop(e.target.value)} placeholder="その他の作物を入力" className="field f-sans" style={{ fontSize:13, marginTop:4 }} />
+                <PillSelect options={["トマト","キュウリ","ナス","イチゴ","米","ブドウ","リンゴ"]} value={farmerCropPill} onSelect={v => { setFarmerCropPill(v); setFarmerCropText(""); }} />
+                <input
+                  value={farmerCropText}
+                  onChange={e => { setFarmerCropText(e.target.value); setFarmerCropPill(""); }}
+                  placeholder="その他の作物を入力"
+                  className="field f-sans"
+                  style={{ fontSize:13, marginTop:4 }}
+                />
+                {!farmerCrop && <p className="f-sans" style={{ fontSize:11, color:"#F5A623", marginTop:4 }}>少なくとも1つ作物を選んでください</p>}
               </div>
-              <div style={{ marginBottom:16 }}>
+              <div>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>募集したい作業</label>
                 <PillSelect options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]} value={farmerWork} onSelect={setFarmerWork} />
+                {!farmerWork && <p className="f-sans" style={{ fontSize:11, color:"#F5A623", marginTop:4 }}>作業内容を選んでください</p>}
               </div>
+            </WizCard>
+
+            {/* 募集条件 */}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>募集条件</p>
+            <WizCard>
               <div style={{ marginBottom:16 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>希望する働き手</label>
                 <PillSelect options={["未経験歓迎","経験者優遇","どちらでも"]} value={farmerWanted} onSelect={setFarmerWanted} />
@@ -3837,13 +3938,13 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
 
           {isFarmer && step === 5 && (<>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィール確認</h2>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>この内容で進めます</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>公開前に表示内容を確認してください</p>
             <WizCard>
               <SummaryRow label="表示名" value={farmerDisplayName || "未入力"} />
               <SummaryRow label="就農歴" value={farmerExp} />
               <SummaryRow label="地域"   value={farmerRegion || "未入力"} />
-              <SummaryRow label="作物"   value={farmerCrop} />
-              <SummaryRow label="作業"   value={farmerWork} />
+              <SummaryRow label="作物"   value={farmerCrop || "未入力"} />
+              <SummaryRow label="作業"   value={farmerWork || "未入力"} />
               <SummaryRow label="希望する働き手" value={farmerWanted || "未設定"} />
               <SummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
               <SummaryRow label="目的"   value={farmerPurpose==="post" ? "仕事を出す" : "オファーする"} />
@@ -3854,20 +3955,40 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:8 }}>募集内容を入力します</h2>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16 }}>これはプレビューです。実際の公開はまだ行いません</p>
             <WizCard>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
-                <div>
-                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>日程</label>
-                  <input value={jobDate} onChange={e => setJobDate(e.target.value)} placeholder="例：7月上旬" className="field f-sans" style={{ fontSize:13 }} />
-                </div>
-                <div>
-                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>時間</label>
-                  <input value={jobTime} onChange={e => setJobTime(e.target.value)} placeholder="例：8:00〜16:00" className="field f-sans" style={{ fontSize:13 }} />
-                </div>
-              </div>
+              {/* 1. 作物 */}
               <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>人数</label>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>作物</label>
+                <p className="f-sans" style={{ fontSize:14, color:"#222" }}>{farmerCrop || "未入力"}</p>
+              </div>
+              {/* 2. 作業内容 */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>作業内容</label>
+                <p className="f-sans" style={{ fontSize:14, color:"#222" }}>{farmerWork || "未入力"}</p>
+              </div>
+              {/* 3. 開催日（カレンダー） */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>開催日</label>
+                <button
+                  onClick={() => setShowCalendar(v => !v)}
+                  style={{
+                    width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12,
+                    border:"1px solid", borderColor: jobDateStart ? "#00A86B" : "#EBEBEB",
+                    background:"#fff", fontSize:13, cursor:"pointer", color: jobDateStart ? "#222" : "#B0B0B0", fontFamily:"inherit",
+                  }}
+                >{jobDateLabel}</button>
+                {showCalendar && <CalendarPicker />}
+              </div>
+              {/* 4. 勤務時間 */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>勤務時間</label>
+                <input value={jobTime} onChange={e => setJobTime(e.target.value)} placeholder="例：8:00〜16:00" className="field f-sans" style={{ fontSize:13 }} />
+              </div>
+              {/* 5. 募集人数 */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集人数</label>
                 <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
               </div>
+              {/* 6. 報酬 */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
                 <input type="number" value={farmerHourly} onChange={e => setFarmerHourly(e.target.value)} placeholder="例：1200" className="field f-mono" style={{ fontSize:16, maxWidth:160 }} />
@@ -3878,15 +3999,17 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
                 <input type="number" value={farmerDaily} onChange={e => setFarmerDaily(e.target.value)} placeholder="例：9000" className="field f-mono" style={{ fontSize:16, maxWidth:160 }} />
                 <WageCompare type="日給" value={parseFloat(farmerDaily)||0} avg={AVG_DAILY} count={AVG_COUNT} />
               </div>
-              <div style={{ marginBottom:14 }}>
+              <WageNote />
+              {/* 7. 必要経験 */}
+              <div style={{ marginBottom:14, marginTop:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>必要経験</label>
                 <PillSelect options={["未経験可","1回以上","3回以上","農家経験者"]} value={jobExp} onSelect={setJobExp} />
               </div>
+              {/* 8. 持ち物・注意事項 */}
               <div>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物・注意事項</label>
                 <textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="例：長靴着用、軍手持参" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
               </div>
-              <WageNote />
             </WizCard>
           </>)}
 
@@ -3925,12 +4048,12 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             <WizCard>
               <SummaryRow label="ロール"   value="農家" />
               <SummaryRow label="表示名"   value={farmerDisplayName || "未設定"} />
-              <SummaryRow label="作物"     value={farmerCrop} />
-              <SummaryRow label="作業"     value={farmerWork} />
               <SummaryRow label="地域"     value={farmerRegion || "未設定"} />
+              <SummaryRow label="作物"     value={farmerCrop || "未設定"} />
+              <SummaryRow label="作業"     value={farmerWork || "未設定"} />
               <SummaryRow label="目的"     value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
-              {farmerPurpose==="post" && <SummaryRow label="日程" value={jobDate || "未設定"} />}
-              {farmerPurpose==="post" && <SummaryRow label="人数" value={jobCount ? `${jobCount}人` : "未設定"} />}
+              {farmerPurpose==="post" && <SummaryRow label="開催日" value={jobDateLabel} />}
+              {farmerPurpose==="post" && <SummaryRow label="人数"   value={jobCount ? `${jobCount}人` : "未設定"} />}
               <SummaryRow label="希望時給" value={farmerHourly ? `¥${parseFloat(farmerHourly).toLocaleString()}/h` : "未設定"} />
             </WizCard>
           </>)}
