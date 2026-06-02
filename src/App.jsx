@@ -3943,6 +3943,21 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const goNext = () => setStep(s => s + 1);
   const goBack = () => { if (step <= 1) { setRole(""); setStep(0); } else setStep(s => s - 1); };
 
+  // 選択した瞬間に次へ進む（140ms で選択状態を視認させてから遷移）
+  const selectAndNext = (setter, value) => {
+    setter(value);
+    setTimeout(() => setStep(s => s + 1), 140);
+  };
+
+  // 自動遷移ステップ（次へボタン非表示、戻るのみ表示）
+  const isAutoStep = (
+    step === 0 ||
+    (isFarmer && step === 1) ||
+    (isFarmer && step === 3) ||
+    (isWorker && step === 1) ||
+    (isWorker && step === 2)
+  );
+
   // UI helpers はモジュールレベルに移動済み（LF_ プレフィックス）
 
   // ── カレンダーヘルパー ──────────────────────────────────────
@@ -4090,11 +4105,11 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
                 </p>
               </div>
               <p className="f-sans" style={lfStyles.question}>あなたはどちらですか？</p>
-              <LFCardBtn selected={false} onClick={() => { setRole("farmer"); setStep(1); }}>
+              <LFCardBtn selected={role==="farmer"} onClick={() => selectAndNext(setRole, "farmer")}>
                 <div className="f-sans" style={lfStyles.cardTitle}>🚜 農家として使う</div>
                 <div className="f-sans" style={lfStyles.cardDesc}>人手を探したい・仕事を出したい</div>
               </LFCardBtn>
-              <LFCardBtn selected={false} onClick={() => { setRole("worker"); setStep(1); }}>
+              <LFCardBtn selected={role==="worker"} onClick={() => selectAndNext(setRole, "worker")}>
                 <div className="f-sans" style={lfStyles.cardTitle}>👤 働き手として使う</div>
                 <div className="f-sans" style={lfStyles.cardDesc}>農業で働きたい・条件を公開したい</div>
               </LFCardBtn>
@@ -4106,7 +4121,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             <h2 className="f-sans" style={lfStyles.stepTitle}>就農歴を教えてください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>あなたに合う使い方を表示します。</p>
             {["1年未満","1〜3年","4〜10年","10年以上"].map(v => (
-              <LFCardBtn key={v} selected={farmerExp===v} onClick={() => setFarmerExp(v)}>
+              <LFCardBtn key={v} selected={farmerExp===v} onClick={() => selectAndNext(setFarmerExp, v)}>
                 <div className="f-sans" style={lfStyles.cardTitle}>{v}</div>
               </LFCardBtn>
             ))}
@@ -4154,11 +4169,11 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           {isFarmer && step === 3 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>何をしたいですか？</h2>
             <p className="f-sans" style={lfStyles.subtitle}>まずは「募集する」か「探して声をかける」かを選んでください</p>
-            <LFCardBtn selected={farmerPurpose==="post"} onClick={() => setFarmerPurpose("post")}>
+            <LFCardBtn selected={farmerPurpose==="post"} onClick={() => selectAndNext(setFarmerPurpose, "post")}>
               <div className="f-sans" style={lfStyles.cardTitle}>📋 仕事を出す</div>
               <div className="f-sans" style={lfStyles.cardDesc}>募集内容を入力して働き手を募集する</div>
             </LFCardBtn>
-            <LFCardBtn selected={farmerPurpose==="offer"} onClick={() => setFarmerPurpose("offer")}>
+            <LFCardBtn selected={farmerPurpose==="offer"} onClick={() => selectAndNext(setFarmerPurpose, "offer")}>
               <div className="f-sans" style={lfStyles.cardTitle}>👤 働き手にオファーする</div>
               <div className="f-sans" style={lfStyles.cardDesc}>候補者を探して直接声をかける</div>
             </LFCardBtn>
@@ -4420,7 +4435,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             <h2 className="f-sans" style={lfStyles.stepTitle}>農業経験を教えてください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>経験は問いません。当てはまるものをお選びください</p>
             {["未経験","農業バイト経験あり","農家経験あり","学生","パート希望"].map(v => (
-              <LFCardBtn key={v} selected={workerExp===v} onClick={() => setWorkerExp(v)}>
+              <LFCardBtn key={v} selected={workerExp===v} onClick={() => selectAndNext(setWorkerExp, v)}>
                 <div className="f-sans" style={lfStyles.cardTitle}>{v}</div>
               </LFCardBtn>
             ))}
@@ -4429,11 +4444,11 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           {isWorker && step === 2 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>何をしたいですか？</h2>
             <p className="f-sans" style={lfStyles.subtitle}>あとから変更できます</p>
-            <LFCardBtn selected={workerPurpose==="open"} onClick={() => setWorkerPurpose("open")}>
+            <LFCardBtn selected={workerPurpose==="open"} onClick={() => selectAndNext(setWorkerPurpose, "open")}>
               <div className="f-sans" style={lfStyles.cardTitle}>📅 働ける日を公開する</div>
               <div className="f-sans" style={lfStyles.cardDesc}>農家からオファーを受けたい</div>
             </LFCardBtn>
-            <LFCardBtn selected={workerPurpose==="search"} onClick={() => setWorkerPurpose("search")}>
+            <LFCardBtn selected={workerPurpose==="search"} onClick={() => selectAndNext(setWorkerPurpose, "search")}>
               <div className="f-sans" style={lfStyles.cardTitle}>🔍 募集中の仕事を探す</div>
               <div className="f-sans" style={lfStyles.cardDesc}>自分から応募したい</div>
             </LFCardBtn>
@@ -4576,13 +4591,15 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           position:"fixed", bottom:0, left:0, right:0, background:"#fff",
           borderTop:"1px solid #EBEBEB",
           padding:"16px 20px calc(16px + env(safe-area-inset-bottom, 0px))",
-          display:"flex", alignItems:"center", justifyContent:"space-between",
+          display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         }}>
           <button onClick={goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
-          <button onClick={canGoNext ? goNext : undefined} className="btn-primary" style={{
-            padding:"14px 28px", fontSize:15, fontWeight:700,
-            cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
-          }}>次へ →</button>
+          {!isAutoStep && (
+            <button onClick={canGoNext ? goNext : undefined} className="btn-primary" style={{
+              padding:"14px 28px", fontSize:15, fontWeight:700,
+              cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
+            }}>次へ →</button>
+          )}
         </div>
       )}
     </div>
