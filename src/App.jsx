@@ -4478,8 +4478,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
                 {tmpl.items.map(item => (
                   <span key={item} style={{ padding:"6px 14px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:13 }}>✓ {item}</span>
                 ))}
-                {jobNotes && jobNotes.split(/[、,，
-]/).filter(Boolean).map((n,i) => (
+                {jobNotes && jobNotes.split(/[、,，\n]/).filter(Boolean).map((n,i) => (
                   <span key={i} style={{ padding:"6px 14px", borderRadius:20, background:"#FEF3E2", color:"#F5A623", fontSize:13 }}>📌 {n.trim()}</span>
                 ))}
               </div>
