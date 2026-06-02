@@ -4083,25 +4083,42 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           </>)}
 
           {isFarmer && step === 2 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>農家向け機能のご紹介</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>人手探しで何ができるか、30秒で確認できます</p>
-            <WizCard>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>人手探しでできること</h2>
+            <p className="f-sans" style={{ ...lfStyles.subtitle, marginBottom:20 }}>
+              募集、オファー、条件整理を30秒で確認できます。
+            </p>
+            <div style={{ maxWidth:720, width:"100%", margin:"0 auto", display:"flex", flexDirection:"column", gap:12 }}>
               {[
-                { icon:"📋", title:"仕事を出す", desc:"作物・作業内容・日程・報酬を入力して働き手を募集できます。" },
-                { icon:"👤", title:"働き手に声をかける", desc:"経験・作物・希望報酬で絞り込み、直接オファーを送れます。" },
-                { icon:"🔍", title:"作物・作業内容で探す", desc:"地図・リスト・絞込フィルターで候補者を探せます。" },
-                { icon:"📊", title:"勤務条件を整理する", desc:"月次記録から雇用可能額を試算し、採用判断を支援します。" },
-                { icon:"📝", title:"事実ベースで記録する", desc:"遅刻・欠勤・連絡など、主観評価ではなく事実のみを記録します。" },
+                { icon:"📋", title:"仕事を出す",       desc:"作物・日程・報酬を整理して募集できます。" },
+                { icon:"👤", title:"声をかける",        desc:"条件が合う働き手に直接オファーできます。" },
+                { icon:"🔍", title:"条件で探す",        desc:"地域・作業・経験で候補を絞れます。" },
+                { icon:"📊", title:"雇える金額を見る",  desc:"月次記録から、雇用に使える金額を確認できます。" },
+                { icon:"📝", title:"事実で記録する",    desc:"遅刻・欠勤・連絡を共通項目で残します。" },
               ].map(item => (
-                <div key={item.title} style={{ display:"flex", gap:14, marginBottom:16 }}>
-                  <div style={{ width:40, height:40, borderRadius:10, background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{item.icon}</div>
-                  <div style={{ flex:1 }}>
-                    <p className="f-sans" style={lfStyles.featureTitle}>{item.title}</p>
-                    <p className="f-sans" style={lfStyles.featureDesc}>{item.desc}</p>
+                <div key={item.title} style={{
+                  display:"flex", alignItems:"flex-start", gap:16,
+                  padding:"18px 20px",
+                  border:"1px solid #EBEBEB", borderRadius:20,
+                  background:"#FFFFFF",
+                  boxShadow:"0 8px 24px rgba(0,0,0,0.04)",
+                }}>
+                  <div style={{
+                    width:44, height:44, borderRadius:14, background:"#E6F7EF",
+                    flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20,
+                  }}>{item.icon}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p className="f-sans" style={{
+                      fontSize:"clamp(17px, 1.8vw, 20px)", fontWeight:800, color:"#222",
+                      marginBottom:4, textAlign:"left",
+                    }}>{item.title}</p>
+                    <p className="f-sans" style={{
+                      fontSize:"clamp(13px, 1.4vw, 15px)", color:"#717171",
+                      lineHeight:1.7, textAlign:"left", wordBreak:"normal",
+                    }}>{item.desc}</p>
                   </div>
                 </div>
               ))}
-            </WizCard>
+            </div>
           </>)}
 
           {isFarmer && step === 3 && (<>
