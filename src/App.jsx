@@ -3891,6 +3891,11 @@ function LFFakeFilterRow() {
   );
 }
 
+function buildGoogleMapsUrl(region) {
+  const query = `${region || "徳島県吉野川市"} 周辺`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
 function LandingFlow({ onComplete, onSkip, onLogin }) {
@@ -3954,10 +3959,10 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
 
   const isFarmer = role === "farmer";
   const isWorker = role === "worker";
-  const farmerStepLabels = ["就農歴","機能紹介","目的","プロフィール","詳細","確認","完了"];
+  const farmerStepLabels = ["就農歴","目的","プロフィール","詳細","確認","完了"];
   const workerStepLabels = ["経歴","目的","プロフィール","報酬比較","確認","詳細","確認","完了"];
   const stepLabels = isFarmer ? farmerStepLabels : isWorker ? workerStepLabels : [];
-  const TOTAL = isFarmer ? 7 : 8;
+  const TOTAL = isFarmer ? 6 : 8;
 
   const goNext = () => setStep(s => s + 1);
   const goBack = () => { if (step <= 1) { setRole(""); setStep(0); } else setStep(s => s - 1); };
@@ -3972,7 +3977,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   const isAutoStep = (
     step === 0 ||
     (isFarmer && step === 1) ||
-    (isFarmer && step === 3) ||
+    (isFarmer && step === 2) ||
     (isWorker && step === 1) ||
     (isWorker && step === 2)
   );
@@ -4071,8 +4076,8 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   };
 
   // canGoNext per step
-  // 農家7ステップ: 0=home,1=就農歴,2=機能紹介,3=目的,4=プロフィール,5=詳細,6=確認,7=完了
-  const farmerCanNext = [true, !!farmerExp, true, !!farmerPurpose, !!farmerCrop&&!!farmerTask, true, true, true];
+  // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
+  const farmerCanNext = [true, !!farmerExp, !!farmerPurpose, !!farmerCrop&&!!farmerTask, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -4148,45 +4153,6 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
           </>)}
 
           {isFarmer && step === 2 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>人手探しでできること</h2>
-            <p className="f-sans" style={{ ...lfStyles.subtitle, marginBottom:20 }}>
-              募集、オファー、条件整理を30秒で確認できます。
-            </p>
-            <div style={{ maxWidth:720, width:"100%", margin:"0 auto", display:"flex", flexDirection:"column", gap:12 }}>
-              {[
-                { icon:"📋", title:"仕事を出す",       desc:"作物・日程・報酬を整理して募集できます。" },
-                { icon:"👤", title:"声をかける",        desc:"条件が合う働き手に直接オファーできます。" },
-                { icon:"🔍", title:"条件で探す",        desc:"地域・作業・経験で候補を絞れます。" },
-                { icon:"📊", title:"雇える金額を見る",  desc:"月次記録から、雇用に使える金額を確認できます。" },
-                { icon:"📝", title:"事実で記録する",    desc:"遅刻・欠勤・連絡を共通項目で残します。" },
-              ].map(item => (
-                <div key={item.title} style={{
-                  display:"flex", alignItems:"flex-start", gap:16,
-                  padding:"18px 20px",
-                  border:"1px solid #EBEBEB", borderRadius:20,
-                  background:"#FFFFFF",
-                  boxShadow:"0 8px 24px rgba(0,0,0,0.04)",
-                }}>
-                  <div style={{
-                    width:44, height:44, borderRadius:14, background:"#E6F7EF",
-                    flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20,
-                  }}>{item.icon}</div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <p className="f-sans" style={{
-                      fontSize:"clamp(17px, 1.8vw, 20px)", fontWeight:800, color:"#222",
-                      marginBottom:4, textAlign:"left",
-                    }}>{item.title}</p>
-                    <p className="f-sans" style={{
-                      fontSize:"clamp(13px, 1.4vw, 15px)", color:"#717171",
-                      lineHeight:1.7, textAlign:"left", wordBreak:"normal",
-                    }}>{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>)}
-
-          {isFarmer && step === 3 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>何をしたいですか？</h2>
             <p className="f-sans" style={lfStyles.subtitle}>まずは「募集する」か「探して声をかける」かを選んでください</p>
             <LFCardBtn selected={farmerPurpose==="post"} onClick={() => selectAndNext(setFarmerPurpose, "post")}>
@@ -4199,7 +4165,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </LFCardBtn>
           </>)}
 
-          {isFarmer && step === 4 && (<>
+          {isFarmer && step === 3 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>農家プロフィール</h2>
             <p className="f-sans" style={lfStyles.subtitle}>働き手が応募を判断するための基本情報です</p>
 
@@ -4278,8 +4244,8 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             <LFPrivacyNote />
           </>)}
 
-                    {/* ── 農家 Step5: 詳細入力 ── */}
-          {isFarmer && step === 5 && farmerPurpose === "post" && (<>
+                    {/* ── 農家 Step3: 詳細入力 ── */}
+          {isFarmer && step === 4 && farmerPurpose === "post" && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>募集内容を入力します</h2>
             <p className="f-sans" style={lfStyles.subtitle}>これはプレビューです。実際の公開はまだ行いません。</p>
             <LFWizCard>
@@ -4368,8 +4334,8 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </LFWizCard>
           </>)}
 
-          {/* ── 農家 Step5: オファー側詳細 ── */}
-          {isFarmer && step === 5 && farmerPurpose === "offer" && (<>
+          {/* ── 農家 Step3: オファー側詳細 ── */}
+          {isFarmer && step === 4 && farmerPurpose === "offer" && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>候補者リスト（想定画面）</h2>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:12 }}>作業内容・経験・勤務条件を見える化し、ミスマッチを減らすUI（構想）</p>
             <LFFakeFilterRow />
@@ -4398,9 +4364,9 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             <LFPrivacyNote />
           </>)}
 
-          {/* ── 農家 Step6: Airbnb風 掲載プレビュー確認 ── */}
-          {/* ── 農家 Step6: Airbnb風 掲載プレビュー確認 ── */}
-          {isFarmer && step === 6 && (() => {
+          {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
+          {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
+          {isFarmer && step === 5 && (() => {
             const JT_MAP = {
               "収穫補助": { body:"作物の収穫、運搬補助、簡単な選別作業をお願いします。未経験の方でも、当日説明します。", items:["汚れてもよい服","長靴","手袋","飲み物","帽子"], notes:"屋外作業のため、天候により時間変更の可能性があります。" },
               "選果作業": { body:"収穫した作物の仕分け、箱詰め、出荷前の確認作業をお願いします。", items:["動きやすい服","飲み物","手袋"], notes:"立ち作業が中心になる場合があります。" },
@@ -4444,31 +4410,37 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
               </h2>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手には、以下のように表示されます。</p>
 
-              {/* ═══ 大きな地図 ═══ */}
-              <div className="lf-map-hero" style={{ width:"100%", maxWidth:1120, margin:"0 auto 28px", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)" }}>
-                {/* 道路ダミー */}
-                <div style={{ position:"absolute", top:"40%", left:0, right:0, height:4, background:"rgba(255,255,255,0.6)", transform:"rotate(-1.5deg)" }} />
-                <div style={{ position:"absolute", top:"22%", left:"8%", right:"6%", height:3, background:"rgba(255,255,255,0.45)", transform:"rotate(6deg)" }} />
-                <div style={{ position:"absolute", top:0, bottom:0, left:"36%", width:3, background:"rgba(255,255,255,0.4)" }} />
-                <div style={{ position:"absolute", top:"58%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-4deg)" }} />
-                {/* ラベル */}
-                <div style={{ position:"absolute", top:14, left:14, padding:"4px 12px", background:"rgba(255,255,255,0.92)", borderRadius:12, backdropFilter:"blur(4px)" }}>
-                  <span className="f-sans" style={{ fontSize:10, color:"#555", fontWeight:600 }}>勤務地エリア</span>
+              {/* ═══ 大きな地図（タップでGoogle Maps） ═══ */}
+              <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28 }}>
+                <div className="lf-map-hero" style={{ width:"100%", maxWidth:1120, margin:"0 auto", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)", cursor:"pointer" }}>
+                  {/* 道路ダミー */}
+                  <div style={{ position:"absolute", top:"40%", left:0, right:0, height:4, background:"rgba(255,255,255,0.6)", transform:"rotate(-1.5deg)" }} />
+                  <div style={{ position:"absolute", top:"22%", left:"8%", right:"6%", height:3, background:"rgba(255,255,255,0.45)", transform:"rotate(6deg)" }} />
+                  <div style={{ position:"absolute", top:0, bottom:0, left:"36%", width:3, background:"rgba(255,255,255,0.4)" }} />
+                  <div style={{ position:"absolute", top:"58%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-4deg)" }} />
+                  {/* ラベル */}
+                  <div style={{ position:"absolute", top:14, left:14, padding:"4px 12px", background:"rgba(255,255,255,0.92)", borderRadius:12, backdropFilter:"blur(4px)" }}>
+                    <span className="f-sans" style={{ fontSize:10, color:"#555", fontWeight:600 }}>勤務地エリア</span>
+                  </div>
+                  {/* Google Maps バッジ */}
+                  <div style={{ position:"absolute", top:14, right:14, padding:"5px 12px", background:"rgba(255,255,255,0.95)", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>
+                    <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#00A86B" }}>Google Mapsで開く ↗</span>
+                  </div>
+                  {/* ピン */}
+                  <div style={{ position:"absolute", top:"46%", left:"50%", transform:"translate(-50%,-130%)", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                    <div style={{ width:48, height:48, borderRadius:"50%", background:"#1a1a1a", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, boxShadow:"0 6px 20px rgba(0,0,0,0.3)" }}>📍</div>
+                    <div style={{ width:0, height:0, borderLeft:"7px solid transparent", borderRight:"7px solid transparent", borderTop:"10px solid #1a1a1a", marginTop:-1 }} />
+                  </div>
+                  {/* 地域ラベル */}
+                  <div style={{ position:"absolute", bottom:"26%", left:"50%", transform:"translateX(-50%)", padding:"8px 20px", background:"rgba(255,255,255,0.96)", borderRadius:16, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", whiteSpace:"nowrap", backdropFilter:"blur(6px)" }}>
+                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{farmerRegion ? `${farmerRegion} 周辺` : "地域未入力"}</p>
+                  </div>
+                  {/* 補助文 */}
+                  <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", padding:"3px 12px", background:"rgba(255,255,255,0.88)", borderRadius:10, whiteSpace:"nowrap" }}>
+                    <span className="f-sans" style={{ fontSize:9, color:"#B0B0B0" }}>タップするとGoogle Mapsで開きます　詳細住所は公開されません。</span>
+                  </div>
                 </div>
-                {/* ピン */}
-                <div style={{ position:"absolute", top:"46%", left:"50%", transform:"translate(-50%,-130%)", display:"flex", flexDirection:"column", alignItems:"center" }}>
-                  <div style={{ width:48, height:48, borderRadius:"50%", background:"#1a1a1a", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, boxShadow:"0 6px 20px rgba(0,0,0,0.3)" }}>📍</div>
-                  <div style={{ width:0, height:0, borderLeft:"7px solid transparent", borderRight:"7px solid transparent", borderTop:"10px solid #1a1a1a", marginTop:-1 }} />
-                </div>
-                {/* 地域ラベル */}
-                <div style={{ position:"absolute", bottom:"24%", left:"50%", transform:"translateX(-50%)", padding:"8px 20px", background:"rgba(255,255,255,0.96)", borderRadius:16, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", whiteSpace:"nowrap", backdropFilter:"blur(6px)" }}>
-                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{farmerRegion ? `${farmerRegion} 周辺` : "地域未入力"}</p>
-                </div>
-                {/* 注記 */}
-                <div style={{ position:"absolute", bottom:10, right:12, padding:"3px 10px", background:"rgba(255,255,255,0.88)", borderRadius:10 }}>
-                  <span className="f-sans" style={{ fontSize:9, color:"#B0B0B0" }}>詳細住所は公開されません。マッチング成立後に案内します。</span>
-                </div>
-              </div>
+              </a>
 
               {/* ═══ 2カラムグリッド ═══ */}
               <div className="lf-preview-grid">
@@ -4644,9 +4616,9 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             </>);
           })()}
 
-          {/* ── 農家 Step7: 完了 ── */}
-          {/* ── 農家 Step7: 完了 ── */}
-          {isFarmer && step === 7 && (<>
+          {/* ── 農家 Step3: 完了 ── */}
+          {/* ── 農家 Step3: 完了 ── */}
+          {isFarmer && step === 6 && (<>
             <div style={{ textAlign:"center", paddingTop:20 }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
               <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>ご協力ありがとうございます</h2>
