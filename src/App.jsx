@@ -3901,34 +3901,54 @@ function buildGoogleMapsUrl(region) {
 function LandingFlow({ onComplete, onSkip, onLogin }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 12;
 
-  const [role, setRole] = useState(""); // "" | "farmer" | "worker"
-  const [step, setStep] = useState(0); // 0=home, 1-8=flow
+  // ── ログイン後復帰: postLoginReturnTo を確認して draft を読み込む ──
+  const _draftInit = (() => {
+    try {
+      if (localStorage.getItem('postLoginReturnTo') === 'landingFlowFarmerConfirm') {
+        const d = JSON.parse(localStorage.getItem('landingFlowDraft_v1') || '{}');
+        if (d.role === 'farmer') return d;
+      }
+    } catch {}
+    return null;
+  })();
 
-  // 農家 state
-  const [farmerExp,         setFarmerExp]         = useState("");
-  const [farmerPurpose,     setFarmerPurpose]     = useState("");
-  const [farmerDisplayName, setFarmerDisplayName] = useState("");
-  const [farmerRegion,      setFarmerRegion]      = useState("");
-  const [farmerCropPill,    setFarmerCropPill]    = useState(""); // 作物ピル選択
-  const [farmerCropText,    setFarmerCropText]    = useState(""); // 作物自由入力
-  const [farmerTaskPill,    setFarmerTaskPill]    = useState(""); // 作業ピル選択
-  const [farmerTaskText,    setFarmerTaskText]    = useState(""); // 作業自由入力
-  const [farmerWanted,      setFarmerWanted]      = useState("");
-  const [farmerPayType,     setFarmerPayType]     = useState("");
+  const [role, setRole] = useState(_draftInit?.role ?? ""); // "" | "farmer" | "worker"
+  const [step, setStep] = useState(_draftInit ? 5 : 0); // 0=home, 1-8=flow
+
+  // 農家 state（draft がある場合は復元値を初期値に使う）
+  const d = _draftInit || {};
+  const [farmerExp,         setFarmerExp]         = useState(d.farmerExp ?? "");
+  const [farmerPurpose,     setFarmerPurpose]     = useState(d.farmerPurpose ?? "");
+  const [farmerDisplayName, setFarmerDisplayName] = useState(d.farmerDisplayName ?? "");
+  const [farmerRegion,      setFarmerRegion]      = useState(d.farmerRegion ?? "");
+  const [farmerCropPill,    setFarmerCropPill]    = useState(d.farmerCropPill ?? ""); // 作物ピル選択
+  const [farmerCropText,    setFarmerCropText]    = useState(d.farmerCropText ?? ""); // 作物自由入力
+  const [farmerTaskPill,    setFarmerTaskPill]    = useState(d.farmerTaskPill ?? ""); // 作業ピル選択
+  const [farmerTaskText,    setFarmerTaskText]    = useState(d.farmerTaskText ?? ""); // 作業自由入力
+  const [farmerWanted,      setFarmerWanted]      = useState(d.farmerWanted ?? "");
+  const [farmerPayType,     setFarmerPayType]     = useState(d.farmerPayType ?? "");
   // 勤務時間（4分割）
-  const [startHour,   setStartHour]   = useState("8");
-  const [startMinute, setStartMinute] = useState("00");
-  const [endHour,     setEndHour]     = useState("16");
-  const [endMinute,   setEndMinute]   = useState("00");
+  const [startHour,   setStartHour]   = useState(d.startHour   ?? "8");
+  const [startMinute, setStartMinute] = useState(d.startMinute ?? "00");
+  const [endHour,     setEndHour]     = useState(d.endHour     ?? "16");
+  const [endMinute,   setEndMinute]   = useState(d.endMinute   ?? "00");
   // 時給・日給（文字列で保持してカーソル飛び防止）
-  const [hourlyWageInput, setHourlyWageInput] = useState("");
-  const [dailyWageInput,  setDailyWageInput]  = useState("");
-  const [jobDateStart,    setJobDateStart]    = useState(null); // Date|null
-  const [jobDateEnd,      setJobDateEnd]      = useState(null); // Date|null
+  const [hourlyWageInput, setHourlyWageInput] = useState(d.hourlyWageInput ?? "");
+  const [dailyWageInput,  setDailyWageInput]  = useState(d.dailyWageInput  ?? "");
+  // 日程（Date は JSON.parse で文字列になるので再変換）
+  const [jobDateStart,    setJobDateStart]    = useState(d.jobDateStart ? new Date(d.jobDateStart) : null);
+  const [jobDateEnd,      setJobDateEnd]      = useState(d.jobDateEnd   ? new Date(d.jobDateEnd)   : null);
   const [showCalendar,    setShowCalendar]    = useState(false);
   const [calYear,         setCalYear]         = useState(new Date().getFullYear());
   const [calMonth,        setCalMonth]        = useState(new Date().getMonth());
-  const [jobCount,        setJobCount]        = useState("");
+  const [jobCount,        setJobCount]        = useState(d.jobCount ?? "");
+
+  // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
+  useEffect(() => {
+    if (_draftInit) {
+      try { localStorage.removeItem('postLoginReturnTo'); } catch {}
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 派生値
   const workTimeLabel = `${startHour}:${startMinute}〜${endHour}:${endMinute}`;
@@ -4389,14 +4409,24 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
             const profilePct    = Math.round(filledCount / profileFields.length * 100);
             const missingFields = fieldNames.filter((_, i) => !profileFields[i]);
 
-            // ドラフト保存（ログイン前に入力内容を保持）
+            // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
             const saveDraft = () => {
               try {
-                const draft = { role, step, farmerExp, farmerDisplayName, farmerRegion, farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText, farmerWanted, farmerPayType, startHour, startMinute, endHour, endMinute, jobCount, hourlyWageInput, dailyWageInput, jobExp, jobTemplate, jobNotes };
+                const draft = {
+                  role: "farmer", farmerStep: 5, // 5=確認画面（新フロー）
+                  farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
+                  farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
+                  farmerWanted, farmerPayType,
+                  startHour, startMinute, endHour, endMinute,
+                  jobCount, hourlyWageInput, dailyWageInput,
+                  jobExp, jobTemplate, jobNotes,
+                  jobDateStart: jobDateStart?.toISOString() ?? null,
+                  jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
+                };
                 localStorage.setItem('landingFlowDraft_v1', JSON.stringify(draft));
                 localStorage.setItem('postLoginReturnTo', 'landingFlowFarmerConfirm');
-                // TODO: App側でログイン成功後に postLoginReturnTo を確認し、
-                //       landingFlowDraft_v1 を読み込んでstateを復元し step=6 に戻す
+                // ログイン後: LandingFlow 初期化時に _draftInit が読み込まれ、
+                //   role="farmer", step=5（確認画面）として復元される
               } catch {}
             };
 
