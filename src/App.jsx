@@ -59,6 +59,16 @@ const SEED_DESTS = [];
 const THIS_YEAR   = new Date().getFullYear();
 const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 
+// ── DEV バッジ（原因特定用・確認後削除） ─────────────────────
+const DEV_V = "2026-06-04";
+const DevBadge = ({ label }) => (
+  <div style={{
+    position:"fixed", top:8, left:8, zIndex:99999,
+    background:"#111", color:"#fff", fontSize:11,
+    padding:"4px 8px", borderRadius:999, pointerEvents:"none",
+  }}>DEV: {label} v{DEV_V}</div>
+);
+
 // ── エラー監視ユーティリティ ──────────────────────────────────
 function getSessionId() {
   try {
@@ -1576,6 +1586,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
 
   return (
     <div className="appear">
+      <DevBadge label="BoardTab(公開ボード)" />
 
       {!me && (<>
 
@@ -4104,6 +4115,7 @@ function LandingFlow({ onComplete, onSkip, onLogin }) {
   // ── OUTER SHELL ─────────────────────────────────────────────
   return (
     <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
+      <DevBadge label="LandingFlow" />
 
       {/* 進捗バー */}
       {step > 0 && (
@@ -5777,6 +5789,7 @@ function LaborTab({ farmersCount, onLogin }) {
   // ── HOME ──
   if (step === 0) return (
     <div className="appear" style={{ maxWidth:560, margin:"0 auto", paddingBottom:40 }}>
+      <DevBadge label="LaborTab" />
       <div style={{ textAlign:"center", marginBottom:32 }}>
         <div style={{ fontSize:52, marginBottom:16 }}>🌾</div>
         <h1 className="f-sans" style={{ fontSize:24, fontWeight:700, color:"#222", lineHeight:1.4, marginBottom:12 }}>
@@ -7389,6 +7402,7 @@ const subDest=useCallback(async d=>{
 
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
+        <DevBadge label="App(Dashboard/Home)" />
         {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {tab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
         {tab==="input"&&(me
