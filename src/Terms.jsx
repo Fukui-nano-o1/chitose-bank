@@ -59,7 +59,7 @@ export default function Terms({ onClose }) {
           borderBottom: "1px solid #EBEBEB",
         }}>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#222", margin: 0 }}>利用規約</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#222", margin: 0, textAlign: "center" }}>利用規約</h1>
             <p style={{ fontSize: 11, color: "#B0B0B0", marginTop: 4 }}>日本農業研究所（chitose-bank） v1.0 · 最終更新日：2026年5月25日</p>
           </div>
           <button onClick={onClose} aria-label="閉じる" style={{
