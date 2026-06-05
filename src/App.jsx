@@ -7255,7 +7255,6 @@ const subDest=useCallback(async d=>{
   const userLevel = !me ? 1 : isContributor ? 3 : 2;
 
   const TABS=[
-    {k:"labor",l:"お仕事"},
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
@@ -7278,7 +7277,7 @@ const subDest=useCallback(async d=>{
         position:"sticky",top:0,zIndex:50,
       }}>
         {/* PC: タブ（左）*/}
-        <nav style={{display:"flex",flex:1}} className="header-nav">
+        {TABS.length>0&&<nav style={{display:"flex",flex:1}} className="header-nav">
           {TABS.map(({k,l,badge,locked})=>(
             <button key={k} onClick={()=>setTab(k)}
               className={`nav-item ${tab===k?"active":""}`}
@@ -7298,7 +7297,7 @@ const subDest=useCallback(async d=>{
               }}>{badge}</span>}
             </button>
           ))}
-        </nav>
+        </nav>}
 
         {/* 右：通知ベル＋ユーザーピル（PC）／全幅（スマホ） */}
         {me ? (
@@ -7425,18 +7424,18 @@ const subDest=useCallback(async d=>{
       )}
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
-      <div className="bottom-tab-bar">
-        {[
-          {k:"labor", icon:"🤝", l:"お仕事"},
-          ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
-        ].map(({k,icon,l})=>(
-          <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}
-            style={k==="input"&&tab!==k?{color:"#00A86B"}:undefined}>
-            <span className="icon">{icon}</span>
-            {l}
-          </button>
-        ))}
-      </div>
+      {TABS.length>0&&<div className="bottom-tab-bar">
+        {TABS.map(({k,badge,l})=>{
+          const icons={labor:"🤝",admin:"⚙️"};
+          return(
+            <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}>
+              <span className="icon">{icons[k]}</span>
+              {l}
+              {badge>0&&<span style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:"50%",background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{badge}</span>}
+            </button>
+          );
+        })}
+      </div>}
 
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
