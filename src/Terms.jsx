@@ -62,11 +62,11 @@ export default function Terms({ onClose }) {
             <h1 style={{ fontSize: 20, fontWeight: 700, color: "#222", margin: 0 }}>利用規約</h1>
             <p style={{ fontSize: 11, color: "#B0B0B0", marginTop: 4 }}>日本農業研究所（chitose-bank） v1.0 · 最終更新日：2026年5月25日</p>
           </div>
-          <button onClick={onClose} style={{
-            width: 32, height: 32, borderRadius: "50%", border: "1px solid #EBEBEB",
-            background: "#F7F7F7", color: "#717171", fontSize: 16, cursor: "pointer",
+          <button onClick={onClose} aria-label="閉じる" style={{
+            width: 40, height: 40, borderRadius: 999, border: "1px solid #EBEBEB",
+            background: "#FFFFFF", color: "#222222", fontSize: 24, fontWeight: 600, cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.12)", flexShrink: 0,
           }}>×</button>
         </div>
 

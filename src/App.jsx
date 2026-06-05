@@ -6651,24 +6651,29 @@ function PrivacyPolicy({ onClose }) {
   ];
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#fff", borderRadius:20, maxWidth:640, width:"100%", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.15)" }}>
-        <div style={{ padding:"28px 28px 16px", borderBottom:"1px solid #EBEBEB", position:"sticky", top:0, background:"#fff", borderRadius:"20px 20px 0 0", zIndex:1 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>プライバシーポリシー</h2>
-            <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", background:"#F7F7F7", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-          </div>
-          <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>日本農業研究所（chitose-bank） · 最終更新日：2026年5月25日</p>
-        </div>
-        <div style={{ padding:"24px 28px 36px" }}>
+    <div
+      style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.38)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ position:"relative", width:"min(92vw, 920px)", maxHeight:"88vh", overflowY:"auto", background:"#FFFFFF", borderRadius:24, padding:"32px", boxShadow:"0 24px 80px rgba(0,0,0,0.18)", fontFamily:"'Noto Sans JP','Inter',sans-serif" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button onClick={onClose} aria-label="閉じる" style={{ position:"absolute", top:18, right:18, width:40, height:40, borderRadius:999, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:24, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.12)", cursor:"pointer", zIndex:10 }}>×</button>
+        <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 4px" }}>プライバシーポリシー</h2>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>日本農業研究所（chitose-bank） · 最終更新日：2026年5月25日</p>
+        <div style={{ display:"grid", gap:20 }}>
           {sections.map((s, i) => (
-            <div key={i} style={{ marginBottom:24 }}>
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:8 }}>{s.title}</p>
+            <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
+              <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
               {s.body.map((p, j) => (
-                <p key={j} className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:8 }}>{p}</p>
+                <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
               ))}
             </div>
           ))}
+        </div>
+        <div style={{ textAlign:"center", marginTop:28 }}>
+          <button onClick={onClose} style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:12, padding:"13px 48px", fontSize:14, fontWeight:600, cursor:"pointer" }}>閉じる</button>
         </div>
       </div>
     </div>
@@ -6693,25 +6698,32 @@ function DataConstitution({ onClose }) {
   ];
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div style={{ background:"#fff", borderRadius:20, maxWidth:640, width:"100%", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.15)" }}>
-        <div style={{ padding:"28px 28px 16px", borderBottom:"1px solid #EBEBEB", position:"sticky", top:0, background:"#fff", borderRadius:"20px 20px 0 0", zIndex:1 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>データ憲法</h2>
-            <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", background:"#F7F7F7", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+    <div
+      style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.38)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ position:"relative", width:"min(92vw, 920px)", maxHeight:"88vh", overflowY:"auto", background:"#FFFFFF", borderRadius:24, padding:"32px", boxShadow:"0 24px 80px rgba(0,0,0,0.18)", fontFamily:"'Noto Sans JP','Inter',sans-serif" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button onClick={onClose} aria-label="閉じる" style={{ position:"absolute", top:18, right:18, width:40, height:40, borderRadius:999, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:24, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.12)", cursor:"pointer", zIndex:10 }}>×</button>
+        <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 4px" }}>データ憲法</h2>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>日本農業研究所（chitose-bank） v1.1 · 制定日：2026年5月25日</p>
+        <div style={{ display:"grid", gap:20 }}>
+          <div style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
+            <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin:0, textAlign:"left" }}>
+              本文書は、日本農業研究所（chitose-bank）がデータを取り扱う上での基本原則を定めたものです。すべての機能開発・運用判断はこの原則に基づきます。
+            </p>
           </div>
-          <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>日本農業研究所（chitose-bank） v1.1 · 制定日：2026年5月25日</p>
-        </div>
-        <div style={{ padding:"24px 28px 36px" }}>
-          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, marginBottom:24 }}>
-            本文書は、日本農業研究所（chitose-bank）がデータを取り扱う上での基本原則を定めたものです。すべての機能開発・運用判断はこの原則に基づきます。
-          </p>
           {articles.map(a => (
-            <div key={a.num} style={{ marginBottom:20 }}>
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:6 }}>第{a.num}条　{a.title}</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9 }}>{a.body}</p>
+            <div key={a.num} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
+              <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>第{a.num}条　{a.title}</h3>
+              <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin:0, textAlign:"left" }}>{a.body}</p>
             </div>
           ))}
+        </div>
+        <div style={{ textAlign:"center", marginTop:28 }}>
+          <button onClick={onClose} style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:12, padding:"13px 48px", fontSize:14, fontWeight:600, cursor:"pointer" }}>閉じる</button>
         </div>
       </div>
     </div>
