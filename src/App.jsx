@@ -7267,6 +7267,7 @@ const subDest=useCallback(async d=>{
   const userLevel = !me ? 1 : isContributor ? 3 : 2;
 
   const TABS=[
+    {k:"labor",l:"お仕事"},
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
@@ -7289,7 +7290,7 @@ const subDest=useCallback(async d=>{
         position:"sticky",top:0,zIndex:50,
       }}>
         {/* PC: タブ（左）*/}
-        {TABS.length>0&&<nav style={{display:"flex",flex:1}} className="header-nav">
+        {TABS.length>1&&<nav style={{display:"flex",flex:1}} className="header-nav">
           {TABS.map(({k,l,badge,locked})=>(
             <button key={k} onClick={()=>setTab(k)}
               className={`nav-item ${tab===k?"active":""}`}
@@ -7436,7 +7437,7 @@ const subDest=useCallback(async d=>{
       )}
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
-      {TABS.length>0&&<div className="bottom-tab-bar">
+      {TABS.length>1&&<div className="bottom-tab-bar">
         {TABS.map(({k,badge,l})=>{
           const icons={labor:"🤝",admin:"⚙️"};
           return(
