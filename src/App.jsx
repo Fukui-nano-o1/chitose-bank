@@ -7255,10 +7255,10 @@ const subDest=useCallback(async d=>{
   const userLevel = !me ? 1 : isContributor ? 3 : 2;
 
   const TABS=[
-    {k:"board",l:"公開ボード"},
-    {k:"labor",l:"人手確保"},
+    {k:"board",l:"比べる"},
+    {k:"labor",l:"お仕事"},
     {k:"input",l:"データ入力"},
-    {k:"plan",l:"五年計画書"},
+    {k:"plan",l:"準備する"},
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
@@ -7425,10 +7425,10 @@ const subDest=useCallback(async d=>{
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       <div className="bottom-tab-bar">
         {[
-          {k:"board", icon:"📊", l:"ボード"},
-          {k:"labor", icon:"🤝", l:"人手確保"},
+          {k:"board", icon:"📊", l:"比べる"},
+          {k:"labor", icon:"🤝", l:"お仕事"},
           {k:"input", icon:"✏️", l:"入力"},
-          {k:"plan", icon:"📋", l:"計画書"},
+          {k:"plan", icon:"📋", l:"準備する"},
           ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
         ].map(({k,icon,l})=>(
           <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}
