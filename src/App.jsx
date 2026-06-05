@@ -6998,7 +6998,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
-  const [tab,setTab]=useState("board");
+  const [tab,setTab]=useState("labor");
   const [farmers,setFarmers]=useState([]);
   const [farmPend,setFarmPend]=useState([]);
   const [destOk,setDestOk]=useState([]);
@@ -7255,12 +7255,14 @@ const subDest=useCallback(async d=>{
   const userLevel = !me ? 1 : isContributor ? 3 : 2;
 
   const TABS=[
-    {k:"board",l:"比べる"},
     {k:"labor",l:"お仕事"},
-    {k:"input",l:"データ入力"},
-    {k:"plan",l:"準備する"},
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
+
+  useEffect(()=>{
+    const visibleTabs=["labor",...(me?.email===ADMIN_EMAIL?["admin"]:[])];
+    if(!visibleTabs.includes(tab))setTab("labor");
+  },[tab,me?.email]);
 
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink}}>
@@ -7425,10 +7427,7 @@ const subDest=useCallback(async d=>{
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       <div className="bottom-tab-bar">
         {[
-          {k:"board", icon:"📊", l:"比べる"},
           {k:"labor", icon:"🤝", l:"お仕事"},
-          {k:"input", icon:"✏️", l:"入力"},
-          {k:"plan", icon:"📋", l:"準備する"},
           ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
         ].map(({k,icon,l})=>(
           <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}
