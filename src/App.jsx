@@ -7299,7 +7299,7 @@ const subDest=useCallback(async d=>{
         </nav>
 
         {/* 右：通知ベル＋ユーザーピル（PC）／全幅（スマホ） */}
-        {me&&(
+        {me ? (
           <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}}>
             {/* 通知ベル */}
             <div data-notif-bell="" style={{position:"relative"}}>
@@ -7381,6 +7381,23 @@ const subDest=useCallback(async d=>{
                 style={{fontSize:13,background:"transparent",border:"none",cursor:"pointer",padding:"2px 2px",color:"#717171",lineHeight:1,flexShrink:0}}>⚙</button>
             </div>
           </div>
+        ) : (
+          <button
+            onClick={()=>setShowLanding(true)}
+            className="f-sans"
+            style={{
+              marginLeft:"auto",
+              border:"1px solid #EBEBEB",
+              borderRadius:999,
+              background:"#FFFFFF",
+              padding:"8px 14px",
+              fontSize:13,
+              fontWeight:700,
+              color:"#222",
+              boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
+              cursor:"pointer",
+            }}
+          >新規登録・ログイン</button>
         )}
       </header>
 
