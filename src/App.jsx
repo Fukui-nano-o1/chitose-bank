@@ -7257,8 +7257,8 @@ const subDest=useCallback(async d=>{
   const TABS=[
     {k:"board",l:"公開ボード"},
     {k:"labor",l:"人手確保"},
-    {k:"input",l:!me?"新規登録・ログイン":isMember?"データ入力":"🔒 データ入力",locked:!isMember},
-    ...(isMember?[{k:"plan",l:"五年計画書",locked:!isContributor}]:[]),
+    {k:"input",l:"データ入力"},
+    {k:"plan",l:"五年計画書"},
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
@@ -7427,8 +7427,8 @@ const subDest=useCallback(async d=>{
         {[
           {k:"board", icon:"📊", l:"ボード"},
           {k:"labor", icon:"🤝", l:"人手確保"},
-          {k:"input", icon:"✏️", l:me?"入力":"新規登録"},
-          ...(isMember?[{k:"plan", icon:"📋", l:"計画書"}]:[]),
+          {k:"input", icon:"✏️", l:"入力"},
+          {k:"plan", icon:"📋", l:"計画書"},
           ...(me?.email===ADMIN_EMAIL?[{k:"admin", icon:"⚙️", l:"管理"}]:[]),
         ].map(({k,icon,l})=>(
           <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}
