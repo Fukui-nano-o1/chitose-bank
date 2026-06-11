@@ -3882,6 +3882,23 @@ function LFSummaryRow({ label, value }) {
     </div>
   );
 }
+
+// 徳島県最低賃金（地域別最低賃金） 2026/1/1発効。改定時に要更新。確認先：徳島労働局 賃金室 088-652-9165
+const MIN_WAGE_TOKUSHIMA = 1046;
+
+// 時給・日給が徳島県最低賃金を下回っていないかを判定する純関数
+// workHours: 勤務時間（終了時刻 - 開始時刻、時間単位）。6時間超で休憩45分、8時間超で休憩60分を控除した実労働時間で日給を時給換算する。
+function validateMinWage(hourly, daily, workHours) {
+  const hourlyViolation = hourly > 0 && hourly < MIN_WAGE_TOKUSHIMA;
+  let dailyViolation = false;
+  if (daily > 0 && workHours > 0) {
+    const breakHours = workHours > 8 ? 1 : workHours > 6 ? 0.75 : 0;
+    const actualHours = workHours - breakHours;
+    if (actualHours > 0 && daily / actualHours < MIN_WAGE_TOKUSHIMA) dailyViolation = true;
+  }
+  return { hourlyViolation, dailyViolation };
+}
+
 function LFWageNote() {
   return (
     <div style={{ padding:"8px 12px", background:"#FEF3E2", borderRadius:8, border:"1px solid #F5A62333", marginTop:8 }}>
@@ -3989,6 +4006,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const workTimeLabel = `${startHour}:${startMinute}〜${endHour}:${endMinute}`;
   const hourlyWage = Number(hourlyWageInput.replace(/[^\d]/g, "")) || 0;
   const dailyWage  = Number(dailyWageInput.replace(/[^\d]/g, "")) || 0;
+  const workHours = (Number(endHour) + Number(endMinute) / 60) - (Number(startHour) + Number(startMinute) / 60);
+  const { hourlyViolation, dailyViolation } = validateMinWage(hourlyWage, dailyWage, workHours);
   const [jobExp,            setJobExp]            = useState("");
   const [jobNotes,          setJobNotes]          = useState("");
   const [jobTemplate,       setJobTemplate]       = useState("収穫補助");
@@ -4132,7 +4151,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
-  const farmerCanNext = [true, !!farmerExp, !!farmerPurpose, !!farmerCrop&&!!farmerTask, true, true, true];
+  const farmerCanNext = [true, !!farmerExp, !!farmerPurpose, !!farmerCrop&&!!farmerTask, farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -4377,11 +4396,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
                 <input inputMode="numeric" value={hourlyWageInput} onChange={e => setHourlyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：1200" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
                 <LFWageCompare type="時給" value={hourlyWage} avg={AVG_HOURLY} count={AVG_COUNT} />
+                {hourlyViolation && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
+                )}
               </div>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
                 <input inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
+                {dailyViolation && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
+                )}
               </div>
               <LFWageNote />
               {/* 7. 必要経験 */}
@@ -6705,10 +6730,8 @@ const subDest=useCallback(async d=>{
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
-  useEffect(()=>{
-    const visibleTabs=["labor",...(me?.email===ADMIN_EMAIL?["admin"]:[])];
-    if(!visibleTabs.includes(tab))setTab("labor");
-  },[tab,me?.email]);
+  const visibleTabKeys = TABS.map(t=>t.k);
+  const safeTab = visibleTabKeys.includes(tab) ? tab : "labor";
 
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink}}>
@@ -6727,12 +6750,12 @@ const subDest=useCallback(async d=>{
         {TABS.length>1&&<nav style={{display:"flex",flex:1}} className="header-nav">
           {TABS.map(({k,l,badge,locked})=>(
             <button key={k} onClick={()=>setTab(k)}
-              className={`nav-item ${tab===k?"active":""}`}
+              className={`nav-item ${safeTab===k?"active":""}`}
               style={{
                 padding:"0 16px",height:52,border:"none",borderRadius:0,
                 background:"transparent",
-                color:tab===k?"#222222":locked?"#D0D0D0":"#717171",
-                fontSize:12,fontWeight:tab===k?600:400,
+                color:safeTab===k?"#222222":locked?"#D0D0D0":"#717171",
+                fontSize:12,fontWeight:safeTab===k?600:400,
                 letterSpacing:".02em",position:"relative",
               }}>
               {l}
@@ -6875,7 +6898,7 @@ const subDest=useCallback(async d=>{
         {TABS.map(({k,badge,l})=>{
           const icons={labor:"🤝",admin:"⚙️"};
           return(
-            <button key={k} onClick={()=>setTab(k)} className={tab===k?"active":""}>
+            <button key={k} onClick={()=>setTab(k)} className={safeTab===k?"active":""}>
               <span className="icon">{icons[k]}</span>
               {l}
               {badge>0&&<span style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:"50%",background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{badge}</span>}
@@ -6887,16 +6910,16 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
-        {tab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {tab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
-        {tab==="input"&&(me
+        {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
+        {safeTab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
+        {safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
           : authV==="register"
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>
         )}
-        {tab==="plan"&&isMember&&(
+        {safeTab==="plan"&&isMember&&(
           isContributor
             ? <FiveYearPlanTab loggedInFarmer={me} records={recs} destApproved={destOk} farmers={farmers}/>
             : <div style={{ textAlign:"center", padding:"64px 24px", maxWidth:480, margin:"0 auto" }}>
@@ -6913,7 +6936,7 @@ const subDest=useCallback(async d=>{
                 }}>データを入力する</button>
               </div>
         )}
-        {tab==="admin"&&me?.email===ADMIN_EMAIL&&<AdminTab
+        {safeTab==="admin"&&me?.email===ADMIN_EMAIL&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
