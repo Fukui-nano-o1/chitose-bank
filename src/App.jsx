@@ -3932,7 +3932,7 @@ function buildGoogleMapsUrl(region) {
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
 function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false }) {
-  const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 12;
+  const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
   const TARGET = 30;
   const progress = Math.min(Math.round((farmersCount / TARGET) * 100), 100);
 
@@ -4421,7 +4421,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   </div>
                   <div style={{ textAlign:"right" }}>
                     <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B" }}>¥{c.hourly.toLocaleString()}/h</p>
-                    <p className="f-sans" style={{ fontSize:10, color: c.hourly>=AVG_HOURLY ? "#00A86B" : "#F5A623" }}>平均{c.hourly>=AVG_HOURLY?"+":""}{(c.hourly-AVG_HOURLY).toLocaleString()}円</p>
+                    {AVG_COUNT >= 5 && (
+                      <p className="f-sans" style={{ fontSize:10, color: c.hourly>=AVG_HOURLY ? "#00A86B" : "#F5A623" }}>平均{c.hourly>=AVG_HOURLY?"+":""}{(c.hourly-AVG_HOURLY).toLocaleString()}円</p>
+                    )}
                   </div>
                 </div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
