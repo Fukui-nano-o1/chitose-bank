@@ -52,6 +52,8 @@ React + Supabase（Project: aegwepgtmwcnwzybpgsh, 東京リージョン）。
 - 1回の指示に複数の大きな変更を入れない
 - 編集後は grep で反映を確認し、結果を報告する
 - 手順：①対象を検索 ②置換 ③grep確認 ④結果報告
+- 使用量90%警告が出たら一度停止し、その日の作業と翌日の引き継ぎを PROGRESS.md に追記してから終了する
+- コード修正は「修正→grep等で確認→OKならcommit→push」の順。確認なしのpush禁止
 
 ## 技術メモ
 - window.storage（Artifact専用API）の呼び出しは本番では無効。新規追加しない
