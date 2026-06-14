@@ -6727,6 +6727,9 @@ const subDest=useCallback(async d=>{
 
   const TABS=[
     {k:"labor",l:"お仕事"},
+    {k:"board",l:"公開ボード"},
+    {k:"input",l:"データ入力"},
+    ...(me?[{k:"plan",l:"五年計画書"}]:[]),
     ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
   ];
 
