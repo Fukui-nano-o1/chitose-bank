@@ -4774,7 +4774,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </div>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={lfStyles.inputLabel}>活動地域</label>
-                <input value={workerRegion} onChange={e => setWorkerRegion(e.target.value)} placeholder="例：徳島県内" className="field f-sans" style={{ fontSize:16 }} />
+                <input value={workerRegion} onChange={e => setWorkerRegion(e.target.value)} placeholder="例：吉野川市" className="field f-sans" style={{ fontSize:16 }} />
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4, lineHeight:1.5 }}>※ 市町村まで。番地・字は公開されません</p>
               </div>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={lfStyles.inputLabel}>移動手段</label>
