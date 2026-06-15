@@ -3812,7 +3812,7 @@ function JobSearchMapView() {
                       詳細を見る（準備中）
                     </button>
                     <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>
-                      本名・詳細住所は非公開です。マッチング成立後に開示します。
+                      本名・詳細住所は公開しません。
                     </p>
                   </div>
                 )}
