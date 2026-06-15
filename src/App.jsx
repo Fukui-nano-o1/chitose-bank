@@ -4744,7 +4744,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {isWorker && step === 1 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>農業経験を教えてください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>経験は問いません。当てはまるものをお選びください</p>
-            {["未経験","農業バイト経験あり","農家経験あり","学生","パート希望"].map(v => (
+            {["未経験","経験あり"].map(v => (
               <LFCardBtn key={v} selected={workerExp===v} onClick={() => selectAndNext(setWorkerExp, v)}>
                 <div className="f-sans" style={lfStyles.cardTitle}>{v}</div>
               </LFCardBtn>
