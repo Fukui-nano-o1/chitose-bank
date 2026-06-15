@@ -6728,6 +6728,7 @@ const subDest=useCallback(async d=>{
 
   const TABS=[
     {k:"labor",l:"お仕事"},
+    {k:"jobs",l:"募集中の仕事"},
     {k:"board",l:"公開ボード"},
     {k:"input",l:"データ入力"},
     ...(me?[{k:"plan",l:"五年計画書"}]:[]),
@@ -6916,6 +6917,7 @@ const subDest=useCallback(async d=>{
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
+        {safeTab==="jobs"&&<JobSearchMapView />}
         {safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
