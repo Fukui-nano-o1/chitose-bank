@@ -342,7 +342,7 @@ input:focus { outline: none; }
   /* Hide desktop header nav on mobile */
   .header-nav { display: none !important; }
   header { padding: 0 16px !important; height: 52px !important; }
-  main { padding: 16px 12px 90px !important; }
+  main { padding: 10px 12px 90px !important; }
   .ledger-card { padding: 16px !important; }
 }
 
@@ -6918,7 +6918,7 @@ const subDest=useCallback(async d=>{
       </div>}
 
       {/* ── MAIN ── */}
-      <main style={{maxWidth:920,margin:"0 auto",padding:"32px 24px 72px"}}>
+      <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
