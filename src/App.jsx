@@ -6470,7 +6470,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
-  const [tab,setTab]=useState("board");
+  const [tab,setTab]=useState("jobs");
   const [farmers,setFarmers]=useState([]);
   const [farmPend,setFarmPend]=useState([]);
   const [destOk,setDestOk]=useState([]);
