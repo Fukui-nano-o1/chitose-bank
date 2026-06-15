@@ -424,11 +424,11 @@ input:focus { outline: none; }
 @media (max-width: 640px) {
   .site-footer-fixed {
     bottom: 62px;
-    padding: 8px 12px;
+    padding: 6px 10px;
   }
   .site-footer-fixed .footer-inner {
     justify-content: center;
-    gap: 8px 14px;
+    gap: 4px 10px;
   }
   .site-footer-fixed .footer-copy {
     font-size: 10px;
@@ -441,6 +441,8 @@ input:focus { outline: none; }
   }
   .site-footer-fixed .footer-note {
     font-size: 9px;
+    margin: 2px 0 0;
+    line-height: 1.4;
   }
   main {
     padding-bottom: 150px !important;
