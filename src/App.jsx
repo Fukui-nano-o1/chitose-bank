@@ -436,6 +436,9 @@ input:focus { outline: none; }
   .site-footer-fixed .footer-links {
     gap: 12px;
   }
+  .site-footer-fixed .footer-links button {
+    font-size: 9px;
+  }
   .site-footer-fixed .footer-note {
     font-size: 9px;
   }
@@ -6970,7 +6973,7 @@ const subDest=useCallback(async d=>{
             }}>プライバシーポリシー</button>
           </div>
           <p className="f-sans footer-note">
-            chitose-bankは銀行ではありません。表示データは参考情報であり、融資採択・補助金採択・収益改善を保証しません。
+            chitose-bankは銀行ではありません。表示データは参考情報です。
           </p>
         </div>
       </footer>
