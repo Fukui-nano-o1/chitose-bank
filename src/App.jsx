@@ -4936,7 +4936,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 }
 
 // ── AdminTab ─────────────────────────────────────────────────
-function AdminTab() {
+function AdminTab({ onJump }) {
   const [sub, setSub] = useState("farmers");
   const [farmers, setFarmers] = useState([]);
   const [dests, setDests] = useState([]);
@@ -5112,6 +5112,26 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         }}>
           🔄 更新
         </button>
+      </div>
+
+      {/* 開発: 画面ジャンプ */}
+      <div style={{ marginBottom:16 }}>
+        <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ</p>
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {[
+            { k:"jobs",  l:"募集中の仕事" },
+            { k:"board", l:"公開ボード" },
+            { k:"input", l:"データ入力" },
+            { k:"plan",  l:"五年計画" },
+            { k:"labor", l:"お仕事" },
+          ].map(({ k, l }) => (
+            <button key={k} onClick={() => onJump(k)} className="f-sans" style={{
+              padding:"6px 12px", borderRadius:8, border:"1px solid #EBEBEB",
+              background:"#F7F7F7", color:"#717171", fontSize:11, fontWeight:600,
+              cursor:"pointer",
+            }}>{l}</button>
+          ))}
+        </div>
       </div>
 
       {/* サブタブ */}
@@ -6965,7 +6985,8 @@ const subDest=useCallback(async d=>{
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
-          onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}/>}
+          onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
+          onJump={(t) => setTab(t)}/>}
       </main>
 
       {/* ── FOOTER（固定） ── */}
