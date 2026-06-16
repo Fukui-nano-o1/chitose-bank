@@ -3638,10 +3638,46 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 // 「募集中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
 // 将来: Google Maps / Mapbox / Leaflet に差し替え可能な構造にしてある。
 const JOB_SEARCH_SAMPLES = [
-  { id:1, crop:"ブロッコリー", task:"収穫補助", dateLabel:"6/10〜6/13", payType:"hourly", pay:1200, region:"吉野川市山川町周辺",  experience:"未経験可",   icon:"🥦", lat:34.05, lng:134.23 },
-  { id:2, crop:"なす",         task:"選果",     dateLabel:"6/15",        payType:"daily",  pay:8000, region:"阿波市周辺",          experience:"経験者歓迎", icon:"🍆", lat:34.10, lng:134.30 },
-  { id:3, crop:"ねぎ",         task:"定植",     dateLabel:"6/20〜6/22",  payType:"hourly", pay:1100, region:"吉野川市鴨島町周辺",  experience:"未経験可",   icon:"🌿", lat:34.07, lng:134.35 },
-  { id:4, crop:"トマト",       task:"収穫",     dateLabel:"6/25〜7/5",   payType:"daily",  pay:9000, region:"吉野川市周辺",        experience:"未経験可",   icon:"🍅", lat:34.06, lng:134.28 },
+  {
+    id:1, crop:"ブロッコリー", task:"収穫補助", dateLabel:"6/10〜6/13", payType:"hourly", pay:1200,
+    region:"吉野川市山川町周辺", experience:"未経験可", icon:"🥦", lat:34.05, lng:134.23,
+    workTime:"8:00〜16:00", count:"4名",
+    payTiming:"即日払い（作業当日）", payMethod:"現金手渡し",
+    wanted:"未経験歓迎",
+    jobBody:"ブロッコリーの房を一つずつ手作業で収穫し、コンテナへ積み込む作業です。かがんだ姿勢での作業が続きますが、コツをつかめばテンポよく進められます。当日朝に簡単な説明をしますので、初めての方もご安心ください。",
+    items:"長靴・軍手・帽子・飲み物",
+    notes:"圃場は水はけがやや悪い場合があります。泥汚れが付いてもよい服装でお越しください。",
+  },
+  {
+    id:2, crop:"なす",         task:"選果",     dateLabel:"6/15",        payType:"daily",  pay:8000,
+    region:"阿波市周辺",          experience:"経験者歓迎", icon:"🍆", lat:34.10, lng:134.30,
+    workTime:"7:30〜15:30", count:"2名",
+    payTiming:"週末まとめ払い", payMethod:"銀行振込",
+    wanted:"1回以上の農作業経験者歓迎",
+    jobBody:"収穫済みのなすをサイズ・形・傷の有無で選別し、出荷箱へ詰める作業です。選別基準は作業開始前にお伝えします。立ち作業が中心となります。",
+    items:"動きやすい服・帽子・飲み物",
+    notes:"選別基準に慣れるまで少し時間がかかりますが、わからない点はその都度確認しながら進められます。",
+  },
+  {
+    id:3, crop:"ねぎ",         task:"定植",     dateLabel:"6/20〜6/22",  payType:"hourly", pay:1100,
+    region:"吉野川市鴨島町周辺",  experience:"未経験可",   icon:"🌿", lat:34.07, lng:134.35,
+    workTime:"7:00〜12:00", count:"5名",
+    payTiming:"即日払い（作業当日）", payMethod:"現金手渡し",
+    wanted:"未経験歓迎",
+    jobBody:"ねぎの苗を圃場に一本ずつ植え付ける作業です。間隔を保ちながら手植えするため、丁寧さが求められます。午前中のみの作業で、3日間通しての参加を歓迎します。",
+    items:"長靴・軍手・帽子・飲み物・タオル",
+    notes:"6月下旬は気温が高くなります。熱中症対策として帽子・飲み物は必ずご持参ください。",
+  },
+  {
+    id:4, crop:"トマト",       task:"収穫",     dateLabel:"6/25〜7/5",   payType:"daily",  pay:9000,
+    region:"吉野川市周辺",        experience:"未経験可",   icon:"🍅", lat:34.06, lng:134.28,
+    workTime:"6:30〜14:30", count:"3名",
+    payTiming:"月末締め・翌月払い", payMethod:"銀行振込",
+    wanted:"未経験歓迎・長期歓迎",
+    jobBody:"ハウス内でトマトを熟度に応じて手で収穫し、コンテナへ丁寧に並べる作業です。高所の実はステップ台を使います。複数日の参加ができる方を特に歓迎します。",
+    items:"動きやすい服・帽子・飲み物・タオル",
+    notes:"ハウス内は外気より高温になります。こまめな水分補給をお願いします。開始時刻が早いため、余裕をもってお越しください。",
+  },
 ];
 
 function JobSearchMapView() {
