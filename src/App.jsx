@@ -3984,6 +3984,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [farmerTaskText,    setFarmerTaskText]    = useState(d.farmerTaskText ?? ""); // 作業自由入力
   const [farmerWanted,      setFarmerWanted]      = useState(d.farmerWanted ?? "");
   const [farmerPayType,     setFarmerPayType]     = useState(d.farmerPayType ?? "");
+  const [payTiming,         setPayTiming]         = useState(d.payTiming ?? "即日払い（作業当日）");
+  const [payMethod,         setPayMethod]         = useState(d.payMethod  ?? "現金手渡し");
   // 勤務時間（4分割）
   const [startHour,   setStartHour]   = useState(d.startHour   ?? "8");
   const [startMinute, setStartMinute] = useState(d.startMinute ?? "00");
@@ -4414,6 +4416,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 )}
               </div>
               <LFWageNote />
+              <div style={{ marginBottom:14, marginTop:14 }}>
+                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払いタイミング</label>
+                <LFPillSelect options={["即日払い（作業当日）","週末まとめ払い","月末締め・翌月払い"]} value={payTiming} onSelect={setPayTiming} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払方法</label>
+                <LFPillSelect options={["現金手渡し","銀行振込","相談して決める"]} value={payMethod} onSelect={setPayMethod} />
+              </div>
               {/* 7. 必要経験 */}
               <div style={{ marginBottom:14, marginTop:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>必要経験</label>
@@ -4496,7 +4506,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   role: "farmer", farmerStep: 5, // 5=確認画面（新フロー）
                   farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
                   farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
-                  farmerWanted, farmerPayType,
+                  farmerWanted, farmerPayType, payTiming, payMethod,
                   startHour, startMinute, endHour, endMinute,
                   jobCount, hourlyWageInput, dailyWageInput,
                   jobExp, jobTemplate, jobNotes,
