@@ -7093,7 +7093,7 @@ const subDest=useCallback(async d=>{
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
-        {safeTab==="jobs"&&<JobSearchMapView />}
+        {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>{setShowLanding(true);setTab("labor");}} />}
         {safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
