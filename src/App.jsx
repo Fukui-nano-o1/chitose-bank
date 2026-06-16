@@ -3680,10 +3680,11 @@ const JOB_SEARCH_SAMPLES = [
   },
 ];
 
-function JobSearchMapView() {
+function JobSearchMapView({ onRegister }) {
   const [selectedPin, setSelectedPin] = useState(null);
   const [expandedCard, setExpandedCard] = useState(null);
   const [activeFilter, setActiveFilter] = useState(null);
+  const [selectedJob, setSelectedJob] = useState(null);
 
   const payLabel = j => j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`;
   const pinLabel = j => j.payType === "hourly" ? `¥${j.pay.toLocaleString()}/h` : `¥${j.pay.toLocaleString()}/日`;
@@ -3693,10 +3694,11 @@ function JobSearchMapView() {
   const pinX = lng => `${Math.max(6, Math.min(88, Math.round((lng-MIN_LNG)/(MAX_LNG-MIN_LNG)*86)))}%`;
   const pinY = lat => `${Math.max(12, Math.min(75, Math.round((1-(lat-MIN_LAT)/(MAX_LAT-MIN_LAT))*70)))}%`;
 
-  const selectedJob = JOB_SEARCH_SAMPLES.find(j => j.id === selectedPin);
+  const pinPopupJob = JOB_SEARCH_SAMPLES.find(j => j.id === selectedPin);
 
   return (
     <div>
+      {!selectedJob && (<>
       {/* ヘッダー */}
       <div style={{ marginBottom:14 }}>
         <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>近くの仕事を探す</h2>
@@ -3766,7 +3768,7 @@ function JobSearchMapView() {
           ))}
 
           {/* ピンポップアップ */}
-          {selectedJob && (
+          {pinPopupJob && (
             <div style={{
               position:"absolute", left:"50%", top:8, transform:"translateX(-50%)",
               background:"#fff", border:"1px solid #EBEBEB", borderRadius:14,
@@ -3775,16 +3777,16 @@ function JobSearchMapView() {
             }}>
               <button onClick={() => setSelectedPin(null)} style={{ position:"absolute", top:6, right:8, background:"none", border:"none", fontSize:14, cursor:"pointer", color:"#B0B0B0" }}>✕</button>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                <span style={{ fontSize:20 }}>{selectedJob.icon}</span>
+                <span style={{ fontSize:20 }}>{pinPopupJob.icon}</span>
                 <div>
-                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{selectedJob.crop} {selectedJob.task}</p>
-                  <p className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(selectedJob)}</p>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{pinPopupJob.crop} {pinPopupJob.task}</p>
+                  <p className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(pinPopupJob)}</p>
                 </div>
               </div>
               {[
-                { label:"日程", value:selectedJob.dateLabel },
-                { label:"地域", value:selectedJob.region },
-                { label:"経験", value:selectedJob.experience },
+                { label:"日程", value:pinPopupJob.dateLabel },
+                { label:"地域", value:pinPopupJob.region },
+                { label:"経験", value:pinPopupJob.experience },
               ].map(row => (
                 <div key={row.label} style={{ display:"flex", gap:8, marginBottom:2 }}>
                   <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0", width:28, flexShrink:0 }}>{row.label}</span>
@@ -3792,7 +3794,7 @@ function JobSearchMapView() {
                 </div>
               ))}
               <button
-                onClick={() => { setSelectedPin(null); setExpandedCard(selectedJob.id); }}
+                onClick={() => { setSelectedPin(null); setExpandedCard(pinPopupJob.id); setSelectedJob(pinPopupJob); }}
                 style={{ marginTop:8, width:"100%", padding:"7px", background:"#00A86B", color:"#fff", border:"none", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer" }}
               >詳細を見る →</button>
             </div>
@@ -3849,8 +3851,8 @@ function JobSearchMapView() {
                         </div>
                       ))}
                     </div>
-                    <button style={{ marginTop:10, width:"100%", padding:"10px", background:"#00A86B", color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>
-                      詳細を見る（準備中）
+                    <button onClick={() => setSelectedJob(job)} style={{ marginTop:10, width:"100%", padding:"10px", background:"#00A86B", color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                      詳細を見る →
                     </button>
                     <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>
                       本名・詳細住所は公開しません。
@@ -3862,6 +3864,76 @@ function JobSearchMapView() {
           })}
         </div>
       </div>
+      </>)}
+
+      {/* ── 詳細ページ ── */}
+      {selectedJob && (
+        <div className="appear">
+          <button onClick={() => setSelectedJob(null)} className="f-sans" style={{
+            display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
+            fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0", marginBottom:20,
+          }}>← 一覧に戻る</button>
+
+          {/* ヘッダー */}
+          <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
+            <div style={{ width:56, height:56, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0 }}>
+              {selectedJob.icon}
+            </div>
+            <div>
+              <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}</h2>
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.region}</p>
+            </div>
+          </div>
+
+          {/* 主要情報 */}
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+            {[
+              { label:"日程",   value: selectedJob.dateLabel },
+              { label:"勤務時間", value: selectedJob.workTime },
+              { label:"募集人数", value: selectedJob.count },
+              { label:"報酬",   value: `${payLabel(selectedJob)}　${selectedJob.payTiming}・${selectedJob.payMethod}` },
+            ].map(row => (
+              <div key={row.label} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0, marginRight:12 }}>{row.label}</span>
+                <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, textAlign:"right" }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* 作業説明 */}
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0 }}>{selectedJob.jobBody}</p>
+          </div>
+
+          {/* 経験・持ち物・備考 */}
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+            {[
+              { label:"必要経験",       value: selectedJob.experience },
+              { label:"希望する働き手", value: selectedJob.wanted },
+              { label:"持ち物",         value: selectedJob.items },
+              { label:"備考・注意",     value: selectedJob.notes },
+            ].map(row => (
+              <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
+                <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* 注記 */}
+          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:20 }}>
+            本名・詳細住所は公開しません。
+          </p>
+
+          {/* CTAボタン */}
+          <button
+            onClick={() => onRegister && onRegister()}
+            className="btn-primary f-sans"
+            style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
+          >この仕事に興味がある</button>
+        </div>
+      )}
     </div>
   );
 }
