@@ -3969,13 +3969,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     return null;
   })();
 
-  const [role, setRole] = useState(_draftInit?.role ?? ""); // "" | "farmer" | "worker"
-  const [step, setStep] = useState(_draftInit ? 5 : 0); // 0=home, 1-8=flow
+  const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
+
+  const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? ""); // "" | "farmer" | "worker"
+  const [step, setStep] = useState(_devJump?.step ?? (_draftInit ? 5 : 0)); // 0=home, 1-8=flow
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
   const [farmerExp,         setFarmerExp]         = useState(d.farmerExp ?? "");
-  const [farmerPurpose,     setFarmerPurpose]     = useState(d.farmerPurpose ?? "");
+  const [farmerPurpose,     setFarmerPurpose]     = useState(_devJump?.farmerPurpose ?? d.farmerPurpose ?? "");
   const [farmerDisplayName, setFarmerDisplayName] = useState(d.farmerDisplayName ?? "");
   const [farmerRegion,      setFarmerRegion]      = useState(d.farmerRegion ?? "");
   const [farmerCropPill,    setFarmerCropPill]    = useState(d.farmerCropPill ?? ""); // 作物ピル選択
@@ -4008,6 +4010,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       try { localStorage.removeItem('postLoginReturnTo'); } catch {}
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (_devJump) {
+      try { localStorage.removeItem('devJump'); } catch {}
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 派生値
   const workTimeLabel = `${startHour}:${startMinute}〜${endHour}:${endMinute}`;
@@ -4025,7 +4032,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // 働き手 state
   const [workerExp,         setWorkerExp]         = useState("");
-  const [workerPurpose,     setWorkerPurpose]     = useState("");
+  const [workerPurpose,     setWorkerPurpose]     = useState(_devJump?.workerPurpose ?? "");
   const [workerDisplayName, setWorkerDisplayName] = useState("");
   const [workerRegion,      setWorkerRegion]      = useState("");
   const [workerTransport,   setWorkerTransport]   = useState("");
@@ -5128,6 +5135,28 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             <button key={k} onClick={() => onJump(k)} className="f-sans" style={{
               padding:"6px 12px", borderRadius:8, border:"1px solid #EBEBEB",
               background:"#F7F7F7", color:"#717171", fontSize:11, fontWeight:600,
+              cursor:"pointer",
+            }}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* 開発: 画面ジャンプ(LandingFlow) */}
+      <div style={{ marginBottom:16 }}>
+        <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ(LandingFlow)</p>
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {[
+            { l:"LFトップ",       dj:{ role:"",       step:0 } },
+            { l:"農家step1",      dj:{ role:"farmer", step:1 } },
+            { l:"農家step3",      dj:{ role:"farmer", step:3 } },
+            { l:"農家step4募集",  dj:{ role:"farmer", step:4, farmerPurpose:"post" } },
+            { l:"農家step5確認",  dj:{ role:"farmer", step:5 } },
+            { l:"働き手step3",    dj:{ role:"worker", step:3 } },
+            { l:"働き手step6求人",dj:{ role:"worker", step:6, workerPurpose:"search" } },
+          ].map(({ l, dj }) => (
+            <button key={l} onClick={() => onJump("labor", dj)} className="f-sans" style={{
+              padding:"6px 12px", borderRadius:8, border:"1px solid #D0E8FF",
+              background:"#EBF5FF", color:"#1a73e8", fontSize:11, fontWeight:600,
               cursor:"pointer",
             }}>{l}</button>
           ))}
@@ -6986,7 +7015,7 @@ const subDest=useCallback(async d=>{
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
-          onJump={(t) => setTab(t)}/>}
+          onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowLanding(true); } setTab(t); }}/>}
       </main>
 
       {/* ── FOOTER（固定） ── */}
