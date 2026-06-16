@@ -5720,7 +5720,10 @@ function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) 
   const [obTier,         setObTier]         = useState(me.experience_tier || "");
   const [obFarmingType, setObFarmingType] = useState(me.farming_type || localStorage.getItem('ob_farming_type') || "");
   const [obArea,        setObArea]        = useState(me.area_tan || localStorage.getItem('ob_area_tan') || "");
-  const [obCrops,       setObCrops]       = useState(me.planned_crops || []);
+  const [obCrops,       setObCrops]       = useState(
+    (me.planned_crops && me.planned_crops.length) ? me.planned_crops
+    : [lfDraft.farmerCropPill || lfDraft.farmerCropText].filter(Boolean)
+  );
   const [obChannels,    setObChannels]    = useState(() => {
     if (me.sales_channels && Array.isArray(me.sales_channels) && me.sales_channels.length > 0) return me.sales_channels;
     try { return JSON.parse(localStorage.getItem('ob_sales_channels') || '[]'); } catch { return []; }
