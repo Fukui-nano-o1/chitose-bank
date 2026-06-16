@@ -5711,11 +5711,12 @@ const OB_SALES_CHANNELS = [
 ];
 
 function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) {
+  const lfDraft = JSON.parse(localStorage.getItem('landingFlowDraft_v1') || '{}');
   const totalSteps = 9;
   const [obStep, setObStep] = useState(1);
   const [obName,         setObName]         = useState(isEditing ? (me.name || "") : "");
   const [obPrefecture,   setObPrefecture]   = useState(me.prefecture || "");
-  const [obMunicipality, setObMunicipality] = useState(me.municipality || "");
+  const [obMunicipality, setObMunicipality] = useState(me.municipality || (lfDraft.farmerRegion || "").replace(/周辺$/, "") || "");
   const [obTier,         setObTier]         = useState(me.experience_tier || "");
   const [obFarmingType, setObFarmingType] = useState(me.farming_type || localStorage.getItem('ob_farming_type') || "");
   const [obArea,        setObArea]        = useState(me.area_tan || localStorage.getItem('ob_area_tan') || "");
