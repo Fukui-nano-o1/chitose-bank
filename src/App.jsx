@@ -3670,7 +3670,6 @@ const JOB_SEARCH_SAMPLES = [
 ];
 
 function JobSearchMapView({ onRegister }) {
-  const [expandedCard, setExpandedCard] = useState(null);
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
 
@@ -3713,65 +3712,35 @@ function JobSearchMapView({ onRegister }) {
       {/* 仕事リスト */}
       <div className="job-search-layout">
         <div>
-          {JOB_SEARCH_SAMPLES.map(job => {
-            const open = expandedCard === job.id;
-            return (
-              <div key={job.id} style={{
-                background:"#fff", border:"1px solid", borderColor: open ? "#00A86B" : "#EBEBEB",
-                borderRadius:16, marginBottom:10, overflow:"hidden",
-                boxShadow: open ? "0 2px 10px rgba(0,168,107,0.08)" : "none",
-              }}>
-                <button
-                  onClick={() => setExpandedCard(open ? null : job.id)}
-                  style={{ width:"100%", textAlign:"left", padding:"14px 16px", background:"none", border:"none", cursor:"pointer" }}
-                >
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                    <div style={{ width:56, height:56, borderRadius:8, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>
-                      {job.icon}
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{job.crop} {job.task}</p>
-                      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:0 }}>{job.dateLabel}　{job.region}</p>
-                    </div>
-                    <div style={{ textAlign:"right", flexShrink:0 }}>
-                      <p className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(job)}</p>
-                      <p className="f-sans" style={{ fontSize:9, color:"#B0B0B0" }}>{open ? "▲" : "▼ 詳細"}</p>
-                    </div>
-                  </div>
-                  <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
-                    {[job.crop, job.task, job.experience].map(t => (
-                      <span key={t} style={{ padding:"2px 8px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:10 }}>{t}</span>
-                    ))}
-                  </div>
-                </button>
-                {open && (
-                  <div style={{ padding:"0 16px 14px", borderTop:"1px solid #F7F7F7" }}>
-                    <div style={{ paddingTop:10 }}>
-                      {[
-                        { label:"作物",     value:job.crop },
-                        { label:"作業内容", value:job.task },
-                        { label:"日程",     value:job.dateLabel },
-                        { label:"報酬",     value:payLabel(job) },
-                        { label:"地域",     value:job.region },
-                        { label:"経験条件", value:job.experience },
-                      ].map(row => (
-                        <div key={row.label} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #F7F7F7" }}>
-                          <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>{row.label}</span>
-                          <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600 }}>{row.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <button onClick={() => setSelectedJob(job)} style={{ marginTop:10, width:"100%", padding:"10px", background:"#00A86B", color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>
-                      詳細を見る →
-                    </button>
-                    <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>
-                      本名・詳細住所は公開しません。
-                    </p>
-                  </div>
-                )}
+          {JOB_SEARCH_SAMPLES.map(job => (
+            <button
+              key={job.id}
+              onClick={() => setSelectedJob(job)}
+              style={{
+                display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer",
+                background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:12, overflow:"hidden",
+              }}
+            >
+              <div style={{ width:"100%", height:160, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
+                {job.icon}
               </div>
-            );
-          })}
+              <div style={{ padding:"14px 16px" }}>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:6 }}>{job.dateLabel}　{job.region}</p>
+                <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:0 }}>
+                  {payLabel(job)}
+                  {job.payTiming && (
+                    <span className="f-sans" style={{ fontSize:10, fontWeight:400, color:"#B0B0B0", marginLeft:6 }}>{job.payTiming}</span>
+                  )}
+                </p>
+                <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:8 }}>
+                  {[job.crop, job.task, job.experience].map(t => (
+                    <span key={t} style={{ padding:"2px 8px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:10 }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
       </>)}
