@@ -3718,24 +3718,24 @@ function JobSearchMapView({ onRegister }) {
               onClick={() => setSelectedJob(job)}
               style={{
                 display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer",
-                background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:12, overflow:"hidden",
+                background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden",
               }}
             >
               <div style={{ width:"100%", height:160, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
                 {job.icon}
               </div>
-              <div style={{ padding:"14px 16px" }}>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:6 }}>{job.dateLabel}　{job.region}</p>
-                <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:0 }}>
+              <div style={{ padding:"12px 16px 16px" }}>
+                <p className="f-sans" style={{ fontSize:16, fontWeight:600, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, marginBottom:6 }}>{job.dateLabel}　{job.region}</p>
+                <p className="f-mono" style={{ fontSize:15, fontWeight:700, color:"#00A86B", margin:0, marginBottom:8 }}>
                   {payLabel(job)}
                   {job.payTiming && (
                     <span className="f-sans" style={{ fontSize:10, fontWeight:400, color:"#B0B0B0", marginLeft:6 }}>{job.payTiming}</span>
                   )}
                 </p>
-                <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:8 }}>
-                  {[job.crop, job.task, job.experience].map(t => (
-                    <span key={t} style={{ padding:"2px 8px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:10 }}>{t}</span>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {[job.experience, job.payTiming.split(/[（(]/)[0], job.wanted].map(t => (
+                    <span key={t} style={{ padding:"3px 10px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:11 }}>{t}</span>
                   ))}
                 </div>
               </div>
