@@ -3753,15 +3753,15 @@ function JobSearchMapView({ onRegister }) {
             fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0", marginBottom:20,
           }}>← 一覧に戻る</button>
 
-          {/* 写真エリア（プレースホルダー） */}
-          <div style={{ width:"100%", height:280, borderRadius:12, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, marginBottom:20 }}>
-            {selectedJob.icon}
-          </div>
-
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}</h2>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.region}</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.region}</p>
+          </div>
+
+          {/* 写真エリア（プレースホルダー） */}
+          <div style={{ width:"100%", height:280, borderRadius:12, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, marginBottom:20 }}>
+            {selectedJob.icon}
           </div>
 
           {/* 主要情報 */}
