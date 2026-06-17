@@ -3734,7 +3734,7 @@ function JobSearchMapView({ onRegister }) {
                   )}
                 </p>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                  {[job.experience, job.payTiming.split(/[（(]/)[0], job.wanted].map(t => (
+                  {[job.experience, `募集${job.count}`, job.workTime].map(t => (
                     <span key={t} style={{ padding:"3px 10px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:11 }}>{t}</span>
                   ))}
                 </div>
