@@ -1442,7 +1442,7 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
 }
 
 // ── Carousel ─────────────────────────────────────────────────
-function Carousel({ children, style, className, wrapperStyle }) {
+function Carousel({ children, style, className, wrapperStyle, onScroll }) {
   const ref = useRef(null);
   const [atLeft, setAtLeft] = useState(true);
   const [atRight, setAtRight] = useState(true);
@@ -1464,6 +1464,8 @@ function Carousel({ children, style, className, wrapperStyle }) {
 
   const scroll = dir => ref.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
 
+  const handleScroll = e => { updatePos(); onScroll && onScroll(e); };
+
   const btnStyle = {
     position:'absolute', top:'50%', transform:'translateY(-50%)',
     width:36, height:36, borderRadius:'50%',
@@ -1480,7 +1482,7 @@ function Carousel({ children, style, className, wrapperStyle }) {
         <button onClick={() => scroll(-1)} className="f-sans"
           style={{ ...btnStyle, left:-16 }}>‹</button>
       )}
-      <div ref={ref} className={className} style={style} onScroll={updatePos}>
+      <div ref={ref} className={className} style={style} onScroll={handleScroll}>
         {children}
       </div>
       {!atRight && (
@@ -3684,6 +3686,11 @@ const JOB_SEARCH_SAMPLES = [
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const handlePhotoScroll = e => {
+    const el = e.target;
+    setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
+  };
 
   const payLabel = j => j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`;
   const pinLabel = j => j.payType === "hourly" ? `¥${j.pay.toLocaleString()}/h` : `¥${j.pay.toLocaleString()}/日`;
@@ -3727,7 +3734,7 @@ function JobSearchMapView({ onRegister }) {
           {JOB_SEARCH_SAMPLES.map(job => (
             <button
               key={job.id}
-              onClick={() => setSelectedJob(job)}
+              onClick={() => { setSelectedJob(job); setActiveSlide(0); }}
               style={{
                 display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer",
                 background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden",
@@ -3781,6 +3788,7 @@ function JobSearchMapView({ onRegister }) {
                   className="carousel-scroll"
                   style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
                   wrapperStyle={{ marginBottom:8 }}
+                  onScroll={handlePhotoScroll}
                 >
                   {photos.map((photo, i) => (
                     <div key={i} style={{
@@ -3793,7 +3801,7 @@ function JobSearchMapView({ onRegister }) {
                 </Carousel>
                 <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:20 }}>
                   {photos.map((_, i) => (
-                    <span key={i} style={{ fontSize:10, color: i===0 ? "#00A86B" : "#D0D0D0" }}>{i===0 ? "●" : "○"}</span>
+                    <span key={i} style={{ fontSize:10, color: i===activeSlide ? "#00A86B" : "#D0D0D0" }}>{i===activeSlide ? "●" : "○"}</span>
                   ))}
                 </div>
               </>
