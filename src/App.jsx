@@ -3726,7 +3726,7 @@ function JobSearchMapView({ onRegister }) {
                   style={{ width:"100%", textAlign:"left", padding:"14px 16px", background:"none", border:"none", cursor:"pointer" }}
                 >
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                    <div style={{ width:40, height:40, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
+                    <div style={{ width:56, height:56, borderRadius:8, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>
                       {job.icon}
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
