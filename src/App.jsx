@@ -348,18 +348,7 @@ input:focus { outline: none; }
 
 /* ── Job search layout ── */
 .job-search-layout {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: 1fr;
-}
-@media (min-width: 760px) {
-  .job-search-layout {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
-  .job-search-layout .job-map-container {
-    height: 420px !important;
-  }
+  display: block;
 }
 
 /* ── LandingFlow Step6 grid ── */
@@ -3681,7 +3670,6 @@ const JOB_SEARCH_SAMPLES = [
 ];
 
 function JobSearchMapView({ onRegister }) {
-  const [selectedPin, setSelectedPin] = useState(null);
   const [expandedCard, setExpandedCard] = useState(null);
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -3693,8 +3681,6 @@ function JobSearchMapView({ onRegister }) {
   const MIN_LAT=34.04, MAX_LAT=34.12, MIN_LNG=134.20, MAX_LNG=134.38;
   const pinX = lng => `${Math.max(6, Math.min(88, Math.round((lng-MIN_LNG)/(MAX_LNG-MIN_LNG)*86)))}%`;
   const pinY = lat => `${Math.max(12, Math.min(75, Math.round((1-(lat-MIN_LAT)/(MAX_LAT-MIN_LAT))*70)))}%`;
-
-  const pinPopupJob = JOB_SEARCH_SAMPLES.find(j => j.id === selectedPin);
 
   return (
     <div>
@@ -3724,84 +3710,8 @@ function JobSearchMapView({ onRegister }) {
         ))}
       </div>
 
-      {/* 地図 + リスト */}
+      {/* 仕事リスト */}
       <div className="job-search-layout">
-
-        {/* ─── 地図エリア ─── */}
-        <div className="job-map-container" style={{
-          position:"relative", borderRadius:16, overflow:"hidden",
-          height:240, border:"1px solid #EBEBEB",
-          background:"linear-gradient(145deg, #c8e6c9 0%, #a5d6a7 35%, #88c98a 65%, #b2dfb4 100%)",
-        }}>
-          {/* 道路（ダミー） */}
-          <div style={{ position:"absolute", top:"43%", left:0, right:0, height:3, background:"rgba(255,255,255,0.55)", transform:"rotate(-2deg)" }} />
-          <div style={{ position:"absolute", top:"22%", left:"15%", right:"5%", height:2, background:"rgba(255,255,255,0.4)", transform:"rotate(7deg)" }} />
-          <div style={{ position:"absolute", top:0, bottom:0, left:"40%", width:2, background:"rgba(255,255,255,0.4)", transform:"rotate(1deg)" }} />
-          <div style={{ position:"absolute", top:"60%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-5deg)" }} />
-          {/* 地名ラベル */}
-          <div style={{ position:"absolute", top:8, left:8, padding:"3px 8px", background:"rgba(255,255,255,0.85)", borderRadius:8 }}>
-            <span className="f-sans" style={{ fontSize:9, color:"#555" }}>吉野川流域・徳島県</span>
-          </div>
-          {/* 差し替え予告 */}
-          <div style={{ position:"absolute", bottom:6, right:6, padding:"2px 6px", background:"rgba(255,255,255,0.8)", borderRadius:6 }}>
-            <span className="f-sans" style={{ fontSize:8, color:"#B0B0B0" }}>📍 Google Maps / Leaflet に差替予定</span>
-          </div>
-
-          {/* ピン */}
-          {JOB_SEARCH_SAMPLES.map(job => (
-            <button key={job.id}
-              onClick={() => setSelectedPin(selectedPin===job.id ? null : job.id)}
-              style={{
-                position:"absolute", left:pinX(job.lng), top:pinY(job.lat),
-                transform:"translate(-50%, -100%)",
-                background: selectedPin===job.id ? "#00A86B" : "#fff",
-                color: selectedPin===job.id ? "#fff" : "#00A86B",
-                border:"2px solid #00A86B", borderRadius:20,
-                padding:"4px 9px", fontSize:11, fontWeight:700,
-                cursor:"pointer", whiteSpace:"nowrap",
-                boxShadow:"0 2px 6px rgba(0,0,0,0.18)",
-                fontFamily:"'DM Mono',monospace",
-                zIndex: selectedPin===job.id ? 10 : 1,
-                transition:"all .15s",
-              }}
-            >{pinLabel(job)}</button>
-          ))}
-
-          {/* ピンポップアップ */}
-          {pinPopupJob && (
-            <div style={{
-              position:"absolute", left:"50%", top:8, transform:"translateX(-50%)",
-              background:"#fff", border:"1px solid #EBEBEB", borderRadius:14,
-              padding:"12px 14px", minWidth:210, maxWidth:"90%",
-              boxShadow:"0 4px 16px rgba(0,0,0,0.14)", zIndex:20,
-            }}>
-              <button onClick={() => setSelectedPin(null)} style={{ position:"absolute", top:6, right:8, background:"none", border:"none", fontSize:14, cursor:"pointer", color:"#B0B0B0" }}>✕</button>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                <span style={{ fontSize:20 }}>{pinPopupJob.icon}</span>
-                <div>
-                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{pinPopupJob.crop} {pinPopupJob.task}</p>
-                  <p className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(pinPopupJob)}</p>
-                </div>
-              </div>
-              {[
-                { label:"日程", value:pinPopupJob.dateLabel },
-                { label:"地域", value:pinPopupJob.region },
-                { label:"経験", value:pinPopupJob.experience },
-              ].map(row => (
-                <div key={row.label} style={{ display:"flex", gap:8, marginBottom:2 }}>
-                  <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0", width:28, flexShrink:0 }}>{row.label}</span>
-                  <span className="f-sans" style={{ fontSize:11, color:"#222" }}>{row.value}</span>
-                </div>
-              ))}
-              <button
-                onClick={() => { setSelectedPin(null); setExpandedCard(pinPopupJob.id); setSelectedJob(pinPopupJob); }}
-                style={{ marginTop:8, width:"100%", padding:"7px", background:"#00A86B", color:"#fff", border:"none", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer" }}
-              >詳細を見る →</button>
-            </div>
-          )}
-        </div>
-
-        {/* ─── 仕事リスト ─── */}
         <div>
           {JOB_SEARCH_SAMPLES.map(job => {
             const open = expandedCard === job.id;
@@ -3812,7 +3722,7 @@ function JobSearchMapView({ onRegister }) {
                 boxShadow: open ? "0 2px 10px rgba(0,168,107,0.08)" : "none",
               }}>
                 <button
-                  onClick={() => { setExpandedCard(open ? null : job.id); setSelectedPin(job.id); }}
+                  onClick={() => setExpandedCard(open ? null : job.id)}
                   style={{ width:"100%", textAlign:"left", padding:"14px 16px", background:"none", border:"none", cursor:"pointer" }}
                 >
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
