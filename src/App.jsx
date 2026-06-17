@@ -3699,7 +3699,7 @@ function JobSearchMapView({ onRegister }) {
 
       {/* 検索・絞込ピル */}
       <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", marginBottom:14, paddingBottom:2 }}>
-        {["未経験可","経験者歓迎","〜3人","〜4人","午前のみ","終日"].map(f => (
+        {["未経験可","経験者歓迎","〜3人","4〜人","午前のみ","終日"].map(f => (
           <button key={f} onClick={() => setActiveFilter(activeFilter===f ? null : f)} className="f-sans" style={{
             flexShrink:0, padding:"7px 14px", borderRadius:20, fontSize:12, cursor:"pointer", fontWeight:600, border:"2px solid",
             borderColor: activeFilter===f ? "#00A86B" : "#EBEBEB",
