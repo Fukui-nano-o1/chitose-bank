@@ -3629,7 +3629,7 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 const JOB_SEARCH_SAMPLES = [
   {
     id:1, crop:"ブロッコリー", task:"収穫補助", dateLabel:"6/10〜6/13", payType:"hourly", pay:1200,
-    region:"吉野川市山川町周辺", experience:"未経験可", icon:"🥦", lat:34.05, lng:134.23,
+    region:"吉野川市周辺", experience:"未経験可", icon:"🥦", lat:34.05, lng:134.23,
     workTime:"8:00〜16:00", count:"4名",
     payTiming:"即日払い（作業当日）", payMethod:"現金手渡し",
     wanted:"未経験歓迎",
@@ -3649,7 +3649,7 @@ const JOB_SEARCH_SAMPLES = [
   },
   {
     id:3, crop:"ねぎ",         task:"定植",     dateLabel:"6/20〜6/22",  payType:"hourly", pay:1100,
-    region:"吉野川市鴨島町周辺",  experience:"未経験可",   icon:"🌿", lat:34.07, lng:134.35,
+    region:"吉野川市周辺",  experience:"未経験可",   icon:"🌿", lat:34.07, lng:134.35,
     workTime:"7:00〜12:00", count:"5名",
     payTiming:"即日払い（作業当日）", payMethod:"現金手渡し",
     wanted:"未経験歓迎",
