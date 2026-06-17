@@ -351,6 +351,18 @@ input:focus { outline: none; }
   display: block;
 }
 
+/* ── Job detail main info card ── */
+.job-detail-main-card {
+  width: 50%;
+  max-width: 440px;
+}
+@media (max-width: 759px) {
+  .job-detail-main-card {
+    width: 100%;
+    max-width: none;
+  }
+}
+
 /* ── LandingFlow Step6 grid ── */
 .lf-map-hero { height: 360px; }
 .lf-preview-grid {
@@ -3765,7 +3777,7 @@ function JobSearchMapView({ onRegister }) {
           </div>
 
           {/* 主要情報 */}
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+          <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
             {[
               { label:"日程",   value: selectedJob.dateLabel },
               { label:"勤務時間", value: selectedJob.workTime },
