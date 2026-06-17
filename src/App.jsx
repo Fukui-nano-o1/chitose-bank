@@ -3792,13 +3792,13 @@ function JobSearchMapView({ onRegister }) {
           </div>
 
           {/* 作業説明 */}
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+          <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
             <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0 }}>{selectedJob.jobBody}</p>
           </div>
 
           {/* 経験・持ち物・備考 */}
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+          <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
             {[
               { label:"必要経験",       value: selectedJob.experience },
               { label:"希望する働き手", value: selectedJob.wanted },
