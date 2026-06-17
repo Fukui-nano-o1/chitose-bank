@@ -3771,10 +3771,34 @@ function JobSearchMapView({ onRegister }) {
             <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.region}</p>
           </div>
 
-          {/* 写真エリア（プレースホルダー） */}
-          <div style={{ width:"100%", height:280, borderRadius:12, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, marginBottom:20 }}>
-            {selectedJob.icon}
-          </div>
+          {/* 写真ギャラリー（ダミー3枚／将来 selectedJob.photos 配列を受け取る想定・最大10枚） */}
+          {(() => {
+            const photos = selectedJob.photos || [selectedJob.icon, selectedJob.icon, selectedJob.icon];
+            const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
+            return (
+              <>
+                <Carousel
+                  className="carousel-scroll"
+                  style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
+                  wrapperStyle={{ marginBottom:8 }}
+                >
+                  {photos.map((photo, i) => (
+                    <div key={i} style={{
+                      flexShrink:0, width:"100%", height:280, borderRadius:12,
+                      background: bgColors[i % bgColors.length],
+                      display:"flex", alignItems:"center", justifyContent:"center", fontSize:72,
+                      scrollSnapAlign:"start",
+                    }}>{photo}</div>
+                  ))}
+                </Carousel>
+                <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:20 }}>
+                  {photos.map((_, i) => (
+                    <span key={i} style={{ fontSize:10, color: i===0 ? "#00A86B" : "#D0D0D0" }}>{i===0 ? "●" : "○"}</span>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
 
           {/* 主要情報 */}
           <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
