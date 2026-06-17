@@ -3792,7 +3792,7 @@ function JobSearchMapView({ onRegister }) {
                 >
                   {photos.map((photo, i) => (
                     <div key={i} style={{
-                      flexShrink:0, width:"100%", height:280, borderRadius:12,
+                      flexShrink:0, width:"100%", height:392, borderRadius:12,
                       background: bgColors[i % bgColors.length],
                       display:"flex", alignItems:"center", justifyContent:"center", fontSize:72,
                       scrollSnapAlign:"start",
