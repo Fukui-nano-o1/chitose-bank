@@ -1527,6 +1527,14 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     })();
   }, []);
 
+  const [regionList, setRegionList] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc('board_region_list');
+      if (!error) setRegionList(data ?? []);
+    })();
+  }, []);
+
   const enrichedStats = marketStats.map(s => ({
     ...s,
     labor_hours_per_10a: s.labor_hours_per_10a || LABOR_HOURS[s.crop] || null,
@@ -1618,8 +1626,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
   const hasNoData = filteredCropCards.length === 0 && filteredDestCards.length === 0;
 
   const lastUpdated = new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"2-digit", day:"2-digit" });
-  const regions = [...new Set(farmers.map(f => f.municipality).filter(Boolean))];
-  const regionText = regions.length > 0 ? "（" + regions.slice(0,3).join("・") + "）" : "";
+  const regionText = regionList.length > 0 ? "（" + regionList.slice(0,3).map(r => r.municipality).join("・") + "）" : "";
   const MIN_FARMERS = 5;
 
   return (
