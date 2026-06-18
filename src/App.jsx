@@ -375,6 +375,25 @@ input:focus { outline: none; }
   }
 }
 
+/* ── Review header: profile (subtle) left / rating (hero) center ── */
+.review-header-row {
+  display: flex;
+  align-items: center;
+}
+.review-header-profile { flex: 1; }
+.review-header-stars { flex: 1; text-align: center; }
+.review-header-spacer { flex: 1; }
+@media (max-width: 759px) {
+  .review-header-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .review-header-stars { order: 1; }
+  .review-header-profile { order: 2; justify-content: center; }
+  .review-header-spacer { display: none; }
+}
+
 /* ── Job detail: 2-column layout (left info / right apply panel) ── */
 .job-detail-2col {
   display: grid;
@@ -4096,15 +4115,32 @@ function JobSearchMapView({ onRegister }) {
 
             return (
               <div style={{ marginBottom:28 }}>
-                {/* ヘッダー（大々的に） */}
-                <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:6 }}>
-                  <span style={{ fontSize:32, color:"#00A86B" }}>★</span>
-                  <span className="f-mono" style={{ fontSize:32, fontWeight:800, color:"#222" }}>{selectedJob.farmerRating}</span>
-                  <span className="f-sans" style={{ fontSize:15, color:"#717171" }}>・{selectedJob.farmerReviewCount}件のレビュー</span>
+                {/* ヘッダー: 左=農家プロフィール(控えめ) / 中央=星評価(主役) */}
+                <div className="review-header-row" style={{ marginBottom:24 }}>
+                  {/* 左: 農家プロフィール（控えめ・既存プロフィール行を縮小） */}
+                  <div className="review-header-profile" style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{
+                      width:32, height:32, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
+                      display:"flex", alignItems:"center", justifyContent:"center", fontSize:16,
+                    }}>🧑‍🌾</div>
+                    <div>
+                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{selectedJob.farmerName}</p>
+                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
+                    </div>
+                  </div>
+
+                  {/* 中央: 星評価（主役・特大） */}
+                  <div className="review-header-stars">
+                    <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:8 }}>
+                      <span style={{ fontSize:36, color:"#00A86B" }}>★</span>
+                      <span className="f-mono" style={{ fontSize:36, fontWeight:800, color:"#222" }}>{selectedJob.farmerRating}</span>
+                    </div>
+                    <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.farmerReviewCount}件のレビュー</p>
+                  </div>
+
+                  {/* 右: バランス用の余白 */}
+                  <div className="review-header-spacer" />
                 </div>
-                <p className="f-sans" style={{ fontSize:15, color:"#222", fontWeight:600, margin:0, marginBottom:20 }}>
-                  {selectedJob.farmerName}の評価
-                </p>
 
                 {/* 並び替えタブ */}
                 <div style={{ display:"flex", gap:8, marginBottom:18 }}>
