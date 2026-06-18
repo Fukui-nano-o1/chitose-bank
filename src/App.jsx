@@ -4103,7 +4103,7 @@ function JobSearchMapView({ onRegister }) {
           {/* 地図（単一ピン・2カラムの外で全幅） */}
           <div style={{
             width:"100%", position:"relative", borderRadius:16, overflow:"hidden",
-            height:480, border:"1px solid #EBEBEB", marginBottom:40,
+            height:480, border:"1px solid #EBEBEB", marginBottom:80,
             background:"linear-gradient(145deg, #c8e6c9 0%, #a5d6a7 35%, #88c98a 65%, #b2dfb4 100%)",
           }}>
             {/* 道路（ダミー） */}
