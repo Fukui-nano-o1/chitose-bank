@@ -128,3 +128,40 @@
 【TODO・小タスク】作物フィルターに statCrops(公的統計market_stats由来の作物名)を復元する。
 market_statsはPII無しで安全に表示可能だが、records由来作物名の関数化(87dcd7e)の際に
 巻き添えで削除された。データ保護とは無関係。第5段階(全件取得停止)の後に対応。
+
+## 2026-06-18（データ保護の三層化）
+
+### 背景・発見
+- 全ルート確認の過程で、BoardTabが全農家のfarmers/records生データをブラウザで集計し、5農家マスクは「表示直前にUIで隠すだけ」だったと判明。未ログインはRLSで空[]だが、ログインすれば全農家の売上・経費の生データがブラウザに届いていた（開発者ツールで読める状態）。CLAUDE.mdの「DB側で集計し集計済みのみ返す」が未遵守だった
+
+### 完了（データ保護の三層防御を構築）
+- DB集計関数を整備（すべてSECURITY DEFINER・5農家マスク・anon/authenticated実行可）:
+  - 既存: board_crop_summary / board_dest_summary / public_farmers_count（作られていたがフロント未使用だった）
+  - 新規作成: board_region_list（地域一覧、5農家以上）/ board_crop_names（作物名一覧、5農家以上）
+- BoardTabを全面的にDB関数(rpc)経由に切替:
+  - 参加農家数 → public_farmers_count
+  - 地域一覧 → board_region_list
+  - 作物別集計 → board_crop_summary（cropFarmerMap廃止、マスク・「あと◯人」削除）
+  - 出荷先別集計 → board_dest_summary（destFarmerMap廃止）
+  - 作物フィルター → board_crop_names
+  - → BoardTabから全農家records/farmersの横断参照が消滅（本人データ参照のみ残存）
+- 全件取得停止の準備: InputTabサジェストを本人の過去入力のみに / LaborTab参加農家数を関数ベースに
+- 6654・6711の farmers/records 全件取得を本人行のみに変更（me判定は本人1行取得）
+- 実機確認: 未ログインでfarmersテーブルへの生リクエストが発生しない（public_farmers_countが数字11を返すのみ）。ログイン・各タブ・管理画面すべて正常
+
+### 三層防御の構成
+1. RLS（DB層・本人行のみ返す最終防壁）
+2. DB集計関数（5農家未満マスク・集計済みのみ返す）
+3. コード本人行絞り込み（全件取得をしない）
+※絞りなしselect('*')はAdminTab（管理者専用・独自取得）の2箇所のみ。これは正当
+
+### 次回TODO
+- 作物フィルターに statCrops（公的統計market_stats由来の作物名）を復元（PII無しで安全、リファクタで巻き添え削除された）
+- 未使用propsの掃除（LoginScreen/FiveYearPlanTab/AdminTabに渡しているfarmers等は受け取り側で未使用）
+- UIUX改修の続き（Day2残り）: 一覧カード写真カルーセル、実写真アップ、絞り込みピル発火、レビューのガワ、農家目線UI、me自動表示
+- WSL2移行（Bun安定化）
+
+### 役所回答待ち（来週）※継続
+- ④ 求職者プロフィール公開が職業紹介事業に該当するか
+- ⑤ 2段階同意が個人情報保護法上十分か
+- デモ戦略: ダミーで完成形を見せて反応を見る。データ保護は「三層で守り、生データはクライアントに渡さない」と説明できる状態になった
