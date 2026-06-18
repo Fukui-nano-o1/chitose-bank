@@ -363,6 +363,18 @@ input:focus { outline: none; }
   }
 }
 
+/* ── Job detail key info: 4-up grid (Airbnb-style label/value cells) ── */
+.job-detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+@media (max-width: 759px) {
+  .job-detail-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── LandingFlow Step6 grid ── */
 .lf-map-hero { height: 360px; }
 .lf-preview-grid {
@@ -3787,18 +3799,20 @@ function JobSearchMapView({ onRegister }) {
           })()}
 
           {/* 主要情報 */}
-          <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-            {[
-              { label:"日程",   value: selectedJob.dateLabel },
-              { label:"勤務時間", value: selectedJob.workTime },
-              { label:"募集人数", value: selectedJob.count },
-              { label:"報酬",   value: `${payLabel(selectedJob)}　${selectedJob.payTiming}・${selectedJob.payMethod}` },
-            ].map(row => (
-              <div key={row.label} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0, marginRight:12 }}>{row.label}</span>
-                <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, textAlign:"right" }}>{row.value}</span>
-              </div>
-            ))}
+          <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+            <div className="job-detail-info-grid">
+              {[
+                { label:"日程",   value: selectedJob.dateLabel },
+                { label:"勤務時間", value: selectedJob.workTime },
+                { label:"募集人数", value: selectedJob.count },
+                { label:"報酬",   value: `${payLabel(selectedJob)}　${selectedJob.payTiming}・${selectedJob.payMethod}` },
+              ].map(row => (
+                <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* 作業説明 */}
