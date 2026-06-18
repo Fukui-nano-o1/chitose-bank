@@ -3725,6 +3725,25 @@ function calcMaxPay(job) {
   return null;
 }
 
+// 応募パネルの開催期間ミニカレンダー用パース（段階2-a・ダミー前提・年は2026固定）
+// dateLabel "6/10〜6/13" / "6/15" を想定。月をまたぐ場合は開始月のみ表示し、月末までをハイライト。フォーマット外は null
+function parseCalendarRange(dateLabel) {
+  const match = /^(\d{1,2})\/(\d{1,2})(?:〜(\d{1,2})\/(\d{1,2}))?$/.exec(dateLabel || "");
+  if (!match) return null;
+
+  const [, m1, d1, m2, d2] = match;
+  const year = 2026;
+  const month = Number(m1) - 1;
+  const startDay = Number(d1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const sameMonth = !m2 || Number(m2) === Number(m1);
+  const endDay = sameMonth ? (d2 ? Number(d2) : startDay) : daysInMonth;
+
+  if (!Number.isFinite(startDay) || !Number.isFinite(endDay) || startDay < 1 || endDay < startDay) return null;
+
+  return { year, month, startDay, endDay, daysInMonth, firstWeekday: new Date(year, month, 1).getDay() };
+}
+
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -3737,6 +3756,7 @@ function JobSearchMapView({ onRegister }) {
   const payLabel = j => j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`;
   const pinLabel = j => j.payType === "hourly" ? `¥${j.pay.toLocaleString()}/h` : `¥${j.pay.toLocaleString()}/日`;
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
+  const calRange = selectedJob ? parseCalendarRange(selectedJob.dateLabel) : null;
 
   // 将来の実地図APIに差し替える際はこの座標変換を修正する
   const MIN_LAT=34.04, MAX_LAT=34.12, MIN_LNG=134.20, MAX_LNG=134.38;
@@ -3947,6 +3967,38 @@ function JobSearchMapView({ onRegister }) {
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:0, marginTop:10 }}>
                 まだ応募は確定しません。正確な金額は面接後に決定します。
               </p>
+
+              {/* 開催期間ミニカレンダー（段階2-a・ダミー前提） */}
+              {calRange && (
+                <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #EBEBEB" }}>
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:0, marginBottom:8, textAlign:"center" }}>
+                    {calRange.year}年{calRange.month + 1}月
+                  </p>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:2, marginBottom:2 }}>
+                    {["日","月","火","水","木","金","土"].map(w => (
+                      <span key={w} className="f-sans" style={{ fontSize:9, color:"#B0B0B0", textAlign:"center" }}>{w}</span>
+                    ))}
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:2 }}>
+                    {Array.from({ length: calRange.firstWeekday }).map((_, i) => (
+                      <span key={`pad-${i}`} />
+                    ))}
+                    {Array.from({ length: calRange.daysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const inRange = day >= calRange.startDay && day <= calRange.endDay;
+                      return (
+                        <span key={day} className="f-mono" style={{
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          height:22, borderRadius:6, fontSize:10,
+                          background: inRange ? "#00A86B" : "transparent",
+                          color: inRange ? "#fff" : "#717171",
+                          fontWeight: inRange ? 700 : 400,
+                        }}>{day}</span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
