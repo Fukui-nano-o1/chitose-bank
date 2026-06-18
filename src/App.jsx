@@ -6635,28 +6635,33 @@ export default function App(){
       await sSet("yw_records",{});
       await sSet("yw_pres_v3",true);
     }
-  　const { data: dbFarmers } = await supabase.from('farmers').select('*');
-    const f = dbFarmers ? dbFarmers.map(fr => ({ id: fr.auth_id || fr.id, name: fr.name, email: fr.email, joinedYear: fr.joined_year, prefecture: fr.prefecture || "", municipality: fr.municipality || "", planned_crops: fr.planned_crops || [], experience_tier: fr.experience_tier || "", farming_type: fr.farming_type || "", area_tan: fr.area_tan || "", sales_channels: fr.sales_channels || [], avatar_url: fr.avatar_url || "" })) : [];
-    const fp=await sGet("yw_farmers_pend")||[];
+  　const fp=await sGet("yw_farmers_pend")||[];
     const { data: dbDestsOk } = await supabase.from('dests').select('*').eq('status', 'approved');
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
     const { data: dbDestsPend } = await supabase.from('dests').select('*').eq('status', 'pending');
     const dp = dbDestsPend ? dbDestsPend.map(d => ({ id: d.id, name: d.name, status: d.status, submittedBy: d.submitted_by })) : [];
-    const { data: dbRecs } = await supabase.from('records').select('*');
+
+    const { data: { session } } = await supabase.auth.getSession();
+    let f = [];
     const r = {};
-    if (dbRecs) {
-      dbRecs.forEach(rec => {
-        const k = `${rec.farmer_id}_${rec.year}_${rec.month}`;
-        if (!r[k]) r[k] = [];
-        r[k].push({ id: rec.id, destId: rec.dest_id, boxes: rec.boxes, ppb: rec.ppb, costs: rec.costs || [], crop: rec.crop, variety: rec.variety, is_brand: rec.is_brand, created_at: rec.created_at });
-      });
+    if (session) {
+      const { data: dbFarmer } = await supabase.from('farmers').select('*').eq('email', session.user.email).single();
+      if (dbFarmer) {
+        const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
+        f = [loggedIn];
+        setMe({ ...loggedIn, id: session.user.id });
+        setTab("board");
+      }
+      const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
+      if (dbRecs) {
+        dbRecs.forEach(rec => {
+          const k = `${rec.farmer_id}_${rec.year}_${rec.month}`;
+          if (!r[k]) r[k] = [];
+          r[k].push({ id: rec.id, destId: rec.dest_id, boxes: rec.boxes, ppb: rec.ppb, costs: rec.costs || [], crop: rec.crop, variety: rec.variety, is_brand: rec.is_brand, created_at: rec.created_at });
+        });
+      }
     }
     setFarmers(f);setFarmPend(fp);setDestOk(da);setDestPend(dp);setRecs(r);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const loggedIn = f.find(x => x.email?.toLowerCase() === session.user.email?.toLowerCase());
-      if (loggedIn) { setMe({ ...loggedIn, id: session.user.id }); setTab("board"); }
-    }
     setBadgeCnt(fp.length+dp.length);setLoaded(true);
   })();},[]);
 
@@ -6691,15 +6696,14 @@ const loadNotifs=useCallback(async(farmerId)=>{
   };
 
   const completeOnboarding=useCallback(async(updates)=>{
-    // TODO: 一般ユーザーではfarmers全件取得を避け、本人行のみ取得する
-    const{data:dbFarmers}=await supabase.from('farmers').select('*');
-    if(dbFarmers){
-      const f=dbFarmers.map(fr=>({id:fr.auth_id||fr.id,name:fr.name,email:fr.email,joinedYear:fr.joined_year,prefecture:fr.prefecture||"",municipality:fr.municipality||"",planned_crops:fr.planned_crops||[],experience_tier:fr.experience_tier||"",farming_type:fr.farming_type||"",area_tan:fr.area_tan||"",sales_channels:fr.sales_channels||[],avatar_url:fr.avatar_url||""}));
-      setFarmers(f);
-      setMe(prev=>{
-        const updated=f.find(x=>x.id===prev?.id);
-        return updated?updated:prev;
-      });
+    const{data:{user}}=await supabase.auth.getUser();
+    if(user){
+      const{data:dbFarmer}=await supabase.from('farmers').select('*').eq('email',user.email).single();
+      if(dbFarmer){
+        const loggedIn={id:dbFarmer.auth_id||dbFarmer.id,name:dbFarmer.name,email:dbFarmer.email,joinedYear:dbFarmer.joined_year,prefecture:dbFarmer.prefecture||"",municipality:dbFarmer.municipality||"",planned_crops:dbFarmer.planned_crops||[],experience_tier:dbFarmer.experience_tier||"",farming_type:dbFarmer.farming_type||"",area_tan:dbFarmer.area_tan||"",sales_channels:dbFarmer.sales_channels||[],avatar_url:dbFarmer.avatar_url||""};
+        setFarmers([loggedIn]);
+        setMe({...loggedIn,id:user.id});
+      }
     }
     setShowOnboarding(false);
     setTab("board");
