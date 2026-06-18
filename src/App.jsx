@@ -3689,6 +3689,38 @@ const JOB_SEARCH_SAMPLES = [
   },
 ];
 
+// 応募パネルの「最高額」自動計算（段階2-a・ダミー前提）
+// workTime "8:00〜16:00" / dateLabel "6/10〜6/13" or "6/15" を想定。フォーマット外は null を返す
+function calcMaxPay(job) {
+  const timeMatch = /^(\d{1,2}):(\d{2})〜(\d{1,2}):(\d{2})$/.exec(job.workTime || "");
+  const dateMatch = /^(\d{1,2})\/(\d{1,2})(?:〜(\d{1,2})\/(\d{1,2}))?$/.exec(job.dateLabel || "");
+  if (!dateMatch) return null;
+
+  const [, m1, d1, m2, d2] = dateMatch;
+  let days = 1;
+  if (m2 && d2) {
+    const start = new Date(2026, Number(m1) - 1, Number(d1));
+    const end = new Date(2026, Number(m2) - 1, Number(d2));
+    days = Math.round((end - start) / 86400000) + 1;
+  }
+  if (!Number.isFinite(days) || days < 1) return null;
+
+  if (job.payType === "daily") {
+    return job.pay * days;
+  }
+  if (job.payType === "hourly") {
+    if (!timeMatch) return null;
+    const [, h1, mi1, h2, mi2] = timeMatch;
+    const startH = Number(h1) + Number(mi1) / 60;
+    const endH = Number(h2) + Number(mi2) / 60;
+    const BREAK_HOURS = 1; // 休憩1hダミー
+    const workHours = endH - startH - BREAK_HOURS;
+    if (!Number.isFinite(workHours) || workHours <= 0) return null;
+    return Math.round(job.pay * workHours * days);
+  }
+  return null;
+}
+
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -3700,6 +3732,7 @@ function JobSearchMapView({ onRegister }) {
 
   const payLabel = j => j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`;
   const pinLabel = j => j.payType === "hourly" ? `¥${j.pay.toLocaleString()}/h` : `¥${j.pay.toLocaleString()}/日`;
+  const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
 
   // 将来の実地図APIに差し替える際はこの座標変換を修正する
   const MIN_LAT=34.04, MAX_LAT=34.12, MIN_LNG=134.20, MAX_LNG=134.38;
@@ -3874,14 +3907,40 @@ function JobSearchMapView({ onRegister }) {
               </p>
             </div>
 
-            {/* 右カラム: 応募パネル */}
-            <div style={{ position:"sticky", top:20 }}>
+            {/* 右カラム: 応募パネル（段階2-a・ガワのみ。応募は実稼働しない） */}
+            <div style={{
+              position:"sticky", top:20, background:"#fff", border:"1px solid #EBEBEB",
+              borderRadius:16, padding:"20px",
+            }}>
+              {/* 給与 */}
+              <p className="f-mono" style={{ fontSize:22, fontWeight:800, color:"#222", margin:0, marginBottom:6 }}>
+                {payLabel(selectedJob)}
+              </p>
+
+              {/* 最高額（自動計算・休憩1hダミー前提） */}
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:16 }}>
+                期間内に全て勤務した場合の最高額: {maxPay != null ? `¥${maxPay.toLocaleString()}` : "—"}
+              </p>
+
+              <div style={{ height:1, background:"#EBEBEB", margin:"0 0 16px" }} />
+
+              {/* 期間 */}
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:20 }}>
+                <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>期間</span>
+                <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{selectedJob.dateLabel}</span>
+              </div>
+
               {/* CTAボタン */}
               <button
                 onClick={() => onRegister && onRegister()}
                 className="btn-primary f-sans"
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
               >この仕事に興味がある</button>
+
+              {/* 補足文 */}
+              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:0, marginTop:10 }}>
+                まだ応募は確定しません。正確な金額は面接後に決定します。
+              </p>
             </div>
           </div>
 
