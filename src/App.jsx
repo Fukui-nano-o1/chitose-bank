@@ -3800,6 +3800,9 @@ function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [reviewSort, setReviewSort] = useState("new");
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); };
   const handlePhotoScroll = e => {
     const el = e.target;
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
@@ -3849,7 +3852,7 @@ function JobSearchMapView({ onRegister }) {
           {JOB_SEARCH_SAMPLES.map(job => (
             <button
               key={job.id}
-              onClick={() => { setSelectedJob(job); setActiveSlide(0); }}
+              onClick={() => openJob(job)}
               style={{
                 display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer",
                 background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden",
@@ -4082,6 +4085,69 @@ function JobSearchMapView({ onRegister }) {
             }}>{pinLabel(selectedJob)}</div>
           </div>
 
+          {/* 農家へのレビュー（段階2-a・ガワのみ・取引実績ベース・匿名・日付なし） */}
+          {(() => {
+            const allReviews = selectedJob.farmerReviews || [];
+            const sortedReviews = [...allReviews];
+            if (reviewSort === "high") sortedReviews.sort((a, b) => b.stars - a.stars);
+            else if (reviewSort === "low") sortedReviews.sort((a, b) => a.stars - b.stars);
+            const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 8);
+            const hasMore = sortedReviews.length > 8;
+
+            return (
+              <div style={{ marginBottom:28 }}>
+                {/* ヘッダー（大々的に） */}
+                <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:6 }}>
+                  <span style={{ fontSize:32, color:"#00A86B" }}>★</span>
+                  <span className="f-mono" style={{ fontSize:32, fontWeight:800, color:"#222" }}>{selectedJob.farmerRating}</span>
+                  <span className="f-sans" style={{ fontSize:15, color:"#717171" }}>・{selectedJob.farmerReviewCount}件のレビュー</span>
+                </div>
+                <p className="f-sans" style={{ fontSize:15, color:"#222", fontWeight:600, margin:0, marginBottom:20 }}>
+                  {selectedJob.farmerName}の評価
+                </p>
+
+                {/* 並び替えタブ */}
+                <div style={{ display:"flex", gap:8, marginBottom:18 }}>
+                  {[
+                    { key:"new",  label:"新しい順" },
+                    { key:"high", label:"評価が高い順" },
+                    { key:"low",  label:"評価が低い順" },
+                  ].map(opt => {
+                    const active = reviewSort === opt.key;
+                    return (
+                      <button key={opt.key} onClick={() => setReviewSort(opt.key)} className="f-sans" style={{
+                        padding:"7px 16px", borderRadius:20, fontSize:13, cursor:"pointer", fontWeight:600,
+                        border: active ? "1px solid #00A86B" : "1px solid #EBEBEB",
+                        background: active ? "#E6F7EF" : "#fff",
+                        color: active ? "#00A86B" : "#717171",
+                      }}>{opt.label}</button>
+                    );
+                  })}
+                </div>
+
+                {/* 個別レビュー一覧（匿名・日付なし・最大8件） */}
+                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                  {visibleReviews.map((review, i) => (
+                    <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px" }}>
+                      <p style={{ margin:0, marginBottom:6, fontSize:13, color:"#00A86B", letterSpacing:1 }}>
+                        {"★".repeat(review.stars)}{"☆".repeat(5 - review.stars)}
+                      </p>
+                      <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0 }}>{review.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* もっと見る */}
+                {hasMore && !showAllReviews && (
+                  <button onClick={() => setShowAllReviews(true)} className="f-sans" style={{
+                    display:"block", margin:"18px auto 0", padding:"10px 28px", borderRadius:20,
+                    border:"1px solid #222", background:"#fff", color:"#222", fontSize:13, fontWeight:700, cursor:"pointer",
+                  }}>もっと見る</button>
+                )}
+              </div>
+            );
+          })()}
+
           {/* その他の求人（関連求人・横スクロール／優先順位ロジックなし・ガワのみ） */}
           <div style={{ marginBottom:20 }}>
             <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:12 }}>その他の求人</h3>
@@ -4092,7 +4158,7 @@ function JobSearchMapView({ onRegister }) {
               {JOB_SEARCH_SAMPLES.filter(job => job.id !== selectedJob.id).map(job => (
                 <button
                   key={job.id}
-                  onClick={() => { setSelectedJob(job); setActiveSlide(0); }}
+                  onClick={() => openJob(job)}
                   style={{
                     flexShrink:0, width:160, padding:0, textAlign:"left", cursor:"pointer",
                     background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden",
