@@ -1535,6 +1535,14 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     })();
   }, []);
 
+  const [cropSummary, setCropSummary] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc('board_crop_summary');
+      if (!error) setCropSummary(data ?? []);
+    })();
+  }, []);
+
   const enrichedStats = marketStats.map(s => ({
     ...s,
     labor_hours_per_10a: s.labor_hours_per_10a || LABOR_HOURS[s.crop] || null,
@@ -1578,26 +1586,10 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     ? allFarmerRecs
     : allFarmerRecs.map(({ id, recs }) => ({ id, recs: recs.filter(r => r.crop === selectedCrop) }));
 
-  // 作物別集計（農家単位）
-  const cropFarmerMap = {};
-  filteredFarmerRecs.forEach(({ id, recs }) => {
-    recs.forEach(r => {
-      const crop = r.crop || "";
-      if (!crop) return;
-      if (!cropFarmerMap[crop]) cropFarmerMap[crop] = {};
-      if (!cropFarmerMap[crop][id]) cropFarmerMap[crop][id] = { rev: 0, cost: 0 };
-      cropFarmerMap[crop][id].rev += (r.boxes || 0) * (r.ppb || 0);
-      cropFarmerMap[crop][id].cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
-    });
-  });
-  const cropCards = Object.entries(cropFarmerMap).map(([crop, fm]) => {
-    const entries = Object.values(fm);
-    const revs = entries.map(e => e.rev);
-    const costs = entries.map(e => e.cost);
-    const profits = entries.map(e => e.rev - e.cost);
-    const rates = entries.filter(e => e.rev > 0).map(e => Math.round(e.cost / e.rev * 100));
-    return { crop, count: entries.length, medRev: median(revs), medCost: median(costs), medProfit: median(profits), medRate: Math.round(median(rates)) };
-  }).sort((a, b) => b.count - a.count);
+  // 作物別集計（DB集計関数 board_crop_summary の結果をそのまま使用）
+  const cropCards = cropSummary.map(s => ({
+    crop: s.crop, count: s.farmer_count, medRev: s.med_rev, medCost: s.med_cost, medProfit: s.med_profit, medRate: s.med_rate,
+  }));
 
   // 出荷先別集計（農家単位）
   const destFarmerMap = {};
@@ -2182,10 +2174,9 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
           <div style={{ marginBottom:32 }}>
             <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>作物別 集計（中央値）</div>
             {filteredCropCards.length === 0
-              ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
+              ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です（5農家以上のデータが集まると表示されます）</p>
               : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
                   {filteredCropCards.map(c => {
-                    const masked = c.count < MIN_FARMERS;
                     return (
                       <div key={c.crop} style={{
                         flexShrink:0, width:200, padding:"18px 18px 16px",
@@ -2194,20 +2185,14 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
                       }}>
                         <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:C.ink, marginBottom:4 }}>{c.crop}</p>
                         <p className="f-sans" style={{ fontSize:10, color:C.ghost, marginBottom:12 }}>{c.count}農家が入力</p>
-                        {masked ? (
-                          <div style={{ padding:"12px 10px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
-                            <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中<br/>（あと{MIN_FARMERS - c.count}人）</p>
-                          </div>
-                        ) : (
-                          <div style={{ display:"grid", gap:6 }}>
-                            {[{l:"売上中央値",v:man(c.medRev),col:C.bamboo},{l:"経費中央値",v:man(c.medCost),col:C.gold},{l:"利益中央値",v:man(c.medProfit),col:c.medProfit>=0?C.bamboo:C.shu},{l:"経費率中央値",v:`${c.medRate}%`,col:C.mid}].map(row => (
-                              <div key={row.l} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
-                                <span className="f-sans" style={{ fontSize:9, color:C.ghost }}>{row.l}</span>
-                                <span className="f-mono" style={{ fontSize:13, fontWeight:600, color:row.col }}>{row.v}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <div style={{ display:"grid", gap:6 }}>
+                          {[{l:"売上中央値",v:man(c.medRev),col:C.bamboo},{l:"経費中央値",v:man(c.medCost),col:C.gold},{l:"利益中央値",v:man(c.medProfit),col:c.medProfit>=0?C.bamboo:C.shu},{l:"経費率中央値",v:`${c.medRate}%`,col:C.mid}].map(row => (
+                            <div key={row.l} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+                              <span className="f-sans" style={{ fontSize:9, color:C.ghost }}>{row.l}</span>
+                              <span className="f-mono" style={{ fontSize:13, fontWeight:600, color:row.col }}>{row.v}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
