@@ -3819,6 +3819,18 @@ function JobSearchMapView({ onRegister }) {
             </div>
           </div>
 
+          {/* 農家プロフィール */}
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{
+              width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
+              display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
+            }}>🧑‍🌾</div>
+            <div>
+              <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{selectedJob.farmerName}</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
+            </div>
+          </div>
+
           {/* 作業説明 */}
           <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
