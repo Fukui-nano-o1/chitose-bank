@@ -1519,6 +1519,14 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     });
   }, []);
 
+  const [farmerCount, setFarmerCount] = useState(null);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc('public_farmers_count');
+      if (!error && data != null) setFarmerCount(data);
+    })();
+  }, []);
+
   const enrichedStats = marketStats.map(s => ({
     ...s,
     labor_hours_per_10a: s.labor_hours_per_10a || LABOR_HOURS[s.crop] || null,
@@ -2133,7 +2141,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
         display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8,
       }}>
         <span className="f-sans" style={{ fontSize:13, color:C.ink }}>
-          現在 <strong style={{ color:C.bamboo }}>{farmers.length}</strong> 名の農家が参加中{regionText}
+          現在 <strong style={{ color:C.bamboo }}>{farmerCount != null ? farmerCount : farmers.length}</strong> 名の農家が参加中{regionText}
         </span>
         <span className="f-sans" style={{ fontSize:10, color:C.ghost }}>最終更新 {lastUpdated}</span>
       </div>
