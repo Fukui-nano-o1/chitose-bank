@@ -3634,6 +3634,7 @@ const JOB_SEARCH_SAMPLES = [
   {
     id:1, crop:"ブロッコリー", task:"収穫補助", dateLabel:"6/10〜6/13", payType:"hourly", pay:1200,
     region:"吉野川市周辺", experience:"未経験可", icon:"🥦", lat:34.05, lng:134.23,
+    farmerName:"山川ブロッコリー農園", farmerBadge:"認定農家", farmerYears:"就農15年",
     workTime:"8:00〜16:00", count:"4名",
     payTiming:"即日払い（作業当日）", payMethod:"現金手渡し",
     wanted:"未経験歓迎",
@@ -3644,6 +3645,7 @@ const JOB_SEARCH_SAMPLES = [
   {
     id:2, crop:"なす",         task:"選果",     dateLabel:"6/15",        payType:"daily",  pay:8000,
     region:"阿波市周辺",          experience:"経験者歓迎", icon:"🍆", lat:34.10, lng:134.30,
+    farmerName:"阿波なす農園", farmerBadge:"エコファーマー認証", farmerYears:"就農22年",
     workTime:"7:30〜15:30", count:"2名",
     payTiming:"週末まとめ払い", payMethod:"銀行振込",
     wanted:"1回以上の農作業経験者歓迎",
@@ -3654,6 +3656,7 @@ const JOB_SEARCH_SAMPLES = [
   {
     id:3, crop:"ねぎ",         task:"定植",     dateLabel:"6/20〜6/22",  payType:"hourly", pay:1100,
     region:"吉野川市周辺",  experience:"未経験可",   icon:"🌿", lat:34.07, lng:134.35,
+    farmerName:"中野ねぎ生産組合", farmerBadge:"地域認定農家", farmerYears:"就農8年",
     workTime:"7:00〜12:00", count:"5名",
     payTiming:"即日払い（作業当日）", payMethod:"現金手渡し",
     wanted:"未経験歓迎",
@@ -3664,6 +3667,7 @@ const JOB_SEARCH_SAMPLES = [
   {
     id:4, crop:"トマト",       task:"収穫",     dateLabel:"6/25〜7/5",   payType:"daily",  pay:9000,
     region:"吉野川市周辺",        experience:"未経験可",   icon:"🍅", lat:34.06, lng:134.28,
+    farmerName:"陽だまりトマトファーム", farmerBadge:"GAP認証農場", farmerYears:"就農30年",
     workTime:"6:30〜14:30", count:"3名",
     payTiming:"月末締め・翌月払い", payMethod:"銀行振込",
     wanted:"未経験歓迎・長期歓迎",
