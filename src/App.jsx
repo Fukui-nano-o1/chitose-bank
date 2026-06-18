@@ -363,15 +363,15 @@ input:focus { outline: none; }
   }
 }
 
-/* ── Job detail key info: 4-up grid (Airbnb-style label/value cells) ── */
+/* ── Job detail key info: 3x2 grid (Airbnb-style label/value cells) ── */
 .job-detail-info-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 @media (max-width: 759px) {
   .job-detail-info-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -3859,10 +3859,12 @@ function JobSearchMapView({ onRegister }) {
               <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                 <div className="job-detail-info-grid">
                   {[
-                    { label:"日程",   value: selectedJob.dateLabel },
+                    { label:"日程",     value: selectedJob.dateLabel },
                     { label:"勤務時間", value: selectedJob.workTime },
+                    { label:"休憩時間", value: selectedJob.breakTime },
                     { label:"募集人数", value: selectedJob.count },
-                    { label:"報酬",   value: `${payLabel(selectedJob)}　${selectedJob.payTiming}・${selectedJob.payMethod}` },
+                    { label:"移動時間", value: selectedJob.commuteTime },
+                    { label:"報酬",     value: `${payLabel(selectedJob)}　${selectedJob.payTiming}・${selectedJob.payMethod}` },
                   ].map(row => (
                     <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
                       <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
