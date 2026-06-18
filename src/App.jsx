@@ -1543,6 +1543,14 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     })();
   }, []);
 
+  const [destSummary, setDestSummary] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc('board_dest_summary');
+      if (!error) setDestSummary(data ?? []);
+    })();
+  }, []);
+
   const enrichedStats = marketStats.map(s => ({
     ...s,
     labor_hours_per_10a: s.labor_hours_per_10a || LABOR_HOURS[s.crop] || null,
@@ -1566,13 +1574,6 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     return next;
   });
 
-  const median = arr => {
-    if (!arr.length) return 0;
-    const s = [...arr].sort((a, b) => a - b);
-    const m = Math.floor(s.length / 2);
-    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-  };
-
   const allFarmerRecs = farmers.map(f => ({
     id: f.id,
     recs: MONTHS.flatMap((_, i) => records[`${f.id}_${THIS_YEAR}_${i}`] || []),
@@ -1582,33 +1583,15 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
   const statCrops = marketStats.map(s => s.crop).filter(Boolean);
   const allCrops = [...new Set([...recordCrops, ...statCrops])];
 
-  const filteredFarmerRecs = selectedCrop === 'すべて'
-    ? allFarmerRecs
-    : allFarmerRecs.map(({ id, recs }) => ({ id, recs: recs.filter(r => r.crop === selectedCrop) }));
-
   // 作物別集計（DB集計関数 board_crop_summary の結果をそのまま使用）
   const cropCards = cropSummary.map(s => ({
     crop: s.crop, count: s.farmer_count, medRev: s.med_rev, medCost: s.med_cost, medProfit: s.med_profit, medRate: s.med_rate,
   }));
 
-  // 出荷先別集計（農家単位）
-  const destFarmerMap = {};
-  filteredFarmerRecs.forEach(({ id, recs }) => {
-    recs.forEach(r => {
-      if (!r.destId) return;
-      if (!destFarmerMap[r.destId]) destFarmerMap[r.destId] = {};
-      if (!destFarmerMap[r.destId][id]) destFarmerMap[r.destId][id] = { rev: 0, cost: 0 };
-      destFarmerMap[r.destId][id].rev += (r.boxes || 0) * (r.ppb || 0);
-      destFarmerMap[r.destId][id].cost += (r.costs || []).reduce((s, c) => s + (c.a || 0), 0);
-    });
-  });
-  const destCards = Object.entries(destFarmerMap).map(([destId, fm]) => {
-    const entries = Object.values(fm);
-    const revs = entries.map(e => e.rev);
-    const costs = entries.map(e => e.cost);
-    const rates = entries.filter(e => e.rev > 0).map(e => Math.round(e.cost / e.rev * 100));
-    return { destId, name: destMap[destId]?.name || "不明", count: entries.length, medRate: Math.round(median(rates)), medRev: median(revs), medCost: median(costs) };
-  }).sort((a, b) => b.count - a.count);
+  // 出荷先別集計（DB集計関数 board_dest_summary の結果をそのまま使用。名前は既存のdestMapで変換）
+  const destCards = destSummary.map(s => ({
+    destId: s.dest_id, name: destMap[s.dest_id]?.name || "不明", count: s.farmer_count, medRate: s.med_rate, medRev: s.med_rev, medCost: s.med_cost,
+  }));
 
   const sq = searchQuery.trim().toLowerCase();
   const filteredCropCards = sq ? cropCards.filter(c => fuzzyMatch(sq, c.crop)) : cropCards;
@@ -1619,7 +1602,6 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
 
   const lastUpdated = new Date().toLocaleDateString("ja-JP", { year:"numeric", month:"2-digit", day:"2-digit" });
   const regionText = regionList.length > 0 ? "（" + regionList.slice(0,3).map(r => r.municipality).join("・") + "）" : "";
-  const MIN_FARMERS = 5;
 
   return (
     <div className="appear">
@@ -2204,10 +2186,9 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
           <div style={{ marginBottom:32 }}>
             <div className="f-sans" style={{ fontSize:9, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:C.dim, marginBottom:14 }}>出荷先別 採算（中央値）</div>
             {filteredDestCards.length === 0
-              ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です</p>
+              ? <p className="f-sans" style={{ fontSize:12, color:C.ghost, padding:"20px 0" }}>データ収集中です（5農家以上のデータが集まると表示されます）</p>
               : <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:8 }}>
                   {filteredDestCards.map(d => {
-                    const masked = d.count < MIN_FARMERS;
                     return (
                       <div key={d.destId} style={{
                         flexShrink:0, width:280, padding:"16px",
@@ -2218,17 +2199,11 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
                           <DestMark name={d.name} sz={24} showLabel={true} />
                           <span className="f-sans" style={{ marginLeft:"auto", fontSize:9, color:C.ghost }}>{d.count}農家</span>
                         </div>
-                        {masked ? (
-                          <div style={{ padding:"10px 8px", background:C.ivory, borderRadius:8, textAlign:"center" }}>
-                            <p className="f-sans" style={{ fontSize:10, color:C.dim, lineHeight:1.7 }}>データ収集中（あと{MIN_FARMERS - d.count}人）</p>
-                          </div>
-                        ) : (
-                          <BalanceSheet
-                            revenue={d.medRev}
-                            costs={[{l:"経費(中央値)", a: d.medCost}]}
-                            compact={true}
-                          />
-                        )}
+                        <BalanceSheet
+                          revenue={d.medRev}
+                          costs={[{l:"経費(中央値)", a: d.medCost}]}
+                          compact={true}
+                        />
                       </div>
                     );
                   })}
