@@ -3872,34 +3872,6 @@ function JobSearchMapView({ onRegister }) {
               <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:20 }}>
                 本名・詳細住所は公開しません。
               </p>
-
-              {/* 地図（単一ピン） */}
-              <div style={{
-                position:"relative", borderRadius:16, overflow:"hidden",
-                height:480, border:"1px solid #EBEBEB", marginBottom:20,
-                background:"linear-gradient(145deg, #c8e6c9 0%, #a5d6a7 35%, #88c98a 65%, #b2dfb4 100%)",
-              }}>
-                {/* 道路（ダミー） */}
-                <div style={{ position:"absolute", top:"43%", left:0, right:0, height:3, background:"rgba(255,255,255,0.55)", transform:"rotate(-2deg)" }} />
-                <div style={{ position:"absolute", top:"22%", left:"15%", right:"5%", height:2, background:"rgba(255,255,255,0.4)", transform:"rotate(7deg)" }} />
-                <div style={{ position:"absolute", top:0, bottom:0, left:"40%", width:2, background:"rgba(255,255,255,0.4)", transform:"rotate(1deg)" }} />
-                <div style={{ position:"absolute", top:"60%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-5deg)" }} />
-                {/* 地名ラベル */}
-                <div style={{ position:"absolute", top:8, left:8, padding:"3px 8px", background:"rgba(255,255,255,0.85)", borderRadius:8 }}>
-                  <span className="f-sans" style={{ fontSize:9, color:"#555" }}>吉野川流域・徳島県</span>
-                </div>
-                {/* ピン（単一・selectedJobのみ） */}
-                <div style={{
-                  position:"absolute", left:pinX(selectedJob.lng), top:pinY(selectedJob.lat),
-                  transform:"translate(-50%, -100%)",
-                  background:"#00A86B", color:"#fff",
-                  border:"2px solid #00A86B", borderRadius:20,
-                  padding:"4px 9px", fontSize:11, fontWeight:700,
-                  whiteSpace:"nowrap",
-                  boxShadow:"0 2px 6px rgba(0,0,0,0.18)",
-                  fontFamily:"'DM Mono',monospace",
-                }}>{pinLabel(selectedJob)}</div>
-              </div>
             </div>
 
             {/* 右カラム: 応募パネル */}
@@ -3911,6 +3883,34 @@ function JobSearchMapView({ onRegister }) {
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
               >この仕事に興味がある</button>
             </div>
+          </div>
+
+          {/* 地図（単一ピン・2カラムの外で全幅） */}
+          <div style={{
+            width:"100%", position:"relative", borderRadius:16, overflow:"hidden",
+            height:480, border:"1px solid #EBEBEB", marginBottom:20,
+            background:"linear-gradient(145deg, #c8e6c9 0%, #a5d6a7 35%, #88c98a 65%, #b2dfb4 100%)",
+          }}>
+            {/* 道路（ダミー） */}
+            <div style={{ position:"absolute", top:"43%", left:0, right:0, height:3, background:"rgba(255,255,255,0.55)", transform:"rotate(-2deg)" }} />
+            <div style={{ position:"absolute", top:"22%", left:"15%", right:"5%", height:2, background:"rgba(255,255,255,0.4)", transform:"rotate(7deg)" }} />
+            <div style={{ position:"absolute", top:0, bottom:0, left:"40%", width:2, background:"rgba(255,255,255,0.4)", transform:"rotate(1deg)" }} />
+            <div style={{ position:"absolute", top:"60%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-5deg)" }} />
+            {/* 地名ラベル */}
+            <div style={{ position:"absolute", top:8, left:8, padding:"3px 8px", background:"rgba(255,255,255,0.85)", borderRadius:8 }}>
+              <span className="f-sans" style={{ fontSize:9, color:"#555" }}>吉野川流域・徳島県</span>
+            </div>
+            {/* ピン（単一・selectedJobのみ） */}
+            <div style={{
+              position:"absolute", left:pinX(selectedJob.lng), top:pinY(selectedJob.lat),
+              transform:"translate(-50%, -100%)",
+              background:"#00A86B", color:"#fff",
+              border:"2px solid #00A86B", borderRadius:20,
+              padding:"4px 9px", fontSize:11, fontWeight:700,
+              whiteSpace:"nowrap",
+              boxShadow:"0 2px 6px rgba(0,0,0,0.18)",
+              fontFamily:"'DM Mono',monospace",
+            }}>{pinLabel(selectedJob)}</div>
           </div>
         </div>
       )}
