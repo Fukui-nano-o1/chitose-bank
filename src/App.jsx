@@ -3912,6 +3912,35 @@ function JobSearchMapView({ onRegister }) {
               fontFamily:"'DM Mono',monospace",
             }}>{pinLabel(selectedJob)}</div>
           </div>
+
+          {/* その他の求人（関連求人・横スクロール／優先順位ロジックなし・ガワのみ） */}
+          <div style={{ marginBottom:20 }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:12 }}>その他の求人</h3>
+            <Carousel
+              className="carousel-scroll"
+              style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
+            >
+              {JOB_SEARCH_SAMPLES.filter(job => job.id !== selectedJob.id).map(job => (
+                <button
+                  key={job.id}
+                  onClick={() => { setSelectedJob(job); setActiveSlide(0); }}
+                  style={{
+                    flexShrink:0, width:160, padding:0, textAlign:"left", cursor:"pointer",
+                    background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden",
+                  }}
+                >
+                  <div style={{ width:"100%", height:100, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }}>
+                    {job.icon}
+                  </div>
+                  <div style={{ padding:"8px 10px 10px" }}>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, marginBottom:2 }}>{job.crop} {job.task}</p>
+                    <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:0, marginBottom:4 }}>{job.region}</p>
+                    <p className="f-mono" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(job)}</p>
+                  </div>
+                </button>
+              ))}
+            </Carousel>
+          </div>
         </div>
       )}
     </div>
