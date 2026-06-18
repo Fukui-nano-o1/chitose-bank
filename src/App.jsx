@@ -2432,12 +2432,16 @@ function InputTab({ loggedInFarmer, destApproved, destPending, records, onAddRec
   const rev=(parseFloat(boxes)||0)*(parseFloat(ppb)||0);
   const myPend=destPending.filter(d=>d.submittedBy===loggedInFarmer?.name);
 
+  const myRecordLists = Object.entries(records)
+    .filter(([k]) => k.startsWith(loggedInFarmer.id + "_"))
+    .map(([, v]) => v);
+
   const knownCrops=[...new Set(
-    Object.values(records).flat().map(r=>r.crop).filter(Boolean)
+    myRecordLists.flat().map(r=>r.crop).filter(Boolean)
   )];
 
   const knownVarieties=(cropName)=>[...new Set(
-    Object.values(records).flat().filter(r=>r.crop===cropName&&r.variety).map(r=>r.variety)
+    myRecordLists.flat().filter(r=>r.crop===cropName&&r.variety).map(r=>r.variety)
   )];
 
   const save=async()=>{
@@ -6577,6 +6581,7 @@ export default function App(){
   const [destOk,setDestOk]=useState([]);
   const [destPend,setDestPend]=useState([]);
   const [recs,setRecs]=useState({});
+  const [publicFarmerCount,setPublicFarmerCount]=useState(null);
   const [loaded,setLoaded]=useState(false);
   const [badgeCnt,setBadgeCnt]=useState(0);
   const [me,setMe]=useState(null);
@@ -6612,6 +6617,11 @@ export default function App(){
     document.addEventListener('mousedown',close);
     return()=>document.removeEventListener('mousedown',close);
   },[showNotifs]);
+
+  useEffect(()=>{(async()=>{
+    const { data, error } = await supabase.rpc('public_farmers_count');
+    if (!error && data != null) setPublicFarmerCount(data);
+  })();},[]);
 
   useEffect(()=>{(async()=>{
     const init=await sGet("yw_pres_v3");
@@ -7017,7 +7027,7 @@ const subDest=useCallback(async d=>{
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {safeTab==="labor"&&<LaborTab farmersCount={farmers.length} onLogin={()=>setTab("input")} />}
+        {safeTab==="labor"&&<LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("input")} />}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>{setShowLanding(true);setTab("labor");}} />}
         {safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
