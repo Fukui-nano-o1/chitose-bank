@@ -1551,6 +1551,14 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     })();
   }, []);
 
+  const [cropNames, setCropNames] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc('board_crop_names');
+      if (!error) setCropNames((data ?? []).map(r => r.crop));
+    })();
+  }, []);
+
   const enrichedStats = marketStats.map(s => ({
     ...s,
     labor_hours_per_10a: s.labor_hours_per_10a || LABOR_HOURS[s.crop] || null,
@@ -1573,15 +1581,6 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
-
-  const allFarmerRecs = farmers.map(f => ({
-    id: f.id,
-    recs: MONTHS.flatMap((_, i) => records[`${f.id}_${THIS_YEAR}_${i}`] || []),
-  }));
-
-  const recordCrops = allFarmerRecs.flatMap(f => f.recs).map(r => r.crop).filter(Boolean);
-  const statCrops = marketStats.map(s => s.crop).filter(Boolean);
-  const allCrops = [...new Set([...recordCrops, ...statCrops])];
 
   // 作物別集計（DB集計関数 board_crop_summary の結果をそのまま使用）
   const cropCards = cropSummary.map(s => ({
@@ -2098,7 +2097,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
         style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:10 }}
         wrapperStyle={{ marginBottom:16 }}
       >
-        {['すべて', ...allCrops].map(crop => {
+        {['すべて', ...cropNames].map(crop => {
           const active = selectedCrop === crop;
           const isMatch = crop !== 'すべて' && sq && fuzzyMatch(sq, crop);
           return (
