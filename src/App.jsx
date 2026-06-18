@@ -3820,7 +3820,7 @@ function JobSearchMapView({ onRegister }) {
           </div>
 
           {/* 農家プロフィール */}
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
+          <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
             <div style={{
               width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
               display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
