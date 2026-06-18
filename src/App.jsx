@@ -375,6 +375,18 @@ input:focus { outline: none; }
   }
 }
 
+/* ── Job detail: 2-column layout (left info / right apply panel) ── */
+.job-detail-2col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
+  gap: 24px;
+}
+@media (max-width: 759px) {
+  .job-detail-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── LandingFlow Step6 grid ── */
 .lf-map-hero { height: 360px; }
 .lf-preview-grid {
@@ -3802,95 +3814,104 @@ function JobSearchMapView({ onRegister }) {
             );
           })()}
 
-          {/* 主要情報 */}
-          <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-            <div className="job-detail-info-grid">
-              {[
-                { label:"日程",   value: selectedJob.dateLabel },
-                { label:"勤務時間", value: selectedJob.workTime },
-                { label:"募集人数", value: selectedJob.count },
-                { label:"報酬",   value: `${payLabel(selectedJob)}　${selectedJob.payTiming}・${selectedJob.payMethod}` },
-              ].map(row => (
-                <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
-                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
-                  <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 農家プロフィール */}
-          <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{
-              width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
-              display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
-            }}>🧑‍🌾</div>
+          {/* 2カラム: 左=情報 / 右=応募パネル */}
+          <div className="job-detail-2col">
+            {/* 左カラム */}
             <div>
-              <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{selectedJob.farmerName}</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
-            </div>
-          </div>
-
-          {/* 作業説明 */}
-          <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
-            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0 }}>{selectedJob.jobBody}</p>
-          </div>
-
-          {/* 経験・持ち物・備考 */}
-          <div className="job-detail-main-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-            {[
-              { label:"必要経験",       value: selectedJob.experience },
-              { label:"希望する働き手", value: selectedJob.wanted },
-              { label:"持ち物",         value: selectedJob.items },
-              { label:"備考・注意",     value: selectedJob.notes },
-            ].map(row => (
-              <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
-                <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{row.value}</span>
+              {/* 主要情報 */}
+              <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                <div className="job-detail-info-grid">
+                  {[
+                    { label:"日程",   value: selectedJob.dateLabel },
+                    { label:"勤務時間", value: selectedJob.workTime },
+                    { label:"募集人数", value: selectedJob.count },
+                    { label:"報酬",   value: `${payLabel(selectedJob)}　${selectedJob.payTiming}・${selectedJob.payMethod}` },
+                  ].map(row => (
+                    <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                      <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
+                      <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{row.value}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
 
-          {/* 注記 */}
-          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:20 }}>
-            本名・詳細住所は公開しません。
-          </p>
+              {/* 農家プロフィール */}
+              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{
+                  width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
+                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
+                }}>🧑‍🌾</div>
+                <div>
+                  <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{selectedJob.farmerName}</p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
+                </div>
+              </div>
 
-          {/* 地図（単一ピン） */}
-          <div style={{
-            position:"relative", borderRadius:16, overflow:"hidden",
-            height:480, border:"1px solid #EBEBEB", marginBottom:20,
-            background:"linear-gradient(145deg, #c8e6c9 0%, #a5d6a7 35%, #88c98a 65%, #b2dfb4 100%)",
-          }}>
-            {/* 道路（ダミー） */}
-            <div style={{ position:"absolute", top:"43%", left:0, right:0, height:3, background:"rgba(255,255,255,0.55)", transform:"rotate(-2deg)" }} />
-            <div style={{ position:"absolute", top:"22%", left:"15%", right:"5%", height:2, background:"rgba(255,255,255,0.4)", transform:"rotate(7deg)" }} />
-            <div style={{ position:"absolute", top:0, bottom:0, left:"40%", width:2, background:"rgba(255,255,255,0.4)", transform:"rotate(1deg)" }} />
-            <div style={{ position:"absolute", top:"60%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-5deg)" }} />
-            {/* 地名ラベル */}
-            <div style={{ position:"absolute", top:8, left:8, padding:"3px 8px", background:"rgba(255,255,255,0.85)", borderRadius:8 }}>
-              <span className="f-sans" style={{ fontSize:9, color:"#555" }}>吉野川流域・徳島県</span>
+              {/* 作業説明 */}
+              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0 }}>{selectedJob.jobBody}</p>
+              </div>
+
+              {/* 経験・持ち物・備考 */}
+              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                {[
+                  { label:"必要経験",       value: selectedJob.experience },
+                  { label:"希望する働き手", value: selectedJob.wanted },
+                  { label:"持ち物",         value: selectedJob.items },
+                  { label:"備考・注意",     value: selectedJob.notes },
+                ].map(row => (
+                  <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                    <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
+                    <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* 注記 */}
+              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:20 }}>
+                本名・詳細住所は公開しません。
+              </p>
+
+              {/* 地図（単一ピン） */}
+              <div style={{
+                position:"relative", borderRadius:16, overflow:"hidden",
+                height:480, border:"1px solid #EBEBEB", marginBottom:20,
+                background:"linear-gradient(145deg, #c8e6c9 0%, #a5d6a7 35%, #88c98a 65%, #b2dfb4 100%)",
+              }}>
+                {/* 道路（ダミー） */}
+                <div style={{ position:"absolute", top:"43%", left:0, right:0, height:3, background:"rgba(255,255,255,0.55)", transform:"rotate(-2deg)" }} />
+                <div style={{ position:"absolute", top:"22%", left:"15%", right:"5%", height:2, background:"rgba(255,255,255,0.4)", transform:"rotate(7deg)" }} />
+                <div style={{ position:"absolute", top:0, bottom:0, left:"40%", width:2, background:"rgba(255,255,255,0.4)", transform:"rotate(1deg)" }} />
+                <div style={{ position:"absolute", top:"60%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-5deg)" }} />
+                {/* 地名ラベル */}
+                <div style={{ position:"absolute", top:8, left:8, padding:"3px 8px", background:"rgba(255,255,255,0.85)", borderRadius:8 }}>
+                  <span className="f-sans" style={{ fontSize:9, color:"#555" }}>吉野川流域・徳島県</span>
+                </div>
+                {/* ピン（単一・selectedJobのみ） */}
+                <div style={{
+                  position:"absolute", left:pinX(selectedJob.lng), top:pinY(selectedJob.lat),
+                  transform:"translate(-50%, -100%)",
+                  background:"#00A86B", color:"#fff",
+                  border:"2px solid #00A86B", borderRadius:20,
+                  padding:"4px 9px", fontSize:11, fontWeight:700,
+                  whiteSpace:"nowrap",
+                  boxShadow:"0 2px 6px rgba(0,0,0,0.18)",
+                  fontFamily:"'DM Mono',monospace",
+                }}>{pinLabel(selectedJob)}</div>
+              </div>
             </div>
-            {/* ピン（単一・selectedJobのみ） */}
-            <div style={{
-              position:"absolute", left:pinX(selectedJob.lng), top:pinY(selectedJob.lat),
-              transform:"translate(-50%, -100%)",
-              background:"#00A86B", color:"#fff",
-              border:"2px solid #00A86B", borderRadius:20,
-              padding:"4px 9px", fontSize:11, fontWeight:700,
-              whiteSpace:"nowrap",
-              boxShadow:"0 2px 6px rgba(0,0,0,0.18)",
-              fontFamily:"'DM Mono',monospace",
-            }}>{pinLabel(selectedJob)}</div>
-          </div>
 
-          {/* CTAボタン */}
-          <button
-            onClick={() => onRegister && onRegister()}
-            className="btn-primary f-sans"
-            style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
-          >この仕事に興味がある</button>
+            {/* 右カラム: 応募パネル */}
+            <div style={{ position:"sticky", top:20 }}>
+              {/* CTAボタン */}
+              <button
+                onClick={() => onRegister && onRegister()}
+                className="btn-primary f-sans"
+                style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
+              >この仕事に興味がある</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
