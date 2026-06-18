@@ -3815,6 +3815,12 @@ function parseCalendarRange(dateLabel) {
   return { year, month, startDay, endDay, daysInMonth, firstWeekday: new Date(year, month, 1).getDay() };
 }
 
+// 持ち物名→絵文字の対応表（段階2-a・ガワのみ）。無い語は汎用アイコン📦にフォールバック
+const ITEM_ICONS = {
+  "長靴":"👢", "軍手":"🧤", "帽子":"🧢", "飲み物":"🥤",
+  "タオル":"🧻", "動きやすい服":"👕", "雨具":"🌂", "日焼け止め":"🧴",
+};
+
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -3986,19 +3992,37 @@ function JobSearchMapView({ onRegister }) {
                 <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0 }}>{selectedJob.jobBody}</p>
               </div>
 
-              {/* 経験・持ち物・備考 */}
+              {/* 経験・持ち物・備考（見出しにアイコン、持ち物は設備一覧風に展開） */}
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                 {[
-                  { label:"必要経験",       value: selectedJob.experience },
-                  { label:"希望する働き手", value: selectedJob.wanted },
-                  { label:"持ち物",         value: selectedJob.items },
-                  { label:"備考・注意",     value: selectedJob.notes },
+                  { label:"💪 必要経験",       value: selectedJob.experience },
+                  { label:"🙋 希望する働き手", value: selectedJob.wanted },
                 ].map(row => (
                   <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                     <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
                     <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{row.value}</span>
                   </div>
                 ))}
+
+                {/* 持ち物（Airbnb設備一覧風：アイコン+ラベルを並べる） */}
+                <div style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:8 }}>🎒 持ち物</span>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                    {(selectedJob.items || "").split("・").filter(Boolean).map((thing, i) => (
+                      <span key={i} className="f-sans" style={{
+                        display:"flex", alignItems:"center", gap:6, padding:"6px 12px",
+                        borderRadius:20, background:"#F7F7F7", fontSize:13, color:"#222",
+                      }}>
+                        <span>{ITEM_ICONS[thing] || "📦"}</span>{thing}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>📝 備考・注意</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{selectedJob.notes}</span>
+                </div>
               </div>
 
               {/* 注記 */}
