@@ -4034,7 +4034,7 @@ function JobSearchMapView({ onRegister }) {
             {/* 右カラム: 応募パネル（段階2-a・ガワのみ。応募は実稼働しない） */}
             <div style={{
               position:"sticky", top:20, background:"#fff", border:"1px solid #EBEBEB",
-              borderRadius:16, padding:"20px",
+              borderRadius:16, padding:"20px", marginBottom:100,
             }}>
               {/* 給与 */}
               <p className="f-mono" style={{ fontSize:22, fontWeight:800, color:"#222", margin:0, marginBottom:6 }}>
