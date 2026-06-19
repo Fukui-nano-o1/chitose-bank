@@ -4164,6 +4164,44 @@ function JobSearchMapView({ onRegister }) {
             }}>{pinLabel(selectedJob)}</div>
           </div>
 
+          {/* 危険区域セクション（場所・作業のギャラリー型・ガワのみ・selectedJob.dangerPlaces/dangerTasks参照） */}
+          <div style={{ marginBottom:100 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
+              <span style={{ fontSize:18 }}>⚠️</span>
+              <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
+            </div>
+
+            {/* 危険な場所 */}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
+            <Carousel className="carousel-scroll" style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:4 }} wrapperStyle={{ marginBottom:28 }}>
+              {selectedJob.dangerPlaces.map((place, i) => (
+                <div key={i} style={{ flexShrink:0, width:240 }}>
+                  <div style={{
+                    width:"100%", height:130, borderRadius:12, background:"#FEF3E2",
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
+                  }}>{place.icon}</div>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
+                </div>
+              ))}
+            </Carousel>
+
+            {/* 危険な作業 */}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
+            <Carousel className="carousel-scroll" style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:4 }}>
+              {selectedJob.dangerTasks.map((task, i) => (
+                <div key={i} style={{ flexShrink:0, width:240 }}>
+                  <div style={{
+                    width:"100%", height:130, borderRadius:12, background:"#FEF3E2",
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
+                  }}>{task.icon}</div>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
+                </div>
+              ))}
+            </Carousel>
+          </div>
+
           {/* 農家へのレビュー（段階2-a・ガワのみ・取引実績ベース・匿名・日付なし） */}
           {(() => {
             const allReviews = selectedJob.farmerReviews || [];
