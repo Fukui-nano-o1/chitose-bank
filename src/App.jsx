@@ -406,6 +406,16 @@ input:focus { outline: none; }
   }
 }
 
+/* ── 応募パネルが画面外に出た時のPC専用下固定バー（スマホは既存の縦積み導線のため非表示） ── */
+.pc-apply-bar {
+  display: flex;
+}
+@media (max-width: 759px) {
+  .pc-apply-bar {
+    display: none;
+  }
+}
+
 /* ── LandingFlow Step6 grid ── */
 .lf-map-hero { height: 360px; }
 .lf-preview-grid {
@@ -3859,7 +3869,20 @@ function JobSearchMapView({ onRegister }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const [reviewSort, setReviewSort] = useState("new");
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [showApplyBar, setShowApplyBar] = useState(false);
+  const applyPanelRef = useRef(null);
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); };
+
+  // PC専用の下固定応募バー：応募パネル(sticky)が画面より上に通過したら表示（758px以下はCSSで非表示）
+  useEffect(() => {
+    const el = applyPanelRef.current;
+    if (!el) { setShowApplyBar(false); return; }
+    const observer = new IntersectionObserver(([entry]) => {
+      setShowApplyBar(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+    }, { threshold: 0 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [selectedJob]);
   const handlePhotoScroll = e => {
     const el = e.target;
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
@@ -4106,7 +4129,7 @@ function JobSearchMapView({ onRegister }) {
                 外側はグリッドのstretchで左カラムの高さまで伸びるラッパー（枠なし＝sticky可動域の確保用）。
                 内側が見た目の白い枠（中身の高さにしか伸びない） */}
             <div>
-            <div style={{
+            <div ref={applyPanelRef} style={{
               position:"sticky", top:20, background:"#fff", border:"1px solid #EBEBEB",
               borderRadius:16, padding:"20px", marginBottom:100,
             }}>
@@ -4311,6 +4334,23 @@ function JobSearchMapView({ onRegister }) {
               ))}
             </Carousel>
           </div>
+        </div>
+      )}
+
+      {/* PC専用：下固定の応募バー（応募パネルが画面外に出たら表示。スマホはCSSでdisplay:none） */}
+      {selectedJob && showApplyBar && (
+        <div className="pc-apply-bar" style={{
+          position:"fixed", bottom:0, left:0, right:0, zIndex:500,
+          background:"#fff", borderTop:"1px solid #EBEBEB",
+          padding:"16px 24px", boxShadow:"0 -4px 16px rgba(0,0,0,0.08)",
+          alignItems:"center", justifyContent:"space-between", gap:24,
+        }}>
+          <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
+          <button
+            onClick={() => onRegister && onRegister()}
+            className="btn-primary f-sans"
+            style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
+          >この仕事に興味がある</button>
         </div>
       )}
     </div>
