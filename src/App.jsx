@@ -4031,7 +4031,10 @@ function JobSearchMapView({ onRegister }) {
               </p>
             </div>
 
-            {/* 右カラム: 応募パネル（段階2-a・ガワのみ。応募は実稼働しない） */}
+            {/* 右カラム: 応募パネル（段階2-a・ガワのみ。応募は実稼働しない）
+                外側はグリッドのstretchで左カラムの高さまで伸びるラッパー（枠なし＝sticky可動域の確保用）。
+                内側が見た目の白い枠（中身の高さにしか伸びない） */}
+            <div>
             <div style={{
               position:"sticky", top:20, background:"#fff", border:"1px solid #EBEBEB",
               borderRadius:16, padding:"20px", marginBottom:100,
@@ -4097,6 +4100,7 @@ function JobSearchMapView({ onRegister }) {
                   </div>
                 </div>
               )}
+            </div>
             </div>
           </div>
 
