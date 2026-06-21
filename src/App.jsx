@@ -4530,6 +4530,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [calYear,         setCalYear]         = useState(new Date().getFullYear());
   const [calMonth,        setCalMonth]        = useState(new Date().getMonth());
   const [jobCount,        setJobCount]        = useState(d.jobCount ?? "");
+  const [breakTime, setBreakTime] = useState("");
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -4927,6 +4928,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集人数</label>
                 <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
+              </div>
+              {/* 5-b. 休憩時間 */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
+                <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
+                  <option value="">選択してください</option>
+                  <option value="なし">なし</option>
+                  <option value="30分">30分</option>
+                  <option value="60分">60分</option>
+                  <option value="90分">90分</option>
+                  <option value="120分">120分</option>
+                </select>
               </div>
               {/* 6. 報酬 */}
               <div style={{ marginBottom:6 }}>
