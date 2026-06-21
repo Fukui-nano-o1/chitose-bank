@@ -4533,6 +4533,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [breakTime, setBreakTime] = useState(d.breakTime ?? "");
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
   const [jobDangerPlaces, setJobDangerPlaces] = useState(d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
+  const [jobDangerTasks, setJobDangerTasks] = useState(d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -4966,6 +4967,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   </div>
                 ))}
               </div>
+              {/* 5-e. 危険な作業（任意・ガワ） */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な作業（任意）</label>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な作業があれば入力してください。</p>
+                {jobDangerTasks.map((task, i) => (
+                  <div key={i} style={{ marginBottom:8 }}>
+                    <input value={task.label} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, label: e.target.value } : t))} placeholder={`危険な作業${i + 1}（例：重いコンテナの運搬）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
+                    <input value={task.desc} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, desc: e.target.value } : t))} placeholder="補足説明（例：腰を痛めないよう正しい持ち方が必要）" className="field f-sans" style={{ fontSize:13 }} />
+                  </div>
+                ))}
+              </div>
               {/* 6. 報酬 */}
               <div style={{ marginBottom:6 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>報酬</label>
@@ -5080,7 +5092,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
                   farmerWanted, farmerPayType, payTiming, payMethod,
                   startHour, startMinute, endHour, endMinute,
-                  jobCount, breakTime, commuteTime, jobDangerPlaces, hourlyWageInput, dailyWageInput,
+                  jobCount, breakTime, commuteTime, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
                   jobExp, jobTemplate, jobNotes,
                   jobDateStart: jobDateStart?.toISOString() ?? null,
                   jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
@@ -5308,6 +5320,20 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <LFSummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
                   <LFSummaryRow label="目的"     value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
                 </LFWizCard>
+                {jobDangerTasks.some(t => t.label) && (
+                  <div style={{ marginTop:16 }}>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な作業</p>
+                    <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
+                      {jobDangerTasks.filter(t => t.label).map((task, i) => (
+                        <div key={i} style={{ flexShrink:0, width:200 }}>
+                          <div style={{ width:"100%", height:110, borderRadius:12, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36 }}>{task.icon}</div>
+                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
+                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {jobDangerPlaces.some(p => p.label) && (
                   <div style={{ marginTop:16 }}>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な場所</p>
