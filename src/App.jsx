@@ -4531,6 +4531,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [calMonth,        setCalMonth]        = useState(new Date().getMonth());
   const [jobCount,        setJobCount]        = useState(d.jobCount ?? "");
   const [breakTime, setBreakTime] = useState("");
+  const [commuteTime, setCommuteTime] = useState("");
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -4939,6 +4940,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <option value="60分">60分</option>
                   <option value="90分">90分</option>
                   <option value="120分">120分</option>
+                </select>
+              </div>
+              {/* 5-c. 移動時間 */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>集合場所までの移動時間</label>
+                <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:200 }}>
+                  <option value="">選択してください</option>
+                  <option value="徒歩5分以内">徒歩5分以内</option>
+                  <option value="徒歩10分以内">徒歩10分以内</option>
+                  <option value="車5分以内">車5分以内</option>
+                  <option value="車10分以内">車10分以内</option>
+                  <option value="車20分以内">車20分以内</option>
                 </select>
               </div>
               {/* 6. 報酬 */}
