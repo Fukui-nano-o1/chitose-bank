@@ -5334,6 +5334,37 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   </p>
                 </div>
               </div>
+              {/* ═══ 大きな地図（2カラムの後・移動先） ═══ */}
+              <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28 }}>
+                <div className="lf-map-hero" style={{ width:"100%", maxWidth:1120, margin:"0 auto", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)", cursor:"pointer" }}>
+                  {/* 道路ダミー */}
+                  <div style={{ position:"absolute", top:"40%", left:0, right:0, height:4, background:"rgba(255,255,255,0.6)", transform:"rotate(-1.5deg)" }} />
+                  <div style={{ position:"absolute", top:"22%", left:"8%", right:"6%", height:3, background:"rgba(255,255,255,0.45)", transform:"rotate(6deg)" }} />
+                  <div style={{ position:"absolute", top:0, bottom:0, left:"36%", width:3, background:"rgba(255,255,255,0.4)" }} />
+                  <div style={{ position:"absolute", top:"58%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-4deg)" }} />
+                  {/* ラベル */}
+                  <div style={{ position:"absolute", top:14, left:14, padding:"4px 12px", background:"rgba(255,255,255,0.92)", borderRadius:12, backdropFilter:"blur(4px)" }}>
+                    <span className="f-sans" style={{ fontSize:10, color:"#555", fontWeight:600 }}>勤務地エリア</span>
+                  </div>
+                  {/* Google Maps バッジ */}
+                  <div style={{ position:"absolute", top:14, right:14, padding:"5px 12px", background:"rgba(255,255,255,0.95)", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>
+                    <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#00A86B" }}>Google Mapsで開く ↗</span>
+                  </div>
+                  {/* ピン */}
+                  <div style={{ position:"absolute", top:"46%", left:"50%", transform:"translate(-50%,-130%)", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                    <div style={{ width:48, height:48, borderRadius:"50%", background:"#1a1a1a", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, boxShadow:"0 6px 20px rgba(0,0,0,0.3)" }}>📍</div>
+                    <div style={{ width:0, height:0, borderLeft:"7px solid transparent", borderRight:"7px solid transparent", borderTop:"10px solid #1a1a1a", marginTop:-1 }} />
+                  </div>
+                  {/* 地域ラベル */}
+                  <div style={{ position:"absolute", bottom:"26%", left:"50%", transform:"translateX(-50%)", padding:"8px 20px", background:"rgba(255,255,255,0.96)", borderRadius:16, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", whiteSpace:"nowrap", backdropFilter:"blur(6px)" }}>
+                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{farmerRegion ? `${farmerRegion} 周辺` : "地域未入力"}</p>
+                  </div>
+                  {/* 補助文 */}
+                  <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", padding:"3px 12px", background:"rgba(255,255,255,0.88)", borderRadius:10, whiteSpace:"nowrap" }}>
+                    <span className="f-sans" style={{ fontSize:9, color:"#B0B0B0" }}>タップするとGoogle Mapsで開きます　詳細住所は公開されません。</span>
+                  </div>
+                </div>
+              </a>
 
               {/* ═══ 詳細確認ミニ表（下部格下げ） ═══ */}
               <div style={{ maxWidth:1120, margin:"24px auto 0" }}>
