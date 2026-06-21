@@ -5080,7 +5080,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
                   farmerWanted, farmerPayType, payTiming, payMethod,
                   startHour, startMinute, endHour, endMinute,
-                  jobCount, breakTime, commuteTime, hourlyWageInput, dailyWageInput,
+                  jobCount, breakTime, commuteTime, jobDangerPlaces, hourlyWageInput, dailyWageInput,
                   jobExp, jobTemplate, jobNotes,
                   jobDateStart: jobDateStart?.toISOString() ?? null,
                   jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
