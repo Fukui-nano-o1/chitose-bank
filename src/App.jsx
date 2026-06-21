@@ -5120,6 +5120,27 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{farmerRegion || "地域未設定"}</p>
               </div>
 
+              {/* 公開イメージ・セクション②：写真ギャラリー（公開求人と同サイズ・ダミー） */}
+              {(() => {
+                const cropIcon = farmerCrop && farmerCrop.includes("ブロッコリー") ? "🥦" : farmerCrop && farmerCrop.includes("なす") ? "🍆" : farmerCrop && farmerCrop.includes("トマト") ? "🍅" : farmerCrop && farmerCrop.includes("ねぎ") ? "🌿" : "🌱";
+                const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
+                return (
+                  <div style={{ marginBottom:28 }}>
+                    <div style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12 }}>
+                      {[0, 1, 2].map(i => (
+                        <div key={i} style={{ flexShrink:0, width:"100%", height:392, borderRadius:12, background:bgColors[i % bgColors.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, scrollSnapAlign:"start" }}>{cropIcon}</div>
+                      ))}
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
+                      {[0, 1, 2].map(i => (
+                        <span key={i} style={{ fontSize:10, color: i === 0 ? "#00A86B" : "#D0D0D0" }}>{i === 0 ? "●" : "○"}</span>
+                      ))}
+                    </div>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>
+                  </div>
+                );
+              })()}
+
               {/* ═══ 大きな地図（タップでGoogle Maps） ═══ */}
               <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28 }}>
                 <div className="lf-map-hero" style={{ width:"100%", maxWidth:1120, margin:"0 auto", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)", cursor:"pointer" }}>
