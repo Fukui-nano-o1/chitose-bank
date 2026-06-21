@@ -4532,6 +4532,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobCount,        setJobCount]        = useState(d.jobCount ?? "");
   const [breakTime, setBreakTime] = useState(d.breakTime ?? "");
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
+  const [jobDangerPlaces, setJobDangerPlaces] = useState(d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -4953,6 +4954,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <option value="車10分以内">車10分以内</option>
                   <option value="車20分以内">車20分以内</option>
                 </select>
+              </div>
+              {/* 5-d. 危険な場所（任意・ガワ） */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な場所（任意）</label>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な場所があれば入力してください。</p>
+                {jobDangerPlaces.map((place, i) => (
+                  <div key={i} style={{ marginBottom:8 }}>
+                    <input value={place.label} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, label: e.target.value } : p))} placeholder={`危険な場所${i + 1}（例：ぬかるみ）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
+                    <input value={place.desc} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, desc: e.target.value } : p))} placeholder="補足説明（例：雨上がりは特に滑りやすい）" className="field f-sans" style={{ fontSize:13 }} />
+                  </div>
+                ))}
               </div>
               {/* 6. 報酬 */}
               <div style={{ marginBottom:6 }}>
