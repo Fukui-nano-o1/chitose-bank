@@ -5222,6 +5222,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     ))}
                   </div>
                   <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:28 }}>{tmpl.notes}</p>
+                  {/* 必要経験・希望する働き手（公開イメージ） */}
+                  <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:16 }}>
+                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>💪 必要経験</p>
+                    <p className="f-sans" style={{ fontSize:14, color:"#222", marginBottom:14 }}>{jobExp || "未設定"}</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>🙋 希望する働き手</p>
+                    <p className="f-sans" style={{ fontSize:14, color:"#222", margin:0 }}>{farmerWanted || "未設定"}</p>
+                  </div>
                 </div>
 
                 {/* ── 右: 編集パネル ── */}
