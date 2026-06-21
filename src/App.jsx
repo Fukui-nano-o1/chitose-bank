@@ -5302,6 +5302,25 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </div>
               </div>
 
+              {/* 写真ギャラリー（ダミー・ガワ・作物アイコン3枚） */}
+              <div style={{ maxWidth:1120, margin:"24px auto 0" }}>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>写真（公開時の表示イメージ）</p>
+                {(() => {
+                  const cropIcon = farmerCrop && farmerCrop.includes("ブロッコリー") ? "🥦" : farmerCrop && farmerCrop.includes("なす") ? "🍆" : farmerCrop && farmerCrop.includes("トマト") ? "🍅" : farmerCrop && farmerCrop.includes("ねぎ") ? "🌿" : "🌱";
+                  const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
+                  return (
+                    <>
+                      <div style={{ display:"flex", gap:8, overflowX:"auto", marginBottom:8 }}>
+                        {[0, 1, 2].map(i => (
+                          <div key={i} style={{ flexShrink:0, width:240, height:160, borderRadius:12, background:bgColors[i % bgColors.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>{cropIcon}</div>
+                        ))}
+                      </div>
+                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center" }}>※ 写真は後から登録できます。現在はイメージです。</p>
+                    </>
+                  );
+                })()}
+              </div>
+
               {/* ═══ 詳細確認ミニ表（下部格下げ） ═══ */}
               <div style={{ maxWidth:1120, margin:"24px auto 0" }}>
                 <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>入力内容の詳細</p>
