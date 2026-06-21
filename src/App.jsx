@@ -4534,6 +4534,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
   const [jobDangerPlaces, setJobDangerPlaces] = useState(d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
   const [jobDangerTasks, setJobDangerTasks] = useState(d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
+  const [confActiveSlide, setConfActiveSlide] = useState(0);
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -5126,14 +5127,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
                 return (
                   <div style={{ marginBottom:28 }}>
-                    <div style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12 }}>
+                    <div onScroll={e => { const w = e.currentTarget.offsetWidth; if (w > 0) setConfActiveSlide(Math.round(e.currentTarget.scrollLeft / w)); }} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12 }}>
                       {[0, 1, 2].map(i => (
                         <div key={i} style={{ flexShrink:0, width:"100%", height:392, borderRadius:12, background:bgColors[i % bgColors.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, scrollSnapAlign:"start" }}>{cropIcon}</div>
                       ))}
                     </div>
                     <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
                       {[0, 1, 2].map(i => (
-                        <span key={i} style={{ fontSize:10, color: i === 0 ? "#00A86B" : "#D0D0D0" }}>{i === 0 ? "●" : "○"}</span>
+                        <span key={i} style={{ fontSize:10, color: i === confActiveSlide ? "#00A86B" : "#D0D0D0" }}>{i === confActiveSlide ? "●" : "○"}</span>
                       ))}
                     </div>
                     <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>
