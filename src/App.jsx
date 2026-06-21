@@ -5200,6 +5200,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>現在は構想段階のため、実際の応募は送信されません。</p>
                   </div>
 
+                  {/* 農家プロフィール（公開イメージ・確認ページにある変数のみ使用） */}
+                  <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 0", borderBottom:"1px solid #F7F7F7", marginBottom:16 }}>
+                    <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🧑‍🌾</div>
+                    <div>
+                      <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
+                      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
+                    </div>
+                  </div>
+
                   {/* 募集本文 */}
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>募集内容</p>
                   <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16 }}>{tmpl.body}</p>
