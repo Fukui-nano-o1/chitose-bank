@@ -311,3 +311,12 @@ market_statsはPII無しで安全に表示可能だが、records由来作物名�
 - 該当行のみ読む(全体読みはクラッシュ)
 - 修正 → grep確認 → commit → push → 報告
 - APIキー・パスワードはチャットに絶対貼らない
+
+## 2026-06-21
+
+【実データ化の設計メモ(④⑤役所回答後に着手)】求人詳細ページの表示項目と、LandingFlowの求人入力フォーム(step4-5)を突き合わせた結果:
+- 現状: 入力フォームはlocalStorageドラフト保存のみ。Supabase/JOB_SEARCH_SAMPLESへのinsertは無し。働き手に見える求人は全てダミー。求人の保存・公開は④⑤回答待ちで意図的に停止中
+- 表示にあるが入力欄が無い(実データ化時に入力UI新設が必要): breakTime(休憩時間)、commuteTime(移動時間)、farmerBadge(資格バッジ)、farmerRating/ReviewCount/Reviews(レビュー)、photos(写真)、lat/lng(地図座標)
+- 入力にあるが表示で未使用: farmerExp、farmerPurpose(内部フラグ)
+- 要注意の変換: farmerYears(表示「就農15年」)とfarmerExp(入力「1〜3年」範囲選択)は名前も粒度も違う。実データ化時に変換ロジックが必要
+- jobBody/items/notesはjobTemplate(JT_MAP)から自動生成 + jobNotes自由記述。これも実データ化時に整理
