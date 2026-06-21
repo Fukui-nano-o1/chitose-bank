@@ -5367,6 +5367,27 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     </div>
                   </div>
                 )}
+                {/* レビュー（表示ダミーのみ・取引実績ベース・④⑤回答後に実装） */}
+                <div style={{ marginTop:24 }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>レビュー（公開時の表示イメージ）</p>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                    <span className="f-mono" style={{ fontSize:32, fontWeight:800, color:"#222" }}>4.8</span>
+                    <span style={{ fontSize:16, color:"#00A86B", letterSpacing:1 }}>★★★★★</span>
+                    <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>24件のレビュー</span>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                    {[
+                      { stars:5, text:"初めての収穫作業でしたが、ていねいに教えてもらえたので安心して取り組めました。" },
+                      { stars:4, text:"時間通りに終わり、当日中に報酬を支払ってもらえてとても助かりました。" },
+                    ].map((review, i) => (
+                      <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px" }}>
+                        <p style={{ margin:0, marginBottom:6, fontSize:13, color:"#00A86B", letterSpacing:1 }}>{"★".repeat(review.stars)}{"☆".repeat(5 - review.stars)}</p>
+                        <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0 }}>{review.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:10 }}>※ レビューは実際に働いた方のみ投稿できます。現在は表示イメージです。</p>
+                </div>
               </div>
             </>);
           })()}
