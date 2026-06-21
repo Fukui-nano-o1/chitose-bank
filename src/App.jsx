@@ -4530,8 +4530,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [calYear,         setCalYear]         = useState(new Date().getFullYear());
   const [calMonth,        setCalMonth]        = useState(new Date().getMonth());
   const [jobCount,        setJobCount]        = useState(d.jobCount ?? "");
-  const [breakTime, setBreakTime] = useState("");
-  const [commuteTime, setCommuteTime] = useState("");
+  const [breakTime, setBreakTime] = useState(d.breakTime ?? "");
+  const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -5068,7 +5068,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
                   farmerWanted, farmerPayType, payTiming, payMethod,
                   startHour, startMinute, endHour, endMinute,
-                  jobCount, hourlyWageInput, dailyWageInput,
+                  jobCount, breakTime, commuteTime, hourlyWageInput, dailyWageInput,
                   jobExp, jobTemplate, jobNotes,
                   jobDateStart: jobDateStart?.toISOString() ?? null,
                   jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
