@@ -5114,6 +5114,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </h2>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手には、以下のように表示されます。</p>
 
+              {/* 公開イメージ：タイトル＋住所（公開求人と同一構造） */}
+              <div style={{ marginBottom:20 }}>
+                <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}</h2>
+                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{farmerRegion || "地域未設定"}</p>
+              </div>
+
               {/* ═══ 大きな地図（タップでGoogle Maps） ═══ */}
               <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28 }}>
                 <div className="lf-map-hero" style={{ width:"100%", maxWidth:1120, margin:"0 auto", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)", cursor:"pointer" }}>
