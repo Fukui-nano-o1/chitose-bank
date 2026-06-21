@@ -5308,6 +5308,20 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <LFSummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
                   <LFSummaryRow label="目的"     value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
                 </LFWizCard>
+                {jobDangerPlaces.some(p => p.label) && (
+                  <div style={{ marginTop:16 }}>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な場所</p>
+                    <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
+                      {jobDangerPlaces.filter(p => p.label).map((place, i) => (
+                        <div key={i} style={{ flexShrink:0, width:200 }}>
+                          <div style={{ width:"100%", height:110, borderRadius:12, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36 }}>{place.icon}</div>
+                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
+                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>);
           })()}
