@@ -5181,11 +5181,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     )}
                     <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:10 }}>
                       {[
-                        { label:"開催日",   value: jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定" },
+                        { label:"日程",     value: jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定" },
                         { label:"勤務時間", value: workTimeLabel },
-                        { label:"募集人数", value: jobCount ? `${jobCount}人` : "未設定" },
                         { label:"休憩時間", value: breakTime || "未設定" },
+                        { label:"募集人数", value: jobCount ? `${jobCount}人` : "未設定" },
                         { label:"移動時間", value: commuteTime || "未設定" },
+                        { label:"報酬",     value: rewardLabel || "未設定" },
                       ].map(r => (
                         <div key={r.label} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid #F7F7F7" }}>
                           <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>{r.label}</span>
