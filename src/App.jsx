@@ -5303,8 +5303,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </div>
               </div>
               {/* ═══ 大きな地図（2カラムの後・移動先） ═══ */}
-              <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28 }}>
-                <div className="lf-map-hero" style={{ width:"100%", maxWidth:1120, margin:"0 auto", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)", cursor:"pointer" }}>
+              <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28, width:"100vw", maxWidth:1000, marginLeft:"calc(-50vw + 50%)", marginRight:"calc(-50vw + 50%)" }}>
+                <div className="lf-map-hero" style={{ width:"100%", maxWidth:870, height:479, margin:"0 auto", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)", cursor:"pointer" }}>
                   {/* 道路ダミー */}
                   <div style={{ position:"absolute", top:"40%", left:0, right:0, height:4, background:"rgba(255,255,255,0.6)", transform:"rotate(-1.5deg)" }} />
                   <div style={{ position:"absolute", top:"22%", left:"8%", right:"6%", height:3, background:"rgba(255,255,255,0.45)", transform:"rotate(6deg)" }} />
