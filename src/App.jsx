@@ -6423,8 +6423,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 // ── LaborTab ─────────────────────────────────────────────────
 // 表示中タブ：「人手確保」(tab==="labor") → <LaborTab> が直接レンダリングされる
-function LaborTab({ farmersCount, onLogin }) {
-  return <LandingFlow embedded farmersCount={farmersCount}
+function LaborTab({ farmersCount, onLogin, mode }) {
+  return <LandingFlow embedded farmersCount={farmersCount} initialRole={mode}
     onComplete={()=>{}} onSkip={onLogin} onLogin={onLogin} />;
 }
 
@@ -7685,7 +7685,7 @@ const subDest=useCallback(async d=>{
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {safeTab==="labor"&&<LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("input")} />}
+        {safeTab==="labor"&&<LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("input")} mode={mode} />}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>{setShowLanding(true);setTab("labor");}} />}
         {safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
