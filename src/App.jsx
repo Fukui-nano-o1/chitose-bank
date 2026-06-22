@@ -4480,7 +4480,7 @@ function buildGoogleMapsUrl(region) {
 
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
-function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false }) {
+function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false, initialRole = "" }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
   const TARGET = 30;
   const progress = Math.min(Math.round((farmersCount / TARGET) * 100), 100);
@@ -4498,7 +4498,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
 
-  const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? ""); // "" | "farmer" | "worker"
+  const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? initialRole ?? ""); // "" | "farmer" | "worker"
   const [step, setStep] = useState(_devJump?.step ?? (_draftInit ? 5 : 0)); // 0=home, 1-8=flow
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
