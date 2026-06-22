@@ -7507,7 +7507,7 @@ const subDest=useCallback(async d=>{
   const safeTab = visibleTabKeys.includes(tab) ? tab : "labor";
 
   return(
-    <div style={{minHeight:"100vh",background:C.washi,color:C.ink}}>
+    <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
       <style>{CSS}</style>
 
       {/* ── HEADER ── */}
