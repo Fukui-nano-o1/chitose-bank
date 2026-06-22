@@ -6938,7 +6938,7 @@ function DataConstitution({ onClose }) {
 }
 
 // ── ProfileModal ─────────────────────────────────────────────
-function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfile, onLogout, onAvatarChange }) {
+function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfile, onLogout, onAvatarChange, mode, onSwitchMode }) {
   const [delConfirm, setDelConfirm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
@@ -7772,6 +7772,8 @@ const subDest=useCallback(async d=>{
           onEditProfile={()=>{setShowProfile(false);setShowOnboarding(true);setObModalKey(k=>k+1);}}
           onLogout={handleLogout}
           onAvatarChange={url=>setAvatarUrl(url)}
+          mode={mode}
+          onSwitchMode={()=>setMode(m=>m==="worker"?"farmer":"worker")}
         />
       )}
     </div>
