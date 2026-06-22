@@ -7246,6 +7246,7 @@ export default function App(){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showProfile,setShowProfile]=useState(false);
   const [mode,setMode]=useState(localStorage.getItem("cb_mode")||"worker");
+  const modeAccent = mode==="worker" ? "#F5A623" : "#00A86B";
   const [avatarUrl,setAvatarUrl]=useState("");
   useEffect(()=>{
     if(!me?.id)return;
