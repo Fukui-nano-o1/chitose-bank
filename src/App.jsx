@@ -3863,6 +3863,9 @@ const ITEM_ICONS = {
   "タオル":"🧻", "動きやすい服":"👕", "雨具":"🌂", "日焼け止め":"🧴",
 };
 
+// 給与表示ラベル（時給/日給）。JobSearchMapView・FarmerDashboard共通
+function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`; }
+
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -3888,7 +3891,6 @@ function JobSearchMapView({ onRegister }) {
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
   };
 
-  const payLabel = j => j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`;
   const pinLabel = j => j.payType === "hourly" ? `¥${j.pay.toLocaleString()}/h` : `¥${j.pay.toLocaleString()}/日`;
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
   const calRange = selectedJob ? parseCalendarRange(selectedJob.dateLabel) : null;
@@ -6420,6 +6422,29 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
   );
 }
 
+
+// ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
+function FarmerDashboard({ onNewJob }) {
+  return (
+    <div style={{ maxWidth:560, margin:"0 auto", padding:"24px 20px 80px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>あなたの求人</h2>
+        <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
+      </div>
+      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:12 }}>公開中の求人</p>
+      {JOB_SEARCH_SAMPLES.map(job => (
+        <div key={job.id} style={{ display:"block", width:"100%", background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden" }}>
+          <div style={{ width:"100%", height:120, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44 }}>{job.icon}</div>
+          <div style={{ padding:"12px 16px 16px" }}>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:600, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, marginBottom:6 }}>{job.dateLabel}　{job.region}</p>
+            <p className="f-mono" style={{ fontSize:15, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(job)}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ── LaborTab ─────────────────────────────────────────────────
 // 表示中タブ：「人手確保」(tab==="labor") → <LaborTab> が直接レンダリングされる
