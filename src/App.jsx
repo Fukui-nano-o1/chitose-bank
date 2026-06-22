@@ -531,7 +531,7 @@ input:focus { outline: none; }
 
 /* ── Buttons ── */
 .btn-primary, .btn-dark {
-  background: #00A86B;
+  background: var(--mode-accent, #00A86B);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -540,8 +540,8 @@ input:focus { outline: none; }
   font-weight: 600;
   letter-spacing: .02em;
 }
-.btn-primary:hover, .btn-dark:hover { background: #008F5B; }
-.btn-primary:active, .btn-dark:active { background: #007A4D; }
+.btn-primary:hover, .btn-dark:hover { filter: brightness(0.92); }
+.btn-primary:active, .btn-dark:active { filter: brightness(0.85); }
 .btn-primary:disabled, .btn-dark:disabled { opacity: .35; cursor: not-allowed; transform: none; }
 
 .btn-outline {
