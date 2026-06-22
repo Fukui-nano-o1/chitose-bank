@@ -7239,6 +7239,7 @@ export default function App(){
   const [notifs,setNotifs]=useState([]);
   const [showNotifs,setShowNotifs]=useState(false);
   const [showProfile,setShowProfile]=useState(false);
+  const [mode,setMode]=useState("worker");
   const [avatarUrl,setAvatarUrl]=useState("");
   useEffect(()=>{
     if(!me?.id)return;
