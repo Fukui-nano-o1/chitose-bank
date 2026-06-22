@@ -300,7 +300,7 @@ input:focus { outline: none; }
   position: absolute;
   bottom: -1px; left: 50%; right: 50%;
   height: 2px;
-  background: #00A86B;
+  background: var(--mode-accent, #00A86B);
   transition: left .25s ease, right .25s ease;
   border-radius: 2px;
 }
