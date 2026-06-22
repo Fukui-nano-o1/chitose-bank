@@ -7245,7 +7245,7 @@ export default function App(){
   const [notifs,setNotifs]=useState([]);
   const [showNotifs,setShowNotifs]=useState(false);
   const [showProfile,setShowProfile]=useState(false);
-  const [mode,setMode]=useState("worker");
+  const [mode,setMode]=useState(localStorage.getItem("cb_mode")||"worker");
   const [avatarUrl,setAvatarUrl]=useState("");
   useEffect(()=>{
     if(!me?.id)return;
@@ -7780,7 +7780,7 @@ const subDest=useCallback(async d=>{
           onLogout={handleLogout}
           onAvatarChange={url=>setAvatarUrl(url)}
           mode={mode}
-          onSwitchMode={()=>setMode(m=>m==="worker"?"farmer":"worker")}
+          onSwitchMode={()=>{const next=mode==="worker"?"farmer":"worker";localStorage.setItem("cb_mode",next);window.location.reload();}}
         />
       )}
     </div>
