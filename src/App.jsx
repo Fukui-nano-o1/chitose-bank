@@ -7229,6 +7229,7 @@ export default function App(){
   const [me,setMe]=useState(null);
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
+  const [showJobPost,setShowJobPost]=useState(false);
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
   const [showPrivacy,setShowPrivacy]=useState(false);
