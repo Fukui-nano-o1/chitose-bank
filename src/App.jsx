@@ -7152,6 +7152,12 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
             width:"100%", padding:"15px", fontSize:14, borderRadius:14,
           }}>プロフィールを編集する</button>
 
+          <button onClick={onSwitchMode} style={{
+            width:"100%", padding:"13px", fontSize:13,
+            background:"#fff", border:"1px solid #00A86B", borderRadius:14,
+            color:"#00A86B", fontWeight:600, cursor:"pointer", fontFamily:"inherit",
+          }}>{mode==="worker" ? "🚜 農家として使う" : "🧑‍🌾 働き手として使う"}</button>
+
           {displayUrl && (
             <button onClick={handleDeleteAvatar} disabled={uploading} style={{
               width:"100%", padding:"13px", fontSize:13,
