@@ -7492,14 +7492,15 @@ const subDest=useCallback(async d=>{
   const isMember = !!me;
   const userLevel = !me ? 1 : isContributor ? 3 : 2;
 
-  const TABS=[
-    {k:"labor",l:"お仕事"},
-    {k:"jobs",l:"募集中の仕事"},
-    {k:"board",l:"公開ボード"},
-    {k:"input",l:"データ入力"},
-    ...(me?[{k:"plan",l:"五年計画書"}]:[]),
-    ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt}]:[]),
+  const ALL_TABS=[
+    {k:"labor",l:"お仕事",modes:["farmer"]},
+    {k:"jobs",l:"募集中の仕事",modes:["worker"]},
+    {k:"board",l:"公開ボード",modes:["farmer","worker"]},
+    {k:"input",l:"データ入力",modes:["farmer"]},
+    ...(me?[{k:"plan",l:"五年計画書",modes:["farmer"]}]:[]),
+    ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt,modes:["farmer","worker"]}]:[]),
   ];
+  const TABS = ALL_TABS.filter(t=>t.modes.includes(mode));
 
   const visibleTabKeys = TABS.map(t=>t.k);
   const safeTab = visibleTabKeys.includes(tab) ? tab : "labor";
