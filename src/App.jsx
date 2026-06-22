@@ -7515,6 +7515,7 @@ const subDest=useCallback(async d=>{
         background:"#FFFFFF",
         borderBottom:"1px solid #EBEBEB",
         height:52,
+        "--mode-accent":modeAccent,
         display:"flex",alignItems:"center",
         padding:"0 24px",
         position:"sticky",top:0,zIndex:50,
