@@ -5148,7 +5148,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               })()}
 
               {/* ═══ 2カラムグリッド ═══ */}
-              <div style={{ width:"100vw", maxWidth:1280, marginLeft:"calc(-50vw + 50%)", marginRight:"calc(-50vw + 50%)" }}>
               <div className="lf-preview-grid">
 
                 {/* ── 左: 掲載プレビュー ── */}
@@ -5319,7 +5318,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     ログイン後にこの確認画面へ戻せるよう入力内容を保存します。
                   </p>
                 </div>
-              </div>
               </div>
               {/* ═══ 大きな地図（2カラムの後・移動先） ═══ */}
               <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28, width:"100vw", maxWidth:1000, marginLeft:"calc(-50vw + 50%)", marginRight:"calc(-50vw + 50%)" }}>
