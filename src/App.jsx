@@ -7710,7 +7710,9 @@ const subDest=useCallback(async d=>{
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {safeTab==="labor"&&<LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("input")} mode={mode} />}
+        {safeTab==="labor"&&(mode==="farmer"
+          ? <FarmerDashboard onNewJob={()=>{}} />
+          : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("input")} mode={mode} />)}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>{setShowLanding(true);setTab("labor");}} />}
         {safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
