@@ -7711,7 +7711,7 @@ const subDest=useCallback(async d=>{
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&(mode==="farmer"
-          ? <FarmerDashboard onNewJob={()=>{}} />
+          ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
           : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("input")} mode={mode} />)}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>{setShowLanding(true);setTab("labor");}} />}
         {safeTab==="input"&&(me
@@ -7780,6 +7780,7 @@ const subDest=useCallback(async d=>{
       )}
       {me&&showJobPost&&(
         <LandingFlow
+          initialRole="farmer"
           onComplete={()=>setShowJobPost(false)}
           onSkip={()=>setShowJobPost(false)}
           onLogin={()=>setShowJobPost(false)}
