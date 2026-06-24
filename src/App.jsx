@@ -6425,7 +6425,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
 function FarmerDashboard({ onNewJob }) {
-  const [jobTab, setJobTab] = React.useState("active");
+  const [jobTab, setJobTab] = useState("active");
   const JOB_TABS = [
     { k:"draft",   l:"作成中" },
     { k:"active",  l:"募集中" },
