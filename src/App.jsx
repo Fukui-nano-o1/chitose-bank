@@ -6425,13 +6425,28 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
 function FarmerDashboard({ onNewJob }) {
+  const [jobTab, setJobTab] = React.useState("active");
+  const JOB_TABS = [
+    { k:"draft",   l:"作成中" },
+    { k:"active",  l:"募集中" },
+    { k:"expired", l:"期限切れ" },
+  ];
   return (
     <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 20px 80px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>あなたの求人</h2>
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
-      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:12 }}>公開中の求人</p>
+      <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE" }}>
+        {JOB_TABS.map(t => (
+          <button key={t.k} onClick={()=>setJobTab(t.k)} className="f-sans" style={{
+            padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
+            fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
+            color: jobTab===t.k ? "#222" : "#999",
+            borderBottom: jobTab===t.k ? "2px solid var(--mode-accent, #00A86B)" : "2px solid transparent",
+          }}>{t.l}</button>
+        ))}
+      </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:16 }}>
       {JOB_SEARCH_SAMPLES.map(job => (
         <div key={job.id} style={{ display:"block", width:"100%", background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden" }}>
