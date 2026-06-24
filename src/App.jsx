@@ -6426,14 +6426,15 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
 function FarmerDashboard({ onNewJob }) {
   return (
-    <div style={{ maxWidth:560, margin:"0 auto", padding:"24px 20px 80px" }}>
+    <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 20px 80px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>あなたの求人</h2>
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:12 }}>公開中の求人</p>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:16 }}>
       {JOB_SEARCH_SAMPLES.map(job => (
-        <div key={job.id} style={{ display:"block", width:"100%", background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden" }}>
+        <div key={job.id} style={{ display:"block", width:"100%", background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden" }}>
           <div style={{ width:"100%", height:120, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44 }}>{job.icon}</div>
           <div style={{ padding:"12px 16px 16px" }}>
             <p className="f-sans" style={{ fontSize:16, fontWeight:600, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
@@ -6442,6 +6443,7 @@ function FarmerDashboard({ onNewJob }) {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }
