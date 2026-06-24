@@ -6454,12 +6454,12 @@ function FarmerDashboard({ onNewJob }) {
           }}>{t.l}</button>
         ))}
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))", gap:20 }}>
       {jobList.length === 0 ? (
         <p className="f-sans" style={{ gridColumn:"1/-1", color:"#999", fontSize:13, padding:"20px 0" }}>該当する求人はありません。</p>
       ) : jobList.map(job => (
         <div key={job.id} style={{ display:"block", width:"100%", background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden" }}>
-          <div style={{ width:"100%", height:120, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44 }}>{job.icon}</div>
+          <div style={{ width:"100%", height:220, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:72 }}>{job.icon}</div>
           <div style={{ padding:"12px 16px 16px" }}>
             <p className="f-sans" style={{ fontSize:16, fontWeight:600, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, marginBottom:6 }}>{job.dateLabel}　{job.region}</p>
