@@ -6431,6 +6431,13 @@ function FarmerDashboard({ onNewJob }) {
     { k:"active",  l:"募集中" },
     { k:"expired", l:"期限切れ" },
   ];
+  const DRAFT_SAMPLES = [
+    { id:"d1", icon:"🥬", crop:"キャベツ", task:"収穫補助", dateLabel:"日程未定", region:"吉野川市周辺", payType:"hourly", pay:1100 },
+  ];
+  const EXPIRED_SAMPLES = [
+    { id:"e1", icon:"🍓", crop:"いちご", task:"収穫", dateLabel:"5/1〜5/20", region:"阿波市周辺", payType:"daily", pay:8500 },
+  ];
+  const jobList = jobTab==="draft" ? DRAFT_SAMPLES : jobTab==="expired" ? EXPIRED_SAMPLES : JOB_SEARCH_SAMPLES;
   return (
     <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 20px 80px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
@@ -6448,7 +6455,9 @@ function FarmerDashboard({ onNewJob }) {
         ))}
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:16 }}>
-      {JOB_SEARCH_SAMPLES.map(job => (
+      {jobList.length === 0 ? (
+        <p className="f-sans" style={{ gridColumn:"1/-1", color:"#999", fontSize:13, padding:"20px 0" }}>該当する求人はありません。</p>
+      ) : jobList.map(job => (
         <div key={job.id} style={{ display:"block", width:"100%", background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden" }}>
           <div style={{ width:"100%", height:120, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44 }}>{job.icon}</div>
           <div style={{ padding:"12px 16px 16px" }}>
