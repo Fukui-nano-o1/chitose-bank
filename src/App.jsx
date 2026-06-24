@@ -4740,31 +4740,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── HOME ── */}
           {step === 0 && (
             <>
-              <div style={{ textAlign:"center", marginBottom:32 }}>
-                <div style={{ fontSize:56, marginBottom:16 }}>🌾</div>
-                <h1 className="f-sans" style={lfStyles.heroTitle}>
-                  農業の人手探しを<br/>もっとかんたんに
-                </h1>
-                <p className="f-sans" style={lfStyles.subtitle}>
-                  作物、作業、日程、報酬を整理して<br/>農家と働き手のすれ違いを減らします。
-                </p>
-                <span style={{ display:"inline-block", padding:"5px 16px", background:"#FEF3E2", borderRadius:20, marginBottom:8 }}>
-                  <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#F5A623" }}>構想段階</span>
-                </span>
-                <p className="f-sans" style={lfStyles.note}>
-                  現在は構想段階です。労働局・関係機関へ確認後、段階的に追加します。
-                </p>
-              </div>
-              <div style={{ padding:"18px 22px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:28 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
-                  <span className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222" }}>参加農家</span>
-                  <span className="f-mono" style={{ fontSize:18, fontWeight:700, color:"#00A86B" }}>{farmersCount}<span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", fontWeight:400 }}> / {TARGET}名</span></span>
-                </div>
-                <div style={{ height:8, background:"#F7F7F7", borderRadius:4, overflow:"hidden" }}>
-                  <div style={{ height:8, borderRadius:4, background:"#00A86B", width:progress+"%", transition:"width 0.6s ease" }} />
-                </div>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>あと{Math.max(TARGET-farmersCount,0)}名でマッチング機能を開始します</p>
-              </div>
               <p className="f-sans" style={lfStyles.question}>あなたはどちらですか？</p>
               <LFCardBtn selected={role==="farmer"} onClick={() => selectAndNext(setRole, "farmer")}>
                 <div className="f-sans" style={lfStyles.cardTitle}>🚜 農家として使う</div>
