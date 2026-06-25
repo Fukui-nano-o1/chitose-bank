@@ -4778,7 +4778,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </div>
               </div>
               </div>
-              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:32 }}>
+              <div style={{ position:"absolute", bottom:24, right:20, zIndex:2 }}>
                 <button onClick={() => setStep(1)} className="btn-primary" style={{ padding:"14px 40px", fontSize:15, fontWeight:700 }}>次へ</button>
               </div>
             </>
