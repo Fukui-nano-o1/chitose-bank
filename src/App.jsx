@@ -4745,10 +4745,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div style={{ marginBottom:36 }}>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>ステップ1</p>
                 <h1 className="f-sans" style={{ fontSize:38, fontWeight:800, color:"#222", lineHeight:1.25, margin:"0 0 20px" }}>
-                  求人の情報を入力
+                  {role === "farmer" ? "求人の情報を入力" : "あなたの希望を入力"}
                 </h1>
                 <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.9, margin:0 }}>
-                  はじめに、掲載する農業バイトの作業内容や、募集したい働き手の条件についてうかがいます。次に、作業場所、日程、勤務時間、募集人数、報酬など、求人に必要な情報をご入力ください。
+                  {role === "farmer"
+                    ? "はじめに、掲載する農業バイトの作業内容や、募集したい働き手の条件についてうかがいます。次に、作業場所、日程、勤務時間、募集人数、報酬など、求人に必要な情報をご入力ください。"
+                    : "はじめに、希望する作業内容や、働ける時期・条件についてうかがいます。次に、勤務できる地域、曜日、時間帯、希望する報酬など、お仕事探しに必要な情報をご入力ください。"}
                 </p>
               </div>
               </div>
