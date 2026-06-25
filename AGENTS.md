@@ -1,4 +1,4 @@
-# chitose-bank — Claude Code 作業ガイド
+# chitose-bank — Codex 作業ガイド
 
 ## プロジェクト概要
 徳島県吉野川市の農家向け経営支援Webサービス。
