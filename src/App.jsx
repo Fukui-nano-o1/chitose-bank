@@ -4501,7 +4501,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
 
   const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? initialRole ?? ""); // "" | "farmer" | "worker"
-  const [step, setStep] = useState(_devJump?.step ?? (_draftInit ? 5 : (initialRole ? 1 : 0))); // 0=home, 1-8=flow
+  const [step, setStep] = useState(_devJump?.step ?? (_draftInit ? 5 : 0)); // 0=home, 1-8=flow（両モードとも説明ページから開始）
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
