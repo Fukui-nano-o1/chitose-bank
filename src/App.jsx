@@ -4765,6 +4765,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 （ここに求人詳細のプレビューが入ります）
               </div>
               </div>
+              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:32 }}>
+                <button onClick={() => setStep(1)} className="btn-primary" style={{ padding:"14px 40px", fontSize:15, fontWeight:700 }}>次へ</button>
+              </div>
             </>
           )}
 
