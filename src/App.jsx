@@ -4753,7 +4753,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── HOME ── */}
           {step === 0 && (
             <>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))", gap:48, alignItems:"center" }}>
+              <div className="step0-grid">
               <div>
               <div style={{ marginBottom:36 }}>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>ステップ1</p>
