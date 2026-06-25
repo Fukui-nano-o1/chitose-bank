@@ -5,6 +5,23 @@
 売上・経費記録、五年計画書作成支援、産地データ集計を提供。
 React + Supabase（Project: aegwepgtmwcnwzybpgsh, 東京リージョン）。
 
+---
+## 🚨 緊急・要対処：monthly_pnl ビューの個人情報漏洩リスク（2026-06-25発見）
+
+monthly_pnl ビューが UNRESTRICTED（RLS無効）で、個別農家の生の損益が誰でも取得可能な状態。
+- 内容: farmer_id, year, month ごとの revenue（売上）, expense（経費）, profit（利益）。集計なし・5農家制限なし・farmer_id付きの生データ
+- リスク: from('monthly_pnl').select('*') で全農家の月次損益が誰のものか分かる形で抜ける
+- 違反: データ憲法第3条「個別収支の非公開」に真正面から抵触
+- 対比: public_summary は having count(distinct farmer_id) >= 5 で5農家未満を除外した集計のみ＝安全（UNRESTRICTEDでも問題なし）
+
+### 次回最優先で対処すること（順序）
+1. monthly_pnl が今どこで使われているか確認（grep "monthly_pnl" src/App.jsx）。塞ぐと壊れる箇所がないか
+2. ビューへのRLS/アクセス制限のかけ方を確認（viewはsecurity_invoker等が絡むため通常テーブルと異なる）
+3. 本人のみ（auth.uid() = farmer_id）に制限、または個別損益を返さない設計に変更
+4. 塞いだ後、五年計画書・経営記録の表示が壊れていないか実機確認
+※夜間や疲労時にDBをいじらない。頭が冴えた状態で、使用箇所確認→慎重に対処
+---
+
 ## ⚠️ 最重要確認事項：保存・入力機能の取り扱い
 
 保存機能・入力機能・情報を取り扱う（DBへ書き込む）コードに関する指示を受けたときは、実装する前に必ず以下を警告・確認すること：
