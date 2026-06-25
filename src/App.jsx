@@ -4740,6 +4740,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── HOME ── */}
           {step === 0 && (
             <>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))", gap:48, alignItems:"center" }}>
+              <div>
               <div style={{ marginBottom:36 }}>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>ステップ1</p>
                 <h1 className="f-sans" style={{ fontSize:38, fontWeight:800, color:"#222", lineHeight:1.25, margin:"0 0 20px" }}>
@@ -4758,6 +4760,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <div className="f-sans" style={lfStyles.cardTitle}>👤 働き手として使う</div>
                 <div className="f-sans" style={lfStyles.cardDesc}>農業で働きたい・条件を公開したい</div>
               </LFCardBtn>
+              </div>
+              <div style={{ background:"#F0F0F0", borderRadius:16, minHeight:420, display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0", fontSize:14 }}>
+                （ここに求人詳細のプレビューが入ります）
+              </div>
+              </div>
             </>
           )}
 
