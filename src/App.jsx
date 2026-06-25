@@ -4740,12 +4740,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── HOME ── */}
           {step === 0 && (
             <>
-              <div style={{ marginBottom:32 }}>
-                <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", lineHeight:1.4, marginBottom:12 }}>
-                  はじめに<br/>サービスの説明
+              <div style={{ marginBottom:36 }}>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>ステップ1</p>
+                <h1 className="f-sans" style={{ fontSize:38, fontWeight:800, color:"#222", lineHeight:1.25, margin:"0 0 20px" }}>
+                  求人の情報を入力
                 </h1>
-                <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, margin:0 }}>
-                  （ここに説明文が入ります。求人を出すとどうなるか、評価の仕組みなどを記載予定。）
+                <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.9, margin:0 }}>
+                  はじめに、掲載する農業バイトの作業内容や、募集したい働き手の条件についてうかがいます。次に、作業場所、日程、勤務時間、募集人数、報酬など、求人に必要な情報をご入力ください。
                 </p>
               </div>
               <p className="f-sans" style={lfStyles.question}>あなたはどちらですか？</p>
