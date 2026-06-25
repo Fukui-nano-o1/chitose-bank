@@ -375,6 +375,19 @@ input:focus { outline: none; }
   }
 }
 
+/* ── Step0 説明ページ: 左右5:5、狭い画面で縦積み ── */
+.step0-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+@media (max-width: 759px) {
+  .step0-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Review header: profile (subtle) left / rating (hero) center ── */
 .review-header-row {
   display: flex;
