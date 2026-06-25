@@ -4601,7 +4601,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const TOTAL = isFarmer ? 6 : 8;
 
   const goNext = () => setStep(s => s + 1);
-  const goBack = () => { if (step <= 1) { setRole(""); setStep(0); } else setStep(s => s - 1); };
+  const goBack = () => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); };
 
   // 選択した瞬間に次へ進む（140ms で選択状態を視認させてから遷移）
   const selectAndNext = (setter, value) => {
