@@ -4751,15 +4751,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   はじめに、掲載する農業バイトの作業内容や、募集したい働き手の条件についてうかがいます。次に、作業場所、日程、勤務時間、募集人数、報酬など、求人に必要な情報をご入力ください。
                 </p>
               </div>
-              <p className="f-sans" style={lfStyles.question}>あなたはどちらですか？</p>
-              <LFCardBtn selected={role==="farmer"} onClick={() => selectAndNext(setRole, "farmer")}>
-                <div className="f-sans" style={lfStyles.cardTitle}>🚜 農家として使う</div>
-                <div className="f-sans" style={lfStyles.cardDesc}>人手を探したい・仕事を出したい</div>
-              </LFCardBtn>
-              <LFCardBtn selected={role==="worker"} onClick={() => selectAndNext(setRole, "worker")}>
-                <div className="f-sans" style={lfStyles.cardTitle}>👤 働き手として使う</div>
-                <div className="f-sans" style={lfStyles.cardDesc}>農業で働きたい・条件を公開したい</div>
-              </LFCardBtn>
               </div>
               <div style={{ background:"#F0F0F0", borderRadius:16, minHeight:420, display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0", fontSize:14 }}>
                 （ここに求人詳細のプレビューが入ります）
