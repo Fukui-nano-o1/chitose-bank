@@ -4740,6 +4740,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── HOME ── */}
           {step === 0 && (
             <>
+              <div style={{ marginBottom:32 }}>
+                <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", lineHeight:1.4, marginBottom:12 }}>
+                  はじめに<br/>サービスの説明
+                </h1>
+                <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, margin:0 }}>
+                  （ここに説明文が入ります。求人を出すとどうなるか、評価の仕組みなどを記載予定。）
+                </p>
+              </div>
               <p className="f-sans" style={lfStyles.question}>あなたはどちらですか？</p>
               <LFCardBtn selected={role==="farmer"} onClick={() => selectAndNext(setRole, "farmer")}>
                 <div className="f-sans" style={lfStyles.cardTitle}>🚜 農家として使う</div>
