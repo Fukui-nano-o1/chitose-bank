@@ -4748,7 +4748,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
       {/* スクロール領域 */}
       <div style={embedded ? {} : { height:"100%", overflowY:"auto" }}>
-        <div key={step} className="fade-in" style={{ maxWidth: (step === 5 || step === 0) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 100px") }}>
+        <div key={step} className="fade-in" style={{ maxWidth: (step === 5 || step === 0) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
 
           {/* ── HOME ── */}
           {step === 0 && (
