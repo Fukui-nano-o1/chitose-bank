@@ -58,6 +58,8 @@ const SEED_DESTS = [];
 
 const THIS_YEAR   = new Date().getFullYear();
 const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
+// 管理者判定（届出後にゲートを外す際はここを変更する。保存・入力機能のゲートにも使用）
+const isAdmin = (user) => user?.email === ADMIN_EMAIL;
 
 // ── DEV バッジ（原因特定用・確認後削除） ─────────────────────
 const DEV_V = "2026-06-04";
@@ -7557,7 +7559,7 @@ const subDest=useCallback(async d=>{
     {k:"board",l:"公開ボード",modes:["farmer","worker"]},
     {k:"input",l:"データ入力",modes:["farmer"]},
     ...(me?[{k:"plan",l:"五年計画書",modes:["farmer"]}]:[]),
-    ...(me?.email===ADMIN_EMAIL?[{k:"admin",l:"管理",badge:badgeCnt,modes:["farmer","worker"]}]:[]),
+    ...(isAdmin(me)?[{k:"admin",l:"管理",badge:badgeCnt,modes:["farmer","worker"]}]:[]),
   ];
   const TABS = ALL_TABS.filter(t=>t.modes.includes(mode));
 
@@ -7771,7 +7773,7 @@ const subDest=useCallback(async d=>{
                 }}>データを入力する</button>
               </div>
         )}
-        {safeTab==="admin"&&me?.email===ADMIN_EMAIL&&<AdminTab
+        {safeTab==="admin"&&isAdmin(me)&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
