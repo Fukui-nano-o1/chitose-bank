@@ -4,13 +4,19 @@
 > セッションが切れても、このファイルで状態を復元できるようにする。
 
 ---
-## 🚨 緊急・要対処：monthly_pnl ビューの個人情報漏洩リスク（2026-06-25発見）
+## ✅ 対処済み：monthly_pnl ビューの個人情報漏洩リスク（2026-06-25発見・対処）
 
 monthly_pnl ビューが UNRESTRICTED（RLS無効）で、個別農家の生の損益が誰でも取得可能な状態。
 - 内容: farmer_id, year, month ごとの revenue（売上）, expense（経費）, profit（利益）。集計なし・5農家制限なし・farmer_id付きの生データ
 - リスク: from('monthly_pnl').select('*') で全農家の月次損益が誰のものか分かる形で抜ける
 - 違反: データ憲法第3条「個別収支の非公開」に真正面から抵触
 - 対比: public_summary は having count(distinct farmer_id) >= 5 で5農家未満を除外した集計のみ＝安全（UNRESTRICTEDでも問題なし）
+
+### 対処内容（2026-06-26 完了）
+- 確認: コード(App.jsx)からの参照なし（grep）、ビュー存在を確認、他オブジェクトの依存なしを確認
+- 対処: DROP VIEW public.monthly_pnl を実行し削除。存在しないことを確認済み
+- 理由: 誰も使っていない無防備なビューだったため、RLSをかけるより削除が確実
+- 将来、農家が自分の月次損益を見る機能が必要になったら、本人限定RLS（auth.uid() = farmer_id）付きで作り直す。旧定義は過去ログに残存
 
 ### 次回最優先で対処すること（順序）
 1. monthly_pnl が今どこで使われているか確認（grep "monthly_pnl" src/App.jsx）。塞ぐと壊れる箇所がないか
