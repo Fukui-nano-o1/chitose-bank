@@ -4428,6 +4428,16 @@ const CROP_OPTIONS = [
   { name:"リンゴ",   icon:"🍎" },
 ];
 
+// 作業リスト（アイコン無し・文字だけカード。増やすときはここに1行足すだけ）
+const TASK_OPTIONS = [
+  { name:"収穫",     icon:"" },
+  { name:"定植",     icon:"" },
+  { name:"選果",     icon:"" },
+  { name:"農薬散布", icon:"" },
+  { name:"草刈り",   icon:"" },
+  { name:"袋かけ",   icon:"" },
+];
+
 // 選択カードグリッド（Airbnb型・汎用）。options=[{name,icon}], value=選択中, onSelect=カード選択, otherText=自由入力値, onOtherChange=自由入力
 function LFCropGrid({ options, value, onSelect, otherText, onOtherChange }) {
   const isOther = value === "__other__";
