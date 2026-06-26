@@ -4407,6 +4407,56 @@ function LFPillSelect({ options, value, onSelect }) {
     </div>
   );
 }
+
+// 作物リスト（カードを増やすときはここに1行足すだけ）
+const CROP_OPTIONS = [
+  { name:"トマト",   icon:"🍅" },
+  { name:"キュウリ", icon:"🥒" },
+  { name:"ナス",     icon:"🍆" },
+  { name:"イチゴ",   icon:"🍓" },
+  { name:"米",       icon:"🌾" },
+  { name:"ブドウ",   icon:"🍇" },
+  { name:"リンゴ",   icon:"🍎" },
+];
+
+// 作物選択カードグリッド（Airbnb型）。value=選択中の作物名, onSelect=カード選択, otherText=自由入力値, onOtherChange=自由入力
+function LFCropGrid({ value, onSelect, otherText, onOtherChange }) {
+  const isOther = value === "__other__";
+  return (
+    <div style={{ marginBottom:8 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12 }}>
+        {CROP_OPTIONS.map(c => {
+          const sel = value === c.name;
+          return (
+            <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans" style={{
+              display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
+              padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
+              borderColor: sel ? "#00A86B" : "#EBEBEB",
+              background: sel ? "#E6F7EF" : "#fff",
+            }}>
+              <span style={{ fontSize:28 }}>{c.icon}</span>
+              <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222" }}>{c.name}</span>
+            </button>
+          );
+        })}
+        <button onClick={() => onSelect("__other__")} className="f-sans" style={{
+          display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
+          padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
+          borderColor: isOther ? "#00A86B" : "#EBEBEB",
+          background: isOther ? "#E6F7EF" : "#fff",
+        }}>
+          <span style={{ fontSize:28 }}>✏️</span>
+          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222" }}>その他</span>
+        </button>
+      </div>
+      {isOther && (
+        <input value={otherText} onChange={e => onOtherChange(e.target.value)}
+          placeholder="作物名を入力（例：ブロッコリー）" className="field f-sans"
+          style={{ fontSize:16, marginTop:12 }} />
+      )}
+    </div>
+  );
+}
 function LFMultiPill({ options, values, onToggle }) {
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
