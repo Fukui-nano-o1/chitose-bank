@@ -4647,7 +4647,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
   const farmerCrop = farmerCropPill === "__other__" ? farmerCropText.trim() : (farmerCropText.trim() || farmerCropPill);
-  const farmerTask = farmerTaskText.trim() || farmerTaskPill;
+  const farmerTask = farmerTaskPill === "__other__" ? farmerTaskText.trim() : (farmerTaskText.trim() || farmerTaskPill);
 
   // 働き手 state
   const [workerExp,         setWorkerExp]         = useState("");
@@ -4871,20 +4871,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {isFarmer && step === 2 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>作業内容を選んでください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>募集する作業を選びます。一覧にない場合は下の欄に入力できます。</p>
-            <LFPillSelect
-              options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]}
+            <p className="f-sans" style={lfStyles.subtitle}>募集する作業を選びます。一覧にない場合は「その他」から入力できます。</p>
+            <LFCropGrid
+              options={TASK_OPTIONS}
               value={farmerTaskPill}
-              onSelect={v => { setFarmerTaskPill(v); setFarmerTaskText(""); }}
+              onSelect={v => {
+                if (v === "__other__") { setFarmerTaskPill("__other__"); }
+                else { setFarmerTaskPill(v); setFarmerTaskText(""); }
+              }}
+              otherText={farmerTaskText}
+              onOtherChange={setFarmerTaskText}
             />
-            <input
-              value={farmerTaskText}
-              onChange={e => { setFarmerTaskText(e.target.value); setFarmerTaskPill(""); }}
-              placeholder="例：畝立て、支柱立て、マルチ張り"
-              className="field f-sans"
-              style={{ fontSize:15, marginTop:6 }}
-            />
-            {!farmerTask && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:6 }}>作業内容を選んでください</p>}
           </>)}
 
           {isFarmer && step === 3 && (<>
