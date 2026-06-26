@@ -4580,7 +4580,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
   const [farmerExp,         setFarmerExp]         = useState(d.farmerExp ?? "");
-  const [farmerPurpose,     setFarmerPurpose]     = useState(_devJump?.farmerPurpose ?? d.farmerPurpose ?? "");
+  const [farmerPurpose,     setFarmerPurpose]     = useState(_devJump?.farmerPurpose ?? d.farmerPurpose ?? "post");
   const [farmerDisplayName, setFarmerDisplayName] = useState(d.farmerDisplayName ?? "");
   const [farmerRegion,      setFarmerRegion]      = useState(d.farmerRegion ?? "");
   const [farmerCropPill,    setFarmerCropPill]    = useState(d.farmerCropPill ?? ""); // 作物ピル選択
@@ -4773,7 +4773,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
-  const farmerCanNext = [true, !!farmerCrop, !!farmerPurpose, !!farmerCrop&&!!farmerTask, farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
+  const farmerCanNext = [true, !!farmerCrop, true, !!farmerCrop&&!!farmerTask, farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
