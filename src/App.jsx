@@ -4443,7 +4443,7 @@ function LFCropGrid({ options, value, onSelect, otherText, onOtherChange }) {
               borderColor: sel ? "#00A86B" : "#EBEBEB",
               background: sel ? "#E6F7EF" : "#fff",
             }}>
-              <span style={{ fontSize:28 }}>{c.icon}</span>
+              {c.icon && <span style={{ fontSize:28 }}>{c.icon}</span>}
               <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222" }}>{c.name}</span>
             </button>
           );
