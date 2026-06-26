@@ -4796,14 +4796,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       )}
 
-      {/* スキップボタン */}
+      {/* 保存して終了ボタン（TODO: 管理者(isAdmin)限定で下書き保存を実装する。現状は保存せず閉じるのみ） */}
       {!embedded && (
         <button onClick={onSkip} className="f-sans" style={{
           position:"absolute", top:step > 0 ? 24 : 16, right:20,
           background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"8px 18px",
           fontSize:13, color:"#222", fontWeight:600, cursor:"pointer", zIndex:2,
           boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>スキップ →</button>
+        }}>保存して終了</button>
       )}
 
       {/* スクロール領域 */}
