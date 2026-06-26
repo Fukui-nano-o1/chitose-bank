@@ -4647,7 +4647,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   const isFarmer = role === "farmer";
   const isWorker = role === "worker";
-  const farmerStepLabels = ["就農歴","目的","プロフィール","詳細","確認","完了"];
+  const farmerStepLabels = ["作物","目的","プロフィール","詳細","確認","完了"];
   const workerStepLabels = ["経歴","目的","プロフィール","報酬比較","確認","詳細","確認","完了"];
   const stepLabels = isFarmer ? farmerStepLabels : isWorker ? workerStepLabels : [];
   const TOTAL = isFarmer ? 6 : 8;
@@ -4765,7 +4765,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
-  const farmerCanNext = [true, !!farmerExp, !!farmerPurpose, !!farmerCrop&&!!farmerTask, farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerPurpose, !!farmerCrop&&!!farmerTask, farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -4838,13 +4838,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── FARMER FLOW ── */}
           {isFarmer && step === 1 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>就農歴を教えてください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>あなたに合う使い方を表示します。</p>
-            {["1年未満","1〜3年","4〜10年","10年以上"].map(v => (
-              <LFCardBtn key={v} selected={farmerExp===v} onClick={() => selectAndNext(setFarmerExp, v)}>
-                <div className="f-sans" style={lfStyles.cardTitle}>{v}</div>
-              </LFCardBtn>
-            ))}
+            <h2 className="f-sans" style={lfStyles.stepTitle}>作物を選んでください</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>募集する求人の作物を選びます。一覧にない場合は「その他」から入力できます。</p>
+            <LFCropGrid
+              value={farmerCropText.trim() ? "__other__" : farmerCropPill}
+              onSelect={v => {
+                if (v === "__other__") { setFarmerCropPill(""); }
+                else { setFarmerCropPill(v); setFarmerCropText(""); }
+              }}
+              otherText={farmerCropText}
+              onOtherChange={setFarmerCropText}
+            />
           </>)}
 
           {isFarmer && step === 2 && (<>
