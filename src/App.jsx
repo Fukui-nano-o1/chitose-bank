@@ -4428,13 +4428,13 @@ const CROP_OPTIONS = [
   { name:"リンゴ",   icon:"🍎" },
 ];
 
-// 作物選択カードグリッド（Airbnb型）。value=選択中の作物名, onSelect=カード選択, otherText=自由入力値, onOtherChange=自由入力
-function LFCropGrid({ value, onSelect, otherText, onOtherChange }) {
+// 選択カードグリッド（Airbnb型・汎用）。options=[{name,icon}], value=選択中, onSelect=カード選択, otherText=自由入力値, onOtherChange=自由入力
+function LFCropGrid({ options, value, onSelect, otherText, onOtherChange }) {
   const isOther = value === "__other__";
   return (
     <div style={{ marginBottom:8 }}>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12 }}>
-        {CROP_OPTIONS.map(c => {
+        {options.map(c => {
           const sel = value === c.name;
           return (
             <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={{
@@ -4848,6 +4848,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <h2 className="f-sans" style={lfStyles.stepTitle}>作物を選んでください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>募集する求人の作物を選びます。一覧にない場合は「その他」から入力できます。</p>
             <LFCropGrid
+              options={CROP_OPTIONS}
               value={farmerCropPill}
               onSelect={v => {
                 if (v === "__other__") { setFarmerCropPill("__other__"); }
