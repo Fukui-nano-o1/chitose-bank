@@ -4437,7 +4437,7 @@ function LFCropGrid({ value, onSelect, otherText, onOtherChange }) {
         {CROP_OPTIONS.map(c => {
           const sel = value === c.name;
           return (
-            <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans" style={{
+            <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={{
               display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
               padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
               borderColor: sel ? "#00A86B" : "#EBEBEB",
@@ -4448,7 +4448,7 @@ function LFCropGrid({ value, onSelect, otherText, onOtherChange }) {
             </button>
           );
         })}
-        <button onClick={() => onSelect("__other__")} className="f-sans" style={{
+        <button onClick={() => onSelect("__other__")} className="f-sans crop-card" style={{
           display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
           padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
           borderColor: isOther ? "#00A86B" : "#EBEBEB",
