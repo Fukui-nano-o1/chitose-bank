@@ -4439,7 +4439,7 @@ const TASK_OPTIONS = [
 ];
 
 // 選択カードグリッド（Airbnb型・汎用）。options=[{name,icon}], value=選択中, onSelect=カード選択, otherText=自由入力値, onOtherChange=自由入力
-function LFCropGrid({ options, value, onSelect, otherText, onOtherChange }) {
+function LFCropGrid({ options, value, onSelect, otherText, onOtherChange, otherPlaceholder }) {
   const isOther = value === "__other__";
   return (
     <div style={{ marginBottom:8 }}>
@@ -4470,7 +4470,7 @@ function LFCropGrid({ options, value, onSelect, otherText, onOtherChange }) {
       </div>
       {isOther && (
         <input value={otherText} onChange={e => onOtherChange(e.target.value)}
-          placeholder="作物名を入力（例：ブロッコリー）" className="field f-sans"
+          placeholder={otherPlaceholder} className="field f-sans"
           style={{ fontSize:16, marginTop:12 }} />
       )}
     </div>
@@ -4866,6 +4866,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               }}
               otherText={farmerCropText}
               onOtherChange={setFarmerCropText}
+              otherPlaceholder="作物名を入力（例：ブロッコリー）"
             />
           </>)}
 
@@ -4881,6 +4882,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               }}
               otherText={farmerTaskText}
               onOtherChange={setFarmerTaskText}
+              otherPlaceholder="作業名を入力（例：畝立て、マルチ張り）"
             />
           </>)}
 
