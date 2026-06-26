@@ -377,6 +377,15 @@ input:focus { outline: none; }
   }
 }
 
+/* 作物選択カード（Airbnb型・ホバーで枠濃く＋浮く） */
+.crop-card {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.crop-card:hover {
+  border-color: #B0B0B0;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.10);
+  transform: translateY(-2px);
+}
 /* ── Step0 説明ページ: 左右5:5、狭い画面で縦積み ── */
 .step0-grid {
   display: grid;
