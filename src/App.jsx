@@ -4664,7 +4664,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   // 自動遷移ステップ（次へボタン非表示、戻るのみ表示）
   const isAutoStep = (
     step === 0 ||
-    (isFarmer && step === 1) ||
     (isFarmer && step === 2) ||
     (isWorker && step === 1) ||
     (isWorker && step === 2)
