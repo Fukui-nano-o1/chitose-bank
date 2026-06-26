@@ -4627,7 +4627,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobTemplate,       setJobTemplate]       = useState("収穫補助");
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
-  const farmerCrop = farmerCropText.trim() || farmerCropPill;
+  const farmerCrop = farmerCropPill === "__other__" ? farmerCropText.trim() : (farmerCropText.trim() || farmerCropPill);
   const farmerTask = farmerTaskText.trim() || farmerTaskPill;
 
   // 働き手 state
@@ -4840,9 +4840,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <h2 className="f-sans" style={lfStyles.stepTitle}>作物を選んでください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>募集する求人の作物を選びます。一覧にない場合は「その他」から入力できます。</p>
             <LFCropGrid
-              value={farmerCropText.trim() ? "__other__" : farmerCropPill}
+              value={farmerCropPill}
               onSelect={v => {
-                if (v === "__other__") { setFarmerCropPill(""); }
+                if (v === "__other__") { setFarmerCropPill("__other__"); }
                 else { setFarmerCropPill(v); setFarmerCropText(""); }
               }}
               otherText={farmerCropText}
