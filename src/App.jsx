@@ -4656,7 +4656,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   const isFarmer = role === "farmer";
   const isWorker = role === "worker";
-  const farmerStepLabels = ["作物","目的","プロフィール","詳細","確認","完了"];
+  const farmerStepLabels = ["作物","作業","プロフィール","詳細","確認","完了"];
   const workerStepLabels = ["経歴","目的","プロフィール","報酬比較","確認","詳細","確認","完了"];
   const stepLabels = isFarmer ? farmerStepLabels : isWorker ? workerStepLabels : [];
   const TOTAL = isFarmer ? 6 : 8;
@@ -4673,7 +4673,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   // 自動遷移ステップ（次へボタン非表示、戻るのみ表示）
   const isAutoStep = (
     step === 0 ||
-    (isFarmer && step === 2) ||
     (isWorker && step === 1) ||
     (isWorker && step === 2)
   );
@@ -4773,7 +4772,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
-  const farmerCanNext = [true, !!farmerCrop, true, !!farmerCrop&&!!farmerTask, farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerCrop&&!!farmerTask, farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -4860,16 +4859,21 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           </>)}
 
           {isFarmer && step === 2 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>何をしたいですか？</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>まずは「募集する」か「探して声をかける」かを選んでください</p>
-            <LFCardBtn selected={farmerPurpose==="post"} onClick={() => selectAndNext(setFarmerPurpose, "post")}>
-              <div className="f-sans" style={lfStyles.cardTitle}>📋 仕事を出す</div>
-              <div className="f-sans" style={lfStyles.cardDesc}>募集内容を入力して働き手を募集する</div>
-            </LFCardBtn>
-            <LFCardBtn selected={farmerPurpose==="offer"} onClick={() => selectAndNext(setFarmerPurpose, "offer")}>
-              <div className="f-sans" style={lfStyles.cardTitle}>👤 働き手にオファーする</div>
-              <div className="f-sans" style={lfStyles.cardDesc}>候補者を探して直接声をかける</div>
-            </LFCardBtn>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>作業内容を選んでください</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>募集する作業を選びます。一覧にない場合は下の欄に入力できます。</p>
+            <LFPillSelect
+              options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]}
+              value={farmerTaskPill}
+              onSelect={v => { setFarmerTaskPill(v); setFarmerTaskText(""); }}
+            />
+            <input
+              value={farmerTaskText}
+              onChange={e => { setFarmerTaskText(e.target.value); setFarmerTaskPill(""); }}
+              placeholder="例：畝立て、支柱立て、マルチ張り"
+              className="field f-sans"
+              style={{ fontSize:15, marginTop:6 }}
+            />
+            {!farmerTask && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:6 }}>作業内容を選んでください</p>}
           </>)}
 
           {isFarmer && step === 3 && (<>
