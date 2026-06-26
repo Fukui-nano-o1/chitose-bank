@@ -4917,39 +4917,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </div>
             </LFWizCard>
 
-            {/* 作物・作業 */}
-            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>作物・作業</p>
-            <LFWizCard>
-              <div style={{ marginBottom:16 }}>
-                <label className="f-sans" style={lfStyles.inputLabel}>主な作物</label>
-                <LFPillSelect options={["トマト","キュウリ","ナス","イチゴ","米","ブドウ","リンゴ"]} value={farmerCropPill} onSelect={v => { setFarmerCropPill(v); setFarmerCropText(""); }} />
-                <input
-                  value={farmerCropText}
-                  onChange={e => { setFarmerCropText(e.target.value); setFarmerCropPill(""); }}
-                  placeholder="その他の作物を入力"
-                  className="field f-sans"
-                  style={{ fontSize:15, marginTop:6 }}
-                />
-                {!farmerCrop && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>少なくとも1つ作物を選んでください</p>}
-              </div>
-              <div>
-                <label className="f-sans" style={lfStyles.inputLabel}>募集したい作業</label>
-                <LFPillSelect
-                  options={["収穫","定植","選果","農薬散布","草刈り","袋かけ"]}
-                  value={farmerTaskPill}
-                  onSelect={v => { setFarmerTaskPill(v); setFarmerTaskText(""); }}
-                />
-                <input
-                  value={farmerTaskText}
-                  onChange={e => { setFarmerTaskText(e.target.value); setFarmerTaskPill(""); }}
-                  placeholder="例：畝立て、支柱立て、マルチ張り"
-                  className="field f-sans"
-                  style={{ fontSize:15, marginTop:6 }}
-                />
-                {!farmerTask && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>作業内容を選んでください</p>}
-              </div>
-            </LFWizCard>
-
             {/* 募集条件 */}
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>募集条件</p>
             <LFWizCard>
