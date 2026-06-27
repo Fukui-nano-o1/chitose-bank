@@ -217,3 +217,33 @@ step0：全体の入口説明（既存・流用）
 ### グループ1の進捗
 作物✅ → 作業✅ → 場所✅(郵便番号検索付き) → 日程(次) → 募集人数 → 報酬
 ---
+
+## 2026-06-27(続) step番号移動・8ステップ骨格・ページX設置（段階A完了）
+
+### 完了（全push済み・最新3d8bcb8）
+- 【最難関突破】farmer求人フローのstep番号を大移動。確認5→7、完了6→8にずらし、間にstep5(募集人数)・step6(報酬)の空ページを新設。慎重に段階A-1/A-2/A-3に分割し各buildで確認。一度も壊さず完了
+- 8ステップ構成確定: step0説明/1作物/2作業/3場所/4詳細(塊・未分解)/5募集人数(空)/6報酬(空)/7確認/8完了
+  - farmerStepLabels=["作物","作業","場所","日程","募集人数","報酬","確認","完了"]
+  - TOTAL=8、farmerCanNext=9要素(step0〜8。step4は最賃チェック、step5/6は当面true)
+- ページX(step90=農家フロー非到達の退避ブロック)を新設。グループ2/3項目の保管庫
+
+### 次回=段階B（step4塊の解体・最重要・最も神経を使う）
+方針【道X】: step4の塊(4973-5120)から、
+  - グループ1項目(日程=カレンダー一式 / 募集人数 / 報酬=時給日給最賃チェック支払いタイミング支払方法)は step4 に残す
+  - グループ2/3項目(勤務時間startHour/endHour / 休憩breakTime / 移動commuteTime / 危険な場所jobDangerPlaces / 危険な作業jobDangerTasks / 必要経験jobExp / 募集文テンプレjobTemplate / 持ち物jobNotes)のUIを ページX(step90)に移す
+原則:
+  - 機能とUI(JSX)は保存したまま移植。**変数定義(4631-4675)は動かさない**(消すと確認画面4045-4048・保存・JOB_SEARCH_SAMPLESが壊れる)
+  - 退避項目の「次へ条件・バリデーション(赤文字)」は完全削除(退避所は農家フロー進行を邪魔しない)。※今回グループ2/3項目はfarmerCanNextに条件なし=削除対象は実質なしだが原則として保持
+  - 段階B後: step4に残ったグループ1項目を step4(日程)/step5(募集人数)/step6(報酬)に分配
+変数の所在(調査済み): jobDateStart/jobDateLabel/CalendarPicker(カレンダー4727-4760), jobCount, hourlyWageInput/dailyWageInput/hourlyViolation/dailyViolation(最賃), payTiming/payMethod, startHour/startMinute/endHour/endMinute/workTimeLabel, breakTime, commuteTime, jobDangerPlaces/jobDangerTasks, jobExp, jobTemplate, jobNotes
+
+### その他の宿題（既存・継続）
+- devJump更新: 「農5確認/農6完了」が古い→「農4日程/農5人数/農6報酬/農7確認/農8完了」に。step90確認用ボタンも足すと便利
+- ⑤地図ボックス配置(空・課金なし。公開直後に課金)
+- step3引き継ぎ(新規登録→求人。lfDraft経由)
+- 希望する働き手/支払い方式はグループ2で復活
+- たきとのstep4アイデア(未ヒアリング)
+
+### グループ1進捗
+作物✅ 作業✅ 場所✅(郵便番号検索付き) → 日程/募集人数/報酬(step4塊から分解予定) → 確認 完了
+---
