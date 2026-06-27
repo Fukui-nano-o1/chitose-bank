@@ -4974,6 +4974,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <h2 className="f-sans" style={lfStyles.stepTitle}>募集内容を入力します</h2>
             <p className="f-sans" style={lfStyles.subtitle}>これはプレビューです。実際の公開はまだ行いません。</p>
             <LFWizCard>
+              {/* 5. 募集人数 */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集人数</label>
+                <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
+              </div>
               {/* 3. 開催日（カレンダー） */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>作業日程</label>
@@ -4986,11 +4991,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   }}
                 >{jobDateLabel}</button>
                 {showCalendar && <CalendarPicker />}
-              </div>
-              {/* 5. 募集人数 */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集人数</label>
-                <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
               </div>
             </LFWizCard>
           </>)}
