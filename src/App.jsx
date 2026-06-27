@@ -5111,11 +5111,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>募集文テンプレート</label>
                 <LFPillSelect options={["収穫補助","選果作業","定植作業","草刈り"]} value={jobTemplate} onSelect={setJobTemplate} />
               </div>
-              {/* 9. 持ち物・注意事項 */}
-              <div>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物・注意事項（任意）</label>
-                <textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="例：長靴着用、軍手持参" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
-              </div>
             </LFWizCard>
           </>)}
 
@@ -5167,6 +5162,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {isFarmer && step === 90 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>移植待ち項目（退避所）</h2>
             <p className="f-sans" style={lfStyles.subtitle}>開発用の退避所です。農家フローには表示されません。移植先ができ次第、各ページへ移します。</p>
+            <LFWizCard>
+              {/* 9. 持ち物・注意事項（グループ3予定） */}
+              <div>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物・注意事項（任意）</label>
+                <textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="例：長靴着用、軍手持参" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
+              </div>
+            </LFWizCard>
           </>)}
 
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
