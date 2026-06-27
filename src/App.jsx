@@ -4671,7 +4671,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   const isFarmer = role === "farmer";
   const isWorker = role === "worker";
-  const farmerStepLabels = ["作物","作業","プロフィール","詳細","確認","完了"];
+  const farmerStepLabels = ["作物","作業","場所","詳細","確認","完了"];
   const workerStepLabels = ["経歴","目的","プロフィール","報酬比較","確認","詳細","確認","完了"];
   const stepLabels = isFarmer ? farmerStepLabels : isWorker ? workerStepLabels : [];
   const TOTAL = isFarmer ? 6 : 8;
