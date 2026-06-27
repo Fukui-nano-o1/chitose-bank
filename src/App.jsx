@@ -5002,36 +5002,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集人数</label>
                 <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
               </div>
-              {/* 6. 報酬 */}
-              <div style={{ marginBottom:6 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>報酬</label>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:10 }}>時給または日給を入力してください。入力欄では数字だけで構いません。</p>
-              </div>
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
-                <input inputMode="numeric" value={hourlyWageInput} onChange={e => setHourlyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：1200" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
-                <LFWageCompare type="時給" value={hourlyWage} avg={AVG_HOURLY} count={AVG_COUNT} />
-                {hourlyViolation && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
-                )}
-              </div>
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
-                <input inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
-                <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
-                {dailyViolation && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
-                )}
-              </div>
-              <LFWageNote />
-              <div style={{ marginBottom:14, marginTop:14 }}>
-                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払いタイミング</label>
-                <LFPillSelect options={["即日払い（作業当日）","週末まとめ払い","月末締め・翌月払い"]} value={payTiming} onSelect={setPayTiming} />
-              </div>
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払方法</label>
-                <LFPillSelect options={["現金手渡し","銀行振込","相談して決める"]} value={payMethod} onSelect={setPayMethod} />
-              </div>
             </LFWizCard>
           </>)}
 
@@ -5076,7 +5046,39 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── 農家 step6: 報酬（骨格・中身は段階Bで移植） ── */}
           {isFarmer && step === 6 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>報酬を入力します</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>時給または日給を入力してください。</p>
+            <LFWizCard>
+              {/* 6. 報酬 */}
+              <div style={{ marginBottom:6 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>報酬</label>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:10 }}>時給または日給を入力してください。入力欄では数字だけで構いません。</p>
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
+                <input inputMode="numeric" value={hourlyWageInput} onChange={e => setHourlyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：1200" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
+                <LFWageCompare type="時給" value={hourlyWage} avg={AVG_HOURLY} count={AVG_COUNT} />
+                {hourlyViolation && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
+                )}
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
+                <input inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
+                <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
+                {dailyViolation && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
+                )}
+              </div>
+              <LFWageNote />
+              <div style={{ marginBottom:14, marginTop:14 }}>
+                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払いタイミング</label>
+                <LFPillSelect options={["即日払い（作業当日）","週末まとめ払い","月末締め・翌月払い"]} value={payTiming} onSelect={setPayTiming} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払方法</label>
+                <LFPillSelect options={["現金手渡し","銀行振込","相談して決める"]} value={payMethod} onSelect={setPayMethod} />
+              </div>
+            </LFWizCard>
           </>)}
 
           {/* ── ページX: 移植待ち退避ブロック（step90=農家フロー非到達。グループ2/3項目をここに貯蔵し、移植先ができ次第移す。退避項目の次へ条件・バリデーションは付けない） ── */}
