@@ -7341,6 +7341,7 @@ export default function App(){
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(false);
+  const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
@@ -7823,7 +7824,7 @@ const subDest=useCallback(async d=>{
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
-          onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowLanding(true); } setTab(t); }}/>}
+          onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}/>}
       </main>
 
       {/* ── FOOTER（固定） ── */}
@@ -7864,6 +7865,13 @@ const subDest=useCallback(async d=>{
           onComplete={()=>setShowJobPost(false)}
           onSkip={()=>setShowJobPost(false)}
           onLogin={()=>setShowJobPost(false)}
+        />
+      )}
+      {me&&showDevJump&&(
+        <LandingFlow
+          onComplete={()=>setShowDevJump(false)}
+          onSkip={()=>setShowDevJump(false)}
+          onLogin={()=>setShowDevJump(false)}
         />
       )}
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
