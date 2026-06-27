@@ -5029,14 +5029,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 step5: 募集人数（骨格・中身は段階Bで移植） ── */}
           {isFarmer && step === 5 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>募集人数を入力します</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
-          </>)}
-
-          {/* ── 農家 step6: 報酬（骨格・中身は段階Bで移植） ── */}
-          {isFarmer && step === 6 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>報酬を入力します</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>時給または日給を入力してください。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>報酬を入力してください</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>時給または日給を入力します。</p>
             <LFWizCard>
               {/* 6. 報酬 */}
               <div style={{ marginBottom:6 }}>
@@ -5069,6 +5063,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <LFPillSelect options={["現金手渡し","銀行振込","相談して決める"]} value={payMethod} onSelect={setPayMethod} />
               </div>
             </LFWizCard>
+          </>)}
+
+          {/* ── 農家 step6: グループ2説明（予定・現在は準備中） ── */}
+          {isFarmer && step === 6 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>準備中です</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
           </>)}
 
           {/* ── ページX: 移植待ち退避ブロック（step90=農家フロー非到達。グループ2/3項目をここに貯蔵し、移植先ができ次第移す。退避項目の次へ条件・バリデーションは付けない） ── */}
