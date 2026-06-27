@@ -4910,15 +4910,40 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 {!farmerDisplayName.trim() && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>表示名を入力してください</p>}
               </div>
               <div>
-                <label className="f-sans" style={lfStyles.inputLabel}>地域</label>
+                <label className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
                 <input
-                  value={farmerRegion}
-                  onChange={e => setFarmerRegion(e.target.value)}
-                  placeholder="例：徳島県吉野川市"
+                  value={farmerZip}
+                  onChange={e => setFarmerZip(e.target.value)}
+                  placeholder="例：779-3401"
+                  className="field f-sans"
+                  style={{ fontSize:16, marginBottom:12 }}
+                />
+                <label className="f-sans" style={lfStyles.inputLabel}>都道府県</label>
+                <input
+                  value={farmerPref}
+                  onChange={e => { setFarmerPref(e.target.value); setFarmerRegion(e.target.value + farmerCity); }}
+                  placeholder="例：徳島県"
+                  className="field f-sans"
+                  style={{ fontSize:16, marginBottom:12 }}
+                />
+                <label className="f-sans" style={lfStyles.inputLabel}>市区町村</label>
+                <input
+                  value={farmerCity}
+                  onChange={e => { setFarmerCity(e.target.value); setFarmerRegion(farmerPref + e.target.value); }}
+                  placeholder="例：吉野川市"
+                  className="field f-sans"
+                  style={{ fontSize:16, marginBottom:12 }}
+                />
+                <label className="f-sans" style={lfStyles.inputLabel}>番地・建物名</label>
+                <input
+                  value={farmerAddr}
+                  onChange={e => setFarmerAddr(e.target.value)}
+                  placeholder="例：山川町〇〇 1-2-3"
                   className="field f-sans"
                   style={{ fontSize:16 }}
                 />
-                {!farmerRegion.trim() && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>地域を入力してください</p>}
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
+                {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
               </div>
             </LFWizCard>
 
