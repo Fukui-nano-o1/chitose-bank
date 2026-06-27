@@ -4936,18 +4936,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </div>
             </LFWizCard>
 
-            {/* 募集条件 */}
-            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>募集条件</p>
-            <LFWizCard>
-              <div style={{ marginBottom:16 }}>
-                <label className="f-sans" style={lfStyles.inputLabel}>希望する働き手</label>
-                <LFPillSelect options={["未経験歓迎","経験者優遇","どちらでも"]} value={farmerWanted} onSelect={setFarmerWanted} />
-              </div>
-              <div>
-                <label className="f-sans" style={lfStyles.inputLabel}>支払い方式</label>
-                <LFPillSelect options={["時給","日給","どちらでも"]} value={farmerPayType} onSelect={setFarmerPayType} />
-              </div>
-            </LFWizCard>
             <LFPrivacyNote />
           </>)}
 
