@@ -4976,7 +4976,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <LFWizCard>
               {/* 3. 開催日（カレンダー） */}
               <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>開催日</label>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>作業日程</label>
                 <button
                   onClick={() => setShowCalendar(v => !v)}
                   style={{
@@ -5183,7 +5183,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
             // プロフィール完成度
             const profileFields = [farmerDisplayName, farmerRegion, farmerCrop, farmerTask, farmerWanted, farmerPayType, jobCount, jobDateStart, workTimeLabel, hourlyWageInput || dailyWageInput];
-            const fieldNames     = ["表示名","地域","作物","作業","希望する働き手","支払い方式","募集人数","開催日","勤務時間","報酬"];
+            const fieldNames     = ["表示名","地域","作物","作業","希望する働き手","支払い方式","募集人数","作業日程","勤務時間","報酬"];
             const filledCount   = profileFields.filter(Boolean).length;
             const profilePct    = Math.round(filledCount / profileFields.length * 100);
             const missingFields = fieldNames.filter((_, i) => !profileFields[i]);
@@ -5462,7 +5462,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <LFSummaryRow label="地域"     value={farmerRegion || "未入力"} />
                   <LFSummaryRow label="作物"     value={farmerCrop || "未入力"} />
                   <LFSummaryRow label="作業"     value={farmerTask || "未入力"} />
-                  <LFSummaryRow label="開催日"   value={jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定"} />
+                  <LFSummaryRow label="作業日程"   value={jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定"} />
                   <LFSummaryRow label="勤務時間" value={workTimeLabel} />
                   <LFSummaryRow label="募集人数" value={jobCount ? `${jobCount}人` : "未設定"} />
                   <LFSummaryRow label="休憩時間" value={breakTime || "未設定"} />
