@@ -5879,13 +5879,15 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ(LandingFlow)</p>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {[
-            { l:"LFトップ",       dj:{ role:"",       step:0 } },
-            { l:"農家step1",      dj:{ role:"farmer", step:1 } },
-            { l:"農家step3",      dj:{ role:"farmer", step:3 } },
-            { l:"農家step4募集",  dj:{ role:"farmer", step:4, farmerPurpose:"post" } },
-            { l:"農家step5確認",  dj:{ role:"farmer", step:5 } },
-            { l:"働き手step3",    dj:{ role:"worker", step:3 } },
-            { l:"働き手step6求人",dj:{ role:"worker", step:6, workerPurpose:"search" } },
+            { l:"LFトップ",      dj:{ role:"",       step:0 } },
+            { l:"農1作物",       dj:{ role:"farmer", step:1 } },
+            { l:"農2作業",       dj:{ role:"farmer", step:2 } },
+            { l:"農3地域",       dj:{ role:"farmer", step:3 } },
+            { l:"農4詳細",       dj:{ role:"farmer", step:4 } },
+            { l:"農5確認",       dj:{ role:"farmer", step:5 } },
+            { l:"農6完了",       dj:{ role:"farmer", step:6 } },
+            { l:"働3",           dj:{ role:"worker", step:3 } },
+            { l:"働6求人",       dj:{ role:"worker", step:6, workerPurpose:"search" } },
           ].map(({ l, dj }) => (
             <button key={l} onClick={() => onJump("labor", dj)} className="f-sans" style={{
               padding:"6px 12px", borderRadius:8, border:"1px solid #D0E8FF",
