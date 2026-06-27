@@ -4971,8 +4971,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
                     {/* ── 農家 Step3: 詳細入力 ── */}
           {isFarmer && step === 4 && farmerPurpose === "post" && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>募集内容を入力します</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>これはプレビューです。実際の公開はまだ行いません。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>募集人数と作業日程を入力してください</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>何人募集するか、いつ作業を行うかを入力します。</p>
             <LFWizCard>
               {/* 5. 募集人数 */}
               <div style={{ marginBottom:14 }}>
