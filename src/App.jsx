@@ -5163,6 +5163,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
           </>)}
 
+          {/* ── ページX: 移植待ち退避ブロック（step90=農家フロー非到達。グループ2/3項目をここに貯蔵し、移植先ができ次第移す。退避項目の次へ条件・バリデーションは付けない） ── */}
+          {isFarmer && step === 90 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>移植待ち項目（退避所）</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>開発用の退避所です。農家フローには表示されません。移植先ができ次第、各ページへ移します。</p>
+          </>)}
+
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {isFarmer && step === 7 && (() => {
