@@ -4641,7 +4641,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   // 日程（Date は JSON.parse で文字列になるので再変換）
   const [jobDateStart,    setJobDateStart]    = useState(d.jobDateStart ? new Date(d.jobDateStart) : null);
   const [jobDateEnd,      setJobDateEnd]      = useState(d.jobDateEnd   ? new Date(d.jobDateEnd)   : null);
-  const [showCalendar,    setShowCalendar]    = useState(false);
+  const [showCalendar,    setShowCalendar]    = useState(true);
   const [calYear,         setCalYear]         = useState(new Date().getFullYear());
   const [calMonth,        setCalMonth]        = useState(new Date().getMonth());
   const [jobCount,        setJobCount]        = useState(d.jobCount ?? "");
