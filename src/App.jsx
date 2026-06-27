@@ -5053,7 +5053,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
                 )}
               </div>
-              <LFWageNote />
               <div style={{ marginBottom:14, marginTop:14 }}>
                 <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払いタイミング</label>
                 <LFPillSelect options={["即日払い（作業当日）","週末まとめ払い","月末締め・翌月払い"]} value={payTiming} onSelect={setPayTiming} />
