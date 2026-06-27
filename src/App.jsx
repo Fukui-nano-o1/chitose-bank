@@ -4787,7 +4787,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerCrop&&!!farmerTask, farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&!!farmerPref.trim()&&!!farmerCity.trim()&&!!farmerAddr.trim(), farmerPurpose !== "post" || (!hourlyViolation && !dailyViolation), true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
