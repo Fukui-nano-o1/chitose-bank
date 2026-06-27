@@ -4598,6 +4598,30 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [farmerPref,        setFarmerPref]        = useState(d.farmerPref ?? "");
   const [farmerCity,        setFarmerCity]        = useState(d.farmerCity ?? "");
   const [farmerAddr,        setFarmerAddr]        = useState(d.farmerAddr ?? "");
+  const [zipSearching,      setZipSearching]      = useState(false);
+  const [zipError,          setZipError]          = useState("");
+  // 郵便番号から住所を検索（zipcloud・無料・認証不要）。都道府県・市区町村を自動入力
+  const searchZip = async () => {
+    const zip = farmerZip.replace(/[^0-9]/g, "");
+    if (zip.length !== 7) { setZipError("郵便番号は7桁で入力してください"); return; }
+    setZipSearching(true); setZipError("");
+    try {
+      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
+      const data = await res.json();
+      if (data.status === 200 && data.results) {
+        const r = data.results[0];
+        setFarmerPref(r.address1);
+        setFarmerCity(r.address2);
+        setFarmerRegion(r.address1 + r.address2);
+        setZipError("");
+      } else {
+        setZipError("郵便番号が見つかりませんでした");
+      }
+    } catch {
+      setZipError("検索に失敗しました。通信環境をご確認ください");
+    }
+    setZipSearching(false);
+  };
   const [farmerCropPill,    setFarmerCropPill]    = useState(d.farmerCropPill ?? ""); // 作物ピル選択
   const [farmerCropText,    setFarmerCropText]    = useState(d.farmerCropText ?? ""); // 作物自由入力
   const [farmerTaskPill,    setFarmerTaskPill]    = useState(d.farmerTaskPill ?? ""); // 作業ピル選択
