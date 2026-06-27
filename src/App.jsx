@@ -4895,8 +4895,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <h2 className="f-sans" style={lfStyles.stepTitle}>場所を入力してください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>作業場所の住所を入力します。番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
 
-            {/* 基本情報 */}
-            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>基本情報</p>
             <LFWizCard>
               <div>
                 <label className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
