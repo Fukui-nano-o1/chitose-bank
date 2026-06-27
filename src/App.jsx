@@ -5025,30 +5025,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集人数</label>
                 <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
               </div>
-              {/* 5-b. 休憩時間 */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
-                <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
-                  <option value="">選択してください</option>
-                  <option value="なし">なし</option>
-                  <option value="30分">30分</option>
-                  <option value="60分">60分</option>
-                  <option value="90分">90分</option>
-                  <option value="120分">120分</option>
-                </select>
-              </div>
-              {/* 5-c. 移動時間 */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>集合場所までの移動時間</label>
-                <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:200 }}>
-                  <option value="">選択してください</option>
-                  <option value="徒歩5分以内">徒歩5分以内</option>
-                  <option value="徒歩10分以内">徒歩10分以内</option>
-                  <option value="車5分以内">車5分以内</option>
-                  <option value="車10分以内">車10分以内</option>
-                  <option value="車20分以内">車20分以内</option>
-                </select>
-              </div>
               {/* 6. 報酬 */}
               <div style={{ marginBottom:6 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>報酬</label>
@@ -5131,6 +5107,30 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <h2 className="f-sans" style={lfStyles.stepTitle}>移植待ち項目（退避所）</h2>
             <p className="f-sans" style={lfStyles.subtitle}>開発用の退避所です。農家フローには表示されません。移植先ができ次第、各ページへ移します。</p>
             <LFWizCard>
+              {/* 5-b. 休憩時間（グループ2予定） */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
+                <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
+                  <option value="">選択してください</option>
+                  <option value="なし">なし</option>
+                  <option value="30分">30分</option>
+                  <option value="60分">60分</option>
+                  <option value="90分">90分</option>
+                  <option value="120分">120分</option>
+                </select>
+              </div>
+              {/* 5-c. 移動時間（グループ3予定） */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>集合場所までの移動時間</label>
+                <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:200 }}>
+                  <option value="">選択してください</option>
+                  <option value="徒歩5分以内">徒歩5分以内</option>
+                  <option value="徒歩10分以内">徒歩10分以内</option>
+                  <option value="車5分以内">車5分以内</option>
+                  <option value="車10分以内">車10分以内</option>
+                  <option value="車20分以内">車20分以内</option>
+                </select>
+              </div>
               {/* 5-d. 危険な場所（グループ2予定） */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な場所（任意）</label>
