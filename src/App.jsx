@@ -4922,18 +4922,20 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <LFWizCard>
               <div>
                 <label className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
-                <input
-                  value={farmerZip}
-                  onChange={e => setFarmerZip(e.target.value)}
-                  placeholder="例：779-3401"
-                  className="field f-sans"
-                  style={{ fontSize:16, marginBottom:8 }}
-                />
-                <button onClick={searchZip} disabled={zipSearching} className="f-sans" style={{
-                  padding:"8px 16px", borderRadius:8, border:"1px solid #00A86B",
-                  background:"#fff", color:"#00A86B", fontSize:13, fontWeight:600,
-                  cursor: zipSearching ? "default" : "pointer", marginBottom:8,
-                }}>{zipSearching ? "検索中..." : "郵便番号から住所を検索"}</button>
+                <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:8 }}>
+                  <input
+                    value={farmerZip}
+                    onChange={e => setFarmerZip(e.target.value)}
+                    placeholder="例：779-3401"
+                    className="field f-sans"
+                    style={{ fontSize:16, flex:1, marginBottom:0 }}
+                  />
+                  <button onClick={searchZip} disabled={zipSearching} className="f-sans" style={{
+                    padding:"0 16px", borderRadius:8, border:"1px solid #DADADA",
+                    background:"#fff", color:"#222", fontSize:13, fontWeight:600,
+                    cursor: zipSearching ? "default" : "pointer", whiteSpace:"nowrap",
+                  }}>{zipSearching ? "検索中..." : "住所を検索"}</button>
+                </div>
                 {zipError && <p className="f-sans" style={{ fontSize:12, color:"#E53935", marginBottom:12 }}>{zipError}</p>}
                 <label className="f-sans" style={lfStyles.inputLabel}>都道府県</label>
                 <input
