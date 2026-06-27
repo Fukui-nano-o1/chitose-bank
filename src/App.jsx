@@ -5151,6 +5151,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <LFPrivacyNote />
           </>)}
 
+          {/* ── 農家 step5: 募集人数（骨格・中身は段階Bで移植） ── */}
+          {isFarmer && step === 5 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>募集人数を入力します</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+          </>)}
+
+          {/* ── 農家 step6: 報酬（骨格・中身は段階Bで移植） ── */}
+          {isFarmer && step === 6 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>報酬を入力します</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+          </>)}
+
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {isFarmer && step === 7 && (() => {
