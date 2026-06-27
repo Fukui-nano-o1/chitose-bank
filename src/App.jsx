@@ -4593,6 +4593,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [farmerPurpose,     setFarmerPurpose]     = useState(_devJump?.farmerPurpose ?? d.farmerPurpose ?? "post");
   const [farmerDisplayName, setFarmerDisplayName] = useState(d.farmerDisplayName ?? "");
   const [farmerRegion,      setFarmerRegion]      = useState(d.farmerRegion ?? "");
+  // 住所4分割（段階1。郵便番号自動検索・地図・新規登録からの引き継ぎは将来）
+  const [farmerZip,         setFarmerZip]         = useState(d.farmerZip ?? "");
+  const [farmerPref,        setFarmerPref]        = useState(d.farmerPref ?? "");
+  const [farmerCity,        setFarmerCity]        = useState(d.farmerCity ?? "");
+  const [farmerAddr,        setFarmerAddr]        = useState(d.farmerAddr ?? "");
   const [farmerCropPill,    setFarmerCropPill]    = useState(d.farmerCropPill ?? ""); // 作物ピル選択
   const [farmerCropText,    setFarmerCropText]    = useState(d.farmerCropText ?? ""); // 作物自由入力
   const [farmerTaskPill,    setFarmerTaskPill]    = useState(d.farmerTaskPill ?? ""); // 作業ピル選択
