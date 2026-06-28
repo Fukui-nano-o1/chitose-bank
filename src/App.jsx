@@ -4847,7 +4847,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       <div style={embedded ? {} : (step === 0
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center" }
         : { height:"100%", overflowY:"auto" })}>
-        <div key={step} className="fade-in" style={{ maxWidth: (step === 7 || step === 0) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
+        <div key={step} className="fade-in" style={{ maxWidth: (step === 20 || step === 0) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
 
           {/* ── HOME ── */}
           {step === 0 && (
@@ -5162,7 +5162,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
-          {isFarmer && step === 7 && (() => {
+          {isFarmer && step === 20 && (() => {
             const JT_MAP = {
               "収穫補助": { body:"作物の収穫、運搬補助、簡単な選別作業をお願いします。未経験の方でも、当日説明します。", items:["汚れてもよい服","長靴","手袋","飲み物","帽子"], notes:"屋外作業のため、天候により時間変更の可能性があります。" },
               "選果作業": { body:"収穫した作物の仕分け、箱詰め、出荷前の確認作業をお願いします。", items:["動きやすい服","飲み物","手袋"], notes:"立ち作業が中心になる場合があります。" },
@@ -5524,7 +5524,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 Step3: 完了 ── */}
           {/* ── 農家 Step3: 完了 ── */}
-          {isFarmer && step === 8 && (<>
+          {isFarmer && step === 21 && (<>
             <div style={{ textAlign:"center", paddingTop:20 }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
               <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>ご協力ありがとうございます</h2>
