@@ -4847,7 +4847,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       <div style={embedded ? {} : (step === 0
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center" }
         : { height:"100%", overflowY:"auto" })}>
-        <div key={step} className="fade-in" style={{ maxWidth: (step === 20 || step === 0) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
+        <div key={step} className="fade-in" style={{ maxWidth: (step === 20 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
 
           {/* ── HOME ── */}
           {step === 0 && (
