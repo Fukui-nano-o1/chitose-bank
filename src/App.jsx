@@ -5100,8 +5100,57 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 step9: 勤務時間・休憩・移動時間 ── */}
           {isFarmer && step === 9 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>勤務時間・休憩・移動（準備中）</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>勤務時間・休憩・移動</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>働く時間や休憩、集合場所までの移動について入力してください。</p>
+            <LFWizCard>
+              {/* 4. 勤務時間（グループ2予定） */}
+              {(() => {
+                const hourOpts = Array.from({ length: 18 }, (_, i) => String(i + 5));
+                const minOpts  = ["00","05","10","15","20","25","30","35","40","45","50","55"];
+                const selStyle = { width:72, height:48, borderRadius:12, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:16, fontWeight:700, textAlign:"center", textAlignLast:"center", padding:"0 10px", outline:"none", appearance:"auto", WebkitAppearance:"menulist", cursor:"pointer" };
+                const rowStyle = { display:"flex", alignItems:"center", justifyContent:"center", gap:8, flexWrap:"wrap", marginTop:12 };
+                return (
+                  <div style={{ marginBottom:14 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
+                    <div style={rowStyle}>
+                      <select value={startHour}   onChange={e => setStartHour(e.target.value)}   style={selStyle}>{hourOpts.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                      <span style={{ fontSize:18, fontWeight:700, color:"#222" }}>：</span>
+                      <select value={startMinute} onChange={e => setStartMinute(e.target.value)} style={selStyle}>{minOpts.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                      <span style={{ margin:"0 6px", color:"#717171", fontWeight:700, fontSize:16 }}>〜</span>
+                      <select value={endHour}     onChange={e => setEndHour(e.target.value)}     style={selStyle}>{hourOpts.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                      <span style={{ fontSize:18, fontWeight:700, color:"#222" }}>：</span>
+                      <select value={endMinute}   onChange={e => setEndMinute(e.target.value)}   style={selStyle}>{minOpts.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                    </div>
+                    <p className="f-sans" style={{ fontSize:12, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
+                  </div>
+                );
+              })()}
+              {/* 5-b. 休憩時間（グループ2予定） */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
+                <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
+                  <option value="">選択してください</option>
+                  <option value="なし">なし</option>
+                  <option value="30分">30分</option>
+                  <option value="60分">60分</option>
+                  <option value="90分">90分</option>
+                  <option value="120分">120分</option>
+                </select>
+              </div>
+              {/* 5-c. 移動時間（グループ3予定） */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>集合場所までの移動時間</label>
+                <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:200 }}>
+                  <option value="">選択してください</option>
+                  <option value="徒歩5分以内">徒歩5分以内</option>
+                  <option value="徒歩10分以内">徒歩10分以内</option>
+                  <option value="車5分以内">車5分以内</option>
+                  <option value="車10分以内">車10分以内</option>
+                  <option value="車20分以内">車20分以内</option>
+                </select>
+              </div>
+            </LFWizCard>
           </>)}
 
           {/* ── 農家 step10: 必要経験・希望する働き手 ── */}
@@ -5161,54 +5210,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <h2 className="f-sans" style={lfStyles.stepTitle}>移植待ち項目（退避所）</h2>
             <p className="f-sans" style={lfStyles.subtitle}>開発用の退避所です。農家フローには表示されません。移植先ができ次第、各ページへ移します。</p>
             <LFWizCard>
-              {/* 4. 勤務時間（グループ2予定） */}
-              {(() => {
-                const hourOpts = Array.from({ length: 18 }, (_, i) => String(i + 5));
-                const minOpts  = ["00","05","10","15","20","25","30","35","40","45","50","55"];
-                const selStyle = { width:72, height:48, borderRadius:12, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:16, fontWeight:700, textAlign:"center", textAlignLast:"center", padding:"0 10px", outline:"none", appearance:"auto", WebkitAppearance:"menulist", cursor:"pointer" };
-                const rowStyle = { display:"flex", alignItems:"center", justifyContent:"center", gap:8, flexWrap:"wrap", marginTop:12 };
-                return (
-                  <div style={{ marginBottom:14 }}>
-                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
-                    <div style={rowStyle}>
-                      <select value={startHour}   onChange={e => setStartHour(e.target.value)}   style={selStyle}>{hourOpts.map(h => <option key={h} value={h}>{h}</option>)}</select>
-                      <span style={{ fontSize:18, fontWeight:700, color:"#222" }}>：</span>
-                      <select value={startMinute} onChange={e => setStartMinute(e.target.value)} style={selStyle}>{minOpts.map(m => <option key={m} value={m}>{m}</option>)}</select>
-                      <span style={{ margin:"0 6px", color:"#717171", fontWeight:700, fontSize:16 }}>〜</span>
-                      <select value={endHour}     onChange={e => setEndHour(e.target.value)}     style={selStyle}>{hourOpts.map(h => <option key={h} value={h}>{h}</option>)}</select>
-                      <span style={{ fontSize:18, fontWeight:700, color:"#222" }}>：</span>
-                      <select value={endMinute}   onChange={e => setEndMinute(e.target.value)}   style={selStyle}>{minOpts.map(m => <option key={m} value={m}>{m}</option>)}</select>
-                    </div>
-                    <p className="f-sans" style={{ fontSize:12, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
-                  </div>
-                );
-              })()}
-              {/* 5-b. 休憩時間（グループ2予定） */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
-                <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
-                  <option value="">選択してください</option>
-                  <option value="なし">なし</option>
-                  <option value="30分">30分</option>
-                  <option value="60分">60分</option>
-                  <option value="90分">90分</option>
-                  <option value="120分">120分</option>
-                </select>
-              </div>
-              {/* 5-c. 移動時間（グループ3予定） */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>集合場所までの移動時間</label>
-                <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:200 }}>
-                  <option value="">選択してください</option>
-                  <option value="徒歩5分以内">徒歩5分以内</option>
-                  <option value="徒歩10分以内">徒歩10分以内</option>
-                  <option value="車5分以内">車5分以内</option>
-                  <option value="車10分以内">車10分以内</option>
-                  <option value="車20分以内">車20分以内</option>
-                </select>
-              </div>
-
               {/* 8. 募集文テンプレート（グループ2予定） */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>募集文テンプレート</label>
