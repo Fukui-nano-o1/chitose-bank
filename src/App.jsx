@@ -4770,7 +4770,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             );
           })}
         </div>
-        <button onClick={() => setShowCalendar(false)} className="btn-primary" style={{ width:"100%", padding:"10px", fontSize:13, borderRadius:10 }}>決定</button>
         <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>終了日を選ばない場合は、1日募集として扱います</p>
       </div>
     );
