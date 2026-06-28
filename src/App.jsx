@@ -5062,10 +5062,28 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             </LFWizCard>
           </>)}
 
-          {/* ── 農家 step6: グループ2 説明ページ ── */}
+          {/* ── 農家 step6: グループ2 説明ページ（step0と同じ2カラム構造） ── */}
           {isFarmer && step === 6 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>条件を入力します（任意）</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>働き手が選びやすくなる条件です。準備中です。</p>
+            <div className="step0-grid">
+              <div>
+                <div style={{ marginBottom:36 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"0 0 8px" }}>ステップ2</p>
+                  <h1 className="f-sans" style={{ fontSize:38, fontWeight:800, color:"#222", lineHeight:1.25, margin:"0 0 20px" }}>ここからは任意です</h1>
+                  <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.7, margin:0 }}>ここから先は、入力しなくても求人を出せます。ですが、写真や作業の詳しい説明、勤務条件などを加えると、働き手が「ここで働きたい」と感じやすくなります。あなたの求人を、もっと魅力的にしましょう。</p>
+                </div>
+              </div>
+              <div style={{ background:"#fff", border:"1px solid #EEE", borderRadius:16, overflow:"hidden", boxShadow:"0 4px 16px rgba(0,0,0,0.06)" }}>
+                <div style={{ height:200, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:80 }}>📸</div>
+                <div style={{ padding:"20px 24px 24px" }}>
+                  <p className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", margin:"0 0 6px" }}>写真・条件がそろった求人は</p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 12px" }}>働き手に選ばれやすくなります</p>
+                  <p className="f-mono" style={{ fontSize:20, fontWeight:700, color:"#00A86B", margin:0 }}>応募 ↑</p>
+                </div>
+              </div>
+            </div>
+            <div style={{ position:"absolute", bottom:24, right:20, zIndex:2 }}>
+              <button onClick={() => setStep(7)} className="btn-primary" style={{ padding:"14px 40px", fontSize:15, fontWeight:700 }}>次へ</button>
+            </div>
           </>)}
 
           {/* ── 農家 step7: 写真 ── */}
