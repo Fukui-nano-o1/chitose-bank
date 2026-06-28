@@ -5106,8 +5106,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 step10: 必要経験・希望する働き手 ── */}
           {isFarmer && step === 10 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>必要経験・希望する働き手（準備中）</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>必要経験</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>どのくらいの経験がある働き手を求めますか。</p>
+            <LFWizCard>
+              <div style={{ marginBottom:14, marginTop:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>必要経験</label>
+                <LFPillSelect options={["未経験可","1回以上","3回以上","農家経験者"]} value={jobExp} onSelect={setJobExp} />
+              </div>
+            </LFWizCard>
           </>)}
 
           {/* ── 農家 step11: 危険箇所 ── */}
@@ -5202,11 +5208,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <option value="車20分以内">車20分以内</option>
                 </select>
               </div>
-              {/* 7. 必要経験（グループ2予定） */}
-              <div style={{ marginBottom:14, marginTop:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>必要経験</label>
-                <LFPillSelect options={["未経験可","1回以上","3回以上","農家経験者"]} value={jobExp} onSelect={setJobExp} />
-              </div>
+
               {/* 8. 募集文テンプレート（グループ2予定） */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>募集文テンプレート</label>
