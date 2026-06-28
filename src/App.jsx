@@ -5062,9 +5062,45 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             </LFWizCard>
           </>)}
 
-          {/* ── 農家 step6: グループ2説明（予定・現在は準備中） ── */}
+          {/* ── 農家 step6: グループ2 説明ページ ── */}
           {isFarmer && step === 6 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>準備中です</h2>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>条件を入力します（任意）</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>働き手が選びやすくなる条件です。準備中です。</p>
+          </>)}
+
+          {/* ── 農家 step7: 写真 ── */}
+          {isFarmer && step === 7 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>写真（準備中）</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+          </>)}
+
+          {/* ── 農家 step8: 作業説明文 ── */}
+          {isFarmer && step === 8 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>作業の説明（準備中）</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+          </>)}
+
+          {/* ── 農家 step9: 勤務時間・休憩・移動時間 ── */}
+          {isFarmer && step === 9 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>勤務時間・休憩・移動（準備中）</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+          </>)}
+
+          {/* ── 農家 step10: 必要経験・希望する働き手 ── */}
+          {isFarmer && step === 10 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>必要経験・希望する働き手（準備中）</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+          </>)}
+
+          {/* ── 農家 step11: 危険箇所 ── */}
+          {isFarmer && step === 11 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>危険な作業・場所（準備中）</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+          </>)}
+
+          {/* ── 農家 step12: 持ち物・備考 ── */}
+          {isFarmer && step === 12 && (<>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>持ち物・備考（準備中）</h2>
             <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
           </>)}
 
