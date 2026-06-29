@@ -5159,20 +5159,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             </LFWizCard>
           </>)}
 
-          {/* ── 農家 step10: 必要経験・希望する働き手 ── */}
+          {/* ── 農家 step10: 危険箇所 ── */}
           {isFarmer && step === 10 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>必要経験</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>どのくらいの経験がある働き手を求めますか。</p>
-            <LFWizCard>
-              <div style={{ marginBottom:14, marginTop:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>必要経験</label>
-                <LFPillSelect options={["未経験可","1回以上","3回以上","農家経験者"]} value={jobExp} onSelect={setJobExp} />
-              </div>
-            </LFWizCard>
-          </>)}
-
-          {/* ── 農家 step11: 危険箇所 ── */}
-          {isFarmer && step === 11 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>危険な作業・場所</h2>
             <p className="f-sans" style={lfStyles.subtitle}>働き手に事前に知らせたい危険があれば入力してください。</p>
             <LFWizCard>
@@ -5199,14 +5187,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             </LFWizCard>
           </>)}
 
-          {/* ── 農家 step12: 持ち物・備考 ── */}
-          {isFarmer && step === 12 && (<>
+          {/* ── 農家 step11: 持ち物・備考＋必要経験 ── */}
+          {isFarmer && step === 11 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>持ち物・備考</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>働き手に伝えたい持ち物や注意事項があれば入力してください。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>持ち物や注意事項、求める経験があれば入力してください。</p>
             <LFWizCard>
-              <div>
+              <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物・注意事項（任意）</label>
                 <textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="例：長靴着用、軍手持参" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>必要経験（任意）</label>
+                <LFPillSelect options={["未経験可","1回以上","3回以上","農家経験者"]} value={jobExp} onSelect={setJobExp} />
               </div>
             </LFWizCard>
           </>)}
