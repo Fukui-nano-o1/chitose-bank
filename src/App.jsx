@@ -4699,7 +4699,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const farmerStepLabels = ["作物","作業","場所","日程","募集人数","報酬","確認","完了"];
   const workerStepLabels = ["経歴","目的","プロフィール","報酬比較","確認","詳細","確認","完了"];
   const stepLabels = isFarmer ? farmerStepLabels : isWorker ? workerStepLabels : [];
-  const TOTAL = isFarmer ? 15 : 8;
+  const TOTAL = isFarmer ? 14 : 8;
 
   const goNext = () => setStep(s => s + 1);
   const goBack = () => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); };
@@ -4811,7 +4811,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&!!farmerPref.trim()&&!!farmerCity.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation), true, true, true, true, true, true, true, true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&!!farmerPref.trim()&&!!farmerCity.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation), true, true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -5991,9 +5991,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { l:"農7写真",       dj:{ role:"farmer", step:7 } },
             { l:"農8作業説明",   dj:{ role:"farmer", step:8 } },
             { l:"農9勤務時間",   dj:{ role:"farmer", step:9 } },
-            { l:"農10経験",      dj:{ role:"farmer", step:10 } },
-            { l:"農11危険",      dj:{ role:"farmer", step:11 } },
-            { l:"農12持ち物",    dj:{ role:"farmer", step:12 } },
+            { l:"農10危険",      dj:{ role:"farmer", step:10 } },
+            { l:"農11持ち物",    dj:{ role:"farmer", step:11 } },
             { l:"農確認",        dj:{ role:"farmer", step:20 } },
             { l:"農完了",        dj:{ role:"farmer", step:21 } },
             { l:"ページX",       dj:{ role:"farmer", step:90 } },
