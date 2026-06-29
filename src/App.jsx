@@ -5257,7 +5257,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
                   farmerWanted, farmerPayType, payTiming, payMethod,
                   startHour, startMinute, endHour, endMinute,
-                  jobCount, breakTime, commuteTime, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
+                  jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
                   jobExp, jobTemplate, jobNotes,
                   jobDateStart: jobDateStart?.toISOString() ?? null,
                   jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
@@ -5348,7 +5348,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         { label:"勤務時間", value: workTimeLabel },
                         { label:"休憩時間", value: breakTime || "未設定" },
                         { label:"募集人数", value: jobCount ? `${jobCount}人` : "未設定" },
-                        { label:"移動時間", value: commuteTime || "未設定" },
+                        { label:"移動時間", value: nearestStation ? `${nearestStation}から ${commuteTime || "未設定"}` : (commuteTime || "未設定") },
                         { label:"報酬",     value: rewardLabel || "未設定" },
                       ].map(r => (
                         <div key={r.label} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid #F7F7F7" }}>
@@ -5526,7 +5526,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <LFSummaryRow label="勤務時間" value={workTimeLabel} />
                   <LFSummaryRow label="募集人数" value={jobCount ? `${jobCount}人` : "未設定"} />
                   <LFSummaryRow label="休憩時間" value={breakTime || "未設定"} />
-                  <LFSummaryRow label="移動時間" value={commuteTime || "未設定"} />
+                  <LFSummaryRow label="移動時間" value={nearestStation ? `${nearestStation}から ${commuteTime || "未設定"}` : (commuteTime || "未設定")} />
                   <LFSummaryRow label="報酬"     value={rewardLabel} />
                   <LFSummaryRow label="必要経験" value={jobExp || "未設定"} />
                   <LFSummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
