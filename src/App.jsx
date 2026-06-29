@@ -4648,6 +4648,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [breakTime, setBreakTime] = useState(d.breakTime ?? "");
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
   const [nearestStation, setNearestStation] = useState(d.nearestStation ?? "");
+  const [jobPhotos, setJobPhotos] = useState(d.jobPhotos ?? []);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [jobDangerPlaces, setJobDangerPlaces] = useState(d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
   const [jobDangerTasks, setJobDangerTasks] = useState(d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
   const [confActiveSlide, setConfActiveSlide] = useState(0);
