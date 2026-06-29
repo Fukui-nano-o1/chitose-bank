@@ -5139,17 +5139,21 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <option value="120分">120分</option>
                 </select>
               </div>
-              {/* 5-c. 移動時間（グループ3予定） */}
+              {/* 5-c. 最寄り駅からの移動時間 */}
               <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>集合場所までの移動時間</label>
-                <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:200 }}>
-                  <option value="">選択してください</option>
-                  <option value="徒歩5分以内">徒歩5分以内</option>
-                  <option value="徒歩10分以内">徒歩10分以内</option>
-                  <option value="車5分以内">車5分以内</option>
-                  <option value="車10分以内">車10分以内</option>
-                  <option value="車20分以内">車20分以内</option>
-                </select>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>最寄り駅からの移動時間</label>
+                <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                  <input value={nearestStation} onChange={e => setNearestStation(e.target.value)} placeholder="例：阿波山川駅" className="field f-sans" style={{ fontSize:14, maxWidth:160 }} />
+                  <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>から</span>
+                  <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
+                    <option value="">選択してください</option>
+                    <option value="徒歩5分以内">徒歩5分以内</option>
+                    <option value="徒歩10分以内">徒歩10分以内</option>
+                    <option value="車5分以内">車5分以内</option>
+                    <option value="車10分以内">車10分以内</option>
+                    <option value="車20分以内">車20分以内</option>
+                  </select>
+                </div>
               </div>
             </LFWizCard>
           </>)}
