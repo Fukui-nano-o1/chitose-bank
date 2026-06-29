@@ -7558,7 +7558,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
     await supabase.auth.signOut();
     setMe(null);
     setTab("board");
-    setShowLanding(true);
+    /* 検証中：本来はsetShowLanding(true)。完成後に戻す */
     localStorage.removeItem('sb-aegwepgtmwcnwzybpgsh-auth-token');
     window.location.reload();
   };
@@ -7844,7 +7844,7 @@ const subDest=useCallback(async d=>{
           </div>
         ) : (
           <button
-            onClick={()=>setShowLanding(true)}
+            onClick={()=>setTab("input")} /* 検証中：本来はsetShowLanding(true)。完成後に戻す */
             className="f-sans"
             style={{
               marginLeft:"auto",
@@ -7904,7 +7904,7 @@ const subDest=useCallback(async d=>{
         {safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
           : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("input")} mode={mode} />)}
-        {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>{setShowLanding(true);setTab("labor");}} />}
+        {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("input") /* 検証中：本来はsetShowLanding(true);setTab("labor")。完成後に戻す */} />}
         {safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
