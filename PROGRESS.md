@@ -883,3 +883,45 @@ step0：全体の入口説明（既存・流用）
 - デプロイ反映確認はJSハッシュでなく中身(curl→grep)で判定(ハッシュは環境で変わる)。画面が変わらない時はブラウザキャッシュをまず疑う(スーパーリロード)
 - 協力者(農家)への意見聴取は完成後(未完成への意見は完成への意見と違う=たきとの方針)
 ---
+
+## 2026-06-29(午後) 保存基盤の構築・他人締め出し・写真アップロード成功
+
+### ★最大の成果：保存先を本番Supabaseに構築
+- jobsテーブルを本番作成(求人フローの全項目を保存)。Project ID: aegwepgtmwcnwzybpgsh
+  - メタ:id(uuid pk)/farmer_id(uuid→auth.users)/created_at/status
+  - グループ1:crop/task/zip/prefecture/city/address/date_label/headcount(int)/pay_type/hourly_wage/daily_wage(ほぼtext)
+  - グループ2:work_time(workTimeLabel1文字列)/break_time/nearest_station/commute_time/job_exp/notes
+  - 複雑な構造はjsonbに集約:danger_places/danger_tasks/photos(各jsonb default '[]')
+  - 設計思想=シンプルで事故率の低い設計。複雑になったら検証後に直す(YAGNI)
+  - RLS:管理者(ADMIN_EMAIL)のみALL。読み取りも今は本人だけに閉じる(働き手公開は後)
+- job-photosバケットを本番作成(求人写真・危険箇所写真)
+  - public / file_size_limit=5MB(5242880) / allowed_mime_types=jpeg,png,webp
+  - RLS:authenticatedのみinsert/update/delete(閲覧はpublicバケットso自動公開)
+- ★本番作業の作法:apply_migration前にexecute_sqlで既存確認→当てる→execute_sqlで再確認(success鵜呑みにせず目視)。既存バケットavatars/assets発見、jobs既存(たきとが先に手動投入済)も判明し衝突回避
+
+### ★法的安全:他人を求人フローから締め出し(cf66cab)
+- 重要認識(たきと):「他人が入力して保存されたら、無届けで特定募集情報等提供事業を始めた=国家権力の管轄に土足で入る」
+- 対処:未ログイン者が求人フローに入る入口3箇所(7847ボタン/7907登録導線/7561ログアウト後遷移)を、削除でなくsetTab("input")=新規登録画面への遷移に差し替え。各所に「検証中:本来はsetShowLanding(true)。完成後に戻す」コメント
+- showDevJump(管理者の入口)・AdminTab(ADMIN_EMAIL)は温存。たきとは今まで通り入れる
+- ★完成後の復旧:grep "検証中：本来はsetShowLanding" で3箇所を見つけて戻す。一般公開=保存機能稼働=届出のタイミング
+
+### ★写真アップロード成功(検証完了)
+- 変数jobPhotos(URL配列)・photoUploading追加(b6ff524)
+- step7に写真UI:＋写真を追加ボタン/アップロード中表示/最大10枚/プレビュー(100px角サムネ)/×削除/N…10枚表示
+- 実装はavatarsのhandleFile(7184-7197)に倣う。ただしLandingFlow内ではme不可so、pathはDate.now()でユニーク化(job_[時刻].ext)。supabaseクライアントはモジュールレベル定義(2行目)を流用
+- supabase.storage.from('job-photos').upload→getPublicUrl→jobPhotosに追加
+- 実機検証:10枚アップロード成功、本番Storageに保存・プレビュー表示・削除すべて動作確認済み
+
+### グループ2の現状(詰め済み)
+- step6 G2説明(2カラム縦中央) / step7 写真(✅動作) / step8 作業説明文(AI機能・未着手) / step9 勤務時間(iPhoneタイマー型)・休憩・最寄り駅移動 / step10 危険な作業・場所(文字のみ。本来は写真メイン予定) / step11 働き手への希望(持ち物備考＋必要経験)
+- step12廃止済。TOTAL=14。確認・完了はstep20/21退避中
+
+### 次回TODO
+1. 求人フローのデータをjobsテーブルに保存する処理(フロント側。jobPhotos含む全項目→insert)
+2. 写真をjobsのphotos列(jsonb)に紐付け。step10危険箇所も写真メイン化(同じjob-photos)
+3. 作業説明文のAI編集機能(step8。ワードカード→AI。APIキーはEdge Function等サーバー側)
+4. 確認画面に写真を表示
+5. コスト対策メモ:画像はアップロード前にクライアント圧縮すると容量・転送量を削減。公開後は表示の転送量(egress)に注意($0.09/GB超過)。無料枠=Storage1GB(5MB写真約200枚)・転送5GB/月。検証中は課金不要
+6. 確認・完了をstep12/13に戻す/進捗バー/Vercelプロジェクト4つ整理
+7. public_summaryがUNRESTRICTED(誰でも読める)だった。RLS確認すべき案件
+---
