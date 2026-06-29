@@ -5091,8 +5091,45 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 step7: 写真 ── */}
           {isFarmer && step === 7 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>写真（準備中）</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>写真</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>求人の写真を追加してください（最大10枚）。</p>
+            <LFWizCard>
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans btn-primary" style={{ display:"inline-block", padding:"12px 24px", fontSize:14, fontWeight:700, cursor: photoUploading ? "wait" : "pointer", opacity: (photoUploading || jobPhotos.length >= 10) ? 0.5 : 1 }}>
+                  {photoUploading ? "アップロード中..." : "＋ 写真を追加"}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} disabled={photoUploading || jobPhotos.length >= 10} onChange={async e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setPhotoUploading(true);
+                    try {
+                      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+                      const path = 'job_' + Date.now() + '.' + ext;
+                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                      if (upErr) throw upErr;
+                      const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+                      const url = urlData?.publicUrl || '';
+                      if (url) setJobPhotos(prev => [...prev, url]);
+                    } catch (err) {
+                      alert('アップロードに失敗しました: ' + (err?.message || err));
+                    } finally {
+                      setPhotoUploading(false);
+                      e.target.value = '';
+                    }
+                  }} />
+                </label>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:8 }}>{jobPhotos.length} / 10 枚</p>
+              </div>
+              {jobPhotos.length > 0 && (
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                  {jobPhotos.map((url, i) => (
+                    <div key={i} style={{ position:"relative" }}>
+                      <img src={url} alt={`写真${i+1}`} style={{ width:100, height:100, objectFit:"cover", borderRadius:8, border:"1px solid #EEE" }} />
+                      <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== i))} style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:"50%", border:"none", background:"#222", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </LFWizCard>
           </>)}
 
           {/* ── 農家 step8: 作業説明文 ── */}
