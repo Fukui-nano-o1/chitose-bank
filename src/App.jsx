@@ -4650,6 +4650,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [nearestStation, setNearestStation] = useState(d.nearestStation ?? "");
   const [jobPhotos, setJobPhotos] = useState(d.jobPhotos ?? []);
   const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [jobDangerPlaces, setJobDangerPlaces] = useState(d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
   const [jobDangerTasks, setJobDangerTasks] = useState(d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
@@ -5203,6 +5204,31 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               />
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:8, textAlign:"right" }}>{jobDescription.length} / 1000</p>
             </LFWizCard>
+
+    {jobPhotos.length > 0 && (
+      <LFWizCard>
+        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:6 }}>写真ごとの説明</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14 }}>写真を選ぶと、その写真について一言添えられます。</p>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+          {jobPhotos.map((url, i) => (
+            <button key={i} onClick={() => setSelectedPhotoIndex(i)} style={{ padding:0, border: i === selectedPhotoIndex ? "3px solid #00A86B" : "3px solid transparent", borderRadius:12, cursor:"pointer", background:"none", lineHeight:0 }}>
+              <img src={url} alt={`写真${i+1}`} style={{ width:84, height:84, objectFit:"cover", borderRadius:9, opacity: i === selectedPhotoIndex ? 1 : 0.6 }} />
+            </button>
+          ))}
+        </div>
+        <div style={{ position:"relative" }}>
+          <img src={jobPhotos[selectedPhotoIndex]} alt="選択中の写真" style={{ width:"100%", height:200, objectFit:"cover", borderRadius:14, marginBottom:10 }} />
+        </div>
+        <textarea
+          value=""
+          readOnly
+          placeholder="この写真について一言（例：収穫するブロッコリー畑です）"
+          style={{ width:"100%", minHeight:80, padding:"14px", fontSize:14, lineHeight:1.7, background:"#F7F7F7", color:"#B0B0B0", border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"none", boxSizing:"border-box", fontFamily:"inherit", cursor:"not-allowed" }}
+        />
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>※ 写真ごとの説明文は近日対応します。</p>
+      </LFWizCard>
+    )}
+
           </>)}
 
           {/* ── 農家 step9: 勤務時間・休憩・移動時間 ── */}
@@ -5480,6 +5506,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {/* 募集本文 */}
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>募集内容</p>
                   <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16, whiteSpace:"pre-wrap" }}>{jobDescription || tmpl.body}</p>
+                      {jobPhotos.length > 0 && (
+                        <div style={{ marginBottom:16 }}>
+                          <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>写真ごとの説明</p>
+                          <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>※ 近日対応予定</p>
+                        </div>
+                      )}
 
                   {/* 持ち物・注意事項 */}
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>持ち物・注意事項</p>
