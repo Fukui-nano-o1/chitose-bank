@@ -5296,7 +5296,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── 農家 step10: 危険箇所 ── */}
           {isFarmer && step === 10 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>危険な作業・場所</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>働き手に事前に知らせたい危険があれば入力してください。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>危険な場所や作業を入力できます。写真や補足説明を添えると、より正確に伝わります。安心して働けるよう、気になる危険は正直に伝えましょう。</p>
             <LFWizCard>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な場所（任意）</label>
