@@ -5578,6 +5578,16 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     </div>
                   </div>
                 )}
+                {jobPhotos.length > 0 && (
+                  <div style={{ marginTop:16 }}>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>写真</p>
+                    <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
+                      {jobPhotos.map((url, i) => (
+                        <img key={i} src={url} alt={`写真${i+1}`} style={{ flexShrink:0, width:160, height:120, objectFit:"cover", borderRadius:12, border:"1px solid #EEE" }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {jobDangerPlaces.some(p => p.label) && (
                   <div style={{ marginTop:16 }}>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な場所</p>
