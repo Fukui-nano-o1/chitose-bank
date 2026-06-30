@@ -496,3 +496,33 @@ step0：全体の入口説明（既存・流用）
 6. 確認・完了をstep12/13に戻す/進捗バー/Vercelプロジェクト4つ整理
 7. public_summaryがUNRESTRICTED(誰でも読める)だった。RLS確認すべき案件
 ---
+
+---
+## 2026-06-30 保存機能の構築中（次回ここから再開）
+
+### 完了済み（本番反映済み）
+- jobsテーブル＋job-photosバケット 本番構築済（Project: aegwepgtmwcnwzybpgsh）
+- 写真アップロードUI（step7）動作確認済（jobPhotos配列・最大10枚・job-photosバケット連携）
+- 確認・完了を step12/13 に繰り上げ、空白を詰めた。TOTAL=14
+- 確認画面に写真表示を追加（ただし下記の崩壊で一部巻き戻した可能性あり）
+
+### ★中断・要対処（最優先）
+- 確認画面(step12)のトップカルーセル(5320-5343付近、confScrollRef/confActiveSlideでスライド・矢印・ドット制御)に、jobPhotosの実写真を表示する編集を実施→**確認ページが崩壊**
+- 崩壊後、直前の正常コミットに git reset --hard で巻き戻した（要・現状のgit logとbuild確認）
+- 次回：カルーセルの[0,1,2].map(絵文字cropIcon表示)を、jobPhotosがあれば実写真・無ければ絵文字、に安全に直す。JSX崩壊しないよう1箇所ずつ・build確認しながら。レビュー上(5581付近)に重複した写真セクションがあれば削除
+
+### ★本命（カルーセル修正後にやる）：保存機能の発火
+- 「実証に参加して保存する」ボタン（5505付近、現在 onClick={() => { saveDraft(); onLogin(); }}）に、jobsテーブルへのinsertを仕込む
+- 設計思想（厳守）：保存は確認画面のこのボタン1箇所だけ。各ページはstateに保持→確認画面に集約表示→ボタン一発で全statesをjobsにinsert。「次へ」「戻る」では保存しない。下書きもいずれSupabase保存(status:draft/open)だが今は本保存(status:open)を先に
+- farmer_id取得：LandingFlow内でmeは使えない→ await supabase.auth.getUser() で取得（6756行に使用例）。supabaseクライアントはモジュールレベル定義(2行目)を使用
+- マッピング（変数→jobs列）：farmerCrop→crop, farmerTask→task, farmerZip→zip, farmerPref→prefecture, farmerCity→city, farmerAddr→address, jobDateLabel→date_label, jobCount→headcount(Number化), farmerPayType→pay_type, hourlyWageInput→hourly_wage, dailyWageInput→daily_wage, workTimeLabel→work_time, breakTime→break_time, nearestStation→nearest_station, commuteTime→commute_time, jobExp→job_exp, jobNotes→notes, jobDangerPlaces→danger_places(jsonb), jobDangerTasks→danger_tasks(jsonb), jobPhotos→photos(jsonb), status:'open'
+- insert成功→setStep(13)で完了画面へ。失敗→alertでエラー表示
+- jobsのRLSは管理者(ADMIN_EMAIL t5fki6643qty@gmail.com)のみ書込可。getUserのidをfarmer_idに入れる
+
+### その後のTODO
+- saveDraftにjobPhotosが未included（5292付近の変数リスト）→いずれ追加
+- 確認・完了の戻し完了後の検証、進捗バー、Vercelプロジェクト4つ整理、public_summaryのUNRESTRICTED確認、step8作業説明文のAI機能、step10危険箇所の写真メイン化
+
+### 作業の鉄則
+git status→該当行のみgrep/編集→grep確認→build→commit→ハッシュ確認→報告。1コミット1変更。確認なしpush禁止。複雑なJSXブロックは実ファイルを正としてClaude Codeに移植させる
+---
