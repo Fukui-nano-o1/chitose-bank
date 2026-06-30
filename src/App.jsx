@@ -5350,7 +5350,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── 農家 step11: 持ち物・備考＋必要経験 ── */}
           {isFarmer && step === 11 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>働き手への希望</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>持ち物や注意事項、求める経験など、働き手に伝えておきたいことがあれば入力してください。すべて任意です。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>持ち物や注意事項、求める経験など、働き手に伝えておきたいことを入力できます。作業に必要な道具や安全への備えは、受け入れる農家側でご用意・ご対応ください。（すべて任意です）</p>
             <LFWizCard>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物・注意事項（任意）</label>
