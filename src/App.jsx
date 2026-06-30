@@ -5303,6 +5303,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <div key={i} style={{ marginBottom:8 }}>
                     <input value={place.label} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, label: e.target.value } : p))} placeholder={`危険な場所${i + 1}（例：ぬかるみ）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
                     <input value={place.desc} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, desc: e.target.value } : p))} placeholder="補足説明（例：雨上がりは特に滑りやすい）" className="field f-sans" style={{ fontSize:13 }} />
+                        <div style={{ display:"flex", gap:8, marginTop:6 }}>
+                          {[0,1].map(k => (
+                            <div key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3 }}>
+                              <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
+                              <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真（近日対応）</span>
+                            </div>
+                          ))}
+                        </div>
                   </div>
                 ))}
               </div>
@@ -5313,6 +5321,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <div key={i} style={{ marginBottom:8 }}>
                     <input value={task.label} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, label: e.target.value } : t))} placeholder={`危険な作業${i + 1}（例：重いコンテナの運搬）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
                     <input value={task.desc} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, desc: e.target.value } : t))} placeholder="補足説明（例：腰を痛めないよう正しい持ち方が必要）" className="field f-sans" style={{ fontSize:13 }} />
+                        <div style={{ display:"flex", gap:8, marginTop:6 }}>
+                          {[0,1].map(k => (
+                            <div key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3 }}>
+                              <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
+                              <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真（近日対応）</span>
+                            </div>
+                          ))}
+                        </div>
                   </div>
                 ))}
               </div>
