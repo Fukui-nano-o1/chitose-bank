@@ -526,3 +526,41 @@ step0：全体の入口説明（既存・流用）
 ### 作業の鉄則
 git status→該当行のみgrep/編集→grep確認→build→commit→ハッシュ確認→報告。1コミット1変更。確認なしpush禁止。複雑なJSXブロックは実ファイルを正としてClaude Codeに移植させる
 ---
+
+---
+## 保存機能の設計メモ（2026-07-01 確定）
+
+【発火点】
+確認画面(step12)の「実証に参加して保存する」ボタン（src/App.jsx 5512付近）が保存機能の唯一の発火点。現在の中身は saveDraft(); onLogin(); のみ＝localStorageへの一時保存とログイン誘導だけで、jobsへのINSERTは未実装。INSERT・AI検閲・photos永続化・statusは全てこのボタン1箇所に集約する。各stepに保存処理を散らさない。
+
+【保存の2種類】
+・一時保存＝localStorage（saveDraftが担当・実装済み）。ログイン往復で入力が消えないため。
+・本保存＝jobsテーブルへINSERT（未実装＝本丸）。働き手の応募対象はDBの行のため、応募可能にするには本保存が必須。
+
+【INSERTの確定仕様（DB実機確認済み）】
+・farmer_id（uuid NOT NULL・FK無し）には farmers.id を入れる。直書きせず、ログインユーザーの auth_id から farmers を引いて取得する。admin福井滝人: auth_id→farmers.id の紐付けは本番で確認済み。
+・hourly_wage / daily_wage は text型。Number()で数値化しないこと。
+・headcount は integer。ここだけ Number()。
+・danger_places / danger_tasks / photos は jsonb（default []）。
+・status はデフォルト 'open' だが、本設計では 'pending' で投入する（下記レビュー設計）。
+・id / created_at は自動so送らない。
+・jobs全24列・RLSは「admin write」1本（t5fki6643qty@gmail.com のみINSERT可）。INSERTは認証済みの状態でのみ撃つ。未認証で撃つと黙って弾かれる。
+
+【AI検閲ゲート（保存ボタン内に組み込む）】
+・用途は検閲のみ(A案)。AIに文章を書き換え・生成させない（求人=契約文書、AI創作の混入はトラブル源）。
+・タイミングは保存ボタン押下時に1回だけ。
+・防御は二層：AI一次フィルタ → 運営が目視レビュー → 掲載。AIは見逃し・誤検知があるため最終防衛線にしない。
+・流れ：ボタン → AIが説明文を検閲 → 不適切なら止めてINSERTしない / 問題なければ status='pending' でINSERT → 運営承認で 'open'。
+・AIコストは1件1円未満で軽微。後回しの理由はコストではなく「全体設計を固めてから載せるため」。
+
+【photos永続化】
+・写真UI(step7)はアップロード・表示済みだが、jobs.photos列への保存は未実装。
+・データ構造：将来「写真ごとの個別説明(キャプション)」を入れる場合、photos は ["url"] から [{url, caption}] に変わる。保存設計と直結so保存機能と同時に設計する。
+
+【実装順序の論点（未決・次回判断）】
+・たきと案：全求人項目のUIを完成させてから、最後に保存を一点集約（コード複雑化を回避）。
+・メンター対案：方針同じ。ただしUI完成を待たず一度だけ「通電確認」＝最小1項目(作物・作業)をjobsにINSERTし、配管(RLS/型/認証)が通ることを先に検証する。保存は繋いで初めて出る問題があり、全項目分を一度に繋ぐと問題の切り分けが不能になるため。
+
+【運営レビュー】
+・即掲載しない。投稿は status='pending' で入り、運営が目視確認後に 'open' へ。AI判定の不完全さを人間が補う層。
+---

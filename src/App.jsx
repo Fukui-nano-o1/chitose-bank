@@ -4649,6 +4649,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
   const [nearestStation, setNearestStation] = useState(d.nearestStation ?? "");
   const [jobPhotos, setJobPhotos] = useState(d.jobPhotos ?? []);
+  const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
   const [photoUploading, setPhotoUploading] = useState(false);
   const [jobDangerPlaces, setJobDangerPlaces] = useState(d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
   const [jobDangerTasks, setJobDangerTasks] = useState(d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
@@ -5190,8 +5191,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 step8: 作業説明文 ── */}
           {isFarmer && step === 8 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>作業の説明（準備中）</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>このページは準備中です。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>作業の説明</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>どんな作業か、働き手に伝わるように書きましょう。空欄でも、作業内容に応じた説明が自動で入ります。</p>
+            <LFWizCard>
+              <textarea
+                value={jobDescription}
+                onChange={e => setJobDescription(e.target.value)}
+                placeholder="例：ブロッコリーの収穫と箱詰めをお願いします。畑は平坦で、初めての方でも当日にコツをお教えします。10時と15時に休憩があります。"
+                maxLength={1000}
+                style={{ width:"100%", minHeight:200, padding:"16px", fontSize:15, lineHeight:1.8, border:"1px solid #E5E5E5", borderRadius:14, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
+              />
+              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:8, textAlign:"right" }}>{jobDescription.length} / 1000</p>
+            </LFWizCard>
           </>)}
 
           {/* ── 農家 step9: 勤務時間・休憩・移動時間 ── */}
@@ -5346,7 +5357,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   farmerWanted, farmerPayType, payTiming, payMethod,
                   startHour, startMinute, endHour, endMinute,
                   jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
-                  jobExp, jobTemplate, jobNotes,
+                  jobExp, jobTemplate, jobNotes, jobDescription,
                   jobDateStart: jobDateStart?.toISOString() ?? null,
                   jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
                 };
@@ -5468,7 +5479,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
                   {/* 募集本文 */}
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>募集内容</p>
-                  <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16 }}>{tmpl.body}</p>
+                  <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16, whiteSpace:"pre-wrap" }}>{jobDescription || tmpl.body}</p>
 
                   {/* 持ち物・注意事項 */}
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>持ち物・注意事項</p>
