@@ -5193,7 +5193,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── 農家 step8: 作業説明文 ── */}
           {isFarmer && step === 8 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>作業の説明</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>どんな作業か、働き手に伝わるように書きましょう。空欄でも、作業内容に応じた説明が自動で入ります。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>どんな作業をするか、自由に書けます。空欄のままでも、作業内容に応じた説明が自動で入ります。思いつくことから書いてみましょう。</p>
             <LFWizCard>
               <textarea
                 value={jobDescription}
