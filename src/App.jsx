@@ -4654,6 +4654,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [photoUploading, setPhotoUploading] = useState(false);
   const [jobDangerPlaces, setJobDangerPlaces] = useState(d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
   const [jobDangerTasks, setJobDangerTasks] = useState(d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
+  const [showPlace2, setShowPlace2] = useState(false);
+  const [showTask2, setShowTask2] = useState(false);
   const [confActiveSlide, setConfActiveSlide] = useState(0);
   const confScrollRef = useRef(null);
 
@@ -5299,7 +5301,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な場所（任意）</label>
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な場所があれば入力してください。</p>
-                {jobDangerPlaces.map((place, i) => (
+                {jobDangerPlaces.slice(0, showPlace2 ? 2 : 1).map((place, i) => (
                   <div key={i} style={{ marginBottom:8 }}>
                     <input value={place.label} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, label: e.target.value } : p))} placeholder={`危険な場所${i + 1}（例：ぬかるみ）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
                     <input value={place.desc} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, desc: e.target.value } : p))} placeholder="補足説明（例：雨上がりは特に滑りやすい）" className="field f-sans" style={{ fontSize:13 }} />
@@ -5313,11 +5315,16 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         </div>
                   </div>
                 ))}
+                    {!showPlace2 ? (
+                      <button onClick={() => setShowPlace2(true)} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"10px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600 }}>＋ 危険な場所をもう1つ追加</button>
+                    ) : (
+                      <button onClick={() => { setShowPlace2(false); setJobDangerPlaces(prev => prev.map((p, j) => j === 1 ? { ...p, label:"", desc:"" } : p)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
+                    )}
               </div>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な作業（任意）</label>
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な作業があれば入力してください。</p>
-                {jobDangerTasks.map((task, i) => (
+                {jobDangerTasks.slice(0, showTask2 ? 2 : 1).map((task, i) => (
                   <div key={i} style={{ marginBottom:8 }}>
                     <input value={task.label} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, label: e.target.value } : t))} placeholder={`危険な作業${i + 1}（例：重いコンテナの運搬）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
                     <input value={task.desc} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, desc: e.target.value } : t))} placeholder="補足説明（例：腰を痛めないよう正しい持ち方が必要）" className="field f-sans" style={{ fontSize:13 }} />
@@ -5331,6 +5338,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         </div>
                   </div>
                 ))}
+                    {!showTask2 ? (
+                      <button onClick={() => setShowTask2(true)} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"10px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600 }}>＋ 危険な作業をもう1つ追加</button>
+                    ) : (
+                      <button onClick={() => { setShowTask2(false); setJobDangerTasks(prev => prev.map((t, j) => j === 1 ? { ...t, label:"", desc:"" } : t)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
+                    )}
               </div>
             </LFWizCard>
           </>)}
