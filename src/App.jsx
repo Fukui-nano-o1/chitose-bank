@@ -5325,19 +5325,25 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <div style={{ marginBottom:28, maxWidth:1000, margin:"0 auto 28px" }}>
                     <div style={{ position:"relative", maxWidth:870, margin:"0 auto" }}>
                       <div ref={confScrollRef} onScroll={e => { const w = e.currentTarget.offsetWidth; if (w > 0) setConfActiveSlide(Math.round(e.currentTarget.scrollLeft / w)); }} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12 }}>
-                        {[0, 1, 2].map(i => (
-                          <div key={i} style={{ flexShrink:0, width:"100%", height:391, borderRadius:12, background:bgColors[i % bgColors.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, scrollSnapAlign:"start" }}>{cropIcon}</div>
-                        ))}
+                        {jobPhotos.length > 0
+                          ? jobPhotos.map((url, i) => (
+                              <div key={i} style={{ flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start" }}>
+                                <img src={url} alt={`写真${i+1}`} style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
+                              </div>
+                            ))
+                          : [0, 1, 2].map(i => (
+                              <div key={i} style={{ flexShrink:0, width:"100%", height:391, borderRadius:12, background:bgColors[i % bgColors.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, scrollSnapAlign:"start" }}>{cropIcon}</div>
+                            ))}
                       </div>
                       <button onClick={() => { const el = confScrollRef.current; if (el) el.scrollBy({ left: -el.offsetWidth, behavior:"smooth" }); }} style={{ position:"absolute", top:"50%", left:12, transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.9)", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer", fontSize:18, color:"#222", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
                       <button onClick={() => { const el = confScrollRef.current; if (el) el.scrollBy({ left: el.offsetWidth, behavior:"smooth" }); }} style={{ position:"absolute", top:"50%", right:12, transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.9)", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer", fontSize:18, color:"#222", display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
                     </div>
                     <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
-                      {[0, 1, 2].map(i => (
+                      {(jobPhotos.length > 0 ? jobPhotos.map((_, i) => i) : [0, 1, 2]).map(i => (
                         <span key={i} style={{ fontSize:10, color: i === confActiveSlide ? "#00A86B" : "#D0D0D0" }}>{i === confActiveSlide ? "●" : "○"}</span>
                       ))}
                     </div>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>
+                    {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>}
                   </div>
                 );
               })()}
@@ -5574,16 +5580,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
                           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {jobPhotos.length > 0 && (
-                  <div style={{ marginTop:16 }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>写真</p>
-                    <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
-                      {jobPhotos.map((url, i) => (
-                        <img key={i} src={url} alt={`写真${i+1}`} style={{ flexShrink:0, width:160, height:120, objectFit:"cover", borderRadius:12, border:"1px solid #EEE" }} />
                       ))}
                     </div>
                   </div>
