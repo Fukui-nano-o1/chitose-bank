@@ -5318,16 +5318,24 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                               <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
                                 <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
                                 <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
-                                <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={async e => {
-                                  const file = e.target.files?.[0]; if (!file) return;
-                                  try {
-                                    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-                                    const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                                    const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
-                                    if (upErr) throw upErr;
-                                    const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                                    if (urlData?.publicUrl) setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: [...(p.photos||[]).slice(0,k), { url: urlData.publicUrl }, ...(p.photos||[]).slice(k+1)] } : p));
-                                  } catch (err) { alert('アップロードに失敗しました。もう一度お試しください。'); }
+                                <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={async e => {
+                                  const files = Array.from(e.target.files || []);
+                                  if (files.length === 0) return;
+                                  const room = 2 - (place.photos?.length || 0);
+                                  const queue = files.slice(0, room);
+                                  const uploaded = [];
+                                  for (const file of queue) {
+                                    try {
+                                      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+                                      const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
+                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                                      if (upErr) throw upErr;
+                                      const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+                                      if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl });
+                                    } catch (err) { console.error('danger photo upload failed', err); }
+                                  }
+                                  if (uploaded.length > 0) setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: [...(p.photos||[]), ...uploaded] } : p));
+                                  if (uploaded.length < queue.length) { alert('一部の写真のアップロードに失敗しました。もう一度お試しください。'); }
                                   e.target.value = '';
                                 }} />
                               </label>
@@ -5361,16 +5369,24 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                               <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
                                 <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
                                 <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
-                                <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={async e => {
-                                  const file = e.target.files?.[0]; if (!file) return;
-                                  try {
-                                    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-                                    const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                                    const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
-                                    if (upErr) throw upErr;
-                                    const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                                    if (urlData?.publicUrl) setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: [...(t.photos||[]).slice(0,k), { url: urlData.publicUrl }, ...(t.photos||[]).slice(k+1)] } : t));
-                                  } catch (err) { alert('アップロードに失敗しました。もう一度お試しください。'); }
+                                <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={async e => {
+                                  const files = Array.from(e.target.files || []);
+                                  if (files.length === 0) return;
+                                  const room = 2 - (task.photos?.length || 0);
+                                  const queue = files.slice(0, room);
+                                  const uploaded = [];
+                                  for (const file of queue) {
+                                    try {
+                                      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+                                      const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
+                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                                      if (upErr) throw upErr;
+                                      const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+                                      if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl });
+                                    } catch (err) { console.error('danger photo upload failed', err); }
+                                  }
+                                  if (uploaded.length > 0) setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: [...(t.photos||[]), ...uploaded] } : t));
+                                  if (uploaded.length < queue.length) { alert('一部の写真のアップロードに失敗しました。もう一度お試しください。'); }
                                   e.target.value = '';
                                 }} />
                               </label>
