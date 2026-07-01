@@ -4686,7 +4686,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   };
   const [jobExp,            setJobExp]            = useState("");
   const [jobSaving, setJobSaving] = useState(false);
-  const [jobNotes,          setJobNotes]          = useState("");
+  const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobTemplate,       setJobTemplate]       = useState("収穫補助");
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
@@ -5542,6 +5542,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               commute_time:    commuteTime,
               job_exp:         jobExp,
               notes:           jobDescription,
+              belongings:      jobNotes,
               danger_places:   jobDangerPlaces,
               danger_tasks:    jobDangerTasks,
               photos:          jobPhotos,
