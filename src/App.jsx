@@ -4684,6 +4684,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     return hourlyWage > 0 ? Math.round(hourlyWage * netH * days) : dailyWage > 0 ? dailyWage * days : 0;
   };
   const [jobExp,            setJobExp]            = useState("");
+  const [jobSaving, setJobSaving] = useState(false);
   const [jobNotes,          setJobNotes]          = useState("");
   const [jobTemplate,       setJobTemplate]       = useState("収穫補助");
 
@@ -5463,6 +5464,47 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const profilePct    = Math.round(filledCount / profileFields.length * 100);
             const missingFields = fieldNames.filter((_, i) => !profileFields[i]);
 
+            // jobs INSERT用ペイロード（対応表・項目増減はここだけ直す）
+            const buildJobPayload = (authUid) => ({
+              farmer_id:       authUid,
+              crop:            farmerCrop,
+              task:            farmerTask,
+              zip:             farmerZip,
+              prefecture:      farmerPref,
+              city:            farmerCity,
+              address:         farmerAddr,
+              date_label:      jobDateLabel,
+              headcount:       Number(jobCount) || null,
+              pay_type:        hourlyWage > 0 ? "時給" : "日給",
+              hourly_wage:     hourlyWageInput,
+              daily_wage:      dailyWageInput,
+              work_time:       workTimeLabel,
+              break_time:      breakTime,
+              nearest_station: nearestStation,
+              commute_time:    commuteTime,
+              job_exp:         jobExp,
+              notes:           jobDescription,
+              danger_places:   jobDangerPlaces,
+              danger_tasks:    jobDangerTasks,
+              photos:          [],
+              status:          "pending",
+            });
+            const handleSaveJob = async () => {
+              if (jobSaving) return;
+              setJobSaving(true);
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session || !isAdmin(session.user)) { saveDraft(); onLogin(); return; }
+                const { error } = await supabase.from("jobs").insert(buildJobPayload(session.user.id));
+                if (error) { alert("保存に失敗しました: " + error.message); return; }
+                setStep(12);
+              } catch (e) {
+                alert("保存に失敗しました: " + (e?.message || e));
+              } finally {
+                setJobSaving(false);
+              }
+            };
+
             // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
             const saveDraft = () => {
               try {
@@ -5606,11 +5648,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <ConfCalendar />
                   {/* 保存ボタン */}
                   <button
-                    onClick={() => { saveDraft(); onLogin(); }}
+                    onClick={handleSaveJob}
+                    disabled={jobSaving}
                     className="btn-primary"
                     style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginBottom:10 }}
                   >
-                    実証に参加して保存する
+                    {jobSaving ? "保存中..." : "実証に参加して保存する"}
                   </button>
                   <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center" }}>
                     ログイン後にこの確認画面へ戻せるよう入力内容を保存します。
@@ -5709,10 +5752,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {isFarmer && step === 12 && (<>
             <div style={{ textAlign:"center", paddingTop:20 }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
-              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>ご協力ありがとうございます</h2>
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>審査に提出されました</h2>
               <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
-                この機能は現在構想段階です。<br/>
-                実装前に労働局・関係機関へ確認した上で、段階的に追加予定です。
+                運営が確認後、公開されます。<br/>
+                公開までしばらくお待ちください。
               </p>
               <div style={{ display:"grid", gap:10 }}>
                 <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>実証に参加する →</button>
