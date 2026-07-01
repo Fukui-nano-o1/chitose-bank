@@ -5740,7 +5740,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
                       {jobDangerTasks.filter(t => t.label).map((task, i) => (
                         <div key={i} style={{ flexShrink:0, width:200 }}>
-                          <div style={{ width:"100%", height:110, borderRadius:12, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36 }}>{task.icon}</div>
+                          {task.photos && task.photos.length > 0 && (
+                            <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+                              {task.photos.map((ph, k) => (
+                                <img key={k} src={ph.url} alt="" style={{ flex:1, width:0, height:110, objectFit:"cover", borderRadius:12, border:"1px solid #EEE" }} />
+                              ))}
+                            </div>
+                          )}
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
                           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
                         </div>
@@ -5754,7 +5760,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
                       {jobDangerPlaces.filter(p => p.label).map((place, i) => (
                         <div key={i} style={{ flexShrink:0, width:200 }}>
-                          <div style={{ width:"100%", height:110, borderRadius:12, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36 }}>{place.icon}</div>
+                          {place.photos && place.photos.length > 0 && (
+                            <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+                              {place.photos.map((ph, k) => (
+                                <img key={k} src={ph.url} alt="" style={{ flex:1, width:0, height:110, objectFit:"cover", borderRadius:12, border:"1px solid #EEE" }} />
+                              ))}
+                            </div>
+                          )}
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
                           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
                         </div>
