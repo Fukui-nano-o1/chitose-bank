@@ -5392,6 +5392,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const wageType = hourlyWage > 0 ? "時給" : "日給";
             const wageNum  = hourlyWage > 0 ? hourlyWage : dailyWage;
             const avgWage  = hourlyWage > 0 ? AVG_HOURLY : AVG_DAILY;
+            const periodDays = jobDateStart ? Math.floor(((jobDateEnd || jobDateStart) - jobDateStart) / 86400000) + 1 : 0;
+            const breakHours = (Number(String(breakTime).replace(/[^\d]/g,"")) || 0) / 60;
+            const netHours = Math.max(workHours - breakHours, 0);
+            const maxPay = hourlyWage > 0 ? Math.round(hourlyWage * netHours * periodDays) : dailyWage > 0 ? dailyWage * periodDays : 0;
+            const periodLabel = jobDateStart ? (jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定") : "未設定";
             const diffWage = wageNum > 0 ? wageNum - avgWage : 0;
 
             // プロフィール完成度
@@ -5532,6 +5537,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
                 {/* ── 右: 編集パネル ── */}
                 <div style={{ position:"sticky", top:88, border:"1px solid #EBEBEB", borderRadius:28, padding:24, background:"#fff", boxShadow:"0 16px 40px rgba(0,0,0,0.10)" }}>
+                  {/* 報酬・最高額・期間 */}
+                  <p className="f-mono" style={{ fontSize:26, fontWeight:800, color:"#222", marginBottom:6 }}>{rewardLabel}</p>
+                  {maxPay > 0 && (
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:16 }}>期間内に全て勤務した場合の最高額：<span className="f-mono" style={{ fontWeight:700, color:"#00A86B" }}>¥{maxPay.toLocaleString()}</span></p>
+                  )}
+                  <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderTop:"1px solid #F0F0F0", borderBottom:"1px solid #F0F0F0", marginBottom:16 }}>
+                    <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>期間</span>
+                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{periodLabel}</span>
+                  </div>
                   {/* 保存ボタン */}
                   <button
                     onClick={() => { saveDraft(); onLogin(); }}
