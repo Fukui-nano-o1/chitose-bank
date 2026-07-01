@@ -5681,22 +5681,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
               {/* ═══ 詳細確認ミニ表（下部格下げ） ═══ */}
               <div style={{ maxWidth:1120, margin:"24px auto 0" }}>
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>入力内容の詳細</p>
-                <LFWizCard>
-                  <LFSummaryRow label="表示名"   value={farmerDisplayName || "未入力"} />
-                  <LFSummaryRow label="地域"     value={farmerRegion || "未入力"} />
-                  <LFSummaryRow label="作物"     value={farmerCrop || "未入力"} />
-                  <LFSummaryRow label="作業"     value={farmerTask || "未入力"} />
-                  <LFSummaryRow label="作業日程"   value={jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定"} />
-                  <LFSummaryRow label="勤務時間" value={workTimeLabel} />
-                  <LFSummaryRow label="募集人数" value={jobCount ? `${jobCount}人` : "未設定"} />
-                  <LFSummaryRow label="休憩時間" value={breakTime || "未設定"} />
-                  <LFSummaryRow label="移動時間" value={nearestStation ? `${nearestStation}から ${commuteTime || "未設定"}` : (commuteTime || "未設定")} />
-                  <LFSummaryRow label="報酬"     value={rewardLabel} />
-                  <LFSummaryRow label="必要経験" value={jobExp || "未設定"} />
-                  <LFSummaryRow label="支払い方式" value={farmerPayType || "未設定"} />
-                  <LFSummaryRow label="目的"     value={farmerPurpose==="post" ? "仕事を出す" : "オファー"} />
-                </LFWizCard>
                 {jobDangerTasks.some(t => t.label) && (
                   <div style={{ marginTop:16 }}>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な作業</p>
