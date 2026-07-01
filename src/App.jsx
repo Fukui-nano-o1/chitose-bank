@@ -5307,12 +5307,32 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <input value={place.label} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, label: e.target.value } : p))} placeholder={`危険な場所${i + 1}（例：ぬかるみ）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
                     <input value={place.desc} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, desc: e.target.value } : p))} placeholder="補足説明（例：雨上がりは特に滑りやすい）" className="field f-sans" style={{ fontSize:13 }} />
                         <div style={{ display:"flex", gap:8, marginTop:6 }}>
-                          {[0,1].map(k => (
-                            <div key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3 }}>
-                              <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
-                              <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真（近日対応）</span>
-                            </div>
-                          ))}
+                          {[0,1].map(k => {
+                            const ph = place.photos?.[k];
+                            return ph ? (
+                              <div key={k} style={{ position:"relative", flex:1, height:90, borderRadius:10, overflow:"hidden", border:"1px solid #EEE" }}>
+                                <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                                <button onClick={() => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: p.photos.filter((_, x) => x !== k) } : p))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
+                              </div>
+                            ) : (
+                              <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
+                                <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
+                                <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={async e => {
+                                  const file = e.target.files?.[0]; if (!file) return;
+                                  try {
+                                    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+                                    const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
+                                    const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                                    if (upErr) throw upErr;
+                                    const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+                                    if (urlData?.publicUrl) setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: [...(p.photos||[]).slice(0,k), { url: urlData.publicUrl }, ...(p.photos||[]).slice(k+1)] } : p));
+                                  } catch (err) { alert('アップロードに失敗しました。もう一度お試しください。'); }
+                                  e.target.value = '';
+                                }} />
+                              </label>
+                            );
+                          })}
                         </div>
                   </div>
                 ))}
@@ -5330,12 +5350,32 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <input value={task.label} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, label: e.target.value } : t))} placeholder={`危険な作業${i + 1}（例：重いコンテナの運搬）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
                     <input value={task.desc} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, desc: e.target.value } : t))} placeholder="補足説明（例：腰を痛めないよう正しい持ち方が必要）" className="field f-sans" style={{ fontSize:13 }} />
                         <div style={{ display:"flex", gap:8, marginTop:6 }}>
-                          {[0,1].map(k => (
-                            <div key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3 }}>
-                              <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
-                              <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真（近日対応）</span>
-                            </div>
-                          ))}
+                          {[0,1].map(k => {
+                            const ph = task.photos?.[k];
+                            return ph ? (
+                              <div key={k} style={{ position:"relative", flex:1, height:90, borderRadius:10, overflow:"hidden", border:"1px solid #EEE" }}>
+                                <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                                <button onClick={() => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: t.photos.filter((_, x) => x !== k) } : t))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
+                              </div>
+                            ) : (
+                              <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
+                                <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
+                                <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={async e => {
+                                  const file = e.target.files?.[0]; if (!file) return;
+                                  try {
+                                    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+                                    const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
+                                    const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                                    if (upErr) throw upErr;
+                                    const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+                                    if (urlData?.publicUrl) setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: [...(t.photos||[]).slice(0,k), { url: urlData.publicUrl }, ...(t.photos||[]).slice(k+1)] } : t));
+                                  } catch (err) { alert('アップロードに失敗しました。もう一度お試しください。'); }
+                                  e.target.value = '';
+                                }} />
+                              </label>
+                            );
+                          })}
                         </div>
                   </div>
                 ))}
