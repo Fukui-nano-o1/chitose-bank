@@ -4687,6 +4687,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobExp,            setJobExp]            = useState("");
   const [jobSaving, setJobSaving] = useState(false);
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
+  const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState("収穫補助");
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
@@ -5410,8 +5411,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <p className="f-sans" style={lfStyles.subtitle}>持ち物や注意事項、求める経験など、働き手に伝えておきたいことを入力できます。作業に必要な道具や安全への備えは、受け入れる農家側でご用意・ご対応ください。（すべて任意です）</p>
             <LFWizCard>
               <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物・注意事項（任意）</label>
-                <textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="例：長靴着用、軍手持参" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物（任意）</label>
+                <textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="例：長靴、軍手、飲み物" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>注意事項（任意）</label>
+                <textarea value={jobCautions} onChange={e => setJobCautions(e.target.value)} placeholder="例：天候により作業時間が変わることがあります" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
               </div>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>必要経験（任意）</label>
@@ -5543,6 +5548,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               job_exp:         jobExp,
               notes:           jobDescription,
               belongings:      jobNotes,
+              cautions:        jobCautions,
               danger_places:   jobDangerPlaces,
               danger_tasks:    jobDangerTasks,
               photos:          jobPhotos,
@@ -5575,7 +5581,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   farmerWanted, farmerPayType, payTiming, payMethod,
                   startHour, startMinute, endHour, endMinute,
                   jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
-                  jobExp, jobTemplate, jobNotes, jobDescription,
+                  jobExp, jobTemplate, jobNotes, jobCautions, jobDescription,
                   jobDateStart: jobDateStart?.toISOString() ?? null,
                   jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
                 };
@@ -5684,6 +5690,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   ) : (
                     <p className="f-sans" style={{ fontSize:14, color:"#B0B0B0", marginBottom:8 }}>未設定</p>
                   )}
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10, marginTop:16 }}>注意事項</p>
+                  <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:8, whiteSpace:"pre-wrap" }}>{jobCautions && jobCautions.trim() ? jobCautions : "未設定"}</p>
                   {/* 必要経験・希望する働き手（公開イメージ） */}
                   <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:16 }}>
                     <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>💪 必要経験</p>
