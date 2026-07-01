@@ -5384,7 +5384,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               "草刈り":   { body:"圃場周辺の草刈り、片付け、運搬補助をお願いします。", items:["長袖","長ズボン","飲み物","タオル"], notes:"機械を使う作業は経験者のみを想定しています。" },
             };
             const tmpl = JT_MAP[jobTemplate] || JT_MAP["収穫補助"];
-            const listingTitle = `${farmerCrop || "作物"}${farmerTask || "作業"}スタッフ募集`;
+            const titleRequired = `${farmerCrop || "作物"}${farmerTask || "作業"}スタッフ ${jobCount ? jobCount + "人募集" : ""}`.trim();
+            const titleOptional = [
+              nearestStation ? `${nearestStation}から${commuteTime || ""}`.trim() : "",
+            ].filter(Boolean).join("・");
+            const listingTitle = titleOptional ? `${titleRequired}｜${titleOptional}` : titleRequired;
             const subInfo = [farmerRegion || "地域未入力", jobDateLabel !== "日程を選択してください" ? jobDateLabel : "日程未設定", workTimeLabel].join("・");
             const rewardLabel = hourlyWage > 0 ? `¥${hourlyWage.toLocaleString()} / 時` : dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定";
             const wageType = hourlyWage > 0 ? "時給" : "日給";
