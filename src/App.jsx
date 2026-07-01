@@ -4677,6 +4677,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const dailyWage  = Number(dailyWageInput.replace(/[^\d]/g, "")) || 0;
   const workHours = (Number(endHour) + Number(endMinute) / 60) - (Number(startHour) + Number(startMinute) / 60);
   const { hourlyViolation, dailyViolation } = validateMinWage(hourlyWage, dailyWage, workHours);
+  const calcFarmerMaxPay = () => {
+    const days   = jobDateStart ? Math.floor(((jobDateEnd || jobDateStart) - jobDateStart) / 86400000) + 1 : 0;
+    const breakH = (Number(String(breakTime).replace(/[^\d]/g,"")) || 0) / 60;
+    const netH   = Math.max(workHours - breakH, 0);
+    return hourlyWage > 0 ? Math.round(hourlyWage * netH * days) : dailyWage > 0 ? dailyWage * days : 0;
+  };
   const [jobExp,            setJobExp]            = useState("");
   const [jobNotes,          setJobNotes]          = useState("");
   const [jobTemplate,       setJobTemplate]       = useState("収穫補助");
@@ -5384,10 +5390,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const wageType = hourlyWage > 0 ? "時給" : "日給";
             const wageNum  = hourlyWage > 0 ? hourlyWage : dailyWage;
             const avgWage  = hourlyWage > 0 ? AVG_HOURLY : AVG_DAILY;
-            const periodDays = jobDateStart ? Math.floor(((jobDateEnd || jobDateStart) - jobDateStart) / 86400000) + 1 : 0;
-            const breakHours = (Number(String(breakTime).replace(/[^\d]/g,"")) || 0) / 60;
-            const netHours = Math.max(workHours - breakHours, 0);
-            const maxPay = hourlyWage > 0 ? Math.round(hourlyWage * netHours * periodDays) : dailyWage > 0 ? dailyWage * periodDays : 0;
+            const maxPay = calcFarmerMaxPay();
             const periodLabel = jobDateStart ? (jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定") : "未設定";
             const ConfCalendar = () => {
               if (!jobDateStart) return null;
