@@ -4658,6 +4658,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [showTask2, setShowTask2] = useState(false);
   const [confActiveSlide, setConfActiveSlide] = useState(0);
   const confScrollRef = useRef(null);
+  const captionTextareaRef = useRef(null);
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -5272,7 +5273,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14 }}>写真を選ぶと、その写真について一言添えられます。</p>
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
           {jobPhotos.map((p, i) => (
-            <button key={i} onClick={() => setSelectedPhotoIndex(i)} style={{ padding:0, border: i === selectedPhotoIndex ? "3px solid #00A86B" : "3px solid transparent", borderRadius:12, cursor:"pointer", background:"none", lineHeight:0 }}>
+            <button key={i} onClick={() => { setSelectedPhotoIndex(i); captionTextareaRef.current?.focus(); }} style={{ padding:0, border: i === selectedPhotoIndex ? "3px solid #00A86B" : "3px solid transparent", borderRadius:12, cursor:"pointer", background:"none", lineHeight:0 }}>
               <img src={p.url} alt={`写真${i+1}`} style={{ width:84, height:84, objectFit:"cover", borderRadius:9, opacity: i === selectedPhotoIndex ? 1 : 0.6 }} />
             </button>
           ))}
@@ -5281,6 +5282,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           <img src={jobPhotos[selectedPhotoIndex]?.url} alt="選択中の写真" style={{ width:"100%", height:200, objectFit:"cover", borderRadius:14, marginBottom:10 }} />
         </div>
         <textarea
+          ref={captionTextareaRef}
           value={jobPhotos[selectedPhotoIndex]?.caption ?? ""}
           onChange={e => setJobPhotos(prev => prev.map((p, i) => i === selectedPhotoIndex ? { ...p, caption: e.target.value } : p))}
           placeholder="この写真について一言（例：収穫するブロッコリー畑です）"
