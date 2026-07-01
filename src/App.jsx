@@ -4652,8 +4652,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [jobDangerPlaces, setJobDangerPlaces] = useState(d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
-  const [jobDangerTasks, setJobDangerTasks] = useState(d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]);
+  const [jobDangerPlaces, setJobDangerPlaces] = useState((d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]).map(p => ({ photos:[], ...p })));
+  const [jobDangerTasks, setJobDangerTasks] = useState((d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]).map(t => ({ photos:[], ...t })));
   const [showPlace2, setShowPlace2] = useState(false);
   const [showTask2, setShowTask2] = useState(false);
   const [confActiveSlide, setConfActiveSlide] = useState(0);
