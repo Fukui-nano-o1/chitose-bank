@@ -5553,8 +5553,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       <div ref={confScrollRef} onScroll={e => { const w = e.currentTarget.offsetWidth; if (w > 0) setConfActiveSlide(Math.round(e.currentTarget.scrollLeft / w)); }} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12 }}>
                         {jobPhotos.length > 0
                           ? jobPhotos.map((p, i) => (
-                              <div key={i} style={{ flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start" }}>
+                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start" }}>
                                 <img src={p.url} alt={`写真${i+1}`} style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
+                                {p.caption && (
+                                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:14, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
+                                )}
                               </div>
                             ))
                           : [0, 1, 2].map(i => (
@@ -5610,12 +5613,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {/* 募集本文 */}
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>募集内容</p>
                   <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16, whiteSpace:"pre-wrap" }}>{jobDescription || tmpl.body}</p>
-                      {jobPhotos.length > 0 && (
-                        <div style={{ marginBottom:16 }}>
-                          <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>写真ごとの説明</p>
-                          <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>※ 近日対応予定</p>
-                        </div>
-                      )}
 
                   {/* 持ち物・注意事項 */}
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>持ち物・注意事項</p>
