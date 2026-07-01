@@ -662,3 +662,34 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 ・saveDraft内 farmerStep: 5 のコメント「5=確認画面」thが実態(step11)とズレ。未対応。
 
 ━━━ ここまで ━━━
+
+━━━ 2026-07-01(続4) 危険箇所写真・写真自動フォーカス完成メモ ━━━
+
+【危険箇所の写真・完成（構造変更3段）】
+・jobDangerPlaces/jobDangerTasks の構造：{icon,label,desc} → {icon,label,desc,photos:[]} に変更済み（第1段）。
+・初期値・draft復元は .map(p => ({ photos:[], ...p })) で補完（既存draftにphotosthが無くても[]で埋まり、既存値thが優先される。「他を壊さない」の実装）。
+・各危険箇所つき写真2枚まで（飾り枠2つに合わせた・(あ)固定枚数）。step9危険箇所ページで各枠を本物のアップロードUIに配線（第2段）。
+・アップロードは step7 の job-photos バケットを流用（新規バケット・新規ロジックなし）。path プレフィックス = 'danger_' + timestamp。写真構造は [{url}]（キャプションなし。descthがあるので不要）。
+・各枠は独立：photos[k] を immutable 差し替え（[...slice(0,k), {url}, ...slice(k+1)]）、削除は filter。枠0/枠1・場所/作業thが混ざらないことをDBで確認済み。
+・確認ページ(step11)の危険箇所カード：絵文字⚠️ボックス(#FEF3E2)を削除し、photosを最大2枚横並び表示。写真thが無ければ写真エリア非表示（label/descのみ）（第3段）。
+・buildJobPayload の danger_places/danger_tasks はjsonbなので [{...,photos}] もそのまま格納。DB検証済み：各危険箇所に写真2枚thが独立して {url} 形式で保存されることを確認。
+・注意：働き手側モーダル(4122-4145付近)の selectedJob.dangerPlaces/dangerTasks.icon は別物（ダミーデータ用）。農家フローの jobDangerPlaces/jobDangerTasks とは無関係so触らない。
+
+【写真キャプション・自動フォーカス（step8のUX改善）】
+・step8のサムネイル選択時、下のキャプションtextareaに自動フォーカスthが入る（captionTextareaRef を新設、onClick={() => { setSelectedPhotoIndex(i); captionTextareaRef.current?.focus(); }}）。
+・setTimeoutを使わず直接focus（iOS Safariの「ユーザー操作の同期フロー内でしかfocusthが効かない」制約対策）。iPhone実機でキーボードthが出ることを確認済み。
+
+【運用メモ・Vercel反映trouble（重要）】
+・今日、Vercelthaが GitHub push を取りこぼす事象thが2回発生（webhookラグではなく完全な取りこぼし）。対処＝空コミット（git commit --allow-empty）で再push→再デプロイtrigger。
+・「反映されない」時の切り分け：①まず Vercel MCP or ダッシュボードで最新デプロイのcommit SHAを確認（本番aliasthが指すデプロイthた最新コミットか）→ ②Vercelに乗っているのに古い表示なら＝ブラウザキャッシュ→ スーパーリロード(Ctrl+Shift+R)で解決。③Vercelに未達なら＝取りこぼし→空コミットで再trigger。憶測で判断せず必ずVercelの現物を見る。
+
+【残タスク更新（前回(続3)のリストから、危険箇所写真は完了so除外。優先順）】
+1. 求人タイトル「上（求職者ニーズ情報）」の中身決め（未経験可/募集人数等・棚上げ中）。
+2. Airbnb風の写真グリッドレイアウト（左大＋右2×2。現在は横スクロールカルーセル）。
+3. Phase2：保存したjobsを読み出して求人一覧・詳細に表示（farmer_id参照で氏名=farmers.name・就農歴=farmers.joined_year）。危険箇所の写真も詳細ページで全枚数表示thが候補。
+4. レビューテーブル新設（現在DBに存在せず・詳細ページのレビューは全ダミー）。
+5. saveDraftにjobPhotosthが含まれていない既知の欠落（未ログイン保存で写真thが消える）。危険箇所のphotosもsaveDraftに含まれるか要確認。
+6. payTiming/payMethodのjobs列要否（現在列thが無く保存されていない）。
+7. 確認ページ保存ボタンのバリデーション（作物・作業空でも保存可。個別遷移可能なのは管理者のみso優先度低・放置可とたきと判断済み）。
+
+━━━ ここまで ━━━
