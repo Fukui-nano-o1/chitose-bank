@@ -627,3 +627,38 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 ・saveDraft内 farmerStep: 5 のコメント「5=確認画面」thが実態(step11)とズレ。今回未対応。
 
 ━━━ ここまで ━━━
+
+━━━ 2026-07-01(続3) 保存機能・写真キャプション完成メモ ━━━
+
+【最上位の設計原則（たきと確立・全判断の指針）】
+全設計は「追加可能・削除可能・他を壊さない」。新項目は足すだけ、不要なら消すだけ、既存を壊さない構造にする。写真をstring[]→[{url,caption}]にしたのはこの原則の実践（url参照を不変にし、将来の項目追加を足すだけにした）。
+
+【保存機能(INSERT) Phase1・完成】
+・確認ページ(step11)の「実証に参加して保存する」= handleSaveJob。
+・jobs.farmer_id → auth.users.id（FK制約）。farmers.id経由は誤り。session.user.id（auth.uid）をそのまま入れる。
+・RLSは email='t5fki6643qty@gmail.com' のみINSERT可。フロントにも管理者ゲート（isAdmin(session.user)）を二重で入れた。非管理者・未ログインは saveDraft+onLogin にフォールバック。
+・buildJobPayload(authUid) = 対応表を1箇所に分離（項目増減はここだけ直す）。住所4分割(zip/pref/city/address)を4列へ配線済み（監査①解決）。headcount=Number化、hourly/daily_wage=text型のまま、status='pending'。
+・handleSaveJob内に管理者限定デバッグalert（【管理者デバッグ】status/error/挿入行数）。農家には出ない。将来外す時はここ。
+・完了画面(step12)=「審査に提出されました。運営が確認後、公開されます」。
+・DB検証済み：farmer_id・status・住所・型・写真、全カラム設計通りに保存されることをSupabaseで直接確認。テストデータは掃除済み(jobs=0行)。
+
+【写真キャプション・完成（構造変更3段）】
+・jobPhotos構造：string[] → [{url, caption}] に変更済み（第1段）。表示8箇所すべて.url参照に追従済み。
+・step8に写真ごとのキャプション入力UI配線済み（第2段・選択中写真のcaptionをimmutable更新：prev.map((p,i)=>i===sel?{...p,caption}:p)）。
+・確認ページ先頭カルーセルに、各写真のcaptionをグラデ帯オーバーレイ表示（第3段）。caption未記入なら帯なし。確認ページの重複「写真ごとの説明」ブロックは削除済み。
+・DB検証済み：photosが[{url,caption}]形式で、写真ごとに独立したcaptionが保存されることを確認。
+
+【残タスク（次にやる・優先順）】
+1. 求人タイトル「上（求職者ニーズ情報）」の中身決め（未経験可/募集人数等・棚上げ中）。
+2. Airbnb風の写真グリッドレイアウト（左大＋右2×2＝スクショのモデル。現在は横スクロールカルーセル）。キャプション機能とは別テーマ。
+3. Phase2：保存したjobsを読み出して求人一覧・詳細に表示（farmer_id参照で氏名=farmers.name・就農歴=farmers.joined_year）。
+4. レビューテーブル新設（現在DBに存在せず・詳細ページのレビューは全ダミー）。
+5. saveDraftにjobPhotosthが含まれていない既知の欠落（未ログイン保存で写真that消える）。
+6. 危険箇所の写真8枠（step9危険箇所・未配線の飾りUI）。
+7. payTiming/payMethodのjobs列要否（現在列that無く保存されていない）。
+8. 確認ページ保存ボタンのバリデーション（作物・作業空でも保存できる。個別遷移可能なのは管理者のみなので優先度低・たきと判断で放置可）。
+
+【既存の不整合（別件・未対応）】
+・saveDraft内 farmerStep: 5 のコメント「5=確認画面」thが実態(step11)とズレ。未対応。
+
+━━━ ここまで ━━━
