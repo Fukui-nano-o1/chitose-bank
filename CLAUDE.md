@@ -693,3 +693,41 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 7. 確認ページ保存ボタンのバリデーション（作物・作業空でも保存可。個別遷移可能なのは管理者のみso優先度低・放置可とたきと判断済み）。
 
 ━━━ ここまで ━━━
+
+━━━ 2026-07-01(続5) 持ち物・注意事項分離／Vercelデプロイ上限メモ ━━━
+
+【⚠️最重要・翌日の申し送り】
+・「注意事項(jobCautions)」機能はコード完成・mainにpush済み(48fda6a)だが、本番未反映。理由＝Vercel無料枠(Hobby)の1日100デプロイ上限に到達したため(code: api-deployments-free-per-day)。今日大量の小刻みpushで上限超過。
+・上限はローリング24時間方式(暦日リセットではない)。一番古いデプロイthat24時間経過するごとに1枠ずつ復活。今日の朝イチのデプロイthat日本時間の翌朝9〜10時頃に24時間経過so、翌日午前中から枠thが戻る。
+・復旧方法：枠thが戻ったら git commit --allow-empty で1回pushすれば最新main(注意事項含む)thが本番に乗る。or Vercel Proにアップグレードすれば即解消。
+・本番反映後に確認すべきこと：step10で「持ち物」「注意事項」thが別textareaで出る／確認ページで持ち物=📌チップ・注意事項=別セクション表示／保存でbelongings列とcautions列に分かれて入る。
+
+【今日完成したもの(コードは全てmain・GitHubにあり)】
+本番反映済み(48925f4まで)：保存INSERT・写真キャプション3段・写真自動フォーカス・危険箇所写真3段＋複数枚アップロード・確認ページ持ち物ダミー修正・持ち物belongings列保存(土台修理a51b863)。
+本番未反映(デプロイ枠待ち)：注意事項分離(48fda6a)。
+
+【DBスキーマ変更(実施済み・Supabase)】
+・jobsテーブルに belongings(text)・cautions(text) の2列を追加済み(ALTER TABLE実行済み)。
+・belongings=持ち物(jobNotes)、cautions=注意事項(jobCautions)。既存notes(text)はjobDescription専用のまま。
+・buildJobPayload配線済み：belongings: jobNotes / cautions: jobCautions。
+
+【持ち物・注意事項の分離(第0段＋第1段)】
+・元は「持ち物・注意事項」1つのtextarea(jobNotes)。step10で2つに分割：持ち物(jobNotes)＋注意事項(jobCautions・新設state, d.jobCautions??""でdraft復元付き)。
+・修正済みバグ：①jobNotes(持ち物)thがDB保存されていなかった→belongings列に保存 ②jobNotesのdraft復元抜け→d.jobNotes??""追加 ③saveDraftにjobCautions追加。
+・確認ページ：持ち物=jobNotesを📌チップ表示(区切り分割・空なら「未設定」)、注意事項=jobCautionsを別セクションでpre-wrap表示。tmpl.items/tmpl.notesのダミーは削除済み(48925f4)。
+
+【Vercel運用の教訓(重要)】
+・今日「反映されない」thが多発。原因は3種類あった：①webhookラグ/取りこぼし(空コミットで再trigger)②ブラウザキャッシュ(スーパーリロードCtrl+Shift+R)③デプロイ上限(1日100・待つかPro)。
+・切り分け手順：Vercel MCP/ダッシュボードで最新デプロイのcommit SHAを見る→本番aliasthが最新commitか確認→未反映ならエラーメッセージ(Redeployダイアログ等)で上限か取りこぼしか判別。憶測で判断しない。
+・小刻みpushthが上限を食う。1機能=1pushの原則は良いthが、1日の総push数に注意。段階的構造変更(3段×複数機能)で今日は100超えた。
+
+【残タスク(前回リストから更新)】
+1. 注意事項の本番反映確認(デプロイ枠復活後・最優先)。
+2. 求人タイトル「上(求職者ニーズ情報)」の中身決め。
+3. Airbnb風の写真グリッドレイアウト。
+4. Phase2：保存jobsを読み出して一覧・詳細表示(farmer_id参照)。
+5. レビューテーブル新設。
+6. saveDraftにjobPhotos・危険箇所photosthが含まれるか要確認(未ログイン保存で写真消失の恐れ)。
+7. payTiming/payMethodのjobs列要否。
+
+━━━ ここまで ━━━
