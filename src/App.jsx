@@ -5486,7 +5486,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               notes:           jobDescription,
               danger_places:   jobDangerPlaces,
               danger_tasks:    jobDangerTasks,
-              photos:          [],
+              photos:          jobPhotos,
               status:          "pending",
             });
             const handleSaveJob = async () => {
