@@ -4969,6 +4969,22 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 />
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
                 {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
+                {/* 5-c. 最寄り駅からの移動時間 */}
+                <div style={{ marginBottom:14 }}>
+                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>最寄り駅からの移動時間</label>
+                  <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                    <input value={nearestStation} onChange={e => setNearestStation(e.target.value)} placeholder="例：阿波山川駅" className="field f-sans" style={{ fontSize:14, maxWidth:160 }} />
+                    <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>から</span>
+                    <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
+                      <option value="">選択してください</option>
+                      <option value="徒歩5分以内">徒歩5分以内</option>
+                      <option value="徒歩10分以内">徒歩10分以内</option>
+                      <option value="車5分以内">車5分以内</option>
+                      <option value="車10分以内">車10分以内</option>
+                      <option value="車20分以内">車20分以内</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </LFWizCard>
 
