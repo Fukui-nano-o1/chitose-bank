@@ -5038,6 +5038,42 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <h2 className="f-sans" style={lfStyles.stepTitle}>報酬を入力してください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>時給または日給を入力します。金額に迷ったら、表示される地域の相場を参考にできます。働き手に選ばれやすい条件を、無理のない範囲で設定しましょう。</p>
             <LFWizCard>
+              {/* 4. 勤務時間（input type=time・iPhoneタイマー型） */}
+              {(() => {
+                const timeStyle = { height:48, borderRadius:12, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:16, fontWeight:700, textAlign:"center", padding:"0 10px", outline:"none", cursor:"pointer" };
+                const rowStyle = { display:"flex", alignItems:"center", justifyContent:"center", gap:10, flexWrap:"wrap", marginTop:12 };
+                const toTime = (h, m) => `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+                const fromTime = (val, setH, setM) => {
+                  if (!val) return;
+                  const [h, m] = val.split(":");
+                  setH(String(Number(h)));
+                  setM(m);
+                };
+                return (
+                  <div style={{ marginBottom:14 }}>
+                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
+                    <div style={rowStyle}>
+                      <input type="time" value={toTime(startHour, startMinute)} onChange={e => fromTime(e.target.value, setStartHour, setStartMinute)} style={timeStyle} />
+                      <span style={{ margin:"0 6px", color:"#717171", fontWeight:700, fontSize:16 }}>〜</span>
+                      <input type="time" value={toTime(endHour, endMinute)} onChange={e => fromTime(e.target.value, setEndHour, setEndMinute)} style={timeStyle} />
+                    </div>
+                    <p className="f-sans" style={{ fontSize:12, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
+                  </div>
+                );
+              })()}
+              {/* 5-b. 休憩時間（グループ2予定） */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
+                <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
+                  <option value="">選択してください</option>
+                  <option value="なし">なし</option>
+                  <option value="30分">30分</option>
+                  <option value="60分">60分</option>
+                  <option value="90分">90分</option>
+                  <option value="120分">120分</option>
+                </select>
+              </div>
               {/* 6. 報酬 */}
               <div style={{ marginBottom:6 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>報酬</label>
