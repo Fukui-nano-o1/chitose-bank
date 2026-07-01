@@ -5674,13 +5674,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
                   {/* 持ち物・注意事項 */}
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>持ち物・注意事項</p>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
-                    {tmpl.items.map(item => <span key={item} style={tagStyle}>✓ {item}</span>)}
-                    {jobNotes && jobNotes.split(/[、,，\n]/).filter(Boolean).map((n,i) => (
-                      <span key={i} style={{ ...tagStyle, background:"#FEF3E2", color:"#F5A623" }}>📌 {n.trim()}</span>
-                    ))}
-                  </div>
-                  <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:28 }}>{tmpl.notes}</p>
+                  {jobNotes && jobNotes.trim() ? (
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
+                      {jobNotes.split(/[、,，\n]/).map(n => n.trim()).filter(Boolean).map((n,i) => (
+                        <span key={i} style={{ ...tagStyle, background:"#FEF3E2", color:"#F5A623" }}>📌 {n}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="f-sans" style={{ fontSize:14, color:"#B0B0B0", marginBottom:8 }}>未設定</p>
+                  )}
                   {/* 必要経験・希望する働き手（公開イメージ） */}
                   <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:16 }}>
                     <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>💪 必要経験</p>
