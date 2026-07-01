@@ -5493,35 +5493,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     ))}
                   </div>
 
-                  {/* 報酬カード */}
-                  <div style={{ padding:"18px 20px", border:"1px solid #EBEBEB", borderRadius:20, marginBottom:20, boxShadow:"0 4px 14px rgba(0,0,0,0.05)" }}>
-                    <p className="f-mono" style={{ fontSize:28, fontWeight:800, color:"#222", marginBottom:4 }}>{rewardLabel}</p>
-                    {wageNum > 0 && AVG_COUNT >= 5 && (
-                      <p className="f-sans" style={{ fontSize:12, color: diffWage >= 0 ? "#00A86B" : "#F5A623", marginBottom:10 }}>
-                        この条件の平均{wageType}：{avgWage.toLocaleString()}円　平均より {diffWage >= 0 ? "+" : ""}{diffWage.toLocaleString()}円
-                      </p>
-                    )}
-                    <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:10 }}>
-                      {[
-                        { label:"日程",     value: jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定" },
-                        { label:"勤務時間", value: workTimeLabel },
-                        { label:"休憩時間", value: breakTime || "未設定" },
-                        { label:"募集人数", value: jobCount ? `${jobCount}人` : "未設定" },
-                        { label:"移動時間", value: nearestStation ? `${nearestStation}から ${commuteTime || "未設定"}` : (commuteTime || "未設定") },
-                        { label:"報酬",     value: rewardLabel || "未設定" },
-                      ].map(r => (
-                        <div key={r.label} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid #F7F7F7" }}>
-                          <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>{r.label}</span>
-                          <span className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222" }}>{r.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <button onClick={() => alert("現在はプレビューです。実際の応募は送信されません。")} className="btn-primary" style={{ width:"100%", padding:"13px", fontSize:14, borderRadius:14, marginTop:14 }}>
-                      応募画面のプレビュー
-                    </button>
-                    <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>現在は構想段階のため、実際の応募は送信されません。</p>
-                  </div>
-
                   {/* 農家プロフィール（公開イメージ・確認ページにある変数のみ使用） */}
                   <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 0", borderBottom:"1px solid #F7F7F7", marginBottom:16 }}>
                     <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🧑‍🌾</div>
