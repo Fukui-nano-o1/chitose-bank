@@ -5035,8 +5035,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 step5: 募集人数（骨格・中身は段階Bで移植） ── */}
           {isFarmer && step === 5 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>報酬を入力してください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>時給または日給を入力します。金額に迷ったら、表示される地域の相場を参考にできます。働き手に選ばれやすい条件を、無理のない範囲で設定しましょう。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>勤務条件を入力してください</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>働く時間と報酬を入力します。金額に迷ったら、表示される地域の相場を参考にできます。無理のない範囲で、働き手に選ばれやすい条件を整えましょう。</p>
             <LFWizCard>
               {/* 4. 勤務時間（input type=time・iPhoneタイマー型） */}
               {(() => {
