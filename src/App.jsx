@@ -5175,7 +5175,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                             const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
                             if (upErr) throw upErr;
                             const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                            if (urlData?.publicUrl) uploaded.push(urlData.publicUrl);
+                            if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "" });
                           } catch (err) {
                             console.error('photo upload failed', file.name, err);
                           }
@@ -5210,7 +5210,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                             const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
                             if (upErr) throw upErr;
                             const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                            if (urlData?.publicUrl) uploaded.push(urlData.publicUrl);
+                            if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "" });
                           } catch (err) {
                             console.error('photo upload failed', file.name, err);
                           }
@@ -5229,17 +5229,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {jobPhotos.length > 0 && (
                     <div>
                       <div style={{ position:"relative", marginBottom:10 }}>
-                        <img src={jobPhotos[0]} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
+                        <img src={jobPhotos[0].url} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
                         <span className="f-sans" style={{ position:"absolute", top:10, left:10, padding:"4px 12px", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, fontWeight:700, borderRadius:8 }}>カバー</span>
                         <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== 0))} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:15, cursor:"pointer", lineHeight:1 }}>×</button>
                       </div>
                       {jobPhotos.length > 1 && (
                         <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                          {jobPhotos.slice(1).map((url, i) => {
+                          {jobPhotos.slice(1).map((p, i) => {
                             const idx = i + 1;
                             return (
                               <div key={idx} style={{ position:"relative" }}>
-                                <img src={url} alt={`写真${idx+1}`} style={{ width:100, height:100, objectFit:"cover", borderRadius:10, border:"1px solid #EEE" }} />
+                                <img src={p.url} alt={`写真${idx+1}`} style={{ width:100, height:100, objectFit:"cover", borderRadius:10, border:"1px solid #EEE" }} />
                                 <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== idx))} style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:"50%", border:"none", background:"#222", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                               </div>
                             );
@@ -5271,14 +5271,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:6 }}>写真ごとの説明</p>
         <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14 }}>写真を選ぶと、その写真について一言添えられます。</p>
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
-          {jobPhotos.map((url, i) => (
+          {jobPhotos.map((p, i) => (
             <button key={i} onClick={() => setSelectedPhotoIndex(i)} style={{ padding:0, border: i === selectedPhotoIndex ? "3px solid #00A86B" : "3px solid transparent", borderRadius:12, cursor:"pointer", background:"none", lineHeight:0 }}>
-              <img src={url} alt={`写真${i+1}`} style={{ width:84, height:84, objectFit:"cover", borderRadius:9, opacity: i === selectedPhotoIndex ? 1 : 0.6 }} />
+              <img src={p.url} alt={`写真${i+1}`} style={{ width:84, height:84, objectFit:"cover", borderRadius:9, opacity: i === selectedPhotoIndex ? 1 : 0.6 }} />
             </button>
           ))}
         </div>
         <div style={{ position:"relative" }}>
-          <img src={jobPhotos[selectedPhotoIndex]} alt="選択中の写真" style={{ width:"100%", height:200, objectFit:"cover", borderRadius:14, marginBottom:10 }} />
+          <img src={jobPhotos[selectedPhotoIndex]?.url} alt="選択中の写真" style={{ width:"100%", height:200, objectFit:"cover", borderRadius:14, marginBottom:10 }} />
         </div>
         <textarea
           value=""
@@ -5552,9 +5552,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <div style={{ position:"relative", maxWidth:870, margin:"0 auto" }}>
                       <div ref={confScrollRef} onScroll={e => { const w = e.currentTarget.offsetWidth; if (w > 0) setConfActiveSlide(Math.round(e.currentTarget.scrollLeft / w)); }} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12 }}>
                         {jobPhotos.length > 0
-                          ? jobPhotos.map((url, i) => (
+                          ? jobPhotos.map((p, i) => (
                               <div key={i} style={{ flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start" }}>
-                                <img src={url} alt={`写真${i+1}`} style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
+                                <img src={p.url} alt={`写真${i+1}`} style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
                               </div>
                             ))
                           : [0, 1, 2].map(i => (
