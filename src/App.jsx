@@ -5281,12 +5281,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           <img src={jobPhotos[selectedPhotoIndex]?.url} alt="選択中の写真" style={{ width:"100%", height:200, objectFit:"cover", borderRadius:14, marginBottom:10 }} />
         </div>
         <textarea
-          value=""
-          readOnly
+          value={jobPhotos[selectedPhotoIndex]?.caption ?? ""}
+          onChange={e => setJobPhotos(prev => prev.map((p, i) => i === selectedPhotoIndex ? { ...p, caption: e.target.value } : p))}
           placeholder="この写真について一言（例：収穫するブロッコリー畑です）"
-          style={{ width:"100%", minHeight:80, padding:"14px", fontSize:14, lineHeight:1.7, background:"#F7F7F7", color:"#B0B0B0", border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"none", boxSizing:"border-box", fontFamily:"inherit", cursor:"not-allowed" }}
+          maxLength={100}
+          style={{ width:"100%", minHeight:80, padding:"14px", fontSize:14, lineHeight:1.6, background:"#fff", color:"#222", border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
         />
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>※ 写真ごとの説明文は近日対応します。</p>
       </LFWizCard>
     )}
 
