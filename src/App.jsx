@@ -5399,38 +5399,59 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const periodLabel = jobDateStart ? (jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定") : "未設定";
             const ConfCalendar = () => {
               if (!jobDateStart) return null;
-              const cy = jobDateStart.getFullYear();
-              const cm = jobDateStart.getMonth();
               const WD2 = ["日","月","火","水","木","金","土"];
-              const firstDay = new Date(cy, cm, 1).getDay();
-              const daysInMonth = new Date(cy, cm + 1, 0).getDate();
               const sameDay = (a, b) => a && b && a.toDateString() === b.toDateString();
-              const cells = [];
-              for (let i = 0; i < firstDay; i++) cells.push(null);
-              for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
+              const end = jobDateEnd || jobDateStart;
+              // 開始月〜終了月を列挙
+              const months = [];
+              let y = jobDateStart.getFullYear(), m = jobDateStart.getMonth();
+              const ey = end.getFullYear(), em = end.getMonth();
+              while (y < ey || (y === ey && m <= em)) {
+                months.push({ y, m });
+                if (m === 11) { y++; m = 0; } else m++;
+                if (months.length > 12) break; // 安全弁
+              }
+              const LIMIT = 3;
+              const shown = months.slice(0, LIMIT);
+              const fmtEnd = `${end.getFullYear()}/${String(end.getMonth()+1).padStart(2,"0")}/${String(end.getDate()).padStart(2,"0")}（${WD2[end.getDay()]}）`;
+              const renderMonth = ({ y, m }) => {
+                const firstDay = new Date(y, m, 1).getDay();
+                const daysInMonth = new Date(y, m + 1, 0).getDate();
+                const cells = [];
+                for (let i = 0; i < firstDay; i++) cells.push(null);
+                for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
+                return (
+                  <div key={`${y}-${m}`} style={{ marginBottom:12 }}>
+                    <div style={{ textAlign:"center", marginBottom:10 }}>
+                      <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{y}年{m+1}月</span>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+                      {WD2.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
+                      {cells.map((dd, i) => {
+                        if (!dd) return <div key={`e${i}`} />;
+                        const dt = new Date(y, m, dd);
+                        const isStart = sameDay(dt, jobDateStart);
+                        const isEnd   = sameDay(dt, jobDateEnd);
+                        const inRange = jobDateStart && jobDateEnd && dt > jobDateStart && dt < jobDateEnd;
+                        return (
+                          <div key={dd} style={{
+                            padding:"7px 2px", borderRadius:8, fontSize:13, textAlign:"center",
+                            background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
+                            color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
+                            fontWeight: (isStart||isEnd) ? 700 : 400,
+                          }}>{dd}</div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              };
               return (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginBottom:16 }}>
-                  <div style={{ textAlign:"center", marginBottom:10 }}>
-                    <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{cy}年{cm+1}月</span>
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
-                    {WD2.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
-                    {cells.map((dd, i) => {
-                      if (!dd) return <div key={`e${i}`} />;
-                      const dt = new Date(cy, cm, dd);
-                      const isStart = sameDay(dt, jobDateStart);
-                      const isEnd   = sameDay(dt, jobDateEnd);
-                      const inRange = jobDateStart && jobDateEnd && dt > jobDateStart && dt < jobDateEnd;
-                      return (
-                        <div key={dd} style={{
-                          padding:"7px 2px", borderRadius:8, fontSize:13, textAlign:"center",
-                          background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
-                          color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
-                          fontWeight: (isStart||isEnd) ? 700 : 400,
-                        }}>{dd}</div>
-                      );
-                    })}
-                  </div>
+                  {shown.map(renderMonth)}
+                  {months.length > LIMIT && (
+                    <p className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", marginTop:4 }}>ほか {months.length - LIMIT} か月　〜 {fmtEnd} まで</p>
+                  )}
                 </div>
               );
             };
