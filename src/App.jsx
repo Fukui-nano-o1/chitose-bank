@@ -5494,18 +5494,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               setJobSaving(true);
               try {
                 const { data: { session } } = await supabase.auth.getSession();
-                alert("DEBUG session: " + (session ? ("あり email=" + session.user?.email) : "なし(null)"));
-                if (!session || !isAdmin(session.user)) {
-                  alert("DEBUG: 管理者ゲートで弾かれた → saveDraft+onLogin");
-                  saveDraft(); onLogin(); return;
-                }
-                alert("DEBUG: ゲート通過。INSERT実行する");
+                if (!session || !isAdmin(session.user)) { saveDraft(); onLogin(); return; }
                 const { data, error, status } = await supabase.from("jobs").insert(buildJobPayload(session.user.id)).select();
-                alert("DEBUG INSERT結果: status=" + status + " error=" + (error ? error.message : "なし") + " 挿入行数=" + (data ? data.length : "null"));
+                alert("【管理者デバッグ】status=" + status + " error=" + (error ? error.message : "なし") + " 挿入行数=" + (data ? data.length : "null"));
                 if (error) { return; }
                 setStep(12);
               } catch (e) {
-                alert("DEBUG catch: " + (e?.message || e));
+                alert("【管理者デバッグ】catch: " + (e?.message || e));
               } finally {
                 setJobSaving(false);
               }
