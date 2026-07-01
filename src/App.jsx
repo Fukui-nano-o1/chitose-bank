@@ -4817,7 +4817,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&!!farmerPref.trim()&&!!farmerCity.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation), true, true, true, true, true, true, true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&!!farmerPref.trim()&&!!farmerCity.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -4854,7 +4854,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       <div style={embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center" }
         : { height:"100%", overflowY:"auto" })}>
-        <div key={step} className="fade-in" style={{ maxWidth: (step === 12 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
+        <div key={step} className="fade-in" style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
 
           {/* ── HOME ── */}
           {step === 0 && (
@@ -5233,68 +5233,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           </>)}
 
-          {/* ── 農家 step9: 勤務時間・休憩・移動時間 ── */}
-          {isFarmer && step === 9 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>勤務時間・休憩・移動</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>働く時間や休憩、集合場所までの移動について入力してください。</p>
-            <LFWizCard>
-              {/* 4. 勤務時間（input type=time・iPhoneタイマー型） */}
-              {(() => {
-                const timeStyle = { height:48, borderRadius:12, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:16, fontWeight:700, textAlign:"center", padding:"0 10px", outline:"none", cursor:"pointer" };
-                const rowStyle = { display:"flex", alignItems:"center", justifyContent:"center", gap:10, flexWrap:"wrap", marginTop:12 };
-                const toTime = (h, m) => `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-                const fromTime = (val, setH, setM) => {
-                  if (!val) return;
-                  const [h, m] = val.split(":");
-                  setH(String(Number(h)));
-                  setM(m);
-                };
-                return (
-                  <div style={{ marginBottom:14 }}>
-                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
-                    <div style={rowStyle}>
-                      <input type="time" value={toTime(startHour, startMinute)} onChange={e => fromTime(e.target.value, setStartHour, setStartMinute)} style={timeStyle} />
-                      <span style={{ margin:"0 6px", color:"#717171", fontWeight:700, fontSize:16 }}>〜</span>
-                      <input type="time" value={toTime(endHour, endMinute)} onChange={e => fromTime(e.target.value, setEndHour, setEndMinute)} style={timeStyle} />
-                    </div>
-                    <p className="f-sans" style={{ fontSize:12, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
-                  </div>
-                );
-              })()}
-              {/* 5-b. 休憩時間（グループ2予定） */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
-                <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
-                  <option value="">選択してください</option>
-                  <option value="なし">なし</option>
-                  <option value="30分">30分</option>
-                  <option value="60分">60分</option>
-                  <option value="90分">90分</option>
-                  <option value="120分">120分</option>
-                </select>
-              </div>
-              {/* 5-c. 最寄り駅からの移動時間 */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>最寄り駅からの移動時間</label>
-                <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-                  <input value={nearestStation} onChange={e => setNearestStation(e.target.value)} placeholder="例：阿波山川駅" className="field f-sans" style={{ fontSize:14, maxWidth:160 }} />
-                  <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>から</span>
-                  <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
-                    <option value="">選択してください</option>
-                    <option value="徒歩5分以内">徒歩5分以内</option>
-                    <option value="徒歩10分以内">徒歩10分以内</option>
-                    <option value="車5分以内">車5分以内</option>
-                    <option value="車10分以内">車10分以内</option>
-                    <option value="車20分以内">車20分以内</option>
-                  </select>
-                </div>
-              </div>
-            </LFWizCard>
-          </>)}
-
           {/* ── 農家 step10: 危険箇所 ── */}
-          {isFarmer && step === 10 && (<>
+          {isFarmer && step === 9 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>危険な作業・場所</h2>
             <p className="f-sans" style={lfStyles.subtitle}>危険な場所や作業を入力できます。写真や補足説明を添えると、より正確に伝わります。安心して働けるよう、気になる危険は正直に伝えましょう。</p>
             <LFWizCard>
@@ -5348,7 +5288,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           </>)}
 
           {/* ── 農家 step11: 持ち物・備考＋必要経験 ── */}
-          {isFarmer && step === 11 && (<>
+          {isFarmer && step === 10 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>働き手への希望</h2>
             <p className="f-sans" style={lfStyles.subtitle}>持ち物や注意事項、求める経験など、働き手に伝えておきたいことを入力できます。作業に必要な道具や安全への備えは、受け入れる農家側でご用意・ご対応ください。（すべて任意です）</p>
             <LFWizCard>
@@ -5430,7 +5370,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
-          {isFarmer && step === 12 && (() => {
+          {isFarmer && step === 11 && (() => {
             const JT_MAP = {
               "収穫補助": { body:"作物の収穫、運搬補助、簡単な選別作業をお願いします。未経験の方でも、当日説明します。", items:["汚れてもよい服","長靴","手袋","飲み物","帽子"], notes:"屋外作業のため、天候により時間変更の可能性があります。" },
               "選果作業": { body:"収穫した作物の仕分け、箱詰め、出荷前の確認作業をお願いします。", items:["動きやすい服","飲み物","手袋"], notes:"立ち作業が中心になる場合があります。" },
@@ -5759,7 +5699,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
           {/* ── 農家 Step3: 完了 ── */}
           {/* ── 農家 Step3: 完了 ── */}
-          {isFarmer && step === 13 && (<>
+          {isFarmer && step === 12 && (<>
             <div style={{ textAlign:"center", paddingTop:20 }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
               <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>ご協力ありがとうございます</h2>
@@ -6169,11 +6109,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { l:"農6G2説明",     dj:{ role:"farmer", step:6 } },
             { l:"農7写真",       dj:{ role:"farmer", step:7 } },
             { l:"農8作業説明",   dj:{ role:"farmer", step:8 } },
-            { l:"農9勤務時間",   dj:{ role:"farmer", step:9 } },
-            { l:"農10危険",      dj:{ role:"farmer", step:10 } },
-            { l:"農11持ち物",    dj:{ role:"farmer", step:11 } },
-            { l:"農確認",        dj:{ role:"farmer", step:12 } },
-            { l:"農完了",        dj:{ role:"farmer", step:13 } },
+            { l:"農9危険",       dj:{ role:"farmer", step:9 } },
+            { l:"農10持ち物",    dj:{ role:"farmer", step:10 } },
+            { l:"農確認",        dj:{ role:"farmer", step:11 } },
+            { l:"農完了",        dj:{ role:"farmer", step:12 } },
             { l:"ページX",       dj:{ role:"farmer", step:90 } },
             { l:"働3",           dj:{ role:"worker", step:3 } },
             { l:"働6求人",       dj:{ role:"worker", step:6, workerPurpose:"search" } },
