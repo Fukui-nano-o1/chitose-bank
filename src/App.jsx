@@ -7780,7 +7780,7 @@ export default function App(){
         const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
         f = [loggedIn];
         setMe({ ...loggedIn, id: session.user.id });
-        setTab("board");
+        if (!readHashTab()) setTab("board"); // URLにタブ指定があれば尊重（リンク第1段）。無指定時のみ従来通りboardへ
       }
       const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
       if (dbRecs) {
