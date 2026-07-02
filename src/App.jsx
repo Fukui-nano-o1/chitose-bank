@@ -4684,11 +4684,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     const netH   = Math.max(workHours - breakH, 0);
     return hourlyWage > 0 ? Math.round(hourlyWage * netH * days) : dailyWage > 0 ? dailyWage * days : 0;
   };
-  const [jobExp,            setJobExp]            = useState("");
+  const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
   const [jobSaving, setJobSaving] = useState(false);
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
-  const [jobTemplate,       setJobTemplate]       = useState("収穫補助");
+  const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
   const farmerCrop = farmerCropPill === "__other__" ? farmerCropText.trim() : (farmerCropText.trim() || farmerCropPill);
@@ -5577,6 +5577,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 const draft = {
                   role: "farmer", farmerStep: 5, // 5=確認画面（新フロー）
                   farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
+                  farmerZip, farmerPref, farmerCity, farmerAddr, jobPhotos,
                   farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
                   farmerWanted, farmerPayType, payTiming, payMethod,
                   startHour, startMinute, endHour, endMinute,
