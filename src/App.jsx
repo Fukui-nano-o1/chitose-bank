@@ -7968,7 +7968,8 @@ const subDest=useCallback(async d=>{
   const TABS = ALL_TABS.filter(t=>t.modes.includes(mode));
 
   const visibleTabKeys = TABS.map(t=>t.k);
-  const safeTab = visibleTabKeys.includes(tab) ? tab : "labor";
+  // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
+  const safeTab = (!me && tab === "input") ? "input" : (visibleTabKeys.includes(tab) ? tab : "labor");
 
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
