@@ -7686,7 +7686,21 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
-  const [tab,setTab]=useState("jobs");
+  // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
+  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin"];
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); return TAB_URL_KEYS.includes(h) ? h : null; };
+  const [tab,setTab]=useState(readHashTab() ?? "jobs");
+  // tab → URL：タブが変わったらアドレスバーの#を書き換える
+  useEffect(() => {
+    const target = "#/" + tab;
+    if (window.location.hash !== target) window.location.hash = "/" + tab;
+  }, [tab]);
+  // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
+  useEffect(() => {
+    const onHash = () => { const t = readHashTab(); if (t) setTab(t); };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
   const [farmers,setFarmers]=useState([]);
   const [farmPend,setFarmPend]=useState([]);
   const [destOk,setDestOk]=useState([]);
