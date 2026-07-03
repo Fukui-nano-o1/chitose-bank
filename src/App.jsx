@@ -4785,7 +4785,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         const { data, error } = await supabase.from("jobs").select("*").eq("job_number", _editJobNumber).eq("farmer_id", session.user.id).single();
-        if (error || !data) return;
+        if (error || !data) { alert("【復元デバッグ】select失敗 error=" + (error ? error.message : "なし") + " data=" + (data ? "あり" : "null") + " job_number=" + _editJobNumber); return; }
         setRole("farmer");
         setFarmerCropText(data.crop ?? "");
         setFarmerTaskText(data.task ?? "");
@@ -4809,7 +4809,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setJobDangerTasks(data.danger_tasks ?? []);
         setJobPhotos(data.photos ?? []);
         setStep(11);
-      } catch {}
+      } catch (e) { alert("【復元デバッグ】" + (e?.message || e)); }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [draftSaving, setDraftSaving] = useState(false);
