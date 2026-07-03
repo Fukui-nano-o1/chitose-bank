@@ -3946,6 +3946,34 @@ function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleSt
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [dbJobs, setDbJobs] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.from("jobs_public").select("*").order("job_number",{ascending:false});
+        if (!error && data) {
+          const mapped = data.map(j => ({
+            id: j.job_number,
+            crop: j.crop || "",
+            task: j.task || "",
+            dateLabel: j.date_label || "",
+            payType: j.pay_type === "日給" ? "daily" : "hourly",
+            pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
+            region: [j.prefecture, j.city].filter(Boolean).join("") || "",
+            experience: j.job_exp || "未経験可",
+            icon: "🌾",
+            lat: 34.05, lng: 134.23,
+            headcount: j.headcount, photos: j.photos || [],
+            nearestStation: j.nearest_station || "", workTime: j.work_time || "",
+            breakTime: j.break_time || "", notes: j.notes || "",
+            dangerPlaces: j.danger_places || [], dangerTasks: j.danger_tasks || [],
+          }));
+          setDbJobs(mapped);
+        }
+      } catch {}
+    })();
+  }, []);
+  const jobList = (dbJobs && dbJobs.length > 0) ? dbJobs : JOB_SEARCH_SAMPLES;
   const [activeSlide, setActiveSlide] = useState(0);
   const [reviewSort, setReviewSort] = useState("new");
   const [showAllReviews, setShowAllReviews] = useState(false);
@@ -4008,7 +4036,7 @@ function JobSearchMapView({ onRegister }) {
       {/* 仕事リスト */}
       <div className="job-search-layout">
         <div>
-          {JOB_SEARCH_SAMPLES.map(job => (
+          {jobList.map(job => (
             <button
               key={job.id}
               onClick={() => openJob(job)}
@@ -4392,7 +4420,7 @@ function JobSearchMapView({ onRegister }) {
               className="carousel-scroll"
               style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
             >
-              {JOB_SEARCH_SAMPLES.filter(job => job.id !== selectedJob.id).map(job => (
+              {jobList.filter(job => job.id !== selectedJob.id).map(job => (
                 <button
                   key={job.id}
                   onClick={() => openJob(job)}
