@@ -4188,7 +4188,7 @@ function JobSearchMapView({ onRegister }) {
 
               {/* CTAボタン */}
               <button
-                onClick={() => onRegister && onRegister()}
+                onClick={() => { window.location.hash = "/apply/done"; }}
                 className="btn-primary f-sans"
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
               >この仕事に興味がある</button>
@@ -7845,7 +7845,7 @@ export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
@@ -8330,7 +8330,22 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
-        {safeTab==="search"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
+        {(window.location.hash.replace(/^#\/?/,"")==="apply/done") ? (
+          <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
+            <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
+            <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>応募を受け付けました</h2>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:8 }}>
+              これはまだ採用ではありません。<br/>
+              農家が内容を確認し、承認するとお知らせします。<br/>
+              その後、打ち合わせ・面接を経て、契約となります。
+            </p>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginBottom:28 }}>
+              chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。
+            </p>
+            <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
+          </div>
+        ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} /> : null}
+        {safeTab==="search"&&false&&<JobSearchMapView onRegister={()=>setTab("login")} />}
         {safeTab==="work"&&(mode==="farmer"
           ? <>
               {me&&!me.isWorker&&me.status==="pending"&&(
