@@ -5670,16 +5670,20 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session || !isAdmin(session.user)) { saveDraft(); onLogin(); return; }
+                let _jn = draftJobNumber;
+                if (!_jn) { try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _jn = _d.job_number ?? null; } catch {} }
                 let error;
-                if (draftJobNumber) {
-                  const r = await supabase.from("jobs").update(buildJobPayload(session.user.id, "pending")).eq("job_number", draftJobNumber).eq("farmer_id", session.user.id);
+                if (_jn) {
+                  const r = await supabase.from("jobs").update(buildJobPayload(session.user.id, "pending")).eq("job_number", _jn).eq("farmer_id", session.user.id);
                   error = r.error;
                 } else {
-                  const r = await supabase.from("jobs").insert(buildJobPayload(session.user.id, "pending")).select();
+                  const r = await supabase.from("jobs").insert(buildJobPayload(session.user.id, "pending")).select("job_number").single();
                   error = r.error;
+                  if (!error && r.data) setDraftJobNumber(r.data.job_number);
                 }
                 if (error) { alert("掲載エラー: " + error.message); return; }
                 try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
+                setDraftJobNumber(null);
                 setStep(12);
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
