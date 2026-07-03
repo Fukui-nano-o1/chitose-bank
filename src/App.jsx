@@ -4638,7 +4638,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
 
   const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? initialRole ?? ""); // "" | "farmer" | "worker"
-  const [step, setStep] = useState(_devJump?.step ?? (_draftInit ? 5 : 0)); // 0=home, 1-8=flow（両モードとも説明ページから開始）
+  const [step, setStep] = useState(_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : 0)); // draftは記録された中断stepから再開（Airbnb模擬）
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
@@ -4771,6 +4771,32 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   const goNext = () => setStep(s => s + 1);
   const goBack = () => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); };
+
+  // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
+  const saveDraft = () => {
+    try {
+      const draft = {
+        role: "farmer", farmerStep: step, // 保存時点の実ステップを記録（旧「5=確認画面」の化石を撤去）
+        farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
+        farmerZip, farmerPref, farmerCity, farmerAddr, jobPhotos,
+        farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
+        farmerWanted, farmerPayType, payTiming, payMethod,
+        startHour, startMinute, endHour, endMinute,
+        jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
+        jobExp, jobTemplate, jobNotes, jobCautions, jobDescription,
+        jobDateStart: jobDateStart?.toISOString() ?? null,
+        jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
+      };
+      localStorage.setItem('landingFlowDraft_v1', JSON.stringify(draft));
+      localStorage.setItem('postLoginReturnTo', 'landingFlowFarmerConfirm');
+      // ログイン後: LandingFlow 初期化時に _draftInit が読み込まれ、
+      //   role="farmer", step=5（確認画面）として復元される
+    } catch {}
+  };
+  // Airbnb模擬・部品1:step移動ごとに自動で下書き保存（農家フロー中のみ・home(0)と完了(12)は除外）
+  useEffect(() => {
+    if (role === "farmer" && step >= 1 && step <= 11) saveDraft();
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 選択した瞬間に次へ進む（140ms で選択状態を視認させてから遷移）
   const selectAndNext = (setter, value) => {
@@ -5622,28 +5648,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               } finally {
                 setJobSaving(false);
               }
-            };
-
-            // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
-            const saveDraft = () => {
-              try {
-                const draft = {
-                  role: "farmer", farmerStep: step, // 保存時点の実ステップを記録（旧「5=確認画面」の化石を撤去）
-                  farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
-                  farmerZip, farmerPref, farmerCity, farmerAddr, jobPhotos,
-                  farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
-                  farmerWanted, farmerPayType, payTiming, payMethod,
-                  startHour, startMinute, endHour, endMinute,
-                  jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
-                  jobExp, jobTemplate, jobNotes, jobCautions, jobDescription,
-                  jobDateStart: jobDateStart?.toISOString() ?? null,
-                  jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
-                };
-                localStorage.setItem('landingFlowDraft_v1', JSON.stringify(draft));
-                localStorage.setItem('postLoginReturnTo', 'landingFlowFarmerConfirm');
-                // ログイン後: LandingFlow 初期化時に _draftInit が読み込まれ、
-                //   role="farmer", step=5（確認画面）として復元される
-              } catch {}
             };
 
             const tagStyle = { padding:"6px 14px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:13 };
