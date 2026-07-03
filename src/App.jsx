@@ -8373,7 +8373,7 @@ const subDest=useCallback(async d=>{
               )}
               <FarmerDashboard
                 onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-                onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/job/"+n; }}
+                onResume={(n)=>{ try{ const _d=JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _d.job_number=n; localStorage.setItem("landingFlowDraft_v1",JSON.stringify(_d)); localStorage.setItem("postLoginReturnTo","landingFlowFarmerConfirm"); }catch{} setShowJobPost(true); window.location.hash="/work/new/11"; }}
               />
             </>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
@@ -8392,7 +8392,7 @@ const subDest=useCallback(async d=>{
         {safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-              onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/job/"+n; }}
+              onResume={(n)=>{ try{ const _d=JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _d.job_number=n; localStorage.setItem("landingFlowDraft_v1",JSON.stringify(_d)); localStorage.setItem("postLoginReturnTo","landingFlowFarmerConfirm"); }catch{} setShowJobPost(true); window.location.hash="/work/new/11"; }}
             />
           : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("login")} mode={mode} />)}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
