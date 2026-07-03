@@ -4079,8 +4079,8 @@ function JobSearchMapView({ onRegister }) {
                 本名・詳細住所は公開しません。
               </p>
 
-              {/* 危険区域セクション（場所・作業のギャラリー型・ガワのみ・selectedJob.dangerPlaces/dangerTasks参照。
-                  左カラム内に配置し、応募パネル(sticky)の追従可動域をここまで伸ばす） */}
+              {/* 危険区域セクション（両方空なら見出しごと非表示＝ブロック化） */}
+              {((selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) || (selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0)) && (
               <div style={{ marginBottom:100 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
                   <span style={{ fontSize:18 }}>⚠️</span>
@@ -4125,6 +4125,7 @@ function JobSearchMapView({ onRegister }) {
                   </>
                 )}
               </div>
+              )}
             </div>
 
             {/* 右カラム: 応募パネル（段階2-a・ガワのみ。応募は実稼働しない）
