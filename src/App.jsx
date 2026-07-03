@@ -4780,6 +4780,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftMsg, setDraftMsg] = useState("");
   const [draftBarFull, setDraftBarFull] = useState(false);
+  const [draftOverlay, setDraftOverlay] = useState(false);
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
@@ -5689,7 +5690,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 setDraftBarFull(true);
                 try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
                 setDraftMsg("作成中に保存しました（求人番号 " + res.jobNumber + "）");
-                setTimeout(() => { window.location.hash = "/work"; window.location.reload(); }, 1100);
+                setDraftOverlay(true);
+                setTimeout(() => { setDraftOverlay(false); window.location.hash = "/work"; if (typeof onComplete === "function") onComplete(); }, 1100);
               } else if (res.reason === "no_session") {
                 saveDraft(); onLogin();
               } else {
@@ -5837,6 +5839,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   </button>
                   {draftMsg && <p className="f-sans" style={{ fontSize:11, color:draftMsg.startsWith("保存に失敗") ? "#E24B4A" : "#00A86B", textAlign:"center", marginBottom:8 }}>{draftMsg}</p>}
                   <p className="f-sans" style={{ fontSize:11, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", marginBottom:8 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
+                  {draftOverlay && (
+                    <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.92)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+                      <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
+                      <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>保存しています…</p>
+                      <style>{`@keyframes cbspin { to { transform: rotate(360deg); } }`}</style>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* ═══ 大きな地図（2カラムの後・移動先） ═══ */}
