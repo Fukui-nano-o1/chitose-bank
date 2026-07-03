@@ -956,3 +956,9 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 6. 働き手me形の本設計（isWorker最小形からの昇格）・FarmerDashboard命名整理
 
 ━━━ ここまで ━━━
+
+━━━ 2026-07-03(続2) 承認待ちの可視化完成 ━━━
+・work部屋にpending農家向け承認待ちバナー常時表示(4b933b6)。条件=me&&!me.isWorker&&me.status==="pending"。文言「運営thが内容を確認しています。承認後に求人の公開thができるようになります（通常1〜2日以内）」。approvedになれば自然消滅。
+・バグ修正(fcc7407):セッション復元(7833付近)とcompleteOnboarding(7886付近)のloggedInオブジェクトにstatusthが含まれず、リロード後にme.statusthがundefined→バナー消失。両方にstatus:dbFarmer.statusを追加。教訓=meを手組みする箇所thが3つある（role選択・セッション復元・onboarding完了）。列を足す時は3箇所全部に運ぶこと。
+・既知の憲法3条違反（Phase2aで根治）:FarmerDashboardの「あなたの求人」はダミー4件固定。pending農家にも自分thが出してない求人thが見える。Phase2a=「働き手に求人を見せる」＋「農家に自分の本当の求人を見せる」の両方の仕事。
+━━━ ここまで ━━━
