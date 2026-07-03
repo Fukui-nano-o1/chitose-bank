@@ -7941,7 +7941,7 @@ export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h === "work" || (h.startsWith("work/") && !h.startsWith("work/new") && !h.startsWith("work/edit/"))) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h === "work" || h.startsWith("work/")) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
