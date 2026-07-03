@@ -7752,7 +7752,9 @@ export default function App(){
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
   useEffect(() => {
     const target = "#/" + tab;
-    if (window.location.hash !== target) window.location.hash = "/" + tab;
+    const _curHash = window.location.hash.replace(/^#\/?/, "");
+    const _inNewJob = _curHash === "work/new" || _curHash.startsWith("work/new/");
+    if (!_inNewJob && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
   useEffect(() => {
