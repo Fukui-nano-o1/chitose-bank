@@ -3784,6 +3784,54 @@ function calcMaxPay(job) {
 
 // 応募パネルの開催期間ミニカレンダー用パース（段階2-a・ダミー前提・年は2026固定）
 // dateLabel "6/10〜6/13" / "6/15" を想定。月をまたぐ場合は開始月のみ表示し、月末までをハイライト。フォーマット外は null
+// 読み書き両用カレンダー（モジュールレベル・入力側と詳細表示側で共有）
+function CalendarView({ start, end, readOnly = false, onSelect }) {
+  const WD_CV = ["日","月","火","水","木","金","土"];
+  const isSameDayCV = (a, b) => a && b && a.toDateString() === b.toDateString();
+  const initY = start ? start.getFullYear() : new Date().getFullYear();
+  const initM = start ? start.getMonth() : new Date().getMonth();
+  const [cvYear, setCvYear] = useState(initY);
+  const [cvMonth, setCvMonth] = useState(initM);
+  useEffect(() => {
+    if (start) { setCvYear(start.getFullYear()); setCvMonth(start.getMonth()); }
+  }, [start ? start.getTime() : null]);
+  const firstDay = new Date(cvYear, cvMonth, 1).getDay();
+  const daysInMonth = new Date(cvYear, cvMonth + 1, 0).getDate();
+  const prevMo = () => { if (cvMonth===0){ setCvYear(y=>y-1); setCvMonth(11);} else setCvMonth(m=>m-1); };
+  const nextMo = () => { if (cvMonth===11){ setCvYear(y=>y+1); setCvMonth(0);} else setCvMonth(m=>m+1); };
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
+  return (
+    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginTop:8 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"‹"}</button>
+        <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{cvYear}年{cvMonth+1}月</span>
+        <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"›"}</button>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:8 }}>
+        {WD_CV.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
+        {cells.map((dd, i) => {
+          if (!dd) return <div key={`e${i}`} />;
+          const dt = new Date(cvYear, cvMonth, dd);
+          const isStart = isSameDayCV(dt, start);
+          const isEnd = isSameDayCV(dt, end);
+          const inRange = start && end && dt > start && dt < end;
+          return (
+            <button key={dd} onClick={readOnly ? undefined : () => onSelect && onSelect(dt)} style={{
+              padding:"7px 2px", borderRadius:8, border:"none", cursor: readOnly ? "default" : "pointer", fontSize:13, textAlign:"center",
+              background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
+              color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
+              fontWeight: (isStart||isEnd) ? 700 : 400,
+            }}>{dd}</button>
+          );
+        })}
+      </div>
+      {!readOnly && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>終了日を選ばない場合は、1日募集として扱います</p>}
+    </div>
+  );
+}
+
 function parseCalendarRange(dateLabel) {
   const match = /^(\d{1,2})\/(\d{1,2})(?:〜(\d{1,2})\/(\d{1,2}))?$/.exec(dateLabel || "");
   if (!match) return null;
