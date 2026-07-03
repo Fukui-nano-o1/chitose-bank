@@ -4986,7 +4986,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       )}
 
       {/* 保存して終了ボタン（TODO: 管理者(isAdmin)限定で下書き保存を実装する。現状は保存せず閉じるのみ） */}
-      {!embedded && (
+      {!embedded && step !== 12 && (
         <button onClick={onSkip} className="f-sans" style={{
           position:"absolute", top:step > 0 ? 24 : 16, right:20,
           background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"8px 18px",
@@ -6122,7 +6122,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       </div>
 
       {/* 下部ナビ（ホーム・完了画面以外） */}
-      {step > 0 && step < TOTAL && (
+      {step > 0 && step < TOTAL && step !== 12 && (
         <div style={embedded ? {
           background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 20px",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
