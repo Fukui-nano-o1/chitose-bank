@@ -7844,7 +7844,8 @@ export default function App(){
         const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, status: dbFarmer.status, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
         f = [loggedIn];
         setMe({ ...loggedIn, id: session.user.id });
-        if (!initialHashTab) setTab("work"); // ログイン済みがhash無しで来たら「しごと」へ（骨格③）
+        const _onNewJobFlow = (() => { const h = window.location.hash.replace(/^#\/?/, ""); return h === "work/new" || h.startsWith("work/new/"); })();
+        if (!initialHashTab && !_onNewJobFlow) setTab("work"); // hash無しの時だけ「しごと」へ。求人フロー中(#/work/new)は送還しない（骨格③）
       }
       const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
       if (dbRecs) {
