@@ -900,3 +900,26 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 ・血肉確認済:URL直打ち○／タブとアドレスバー連動○／ログイン済みF5でタブ維持○。
 ・既知の軽微バグ（放置・第2段で解消）:ログアウト後の着地thがboardでなくlaborになる。原因はreload後の未ログイン初期化thがboardを弾くフォールバックと推定。第2段でログアウト→#/loginへ設計し直すため今は直さない。
 ・原則:URL＝場所、ログイン状態＝その場所で何thが見えるか。未ログインとログイン済みでURLは分けない。ログイン画面thが#/input間借りなのは前身アプリの遺物＝第2段で#/loginとして独立。
+
+━━━ 2026-07-03 リンク第2段完了（3タブ骨格thが本番化） ━━━
+
+【完了した工事（2-1〜2-4b・全push済み）】
+・2-1(09e05d3):新4部屋(search/work/profile/login)を空ページで建設。NEW_TAB_KEYS導入。
+・2-2a(825150b):loginにLoginScreen・searchにJobSearchMapViewを流用配置。
+・2-2b(f6bfb8f):workにFarmerDashboard(farmer時・worker時は準備中表示)・profileに最小看板(me.name＋handleLogoutボタン＋未ログイン時はloginへの導線)。
+・2-3(タブバー掛け替え):ALL_TABS=search(さがす)/work(しごと)/profile(プロフィール)＋admin(isAdminのみ)。モバイルicons表にsearch🔍/work🤝/profile👤追加。旧タブ(labor/jobs/board/input/plan)は避難部屋化。
+・2-4a(5cdf672＋1641f17):safeTabをTAB_URL_KEYS基準に（避難部屋の到達性回復・admin/planは資格ガード）。初期値search・セッション復元はwork・ログアウトはsearch着地。hash競合はinitialHashTab(起動瞬間の記録)で解決。
+・2-4b(a434614):ログイン導線6本を#/loginへ張り替え。ログイン成功→work着地。setTab("input")残存は正当な2件のみ(今すぐ入力する・データを入力する)。
+
+【設計判断の記録】
+・タブ名はwork（dashboardにしない）:dashboardは農家面の家具名。workは両役割の部屋名。URL=ユーザーthが読む文章。
+・InputTabのonGoBoard(申請後に公開ボードへ)は機能遷移so残す。旧世界を畳む日に一緒に死ぬ。
+・FarmerDashboardという家具名とwork部屋名の不一致は既知・後日整理。
+・ログアウトのhandleLogout内board→search変更済み。completeOnboardingはwork着地。
+
+【発見された穴（次回向け）】
+・働き手thが登録する道thが本番に1本も無い（旧「募集中の仕事→実証に参加」thが避難部屋化で消えた）。埋めるのは骨格⑥の役割選択画面＝LoginScreen違反修理(自動farmers upsert/自動approved廃止→OTP後にプロフィール有無チェック→2択role選択→working手はworkersテーブルへ)。これthが次回最優先。
+・第3段(未着手):求人入力フローのstep URL(#/work/new/5等)＋step移動ごとの自動draft保存（入力中リロードで消える問題）。
+・第4段(未着手):求人詳細#/job/{id}等の個別リソースURL（Phase2aと同時）。
+
+━━━ ここまで ━━━
