@@ -4776,6 +4776,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     if (onStepChange && role === "farmer" && step >= 1 && step <= 11) onStepChange(step);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [draftJobNumber, setDraftJobNumber] = useState(_draftInit?.job_number ?? null);
+
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
     try {
@@ -4797,6 +4799,25 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       //   role="farmer", step=5（確認画面）として復元される
     } catch {}
   };
+
+  const saveDraftToSupabase = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return { ok:false, reason:"no_session" };
+      const payload = buildJobPayload(session.user.id, "draft");
+      if (draftJobNumber) {
+        const { error } = await supabase.from("jobs").update(payload).eq("job_number", draftJobNumber).eq("farmer_id", session.user.id);
+        if (error) return { ok:false, reason:error.message };
+        return { ok:true, jobNumber:draftJobNumber };
+      } else {
+        const { data, error } = await supabase.from("jobs").insert(payload).select("job_number").single();
+        if (error) return { ok:false, reason:error.message };
+        setDraftJobNumber(data.job_number);
+        return { ok:true, jobNumber:data.job_number };
+      }
+    } catch (e) { return { ok:false, reason:String(e) }; }
+  };
+
   // Airbnb模擬・部品1:step移動ごとに自動で下書き保存（農家フロー中のみ・home(0)と完了(12)は除外）
   useEffect(() => {
     if (role === "farmer" && step >= 1 && step <= 11) saveDraft();
@@ -5611,7 +5632,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const missingFields = fieldNames.filter((_, i) => !profileFields[i]);
 
             // jobs INSERT用ペイロード（対応表・項目増減はここだけ直す）
-            const buildJobPayload = (authUid) => ({
+            const buildJobPayload = (authUid, statusVal = "pending") => ({
               farmer_id:       authUid,
               crop:            farmerCrop,
               task:            farmerTask,
@@ -5635,7 +5656,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               danger_places:   jobDangerPlaces,
               danger_tasks:    jobDangerTasks,
               photos:          jobPhotos,
-              status:          "pending",
+              status:          statusVal,
             });
             const handleSaveJob = async () => {
               if (jobSaving) return;
