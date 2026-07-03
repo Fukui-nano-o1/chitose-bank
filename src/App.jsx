@@ -7690,7 +7690,8 @@ export default function App(){
   const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login"];
   const NEW_TAB_KEYS = ["search","work","profile","login"]; // 第2段の新部屋（タブバー非表示・URL直打ちのみ）
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); return TAB_URL_KEYS.includes(h) ? h : null; };
-  const [tab,setTab]=useState(readHashTab() ?? "search");
+  const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
+  const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
   useEffect(() => {
     const target = "#/" + tab;
@@ -7781,7 +7782,7 @@ export default function App(){
         const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
         f = [loggedIn];
         setMe({ ...loggedIn, id: session.user.id });
-        if (!readHashTab()) setTab("work"); // ログイン済みがhash無しで来たら「しごと」へ（骨格③）
+        if (!initialHashTab) setTab("work"); // ログイン済みがhash無しで来たら「しごと」へ（骨格③）
       }
       const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
       if (dbRecs) {
