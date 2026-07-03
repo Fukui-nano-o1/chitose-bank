@@ -1031,7 +1031,7 @@ function GhostCard({ index }) {
 }
 
 // ── LoginScreen — メールOTP認証 ───────────────────────────────
-function LoginScreen({ farmers, onLogin, onGoRegister }) {
+function LoginScreen({ farmers, onLogin, onGoRegister, onNeedRole }) {
   const [email,   setEmail]   = useState("");
   const [code,    setCode]    = useState("");
   const [pending, setPending] = useState(null); // {code, expiresAt}
@@ -1061,29 +1061,25 @@ const verifyCode = async () => {
     setSending(false);
     if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
     const normalizedEmail = email.trim().toLowerCase();
-    const { data: farmer, error: farmerErr } = await supabase
+    // 既存プロフィールを確認するだけ。作らない・書き換えない（登録は#/roleの役割選択経由のみ・骨格⑥）
+    const { data: farmer } = await supabase
       .from("farmers")
-      .upsert({
-        email: normalizedEmail,
-        auth_id: data.user.id,
-        name: normalizedEmail.split("@")[0],
-        status: "approved",
-      }, { onConflict: "email" })
-      .select()
-      .single();
-    if (farmerErr) {
-      console.error("farmer auth_id link error:", farmerErr);
-      setErr(`農家情報の紐づけに失敗しました：${farmerErr.message}`);
-      bounce();
+      .select("*")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+    if (farmer) {
+      onLogin({
+        ...farmer,
+        id: farmer.auth_id || data.user.id,
+        joinedYear: farmer.joined_year,
+        planned_crops: farmer.planned_crops || [],
+        sales_channels: farmer.sales_channels || [],
+      });
       return;
     }
-    onLogin({
-      ...farmer,
-      id: farmer.auth_id || data.user.id,
-      joinedYear: farmer.joined_year,
-      planned_crops: farmer.planned_crops || [],
-      sales_channels: farmer.sales_channels || [],
-    });
+    // workers行チェックはC（働き手登録の配線）で追加予定
+    // プロフィール無し＝初回 → 役割選択の部屋へ
+    if (onNeedRole) onNeedRole();
 };
 
   return (
@@ -8197,7 +8193,7 @@ const subDest=useCallback(async d=>{
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>先にログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
-          : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")}/>)}
+          : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
@@ -8208,7 +8204,7 @@ const subDest=useCallback(async d=>{
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
           : authV==="register"
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
-            : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>
+            : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>
         )}
         {safeTab==="plan"&&isMember&&(
           isContributor
