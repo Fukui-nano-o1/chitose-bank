@@ -6967,7 +6967,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
 function FarmerDashboard({ onNewJob, onResume }) {
-  const [jobTab, setJobTab] = useState(() => (window.location.hash.replace(/^#\/?/,"") === "work" && sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active");
+  const [jobTab, setJobTab] = useState(() => (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active");
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
   const [draftsLoading, setDraftsLoading] = useState(true);
@@ -6982,7 +6982,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
         if (!aerror && adata) setDbActive(adata);
       } catch {}
       setDraftsLoading(false);
-      try { sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
+      try { if (sessionStorage.getItem("cb_afterDraftSave")==="1") { setJobTab("draft"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
     })();
   }, []);
   const JOB_TABS = [
