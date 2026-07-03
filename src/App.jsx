@@ -7687,7 +7687,8 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin"];
+  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login"];
+  const NEW_TAB_KEYS = ["search","work","profile","login"]; // 第2段の新部屋（タブバー非表示・URL直打ちのみ）
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); return TAB_URL_KEYS.includes(h) ? h : null; };
   const [tab,setTab]=useState(readHashTab() ?? "jobs");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
@@ -7983,7 +7984,7 @@ const subDest=useCallback(async d=>{
 
   const visibleTabKeys = TABS.map(t=>t.k);
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
-  const safeTab = (!me && tab === "input") ? "input" : (visibleTabKeys.includes(tab) ? tab : "labor");
+  const safeTab = NEW_TAB_KEYS.includes(tab) ? tab : ((!me && tab === "input") ? "input" : (visibleTabKeys.includes(tab) ? tab : "labor"));
 
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
@@ -8163,6 +8164,10 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
+        {safeTab==="search"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="search(さがす・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>さがす（建設中・第2段-2で中身が入る）</p></div>}
+        {safeTab==="work"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="work(しごと・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>しごと（建設中・第2段-2で中身が入る）</p></div>}
+        {safeTab==="profile"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="profile(プロフィール・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィール（建設中・第2段-2で中身が入る）</p></div>}
+        {safeTab==="login"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="login(認証の門・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>ログイン（建設中・第2段-2でLoginScreenが移る）</p></div>}
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
