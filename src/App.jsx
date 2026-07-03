@@ -4016,17 +4016,18 @@ function JobSearchMapView({ onRegister }) {
                 </div>
               </div>
 
-              {/* 農家プロフィール */}
-              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
-                <div style={{
-                  width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
-                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
-                }}>🧑‍🌾</div>
-                <div>
-                  <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{selectedJob.farmerName}</p>
-                  <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
+              {selectedJob.farmerName && (
+                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{
+                    width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
+                  }}>🧑‍🌾</div>
+                  <div>
+                    <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{selectedJob.farmerName}</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 作業説明 */}
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
@@ -4081,34 +4082,42 @@ function JobSearchMapView({ onRegister }) {
                 </div>
 
                 {/* 危険な場所 */}
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
-                <Carousel className="carousel-scroll" style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:4 }} wrapperStyle={{ marginBottom:28 }}>
-                  {selectedJob.dangerPlaces.map((place, i) => (
-                    <div key={i} style={{ flexShrink:0, width:240 }}>
-                      <div style={{
-                        width:"100%", height:130, borderRadius:12, background:"#FEF3E2",
-                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
-                      }}>{place.icon}</div>
-                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
-                      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
-                    </div>
-                  ))}
-                </Carousel>
+                {(selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) && (
+                  <>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
+                    <Carousel className="carousel-scroll" style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:4 }} wrapperStyle={{ marginBottom:28 }}>
+                      {selectedJob.dangerPlaces.map((place, i) => (
+                        <div key={i} style={{ flexShrink:0, width:240 }}>
+                          <div style={{
+                            width:"100%", height:130, borderRadius:12, background:"#FEF3E2",
+                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
+                          }}>{place.icon}</div>
+                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
+                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
+                        </div>
+                      ))}
+                    </Carousel>
+                  </>
+                )}
 
                 {/* 危険な作業 */}
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
-                <Carousel className="carousel-scroll" style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:4 }}>
-                  {selectedJob.dangerTasks.map((task, i) => (
-                    <div key={i} style={{ flexShrink:0, width:240 }}>
-                      <div style={{
-                        width:"100%", height:130, borderRadius:12, background:"#FEF3E2",
-                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
-                      }}>{task.icon}</div>
-                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
-                      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
-                    </div>
-                  ))}
-                </Carousel>
+                {(selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0) && (
+                  <>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
+                    <Carousel className="carousel-scroll" style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:4 }}>
+                      {selectedJob.dangerTasks.map((task, i) => (
+                        <div key={i} style={{ flexShrink:0, width:240 }}>
+                          <div style={{
+                            width:"100%", height:130, borderRadius:12, background:"#FEF3E2",
+                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
+                          }}>{task.icon}</div>
+                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
+                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
+                        </div>
+                      ))}
+                    </Carousel>
+                  </>
+                )}
               </div>
             </div>
 
@@ -4216,6 +4225,7 @@ function JobSearchMapView({ onRegister }) {
           {/* 農家へのレビュー（段階2-a・ガワのみ・取引実績ベース・匿名・日付なし） */}
           {(() => {
             const allReviews = selectedJob.farmerReviews || [];
+            if (allReviews.length === 0) return null;
             const sortedReviews = [...allReviews];
             if (reviewSort === "high") sortedReviews.sort((a, b) => b.stars - a.stars);
             else if (reviewSort === "low") sortedReviews.sort((a, b) => a.stars - b.stars);
