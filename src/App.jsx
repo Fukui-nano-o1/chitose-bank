@@ -4777,6 +4777,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [draftJobNumber, setDraftJobNumber] = useState(_draftInit?.job_number ?? null);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [draftMsg, setDraftMsg] = useState("");
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
@@ -5675,8 +5677,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               }
             };
 
-            const [draftSaving, setDraftSaving] = useState(false);
-            const [draftMsg, setDraftMsg] = useState("");
             const handleSaveDraft = async () => {
               if (draftSaving) return;
               setDraftSaving(true); setDraftMsg("");
