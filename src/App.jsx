@@ -3841,12 +3841,19 @@ function JobSearchMapView({ onRegister }) {
     })();
   }, []);
   const jobList = (dbJobs && dbJobs.length > 0) ? dbJobs : JOB_SEARCH_SAMPLES;
+  useEffect(() => {
+    const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
+    if (!m) return;
+    const jn = parseInt(m[1],10);
+    const found = jobList.find(j => j.id === jn);
+    if (found) { setSelectedJob(found); }
+  }, [dbJobs]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [reviewSort, setReviewSort] = useState("new");
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
-  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); };
+  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
 
   // PC専用の下固定応募バー：応募パネル(sticky)が画面より上に通過したら表示（758px以下はCSSで非表示）
   useEffect(() => {
@@ -3945,7 +3952,7 @@ function JobSearchMapView({ onRegister }) {
       {/* ── 詳細ページ ── */}
       {selectedJob && (
         <div className="appear">
-          <button onClick={() => setSelectedJob(null)} className="f-sans" style={{
+          <button onClick={() => { setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{} }} className="f-sans" style={{
             display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
             fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0", marginBottom:20,
           }}>← 一覧に戻る</button>
@@ -7842,7 +7849,7 @@ export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h === "work" || h.startsWith("work/")) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
