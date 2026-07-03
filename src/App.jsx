@@ -7687,8 +7687,8 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login"];
-  const NEW_TAB_KEYS = ["search","work","profile","login"]; // 第2段の新部屋（タブバー非表示・URL直打ちのみ）
+  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role"];
+  const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -8177,6 +8177,24 @@ const subDest=useCallback(async d=>{
               <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
             </div>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+        {safeTab==="role"&&(me
+          ? <div style={{maxWidth:560,margin:"0 auto",padding:"48px 24px",textAlign:"center"}}>
+              <h2 className="f-sans" style={{fontSize:22,fontWeight:800,color:"#222",marginBottom:8}}>どちらで始めますか？</h2>
+              <p className="f-sans" style={{fontSize:13,color:"#717171",marginBottom:32}}>あとからもう一方を追加することもできます。</p>
+              <div style={{display:"grid",gap:16}}>
+                <button onClick={()=>console.log("role:farmer")} className="f-sans" style={{padding:"28px 24px",border:"1px solid #EBEBEB",borderRadius:16,background:"#fff",cursor:"pointer",textAlign:"left"}}>
+                  <span style={{fontSize:28,display:"block",marginBottom:8}}>🧑‍🌾</span>
+                  <span className="f-sans" style={{fontSize:16,fontWeight:700,color:"#222",display:"block",marginBottom:4}}>農家として始める</span>
+                  <span className="f-sans" style={{fontSize:12,color:"#717171"}}>求人を出して、働き手を募集する</span>
+                </button>
+                <button onClick={()=>console.log("role:worker")} className="f-sans" style={{padding:"28px 24px",border:"1px solid #EBEBEB",borderRadius:16,background:"#fff",cursor:"pointer",textAlign:"left"}}>
+                  <span style={{fontSize:28,display:"block",marginBottom:8}}>🙋</span>
+                  <span className="f-sans" style={{fontSize:16,fontWeight:700,color:"#222",display:"block",marginBottom:4}}>働き手として始める</span>
+                  <span className="f-sans" style={{fontSize:12,color:"#717171"}}>農作業の仕事をさがして応募する</span>
+                </button>
+              </div>
+            </div>
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>先にログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")}/>)}
