@@ -5670,9 +5670,16 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session || !isAdmin(session.user)) { saveDraft(); onLogin(); return; }
-                const { data, error, status } = await supabase.from("jobs").insert(buildJobPayload(session.user.id)).select();
-                alert("【管理者デバッグ】status=" + status + " error=" + (error ? error.message : "なし") + " 挿入行数=" + (data ? data.length : "null"));
-                if (error) { return; }
+                let error;
+                if (draftJobNumber) {
+                  const r = await supabase.from("jobs").update(buildJobPayload(session.user.id, "pending")).eq("job_number", draftJobNumber).eq("farmer_id", session.user.id);
+                  error = r.error;
+                } else {
+                  const r = await supabase.from("jobs").insert(buildJobPayload(session.user.id, "pending")).select();
+                  error = r.error;
+                }
+                if (error) { alert("掲載エラー: " + error.message); return; }
+                try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                 setStep(12);
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
@@ -6958,6 +6965,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 function FarmerDashboard({ onNewJob, onResume }) {
   const [jobTab, setJobTab] = useState(() => (window.location.hash.replace(/^#\/?/,"") === "work" && sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active");
   const [dbDrafts, setDbDrafts] = useState([]);
+  const [dbActive, setDbActive] = useState([]);
   const [draftsLoading, setDraftsLoading] = useState(true);
   useEffect(() => {
     (async () => {
@@ -6966,6 +6974,8 @@ function FarmerDashboard({ onNewJob, onResume }) {
         if (!session) { setDraftsLoading(false); return; }
         const { data, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).eq("status","draft").order("job_number",{ascending:false});
         if (!error && data) setDbDrafts(data);
+        const { data: adata, error: aerror } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).in("status",["pending","open"]).order("job_number",{ascending:false});
+        if (!aerror && adata) setDbActive(adata);
       } catch {}
       setDraftsLoading(false);
       try { sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
@@ -7015,6 +7025,26 @@ function FarmerDashboard({ onNewJob, onResume }) {
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{d.date_label || "日程未定"}　タップして再開</p>
               </div>
             </button>
+          ))
+        )
+      ) : jobTab==="active" ? (
+        dbActive.length === 0 ? (
+          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+            <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
+            <p style={{ fontSize:14, margin:0 }}>募集中の求人はまだありません</p>
+          </div>
+        ) : (
+          dbActive.map(d => (
+            <div key={d.job_number} style={{ border:"1px solid #EBEBEB", borderRadius:16, overflow:"hidden", background:"#fff" }}>
+              <div style={{ height:140, background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                {d.photos && d.photos[0] ? <img src={d.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:40 }}>🌾</span>}
+              </div>
+              <div style={{ padding:"14px 16px" }}>
+                <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background: d.status==="open" ? "#E6F7EE" : "#FFF4E0", color: d.status==="open" ? "#00A86B" : "#C77700" }}>{d.status==="open" ? "公開中" : "審査中"}</div>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{(d.crop||"")+" "+(d.task||"") || "無題"}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{d.date_label||""}</p>
+              </div>
+            </div>
           ))
         )
       ) : jobList.length === 0 ? (
