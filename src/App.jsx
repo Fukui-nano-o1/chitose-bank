@@ -7973,18 +7973,16 @@ const subDest=useCallback(async d=>{
   const userLevel = !me ? 1 : isContributor ? 3 : 2;
 
   const ALL_TABS=[
-    {k:"labor",l:"お仕事",modes:["farmer"]},
-    {k:"jobs",l:"募集中の仕事",modes:["worker"]},
-    {k:"board",l:"公開ボード",modes:["farmer","worker"]},
-    {k:"input",l:"データ入力",modes:["farmer"]},
-    ...(me?[{k:"plan",l:"五年計画書",modes:["farmer"]}]:[]),
+    {k:"search",l:"さがす",modes:["farmer","worker"]},
+    {k:"work",l:"しごと",modes:["farmer","worker"]},
+    {k:"profile",l:"プロフィール",modes:["farmer","worker"]},
     ...(isAdmin(me)?[{k:"admin",l:"管理",badge:badgeCnt,modes:["farmer","worker"]}]:[]),
   ];
   const TABS = ALL_TABS.filter(t=>t.modes.includes(mode));
 
   const visibleTabKeys = TABS.map(t=>t.k);
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
-  const safeTab = NEW_TAB_KEYS.includes(tab) ? tab : ((!me && tab === "input") ? "input" : (visibleTabKeys.includes(tab) ? tab : "labor"));
+  const safeTab = NEW_TAB_KEYS.includes(tab) ? tab : ((!me && tab === "input") ? "input" : (visibleTabKeys.includes(tab) ? tab : "search"));
 
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
@@ -8150,7 +8148,7 @@ const subDest=useCallback(async d=>{
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       {TABS.length>1&&<div className="bottom-tab-bar">
         {TABS.map(({k,badge,l})=>{
-          const icons={labor:"🤝",admin:"⚙️"};
+          const icons={search:"🔍",work:"🤝",profile:"👤",admin:"⚙️",labor:"🤝"};
           return(
             <button key={k} onClick={()=>setTab(k)} className={safeTab===k?"active":""}>
               <span className="icon">{icons[k]}</span>
