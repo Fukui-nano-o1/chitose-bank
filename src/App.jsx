@@ -8221,7 +8221,14 @@ const subDest=useCallback(async d=>{
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="search"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
         {safeTab==="work"&&(mode==="farmer"
-          ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
+          ? <>
+              {me&&!me.isWorker&&me.status==="pending"&&(
+                <div className="f-sans" style={{maxWidth:920,margin:"0 auto 16px",padding:"14px 18px",background:"#FFF8E7",border:"1px solid #F5D98F",borderRadius:12,fontSize:13,color:"#8A6D1D",lineHeight:1.7}}>
+                  🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
+                </div>
+              )}
+              <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
+            </>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
         {safeTab==="profile"&&(me
           ? <div style={{maxWidth:480,margin:"0 auto",padding:"48px 24px"}}>
