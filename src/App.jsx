@@ -3884,6 +3884,8 @@ function JobSearchMapView({ onRegister }) {
             commuteTime: j.commute_time || "", jobBody: "",
             wanted: "", items: j.belongings || "",
             payTiming: "", payMethod: "",
+            dateStart: j.date_start ? new Date(j.date_start) : null,
+            dateEnd: j.date_end ? new Date(j.date_end) : null,
             dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
             dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
           }));
@@ -4214,35 +4216,10 @@ function JobSearchMapView({ onRegister }) {
                 まだ応募は確定しません。正確な金額は面接後に決定します。
               </p>
 
-              {/* 開催期間ミニカレンダー（段階2-a・ダミー前提） */}
-              {calRange && (
+              {/* 開催期間カレンダー（CalendarView readOnly・生データdate_start/date_endから） */}
+              {selectedJob.dateStart && (
                 <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #EBEBEB" }}>
-                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:0, marginBottom:8, textAlign:"center" }}>
-                    {calRange.year}年{calRange.month + 1}月
-                  </p>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:2, marginBottom:2 }}>
-                    {["日","月","火","水","木","金","土"].map(w => (
-                      <span key={w} className="f-sans" style={{ fontSize:9, color:"#B0B0B0", textAlign:"center" }}>{w}</span>
-                    ))}
-                  </div>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:2 }}>
-                    {Array.from({ length: calRange.firstWeekday }).map((_, i) => (
-                      <span key={`pad-${i}`} />
-                    ))}
-                    {Array.from({ length: calRange.daysInMonth }).map((_, i) => {
-                      const day = i + 1;
-                      const inRange = day >= calRange.startDay && day <= calRange.endDay;
-                      return (
-                        <span key={day} className="f-mono" style={{
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          height:22, borderRadius:6, fontSize:10,
-                          background: inRange ? "#00A86B" : "transparent",
-                          color: inRange ? "#fff" : "#717171",
-                          fontWeight: inRange ? 700 : 400,
-                        }}>{day}</span>
-                      );
-                    })}
-                  </div>
+                  <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
                 </div>
               )}
             </div>
