@@ -4033,11 +4033,19 @@ function JobSearchMapView({ onRegister }) {
                 </div>
               )}
 
+              {/* 作業説明 */}
+              {selectedJob.jobBody && selectedJob.jobBody.trim() && (
+              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0 }}>{selectedJob.jobBody}</p>
+              </div>
+              )}
 
               {/* 経験・持ち物・備考（見出しにアイコン、持ち物は設備一覧風に展開） */}
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                 {[
                   { label:"💪 必要経験",       value: selectedJob.experience },
+                  { label:"🙋 希望する働き手", value: selectedJob.wanted },
                 ].filter(row => row.value && String(row.value).trim()).map(row => (
                   <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                     <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
