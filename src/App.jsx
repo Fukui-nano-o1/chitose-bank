@@ -5686,6 +5686,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               setDraftSaving(false);
               if (res.ok) {
                 setDraftBarFull(true);
+                try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
                 setDraftMsg("作成中に保存しました（求人番号 " + res.jobNumber + "）");
                 setTimeout(() => { window.location.hash = "/work"; window.location.reload(); }, 1100);
               } else if (res.reason === "no_session") {
@@ -6946,8 +6947,21 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
 function FarmerDashboard({ onNewJob, onResume }) {
-  const [jobTab, setJobTab] = useState("active");
-  const _draft = (() => { try { const d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); return (d && d.role==="farmer" && (d.crop || d.jobTitle || d.farmerStep)) ? d : null; } catch { return null; } })();
+  const [jobTab, setJobTab] = useState(() => (window.location.hash.replace(/^#\/?/,"") === "work" && sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active");
+  const [dbDrafts, setDbDrafts] = useState([]);
+  const [draftsLoading, setDraftsLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setDraftsLoading(false); return; }
+        const { data, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).eq("status","draft").order("job_number",{ascending:false});
+        if (!error && data) setDbDrafts(data);
+      } catch {}
+      setDraftsLoading(false);
+      try { sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
+    })();
+  }, []);
   const JOB_TABS = [
     { k:"draft",   l:"作成中" },
     { k:"active",  l:"募集中" },
@@ -6972,22 +6986,28 @@ function FarmerDashboard({ onNewJob, onResume }) {
         ))}
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))", gap:20 }}>
-      {jobTab==="draft" && _draft ? (
-        <button onClick={()=>onResume(_draft.farmerStep && _draft.farmerStep>=1 && _draft.farmerStep<=11 ? _draft.farmerStep : 1)}
-          className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", maxWidth:360, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:0, overflow:"hidden", cursor:"pointer" }}>
-          <div style={{ height:160, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>{_draft.jobPhotos && _draft.jobPhotos[0] ? <img src={_draft.jobPhotos[0]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : "📝"}</div>
-          <div style={{ padding:"14px 16px" }}>
-            <span style={{ display:"inline-block", fontSize:11, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"3px 10px", borderRadius:20, marginBottom:8 }}>作成中</span>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{(_draft.crop||"")+" "+(_draft.task||"")||"無題の求人"}</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>タップして作成を再開</p>
+      {jobTab==="draft" ? (
+        draftsLoading ? (
+          <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+        ) : dbDrafts.length === 0 ? (
+          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>🌱</div>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>作成中の求人はありません</p>
+            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
           </div>
-        </button>
-      ) : jobTab==="draft" && !_draft ? (
-        <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
-          <div style={{ fontSize:40, marginBottom:12 }}>🌱</div>
-          <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>作成中の求人はありません</p>
-          <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
-        </div>
+        ) : (
+          dbDrafts.map(d => (
+            <button key={d.job_number} onClick={()=>onResume(d.job_number)}
+              className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", maxWidth:360, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:0, overflow:"hidden", cursor:"pointer", marginBottom:16 }}>
+              <div style={{ height:160, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>{d.photos && d.photos[0] ? <img src={d.photos[0]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : "📝"}</div>
+              <div style={{ padding:"14px 16px" }}>
+                <span style={{ display:"inline-block", fontSize:11, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"3px 10px", borderRadius:20, marginBottom:8 }}>作成中</span>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{d.date_label || "日程未定"}　タップして再開</p>
+              </div>
+            </button>
+          ))
+        )
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
           <div style={{ fontSize:44, marginBottom:14 }}>🌱</div>
@@ -8310,7 +8330,7 @@ const subDest=useCallback(async d=>{
               )}
               <FarmerDashboard
                 onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-                onResume={(s)=>{ setShowJobPost(true); window.location.hash="/work/new/"+s; }}
+                onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/job/"+n; }}
               />
             </>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
@@ -8329,7 +8349,7 @@ const subDest=useCallback(async d=>{
         {safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-              onResume={(s)=>{ setShowJobPost(true); window.location.hash="/work/new/"+s; }}
+              onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/job/"+n; }}
             />
           : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("login")} mode={mode} />)}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
