@@ -923,3 +923,36 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 ・第4段(未着手):求人詳細#/job/{id}等の個別リソースURL（Phase2aと同時）。
 
 ━━━ ここまで ━━━
+
+━━━ 2026-07-03(続) 役割選択の完成／fable5事件の3層根治 ━━━
+
+【役割選択（骨格⑥）完成・全経路DB検証済み】
+・#/role部屋=RoleSelectScreenコンポーネント(1167付近・App.jsx初の骨格⑥形部品)。在館確認はmeでなくsupabase.auth.getSession()（認証済み・プロフィール無しthが正客の部屋のため）。
+・農家カード→farmers行INSERT(status:"pending"明示・審査ゲート)→me化→work着地。働き手カード→workers行INSERT→me化({id:auth_id,name,region,experience,isWorker:true}の最小形)→work着地。modeもlocalStorage(cb_mode)に保存。
+・B1手術(eaa1b76):LoginScreenのverifyCodeから自動farmers upsert＋approved自動付与を摘出。既存farmers行あり→従来ログイン／無し→onNeedRole()で#/roleへ。onGoRegisterは死んだprop（JSX未使用）と判明、RegisterScreenは完全デッドコード。
+・C手術(5c255d5):カード本配線＋幽霊解消（me無し認証済み状態への対応）。
+
+【fable5事件——無審査approved農家の量産経路・3層根治】
+働き手登録テストで「fable5」入力→approvedのfarmers行thが誕生した事件。原因は3層:
+①LoginScreen自動upsert→B1で根治(eaa1b76)
+②farmers.statusのDBデフォルトthが'approved'→'pending'に変更(ALTER実行・照合済み)。statusを書き忘れたINSERTは審査待ちに倒れる安全設計に
+③OnboardingModal(農家向け初期設定・7020のupsert)thが起動条件(!me.prefecture)で役割を見ず働き手にも自動起動→isWorkerゲート追加(c603f46)
+・偽approved行(repyodaku/fable5)と試験pending行(gopyapipo)はDBから削除済み。farmers=11行(全て正当)。workers=2行(テスト用working手)。
+・管理者の承認処理(appFarmer・7990付近)はstatus:'approved'を明示INSERT=正当な運営ゲート。触っていない。
+
+【logout着地の根治(fa48c17)】
+・原因:setTab("search")はstateの予約で、直後のwindow.location.reload()thが予約実行前にページを消すためhashthがその場に残る。
+・修正:window.location.hash="/search"を直接書いてからreload（同期書きはreloadに殺されない）。実機確認済み。
+・教訓:reloadを含む処理でのsetTabは効かない。hash直接書きを使う。
+
+【今日のキャッシュ事故は計5回】「反映されない/挙動thが古い」時は必ず ①Vercelのcommit SHA確認 ②スーパーリロード ③新しいプライベートウィンドウ、の順で切り分けてから原因を疑う。
+
+【残タスク優先順】
+1. saveDraft血肉検証（未ログイン→全項目入力→保存→ログイン→全復元。ログイン導線thが開通した今すぐできる）
+2. RLS＋jobs_publicビュー（Phase2a読み出しの前提）
+3. リンク第3段:求人入力フローのstep URL＋step移動ごとの自動draft
+4. Phase2a:求人一覧(search実データ化)・詳細・応募
+5. workers拡充（region/experience入力UI・プロフィール看板の働き手対応）
+6. 働き手me形の本設計（isWorker最小形からの昇格）・FarmerDashboard命名整理
+
+━━━ ここまで ━━━
