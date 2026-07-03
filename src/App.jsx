@@ -3839,6 +3839,52 @@ const ITEM_ICONS = {
 // 給与表示ラベル（時給/日給）。JobSearchMapView・FarmerDashboard共通
 function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`; }
 
+function ChatView({ applicationId, onBack }) {
+  const [msgs, setMsgs] = useState([]);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [myId, setMyId] = useState(null);
+  const load = async () => {
+    try {
+      const { data } = await supabase.from("messages").select("*").eq("application_id", applicationId).order("created_at",{ascending:true});
+      if (data) setMsgs(data);
+    } catch {}
+  };
+  useEffect(() => {
+    (async () => {
+      try { const { data:{ session } } = await supabase.auth.getSession(); if (session) setMyId(session.user.id); } catch {}
+      load();
+    })();
+  }, [applicationId]);
+  const send = async () => {
+    if (!text.trim() || sending) return;
+    setSending(true);
+    try {
+      const { data:{ session } } = await supabase.auth.getSession();
+      if (!session) { setSending(false); return; }
+      const { error } = await supabase.from("messages").insert({ application_id: applicationId, sender_id: session.user.id, body: text.trim() });
+      if (!error) { setText(""); await load(); }
+    } catch {}
+    setSending(false);
+  };
+  return (
+    <div style={{ maxWidth:600, margin:"0 auto", display:"flex", flexDirection:"column", height:"70vh" }}>
+      <button onClick={onBack} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:13, cursor:"pointer", padding:"8px 0", textAlign:"left" }}>← 戻る</button>
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
+        {msgs.length === 0 ? (
+          <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>打ち合わせや面接の連絡は、ここで行えます。</p>
+        ) : msgs.map(m => (
+          <div key={m.id} style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222" }} className="f-sans">{m.body}</div>
+        ))}
+      </div>
+      <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE" }}>
+        <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") send(); }} placeholder="メッセージを入力" className="field f-sans" style={{ flex:1, fontSize:14 }} />
+        <button onClick={send} disabled={sending} className="f-sans" style={{ padding:"10px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{sending?"...":"送信"}</button>
+      </div>
+    </div>
+  );
+}
+
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -7037,7 +7083,8 @@ function FarmerDashboard({ onNewJob, onResume }) {
                 {a.status==="applied" ? "承認待ち" : a.status==="approved" ? "承認済み" : a.status==="rejected" ? "見送り" : a.status}
               </div>
               <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
-              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+              <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
             </div>
           ))
         )
@@ -7868,14 +7915,14 @@ export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
   useEffect(() => {
     const target = "#/" + tab;
     const _curHash = window.location.hash.replace(/^#\/?/, "");
-    const _inNewJob = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired";
+    const _inNewJob = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/") || _curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired";
     if (!_inNewJob && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
@@ -7885,6 +7932,8 @@ export default function App(){
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("work"); return; }
       if (showJobPost && !rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(false); }
       setShowApplyDone(rawHash === "apply/done");
+      const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
+      setChatAppId(_cm ? _cm[1] : null);
       const t = readHashTab(); if (t) setTab(t);
     };
     window.addEventListener("hashchange", onHash);
@@ -7903,6 +7952,7 @@ export default function App(){
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
+  const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [showTerms,setShowTerms]=useState(false);
@@ -8355,7 +8405,9 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
-        {showApplyDone ? (
+        {chatAppId ? (
+          <ChatView applicationId={chatAppId} onBack={()=>{ window.location.hash="/work/applicants"; }} />
+        ) : showApplyDone ? (
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
             <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>応募を受け付けました</h2>
