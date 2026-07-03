@@ -7861,6 +7861,7 @@ export default function App(){
       const rawHash = window.location.hash.replace(/^#\/?/, "");
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("work"); return; }
       if (showJobPost && !rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(false); }
+      setShowApplyDone(rawHash === "apply/done");
       const t = readHashTab(); if (t) setTab(t);
     };
     window.addEventListener("hashchange", onHash);
@@ -7878,6 +7879,7 @@ export default function App(){
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
+  const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [showTerms,setShowTerms]=useState(false);
@@ -8330,7 +8332,7 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
-        {(window.location.hash.replace(/^#\/?/,"")==="apply/done") ? (
+        {showApplyDone ? (
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
             <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>応募を受け付けました</h2>
