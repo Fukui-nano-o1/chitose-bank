@@ -8165,8 +8165,16 @@ const subDest=useCallback(async d=>{
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
         {safeTab==="search"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
-        {safeTab==="work"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="work(しごと・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>しごと（建設中・第2段-2で中身が入る）</p></div>}
-        {safeTab==="profile"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="profile(プロフィール・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィール（建設中・第2段-2で中身が入る）</p></div>}
+        {safeTab==="work"&&(mode==="farmer"
+          ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
+        {safeTab==="profile"&&(me
+          ? <div style={{maxWidth:480,margin:"0 auto",padding:"48px 24px"}}>
+              <p className="f-sans" style={{fontSize:11,color:"#B0B0B0",letterSpacing:".08em",marginBottom:8}}>プロフィール</p>
+              <p className="f-sans" style={{fontSize:22,fontWeight:700,color:"#222",marginBottom:32}}>{me.name || "名前未設定"}</p>
+              <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
+            </div>
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>)}
