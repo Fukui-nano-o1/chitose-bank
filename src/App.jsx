@@ -1163,6 +1163,63 @@ const verifyCode = async () => {
   );
 }
 
+// ── RoleSelectScreen — 初回ログイン後の役割選択（骨格⑥）──────
+function RoleSelectScreen({ onGoLogin, onRegistered }) {
+  const [sess, setSess] = useState(undefined); // undefined=確認中 / null=未ログイン
+  const [busy, setBusy] = useState(false);
+  const [err,  setErr]  = useState("");
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSess(session ?? null));
+  }, []);
+  const pick = async (role) => {
+    if (busy || !sess) return;
+    setBusy(true); setErr("");
+    const email = (sess.user.email || "").toLowerCase();
+    const baseName = email.split("@")[0];
+    if (role === "farmer") {
+      const { data, error } = await supabase.from("farmers")
+        .insert({ email, auth_id: sess.user.id, name: baseName, status: "pending" })
+        .select().single();
+      setBusy(false);
+      if (error) { setErr("登録に失敗しました：" + error.message); return; }
+      onRegistered({ ...data, id: data.auth_id || sess.user.id, joinedYear: data.joined_year, planned_crops: data.planned_crops || [], sales_channels: data.sales_channels || [] }, "farmer");
+    } else {
+      const { data, error } = await supabase.from("workers")
+        .insert({ auth_id: sess.user.id, name: baseName })
+        .select().single();
+      setBusy(false);
+      if (error) { setErr("登録に失敗しました：" + error.message); return; }
+      onRegistered({ id: sess.user.id, name: data.name, region: data.region || "", experience: data.experience || "", isWorker: true }, "worker");
+    }
+  };
+  if (sess === undefined) return <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:13,color:"#B0B0B0"}}>確認中…</p></div>;
+  if (!sess) return (
+    <div style={{textAlign:"center",padding:"80px 24px"}}>
+      <p className="f-sans" style={{fontSize:14,color:"#717171"}}>先にログインしてください</p>
+      <button onClick={onGoLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button>
+    </div>
+  );
+  return (
+    <div style={{maxWidth:560,margin:"0 auto",padding:"48px 24px",textAlign:"center"}}>
+      <h2 className="f-sans" style={{fontSize:22,fontWeight:800,color:"#222",marginBottom:8}}>どちらで始めますか？</h2>
+      <p className="f-sans" style={{fontSize:13,color:"#717171",marginBottom:32}}>あとからもう一方を追加することもできます。</p>
+      {err && <p className="f-sans" style={{fontSize:12,color:"#E24B4A",marginBottom:16}}>{err}</p>}
+      <div style={{display:"grid",gap:16}}>
+        <button disabled={busy} onClick={()=>pick("farmer")} className="f-sans" style={{padding:"28px 24px",border:"1px solid #EBEBEB",borderRadius:16,background:"#fff",cursor:busy?"wait":"pointer",textAlign:"left",opacity:busy?0.6:1}}>
+          <span style={{fontSize:28,display:"block",marginBottom:8}}>🧑‍🌾</span>
+          <span className="f-sans" style={{fontSize:16,fontWeight:700,color:"#222",display:"block",marginBottom:4}}>農家として始める</span>
+          <span className="f-sans" style={{fontSize:12,color:"#717171"}}>求人を出して、働き手を募集する（運営の審査あり）</span>
+        </button>
+        <button disabled={busy} onClick={()=>pick("worker")} className="f-sans" style={{padding:"28px 24px",border:"1px solid #EBEBEB",borderRadius:16,background:"#fff",cursor:busy?"wait":"pointer",textAlign:"left",opacity:busy?0.6:1}}>
+          <span style={{fontSize:28,display:"block",marginBottom:8}}>🙋</span>
+          <span className="f-sans" style={{fontSize:16,fontWeight:700,color:"#222",display:"block",marginBottom:4}}>働き手として始める</span>
+          <span className="f-sans" style={{fontSize:12,color:"#717171"}}>農作業の仕事をさがして応募する</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── RegisterScreen
 
 // ── RegisterScreen — 名前＋メールのみ（PINなし）───────────────
@@ -8173,24 +8230,7 @@ const subDest=useCallback(async d=>{
               <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
             </div>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
-        {safeTab==="role"&&(me
-          ? <div style={{maxWidth:560,margin:"0 auto",padding:"48px 24px",textAlign:"center"}}>
-              <h2 className="f-sans" style={{fontSize:22,fontWeight:800,color:"#222",marginBottom:8}}>どちらで始めますか？</h2>
-              <p className="f-sans" style={{fontSize:13,color:"#717171",marginBottom:32}}>あとからもう一方を追加することもできます。</p>
-              <div style={{display:"grid",gap:16}}>
-                <button onClick={()=>console.log("role:farmer")} className="f-sans" style={{padding:"28px 24px",border:"1px solid #EBEBEB",borderRadius:16,background:"#fff",cursor:"pointer",textAlign:"left"}}>
-                  <span style={{fontSize:28,display:"block",marginBottom:8}}>🧑‍🌾</span>
-                  <span className="f-sans" style={{fontSize:16,fontWeight:700,color:"#222",display:"block",marginBottom:4}}>農家として始める</span>
-                  <span className="f-sans" style={{fontSize:12,color:"#717171"}}>求人を出して、働き手を募集する</span>
-                </button>
-                <button onClick={()=>console.log("role:worker")} className="f-sans" style={{padding:"28px 24px",border:"1px solid #EBEBEB",borderRadius:16,background:"#fff",cursor:"pointer",textAlign:"left"}}>
-                  <span style={{fontSize:28,display:"block",marginBottom:8}}>🙋</span>
-                  <span className="f-sans" style={{fontSize:16,fontWeight:700,color:"#222",display:"block",marginBottom:4}}>働き手として始める</span>
-                  <span className="f-sans" style={{fontSize:12,color:"#717171"}}>農作業の仕事をさがして応募する</span>
-                </button>
-              </div>
-            </div>
-          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>先にログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+        {safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setMode(role==="worker"?"worker":"farmer"); try{localStorage.setItem("cb_mode",role==="worker"?"worker":"farmer");}catch{} setTab("work"); }}/>}
         {safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
