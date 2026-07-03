@@ -5628,7 +5628,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const saveDraft = () => {
               try {
                 const draft = {
-                  role: "farmer", farmerStep: 5, // 5=確認画面（新フロー）
+                  role: "farmer", farmerStep: step, // 保存時点の実ステップを記録（旧「5=確認画面」の化石を撤去）
                   farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
                   farmerZip, farmerPref, farmerCity, farmerAddr, jobPhotos,
                   farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
