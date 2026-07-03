@@ -4364,7 +4364,7 @@ function JobSearchMapView({ onRegister }) {
         }}>
           <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
           <button
-            onClick={() => onRegister && onRegister()}
+            onClick={() => { window.location.hash = "/apply/done"; }}
             className="btn-primary f-sans"
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
           >この仕事に興味がある</button>
