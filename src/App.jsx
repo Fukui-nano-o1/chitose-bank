@@ -3951,11 +3951,13 @@ function JobSearchMapView({ onRegister }) {
             </div>
           )}
           {jobList.map(job => (
-            <button
+            <a
               key={job.id}
-              onClick={() => openJob(job)}
+              href={"#/work/job/" + job.id}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
-                display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer",
+                display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none",
                 background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden",
               }}
             >
@@ -3977,7 +3979,7 @@ function JobSearchMapView({ onRegister }) {
                   ))}
                 </div>
               </div>
-            </button>
+            </a>
           ))}
         </div>
       </div>
@@ -4326,11 +4328,13 @@ function JobSearchMapView({ onRegister }) {
               style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
             >
               {jobList.filter(job => job.id !== selectedJob.id).map(job => (
-                <button
+                <a
                   key={job.id}
-                  onClick={() => openJob(job)}
+                  href={"#/work/job/" + job.id}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
-                    flexShrink:0, width:160, padding:0, textAlign:"left", cursor:"pointer",
+                    flexShrink:0, width:160, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none",
                     background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden",
                   }}
                 >
@@ -4342,7 +4346,7 @@ function JobSearchMapView({ onRegister }) {
                     <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:0, marginBottom:4 }}>{job.region}</p>
                     <p className="f-mono" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(job)}</p>
                   </div>
-                </button>
+                </a>
               ))}
             </Carousel>
             )}
