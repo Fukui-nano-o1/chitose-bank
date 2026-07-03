@@ -4779,6 +4779,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [draftJobNumber, setDraftJobNumber] = useState(_draftInit?.job_number ?? null);
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftMsg, setDraftMsg] = useState("");
+  const [draftBarFull, setDraftBarFull] = useState(false);
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
@@ -4972,7 +4973,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       {step > 0 && (
         <div style={{ position: embedded ? "relative" : "absolute", top:0, left:0, right:0, zIndex:1 }}>
           <div style={{ height:4, background:"#EBEBEB" }}>
-            <div style={{ height:4, background:"#00A86B", width:(step/TOTAL*100)+"%", transition:"width 0.3s ease" }} />
+            <div style={{ height:4, background:"#00A86B", width:(draftBarFull ? 100 : (step/TOTAL*100))+"%", transition:"width 0.4s ease" }} />
           </div>
           <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none", padding:"4px 8px 0" }}>
             {stepLabels.map((label, i) => (
@@ -5684,8 +5685,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               const res = await saveDraftToSupabase();
               setDraftSaving(false);
               if (res.ok) {
+                setDraftBarFull(true);
                 setDraftMsg("作成中に保存しました（求人番号 " + res.jobNumber + "）");
-                setTimeout(() => { if (onComplete) onComplete(); window.location.hash = "/work"; }, 900);
+                setTimeout(() => { window.location.hash = "/work"; window.location.reload(); }, 1100);
               } else if (res.reason === "no_session") {
                 saveDraft(); onLogin();
               } else {
