@@ -4808,7 +4808,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setJobDangerPlaces(data.danger_places ?? []);
         setJobDangerTasks(data.danger_tasks ?? []);
         setJobPhotos(data.photos ?? []);
-        setStep(11);
+        setStep(data.draft_step != null ? data.draft_step : 11);
       } catch {}
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -4865,6 +4865,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     danger_places:   jobDangerPlaces,
     danger_tasks:    jobDangerTasks,
     photos:          jobPhotos,
+    draft_step:      step,
     status:          statusVal,
   });
 
