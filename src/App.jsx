@@ -6931,12 +6931,14 @@ function FarmerDashboard({ onNewJob, onResume }) {
       const h = window.location.hash.replace(/^#\/?/,"");
       if (h === "work/drafts") return "draft";
       if (h === "work/active") return "active";
+      if (h === "work/applicants") return "applicants";
       if (h === "work/expired") return "expired";
     } catch {}
     return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active";
   });
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
+  const [dbApplicants, setDbApplicants] = useState([]);
   const [draftsLoading, setDraftsLoading] = useState(true);
   useEffect(() => {
     (async () => {
@@ -6947,6 +6949,8 @@ function FarmerDashboard({ onNewJob, onResume }) {
         if (!error && data) setDbDrafts(data);
         const { data: adata, error: aerror } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).in("status",["pending","open"]).order("job_number",{ascending:false});
         if (!aerror && adata) setDbActive(adata);
+        const { data: appData, error: appErr } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
+        if (!appErr && appData) setDbApplicants(appData);
       } catch {}
       setDraftsLoading(false);
       try { if (sessionStorage.getItem("cb_afterDraftSave")==="1") { setJobTab("draft"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
@@ -6955,6 +6959,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
   const JOB_TABS = [
     { k:"draft",   l:"作成中" },
     { k:"active",  l:"募集中" },
+    { k:"applicants", l:"応募者" },
     { k:"expired", l:"期限切れ" },
   ];
   // ダミー撤去（憲法3条:表示にダミー禁止）。Phase2aでjobsテーブルから自分の求人を読む
@@ -6967,7 +6972,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE" }}>
         {JOB_TABS.map(t => (
-          <button key={t.k} onClick={()=>{ setJobTab(t.k); const _map={draft:"/work/drafts",active:"/work/active",expired:"/work/expired"}; try{ window.history.replaceState(null,"",window.location.pathname+window.location.search+"#"+(_map[t.k]||"/work")); }catch{} }} className="f-sans" style={{
+          <button key={t.k} onClick={()=>{ setJobTab(t.k); const _map={draft:"/work/drafts",active:"/work/active",applicants:"/work/applicants",expired:"/work/expired"}; try{ window.history.replaceState(null,"",window.location.pathname+window.location.search+"#"+(_map[t.k]||"/work")); }catch{} }} className="f-sans" style={{
             padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
             fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
             color: jobTab===t.k ? "#222" : "#999",
@@ -7015,6 +7020,24 @@ function FarmerDashboard({ onNewJob, onResume }) {
                 <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{(d.crop||"")+" "+(d.task||"") || "無題"}</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{d.date_label||""}</p>
               </div>
+            </div>
+          ))
+        )
+      ) : jobTab==="applicants" ? (
+        dbApplicants.length === 0 ? (
+          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+            <div style={{ fontSize:40, marginBottom:12 }}>📩</div>
+            <p style={{ fontSize:14, margin:0 }}>まだ応募はありません</p>
+            <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
+          </div>
+        ) : (
+          dbApplicants.map(a => (
+            <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+              <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:"#FFF4E0", color:"#C77700" }}>
+                {a.status==="applied" ? "承認待ち" : a.status==="approved" ? "承認済み" : a.status==="rejected" ? "見送り" : a.status}
+              </div>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
             </div>
           ))
         )
