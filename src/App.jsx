@@ -4619,7 +4619,7 @@ function buildGoogleMapsUrl(region) {
 
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
-function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false, initialRole = "" }) {
+function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false, initialRole = "", onStepChange }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
   const TARGET = 30;
   const progress = Math.min(Math.round((farmersCount / TARGET) * 100), 100);
@@ -4771,6 +4771,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   const goNext = () => setStep(s => s + 1);
   const goBack = () => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); };
+
+  useEffect(() => {
+    if (onStepChange && role === "farmer" && step >= 1 && step <= 11) onStepChange(step);
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
@@ -8328,6 +8332,7 @@ const subDest=useCallback(async d=>{
           onComplete={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
+          onStepChange={(s)=>{ if(window.location.hash.replace(/^#\/?/,"").startsWith("work/new")) window.location.hash="/work/new/"+s; }}
         />
       )}
       {me&&showDevJump&&(
