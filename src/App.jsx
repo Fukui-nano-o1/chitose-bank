@@ -6133,7 +6133,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         }}>
           <button onClick={goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
-          {!isAutoStep && (
+          {!isAutoStep && step !== 11 && (
             <button onClick={canGoNext ? goNext : undefined} className="btn-primary" style={{
               padding:"14px 28px", fontSize:15, fontWeight:700,
               cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
