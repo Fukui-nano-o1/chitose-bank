@@ -4310,9 +4310,12 @@ function JobSearchMapView({ onRegister }) {
             );
           })()}
 
-          {/* その他の求人（関連求人・横スクロール／優先順位ロジックなし・ガワのみ） */}
+          {/* その他の求人（0件なら「ありません」を表示） */}
           <div style={{ marginBottom:20 }}>
             <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:12 }}>その他の求人</h3>
+            {jobList.filter(job => job.id !== selectedJob.id).length === 0 ? (
+              <p className="f-sans" style={{ fontSize:13, color:"#999", padding:"20px 0" }}>現在、他の求人はありません。</p>
+            ) : (
             <Carousel
               className="carousel-scroll"
               style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
@@ -4337,6 +4340,7 @@ function JobSearchMapView({ onRegister }) {
                 </button>
               ))}
             </Carousel>
+            )}
           </div>
         </div>
       )}
