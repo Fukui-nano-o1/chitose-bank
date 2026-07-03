@@ -3963,7 +3963,7 @@ function JobSearchMapView({ onRegister }) {
             experience: j.job_exp || "未経験可",
             icon: "🌾",
             lat: 34.05, lng: 134.23,
-            headcount: j.headcount, photos: j.photos || [],
+            count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
             nearestStation: j.nearest_station || "", workTime: j.work_time || "",
             breakTime: j.break_time || "", notes: j.notes || "",
             dangerPlaces: j.danger_places || [], dangerTasks: j.danger_tasks || [],

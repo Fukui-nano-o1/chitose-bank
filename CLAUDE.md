@@ -1010,3 +1010,25 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 5. Phase2a：さがすの実データ化（jobs_publicビュー）・応募・チャット
 
 ━━━ ここまで ━━━
+
+## day4の教訓（2026-07-03 農家側フロー完成時の知見）
+
+### 繰り返し踏んだバグの型（着手前に必ず確認）
+1. **スコープ違反（buildは通るが実行時クラッシュ）**: useStateやbuildJobPayload等を、step条件付きIIFE内（例: `step === 11 && (() => {...})()`）に置くと、buildは通るが実行時にReact error #310やReferenceErrorで真っ黒画面になる。→ state・共通関数は必ずコンポーネントのトップレベル（インデント2スペース）に置く。IIFE内で定義した関数を外から呼ばない。
+2. **INSERT増殖バグ**: DBにINSERTした後、返ってきた主キー（job_number）をstateに書き戻さないと、次の保存でまたINSERTされ増殖する。→ INSERT成功時は必ず setДraftJobNumber(返り値) + localStorageにも保存。リロードでstateが消える場合はlocalStorageから読み戻す。UPDATE優先の分岐を必ず持つ。
+3. **リロードでstate消失**: window.location.reload()するとReact stateが全消去され、job_number等が失われて増殖の原因になる。→ 「保存の体感」はreloadではなくオーバーレイ演出（spinner + setTimeout + onComplete）で作る。reloadは使わない。
+4. **派生値のDB保存不整合**: jobDateLabel（jobDateStart/jobDateEndから算出）やworkTimeLabel（startHour等から算出）のような派生constは、DBに「算出後の文字列」しか保存されず、復元時に元のstateに戻せない。→ 復元が必要な派生値は、元データ用のDB列を追加する（例: date_start/date_end/draft_step）。文字列パースで逆算しない（表記ゆれで壊れる）。
+5. **catch{}が全エラーを握りつぶす**: 無言のcatch{}で失敗が見えず、症状から逆算して何度も外す「堂々巡り」になる。→ 原因不明のバグは、まずcatchやreturn箇所に一時的なalertを仕込んで「コードに喋らせて」から直す。憶測で触らない。
+
+### 検証の鉄則
+- grepは大文字小文字を区別する。setDbActive等は grep -i で確認。
+- buildが通っても実行時クラッシュは防げない。必ず本番デプロイ後にスーパーリロードで実機血肉。
+- DBの現物（Supabase）を読んで、想定通りのstatus・行数・内容か照合する。憶測しない。
+- 変更前に必ず現物調査（grep -n で該当箇所と周辺を報告）してから着手する。
+
+### jobsテーブルの現状（day4時点）
+- 列: status(draft/pending/open), job_number(IDENTITY 1000始まり), date_start, date_end, draft_step, その他求人項目
+- RLS4ポリシー: admin write(掲載open=管理者のみ), owner insert draft(draft/pending限定), owner update draft(draft/pending限定), owner select
+- 法務境界: 保存=開放, 掲載(open)=管理者ゲート（職安法対応）
+- 下書きはSupabaseが真実の座。localStorageは入力中の作業メモのみ。
+- 既知の技術的負債（後日リファクタ）: Pill/Text/派生の三重state構造がDBの単一カラムと噛み合わず復元が複雑。いずれSupabase単一ソースに一本化する。
