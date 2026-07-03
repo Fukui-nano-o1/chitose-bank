@@ -7690,7 +7690,7 @@ export default function App(){
   const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login"];
   const NEW_TAB_KEYS = ["search","work","profile","login"]; // 第2段の新部屋（タブバー非表示・URL直打ちのみ）
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); return TAB_URL_KEYS.includes(h) ? h : null; };
-  const [tab,setTab]=useState(readHashTab() ?? "jobs");
+  const [tab,setTab]=useState(readHashTab() ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
   useEffect(() => {
     const target = "#/" + tab;
@@ -7781,7 +7781,7 @@ export default function App(){
         const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
         f = [loggedIn];
         setMe({ ...loggedIn, id: session.user.id });
-        if (!readHashTab()) setTab("board"); // URLにタブ指定があれば尊重（リンク第1段）。無指定時のみ従来通りboardへ
+        if (!readHashTab()) setTab("work"); // ログイン済みがhash無しで来たら「しごと」へ（骨格③）
       }
       const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
       if (dbRecs) {
@@ -7820,7 +7820,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setMe(null);
-    setTab("board");
+    setTab("search");
     /* 検証中：本来はsetShowLanding(true)。完成後に戻す */
     localStorage.removeItem('sb-aegwepgtmwcnwzybpgsh-auth-token');
     window.location.reload();
@@ -7837,7 +7837,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
       }
     }
     setShowOnboarding(false);
-    setTab("board");
+    setTab("work");
   },[]);
 
 const addRec=useCallback(async(fid,yr,mi,e)=>{
@@ -7982,7 +7982,10 @@ const subDest=useCallback(async d=>{
 
   const visibleTabKeys = TABS.map(t=>t.k);
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
-  const safeTab = NEW_TAB_KEYS.includes(tab) ? tab : ((!me && tab === "input") ? "input" : (visibleTabKeys.includes(tab) ? tab : "search"));
+  // 部屋番号(TAB_URL_KEYS)にある部屋は全て到達可（避難部屋含む・骨格④）。資格の無い部屋と迷子はsearchへ
+  const safeTab = TAB_URL_KEYS.includes(tab)
+    ? ((tab === "admin" && !isAdmin(me)) || (tab === "plan" && !me) ? "search" : tab)
+    : "search";
 
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
