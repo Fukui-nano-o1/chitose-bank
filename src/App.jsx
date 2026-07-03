@@ -5041,7 +5041,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       )}
 
       {/* 保存して終了ボタン（TODO: 管理者(isAdmin)限定で下書き保存を実装する。現状は保存せず閉じるのみ） */}
-      {!embedded && step !== 12 && step !== 11 && (
+      {!embedded && step !== 12 && step !== 11 && step !== 0 && step !== 6 && (
         <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{
           position:"absolute", top:step > 0 ? 24 : 16, right:20,
           background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"8px 18px",
@@ -7022,7 +7022,15 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
 function FarmerDashboard({ onNewJob, onResume }) {
-  const [jobTab, setJobTab] = useState(() => (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active");
+  const [jobTab, setJobTab] = useState(() => {
+    try {
+      const h = window.location.hash.replace(/^#\/?/,"");
+      if (h === "work/drafts") return "draft";
+      if (h === "work/active") return "active";
+      if (h === "work/expired") return "expired";
+    } catch {}
+    return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active";
+  });
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
   const [draftsLoading, setDraftsLoading] = useState(true);
@@ -7055,7 +7063,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE" }}>
         {JOB_TABS.map(t => (
-          <button key={t.k} onClick={()=>setJobTab(t.k)} className="f-sans" style={{
+          <button key={t.k} onClick={()=>{ setJobTab(t.k); const _map={draft:"/work/drafts",active:"/work/active",expired:"/work/expired"}; try{ window.history.replaceState(null,"",window.location.pathname+window.location.search+"#"+(_map[t.k]||"/work")); }catch{} }} className="f-sans" style={{
             padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
             fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
             color: jobTab===t.k ? "#222" : "#999",
@@ -7933,7 +7941,7 @@ export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h === "work" || (h.startsWith("work/") && !h.startsWith("work/new") && !h.startsWith("work/edit/"))) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
