@@ -893,3 +893,10 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 4. タブ3分割＋URLルーティング（最重量・独立した日に頭から）
 
 ━━━ ここまで ━━━
+
+【リンク第1段 完了（2026-07-03）】
+・URL(#/タブ名)⇄tabの双方向同期を導入(cc2fb04)。TAB_URL_KEYS=["labor","jobs","board","input","plan","admin"]（旧5タブの部屋番号・第2段で/search /work /profile /loginに置換予定）。
+・リロード時のboard強制送還を修正(931eb88)。主犯=マウント時useEffectのセッション復元thが無条件setTab("board")していた。修正=if(!readHashTab())の条件付き。handleLogout・completeOnboarding内の送還は正当so無変更。
+・血肉確認済:URL直打ち○／タブとアドレスバー連動○／ログイン済みF5でタブ維持○。
+・既知の軽微バグ（放置・第2段で解消）:ログアウト後の着地thがboardでなくlaborになる。原因はreload後の未ログイン初期化thがboardを弾くフォールバックと推定。第2段でログアウト→#/loginへ設計し直すため今は直さない。
+・原則:URL＝場所、ログイン状態＝その場所で何thが見えるか。未ログインとログイン済みでURLは分けない。ログイン画面thが#/input間借りなのは前身アプリの遺物＝第2段で#/loginとして独立。
