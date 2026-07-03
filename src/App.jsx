@@ -4802,6 +4802,33 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     } catch {}
   };
 
+  const buildJobPayload = (authUid, statusVal = "pending") => ({
+    farmer_id:       authUid,
+    crop:            farmerCrop,
+    task:            farmerTask,
+    zip:             farmerZip,
+    prefecture:      farmerPref,
+    city:            farmerCity,
+    address:         farmerAddr,
+    date_label:      jobDateLabel,
+    headcount:       Number(jobCount) || null,
+    pay_type:        hourlyWage > 0 ? "時給" : "日給",
+    hourly_wage:     hourlyWageInput,
+    daily_wage:      dailyWageInput,
+    work_time:       workTimeLabel,
+    break_time:      breakTime,
+    nearest_station: nearestStation,
+    commute_time:    commuteTime,
+    job_exp:         jobExp,
+    notes:           jobDescription,
+    belongings:      jobNotes,
+    cautions:        jobCautions,
+    danger_places:   jobDangerPlaces,
+    danger_tasks:    jobDangerTasks,
+    photos:          jobPhotos,
+    status:          statusVal,
+  });
+
   const saveDraftToSupabase = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -5633,33 +5660,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const profilePct    = Math.round(filledCount / profileFields.length * 100);
             const missingFields = fieldNames.filter((_, i) => !profileFields[i]);
 
-            // jobs INSERT用ペイロード（対応表・項目増減はここだけ直す）
-            const buildJobPayload = (authUid, statusVal = "pending") => ({
-              farmer_id:       authUid,
-              crop:            farmerCrop,
-              task:            farmerTask,
-              zip:             farmerZip,
-              prefecture:      farmerPref,
-              city:            farmerCity,
-              address:         farmerAddr,
-              date_label:      jobDateLabel,
-              headcount:       Number(jobCount) || null,
-              pay_type:        hourlyWage > 0 ? "時給" : "日給",
-              hourly_wage:     hourlyWageInput,
-              daily_wage:      dailyWageInput,
-              work_time:       workTimeLabel,
-              break_time:      breakTime,
-              nearest_station: nearestStation,
-              commute_time:    commuteTime,
-              job_exp:         jobExp,
-              notes:           jobDescription,
-              belongings:      jobNotes,
-              cautions:        jobCautions,
-              danger_places:   jobDangerPlaces,
-              danger_tasks:    jobDangerTasks,
-              photos:          jobPhotos,
-              status:          statusVal,
-            });
+            // jobs INSERT用ペイロードはトップレベルに移設（saveDraftToSupabaseからも参照するため）
             const handleSaveJob = async () => {
               if (jobSaving) return;
               setJobSaving(true);
