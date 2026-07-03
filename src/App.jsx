@@ -7021,7 +7021,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
 function FarmerDashboard({ onNewJob, onResume }) {
-  const [jobTab, setJobTab] = useState(() => { const _f = sessionStorage.getItem("cb_afterDraftSave"); const _init = _f==="1" ? "draft" : "active"; try{ alert("【着地デバッグ】初期化時 flag=" + _f + " → jobTab=" + _init); }catch{} return _init; });
+  const [jobTab, setJobTab] = useState(() => (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active");
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
   const [draftsLoading, setDraftsLoading] = useState(true);
@@ -7036,7 +7036,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
         if (!aerror && adata) setDbActive(adata);
       } catch {}
       setDraftsLoading(false);
-      try { const _f2 = sessionStorage.getItem("cb_afterDraftSave"); alert("【着地デバッグ】DB読込後 flag=" + _f2); if (_f2==="1") { setJobTab("draft"); alert("【着地デバッグ】setJobTab(draft)実行"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
+      try { if (sessionStorage.getItem("cb_afterDraftSave")==="1") { setJobTab("draft"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
     })();
   }, []);
   const JOB_TABS = [
