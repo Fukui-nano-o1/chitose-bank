@@ -7856,7 +7856,7 @@ export default function App(){
   useEffect(() => {
     const target = "#/" + tab;
     const _curHash = window.location.hash.replace(/^#\/?/, "");
-    const _inNewJob = _curHash === "work/new" || _curHash.startsWith("work/new/");
+    const _inNewJob = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/");
     if (!_inNewJob && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
