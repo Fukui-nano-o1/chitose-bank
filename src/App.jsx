@@ -8422,8 +8422,7 @@ const subDest=useCallback(async d=>{
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} /> : null}
-        {safeTab==="search"&&false&&<JobSearchMapView onRegister={()=>setTab("login")} />}
-        {safeTab==="work"&&(mode==="farmer"
+        {!chatAppId&&!showApplyDone&&safeTab==="work"&&(mode==="farmer"
           ? <>
               {me&&!me.isWorker&&me.status==="pending"&&(
                 <div className="f-sans" style={{maxWidth:920,margin:"0 auto 16px",padding:"14px 18px",background:"#FFF8E7",border:"1px solid #F5D98F",borderRadius:12,fontSize:13,color:"#8A6D1D",lineHeight:1.7}}>
@@ -8436,33 +8435,33 @@ const subDest=useCallback(async d=>{
               />
             </>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
-        {safeTab==="profile"&&(me
+        {!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <div style={{maxWidth:480,margin:"0 auto",padding:"48px 24px"}}>
               <p className="f-sans" style={{fontSize:11,color:"#B0B0B0",letterSpacing:".08em",marginBottom:8}}>プロフィール</p>
               <p className="f-sans" style={{fontSize:22,fontWeight:700,color:"#222",marginBottom:32}}>{me.name || "名前未設定"}</p>
               <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
             </div>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
-        {safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setMode(role==="worker"?"worker":"farmer"); try{localStorage.setItem("cb_mode",role==="worker"?"worker":"farmer");}catch{} setTab("work"); }}/>}
-        {safeTab==="login"&&(me
+        {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setMode(role==="worker"?"worker":"farmer"); try{localStorage.setItem("cb_mode",role==="worker"?"worker":"farmer");}catch{} setTab("work"); }}/>}
+        {!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
-        {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {safeTab==="labor"&&(mode==="farmer"
+        {!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
+        {!chatAppId&&!showApplyDone&&safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
             />
           : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("login")} mode={mode} />)}
-        {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
-        {safeTab==="input"&&(me
+        {!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
+        {!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
           : authV==="register"
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>
         )}
-        {safeTab==="plan"&&isMember&&(
+        {!chatAppId&&!showApplyDone&&safeTab==="plan"&&isMember&&(
           isContributor
             ? <FiveYearPlanTab loggedInFarmer={me} records={recs} destApproved={destOk} farmers={farmers}/>
             : <div style={{ textAlign:"center", padding:"64px 24px", maxWidth:480, margin:"0 auto" }}>
@@ -8479,7 +8478,7 @@ const subDest=useCallback(async d=>{
                 }}>データを入力する</button>
               </div>
         )}
-        {safeTab==="admin"&&isAdmin(me)&&<AdminTab
+        {!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
