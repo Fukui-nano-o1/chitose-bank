@@ -5675,6 +5675,22 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               }
             };
 
+            const [draftSaving, setDraftSaving] = useState(false);
+            const [draftMsg, setDraftMsg] = useState("");
+            const handleSaveDraft = async () => {
+              if (draftSaving) return;
+              setDraftSaving(true); setDraftMsg("");
+              const res = await saveDraftToSupabase();
+              setDraftSaving(false);
+              if (res.ok) {
+                setDraftMsg("作成中に保存しました（求人番号 " + res.jobNumber + "）");
+              } else if (res.reason === "no_session") {
+                saveDraft(); onLogin();
+              } else {
+                setDraftMsg("保存に失敗しました：" + res.reason);
+              }
+            };
+
             const tagStyle = { padding:"6px 14px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:13 };
             const inputSt = { width:"100%", height:48, borderRadius:14, border:"1px solid #E5E5E5", fontSize:15, padding:"0 14px", outline:"none", boxSizing:"border-box" };
 
@@ -5805,6 +5821,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   >
                     {jobSaving ? "保存中..." : "実証に参加して保存する"}
                   </button>
+                  <button
+                    onClick={handleSaveDraft}
+                    disabled={draftSaving}
+                    className="f-sans"
+                    style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:14, marginBottom:8, background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer" }}
+                  >
+                  {draftSaving ? "保存中..." : "一時保存（作成中に残す）"}
+                  </button>
+                  {draftMsg && <p className="f-sans" style={{ fontSize:11, color:draftMsg.startsWith("保存に失敗") ? "#E24B4A" : "#00A86B", textAlign:"center", marginBottom:8 }}>{draftMsg}</p>}
                   <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center" }}>
                     ログイン後にこの確認画面へ戻せるよう入力内容を保存します。
                   </p>

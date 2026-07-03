@@ -140,6 +140,18 @@ step0：全体の入口説明（既存・流用）
 
 法的根拠：役所確認「保存機能をつけたら事業開始＝届出が必要」。管理者限定なら一般の保存は発生せず、事業未開始を保てる。
 
+【2026-07-XX更新・jobsのRLS本番同型化】
+・法務境界の再確認（役所回答）：保存機能の搭載＝運営ではない。掲載（status=open・公開）＝運営。境界は「掲載」であって「保存」ではない。
+・jobsテーブルRLS（本番同型・4ポリシー）：
+  - jobs admin write（ALL・管理者のみ）：掲載(open)含む全権
+  - jobs owner insert draft（INSERT・一般農家）：status IN (draft,pending) 限定＋farmers行必須
+  - jobs owner update draft（UPDATE・一般農家）：status IN (draft,pending) 限定
+  - jobs owner select（SELECT）：自分の求人のみ
+・実装ルール：
+  - 下書き保存（status=draft）→ isAdminゲート不要。RLSのowner insert draftが担保。一般農家に開放
+  - 掲載（status=open）→ isAdminゲート必須（フロント＋RLS admin write の二重ゲート）
+  - 「保存にisAdminゲートが無い」警告は、status=draftなら正常。status=openでゲート欠落なら要修正
+
 ---
 ## ⚠️ 未実装メモ：「保存して終了」ボタンの中身（2026-06-26）
 - LandingFlow右上の「保存して終了」ボタンは、現状は保存せずフローを閉じるだけ（名前だけ先行、中身は未実装）
@@ -612,7 +624,7 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 ・第3段-a：勤務時間・休憩をstep5へ移植 … 完了
 ・第3段-b：最寄り駅・移動時間をstep3(場所)へ移植 … 【未完了・次にやる】
    → 退避所step90に最寄り駅・移動時間の原本that残っている（コピー元）。
-   → 差し込み先：step3の<LFWizCard>内、住所4項目の末尾、「すべての住所欄を入力してください」警告pの後、</div>の前。
+   → 差し込み先：step3の<LFWizCard>内、住所4頄目の末尾、「すべての住所欄を入力してください」警告pの後、</div>の前。
 ・第3段-c：退避所step90の掃除（移植完了後、勤務/休憩/最寄り駅を退避所から削除。jobTemplateだけ残す）… 未完了
 
 【次の優先順】
