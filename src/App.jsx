@@ -6897,8 +6897,9 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
-function FarmerDashboard({ onNewJob }) {
+function FarmerDashboard({ onNewJob, onResume }) {
   const [jobTab, setJobTab] = useState("active");
+  const _draft = (() => { try { const d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); return (d && d.role==="farmer" && (d.crop || d.jobTitle || d.farmerStep)) ? d : null; } catch { return null; } })();
   const JOB_TABS = [
     { k:"draft",   l:"作成中" },
     { k:"active",  l:"募集中" },
@@ -6923,7 +6924,23 @@ function FarmerDashboard({ onNewJob }) {
         ))}
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))", gap:20 }}>
-      {jobList.length === 0 ? (
+      {jobTab==="draft" && _draft ? (
+        <button onClick={()=>onResume(_draft.farmerStep && _draft.farmerStep>=1 && _draft.farmerStep<=11 ? _draft.farmerStep : 1)}
+          className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", maxWidth:360, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:0, overflow:"hidden", cursor:"pointer" }}>
+          <div style={{ height:160, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>{_draft.jobPhotos && _draft.jobPhotos[0] ? <img src={_draft.jobPhotos[0]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : "📝"}</div>
+          <div style={{ padding:"14px 16px" }}>
+            <span style={{ display:"inline-block", fontSize:11, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"3px 10px", borderRadius:20, marginBottom:8 }}>作成中</span>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{(_draft.crop||"")+" "+(_draft.task||"")||"無題の求人"}</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>タップして作成を再開</p>
+          </div>
+        </button>
+      ) : jobTab==="draft" && !_draft ? (
+        <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>🌱</div>
+          <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>作成中の求人はありません</p>
+          <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
+        </div>
+      ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
           <div style={{ fontSize:44, marginBottom:14 }}>🌱</div>
           <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:6 }}>まだ求人がありません</p>
@@ -8243,7 +8260,10 @@ const subDest=useCallback(async d=>{
                   🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
                 </div>
               )}
-              <FarmerDashboard onNewJob={()=>{ setShowJobPost(true); window.location.hash="/work/new"; }} />
+              <FarmerDashboard
+                onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
+                onResume={(s)=>{ setShowJobPost(true); window.location.hash="/work/new/"+s; }}
+              />
             </>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
         {safeTab==="profile"&&(me
@@ -8259,7 +8279,10 @@ const subDest=useCallback(async d=>{
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&(mode==="farmer"
-          ? <FarmerDashboard onNewJob={()=>{ setShowJobPost(true); window.location.hash="/work/new"; }} />
+          ? <FarmerDashboard
+              onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
+              onResume={(s)=>{ setShowJobPost(true); window.location.hash="/work/new/"+s; }}
+            />
           : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("login")} mode={mode} />)}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
         {safeTab==="input"&&(me
