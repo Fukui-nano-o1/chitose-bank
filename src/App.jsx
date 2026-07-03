@@ -4057,7 +4057,7 @@ function JobSearchMapView({ onRegister }) {
                 <div style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                   <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:8 }}>🎒 持ち物</span>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                    {(selectedJob.items || "").split("・").filter(Boolean).map((thing, i) => (
+                    {(selectedJob.items || "").split(/[、,，・\n]/).map(s => s.trim()).filter(Boolean).map((thing, i) => (
                       <span key={i} className="f-sans" style={{
                         display:"flex", alignItems:"center", gap:6, padding:"6px 12px",
                         borderRadius:20, background:"#F7F7F7", fontSize:13, color:"#222",
