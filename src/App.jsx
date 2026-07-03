@@ -4639,6 +4639,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? initialRole ?? ""); // "" | "farmer" | "worker"
   const [step, setStep] = useState((initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : 0))); // URL(#/work/new/{step})最優先→devJump→draft→0
+  const _editJobNumber = (() => { const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/edit\/(\d+)$/); return m ? parseInt(m[1],10) : null; })();
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
@@ -4776,7 +4777,41 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     if (onStepChange && role === "farmer" && step >= 1 && step <= 11) onStepChange(step);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [draftJobNumber, setDraftJobNumber] = useState(_draftInit?.job_number ?? null);
+  const [draftJobNumber, setDraftJobNumber] = useState(_editJobNumber ?? _draftInit?.job_number ?? null);
+  useEffect(() => {
+    if (!_editJobNumber) return;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data, error } = await supabase.from("jobs").select("*").eq("job_number", _editJobNumber).eq("farmer_id", session.user.id).single();
+        if (error || !data) return;
+        setRole("farmer");
+        setFarmerCropText(data.crop ?? "");
+        setFarmerTaskText(data.task ?? "");
+        setFarmerZip(data.zip ?? "");
+        setFarmerPref(data.prefecture ?? "");
+        setFarmerCity(data.city ?? "");
+        setFarmerAddr(data.address ?? "");
+        setJobDateStart(data.date_start ? new Date(data.date_start) : null);
+        setJobDateEnd(data.date_end ? new Date(data.date_end) : null);
+        setJobCount(data.headcount != null ? String(data.headcount) : "");
+        setHourlyWageInput(data.hourly_wage ?? "");
+        setDailyWageInput(data.daily_wage ?? "");
+        setBreakTime(data.break_time ?? "");
+        setNearestStation(data.nearest_station ?? "");
+        setCommuteTime(data.commute_time ?? "");
+        setJobExp(data.job_exp ?? "");
+        setJobDescription(data.notes ?? "");
+        setJobNotes(data.belongings ?? "");
+        setJobCautions(data.cautions ?? "");
+        setJobDangerPlaces(data.danger_places ?? []);
+        setJobDangerTasks(data.danger_tasks ?? []);
+        setJobPhotos(data.photos ?? []);
+        setStep(11);
+      } catch {}
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftMsg, setDraftMsg] = useState("");
   const [draftBarFull, setDraftBarFull] = useState(false);
@@ -4813,6 +4848,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     city:            farmerCity,
     address:         farmerAddr,
     date_label:      jobDateLabel,
+    date_start:      jobDateStart ? jobDateStart.toISOString().slice(0,10) : null,
+    date_end:        jobDateEnd ? jobDateEnd.toISOString().slice(0,10) : null,
     headcount:       Number(jobCount) || null,
     pay_type:        hourlyWage > 0 ? "時給" : "日給",
     hourly_wage:     hourlyWageInput,
@@ -7892,8 +7929,8 @@ export default function App(){
   useEffect(() => {
     const onHash = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, "");
-      if (rawHash === "work/new" || rawHash.startsWith("work/new/")) { setShowJobPost(true); setTab("work"); return; }
-      if (showJobPost && !rawHash.startsWith("work/new")) { setShowJobPost(false); }
+      if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("work"); return; }
+      if (showJobPost && !rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(false); }
       const t = readHashTab(); if (t) setTab(t);
     };
     window.addEventListener("hashchange", onHash);
@@ -7910,7 +7947,7 @@ export default function App(){
   const [me,setMe]=useState(null);
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
-  const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/"); });
+  const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [showTerms,setShowTerms]=useState(false);
@@ -8373,7 +8410,7 @@ const subDest=useCallback(async d=>{
               )}
               <FarmerDashboard
                 onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-                onResume={(n)=>{ try{ const _d=JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _d.job_number=n; localStorage.setItem("landingFlowDraft_v1",JSON.stringify(_d)); localStorage.setItem("postLoginReturnTo","landingFlowFarmerConfirm"); }catch{} setShowJobPost(true); window.location.hash="/work/new/11"; }}
+                onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               />
             </>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
@@ -8392,7 +8429,7 @@ const subDest=useCallback(async d=>{
         {safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-              onResume={(n)=>{ try{ const _d=JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _d.job_number=n; localStorage.setItem("landingFlowDraft_v1",JSON.stringify(_d)); localStorage.setItem("postLoginReturnTo","landingFlowFarmerConfirm"); }catch{} setShowJobPost(true); window.location.hash="/work/new/11"; }}
+              onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
             />
           : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("login")} mode={mode} />)}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
