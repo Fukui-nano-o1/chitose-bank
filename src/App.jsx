@@ -7874,7 +7874,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setMe(null);
-    setTab("search");
+    window.location.hash = "/search"; // reload前に直接書く（setTabの予約はreloadに間に合わない）
     /* 検証中：本来はsetShowLanding(true)。完成後に戻す */
     localStorage.removeItem('sb-aegwepgtmwcnwzybpgsh-auth-token');
     window.location.reload();
