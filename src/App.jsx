@@ -4887,6 +4887,23 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     } catch (e) { return { ok:false, reason:String(e) }; }
   };
 
+  const handleTopSaveExit = async () => {
+    if (draftSaving) return;
+    setDraftSaving(true); setDraftMsg("");
+    const res = await saveDraftToSupabase();
+    setDraftSaving(false);
+    if (res.ok) {
+      try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
+      setDraftOverlay(true);
+      setTimeout(() => { setDraftOverlay(false); window.location.hash = "/work"; if (typeof onComplete === "function") onComplete(); }, 1100);
+    } else if (res.reason === "no_session") {
+      saveDraft(); onLogin();
+    } else {
+      setDraftMsg("保存に失敗しました：" + res.reason);
+      alert("保存に失敗しました：" + res.reason);
+    }
+  };
+
   // Airbnb模擬・部品1:step移動ごとに自動で下書き保存（農家フロー中のみ・home(0)と完了(12)は除外）
   useEffect(() => {
     if (role === "farmer" && step >= 1 && step <= 11) saveDraft();
@@ -5024,12 +5041,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
       {/* 保存して終了ボタン（TODO: 管理者(isAdmin)限定で下書き保存を実装する。現状は保存せず閉じるのみ） */}
       {!embedded && step !== 12 && step !== 11 && (
-        <button onClick={onSkip} className="f-sans" style={{
+        <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{
           position:"absolute", top:step > 0 ? 24 : 16, right:20,
           background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"8px 18px",
           fontSize:13, color:"#222", fontWeight:600, cursor:"pointer", zIndex:2,
           boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>保存して終了</button>
+        }}>{draftSaving ? "保存中..." : "一時保存して終了"}</button>
       )}
 
       {/* スクロール領域 */}
