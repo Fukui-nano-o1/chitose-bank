@@ -4785,7 +4785,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const saveDraft = () => {
     try {
       const draft = {
-        role: "farmer", farmerStep: step, // 保存時点の実ステップを記録（旧「5=確認画面」の化石を撤去）
+        role: "farmer", farmerStep: step, job_number: draftJobNumber, // 保存時点の実ステップとupsertキーを記録
         farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
         farmerZip, farmerPref, farmerCity, farmerAddr, jobPhotos,
         farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
@@ -4843,6 +4843,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         const { data, error } = await supabase.from("jobs").insert(payload).select("job_number").single();
         if (error) return { ok:false, reason:error.message };
         setDraftJobNumber(data.job_number);
+        try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _d.job_number = data.job_number; localStorage.setItem("landingFlowDraft_v1", JSON.stringify(_d)); } catch {}
         return { ok:true, jobNumber:data.job_number };
       }
     } catch (e) { return { ok:false, reason:String(e) }; }
