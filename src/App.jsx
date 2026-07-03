@@ -8110,7 +8110,7 @@ const subDest=useCallback(async d=>{
           </div>
         ) : (
           <button
-            onClick={()=>setTab("input")} /* 検証中：本来はsetShowLanding(true)。完成後に戻す */
+            onClick={()=>setTab("login")}
             className="f-sans"
             style={{
               marginLeft:"auto",
@@ -8179,12 +8179,12 @@ const subDest=useCallback(async d=>{
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
-          : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>)}
-        {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
+          : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")}/>)}
+        {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
-          : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("input")} mode={mode} />)}
-        {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("input") /* 検証中：本来はsetShowLanding(true);setTab("labor")。完成後に戻す */} />}
+          : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("login")} mode={mode} />)}
+        {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
         {safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
@@ -8245,8 +8245,8 @@ const subDest=useCallback(async d=>{
       {!me&&showLanding&&(
         <LandingFlow
           onComplete={()=>setShowLanding(false)}
-          onSkip={()=>{setShowLanding(false);setTab("input");}}
-          onLogin={()=>{setShowLanding(false);setTab("input");}}
+          onSkip={()=>{setShowLanding(false);setTab("search");}}
+          onLogin={()=>{setShowLanding(false);setTab("login");}}
         />
       )}
       {me&&showJobPost&&(
