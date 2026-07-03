@@ -4619,7 +4619,7 @@ function buildGoogleMapsUrl(region) {
 
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
-function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false, initialRole = "", onStepChange }) {
+function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
   const TARGET = 30;
   const progress = Math.min(Math.round((farmersCount / TARGET) * 100), 100);
@@ -4638,7 +4638,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
 
   const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? initialRole ?? ""); // "" | "farmer" | "worker"
-  const [step, setStep] = useState(_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : 0)); // draftは記録された中断stepから再開（Airbnb模擬）
+  const [step, setStep] = useState((initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : 0))); // URL(#/work/new/{step})最優先→devJump→draft→0
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
@@ -8333,6 +8333,7 @@ const subDest=useCallback(async d=>{
           onSkip={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
           onStepChange={(s)=>{ if(window.location.hash.replace(/^#\/?/,"").startsWith("work/new")) window.location.hash="/work/new/"+s; }}
+          initialStep={(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^work\/new\/(\d+)$/); return m?parseInt(m[1],10):undefined; })()}
         />
       )}
       {me&&showDevJump&&(
