@@ -4975,7 +4975,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       {step > 0 && (
         <div style={{ position: embedded ? "relative" : "absolute", top:0, left:0, right:0, zIndex:1 }}>
           <div style={{ height:4, background:"#EBEBEB" }}>
-            <div style={{ height:4, background:"#00A86B", width:(draftBarFull ? 100 : (step/TOTAL*100))+"%", transition:"width 0.4s ease" }} />
+            <div style={{ height:4, background:"#00A86B", width:((draftBarFull || step >= 12) ? 100 : (step/TOTAL*100))+"%", transition:"width 0.4s ease" }} />
           </div>
           <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none", padding:"4px 8px 0" }}>
             {stepLabels.map((label, i) => (
@@ -5950,17 +5950,16 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {/* ── 農家 Step3: 完了 ── */}
           {/* ── 農家 Step3: 完了 ── */}
           {isFarmer && step === 12 && (<>
-            <div style={{ textAlign:"center", paddingTop:20 }}>
+            <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
               <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>審査に提出されました</h2>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
                 運営が確認後、公開されます。<br/>
                 公開までしばらくお待ちください。
               </p>
-              <div style={{ display:"grid", gap:10 }}>
-                <button onClick={onLogin} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>実証に参加する →</button>
-                <button onClick={onSkip} style={{ width:"100%", padding:"13px", fontSize:13, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, color:"#222", cursor:"pointer", fontFamily:"inherit" }}>公開データを見る</button>
-                <button onClick={onComplete} className="f-sans" style={{ width:"100%", padding:"10px", background:"none", border:"none", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>意見を送る（準備中）</button>
+              <div style={{ display:"grid", gap:10, width:"100%" }}>
+                <button onClick={onComplete} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>あなたの求人を見る</button>
+                <button onClick={()=>{ window.location.hash="/work/new"; }} style={{ width:"100%", padding:"13px", fontSize:13, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, color:"#222", cursor:"pointer", fontFamily:"inherit" }}>新しい求人を出す</button>
               </div>
             </div>
           </>)}
