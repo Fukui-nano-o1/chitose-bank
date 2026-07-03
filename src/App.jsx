@@ -7756,7 +7756,12 @@ export default function App(){
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
   useEffect(() => {
-    const onHash = () => { const t = readHashTab(); if (t) setTab(t); };
+    const onHash = () => {
+      const rawHash = window.location.hash.replace(/^#\/?/, "");
+      if (rawHash === "work/new" || rawHash.startsWith("work/new/")) { setShowJobPost(true); setTab("work"); return; }
+      if (showJobPost && !rawHash.startsWith("work/new")) { setShowJobPost(false); }
+      const t = readHashTab(); if (t) setTab(t);
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -7771,7 +7776,7 @@ export default function App(){
   const [me,setMe]=useState(null);
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
-  const [showJobPost,setShowJobPost]=useState(false);
+  const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/"); });
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [showTerms,setShowTerms]=useState(false);
@@ -8231,7 +8236,7 @@ const subDest=useCallback(async d=>{
                   🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
                 </div>
               )}
-              <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
+              <FarmerDashboard onNewJob={()=>{ setShowJobPost(true); window.location.hash="/work/new"; }} />
             </>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
         {safeTab==="profile"&&(me
@@ -8247,7 +8252,7 @@ const subDest=useCallback(async d=>{
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&(mode==="farmer"
-          ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
+          ? <FarmerDashboard onNewJob={()=>{ setShowJobPost(true); window.location.hash="/work/new"; }} />
           : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("login")} mode={mode} />)}
         {safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
         {safeTab==="input"&&(me
@@ -8317,9 +8322,9 @@ const subDest=useCallback(async d=>{
       {me&&showJobPost&&(
         <LandingFlow
           initialRole="farmer"
-          onComplete={()=>setShowJobPost(false)}
-          onSkip={()=>setShowJobPost(false)}
-          onLogin={()=>setShowJobPost(false)}
+          onComplete={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
+          onSkip={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
+          onLogin={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
         />
       )}
       {me&&showDevJump&&(
