@@ -5819,17 +5819,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     className="btn-primary"
                     style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginBottom:10 }}
                   >
-                    {jobSaving ? "保存中..." : "実証に参加して保存する"}
+                    {jobSaving ? "保存中..." : "掲載する"}
                   </button>
                   <button
                     onClick={handleSaveDraft}
                     disabled={draftSaving}
                     className="f-sans"
-                    style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:14, marginBottom:8, background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer" }}
+                    style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:14, marginBottom:8, background:"#F7F7F7", border:"1px solid #DDD", color:"#222", cursor:"pointer" }}
                   >
                   {draftSaving ? "保存中..." : "一時保存（作成中に残す）"}
                   </button>
                   {draftMsg && <p className="f-sans" style={{ fontSize:11, color:draftMsg.startsWith("保存に失敗") ? "#E24B4A" : "#00A86B", textAlign:"center", marginBottom:8 }}>{draftMsg}</p>}
+                  <p className="f-sans" style={{ fontSize:11, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", marginBottom:8 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
                   <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center" }}>
                     ログイン後にこの確認画面へ戻せるよう入力内容を保存します。
                   </p>
