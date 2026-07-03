@@ -5189,7 +5189,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     background:"#fff", fontSize:13, cursor:"pointer", color: jobDateStart ? "#222" : "#B0B0B0", fontFamily:"inherit",
                   }}
                 >{jobDateLabel}</button>
-                {showCalendar && <CalendarPicker />}
+                {showCalendar && <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={false} onSelect={(dt) => {
+                  if (!jobDateStart || jobDateEnd) { setJobDateStart(dt); setJobDateEnd(null); }
+                  else if (dt >= jobDateStart) { setJobDateEnd(dt); }
+                  else { setJobDateStart(dt); setJobDateEnd(null); }
+                }} />}
               </div>
             </LFWizCard>
           </>)}
