@@ -8164,10 +8164,12 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
-        {safeTab==="search"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="search(さがす・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>さがす（建設中・第2段-2で中身が入る）</p></div>}
+        {safeTab==="search"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
         {safeTab==="work"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="work(しごと・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>しごと（建設中・第2段-2で中身が入る）</p></div>}
         {safeTab==="profile"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="profile(プロフィール・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィール（建設中・第2段-2で中身が入る）</p></div>}
-        {safeTab==="login"&&<div style={{textAlign:"center",padding:"80px 24px"}}><DevBadge label="login(認証の門・建設中)" /><p className="f-sans" style={{fontSize:14,color:"#717171"}}>ログイン（建設中・第2段-2でLoginScreenが移る）</p></div>}
+        {safeTab==="login"&&(me
+          ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
+          : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")}/>)}
         {safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("input")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {safeTab==="labor"&&(mode==="farmer"
           ? <FarmerDashboard onNewJob={()=>setShowJobPost(true)} />
