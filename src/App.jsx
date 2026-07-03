@@ -3833,7 +3833,11 @@ function JobSearchMapView({ onRegister }) {
             count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
             nearestStation: j.nearest_station || "", workTime: j.work_time || "",
             breakTime: j.break_time || "", notes: j.notes || "",
-            dangerPlaces: j.danger_places || [], dangerTasks: j.danger_tasks || [],
+            commuteTime: j.commute_time || "", jobBody: j.notes || "",
+            wanted: j.job_exp || "", items: j.belongings || "",
+            payTiming: "", payMethod: "",
+            dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
+            dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
           }));
           setDbJobs(mapped);
         }
@@ -4006,8 +4010,8 @@ function JobSearchMapView({ onRegister }) {
                     { label:"休憩時間", value: selectedJob.breakTime },
                     { label:"募集人数", value: selectedJob.count },
                     { label:"移動時間", value: selectedJob.commuteTime },
-                    { label:"報酬",     value: `${payLabel(selectedJob)}　${selectedJob.payTiming}・${selectedJob.payMethod}` },
-                  ].map(row => (
+                    { label:"報酬",     value: (selectedJob.payTiming || selectedJob.payMethod) ? `${payLabel(selectedJob)}　${[selectedJob.payTiming, selectedJob.payMethod].filter(Boolean).join("・")}` : payLabel(selectedJob) },
+                  ].filter(row => row.value && String(row.value).trim()).map(row => (
                     <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
                       <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
                       <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{row.value}</span>
@@ -4030,17 +4034,19 @@ function JobSearchMapView({ onRegister }) {
               )}
 
               {/* 作業説明 */}
+              {selectedJob.jobBody && selectedJob.jobBody.trim() && (
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                 <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
                 <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0 }}>{selectedJob.jobBody}</p>
               </div>
+              )}
 
               {/* 経験・持ち物・備考（見出しにアイコン、持ち物は設備一覧風に展開） */}
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                 {[
                   { label:"💪 必要経験",       value: selectedJob.experience },
                   { label:"🙋 希望する働き手", value: selectedJob.wanted },
-                ].map(row => (
+                ].filter(row => row.value && String(row.value).trim()).map(row => (
                   <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                     <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
                     <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{row.value}</span>
