@@ -6201,24 +6201,36 @@ function AdminTab({ onJump }) {
   const [newDestNote, setNewDestNote] = useState("");
   const [addingDest, setAddingDest]   = useState(false);
   const [appErrors, setAppErrors] = useState([]);
+  const [pendingJobs, setPendingJobs] = useState([]);
+  const [publishing, setPublishing] = useState(null);
 
   const TIERS = ["1-3","4-10","10+"];
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re, ae] = await Promise.all([
+    const [fr, de, re, ae, pj] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
       supabase.from("app_errors").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("jobs").select("*").eq("status","pending").order("created_at",{ascending:false}),
     ]);
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
     if (!re.error) setRecords(re.data || []);
     if (!ae.error) setAppErrors(ae.data || []);
+    if (!pj.error) setPendingJobs(pj.data || []);
     setLoading(false);
   }, []);
 
+  const publishJob = async (jobNumber) => {
+    if (publishing) return;
+    setPublishing(jobNumber);
+    const { error } = await supabase.from("jobs").update({ status: "open" }).eq("job_number", jobNumber);
+    setPublishing(null);
+    if (error) { alert("公開に失敗しました：" + error.message); return; }
+    load();
+  };
   useEffect(() => { load(); }, [load, sub]);
 
   const ask = (msg, onOk) => setConfirm({ msg, onOk });
@@ -6310,6 +6322,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
   const SUB_TABS = [
     { k:"farmers", l:"農家",      n: farmers.length },
     { k:"dests",   l:"出荷先",    n: dests.filter(d=>d.status==="pending").length },
+    { k:"jobs",    l:"求人審査",  n: pendingJobs.length },
     { k:"records", l:"記録データ", n: records.length },
     { k:"stats",   l:"統計",      n: null },
     { k:"sql",     l:"SQL",       n: null },
@@ -6549,6 +6562,23 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 </div>
               </Card>
           }
+        </div>
+      )}
+
+      {/* ── 求人審査 ── */}
+      {sub==="jobs" && (
+        <div style={{ display:"grid", gap:12 }}>
+          {pendingJobs.length === 0 ? (
+            <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>公開待ちの求人はありません</p>
+          ) : pendingJobs.map(j => (
+            <div key={j.job_number} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff", display:"flex", justifyContent:"space-between", alignItems:"center", gap:16 }}>
+              <div>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>#{j.job_number} {j.crop} {j.task}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{[j.prefecture,j.city].filter(Boolean).join("")} ・ {j.date_label||""} ・ {j.headcount||"?"}名</p>
+              </div>
+              <button onClick={()=>publishJob(j.job_number)} disabled={publishing===j.job_number} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{publishing===j.job_number ? "公開中..." : "公開する"}</button>
+            </div>
+          ))}
         </div>
       )}
 
