@@ -7860,11 +7860,6 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
             width:"100%", padding:"15px", fontSize:14, borderRadius:14,
           }}>プロフィールを編集する</button>
 
-          <button onClick={onSwitchMode} style={{
-            width:"100%", padding:"13px", fontSize:13,
-            background:"#fff", border:"1px solid #00A86B", borderRadius:14,
-            color:"#00A86B", fontWeight:600, cursor:"pointer", fontFamily:"inherit",
-          }}>{mode==="worker" ? "🚜 農家として使う" : "🧑‍🌾 働き手として使う"}</button>
 
           {displayUrl && (
             <button onClick={handleDeleteAvatar} disabled={uploading} style={{
@@ -7983,7 +7978,7 @@ export default function App(){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showProfile,setShowProfile]=useState(false);
   const [mode,setMode]=useState(localStorage.getItem("cb_mode")||"worker");
-  const modeAccent = mode==="worker" ? "#F5A623" : "#00A86B";
+  const modeAccent = "#00A86B";
   const [avatarUrl,setAvatarUrl]=useState("");
   useEffect(()=>{
     if(!me?.id)return;
