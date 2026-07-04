@@ -7131,8 +7131,8 @@ function FarmerDashboard({ onNewJob, onResume }) {
 
 // ── LaborTab ─────────────────────────────────────────────────
 // 表示中タブ：「人手確保」(tab==="labor") → <LaborTab> が直接レンダリングされる
-function LaborTab({ farmersCount, onLogin, mode }) {
-  return <LandingFlow embedded farmersCount={farmersCount} initialRole={mode}
+function LaborTab({ farmersCount, onLogin }) {
+  return <LandingFlow embedded farmersCount={farmersCount} initialRole="farmer"
     onComplete={()=>{}} onSkip={onLogin} onLogin={onLogin} />;
 }
 
@@ -7646,7 +7646,7 @@ function DataConstitution({ onClose }) {
 }
 
 // ── ProfileModal ─────────────────────────────────────────────
-function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfile, onLogout, onAvatarChange, mode, onSwitchMode }) {
+function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfile, onLogout, onAvatarChange }) {
   const [delConfirm, setDelConfirm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
@@ -7977,7 +7977,6 @@ export default function App(){
   const [notifs,setNotifs]=useState([]);
   const [showNotifs,setShowNotifs]=useState(false);
   const [showProfile,setShowProfile]=useState(false);
-  const [mode,setMode]=useState(localStorage.getItem("cb_mode")||"worker");
   const modeAccent = "#00A86B";
   const [avatarUrl,setAvatarUrl]=useState("");
   useEffect(()=>{
@@ -8232,7 +8231,7 @@ const subDest=useCallback(async d=>{
     {k:"profile",l:"プロフィール",modes:["farmer","worker"]},
     ...(isAdmin(me)?[{k:"admin",l:"管理",badge:badgeCnt,modes:["farmer","worker"]}]:[]),
   ];
-  const TABS = ALL_TABS.filter(t=>t.modes.includes(mode));
+  const TABS = ALL_TABS;
 
   const visibleTabKeys = TABS.map(t=>t.k);
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
@@ -8454,7 +8453,7 @@ const subDest=useCallback(async d=>{
               <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
             </div>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
-        {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setMode(role==="worker"?"worker":"farmer"); try{localStorage.setItem("cb_mode",role==="worker"?"worker":"farmer");}catch{} setTab("work"); }}/>}
+        {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("work"); }}/>}
         {!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
@@ -8569,8 +8568,6 @@ const subDest=useCallback(async d=>{
           onEditProfile={()=>{setShowProfile(false);setShowOnboarding(true);setObModalKey(k=>k+1);}}
           onLogout={handleLogout}
           onAvatarChange={url=>setAvatarUrl(url)}
-          mode={mode}
-          onSwitchMode={()=>{const next=mode==="worker"?"farmer":"worker";localStorage.setItem("cb_mode",next);window.location.reload();}}
         />
       )}
     </div>
