@@ -8441,8 +8441,7 @@ const subDest=useCallback(async d=>{
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} /> : null}
-        {!chatAppId&&!showApplyDone&&safeTab==="work"&&(mode==="farmer"
-          ? <>
+        {!chatAppId&&!showApplyDone&&safeTab==="work"&&(<>
               {me&&!me.isWorker&&me.status==="pending"&&(
                 <div className="f-sans" style={{maxWidth:920,margin:"0 auto 16px",padding:"14px 18px",background:"#FFF8E7",border:"1px solid #F5D98F",borderRadius:12,fontSize:13,color:"#8A6D1D",lineHeight:1.7}}>
                   🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
@@ -8452,8 +8451,7 @@ const subDest=useCallback(async d=>{
                 onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
                 onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               />
-            </>
-          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>働き手向けの「しごと」は準備中です（応募機能の実装後に開きます）</p></div>)}
+            </>)}
         {!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <div style={{maxWidth:480,margin:"0 auto",padding:"48px 24px"}}>
               <p className="f-sans" style={{fontSize:11,color:"#B0B0B0",letterSpacing:".08em",marginBottom:8}}>プロフィール</p>
@@ -8466,12 +8464,11 @@ const subDest=useCallback(async d=>{
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
         {!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {!chatAppId&&!showApplyDone&&safeTab==="labor"&&(mode==="farmer"
-          ? <FarmerDashboard
+        {!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
+          <FarmerDashboard
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
-            />
-          : <LaborTab farmersCount={publicFarmerCount ?? farmers.length} onLogin={()=>setTab("login")} mode={mode} />)}
+            />)}
         {!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
         {!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
