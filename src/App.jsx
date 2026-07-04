@@ -3935,6 +3935,23 @@ function JobSearchMapView({ onRegister }) {
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
+  const [applying, setApplying] = useState(false);
+  const handleApply = async () => {
+    if (applying || !selectedJob) return;
+    setApplying(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setApplying(false); if (onRegister) onRegister(); return; }
+      const { data, error } = await supabase.rpc("apply_to_job", { p_job_number: selectedJob.id });
+      setApplying(false);
+      if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
+      if (data && data.ok) { window.location.hash = "/apply/done"; }
+      else if (data && data.reason === "not_logged_in") { if (onRegister) onRegister(); }
+      else if (data && data.reason === "own_job") { alert("自分の求人には応募できません。"); }
+      else if (data && data.reason === "job_not_open") { alert("この求人は現在募集を受け付けていません。"); }
+      else { alert("応募できませんでした。"); }
+    } catch { setApplying(false); alert("応募に失敗しました。"); }
+  };
 
   // PC専用の下固定応募バー：応募パネル(sticky)が画面より上に通過したら表示（758px以下はCSSで非表示）
   useEffect(() => {
@@ -4234,10 +4251,11 @@ function JobSearchMapView({ onRegister }) {
 
               {/* CTAボタン */}
               <button
-                onClick={() => { window.location.hash = "/apply/done"; }}
+                onClick={handleApply}
+                disabled={applying}
                 className="btn-primary f-sans"
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
-              >この仕事に興味がある</button>
+              >{applying ? "送信中..." : "この仕事に興味がある"}</button>
 
               {/* 補足文 */}
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:0, marginTop:10 }}>
@@ -4410,10 +4428,11 @@ function JobSearchMapView({ onRegister }) {
         }}>
           <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
           <button
-            onClick={() => { window.location.hash = "/apply/done"; }}
+            onClick={handleApply}
+            disabled={applying}
             className="btn-primary f-sans"
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
-          >この仕事に興味がある</button>
+          >{applying ? "送信中..." : "この仕事に興味がある"}</button>
         </div>
       )}
     </div>
