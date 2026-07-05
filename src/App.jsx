@@ -4018,8 +4018,8 @@ function WorkerProfileEdit({ me }) {
   );
 }
 
-function WorkerApplications() {
-  const [apps, setApps] = useState([]);
+function WorkerApplications({ filter }) {
+  const [allApps, setAllApps] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     (async () => {
@@ -4027,11 +4027,17 @@ function WorkerApplications() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         const { data, error } = await supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false});
-        if (!error && data) setApps(data);
+        if (!error && data) setAllApps(data);
       } catch {}
       setLoading(false);
     })();
   }, []);
+  // filter: "applying"=応募中(applied), "approved"=承認済み(approved以降), 見送り(rejected)はどちらにも出さない(通知で知らせる)
+  const apps = allApps.filter(a => {
+    if (filter === "applying") return a.status === "applied";
+    if (filter === "approved") return ["approved","meeting","interview","contracted","working","completed"].includes(a.status);
+    return a.status !== "rejected";
+  });
   const label = (s) => s==="applied" ? "応募中" : s==="approved" ? "承認されました" : s==="rejected" ? "見送り" : s==="meeting" ? "打ち合わせ" : s==="interview" ? "面接" : s==="contracted" ? "契約" : s==="working" ? "作業中" : s==="completed" ? "完了" : s;
   const color = (s) => s==="approved"||s==="contracted"||s==="working" ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="rejected" ? {bg:"#F3F3F3",fg:"#999"} : {bg:"#FFF4E0",fg:"#C77700"};
   return (
@@ -4043,8 +4049,8 @@ function WorkerApplications() {
       ) : apps.length === 0 ? (
         <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
           <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
-          <p style={{ fontSize:14, margin:0 }}>まだ応募していません</p>
-          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
+          <p style={{ fontSize:14, margin:0 }}>{filter === "approved" ? "承認された求人はまだありません" : "応募中の求人はありません"}</p>
+          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>{filter === "approved" ? "農家が承認すると、ここに表示されます。" : "「さがす」から求人に応募できます。"}</p>
         </div>
       ) : (
         <div style={{ display:"grid", gap:12 }}>
@@ -4071,15 +4077,30 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
   const hashToPTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer" || h.startsWith("profile/employer/")) return "employer";
-    if (h === "profile/worker" || h === "profile") return "worker";
+    if (h === "profile/worker" || h.startsWith("profile/worker/") || h === "profile") return "worker";
     return "worker";
   };
   const [pTab, setPTab] = useState(() => { try { return hashToPTab(); } catch { return "worker"; } });
+  const hashToWTab = () => {
+    const h = window.location.hash.replace(/^#\/?/,"");
+    if (h === "profile/worker/profile") return "wprofile";
+    if (h === "profile/worker/applying") return "applying";
+    if (h === "profile/worker/approved") return "approved";
+    if (h === "profile/worker/calendar") return "wcalendar";
+    return "wprofile";
+  };
+  const [wTab, setWTab] = useState(() => { try { return hashToWTab(); } catch { return "wprofile"; } });
   useEffect(() => {
-    const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); };
+    const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+  const WORKER_TABS = [
+    { k:"wprofile",  l:"プロフィール" },
+    { k:"applying",  l:"応募中" },
+    { k:"approved",  l:"承認済み" },
+    { k:"wcalendar", l:"カレンダー" },
+  ];
   const P_TABS = [
     { k:"worker",   l:"働き手として" },
     { k:"employer", l:"雇い手として" },
@@ -4098,8 +4119,29 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
       </div>
       {pTab === "worker" ? (
         <>
-          <WorkerProfileEdit me={me} />
-          <WorkerApplications />
+          <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", flexWrap:"wrap" }}>
+            {WORKER_TABS.map(t => (
+              <button key={t.k} onClick={()=>{ const _map={wprofile:"/profile/worker/profile",applying:"/profile/worker/applying",approved:"/profile/worker/approved",wcalendar:"/profile/worker/calendar"}; window.location.hash=(_map[t.k]||"/profile/worker"); }} className="f-sans" style={{
+                padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
+                fontSize:13, fontWeight: wTab===t.k ? 700 : 400,
+                color: wTab===t.k ? "#222" : "#999",
+                borderBottom: wTab===t.k ? "2px solid #00A86B" : "2px solid transparent",
+              }}>{t.l}</button>
+            ))}
+          </div>
+          {wTab === "wprofile" ? (
+            <WorkerProfileEdit me={me} />
+          ) : wTab === "applying" ? (
+            <WorkerApplications filter="applying" />
+          ) : wTab === "approved" ? (
+            <WorkerApplications filter="approved" />
+          ) : (
+            <div style={{ maxWidth:480 }}>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8, lineHeight:1.7 }}>承認された求人の日程を、ここで確認できます。</p>
+              <CalendarView readOnly={true} />
+              <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の日程表示は今後追加されます。</p>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -8256,7 +8298,7 @@ export default function App(){
     const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/");
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
-    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
+    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/worker/profile" || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
     if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
