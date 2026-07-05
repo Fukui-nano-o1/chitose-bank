@@ -8736,26 +8736,6 @@ const subDest=useCallback(async d=>{
         )}
       </header>
 
-      {/* ── 格下げカウントダウン通知 ── */}
-      {isMember && daysSinceInput !== null && daysSinceInput >= 25 && (
-        <div style={{
-          padding:"12px 24px",
-          background: daysSinceInput <= 30 ? "#FEF3E2" : "#FCEBEB",
-          borderBottom:`1px solid ${daysSinceInput <= 30 ? "#F5A62344" : "#E24B4A44"}`,
-          display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8,
-        }}>
-          <span className="f-sans" style={{ fontSize:12, color: daysSinceInput <= 30 ? "#B87A1A" : "#E24B4A" }}>
-            {daysSinceInput <= 30
-              ? `貢献者アクセスがあと${30 - daysSinceInput}日で停止します。データを入力して維持しましょう。`
-              : "貢献者アクセスが停止しました。データを入力すると復活します。"
-            }
-          </span>
-          <button onClick={() => setTab("input")} style={{
-            padding:"6px 16px", borderRadius:20, fontSize:12, fontWeight:600,
-            background:C.accent, color:"#fff", border:"none", cursor:"pointer",
-          }}>今すぐ入力する</button>
-        </div>
-      )}
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       {TABS.length>1&&<div className="bottom-tab-bar">
