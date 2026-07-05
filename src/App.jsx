@@ -3904,6 +3904,25 @@ function WorkerProfileEdit({ me }) {
       setLoading(false);
     })();
   }, []);
+  // 任意形式の画像をCanvasでjpegに統一変換（heic以外の全形式に対応・バケット制限も回避）
+  const convertToJpeg = (file) => new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const max = 512; // アイコンなので512pxに縮小（容量削減）
+      let { width, height } = img;
+      if (width > height && width > max) { height = Math.round(height * max / width); width = max; }
+      else if (height > max) { width = Math.round(width * max / height); height = max; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => { if (blob) resolve(blob); else reject(new Error('変換に失敗')); }, 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('この形式は読み込めません（iPhoneのHEIC等は非対応）')); };
+    img.src = url;
+  });
   const handleAvatar = async e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -3911,14 +3930,41 @@ function WorkerProfileEdit({ me }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setUploading(false); return; }
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const path = "worker/" + session.user.id + "/avatar." + ext;
-      await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      let blob;
+      try { blob = await convertToJpeg(file); }
+      catch (convErr) { setUploading(false); alert(convErr.message || "この画像形式は対応していません。JPEG・PNG・WebP等をお試しください。"); return; }
+      // 拡張子はjpg固定（変換後は必ずjpeg）。旧ファイルが別拡張子で残っていれば掃除
+      try {
+        const { data: olds } = await supabase.storage.from('avatars').list("worker/" + session.user.id);
+        if (olds && olds.length > 0) {
+          const paths = olds.map(f => "worker/" + session.user.id + "/" + f.name);
+          await supabase.storage.from('avatars').remove(paths);
+        }
+      } catch {}
+      const path = "worker/" + session.user.id + "/avatar.jpg";
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+      if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message); return; }
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
       await supabase.from('worker_profiles').upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       setAvatarUrl(url);
     } catch { alert("画像のアップロードに失敗しました。"); }
+    setUploading(false);
+  };
+  const handleDeleteAvatar = async () => {
+    if (!avatarUrl || uploading) return;
+    setUploading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setUploading(false); return; }
+      const { data: files } = await supabase.storage.from('avatars').list("worker/" + session.user.id);
+      if (files && files.length > 0) {
+        const paths = files.map(f => "worker/" + session.user.id + "/" + f.name);
+        await supabase.storage.from('avatars').remove(paths);
+      }
+      await supabase.from('worker_profiles').upsert({ auth_id: session.user.id, avatar_url: '', updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      setAvatarUrl('');
+    } catch { alert("削除に失敗しました。"); }
     setUploading(false);
   };
   const save = async () => {
@@ -3943,10 +3989,15 @@ function WorkerProfileEdit({ me }) {
         <div style={{ width:64, height:64, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
           {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:28 }}>🧑‍🌾</span>}
         </div>
-        <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer" }}>
-          {uploading ? "アップロード中..." : "画像を選ぶ"}
-          <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading} style={{ display:"none" }} />
-        </label>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
+            {uploading ? "処理中..." : avatarUrl ? "画像を変更" : "画像を選ぶ"}
+            <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading} style={{ display:"none" }} />
+          </label>
+          {avatarUrl && (
+            <button onClick={handleDeleteAvatar} disabled={uploading} className="f-sans" style={{ padding:"8px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:12, color:"#717171", cursor:"pointer" }}>削除</button>
+          )}
+        </div>
       </div>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ニックネーム</label>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：たき" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
