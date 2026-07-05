@@ -458,16 +458,12 @@ input:focus { outline: none; }
 
 /* ── Fixed footer ── */
 .site-footer-fixed {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 80;
-  background: rgba(255,255,255,0.96);
-  backdrop-filter: blur(10px);
+  position: static;
+  background: #FFFFFF;
   border-top: 1px solid #EBEBEB;
-  padding: 10px 24px;
+  padding: 20px 24px;
   text-align: center;
+  margin-top: 40px;
 }
 .site-footer-fixed .footer-inner {
   max-width: 1120px;
@@ -496,13 +492,12 @@ input:focus { outline: none; }
 }
 @media (min-width: 641px) {
   main {
-    padding-bottom: 96px !important;
+    padding-bottom: 24px !important;
   }
 }
 @media (max-width: 640px) {
   .site-footer-fixed {
-    bottom: 62px;
-    padding: 6px 10px;
+    padding: 14px 10px;
   }
   .site-footer-fixed .footer-inner {
     justify-content: center;
@@ -8843,68 +8838,68 @@ const subDest=useCallback(async d=>{
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
           onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}/>}
         {!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
-          <div style={{ maxWidth:760, margin:"0 auto", padding:"32px 24px 40px" }}>
-            <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", marginBottom:6 }}>運営憲章</h1>
-            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:32 }}>制定日：2026年7月5日</p>
+          <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+            <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定日：2026年7月5日</p>
 
-            <nav style={{ display:"flex", flexWrap:"wrap", gap:"8px 16px", marginBottom:32, paddingBottom:20, borderBottom:"1px solid #EEE" }}>
+            <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
               {[
                 { id:"charter-preamble", l:"前文" },
-                { id:"charter-ch1", l:"第一章 視点" },
-                { id:"charter-ch2", l:"第二章 視野" },
-                { id:"charter-ch3", l:"第三章 視座" },
-                { id:"charter-ch4", l:"第四章 導かれるもの" },
-                { id:"charter-ch5", l:"第五章 約束すること" },
+                { id:"charter-ch1", l:"第一章　視点" },
+                { id:"charter-ch2", l:"第二章　視野" },
+                { id:"charter-ch3", l:"第三章　視座" },
+                { id:"charter-ch4", l:"第四章　この憲章から導かれるもの" },
+                { id:"charter-ch5", l:"第五章　我々が約束すること" },
                 { id:"charter-def", l:"定義" },
               ].map(t => (
-                <button key={t.id} onClick={()=>{ document.getElementById(t.id)?.scrollIntoView({ behavior:"smooth", block:"start" }); }} className="f-sans" style={{ fontSize:12, color:"#00A86B", background:"none", border:"none", cursor:"pointer", padding:0, textDecoration:"underline", textUnderlineOffset:3 }}>{t.l}</button>
+                <button key={t.id} onClick={()=>{ document.getElementById(t.id)?.scrollIntoView({ behavior:"smooth", block:"start" }); }} className="f-sans" style={{ fontSize:17, fontWeight:600, color:"#00A86B", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer", padding:"14px 18px", textAlign:"left", width:"100%" }}>{t.l}</button>
               ))}
             </nav>
 
             <div style={{ display:"grid", gap:28 }}>
 
-              <section id="charter-preamble" style={{ scrollMarginTop:16 }}>
-                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>前文</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>日本の農業は、担い手不足という課題を抱えている。</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、働き手※1と、認定農家※2が出会い、学びを通じてつながる場を運営する。</p>
+              <section id="charter-preamble" style={{ scrollMarginTop:16, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>前文</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>日本の農業は、担い手不足という課題を抱えている。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、働き手※1と、認定農家※2が出会い、学びを通じてつながる場を運営する。</p>
               </section>
 
-              <section id="charter-ch1" style={{ scrollMarginTop:16 }}>
-                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第一章　視点</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、利用者※3の側に立って判断する。</p>
+              <section id="charter-ch1" style={{ scrollMarginTop:16, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第一章　視点</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、利用者※3の側に立って判断する。</p>
               </section>
 
-              <section id="charter-ch2" style={{ scrollMarginTop:16 }}>
-                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第二章　視野</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>この場は、働き手が、認定農家から農業の実態を学ぶ場である。</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、農業に関わろうとする全ての人を歓迎する。</p>
+              <section id="charter-ch2" style={{ scrollMarginTop:16, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第二章　視野</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>この場は、働き手が、認定農家から農業の実態を学ぶ場である。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、農業に関わろうとする全ての人を歓迎する。</p>
               </section>
 
-              <section id="charter-ch3" style={{ scrollMarginTop:16 }}>
-                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第三章　視座</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、認定農家と働き手の双方に寄り添う立場で運営する。</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、参入の間口を広く開く。</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、この場で働く人の尊厳と安全を守る。</p>
+              <section id="charter-ch3" style={{ scrollMarginTop:16, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第三章　視座</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、認定農家と働き手の双方に寄り添う立場で運営する。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、参入の間口を広く開く。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、この場で働く人の尊厳と安全を守る。</p>
               </section>
 
-              <section id="charter-ch4" style={{ scrollMarginTop:16 }}>
-                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第四章　この憲章から導かれるもの</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、この視座に基づき、プライバシーポリシー・利用規約・個別規約を定め、これを守る。</p>
+              <section id="charter-ch4" style={{ scrollMarginTop:16, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第四章　この憲章から導かれるもの</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、この視座に基づき、プライバシーポリシー・利用規約・個別規約を定め、これを守る。</p>
               </section>
 
-              <section id="charter-ch5" style={{ scrollMarginTop:16 }}>
-                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第五章　我々が約束すること</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、全ての運用を、この憲章に沿って行う。</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、この憲章を、利用者の利益のために保つ。</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、この憲章の改定を、利用者に事前に告知して行う。</p>
+              <section id="charter-ch5" style={{ scrollMarginTop:16, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第五章　我々が約束すること</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、全ての運用を、この憲章に沿って行う。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、この憲章を、利用者の利益のために保つ。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、この憲章の改定を、利用者に事前に告知して行う。</p>
               </section>
 
-              <section id="charter-def" style={{ borderTop:"1px solid #EEE", paddingTop:24, scrollMarginTop:16 }}>
-                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>定義</h2>
-                <p className="f-sans" style={{ fontSize:13, color:"#666", lineHeight:2, margin:0 }}>※1　働き手とは、認定農家のもとで農業を学ぶために本サービスを利用する者をいう。</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#666", lineHeight:2, margin:0 }}>※2　認定農家とは、運営が定めた基準を満たす農家をいう。基準の詳細は、個別規約に定める。</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#666", lineHeight:2, margin:0 }}>※3　利用者とは、本サービスに登録し、これを利用する全ての者をいう。</p>
+              <section id="charter-def" style={{ scrollMarginTop:16, background:"#F7F9F8", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>定義</h2>
+                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※1　働き手とは、認定農家のもとで農業を学ぶために本サービスを利用する者をいう。</p>
+                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※2　認定農家とは、運営が定めた基準を満たす農家をいう。基準の詳細は、個別規約に定める。</p>
+                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※3　利用者とは、本サービスに登録し、これを利用する全ての者をいう。</p>
               </section>
 
             </div>
