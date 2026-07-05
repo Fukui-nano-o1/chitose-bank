@@ -8637,7 +8637,7 @@ const subDest=useCallback(async d=>{
         {me ? (
           <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}}>
             {/* 通知ベル */}
-            <div data-notif-bell="" style={{position:"relative"}}>
+            {false && <div data-notif-bell="" style={{position:"relative"}}>
               <button onClick={()=>setShowNotifs(v=>!v)} style={{
                 width:36,height:36,borderRadius:"50%",border:"1px solid #EBEBEB",
                 background:"#F7F7F7",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",
@@ -8684,7 +8684,7 @@ const subDest=useCallback(async d=>{
                   }
                 </div>
               )}
-            </div>
+            </div>}
             {/* ユーザーピル（独立プロフィールタブに一本化のため非表示・要素は転用のため残置） */}
             <div
               onClick={()=>setShowProfile(true)}
