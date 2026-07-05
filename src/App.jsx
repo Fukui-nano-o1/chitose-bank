@@ -316,12 +316,11 @@ input:focus { outline: none; }
   .bottom-tab-bar {
     display: flex;
     position: fixed;
-    bottom: 0; left: 0; right: 0;
+    top: 52px; left: 0; right: 0;
     background: #FFFFFF;
-    border-top: 1px solid #EBEBEB;
-    z-index: 100;
-    padding: 8px 0;
-    padding-bottom: env(safe-area-inset-bottom, 8px);
+    border-bottom: 1px solid #EBEBEB;
+    z-index: 49;
+    padding: 6px 0;
   }
   .bottom-tab-bar button {
     flex: 1;
@@ -518,7 +517,8 @@ input:focus { outline: none; }
     line-height: 1.4;
   }
   main {
-    padding-bottom: 150px !important;
+    padding-top: 52px !important;
+    padding-bottom: 24px !important;
   }
 }
 
