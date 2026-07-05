@@ -7093,16 +7093,23 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
 function FarmerDashboard({ onNewJob, onResume }) {
+  const hashToJobTab = () => {
+    const h = window.location.hash.replace(/^#\/?/,"");
+    if (h === "work/drafts") return "draft";
+    if (h === "work/active") return "active";
+    if (h === "work/applicants") return "applicants";
+    if (h === "work/expired") return "expired";
+    return null;
+  };
   const [jobTab, setJobTab] = useState(() => {
-    try {
-      const h = window.location.hash.replace(/^#\/?/,"");
-      if (h === "work/drafts") return "draft";
-      if (h === "work/active") return "active";
-      if (h === "work/applicants") return "applicants";
-      if (h === "work/expired") return "expired";
-    } catch {}
+    try { const j = hashToJobTab(); if (j) return j; } catch {}
     return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active";
   });
+  useEffect(() => {
+    const onHash = () => { const j = hashToJobTab(); if (j) setJobTab(j); };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
   const [dbApplicants, setDbApplicants] = useState([]);
@@ -7139,7 +7146,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE" }}>
         {JOB_TABS.map(t => (
-          <button key={t.k} onClick={()=>{ setJobTab(t.k); const _map={draft:"/work/drafts",active:"/work/active",applicants:"/work/applicants",expired:"/work/expired"}; try{ window.history.replaceState(null,"",window.location.pathname+window.location.search+"#"+(_map[t.k]||"/work")); }catch{} }} className="f-sans" style={{
+          <button key={t.k} onClick={()=>{ const _map={draft:"/work/drafts",active:"/work/active",applicants:"/work/applicants",expired:"/work/expired"}; window.location.hash=(_map[t.k]||"/work"); }} className="f-sans" style={{
             padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
             fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
             color: jobTab===t.k ? "#222" : "#999",
@@ -8038,8 +8045,11 @@ export default function App(){
   useEffect(() => {
     const target = "#/" + tab;
     const _curHash = window.location.hash.replace(/^#\/?/, "");
-    const _inNewJob = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/") || _curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired";
-    if (!_inNewJob && window.location.hash !== target) window.location.hash = "/" + tab;
+    // フロー系(求人作成・編集・詳細・チャット)は正当にhashを保持
+    const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/");
+    // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
+    const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
+    if (!_inFlow && !_subTabOfWork && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
   useEffect(() => {
