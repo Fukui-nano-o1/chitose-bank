@@ -4067,6 +4067,54 @@ function WorkerApplications() {
   );
 }
 
+function ProfileHub({ me, onLogout }) {
+  const hashToPTab = () => {
+    const h = window.location.hash.replace(/^#\/?/,"");
+    if (h === "profile/employer") return "employer";
+    if (h === "profile/worker" || h === "profile") return "worker";
+    return "worker";
+  };
+  const [pTab, setPTab] = useState(() => { try { return hashToPTab(); } catch { return "worker"; } });
+  useEffect(() => {
+    const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const P_TABS = [
+    { k:"worker",   l:"働き手として" },
+    { k:"employer", l:"雇い手として" },
+  ];
+  return (
+    <div style={{maxWidth:480,margin:"0 auto",padding:"32px 24px"}}>
+      <div style={{ display:"flex", gap:8, marginBottom:24, borderBottom:"1px solid #EEE" }}>
+        {P_TABS.map(t => (
+          <button key={t.k} onClick={()=>{ window.location.hash = t.k==="employer" ? "/profile/employer" : "/profile/worker"; }} className="f-sans" style={{
+            padding:"10px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
+            fontSize:14, fontWeight: pTab===t.k ? 700 : 400,
+            color: pTab===t.k ? "#222" : "#999",
+            borderBottom: pTab===t.k ? "2px solid #00A86B" : "2px solid transparent",
+          }}>{t.l}</button>
+        ))}
+      </div>
+      {pTab === "worker" ? (
+        <>
+          <WorkerProfileEdit me={me} />
+          <WorkerApplications />
+        </>
+      ) : (
+        <div style={{ textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+          <div style={{ fontSize:40, marginBottom:12 }}>🚜</div>
+          <p style={{ fontSize:14, margin:0 }}>雇い手としての機能はここに移動します</p>
+          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人の作成・管理・応募者の確認</p>
+        </div>
+      )}
+      <div style={{marginTop:32,paddingTop:24,borderTop:"1px solid #EEE",textAlign:"center"}}>
+        <button onClick={onLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
+      </div>
+    </div>
+  );
+}
+
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -8148,7 +8196,7 @@ export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
@@ -8159,7 +8207,8 @@ export default function App(){
     const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/");
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
-    if (!_inFlow && !_subTabOfWork && window.location.hash !== target) window.location.hash = "/" + tab;
+    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/employer");
+    if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
   useEffect(() => {
@@ -8669,15 +8718,7 @@ const subDest=useCallback(async d=>{
               />
             </>)}
         {!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
-          ? <div style={{maxWidth:480,margin:"0 auto",padding:"48px 24px"}}>
-              <p className="f-sans" style={{fontSize:11,color:"#B0B0B0",letterSpacing:".08em",marginBottom:8}}>プロフィール</p>
-              <p className="f-sans" style={{display:"none",fontSize:22,fontWeight:700,color:"#222",marginBottom:32}}>{me.name || "名前未設定"}</p>
-              <WorkerProfileEdit me={me} />
-              <WorkerApplications />
-              <div style={{marginTop:32,paddingTop:24,borderTop:"1px solid #EEE",textAlign:"center"}}>
-                <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
-              </div>
-            </div>
+          ? <ProfileHub me={me} onLogout={handleLogout} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("work"); }}/>}
         {!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
