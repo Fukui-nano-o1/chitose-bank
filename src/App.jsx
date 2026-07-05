@@ -1745,7 +1745,7 @@ function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, 
       }}>
         {[
           { label:"利用規約", action:() => onShowTerms && onShowTerms() },
-          { label:"データ憲法", action:() => onShowConstitution && onShowConstitution() },
+          { label:"運営憲章", action:() => { window.location.hash="/charter"; } },
           { label:"プライバシーポリシー", action:() => onShowPrivacy && onShowPrivacy() },
         ].map(item => (
           <button key={item.label} onClick={item.action} className="f-sans" style={{
@@ -7187,7 +7187,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             </div>
             <p className="f-sans" style={{ fontSize:11, color:"#717171", marginTop:10, lineHeight:1.8 }}>
               ※ P8・P9は都度本人同意が必要。「最初に同意したから全部出していい」は不可。<br/>
-              ※ 利用目的を追加する場合は、本人に通知し必要に応じて同意を得る（データ憲法第9条）。
+              ※ 利用目的を追加する場合は、本人に通知し必要に応じて同意を得る。
             </p>
           </div>
 
@@ -8845,7 +8845,8 @@ const subDest=useCallback(async d=>{
         {!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"32px 24px 40px" }}>
             <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", marginBottom:6 }}>運営憲章</h1>
-            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:32 }}>chitose-bank</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:4 }}>chitose-bank</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:32 }}>制定日：2026年7月5日</p>
 
             <nav style={{ display:"flex", flexWrap:"wrap", gap:"8px 16px", marginBottom:32, paddingBottom:20, borderBottom:"1px solid #EEE" }}>
               {[
@@ -8926,10 +8927,6 @@ const subDest=useCallback(async d=>{
               fontSize:11, color:"#717171", background:"none", border:"none",
               cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
             }}>運営憲章</button>
-            <button onClick={()=>setShowConstitution(true)} className="f-sans" style={{
-              fontSize:11, color:"#717171", background:"none", border:"none",
-              cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
-            }}>データ憲法</button>
             <button onClick={()=>setShowPrivacy(true)} className="f-sans" style={{
               fontSize:11, color:"#717171", background:"none", border:"none",
               cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
