@@ -8843,9 +8843,56 @@ const subDest=useCallback(async d=>{
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
           onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}/>}
         {!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
-          <div style={{ maxWidth:760, margin:"0 auto", padding:"32px 24px" }}>
-            <h1 className="f-sans" style={{ fontSize:24, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
-            <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:24 }}>（この器は現在準備中です。次の段階で本文を制定します。）</p>
+          <div style={{ maxWidth:760, margin:"0 auto", padding:"32px 24px 40px" }}>
+            <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", marginBottom:6 }}>運営憲章</h1>
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginBottom:32 }}>chitose-bank</p>
+
+            <div style={{ display:"grid", gap:28 }}>
+
+              <section>
+                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>前文</h2>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>日本の農業は、担い手不足という課題を抱えている。</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、働き手※1と、認定農家※2が出会い、学びを通じてつながる場を運営する。</p>
+              </section>
+
+              <section>
+                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第一章　視点</h2>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、利用者※3の側に立って判断する。</p>
+              </section>
+
+              <section>
+                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第二章　視野</h2>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>この場は、働き手が、認定農家から農業の実態を学ぶ場である。</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、農業に関わろうとする全ての人を歓迎する。</p>
+              </section>
+
+              <section>
+                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第三章　視座</h2>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、認定農家と働き手の双方に寄り添う立場で運営する。</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、参入の間口を広く開く。</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、この場で働く人の尊厳と安全を守る。</p>
+              </section>
+
+              <section>
+                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第四章　この憲章から導かれるもの</h2>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、この視座に基づき、プライバシーポリシー・利用規約・個別規約を定め、これを守る。</p>
+              </section>
+
+              <section>
+                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>第五章　我々が約束すること</h2>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、全ての運用を、この憲章に沿って行う。</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、この憲章を、利用者の利益のために保つ。</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:2, margin:0 }}>我々は、この憲章の改定を、利用者に事前に告知して行う。</p>
+              </section>
+
+              <section style={{ borderTop:"1px solid #EEE", paddingTop:24 }}>
+                <h2 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:10 }}>定義</h2>
+                <p className="f-sans" style={{ fontSize:13, color:"#666", lineHeight:2, margin:0 }}>※1　働き手とは、認定農家のもとで農業を学ぶために本サービスを利用する者をいう。</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#666", lineHeight:2, margin:0 }}>※2　認定農家とは、運営が定めた基準を満たす農家をいう。基準の詳細は、個別規約に定める。</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#666", lineHeight:2, margin:0 }}>※3　利用者とは、本サービスに登録し、これを利用する全ての者をいう。</p>
+              </section>
+
+            </div>
           </div>
         )}
       </main>
