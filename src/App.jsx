@@ -4018,6 +4018,55 @@ function WorkerProfileEdit({ me }) {
   );
 }
 
+function WorkerApplications() {
+  const [apps, setApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const { data, error } = await supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false});
+        if (!error && data) setApps(data);
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+  const label = (s) => s==="applied" ? "応募中" : s==="approved" ? "承認されました" : s==="rejected" ? "見送り" : s==="meeting" ? "打ち合わせ" : s==="interview" ? "面接" : s==="contracted" ? "契約" : s==="working" ? "作業中" : s==="completed" ? "完了" : s;
+  const color = (s) => s==="approved"||s==="contracted"||s==="working" ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="rejected" ? {bg:"#F3F3F3",fg:"#999"} : {bg:"#FFF4E0",fg:"#C77700"};
+  return (
+    <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
+      {loading ? (
+        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 0" }}>読み込み中...</p>
+      ) : apps.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
+          <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
+          <p style={{ fontSize:14, margin:0 }}>まだ応募していません</p>
+          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
+        </div>
+      ) : (
+        <div style={{ display:"grid", gap:12 }}>
+          {apps.map(a => {
+            const c = color(a.status);
+            return (
+              <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+                <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+                {(a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
+                  <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -8624,6 +8673,7 @@ const subDest=useCallback(async d=>{
               <p className="f-sans" style={{fontSize:11,color:"#B0B0B0",letterSpacing:".08em",marginBottom:8}}>プロフィール</p>
               <p className="f-sans" style={{display:"none",fontSize:22,fontWeight:700,color:"#222",marginBottom:32}}>{me.name || "名前未設定"}</p>
               <WorkerProfileEdit me={me} />
+              <WorkerApplications />
               <div style={{marginTop:32,paddingTop:24,borderTop:"1px solid #EEE",textAlign:"center"}}>
                 <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
               </div>
