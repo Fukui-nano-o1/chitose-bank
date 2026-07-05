@@ -4067,7 +4067,7 @@ function WorkerApplications() {
   );
 }
 
-function ProfileHub({ me, onLogout }) {
+function ProfileHub({ me, onLogout, onNewJob, onResume }) {
   const hashToPTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer") return "employer";
@@ -4102,11 +4102,14 @@ function ProfileHub({ me, onLogout }) {
           <WorkerApplications />
         </>
       ) : (
-        <div style={{ textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-          <div style={{ fontSize:40, marginBottom:12 }}>🚜</div>
-          <p style={{ fontSize:14, margin:0 }}>雇い手としての機能はここに移動します</p>
-          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人の作成・管理・応募者の確認</p>
-        </div>
+        <>
+          {me&&!me.isWorker&&me.status==="pending"&&(
+            <div className="f-sans" style={{margin:"0 auto 16px",padding:"14px 18px",background:"#FFF8E7",border:"1px solid #F5D98F",borderRadius:12,fontSize:13,color:"#8A6D1D",lineHeight:1.7}}>
+              🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
+            </div>
+          )}
+          <FarmerDashboard onNewJob={onNewJob} onResume={onResume} />
+        </>
       )}
       <div style={{marginTop:32,paddingTop:24,borderTop:"1px solid #EEE",textAlign:"center"}}>
         <button onClick={onLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
@@ -8706,19 +8709,13 @@ const subDest=useCallback(async d=>{
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} /> : null}
-        {!chatAppId&&!showApplyDone&&safeTab==="work"&&(<>
-              {me&&!me.isWorker&&me.status==="pending"&&(
-                <div className="f-sans" style={{maxWidth:920,margin:"0 auto 16px",padding:"14px 18px",background:"#FFF8E7",border:"1px solid #F5D98F",borderRadius:12,fontSize:13,color:"#8A6D1D",lineHeight:1.7}}>
-                  🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
-                </div>
-              )}
-              <FarmerDashboard
-                onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-                onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
-              />
+        {!chatAppId&&!showApplyDone&&false&&safeTab==="work"&&(<>
+              {/* 雇い手機能はプロフィールの雇い手タブへ移植済み。work部屋は非表示(削除は最後に判断)。求人作成フロー(work/new)の導線は showJobPost 経由で独立して生存 */}
             </>)}
         {!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
-          ? <ProfileHub me={me} onLogout={handleLogout} />
+          ? <ProfileHub me={me} onLogout={handleLogout}
+              onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
+              onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("work"); }}/>}
         {!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
