@@ -4070,7 +4070,7 @@ function WorkerApplications() {
 function ProfileHub({ me, onLogout, onNewJob, onResume }) {
   const hashToPTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
-    if (h === "profile/employer") return "employer";
+    if (h === "profile/employer" || h.startsWith("profile/employer/")) return "employer";
     if (h === "profile/worker" || h === "profile") return "worker";
     return "worker";
   };
@@ -7256,10 +7256,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 function FarmerDashboard({ onNewJob, onResume }) {
   const hashToJobTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
-    if (h === "work/drafts") return "draft";
-    if (h === "work/active") return "active";
-    if (h === "work/applicants") return "applicants";
-    if (h === "work/expired") return "expired";
+    if (h === "profile/employer/drafts") return "draft";
+    if (h === "profile/employer/active") return "active";
+    if (h === "profile/employer/applicants") return "applicants";
+    if (h === "profile/employer/expired") return "expired";
     return null;
   };
   const [jobTab, setJobTab] = useState(() => {
@@ -7307,7 +7307,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE" }}>
         {JOB_TABS.map(t => (
-          <button key={t.k} onClick={()=>{ const _map={draft:"/work/drafts",active:"/work/active",applicants:"/work/applicants",expired:"/work/expired"}; window.location.hash=(_map[t.k]||"/work"); }} className="f-sans" style={{
+          <button key={t.k} onClick={()=>{ const _map={draft:"/profile/employer/drafts",active:"/profile/employer/active",applicants:"/profile/employer/applicants",expired:"/profile/employer/expired"}; window.location.hash=(_map[t.k]||"/profile/employer"); }} className="f-sans" style={{
             padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
             fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
             color: jobTab===t.k ? "#222" : "#999",
@@ -8210,7 +8210,7 @@ export default function App(){
     const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/");
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
-    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/employer");
+    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/employer" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired");
     if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
