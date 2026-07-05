@@ -4108,7 +4108,7 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
               🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
             </div>
           )}
-          <FarmerDashboard onNewJob={onNewJob} onResume={onResume} />
+          <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} />
         </>
       )}
       <div style={{marginTop:32,paddingTop:24,borderTop:"1px solid #EEE",textAlign:"center"}}>
@@ -7253,18 +7253,53 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
-function FarmerDashboard({ onNewJob, onResume }) {
+function EmployerProfile({ me }) {
+  const TIER_LABELS = { "0":"未就農", "1-3":"1〜3年", "4-10":"4〜10年", "10+":"10年以上" };
+  const [avatarUrl, setAvatarUrl] = useState(me?.avatar_url || "");
+  return (
+    <div style={{ gridColumn:"1/-1", maxWidth:480 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:24 }}>
+        <div style={{ width:72, height:72, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+          {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:32 }}>🧑‍🌾</span>}
+        </div>
+        <div>
+          <p className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{me?.name || "名前未設定"}</p>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>雇い手として</p>
+        </div>
+      </div>
+      <div style={{ display:"grid", gap:12 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"14px 16px", border:"1px solid #EEE", borderRadius:12 }}>
+          <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>氏名</span>
+          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>{me?.name || "未設定"}</span>
+        </div>
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"14px 16px", border:"1px solid #EEE", borderRadius:12 }}>
+          <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>就農歴</span>
+          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>{TIER_LABELS[me?.experience_tier] || "未設定"}</span>
+        </div>
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"14px 16px", border:"1px solid #EEE", borderRadius:12 }}>
+          <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>地域</span>
+          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>{[me?.prefecture, me?.municipality].filter(Boolean).join(" ") || "未設定"}</span>
+        </div>
+      </div>
+      <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:16, lineHeight:1.7 }}>プロフィールの編集は、右上のメニューから行えます。法人向けの情報（企業名など）は今後追加予定です。</p>
+    </div>
+  );
+}
+
+function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
+    if (h === "profile/employer/profile") return "profile";
     if (h === "profile/employer/drafts") return "draft";
     if (h === "profile/employer/active") return "active";
     if (h === "profile/employer/applicants") return "applicants";
     if (h === "profile/employer/expired") return "expired";
+    if (h === "profile/employer") return "profile";
     return null;
   };
   const [jobTab, setJobTab] = useState(() => {
     try { const j = hashToJobTab(); if (j) return j; } catch {}
-    return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "active";
+    return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "profile";
   });
   useEffect(() => {
     const onHash = () => { const j = hashToJobTab(); if (j) setJobTab(j); };
@@ -7292,6 +7327,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
     })();
   }, []);
   const JOB_TABS = [
+    { k:"profile", l:"プロフィール" },
     { k:"draft",   l:"作成中" },
     { k:"active",  l:"募集中" },
     { k:"applicants", l:"応募者" },
@@ -7307,7 +7343,7 @@ function FarmerDashboard({ onNewJob, onResume }) {
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE" }}>
         {JOB_TABS.map(t => (
-          <button key={t.k} onClick={()=>{ const _map={draft:"/profile/employer/drafts",active:"/profile/employer/active",applicants:"/profile/employer/applicants",expired:"/profile/employer/expired"}; window.location.hash=(_map[t.k]||"/profile/employer"); }} className="f-sans" style={{
+          <button key={t.k} onClick={()=>{ const _map={profile:"/profile/employer/profile",draft:"/profile/employer/drafts",active:"/profile/employer/active",applicants:"/profile/employer/applicants",expired:"/profile/employer/expired"}; window.location.hash=(_map[t.k]||"/profile/employer"); }} className="f-sans" style={{
             padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
             fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
             color: jobTab===t.k ? "#222" : "#999",
@@ -7316,7 +7352,9 @@ function FarmerDashboard({ onNewJob, onResume }) {
         ))}
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))", gap:20 }}>
-      {jobTab==="draft" ? (
+      {jobTab==="profile" ? (
+        <EmployerProfile me={me} />
+      ) : jobTab==="draft" ? (
         draftsLoading ? (
           <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
         ) : dbDrafts.length === 0 ? (
@@ -8210,7 +8248,7 @@ export default function App(){
     const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/");
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
-    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/employer" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired");
+    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired");
     if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
