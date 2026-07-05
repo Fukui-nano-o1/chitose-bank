@@ -7294,6 +7294,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     if (h === "profile/employer/active") return "active";
     if (h === "profile/employer/applicants") return "applicants";
     if (h === "profile/employer/expired") return "expired";
+    if (h === "profile/employer/calendar") return "calendar";
     if (h === "profile/employer") return "profile";
     return null;
   };
@@ -7332,6 +7333,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     { k:"active",  l:"募集中" },
     { k:"applicants", l:"応募者" },
     { k:"expired", l:"期限切れ" },
+    { k:"calendar", l:"カレンダー" },
   ];
   // ダミー撤去（憲法3条:表示にダミー禁止）。Phase2aでjobsテーブルから自分の求人を読む
   const jobList = [];
@@ -7343,7 +7345,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE" }}>
         {JOB_TABS.map(t => (
-          <button key={t.k} onClick={()=>{ const _map={profile:"/profile/employer/profile",draft:"/profile/employer/drafts",active:"/profile/employer/active",applicants:"/profile/employer/applicants",expired:"/profile/employer/expired"}; window.location.hash=(_map[t.k]||"/profile/employer"); }} className="f-sans" style={{
+          <button key={t.k} onClick={()=>{ const _map={profile:"/profile/employer/profile",draft:"/profile/employer/drafts",active:"/profile/employer/active",applicants:"/profile/employer/applicants",expired:"/profile/employer/expired",calendar:"/profile/employer/calendar"}; window.location.hash=(_map[t.k]||"/profile/employer"); }} className="f-sans" style={{
             padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
             fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
             color: jobTab===t.k ? "#222" : "#999",
@@ -7415,6 +7417,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             </div>
           ))
         )
+      ) : jobTab==="calendar" ? (
+        <div style={{ gridColumn:"1/-1", maxWidth:480 }}>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8, lineHeight:1.7 }}>あなたの求人の日程と、承認した働き手がいつ来るかを、ここで確認できます。</p>
+          <CalendarView readOnly={true} />
+          <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の期間や来訪予定の表示は今後追加されます。</p>
+        </div>
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
           <div style={{ fontSize:44, marginBottom:14 }}>🌱</div>
@@ -8248,7 +8256,7 @@ export default function App(){
     const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/");
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
-    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired");
+    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
     if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
