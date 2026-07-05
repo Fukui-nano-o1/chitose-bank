@@ -8561,9 +8561,11 @@ const subDest=useCallback(async d=>{
         {!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <div style={{maxWidth:480,margin:"0 auto",padding:"48px 24px"}}>
               <p className="f-sans" style={{fontSize:11,color:"#B0B0B0",letterSpacing:".08em",marginBottom:8}}>プロフィール</p>
-              <p className="f-sans" style={{fontSize:22,fontWeight:700,color:"#222",marginBottom:32}}>{me.name || "名前未設定"}</p>
-              <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
+              <p className="f-sans" style={{display:"none",fontSize:22,fontWeight:700,color:"#222",marginBottom:32}}>{me.name || "名前未設定"}</p>
               <WorkerProfileEdit me={me} />
+              <div style={{marginTop:32,paddingTop:24,borderTop:"1px solid #EEE",textAlign:"center"}}>
+                <button onClick={handleLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
+              </div>
             </div>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("work"); }}/>}
