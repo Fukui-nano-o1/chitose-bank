@@ -8285,7 +8285,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role"];
+  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role","charter"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
@@ -8842,6 +8842,12 @@ const subDest=useCallback(async d=>{
           onApprove={appDest} onReject={rejDest}
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
           onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}/>}
+        {!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
+          <div style={{ maxWidth:760, margin:"0 auto", padding:"32px 24px" }}>
+            <h1 className="f-sans" style={{ fontSize:24, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
+            <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:24 }}>（この器は現在準備中です。次の段階で本文を制定します。）</p>
+          </div>
+        )}
       </main>
 
       {/* ── FOOTER（固定） ── */}
@@ -8855,6 +8861,10 @@ const subDest=useCallback(async d=>{
               fontSize:11, color:"#717171", background:"none", border:"none",
               cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
             }}>利用規約</button>
+            <button onClick={()=>{ window.location.hash="/charter"; }} className="f-sans" style={{
+              fontSize:11, color:"#717171", background:"none", border:"none",
+              cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
+            }}>運営憲章</button>
             <button onClick={()=>setShowConstitution(true)} className="f-sans" style={{
               fontSize:11, color:"#717171", background:"none", border:"none",
               cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
