@@ -3920,7 +3920,7 @@ function WorkerProfileEdit({ me }) {
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob(blob => { if (blob) resolve(blob); else reject(new Error('変換に失敗')); }, 'image/jpeg', 0.85);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('この形式は読み込めません（iPhoneのHEIC等は非対応）')); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('この画像を読み込めませんでした。別の画像をお試しください。')); };
     img.src = url;
   });
   const handleAvatar = async e => {
@@ -3930,8 +3930,18 @@ function WorkerProfileEdit({ me }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setUploading(false); return; }
+      let sourceFile = file;
+      // iPhoneのHEIC/HEIF形式は、まずheic2anyでjpegにデコード（選択時のみ動的import）
+      const isHeic = /\.(heic|heif)$/i.test(file.name) || /heic|heif/i.test(file.type);
+      if (isHeic) {
+        try {
+          const heic2any = (await import('heic2any')).default;
+          const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+          sourceFile = Array.isArray(converted) ? converted[0] : converted;
+        } catch (heicErr) { setUploading(false); alert("iPhoneの写真（HEIC）の変換に失敗しました。もう一度お試しください。"); return; }
+      }
       let blob;
-      try { blob = await convertToJpeg(file); }
+      try { blob = await convertToJpeg(sourceFile); }
       catch (convErr) { setUploading(false); alert(convErr.message || "この画像形式は対応していません。JPEG・PNG・WebP等をお試しください。"); return; }
       // 拡張子はjpg固定（変換後は必ずjpeg）。旧ファイルが別拡張子で残っていれば掃除
       try {
