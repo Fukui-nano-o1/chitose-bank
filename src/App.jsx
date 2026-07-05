@@ -3888,6 +3888,8 @@ function ChatView({ applicationId, onBack }) {
 function WorkerProfileEdit({ me }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -3897,11 +3899,28 @@ function WorkerProfileEdit({ me }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         const { data } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (data) { setNickname(data.nickname || ""); setPr(data.pr || ""); }
+        if (data) { setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || ""); }
       } catch {}
       setLoading(false);
     })();
   }, []);
+  const handleAvatar = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setUploading(false); return; }
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = "worker/" + session.user.id + "/avatar." + ext;
+      await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
+      await supabase.from('worker_profiles').upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      setAvatarUrl(url);
+    } catch { alert("画像のアップロードに失敗しました。"); }
+    setUploading(false);
+  };
   const save = async () => {
     if (saving) return;
     setSaving(true); setSaved(false);
@@ -3919,6 +3938,16 @@ function WorkerProfileEdit({ me }) {
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>働き手プロフィール</p>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に応募したとき、農家に伝わる自己紹介です。任意で入力できます。</p>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>アイコン</label>
+      <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
+        <div style={{ width:64, height:64, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+          {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:28 }}>🧑‍🌾</span>}
+        </div>
+        <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer" }}>
+          {uploading ? "アップロード中..." : "画像を選ぶ"}
+          <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading} style={{ display:"none" }} />
+        </label>
+      </div>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ニックネーム</label>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：たき" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>自己紹介・PR</label>
@@ -8402,11 +8431,11 @@ const subDest=useCallback(async d=>{
                 </div>
               )}
             </div>
-            {/* ユーザーピル */}
+            {/* ユーザーピル（独立プロフィールタブに一本化のため非表示・要素は転用のため残置） */}
             <div
               onClick={()=>setShowProfile(true)}
               style={{
-                display:"flex",alignItems:"center",gap:6,
+                display:"none",alignItems:"center",gap:6,
                 padding:"4px 10px 4px 4px",background:"#F7F7F7",
                 borderRadius:20,border:"1px solid #EBEBEB",cursor:"pointer",
               }}
