@@ -8217,7 +8217,7 @@ export default function App(){
   useEffect(() => {
     const onHash = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, "");
-      if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("work"); return; }
+      if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
       if (showJobPost && !rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(false); }
       setShowApplyDone(rawHash === "apply/done");
       const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
@@ -8308,7 +8308,7 @@ export default function App(){
         f = [loggedIn];
         setMe({ ...loggedIn, id: session.user.id });
         const _onNewJobFlow = (() => { const h = window.location.hash.replace(/^#\/?/, ""); return h === "work/new" || h.startsWith("work/new/"); })();
-        if (!initialHashTab && !_onNewJobFlow) setTab("work"); // hash無しの時だけ「しごと」へ。求人フロー中(#/work/new)は送還しない（骨格③）
+        if (!initialHashTab && !_onNewJobFlow) setTab("profile"); // hash無しの時はプロフィールへ（しごとタブ廃止・アクションベース化）
       }
       const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
       if (dbRecs) {
@@ -8364,7 +8364,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
       }
     }
     setShowOnboarding(false);
-    setTab("work");
+    setTab("profile");
   },[]);
 
 const addRec=useCallback(async(fid,yr,mi,e)=>{
@@ -8501,7 +8501,6 @@ const subDest=useCallback(async d=>{
 
   const ALL_TABS=[
     {k:"search",l:"さがす",modes:["farmer","worker"]},
-    {k:"work",l:"しごと",modes:["farmer","worker"]},
     {k:"profile",l:"プロフィール",modes:["farmer","worker"]},
     ...(isAdmin(me)?[{k:"admin",l:"管理",badge:badgeCnt,modes:["farmer","worker"]}]:[]),
   ];
@@ -8709,18 +8708,15 @@ const subDest=useCallback(async d=>{
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} /> : null}
-        {!chatAppId&&!showApplyDone&&false&&safeTab==="work"&&(<>
-              {/* 雇い手機能はプロフィールの雇い手タブへ移植済み。work部屋は非表示(削除は最後に判断)。求人作成フロー(work/new)の導線は showJobPost 経由で独立して生存 */}
-            </>)}
         {!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <ProfileHub me={me} onLogout={handleLogout}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
-        {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("work"); }}/>}
+        {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("profile"); }}/>}
         {!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
-          : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("work");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
+          : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("profile");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
         {!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
           <FarmerDashboard
@@ -8795,9 +8791,9 @@ const subDest=useCallback(async d=>{
       {me&&showJobPost&&(
         <LandingFlow
           initialRole="farmer"
-          onComplete={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
-          onSkip={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
-          onLogin={()=>{ setShowJobPost(false); window.location.hash="/work"; }}
+          onComplete={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
+          onSkip={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
+          onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onStepChange={(s)=>{ if(window.location.hash.replace(/^#\/?/,"").startsWith("work/new")) window.location.hash="/work/new/"+s; }}
           initialStep={(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^work\/new\/(\d+)$/); return m?parseInt(m[1],10):undefined; })()}
         />
