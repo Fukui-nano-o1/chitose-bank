@@ -61,6 +61,10 @@ const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 // 管理者判定（届出後にゲートを外す際はここを変更する。保存・入力機能のゲートにも使用）
 const isAdmin = (user) => user?.email === ADMIN_EMAIL;
 
+// account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
+const TERMS_VERSION = "v1-2026-07";
+const PRIVACY_VERSION = "v1-2026-07";
+
 // ── DEV バッジ（原因特定用・確認後削除） ─────────────────────
 const DEV_V = "2026-06-04";
 
@@ -1219,6 +1223,143 @@ function RoleSelectScreen({ onGoLogin, onRegistered }) {
           <span className="f-sans" style={{fontSize:16,fontWeight:700,color:"#222",display:"block",marginBottom:4}}>働き手として始める</span>
           <span className="f-sans" style={{fontSize:12,color:"#717171"}}>農作業の仕事をさがして応募する</span>
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── AccountHolderForm — 新規登録①（本人確認・口座名義人情報）────
+// 送信は届出完了までADMIN_EMAIL限定。一般ユーザーはボタン無効「準備中」表示（RLS側もadmin限定で二重ゲート）
+function AccountHolderForm({ onDone }) {
+  const [sess, setSess] = useState(undefined); // undefined=確認中 / null=未ログイン
+  const [fullName, setFullName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [address, setAddress] = useState("");
+  const [entityType, setEntityType] = useState("individual");
+  const [companyName, setCompanyName] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSess(session ?? null));
+  }, []);
+
+  const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 18);
+  const maxDate = cutoff.toISOString().slice(0, 10);
+  const isAdult = birthDate && new Date(birthDate) <= cutoff;
+
+  const isAdminUser = sess?.user?.email === ADMIN_EMAIL;
+  const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && address.trim()
+    && entityType && (entityType === "individual" || companyName.trim()) && agreed);
+  const canSubmit = isAdminUser && formValid;
+
+  const submit = async () => {
+    if (!canSubmit || !sess) return;
+    setBusy(true); setErr("");
+    const { error } = await supabase.from("account_holders").insert({
+      auth_id: sess.user.id,
+      full_name: fullName.trim(),
+      birth_date: birthDate,
+      postal_code: postalCode.trim(),
+      address: address.trim(),
+      entity_type: entityType,
+      company_name: entityType === "corporate" ? companyName.trim() : null,
+      contact_email: sess.user.email || null,
+      contact_phone: sess.user.phone || null,
+      agreed_terms_version: TERMS_VERSION,
+      agreed_privacy_version: PRIVACY_VERSION,
+    });
+    setBusy(false);
+    if (error) { setErr("登録に失敗しました：" + error.message); return; }
+    onDone();
+  };
+
+  if (sess === undefined) return <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:13,color:"#B0B0B0"}}>確認中…</p></div>;
+
+  return (
+    <div className="fade-in" style={{ minHeight:"80vh", padding:"28px 24px 64px" }}>
+      <div style={{ width:"100%", maxWidth:480, margin:"0 auto" }}>
+        <div style={{ textAlign:"center", marginBottom:32 }}>
+          <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
+          <div className="f-sans" style={{ fontSize:20, fontWeight:700, color:C.ink }}>新規登録①：本人情報の入力</div>
+          <p className="f-sans" style={{ fontSize:11, color:C.dim, marginTop:6 }}>ご利用のために、本人確認情報をご入力ください</p>
+        </div>
+
+        <div className="ledger-card" style={{ padding:28, display:"grid", gap:28 }}>
+          <div>
+            <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>本人確認</div>
+            <div style={{ marginBottom:16 }}>
+              <label className="lbl f-sans">氏名</label>
+              <input className="field f-sans" type="text" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="山田 太郎" />
+            </div>
+            <div>
+              <label className="lbl f-sans">生年月日</label>
+              <input className="field f-sans" type="date" value={birthDate} max={maxDate} onChange={e=>setBirthDate(e.target.value)} />
+              {birthDate && !isAdult && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>18歳未満はご登録いただけません</p>}
+            </div>
+          </div>
+
+          <div>
+            <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>送達先</div>
+            <div style={{ marginBottom:16 }}>
+              <label className="lbl f-sans">郵便番号</label>
+              <input className="field f-sans" type="text" value={postalCode} onChange={e=>setPostalCode(e.target.value)} placeholder="7790000" />
+            </div>
+            <div>
+              <label className="lbl f-sans">住所</label>
+              <input className="field f-sans" type="text" value={address} onChange={e=>setAddress(e.target.value)} placeholder="徳島県吉野川市…" />
+            </div>
+          </div>
+
+          <div>
+            <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>区分</div>
+            <div style={{ display:"flex", gap:20, marginBottom: entityType==="corporate" ? 16 : 0 }}>
+              <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, color:C.ink, cursor:"pointer" }}>
+                <input type="radio" name="entityType" checked={entityType==="individual"} onChange={()=>{ setEntityType("individual"); setCompanyName(""); }} />
+                個人
+              </label>
+              <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, color:C.ink, cursor:"pointer" }}>
+                <input type="radio" name="entityType" checked={entityType==="corporate"} onChange={()=>setEntityType("corporate")} />
+                法人
+              </label>
+            </div>
+            {entityType === "corporate" && (
+              <div className="fade-in">
+                <label className="lbl f-sans">法人名</label>
+                <input className="field f-sans" type="text" value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="株式会社〇〇" />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>連絡先</div>
+            <p className="f-sans" style={{ fontSize:12, color:C.mid }}>
+              {sess?.user?.email || sess?.user?.phone || "登録中のアカウント"} 宛に通知します
+            </p>
+          </div>
+
+          <div>
+            <label className="f-sans" style={{ display:"flex", alignItems:"flex-start", gap:8, fontSize:12, color:C.mid, cursor:"pointer", lineHeight:1.6 }}>
+              <input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} style={{ marginTop:2 }} />
+              利用規約・プライバシーポリシーに同意します
+            </label>
+          </div>
+
+          {err && <p className="f-sans" style={{ fontSize:12, color:C.shu }}>{err}</p>}
+
+          <div>
+            <button className="btn-primary" style={{ width:"100%" }} disabled={!canSubmit || busy} onClick={submit}>
+              {!isAdminUser ? "準備中" : busy ? "登録中…" : "登録する"}
+            </button>
+            {!isAdminUser && (
+              <p className="f-sans" style={{ fontSize:11, color:C.dim, textAlign:"center", marginTop:10 }}>
+                現在準備中です。もうしばらくお待ちください
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -8328,6 +8469,7 @@ export default function App(){
   const [loaded,setLoaded]=useState(false);
   const [badgeCnt,setBadgeCnt]=useState(0);
   const [me,setMe]=useState(null);
+  const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
@@ -8349,6 +8491,17 @@ export default function App(){
     if(!me?.id)return;
     setAvatarUrl(me.avatar_url || localStorage.getItem('avatarUrl_'+me.id) || "");
   },[me?.id, me?.avatar_url]);
+  // 新規登録①ゲート：meがセットされる箇所（ログイン/役割選択/セッション復元）を問わず、
+  // meが変わるたびにaccount_holders行の有無を1箇所でチェックする（個別setMe箇所は無変更）
+  useEffect(()=>{
+    if(!me?.id){ setNeedsAccountHolder(false); return; }
+    let cancelled=false;
+    (async()=>{
+      const { data } = await supabase.from('account_holders').select('id').eq('auth_id', me.id).maybeSingle();
+      if(!cancelled) setNeedsAccountHolder(!data);
+    })();
+    return ()=>{ cancelled=true; };
+  },[me?.id]);
   useEffect(() => {
     const onError = (event) => {
       logAppError({ source: "window.onerror", component: "global", action: "runtime_error", error: event.error || { message: event.message }, userId: me?.id || null });
@@ -8626,7 +8779,9 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
-        {chatAppId ? (
+        {needsAccountHolder ? (
+          <AccountHolderForm onDone={()=>{ setNeedsAccountHolder(false); window.location.hash="/search"; setTab("search"); }} />
+        ) : chatAppId ? (
           <ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} />
         ) : showApplyDone ? (
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
@@ -8643,30 +8798,30 @@ const subDest=useCallback(async d=>{
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} /> : null}
-        {!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <ProfileHub me={me} onLogout={handleLogout}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
-        {!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("profile"); }}/>}
-        {!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("profile"); }}/>}
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("profile");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
-        {!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
           <FarmerDashboard
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
             />)}
-        {!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
-        {!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
           : authV==="register"
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>
         )}
-        {!chatAppId&&!showApplyDone&&safeTab==="plan"&&isMember&&(
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="plan"&&isMember&&(
           isContributor
             ? <FiveYearPlanTab loggedInFarmer={me} records={recs} destApproved={destOk} farmers={farmers}/>
             : <div style={{ textAlign:"center", padding:"64px 24px", maxWidth:480, margin:"0 auto" }}>
@@ -8683,13 +8838,13 @@ const subDest=useCallback(async d=>{
                 }}>データを入力する</button>
               </div>
         )}
-        {!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&<AdminTab
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
           onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}/>}
-        {!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
+        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
