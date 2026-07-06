@@ -310,13 +310,21 @@ input:focus { outline: none; }
 
 /* ── Bottom tab bar (mobile) ── */
 .bottom-tab-bar {
-  display: none;
+  display: flex;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: #FFFFFF;
+  border-bottom: 1px solid #EBEBEB;
+  z-index: 49;
+  padding: 6px 0;
+  justify-content: center;
+  gap: 24px;
 }
 @media (max-width: 640px) {
   .bottom-tab-bar {
     display: flex;
     position: fixed;
-    top: 52px; left: 0; right: 0;
+    top: 0; left: 0; right: 0;
     background: #FFFFFF;
     border-bottom: 1px solid #EBEBEB;
     z-index: 49;
@@ -491,6 +499,7 @@ input:focus { outline: none; }
 }
 @media (min-width: 641px) {
   main {
+    padding-top: 60px !important;
     padding-bottom: 24px !important;
   }
 }
@@ -517,7 +526,7 @@ input:focus { outline: none; }
     line-height: 1.4;
   }
   main {
-    padding-top: 52px !important;
+    padding-top: 56px !important;
     padding-bottom: 24px !important;
   }
 }
@@ -8599,143 +8608,6 @@ const subDest=useCallback(async d=>{
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
       <style>{CSS}</style>
-
-      {/* ── HEADER ── */}
-      <header style={{
-        background:"#FFFFFF",
-        borderBottom:"1px solid #EBEBEB",
-        height:52,
-        "--mode-accent":modeAccent,
-        display:"flex",alignItems:"center",
-        padding:"0 24px",
-        position:"sticky",top:0,zIndex:50,
-      }}>
-        {/* PC: タブ（左）*/}
-        {TABS.length>1&&<nav style={{display:"flex",flex:1}} className="header-nav">
-          {TABS.map(({k,l,badge,locked})=>(
-            <button key={k} onClick={()=>setTab(k)}
-              className={`nav-item ${safeTab===k?"active":""}`}
-              style={{
-                padding:"0 16px",height:52,border:"none",borderRadius:0,
-                background:"transparent",
-                color:safeTab===k?"#222222":locked?"#D0D0D0":"#717171",
-                fontSize:12,fontWeight:safeTab===k?600:400,
-                letterSpacing:".02em",position:"relative",
-              }}>
-              {l}
-              {badge>0&&<span style={{
-                position:"absolute",top:10,right:4,
-                width:14,height:14,borderRadius:"50%",
-                background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,
-                display:"flex",alignItems:"center",justifyContent:"center",
-              }}>{badge}</span>}
-            </button>
-          ))}
-        </nav>}
-
-        {/* 右：通知ベル＋ユーザーピル（PC）／全幅（スマホ） */}
-        {me ? (
-          <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}}>
-            {/* 通知ベル */}
-            {false && <div data-notif-bell="" style={{position:"relative"}}>
-              <button onClick={()=>setShowNotifs(v=>!v)} style={{
-                width:36,height:36,borderRadius:"50%",border:"1px solid #EBEBEB",
-                background:"#F7F7F7",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",
-              }}>
-                🔔
-                {notifs.filter(n=>!n.read).length>0&&(
-                  <span style={{position:"absolute",top:2,right:2,width:14,height:14,borderRadius:"50%",background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    {notifs.filter(n=>!n.read).length}
-                  </span>
-                )}
-              </button>
-              {showNotifs&&(
-                <div style={{
-                  position:"absolute",top:44,right:0,width:320,background:"#fff",borderRadius:16,
-                  border:"1px solid #EBEBEB",boxShadow:"0 8px 32px rgba(0,0,0,0.12)",zIndex:200,overflow:"hidden",
-                }}>
-                  <div style={{padding:"14px 16px",borderBottom:"1px solid #EBEBEB",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span className="f-sans" style={{fontSize:13,fontWeight:700,color:"#222"}}>通知</span>
-                    <button onClick={()=>setShowNotifs(false)} style={{border:"none",background:"none",color:"#B0B0B0",fontSize:16,cursor:"pointer",padding:4}}>×</button>
-                  </div>
-                  {notifs.length===0
-                    ? <div style={{padding:"28px 16px",textAlign:"center",color:"#B0B0B0",fontSize:12}}>通知はありません</div>
-                    : <div style={{maxHeight:360,overflowY:"auto"}}>
-                        {notifs.map(n=>(
-                          <div key={n.id} onClick={()=>markRead(n.id)} style={{
-                            padding:"12px 16px",borderBottom:"1px solid #F7F7F7",cursor:"pointer",
-                            background:n.read?"#fff":"#F0FBF6",
-                          }}>
-                            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
-                              <span style={{fontSize:16,flexShrink:0}}>
-                                {n.type==="expense_alert"?"⚠️":n.type==="dest_compare"?"🔄":n.type==="monthly_change"?"📉":"💡"}
-                              </span>
-                              <div style={{flex:1}}>
-                                <p className="f-sans" style={{fontSize:12,color:"#222",lineHeight:1.6}}>{n.message}</p>
-                                <p className="f-sans" style={{fontSize:10,color:"#B0B0B0",marginTop:3}}>
-                                  {new Date(n.created_at).toLocaleDateString("ja-JP",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}
-                                </p>
-                              </div>
-                              {!n.read&&<span style={{width:6,height:6,borderRadius:"50%",background:"#00A86B",flexShrink:0,marginTop:5}}/>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                  }
-                </div>
-              )}
-            </div>}
-            {/* ユーザーピル（独立プロフィールタブに一本化のため非表示・要素は転用のため残置） */}
-            <div
-              onClick={()=>setShowProfile(true)}
-              style={{
-                display:"none",alignItems:"center",gap:6,
-                padding:"4px 10px 4px 4px",background:"#F7F7F7",
-                borderRadius:20,border:"1px solid #EBEBEB",cursor:"pointer",
-              }}
-            >
-              {/* ミニアバター */}
-              <div style={{
-                width:28,height:28,borderRadius:"50%",
-                background:"#E6F7EF",border:"1.5px solid #00A86B",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                overflow:"hidden",flexShrink:0,fontSize:16,
-              }}>
-                {(avatarUrl||me.avatar_url)
-                  ? <img src={avatarUrl||me.avatar_url} alt="avatar" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  : getDefaultAvatar(me.id)
-                }
-              </div>
-              <span className="f-sans" style={{
-                fontSize:11,fontWeight:500,color:"#222222",
-                maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
-              }}>{me.name}</span>
-              <button
-                onClick={e=>{e.stopPropagation();setShowOnboarding(true);setObModalKey(k=>k+1);}}
-                title="プロフィール編集"
-                style={{fontSize:13,background:"transparent",border:"none",cursor:"pointer",padding:"2px 2px",color:"#717171",lineHeight:1,flexShrink:0}}>⚙</button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={()=>setTab("login")}
-            className="f-sans"
-            style={{
-              marginLeft:"auto",
-              border:"1px solid #EBEBEB",
-              borderRadius:999,
-              background:"#FFFFFF",
-              padding:"8px 14px",
-              fontSize:13,
-              fontWeight:700,
-              color:"#222",
-              boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
-              cursor:"pointer",
-            }}
-          >新規登録・ログイン</button>
-        )}
-      </header>
-
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       {TABS.length>1&&<div className="bottom-tab-bar">
