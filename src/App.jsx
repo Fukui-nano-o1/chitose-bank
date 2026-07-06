@@ -1233,7 +1233,9 @@ function RoleSelectScreen({ onGoLogin, onRegistered }) {
 function AccountHolderForm({ onDone }) {
   const [sess, setSess] = useState(undefined); // undefined=確認中 / null=未ログイン
   const [fullName, setFullName] = useState("");
-  const [birthDate, setBirthDate] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
   const [entityType, setEntityType] = useState("individual");
@@ -1247,8 +1249,12 @@ function AccountHolderForm({ onDone }) {
   }, []);
 
   const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 18);
-  const maxDate = cutoff.toISOString().slice(0, 10);
-  const isAdult = birthDate && new Date(birthDate) <= cutoff;
+  const yearOptions = []; for (let y = THIS_YEAR - 18; y >= 1930; y--) yearOptions.push(y);
+  const daysInMonth = (birthYear && birthMonth) ? new Date(Number(birthYear), Number(birthMonth), 0).getDate() : 31;
+  const birthDateStr = (birthYear && birthMonth && birthDay)
+    ? `${birthYear}-${String(birthMonth).padStart(2,'0')}-${String(birthDay).padStart(2,'0')}`
+    : "";
+  const isAdult = !!birthDateStr && new Date(birthDateStr) <= cutoff;
 
   const isAdminUser = sess?.user?.email === ADMIN_EMAIL;
   const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && address.trim()
@@ -1261,7 +1267,7 @@ function AccountHolderForm({ onDone }) {
     const { error } = await supabase.from("account_holders").insert({
       auth_id: sess.user.id,
       full_name: fullName.trim(),
-      birth_date: birthDate,
+      birth_date: birthDateStr,
       postal_code: postalCode.trim(),
       address: address.trim(),
       entity_type: entityType,
@@ -1296,8 +1302,27 @@ function AccountHolderForm({ onDone }) {
             </div>
             <div>
               <label className="lbl f-sans">生年月日</label>
-              <input className="field f-sans" type="date" value={birthDate} max={maxDate} onChange={e=>setBirthDate(e.target.value)} />
-              {birthDate && !isAdult && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>18歳未満はご登録いただけません</p>}
+              <div style={{ display:"flex", gap:8 }}>
+                <select className="field f-sans" style={{ flex:1.3 }} value={birthYear} onChange={e=>{
+                  const y = e.target.value; setBirthYear(y);
+                  if (y && birthMonth) { const dim = new Date(Number(y), Number(birthMonth), 0).getDate(); if (Number(birthDay) > dim) setBirthDay(""); }
+                }}>
+                  <option value="">年</option>
+                  {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select className="field f-sans" style={{ flex:1 }} value={birthMonth} onChange={e=>{
+                  const m = e.target.value; setBirthMonth(m);
+                  if (birthYear && m) { const dim = new Date(Number(birthYear), Number(m), 0).getDate(); if (Number(birthDay) > dim) setBirthDay(""); }
+                }}>
+                  <option value="">月</option>
+                  {Array.from({length:12},(_,i)=>i+1).map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <select className="field f-sans" style={{ flex:1 }} value={birthDay} onChange={e=>setBirthDay(e.target.value)}>
+                  <option value="">日</option>
+                  {Array.from({length:daysInMonth},(_,i)=>i+1).map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              {birthDateStr && !isAdult && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>18歳未満はご登録いただけません</p>}
             </div>
           </div>
 
