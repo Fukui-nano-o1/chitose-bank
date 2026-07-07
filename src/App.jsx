@@ -4074,12 +4074,12 @@ function CalendarView({ start, end, readOnly = false, onSelect }) {
       for (let i = 0; i < firstDay; i++) cells.push(null);
       for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
       return (
-        <div key={`${y}-${m}`} style={{ marginBottom:12 }}>
-          <div style={{ textAlign:"center", marginBottom:10 }}>
-            <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{y}年{m+1}月</span>
+        <div key={`${y}-${m}`} style={{ marginBottom:8 }}>
+          <div style={{ textAlign:"center", marginBottom:6 }}>
+            <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{y}年{m+1}月</span>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
-            {WD_CV.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
+            {WD_CV.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"2px 0" }}>{wd}</div>)}
             {cells.map((dd, i) => {
               if (!dd) return <div key={`e${i}`} />;
               const dt = new Date(y, m, dd);
@@ -4088,7 +4088,7 @@ function CalendarView({ start, end, readOnly = false, onSelect }) {
               const inRange = start && end2 && dt > start && dt < end2;
               return (
                 <div key={dd} style={{
-                  padding:"7px 2px", borderRadius:8, fontSize:13, textAlign:"center",
+                  padding:"5px 2px", borderRadius:6, fontSize:13, textAlign:"center",
                   background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
                   color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
                   fontWeight: (isStart||isEnd) ? 700 : 400,
