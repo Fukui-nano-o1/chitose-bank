@@ -4514,10 +4514,11 @@ function JobCard({ job, variant }) {
   const p0 = job.photos?.[0];
   const topSrc = typeof p0 === "string" ? p0 : p0?.url;
   const cropIcon = CROP_OPTIONS.find(c => job.crop && job.crop.includes(c.name))?.icon || "🌱";
-  const photoHeight = isList ? 210 : 160;
+  const photoHeight = isList ? 210 : 220;
+  const photoRadius = isList ? "12px 12px 0 0" : 16;
   const cardStyle = isList
     ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden" }
-    : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden" };
+    : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent" };
   return (
     <a
       href={"#/work/job/" + job.id}
@@ -4526,18 +4527,18 @@ function JobCard({ job, variant }) {
       style={cardStyle}
     >
       {topSrc ? (
-        <img src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:"12px 12px 0 0" }} />
+        <img src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius }} />
       ) : (
-        <div style={{ width:"100%", height:photoHeight, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
+        <div style={{ width:"100%", height:photoHeight, borderRadius:photoRadius, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
           {cropIcon}
         </div>
       )}
-      <div style={{ padding: isList ? "12px 16px 16px" : "10px 12px 12px" }}>
-        <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
-          <p className="f-sans" style={{ fontSize: isList?15:14, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
-          <span className="f-sans" style={{ fontSize: isList?12:11, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
+      <div style={{ padding: isList ? "12px 16px 16px" : "4px 2px 0" }}>
+        <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom: isList?4:0 }}>
+          <p className="f-sans" style={{ fontSize: isList?15:11, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
+          <span className="f-sans" style={{ fontSize: isList?12:9, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
         </div>
-        <p className="f-mono" style={{ fontSize: isList?14:13, fontWeight:700, color:"#00A86B", margin:0 }}>
+        <p className="f-mono" style={{ fontSize: isList?14:10, fontWeight:700, color:"#00A86B", margin:0 }}>
           {payLabel(job)}
         </p>
       </div>
