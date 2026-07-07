@@ -495,6 +495,12 @@ input:focus { outline: none; }
   body.job-detail-scrolling .bottom-tab-bar { transform: translateY(-100%); }
 }
 
+/* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
+@media (max-width: 759px) {
+  .job-detail-back-btn { margin-bottom: 8px !important; }
+  .job-detail-more-jobs { margin-bottom: 4px !important; }
+}
+
 /* ── LandingFlow Step6 grid ── */
 .lf-map-hero { height: 360px; }
 .lf-preview-grid {
@@ -4716,7 +4722,7 @@ function JobSearchMapView({ onRegister }) {
       {/* ── 詳細ページ ── */}
       {selectedJob && (
         <div className="appear">
-          <button onClick={() => { setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{} }} className="f-sans" style={{
+          <button onClick={() => { setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{} }} className="f-sans job-detail-back-btn" style={{
             display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
             fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0", marginBottom:20,
           }}>← 一覧に戻る</button>
@@ -5084,7 +5090,7 @@ function JobSearchMapView({ onRegister }) {
           })()}
 
           {/* その他の求人（0件なら「ありません」を表示） */}
-          <div style={{ marginBottom:20 }}>
+          <div className="job-detail-more-jobs" style={{ marginBottom:20 }}>
             <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:12 }}>その他の求人</h3>
             {jobList.filter(job => job.id !== selectedJob.id).length === 0 ? (
               <p className="f-sans" style={{ fontSize:13, color:"#999", padding:"20px 0" }}>現在、他の求人はありません。</p>
