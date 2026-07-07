@@ -6832,6 +6832,11 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"input", l:"データ入力" },
             { k:"plan",  l:"五年計画" },
             { k:"labor", l:"お仕事" },
+            { k:"search",  l:"さがす" },
+            { k:"profile", l:"プロフィール" },
+            { k:"login",   l:"ログイン" },
+            { k:"role",    l:"役割選択" },
+            { k:"charter", l:"運営憲章" },
           ].map(({ k, l }) => (
             <button key={k} onClick={() => onJump(k)} className="f-sans" style={{
               padding:"6px 12px", borderRadius:8, border:"1px solid #EBEBEB",
