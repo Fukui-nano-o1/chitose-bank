@@ -472,6 +472,29 @@ input:focus { outline: none; }
   }
 }
 
+/* ── 求人詳細（スマホ専用）：下部応募フッター。スクロール中は上下バーを隠す ── */
+.mobile-apply-bar {
+  display: none;
+}
+@media (max-width: 759px) {
+  .mobile-apply-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 500;
+    background: #fff;
+    border-top: 1px solid #EBEBEB;
+    padding: 12px 16px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    transition: transform .25s ease;
+  }
+  body.job-detail-scrolling .mobile-apply-bar { transform: translateY(100%); }
+  .bottom-tab-bar { transition: transform .25s ease; }
+  body.job-detail-scrolling .bottom-tab-bar { transform: translateY(-100%); }
+}
+
 /* ── LandingFlow Step6 grid ── */
 .lf-map-hero { height: 360px; }
 .lf-preview-grid {
@@ -4584,6 +4607,23 @@ function JobSearchMapView({ onRegister }) {
     observer.observe(el);
     return () => observer.disconnect();
   }, [selectedJob]);
+
+  // 求人詳細（スマホ専用）：スクロール中は上下バーを隠す。停止後400msで再表示
+  useEffect(() => {
+    if (!selectedJob) { document.body.classList.remove('job-detail-scrolling'); return; }
+    let timeoutId;
+    const onScroll = () => {
+      document.body.classList.add('job-detail-scrolling');
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => document.body.classList.remove('job-detail-scrolling'), 400);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(timeoutId);
+      document.body.classList.remove('job-detail-scrolling');
+    };
+  }, [selectedJob]);
   const handlePhotoScroll = e => {
     const el = e.target;
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
@@ -5094,6 +5134,19 @@ function JobSearchMapView({ onRegister }) {
             disabled={applying}
             className="btn-primary f-sans"
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
+          >{applying ? "送信中..." : "この仕事に興味がある"}</button>
+        </div>
+      )}
+
+      {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS) */}
+      {selectedJob && (
+        <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
+          <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
+          <button
+            onClick={handleApply}
+            disabled={applying}
+            className="btn-primary f-sans"
+            style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
           >{applying ? "送信中..." : "この仕事に興味がある"}</button>
         </div>
       )}
