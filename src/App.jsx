@@ -445,6 +445,15 @@ input:focus { outline: none; }
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* 応募パネルのsticky追従位置。固定タブバーの直下に16pxの余白を確保 */
+.job-apply-panel {
+  top: 52px; /* PC: タブバー高さ36px + 余白16px */
+}
+@media (max-width: 640px) {
+  .job-apply-panel {
+    top: 73px; /* モバイル: タブバー高さ57px + 余白16px */
+  }
+}
 
 /* ── 応募パネルが画面外に出た時のPC専用下固定バー（スマホは既存の縦積み導線のため非表示） ── */
 .pc-apply-bar {
@@ -4861,8 +4870,8 @@ function JobSearchMapView({ onRegister }) {
                 外側はグリッドのstretchで左カラムの高さまで伸びるラッパー（枠なし＝sticky可動域の確保用）。
                 内側が見た目の白い枠（中身の高さにしか伸びない） */}
             <div>
-            <div ref={applyPanelRef} style={{
-              position:"sticky", top:20, background:"#fff", border:"1px solid #EBEBEB",
+            <div ref={applyPanelRef} className="job-apply-panel" style={{
+              position:"sticky", background:"#fff", border:"1px solid #EBEBEB",
               borderRadius:16, padding:"20px", marginBottom:100,
             }}>
               {/* 給与 */}
