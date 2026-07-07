@@ -1308,6 +1308,7 @@ function AccountHolderForm({ onDone }) {
             </div>
             <div>
               <label className="lbl f-sans">生年月日</label>
+              <p className="f-sans" style={{ marginTop:0, marginBottom:6, fontSize:11, color:"#717171" }}>18歳以上の方がご利用いただけます</p>
               <div style={{ display:"flex", gap:8 }}>
                 <select className="field f-sans" style={{ flex:1.3 }} value={birthYear} onChange={e=>{
                   const y = e.target.value; setBirthYear(y);
