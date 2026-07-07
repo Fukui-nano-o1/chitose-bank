@@ -39,6 +39,7 @@ export const TERMS_ARTICLES = [
   { id:"terms-8",  title:"第8条 当事者間の取引", body:[
     "農家と働き手は、本サービス上で応募、承認、打合せ、面接、契約、労働、評価にいたる一連のやり取りをおこなう。",
     "農家と働き手は、報酬、労働条件、契約の内容を、当事者間で定める。",
+    "働き手は、応募の時点で、当該求人に記載された内容に同意したものとする。",
   ]},
   { id:"terms-9",  title:"第9条 免責", body:[
     "当社は、農家と働き手の間に生じた紛争について、当事者間の解決に委ねる。",
@@ -95,7 +96,7 @@ export default function Terms({ onClose }) {
         }}>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: "#222", margin: 0, textAlign: "center" }}>利用規約</h1>
-            <p style={{ fontSize: 11, color: "#B0B0B0", marginTop: 4 }}>日本農業研究所（chitose-bank） v1.0 · 最終更新日：2026年7月8日</p>
+            <p style={{ fontSize: 11, color: "#B0B0B0", marginTop: 4 }}>千歳（chitose-bank） v1.0 · 最終更新日：2026年7月8日</p>
           </div>
           <button onClick={onClose} aria-label="閉じる" style={{
             width: 40, height: 40, borderRadius: 999, border: "1px solid #EBEBEB",

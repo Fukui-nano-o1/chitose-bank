@@ -4786,6 +4786,7 @@ function JobSearchMapView({ onRegister }) {
                 className="btn-primary f-sans"
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
               >{applying ? "送信中..." : "この仕事に興味がある"}</button>
+              <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
 
               {/* 補足文 */}
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:0, marginTop:10 }}>
@@ -5215,8 +5216,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [farmerTaskText,    setFarmerTaskText]    = useState(d.farmerTaskText ?? ""); // 作業自由入力
   const [farmerWanted,      setFarmerWanted]      = useState(d.farmerWanted ?? "");
   const [farmerPayType,     setFarmerPayType]     = useState(d.farmerPayType ?? "");
-  const [payTiming,         setPayTiming]         = useState(d.payTiming ?? "即日払い（作業当日）");
-  const [payMethod,         setPayMethod]         = useState(d.payMethod  ?? "現金手渡し");
+  const [payTiming,         setPayTiming]         = useState("即日払い（作業当日）");
+  const [payMethod,         setPayMethod]         = useState("現金手渡し");
   // 勤務時間（4分割）
   const [startHour,   setStartHour]   = useState(d.startHour   ?? "8");
   const [startMinute, setStartMinute] = useState(d.startMinute ?? "00");
@@ -5809,14 +5810,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
                 )}
               </div>
+              {false && (
               <div style={{ marginBottom:14, marginTop:14 }}>
                 <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払いタイミング</label>
                 <LFPillSelect options={["即日払い（作業当日）","週末まとめ払い","月末締め・翌月払い"]} value={payTiming} onSelect={setPayTiming} />
               </div>
+              )}
+              {false && (
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払方法</label>
                 <LFPillSelect options={["現金手渡し","銀行振込","相談して決める"]} value={payMethod} onSelect={setPayMethod} />
               </div>
+              )}
             </LFWizCard>
           </>)}
 
@@ -6394,6 +6399,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   >
                     {jobSaving ? "保存中..." : "掲載する"}
                   </button>
+                  <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
                   <button
                     onClick={handleSaveDraft}
                     disabled={draftSaving}
@@ -8275,7 +8281,7 @@ function PrivacyPolicy({ onClose }) {
       >
         <button onClick={onClose} aria-label="閉じる" style={{ position:"absolute", top:18, right:18, width:40, height:40, borderRadius:999, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:24, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.12)", cursor:"pointer", zIndex:10 }}>×</button>
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 4px", textAlign:"center" }}>プライバシーポリシー</h2>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>日本農業研究所（chitose-bank） · 最終更新日：2026年7月8日</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 最終更新日：2026年7月8日</p>
         <div style={{ display:"grid", gap:20 }}>
           {sections.map((s, i) => (
             <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
