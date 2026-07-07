@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Terms from "./Terms.jsx";
+import Terms, { TERMS_ARTICLES } from "./Terms.jsx";
 
 // ══════════════════════════════════════════════════════════
 // DESIGN SYSTEM — 「台帳の美学」
@@ -8626,7 +8626,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role","charter","privacy"];
+  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role","charter","privacy","terms"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
@@ -9180,6 +9180,35 @@ const subDest=useCallback(async d=>{
             </div>
           </div>
         )}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="terms"&&(
+          <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+            <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>利用規約</h1>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>最終更新日：2026年7月8日</p>
+
+            <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
+              {TERMS_ARTICLES.map(a => (
+                <button key={a.id}
+                  onClick={()=>{ document.getElementById(a.id)?.scrollIntoView({ behavior:"smooth", block:"start" }); }}
+                  className="f-sans"
+                  style={{ fontSize:17, fontWeight:600, color:"#00A86B", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer", padding:"14px 18px", textAlign:"left", width:"100%" }}>
+                  {a.title}
+                </button>
+              ))}
+            </nav>
+
+            <div style={{ display:"grid", gap:20 }}>
+              {TERMS_ARTICLES.map((a, i) => (
+                <div key={i} id={a.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88 }}>
+                  <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{a.title}</h3>
+                  {a.body.map((p, j) => (
+                    <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < a.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ── FOOTER（固定） ── */}
@@ -9189,7 +9218,7 @@ const subDest=useCallback(async d=>{
             © {THIS_YEAR} chitose-bank · 吉野川農家 記録プロジェクト
           </span>
           <div className="footer-links">
-            <button onClick={()=>setShowTerms(true)} className="f-sans" style={{
+            <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans" style={{
               fontSize:11, color:"#717171", background:"none", border:"none",
               cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
             }}>利用規約</button>
