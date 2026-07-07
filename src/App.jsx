@@ -4810,7 +4810,7 @@ function JobSearchMapView({ onRegister }) {
 
               {/* 危険区域セクション（両方空なら見出しごと非表示＝ブロック化） */}
               {((selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) || (selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0)) && (
-              <div style={{ marginBottom:100 }}>
+              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:100 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
                   <span style={{ fontSize:18 }}>⚠️</span>
                   <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
@@ -4820,27 +4820,30 @@ function JobSearchMapView({ onRegister }) {
                 {(selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) && (
                   <>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
-                    <Carousel className="carousel-scroll" style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:4 }} wrapperStyle={{ marginBottom:28 }}>
+                    <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
                       {selectedJob.dangerPlaces.map((place, i) => {
                         const placePhotos = place.photos || [];
                         return (
-                        <div key={i} style={{ flexShrink:0, width:240 }}>
-                          <div style={{
-                            width:"100%", height:130, borderRadius:12, background:"#FEF3E2",
-                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
-                            overflow:"hidden", gap: placePhotos.length > 0 ? 4 : 0,
-                          }}>
-                            {placePhotos.length > 0 ? placePhotos.map((p, k) => {
-                              const src = typeof p === "string" ? p : p?.url;
-                              return <img key={k} src={src} alt="" style={{ flex:1, width:0, height:"100%", objectFit:"cover" }} />;
-                            }) : place.icon}
-                          </div>
+                        <div key={i} style={{ width:"100%" }}>
+                          {placePhotos.length > 0 ? (
+                            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                              {placePhotos.map((p, k) => {
+                                const src = typeof p === "string" ? p : p?.url;
+                                return <img key={k} src={src} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />;
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{
+                              width:"100%", height:130, borderRadius:8, background:"#FEF3E2",
+                              display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
+                            }}>{place.icon}</div>
+                          )}
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
                           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
                         </div>
                         );
                       })}
-                    </Carousel>
+                    </div>
                   </>
                 )}
 
@@ -4848,27 +4851,30 @@ function JobSearchMapView({ onRegister }) {
                 {(selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0) && (
                   <>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
-                    <Carousel className="carousel-scroll" style={{ display:"flex", gap:16, overflowX:"auto", paddingBottom:4 }}>
+                    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                       {selectedJob.dangerTasks.map((task, i) => {
                         const taskPhotos = task.photos || [];
                         return (
-                        <div key={i} style={{ flexShrink:0, width:240 }}>
-                          <div style={{
-                            width:"100%", height:130, borderRadius:12, background:"#FEF3E2",
-                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
-                            overflow:"hidden", gap: taskPhotos.length > 0 ? 4 : 0,
-                          }}>
-                            {taskPhotos.length > 0 ? taskPhotos.map((p, k) => {
-                              const src = typeof p === "string" ? p : p?.url;
-                              return <img key={k} src={src} alt="" style={{ flex:1, width:0, height:"100%", objectFit:"cover" }} />;
-                            }) : task.icon}
-                          </div>
+                        <div key={i} style={{ width:"100%" }}>
+                          {taskPhotos.length > 0 ? (
+                            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                              {taskPhotos.map((p, k) => {
+                                const src = typeof p === "string" ? p : p?.url;
+                                return <img key={k} src={src} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />;
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{
+                              width:"100%", height:130, borderRadius:8, background:"#FEF3E2",
+                              display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
+                            }}>{task.icon}</div>
+                          )}
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
                           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
                         </div>
                         );
                       })}
-                    </Carousel>
+                    </div>
                   </>
                 )}
               </div>
