@@ -4644,9 +4644,19 @@ function JobSearchMapView({ onRegister }) {
                 background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden",
               }}
             >
-              <div style={{ width:"100%", height:160, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
-                {job.icon}
-              </div>
+              {(() => {
+                const p0 = job.photos?.[0];
+                const topSrc = typeof p0 === "string" ? p0 : p0?.url;
+                if (topSrc) {
+                  return <img src={topSrc} alt="" style={{ width:"100%", height:160, objectFit:"cover", display:"block", borderRadius:"12px 12px 0 0" }} />;
+                }
+                const cropIcon = CROP_OPTIONS.find(c => job.crop && job.crop.includes(c.name))?.icon || "🌱";
+                return (
+                  <div style={{ width:"100%", height:160, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
+                    {cropIcon}
+                  </div>
+                );
+              })()}
               <div style={{ padding:"12px 16px 16px" }}>
                 <p className="f-sans" style={{ fontSize:16, fontWeight:600, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
                 <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, marginBottom:6 }}>{job.dateLabel}　{job.region}</p>
