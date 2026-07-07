@@ -4451,6 +4451,18 @@ function JobSearchMapView({ onRegister }) {
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
+  const [empEmployer, setEmpEmployer] = useState(null);
+  useEffect(() => {
+    if (!selectedJob) { setEmpEmployer(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.rpc('job_employer_profile', { p_job_number: selectedJob.id });
+        if (!cancelled) setEmpEmployer((data && data[0]) || null);
+      } catch { if (!cancelled) setEmpEmployer(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedJob?.id]);
   const [applying, setApplying] = useState(false);
   const handleApply = async () => {
     if (applying || !selectedJob) return;
@@ -4645,15 +4657,17 @@ function JobSearchMapView({ onRegister }) {
                 </div>
               </div>
 
-              {selectedJob.farmerName && (
+              {empEmployer && empEmployer.nickname && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
                   <div style={{
                     width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
-                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:22,
-                  }}>🧑‍🌾</div>
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, overflow:"hidden",
+                  }}>{empEmployer.avatar_url ? <img src={empEmployer.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🧑‍🌾"}</div>
                   <div>
-                    <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{selectedJob.farmerName}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
+                    <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
+                    {empEmployer.pr && (
+                      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{empEmployer.pr}</p>
+                    )}
                   </div>
                 </div>
               )}
