@@ -1243,7 +1243,8 @@ function AccountHolderForm({ onDone }) {
   const [birthMonth, setBirthMonth] = useState("");
   const [birthDay, setBirthDay] = useState("");
   const [postalCode, setPostalCode] = useState("");
-  const [address, setAddress] = useState("");
+  const [addressAuto, setAddressAuto] = useState("");   // 郵便番号検索で埋まる部分
+  const [addressDetail, setAddressDetail] = useState(""); // 番地・建物名(手入力)
   const [zipSearching, setZipSearching] = useState(false);
   const [zipError, setZipError] = useState("");
   const [entityType, setEntityType] = useState("individual");
@@ -1265,7 +1266,7 @@ function AccountHolderForm({ onDone }) {
   const isAdult = !!birthDateStr && new Date(birthDateStr) <= cutoff;
 
   const isAdminUser = sess?.user?.email === ADMIN_EMAIL;
-  const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && address.trim()
+  const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && addressAuto.trim() && addressDetail.trim()
     && entityType && (entityType === "individual" || companyName.trim()) && agreed);
   const canSubmit = isAdminUser && formValid;
 
@@ -1280,7 +1281,7 @@ function AccountHolderForm({ onDone }) {
       const data = await res.json();
       if (data.status === 200 && data.results) {
         const r = data.results[0];
-        setAddress((r.address1 || "") + (r.address2 || "") + (r.address3 || ""));
+        setAddressAuto((r.address1 || "") + (r.address2 || "") + (r.address3 || ""));
         setZipError("");
       } else {
         setZipError("郵便番号が見つかりませんでした");
@@ -1299,7 +1300,7 @@ function AccountHolderForm({ onDone }) {
       full_name: fullName.trim(),
       birth_date: birthDateStr,
       postal_code: postalCode.trim(),
-      address: address.trim(),
+      address: (addressAuto.trim() + " " + addressDetail.trim()).trim(),
       entity_type: entityType,
       company_name: entityType === "corporate" ? companyName.trim() : null,
       contact_email: sess.user.email || null,
@@ -1371,9 +1372,13 @@ function AccountHolderForm({ onDone }) {
               </div>
               {zipError && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>{zipError}</p>}
             </div>
-            <div>
+            <div style={{ marginBottom:16 }}>
               <label className="lbl f-sans">住所</label>
-              <input className="field f-sans" type="text" value={address} onChange={e=>setAddress(e.target.value)} placeholder="徳島県吉野川市…" />
+              <input className="field f-sans" type="text" value={addressAuto} onChange={e=>setAddressAuto(e.target.value)} placeholder="郵便番号から自動入力されます" />
+            </div>
+            <div>
+              <label className="lbl f-sans">番地・建物名</label>
+              <input className="field f-sans" type="text" value={addressDetail} onChange={e=>setAddressDetail(e.target.value)} placeholder="1-2-3 ○○マンション101" />
             </div>
           </div>
 
