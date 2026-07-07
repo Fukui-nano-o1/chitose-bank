@@ -4508,6 +4508,43 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
   );
 }
 
+// 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
+function JobCard({ job, variant }) {
+  const isList = variant === "list";
+  const p0 = job.photos?.[0];
+  const topSrc = typeof p0 === "string" ? p0 : p0?.url;
+  const cropIcon = CROP_OPTIONS.find(c => job.crop && job.crop.includes(c.name))?.icon || "🌱";
+  const photoHeight = isList ? 210 : 160;
+  const cardStyle = isList
+    ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden" }
+    : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden" };
+  return (
+    <a
+      href={"#/work/job/" + job.id}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={cardStyle}
+    >
+      {topSrc ? (
+        <img src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:"12px 12px 0 0" }} />
+      ) : (
+        <div style={{ width:"100%", height:photoHeight, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
+          {cropIcon}
+        </div>
+      )}
+      <div style={{ padding: isList ? "12px 16px 16px" : "10px 12px 12px" }}>
+        <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
+          <p className="f-sans" style={{ fontSize: isList?15:14, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
+          <span className="f-sans" style={{ fontSize: isList?12:11, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
+        </div>
+        <p className="f-mono" style={{ fontSize: isList?14:13, fontWeight:700, color:"#00A86B", margin:0 }}>
+          {payLabel(job)}
+        </p>
+      </div>
+    </a>
+  );
+}
+
 function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -4681,39 +4718,7 @@ function JobSearchMapView({ onRegister }) {
             </div>
           )}
           {jobList.map(job => (
-            <a
-              key={job.id}
-              href={"#/work/job/" + job.id}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none",
-                background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden",
-              }}
-            >
-              {(() => {
-                const p0 = job.photos?.[0];
-                const topSrc = typeof p0 === "string" ? p0 : p0?.url;
-                if (topSrc) {
-                  return <img src={topSrc} alt="" style={{ width:"100%", height:210, objectFit:"cover", display:"block", borderRadius:"12px 12px 0 0" }} />;
-                }
-                const cropIcon = CROP_OPTIONS.find(c => job.crop && job.crop.includes(c.name))?.icon || "🌱";
-                return (
-                  <div style={{ width:"100%", height:210, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
-                    {cropIcon}
-                  </div>
-                );
-              })()}
-              <div style={{ padding:"12px 16px 16px" }}>
-                <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
-                  <p className="f-sans" style={{ fontSize:15, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
-                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
-                </div>
-                <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:0 }}>
-                  {payLabel(job)}
-                </p>
-              </div>
-            </a>
+            <JobCard key={job.id} job={job} variant="list" />
           ))}
         </div>
       </div>
@@ -5100,25 +5105,7 @@ function JobSearchMapView({ onRegister }) {
               style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
             >
               {jobList.filter(job => job.id !== selectedJob.id).map(job => (
-                <a
-                  key={job.id}
-                  href={"#/work/job/" + job.id}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    flexShrink:0, width:160, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none",
-                    background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden",
-                  }}
-                >
-                  <div style={{ width:"100%", height:100, borderRadius:"12px 12px 0 0", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }}>
-                    {job.icon}
-                  </div>
-                  <div style={{ padding:"8px 10px 10px" }}>
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, marginBottom:2 }}>{job.crop} {job.task}</p>
-                    <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:0, marginBottom:4 }}>{job.region}</p>
-                    <p className="f-mono" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel(job)}</p>
-                  </div>
-                </a>
+                <JobCard key={job.id} job={job} variant="related" />
               ))}
             </Carousel>
             )}
