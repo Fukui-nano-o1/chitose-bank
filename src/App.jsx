@@ -1105,7 +1105,8 @@ const verifyCode = async () => {
         </div>
 
         <div className="ledger-card" style={{ padding:32 }}>
-          <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:24,letterSpacing:".04em" }}>ログイン / 新規登録</div>
+          <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:8,letterSpacing:".04em" }}>メールではじめる</div>
+          <p className="f-sans" style={{ fontSize:11,color:C.dim,lineHeight:1.7,marginBottom:24 }}>はじめての方も、登録済みの方も、こちらから</p>
 
           {!pending ? (
             /* ── STEP 1: メールアドレス入力 ── */
