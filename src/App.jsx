@@ -4659,9 +4659,11 @@ function JobSearchMapView({ onRegister }) {
                 );
               })()}
               <div style={{ padding:"12px 16px 16px" }}>
-                <p className="f-sans" style={{ fontSize:16, fontWeight:600, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, marginBottom:6 }}>{job.region}</p>
-                <p className="f-mono" style={{ fontSize:15, fontWeight:700, color:"#00A86B", margin:0 }}>
+                <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
+                  <p className="f-sans" style={{ fontSize:15, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
+                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
+                </div>
+                <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:0 }}>
                   {payLabel(job)}
                 </p>
               </div>
