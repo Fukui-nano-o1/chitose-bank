@@ -508,7 +508,7 @@ input:focus { outline: none; }
 }
 @media (min-width: 641px) {
   main {
-    padding-top: 60px !important;
+    padding-top: 72px !important;
     padding-bottom: 24px !important;
   }
 }
@@ -535,7 +535,7 @@ input:focus { outline: none; }
     line-height: 1.4;
   }
   main {
-    padding-top: 56px !important;
+    padding-top: 68px !important;
     padding-bottom: 24px !important;
   }
 }
