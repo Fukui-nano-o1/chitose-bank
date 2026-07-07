@@ -1244,6 +1244,8 @@ function AccountHolderForm({ onDone }) {
   const [birthDay, setBirthDay] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
+  const [zipSearching, setZipSearching] = useState(false);
+  const [zipError, setZipError] = useState("");
   const [entityType, setEntityType] = useState("individual");
   const [companyName, setCompanyName] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -1266,6 +1268,28 @@ function AccountHolderForm({ onDone }) {
   const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && address.trim()
     && entityType && (entityType === "individual" || companyName.trim()) && agreed);
   const canSubmit = isAdminUser && formValid;
+
+  // ① 非公開情報(送達先)用の住所検索。求人フローsearchZip(②公開情報)とは
+  // 情報の層が異なるため意図的に分離。共通化しない。
+  const searchAccountZip = async () => {
+    const zip = postalCode.replace(/[^0-9]/g, "");
+    if (zip.length !== 7) { setZipError("郵便番号は7桁で入力してください"); return; }
+    setZipSearching(true); setZipError("");
+    try {
+      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
+      const data = await res.json();
+      if (data.status === 200 && data.results) {
+        const r = data.results[0];
+        setAddress((r.address1 || "") + (r.address2 || "") + (r.address3 || ""));
+        setZipError("");
+      } else {
+        setZipError("郵便番号が見つかりませんでした");
+      }
+    } catch {
+      setZipError("検索に失敗しました。通信環境をご確認ください");
+    }
+    setZipSearching(false);
+  };
 
   const submit = async () => {
     if (!canSubmit || !sess) return;
@@ -1337,7 +1361,15 @@ function AccountHolderForm({ onDone }) {
             <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>送達先</div>
             <div style={{ marginBottom:16 }}>
               <label className="lbl f-sans">郵便番号</label>
-              <input className="field f-sans" type="text" value={postalCode} onChange={e=>setPostalCode(e.target.value)} placeholder="7790000" />
+              <div style={{ display:"flex", gap:8 }}>
+                <input className="field f-sans" type="text" value={postalCode} onChange={e=>setPostalCode(e.target.value)} placeholder="7790000" style={{ flex:1 }} />
+                <button type="button" onClick={searchAccountZip} disabled={zipSearching} className="f-sans" style={{
+                  padding:"0 16px", borderRadius:8, border:"1px solid #DADADA",
+                  background:"#fff", color:"#222", fontSize:13, fontWeight:600,
+                  cursor: zipSearching ? "default" : "pointer", whiteSpace:"nowrap",
+                }}>{zipSearching ? "検索中..." : "住所を検索"}</button>
+              </div>
+              {zipError && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>{zipError}</p>}
             </div>
             <div>
               <label className="lbl f-sans">住所</label>
