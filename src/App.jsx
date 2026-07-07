@@ -4483,6 +4483,7 @@ function JobSearchMapView({ onRegister }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [dbJobs, setDbJobs] = useState(null);
+  const [dangerLightbox, setDangerLightbox] = useState(null);
   useEffect(() => {
     (async () => {
       try {
@@ -4829,7 +4830,7 @@ function JobSearchMapView({ onRegister }) {
                             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                               {placePhotos.map((p, k) => {
                                 const src = typeof p === "string" ? p : p?.url;
-                                return <img key={k} src={src} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />;
+                                return <img key={k} src={src} alt="" onClick={() => setDangerLightbox(src)} style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block", cursor:"pointer" }} />;
                               })}
                             </div>
                           ) : (
@@ -4860,7 +4861,7 @@ function JobSearchMapView({ onRegister }) {
                             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                               {taskPhotos.map((p, k) => {
                                 const src = typeof p === "string" ? p : p?.url;
-                                return <img key={k} src={src} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />;
+                                return <img key={k} src={src} alt="" onClick={() => setDangerLightbox(src)} style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block", cursor:"pointer" }} />;
                               })}
                             </div>
                           ) : (
@@ -5092,6 +5093,25 @@ function JobSearchMapView({ onRegister }) {
             className="btn-primary f-sans"
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
           >{applying ? "送信中..." : "この仕事に興味がある"}</button>
+        </div>
+      )}
+
+      {/* 危険箇所の写真ライトボックス（全画面拡大） */}
+      {dangerLightbox && (
+        <div onClick={() => setDangerLightbox(null)} style={{
+          position:"fixed", inset:0, zIndex:10000,
+          background:"rgba(0,0,0,0.92)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          cursor:"pointer", animation:"fadeIn .2s ease", padding:16,
+        }}>
+          <button onClick={e => { e.stopPropagation(); setDangerLightbox(null); }} style={{
+            position:"absolute", top:20, right:20,
+            width:40, height:40, borderRadius:"50%",
+            background:"rgba(255,255,255,0.15)", border:"none",
+            color:"#fff", fontSize:22, cursor:"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>✕</button>
+          <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
         </div>
       )}
     </div>
