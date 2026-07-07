@@ -7568,35 +7568,135 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
-function EmployerProfile({ me }) {
-  const TIER_LABELS = { "0":"未就農", "1-3":"1〜3年", "4-10":"4〜10年", "10+":"10年以上" };
-  const [avatarUrl, setAvatarUrl] = useState(me?.avatar_url || "");
+function EmployerProfileEdit({ me }) {
+  const [nickname, setNickname] = useState("");
+  const [pr, setPr] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        if (data) { setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || ""); }
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+  // 任意形式の画像をCanvasでjpegに統一変換（heic以外の全形式に対応・バケット制限も回避）
+  const convertToJpeg = (file) => new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const max = 512; // アイコンなので512pxに縮小（容量削減）
+      let { width, height } = img;
+      if (width > height && width > max) { height = Math.round(height * max / width); width = max; }
+      else if (height > max) { width = Math.round(width * max / height); height = max; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => { if (blob) resolve(blob); else reject(new Error('変換に失敗')); }, 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('この画像を読み込めませんでした。別の画像をお試しください。')); };
+    img.src = url;
+  });
+  const handleAvatar = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setUploading(false); return; }
+      let sourceFile = file;
+      // iPhoneのHEIC/HEIF形式は、まずheic2anyでjpegにデコード（選択時のみ動的import）
+      const isHeic = /\.(heic|heif)$/i.test(file.name) || /heic|heif/i.test(file.type);
+      if (isHeic) {
+        try {
+          const heic2any = (await import('heic2any')).default;
+          const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+          sourceFile = Array.isArray(converted) ? converted[0] : converted;
+        } catch (heicErr) { setUploading(false); alert("iPhoneの写真（HEIC）の変換に失敗しました。もう一度お試しください。"); return; }
+      }
+      let blob;
+      try { blob = await convertToJpeg(sourceFile); }
+      catch (convErr) { setUploading(false); alert(convErr.message || "この画像形式は対応していません。JPEG・PNG・WebP等をお試しください。"); return; }
+      // 拡張子はjpg固定（変換後は必ずjpeg）。旧ファイルが別拡張子で残っていれば掃除
+      try {
+        const { data: olds } = await supabase.storage.from('avatars').list("employer/" + session.user.id);
+        if (olds && olds.length > 0) {
+          const paths = olds.map(f => "employer/" + session.user.id + "/" + f.name);
+          await supabase.storage.from('avatars').remove(paths);
+        }
+      } catch {}
+      const path = "employer/" + session.user.id + "/avatar.jpg";
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+      if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message); return; }
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
+      await supabase.from('employer_profiles').upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      setAvatarUrl(url);
+    } catch { alert("画像のアップロードに失敗しました。"); }
+    setUploading(false);
+  };
+  const handleDeleteAvatar = async () => {
+    if (!avatarUrl || uploading) return;
+    setUploading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setUploading(false); return; }
+      const { data: files } = await supabase.storage.from('avatars').list("employer/" + session.user.id);
+      if (files && files.length > 0) {
+        const paths = files.map(f => "employer/" + session.user.id + "/" + f.name);
+        await supabase.storage.from('avatars').remove(paths);
+      }
+      await supabase.from('employer_profiles').upsert({ auth_id: session.user.id, avatar_url: '', updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      setAvatarUrl('');
+    } catch { alert("削除に失敗しました。"); }
+    setUploading(false);
+  };
+  const save = async () => {
+    if (saving) return;
+    setSaving(true); setSaved(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSaving(false); return; }
+      const { error } = await supabase.from("employer_profiles").upsert({ auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(), updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      setSaving(false);
+      if (!error) { setSaved(true); setTimeout(()=>setSaved(false), 2000); }
+      else alert("保存に失敗しました：" + error.message);
+    } catch { setSaving(false); alert("保存に失敗しました。"); }
+  };
+  if (loading) return <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:480 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:24 }}>
-        <div style={{ width:72, height:72, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
-          {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:32 }}>🧑‍🌾</span>}
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>雇い手プロフィール</p>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に掲載したとき、働き手に伝わる紹介です。任意で入力できます。</p>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>
+      <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
+        <div style={{ width:64, height:64, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+          {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:28 }}>🧑‍🌾</span>}
         </div>
-        <div>
-          <p className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{me?.name || "名前未設定"}</p>
-          <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>雇い手として</p>
-        </div>
-      </div>
-      <div style={{ display:"grid", gap:12 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", padding:"14px 16px", border:"1px solid #EEE", borderRadius:12 }}>
-          <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>氏名</span>
-          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>{me?.name || "未設定"}</span>
-        </div>
-        <div style={{ display:"flex", justifyContent:"space-between", padding:"14px 16px", border:"1px solid #EEE", borderRadius:12 }}>
-          <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>就農歴</span>
-          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>{TIER_LABELS[me?.experience_tier] || "未設定"}</span>
-        </div>
-        <div style={{ display:"flex", justifyContent:"space-between", padding:"14px 16px", border:"1px solid #EEE", borderRadius:12 }}>
-          <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>地域</span>
-          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>{[me?.prefecture, me?.municipality].filter(Boolean).join(" ") || "未設定"}</span>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
+            {uploading ? "処理中..." : avatarUrl ? "画像を変更" : "画像を選ぶ"}
+            <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading} style={{ display:"none" }} />
+          </label>
+          {avatarUrl && (
+            <button onClick={handleDeleteAvatar} disabled={uploading} className="f-sans" style={{ padding:"8px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:12, color:"#717171", cursor:"pointer" }}>削除</button>
+          )}
         </div>
       </div>
-      <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:16, lineHeight:1.7 }}>プロフィールの編集は、右上のメニューから行えます。法人向けの情報（企業名など）は今後追加予定です。</p>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>農園名・屋号・社名</label>
+      <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：山川ファーム / 千歳農園" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>紹介・PR</label>
+      <textarea value={pr} onChange={e=>setPr(e.target.value)} placeholder="家族でブロッコリーを育てています。丁寧に教えます。" rows={4} className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }} />
+      <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
     </div>
   );
 }
@@ -7670,7 +7770,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap:20 }}>
       {jobTab==="profile" ? (
-        <EmployerProfile me={me} />
+        <EmployerProfileEdit me={me} />
       ) : jobTab==="draft" ? (
         draftsLoading ? (
           <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
