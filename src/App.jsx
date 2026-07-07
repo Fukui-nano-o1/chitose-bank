@@ -4453,6 +4453,15 @@ function JobSearchMapView({ onRegister }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setApplying(false); if (onRegister) onRegister(); return; }
+      // ①(account_holders)未登録なら重い登録へ。戻り先を退避。
+      const { data: ah } = await supabase.from('account_holders')
+        .select('id').eq('auth_id', session.user.id).maybeSingle();
+      if (!ah) {
+        setApplying(false);
+        try { localStorage.setItem('applyReturnJob', String(selectedJob.id)); } catch {}
+        window.location.hash = "/account";
+        return;
+      }
       const { data, error } = await supabase.rpc("apply_to_job", { p_job_number: selectedJob.id });
       setApplying(false);
       if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
@@ -8902,7 +8911,10 @@ const subDest=useCallback(async d=>{
         {(needsAccountHolder || openAccountForm) ? (
           <AccountHolderForm onDone={()=>{
             setNeedsAccountHolder(false); setOpenAccountForm(false);
-            window.location.hash="/search"; setTab("search");
+            let ret = null;
+            try { ret = localStorage.getItem('applyReturnJob'); localStorage.removeItem('applyReturnJob'); } catch {}
+            if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
+            else { window.location.hash="/search"; setTab("search"); }
           }} onSessionExpired={()=>{
             setNeedsAccountHolder(false); setOpenAccountForm(false);
             window.location.hash="/login";
