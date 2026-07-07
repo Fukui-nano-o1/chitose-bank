@@ -5313,9 +5313,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   const isFarmer = role === "farmer";
   const isWorker = role === "worker";
-  const farmerStepLabels = ["作物","作業","場所","日程","募集人数","報酬","確認","完了"];
-  const workerStepLabels = ["経歴","目的","プロフィール","報酬比較","確認","詳細","確認","完了"];
-  const stepLabels = isFarmer ? farmerStepLabels : isWorker ? workerStepLabels : [];
   const TOTAL = isFarmer ? 14 : 8;
 
   const goNext = () => setStep(s => s + 1);
@@ -5541,11 +5538,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         <div style={{ position: embedded ? "relative" : "absolute", top:0, left:0, right:0, zIndex:1 }}>
           <div style={{ height:4, background:"#EBEBEB" }}>
             <div style={{ height:4, background:"#00A86B", width:((draftBarFull || step >= 12) ? 100 : (step/TOTAL*100))+"%", transition:"width 0.4s ease" }} />
-          </div>
-          <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none", padding:"4px 8px 0" }}>
-            {stepLabels.map((label, i) => (
-              <span key={i} className="f-sans" style={{ flexShrink:0, fontSize:8, minWidth:48, textAlign:"center", fontWeight: i+1===step ? 700 : 400, color: i+1===step ? "#00A86B" : i+1<step ? "#717171" : "#B0B0B0" }}>{i+1} {label}</span>
-            ))}
           </div>
         </div>
       )}
