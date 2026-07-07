@@ -1249,6 +1249,7 @@ function AccountHolderForm({ onDone }) {
   const [zipError, setZipError] = useState("");
   const [entityType, setEntityType] = useState("individual");
   const [companyName, setCompanyName] = useState("");
+  const [companyNumber, setCompanyNumber] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -1267,7 +1268,7 @@ function AccountHolderForm({ onDone }) {
 
   const isAdminUser = sess?.user?.email === ADMIN_EMAIL;
   const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && addressAuto.trim() && addressDetail.trim()
-    && entityType && (entityType === "individual" || companyName.trim()) && agreed);
+    && entityType && (entityType === "individual" || (companyName.trim() && companyNumber.trim())) && agreed);
   const canSubmit = isAdminUser && formValid;
 
   // ① 非公開情報(送達先)用の住所検索。求人フローsearchZip(②公開情報)とは
@@ -1303,6 +1304,7 @@ function AccountHolderForm({ onDone }) {
       address: (addressAuto.trim() + " " + addressDetail.trim()).trim(),
       entity_type: entityType,
       company_name: entityType === "corporate" ? companyName.trim() : null,
+      company_number: entityType === "corporate" ? companyNumber.trim() : null,
       contact_email: sess.user.email || null,
       contact_phone: sess.user.phone || null,
       agreed_terms_version: TERMS_VERSION,
@@ -1326,11 +1328,44 @@ function AccountHolderForm({ onDone }) {
 
         <div className="ledger-card" style={{ padding:28, display:"grid", gap:28 }}>
           <div>
+            <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:10 }}>区分</div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button type="button" onClick={()=>{ setEntityType("individual"); setCompanyName(""); setCompanyNumber(""); }} className="f-sans" style={{
+                flex:1, padding:"10px 0", borderRadius:8,
+                border: entityType==="individual" ? `2px solid ${C.bamboo}` : "1px solid #DADADA",
+                background: entityType==="individual" ? C.bambooPl : "#fff",
+                color: entityType==="individual" ? C.bamboo : "#717171",
+                fontSize:13, fontWeight:700, cursor:"pointer",
+              }}>個人</button>
+              <button type="button" onClick={()=>setEntityType("corporate")} className="f-sans" style={{
+                flex:1, padding:"10px 0", borderRadius:8,
+                border: entityType==="corporate" ? `2px solid ${C.bamboo}` : "1px solid #DADADA",
+                background: entityType==="corporate" ? C.bambooPl : "#fff",
+                color: entityType==="corporate" ? C.bamboo : "#717171",
+                fontSize:13, fontWeight:700, cursor:"pointer",
+              }}>法人</button>
+            </div>
+          </div>
+
+          <div>
             <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>本人確認</div>
             <div style={{ marginBottom:16 }}>
-              <label className="lbl f-sans">氏名</label>
+              <label className="lbl f-sans">{entityType==="corporate" ? "代表者氏名" : "氏名"}</label>
               <input className="field f-sans" type="text" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="山田 太郎" />
             </div>
+            {entityType === "corporate" && (
+              <div className="fade-in" style={{ marginBottom:16 }}>
+                <label className="lbl f-sans">法人名</label>
+                <input className="field f-sans" type="text" value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="株式会社〇〇" />
+              </div>
+            )}
+            {entityType === "corporate" && (
+              <div className="fade-in" style={{ marginBottom:16 }}>
+                <label className="lbl f-sans">法人番号</label>
+                <input className="field f-sans" type="text" value={companyNumber} onChange={e=>setCompanyNumber(e.target.value)} placeholder="1234567890123（13桁）" />
+                <p className="f-sans" style={{ marginTop:6, fontSize:11, color:"#717171" }}>国税庁の法人番号13桁</p>
+              </div>
+            )}
             <div>
               <label className="lbl f-sans">生年月日</label>
               <p className="f-sans" style={{ marginTop:0, marginBottom:6, fontSize:11, color:"#717171" }}>18歳未満は登録できません</p>
@@ -1373,33 +1408,13 @@ function AccountHolderForm({ onDone }) {
               {zipError && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>{zipError}</p>}
             </div>
             <div style={{ marginBottom:16 }}>
-              <label className="lbl f-sans">住所</label>
+              <label className="lbl f-sans">{entityType==="corporate" ? "本店所在地" : "住所"}</label>
               <input className="field f-sans" type="text" value={addressAuto} onChange={e=>setAddressAuto(e.target.value)} placeholder="郵便番号から自動入力されます" />
             </div>
             <div>
               <label className="lbl f-sans">番地・建物名</label>
               <input className="field f-sans" type="text" value={addressDetail} onChange={e=>setAddressDetail(e.target.value)} placeholder="1-2-3 ○○マンション101" />
             </div>
-          </div>
-
-          <div>
-            <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>区分</div>
-            <div style={{ display:"flex", gap:20, marginBottom: entityType==="corporate" ? 16 : 0 }}>
-              <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, color:C.ink, cursor:"pointer" }}>
-                <input type="radio" name="entityType" checked={entityType==="individual"} onChange={()=>{ setEntityType("individual"); setCompanyName(""); }} />
-                個人
-              </label>
-              <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, color:C.ink, cursor:"pointer" }}>
-                <input type="radio" name="entityType" checked={entityType==="corporate"} onChange={()=>setEntityType("corporate")} />
-                法人
-              </label>
-            </div>
-            {entityType === "corporate" && (
-              <div className="fade-in">
-                <label className="lbl f-sans">法人名</label>
-                <input className="field f-sans" type="text" value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="株式会社〇〇" />
-              </div>
-            )}
           </div>
 
           <div>
