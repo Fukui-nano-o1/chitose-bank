@@ -4452,7 +4452,12 @@ function JobSearchMapView({ onRegister }) {
     setApplying(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setApplying(false); if (onRegister) onRegister(); return; }
+      if (!session) {
+        setApplying(false);
+        try { localStorage.setItem('applyReturnJob', String(selectedJob.id)); } catch {}
+        if (onRegister) onRegister();
+        return;
+      }
       // ①(account_holders)未登録なら重い登録へ。戻り先を退避。
       const { data: ah } = await supabase.from('account_holders')
         .select('id').eq('auth_id', session.user.id).maybeSingle();
@@ -8941,10 +8946,26 @@ const subDest=useCallback(async d=>{
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("profile"); }}/>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{
+          setMe(p); setTab("profile");
+          let ret=null;
+          try { ret = localStorage.getItem('applyReturnJob'); } catch {}
+          if (ret) {
+            try { localStorage.removeItem('applyReturnJob'); } catch {}
+            window.location.hash = "/work/job/" + ret; setTab("search");
+          }
+        }}/>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
-          : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("profile");}} onNeedRole={()=>setTab("role")}/>)}
+          : <LoginScreen farmers={farmers} onLogin={f=>{
+              setMe(f);setAuthV("login");loadNotifs(f.id);setTab("profile");
+              let ret=null;
+              try { ret = localStorage.getItem('applyReturnJob'); } catch {}
+              if (ret) {
+                try { localStorage.removeItem('applyReturnJob'); } catch {}
+                window.location.hash = "/work/job/" + ret; setTab("search");
+              }
+            }} onNeedRole={()=>setTab("role")}/>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
           <FarmerDashboard
