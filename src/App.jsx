@@ -442,7 +442,7 @@ input:focus { outline: none; }
 }
 @media (max-width: 759px) {
   .job-detail-2col {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
