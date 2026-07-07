@@ -206,8 +206,8 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; background: #fff; overflow-x: hidden; }
-body { background: #fff; overflow-x: hidden; }
+html { scroll-behavior: smooth; background: #fff; overflow-x: clip; }
+body { background: #fff; overflow-x: clip; }
 
 ::-webkit-scrollbar { width: 2px; height: 2px; }
 ::-webkit-scrollbar-thumb { background: #EBEBEB; border-radius: 1px; }
