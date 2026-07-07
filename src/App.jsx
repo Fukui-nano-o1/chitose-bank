@@ -8175,13 +8175,13 @@ function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) 
 // ── PrivacyPolicy ────────────────────────────────────────────
 // sections本体はモーダル(PrivacyPolicy)とページ(#/privacy)で共通利用するためモジュールレベル定数化
 const PRIVACY_SECTIONS = [
-    { title:"1. 前文", body:[
+    { id:"privacy-1", title:"1. 前文", body:[
       "当社は、農家と働き手が利用する求人情報および求職情報の掲載の場 chitose-bank を運営する。",
       "当社は、本サービスの提供にあたり利用者の個人情報を取得する。",
       "当社は、取得した個人情報を、本ポリシーに定める利用目的の範囲でのみ取り扱う。",
       "当社は、個人情報の保護に関する法律その他の法令を遵守する。",
     ]},
-    { title:"2. 取得する情報", body:[
+    { id:"privacy-2", title:"2. 取得する情報", body:[
       "当社は、利用者の登録および本サービスの利用にともない、次の情報を取得する。",
       "運営管理情報※1として、氏名、郵便番号、住所、生年月日、個人と法人の区分、法人名、法人番号、連絡先を取得する。",
       "認証情報として、メールアドレスまたは電話番号を取得する。",
@@ -8190,7 +8190,7 @@ const PRIVACY_SECTIONS = [
       "労働実績情報として、本サービスを通じた出退勤の記録、労働の件数、労働の時間、作物別および作業別の割合、再指名の状況を取得する。",
       "利用状況として、端末に保存する識別情報および操作の記録を取得する。",
     ]},
-    { title:"3. 利用目的", body:[
+    { id:"privacy-3", title:"3. 利用目的", body:[
       "当社は、取得した個人情報を、次の目的のために利用する。",
       "利用者の本人確認をおこなうために利用する。",
       "規約違反が生じた場合に、責任を負う者を特定し、書面または連絡先を通じて連絡するために利用する。",
@@ -8200,16 +8200,16 @@ const PRIVACY_SECTIONS = [
       "本サービスの運営、保守、改善をおこなうために利用する。",
       "法令に基づく対応をおこなうために利用する。",
     ]},
-    { title:"4. 公開する情報と公開しない情報", body:[
+    { id:"privacy-4", title:"4. 公開する情報と公開しない情報", body:[
       "当社は、求人情報および求職情報を、本サービス上で公開する。",
       "当社は、労働実績情報のうち、作物別および作業別の労働時間、労働の件数、再指名の状況、無断欠勤のない記録を、求職情報として農家に公開する。",
       "当社は、運営管理情報を、本人確認および規約違反時の責任特定のためにのみ保持する。",
     ]},
-    { title:"5. 第三者への提供", body:[
+    { id:"privacy-5", title:"5. 第三者への提供", body:[
       "当社は、法令に基づく場合、および本人の同意を得た場合に限り、保有個人データ※2を第三者へ提供する。",
       "当社は、人の生命、身体または財産の保護のために必要がある場合であって、本人の同意を得ることが困難であるときは、法令の定める範囲で個人データ※3を提供する。",
     ]},
-    { title:"6. 業務の委託", body:[
+    { id:"privacy-6", title:"6. 業務の委託", body:[
       "当社は、本サービスの提供に必要な範囲で、個人情報の取り扱いを外部の事業者に委託する。",
       "当社は、郵便番号から住所を検索する処理を外部のサービスに委託する。",
       "当社は、メールの送信を外部のサービスに委託する。",
@@ -8217,43 +8217,43 @@ const PRIVACY_SECTIONS = [
       "当社は、本サービスの配信を外部のホスティング事業者に委託する。",
       "当社は、委託先に対して、個人情報の安全な管理を求め、必要かつ適切な監督をおこなう。",
     ]},
-    { title:"7. 外国にある第三者への提供", body:[
+    { id:"privacy-7", title:"7. 外国にある第三者への提供", body:[
       "当社は、業務の委託にともない、外国にある事業者に個人情報の取り扱いを委託する場合がある。",
       "当社は、この場合、法令の定める措置を講じたうえで取り扱う。",
     ]},
-    { title:"8. 安全管理措置", body:[
+    { id:"privacy-8", title:"8. 安全管理措置", body:[
       "当社は、通信を暗号化する。",
       "当社は、行レベルの制御により、利用者が自身の情報にのみ到達できる状態を保つ。",
       "当社は、運営管理情報への到達を、管理者の権限に限定する。",
       "当社は、認証によってアクセスを制御する。",
       "当社は、これらの措置の具体的な内容について、本人の求めに応じて遅滞なく回答する。",
     ]},
-    { title:"9. 未成年者", body:[
+    { id:"privacy-9", title:"9. 未成年者", body:[
       "当社は、18歳以上の者に本サービスの登録を認める。",
       "当社は、生年月日により年齢を確認する。",
       "当社は、16歳未満の者の個人情報を取得する場合、法定代理人※4の同意を得る。",
     ]},
-    { title:"10. 端末に保存する情報", body:[
+    { id:"privacy-10", title:"10. 端末に保存する情報", body:[
       "当社は、本サービスの動作のために、識別情報を利用者の端末に保存する。",
       "当社は、この情報を、セッションの維持および本サービスの利便のために利用する。",
     ]},
-    { title:"11. 開示、訂正、利用停止等の請求", body:[
+    { id:"privacy-11", title:"11. 開示、訂正、利用停止等の請求", body:[
       "当社は、本人から、保有個人データの開示、訂正、追加、削除、利用の停止、第三者提供の停止の請求を受けた場合、本人であることを確認したうえで、法令に基づき遅滞なく対応する。",
       "当社は、請求の窓口を第13章に定める。",
       "当社は、開示の請求に対して、手数料を求める場合がある。",
     ]},
-    { title:"12. 漏えい等への対応", body:[
+    { id:"privacy-12", title:"12. 漏えい等への対応", body:[
       "当社は、個人情報の漏えい、滅失、毀損が生じた場合、法令の定めに従い、個人情報保護委員会への報告および本人への通知をおこなう。",
     ]},
-    { title:"13. お問い合わせ窓口", body:[
+    { id:"privacy-13", title:"13. お問い合わせ窓口", body:[
       "本ポリシーおよび個人情報の取り扱いに関する請求、苦情、問い合わせは、次の窓口で受け付ける。",
       "窓口：【　　　　　】",
     ]},
-    { title:"14. 改定", body:[
+    { id:"privacy-14", title:"14. 改定", body:[
       "当社は、本ポリシーを改定する場合、本サービス上で公表する。",
       "当社は、改定後の内容を、公表の時点から適用する。",
     ]},
-    { title:"15. 用語の定義", body:[
+    { id:"privacy-15", title:"15. 用語の定義", body:[
       "※1 運営管理情報とは、本人確認および規約違反時の責任特定のために当社が保持する非公開の情報をいう。",
       "※2 保有個人データとは、当社が開示、訂正、利用停止等の権限を有する個人データをいう。",
       "※3 個人データとは、体系的に整理された個人情報をいう。",
@@ -9156,9 +9156,21 @@ const subDest=useCallback(async d=>{
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>最終更新日：2026年7月8日</p>
+
+            <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
+              {PRIVACY_SECTIONS.map(s => (
+                <button key={s.id}
+                  onClick={()=>{ document.getElementById(s.id)?.scrollIntoView({ behavior:"smooth", block:"start" }); }}
+                  className="f-sans"
+                  style={{ fontSize:17, fontWeight:600, color:"#00A86B", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer", padding:"14px 18px", textAlign:"left", width:"100%" }}>
+                  {s.title}
+                </button>
+              ))}
+            </nav>
+
             <div style={{ display:"grid", gap:20 }}>
               {PRIVACY_SECTIONS.map((s, i) => (
-                <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
+                <div key={i} id={s.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88 }}>
                   <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
                   {s.body.map((p, j) => (
                     <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
