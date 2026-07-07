@@ -4031,9 +4031,71 @@ function CalendarView({ start, end, readOnly = false, onSelect }) {
   const initM = start ? start.getMonth() : new Date().getMonth();
   const [cvYear, setCvYear] = useState(initY);
   const [cvMonth, setCvMonth] = useState(initM);
+  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (start) { setCvYear(start.getFullYear()); setCvMonth(start.getMonth()); }
   }, [start ? start.getTime() : null]);
+
+  // ── readOnly（求人詳細）: 期間分の月を展開表示（ConfCalendar 6191-6233と同方式） ──
+  // start未指定のreadOnly呼び出し(未実装プレースホルダー画面)は従来の単月表示にフォールバック
+  if (readOnly && start) {
+    const end2 = end || start;
+    const months = [];
+    let y = start.getFullYear(), m = start.getMonth();
+    const ey = end2.getFullYear(), em = end2.getMonth();
+    while (y < ey || (y === ey && m <= em)) {
+      months.push({ y, m });
+      if (m === 11) { y++; m = 0; } else m++;
+      if (months.length > 12) break; // 安全弁
+    }
+    const LIMIT = 3;
+    const shown = expanded ? months : months.slice(0, LIMIT);
+    const remaining = months.length - LIMIT;
+    const renderMonth = ({ y, m }) => {
+      const firstDay = new Date(y, m, 1).getDay();
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) cells.push(null);
+      for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
+      return (
+        <div key={`${y}-${m}`} style={{ marginBottom:12 }}>
+          <div style={{ textAlign:"center", marginBottom:10 }}>
+            <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{y}年{m+1}月</span>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+            {WD_CV.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
+            {cells.map((dd, i) => {
+              if (!dd) return <div key={`e${i}`} />;
+              const dt = new Date(y, m, dd);
+              const isStart = isSameDayCV(dt, start);
+              const isEnd = isSameDayCV(dt, end2);
+              const inRange = start && end2 && dt > start && dt < end2;
+              return (
+                <div key={dd} style={{
+                  padding:"7px 2px", borderRadius:8, fontSize:13, textAlign:"center",
+                  background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
+                  color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
+                  fontWeight: (isStart||isEnd) ? 700 : 400,
+                }}>{dd}</div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+    return (
+      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginTop:8 }}>
+        {shown.map(renderMonth)}
+        {!expanded && remaining > 0 && (
+          <button onClick={() => setExpanded(true)} style={{ width:"100%", padding:"10px", borderRadius:10, border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:13, color:"#00A86B", fontWeight:600, cursor:"pointer" }}>
+            すべての月を表示（残り{remaining}ヶ月）
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // ── 従来の単月+月送り（求人作成の日付選択・クリック挙動を維持） ──
   const firstDay = new Date(cvYear, cvMonth, 1).getDay();
   const daysInMonth = new Date(cvYear, cvMonth + 1, 0).getDate();
   const prevMo = () => { if (cvMonth===0){ setCvYear(y=>y-1); setCvMonth(11);} else setCvMonth(m=>m-1); };
