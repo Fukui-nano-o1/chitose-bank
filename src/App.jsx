@@ -60,6 +60,13 @@ const THIS_YEAR   = new Date().getFullYear();
 const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 // 管理者判定（届出後にゲートを外す際はここを変更する。保存・入力機能のゲートにも使用）
 const isAdmin = (user) => user?.email === ADMIN_EMAIL;
+// ①登録フロー(account_holders)専用の許可リスト。RLS側(ANY ARRAY)と一字一句同じ4メールを維持すること
+const ACCOUNT_ALLOWLIST = [
+  "t5fki6643qty@gmail.com",
+  "hmktsr15231@gmail.com",
+  "wuren9042@gmail.com",
+  "coirakoira@gmail.com",
+];
 
 // account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
 const TERMS_VERSION = "v1-2026-07";
@@ -1275,7 +1282,7 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
     : "";
   const isAdult = !!birthDateStr && new Date(birthDateStr) <= cutoff;
 
-  const isAdminUser = sess?.user?.email === ADMIN_EMAIL;
+  const isAdminUser = ACCOUNT_ALLOWLIST.includes(sess?.user?.email);
   const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && addressAuto.trim() && addressDetail.trim()
     && entityType && (entityType === "individual" || (companyName.trim() && companyNumber.trim())) && agreed);
   const canSubmit = isAdminUser && formValid;
