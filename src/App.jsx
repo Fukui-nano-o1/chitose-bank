@@ -8173,8 +8173,8 @@ function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) 
 }
 
 // ── PrivacyPolicy ────────────────────────────────────────────
-function PrivacyPolicy({ onClose }) {
-  const sections = [
+// sections本体はモーダル(PrivacyPolicy)とページ(#/privacy)で共通利用するためモジュールレベル定数化
+const PRIVACY_SECTIONS = [
     { title:"1. 前文", body:[
       "当社は、農家と働き手が利用する求人情報および求職情報の掲載の場 chitose-bank を運営する。",
       "当社は、本サービスの提供にあたり利用者の個人情報を取得する。",
@@ -8260,6 +8260,9 @@ function PrivacyPolicy({ onClose }) {
       "※4 法定代理人とは、未成年者に代わって同意をおこなう権限を有する者をいう。",
     ]},
   ];
+
+function PrivacyPolicy({ onClose }) {
+  const sections = PRIVACY_SECTIONS;
 
   return (
     <div
@@ -8623,7 +8626,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role","charter"];
+  const TAB_URL_KEYS = ["labor","jobs","board","input","plan","admin","search","work","profile","login","role","charter","privacy"];
   const NEW_TAB_KEYS = ["search","work","profile","login","role"]; // 第2段の新部屋＋役割選択（タブバー非表示）
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
@@ -9148,6 +9151,23 @@ const subDest=useCallback(async d=>{
             </div>
           </div>
         )}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
+          <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+            <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>最終更新日：2026年7月8日</p>
+            <div style={{ display:"grid", gap:20 }}>
+              {PRIVACY_SECTIONS.map((s, i) => (
+                <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
+                  <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
+                  {s.body.map((p, j) => (
+                    <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ── FOOTER（固定） ── */}
@@ -9165,7 +9185,7 @@ const subDest=useCallback(async d=>{
               fontSize:11, color:"#717171", background:"none", border:"none",
               cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
             }}>運営憲章</button>
-            <button onClick={()=>setShowPrivacy(true)} className="f-sans" style={{
+            <button onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans" style={{
               fontSize:11, color:"#717171", background:"none", border:"none",
               cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
             }}>プライバシーポリシー</button>
