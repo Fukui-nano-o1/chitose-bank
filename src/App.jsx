@@ -8551,10 +8551,26 @@ export default function App(){
       setShowApplyDone(rawHash === "apply/done");
       const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
       setChatAppId(_cm ? _cm[1] : null);
+      if (rawHash === "account") {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) { setOpenAccountForm(true); }
+          else { setOpenAccountForm(false); window.location.hash = "/login"; }
+        });
+      } else {
+        setOpenAccountForm(false);
+      }
       const t = readHashTab(); if (t) setTab(t);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  // #/account 直打ち（初回ロード）の認証チェック。hashchangeイベントは初回ロードでは発火しないため別途判定
+  useEffect(() => {
+    if (window.location.hash.replace(/^#\/?/, "") !== "account") return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) { setOpenAccountForm(true); }
+      else { setOpenAccountForm(false); window.location.hash = "/login"; }
+    });
   }, []);
   const [farmers,setFarmers]=useState([]);
   const [farmPend,setFarmPend]=useState([]);
@@ -8566,6 +8582,7 @@ export default function App(){
   const [badgeCnt,setBadgeCnt]=useState(0);
   const [me,setMe]=useState(null);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
+  const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
@@ -8875,8 +8892,11 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
-        {needsAccountHolder ? (
-          <AccountHolderForm onDone={()=>{ setNeedsAccountHolder(false); window.location.hash="/search"; setTab("search"); }} />
+        {(needsAccountHolder || openAccountForm) ? (
+          <AccountHolderForm onDone={()=>{
+            setNeedsAccountHolder(false); setOpenAccountForm(false);
+            window.location.hash="/search"; setTab("search");
+          }} />
         ) : chatAppId ? (
           <ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} />
         ) : showApplyDone ? (
@@ -8894,30 +8914,30 @@ const subDest=useCallback(async d=>{
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} /> : null}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <ProfileHub me={me} onLogout={handleLogout}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("profile"); }}/>}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{ setMe(p); setTab("profile"); }}/>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);setTab("profile");}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>)}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
           <FarmerDashboard
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
             />)}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
           : authV==="register"
             ? <RegisterScreen onGoLogin={()=>setAuthV("login")} onSubmit={subReg}/>
             : <LoginScreen farmers={farmers} onLogin={f=>{setMe(f);setAuthV("login");loadNotifs(f.id);}} onGoRegister={()=>setAuthV("register")} onNeedRole={()=>setTab("role")}/>
         )}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="plan"&&isMember&&(
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="plan"&&isMember&&(
           isContributor
             ? <FiveYearPlanTab loggedInFarmer={me} records={recs} destApproved={destOk} farmers={farmers}/>
             : <div style={{ textAlign:"center", padding:"64px 24px", maxWidth:480, margin:"0 auto" }}>
@@ -8934,14 +8954,14 @@ const subDest=useCallback(async d=>{
                 }}>データを入力する</button>
               </div>
         )}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&<AdminTab
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
           onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}
           onShowAccountForm={() => setNeedsAccountHolder(true)}/>}
-        {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
