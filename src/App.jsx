@@ -1236,7 +1236,7 @@ function RoleSelectScreen({ onGoLogin, onRegistered }) {
 
 // ── AccountHolderForm — 新規登録①（本人確認・口座名義人情報）────
 // 送信は届出完了までADMIN_EMAIL限定。一般ユーザーはボタン無効「準備中」表示（RLS側もadmin限定で二重ゲート）
-function AccountHolderForm({ onDone, onSessionExpired }) {
+function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivacy }) {
   const [sess, setSess] = useState(undefined); // undefined=確認中 / null=未ログイン
   const [fullName, setFullName] = useState("");
   const [birthYear, setBirthYear] = useState("");
@@ -1434,7 +1434,12 @@ function AccountHolderForm({ onDone, onSessionExpired }) {
           <div>
             <label className="f-sans" style={{ display:"flex", alignItems:"flex-start", gap:8, fontSize:12, color:C.mid, cursor:"pointer", lineHeight:1.6 }}>
               <input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} style={{ marginTop:2 }} />
-              利用規約・プライバシーポリシーに同意します
+              <span>
+                <span onClick={e=>{ e.stopPropagation(); if (onShowTerms) onShowTerms(); }} style={{ color:C.bamboo, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>利用規約</span>
+                ・
+                <span onClick={e=>{ e.stopPropagation(); if (onShowPrivacy) onShowPrivacy(); }} style={{ color:C.bamboo, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>プライバシーポリシー</span>
+                に同意します
+              </span>
             </label>
           </div>
 
@@ -8923,7 +8928,7 @@ const subDest=useCallback(async d=>{
           }} onSessionExpired={()=>{
             setNeedsAccountHolder(false); setOpenAccountForm(false);
             window.location.hash="/login";
-          }} />
+          }} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)} />
         ) : chatAppId ? (
           <ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} />
         ) : showApplyDone ? (
