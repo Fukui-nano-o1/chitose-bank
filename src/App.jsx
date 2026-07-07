@@ -1236,7 +1236,7 @@ function RoleSelectScreen({ onGoLogin, onRegistered }) {
 
 // ── AccountHolderForm — 新規登録①（本人確認・口座名義人情報）────
 // 送信は届出完了までADMIN_EMAIL限定。一般ユーザーはボタン無効「準備中」表示（RLS側もadmin限定で二重ゲート）
-function AccountHolderForm({ onDone }) {
+function AccountHolderForm({ onDone, onSessionExpired }) {
   const [sess, setSess] = useState(undefined); // undefined=確認中 / null=未ログイン
   const [fullName, setFullName] = useState("");
   const [birthYear, setBirthYear] = useState("");
@@ -1296,8 +1296,15 @@ function AccountHolderForm({ onDone }) {
   const submit = async () => {
     if (!canSubmit || !sess) return;
     setBusy(true); setErr("");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setBusy(false);
+      if (onSessionExpired) onSessionExpired();
+      else window.location.hash = "/login";
+      return;
+    }
     const { error } = await supabase.from("account_holders").insert({
-      auth_id: sess.user.id,
+      auth_id: session.user.id,
       full_name: fullName.trim(),
       birth_date: birthDateStr,
       postal_code: postalCode.trim(),
@@ -1305,8 +1312,8 @@ function AccountHolderForm({ onDone }) {
       entity_type: entityType,
       company_name: entityType === "corporate" ? companyName.trim() : null,
       company_number: entityType === "corporate" ? companyNumber.trim() : null,
-      contact_email: sess.user.email || null,
-      contact_phone: sess.user.phone || null,
+      contact_email: session.user.email || null,
+      contact_phone: session.user.phone || null,
       agreed_terms_version: TERMS_VERSION,
       agreed_privacy_version: PRIVACY_VERSION,
     });
@@ -8896,6 +8903,9 @@ const subDest=useCallback(async d=>{
           <AccountHolderForm onDone={()=>{
             setNeedsAccountHolder(false); setOpenAccountForm(false);
             window.location.hash="/search"; setTab("search");
+          }} onSessionExpired={()=>{
+            setNeedsAccountHolder(false); setOpenAccountForm(false);
+            window.location.hash="/login";
           }} />
         ) : chatAppId ? (
           <ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} />
