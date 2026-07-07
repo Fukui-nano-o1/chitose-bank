@@ -6626,7 +6626,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 }
 
 // ── AdminTab ─────────────────────────────────────────────────
-function AdminTab({ onJump }) {
+function AdminTab({ onJump, onShowAccountForm }) {
   const [sub, setSub] = useState("farmers");
   const [farmers, setFarmers] = useState([]);
   const [dests, setDests] = useState([]);
@@ -6884,6 +6884,13 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           </button>
         ))}
       </div>
+
+      {/* DEV_TOOL: 本番公開前に削除 */}
+      <button onClick={onShowAccountForm} className="f-sans" style={{
+        padding:"8px 14px", borderRadius:8, border:"1px solid #EBEBEB",
+        background:"#fff", color:"#717171", fontSize:11, fontWeight:600,
+        cursor:"pointer", marginBottom:16,
+      }}>①登録画面を再表示(開発用)</button>
 
       {loading && <div style={{ textAlign:"center",padding:48,color:"#B0B0B0",fontSize:13 }}>読み込み中...</div>}
 
@@ -8868,7 +8875,8 @@ const subDest=useCallback(async d=>{
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
-          onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}/>}
+          onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}
+          onShowAccountForm={() => setNeedsAccountHolder(true)}/>}
         {!needsAccountHolder&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
