@@ -65,6 +65,11 @@ const isAdmin = (user) => user?.email === ADMIN_EMAIL;
 const TERMS_VERSION = "v1-2026-07";
 const PRIVACY_VERSION = "v1-2026-07";
 
+// 段階1: 役割撤廃リファクタの安全ネット。現時点では未使用（段階2でRoleSelectScreen撤廃時にme構築へ使用予定）
+function buildMeFromAccountHolder(session, ah) {
+  return { id: session.user.id, name: ah.full_name, email: session.user.email || null, viaAccountHolder: true };
+}
+
 // ── DEV バッジ（原因特定用・確認後削除） ─────────────────────
 const DEV_V = "2026-06-04";
 
@@ -8999,7 +9004,7 @@ const subDest=useCallback(async d=>{
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
       {showConstitution&&<DataConstitution onClose={()=>setShowConstitution(false)}/>}
       {showPrivacy&&<PrivacyPolicy onClose={()=>setShowPrivacy(false)}/>}
-      {me&&!me.isWorker&&((!me.name?.trim()||!me.prefecture)||showOnboarding)&&(
+      {me&&!me.isWorker&&!me.viaAccountHolder&&((!me.name?.trim()||!me.prefecture)||showOnboarding)&&(
         <OnboardingModal
           key={obModalKey}
           me={me}
