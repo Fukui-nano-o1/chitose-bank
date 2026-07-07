@@ -4737,7 +4737,7 @@ function JobSearchMapView({ onRegister }) {
                   <div>
                     <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
                     {empEmployer.pr && (
-                      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{empEmployer.pr}</p>
+                      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
                     )}
                   </div>
                 </div>
@@ -4747,7 +4747,7 @@ function JobSearchMapView({ onRegister }) {
               {selectedJob.jobBody && selectedJob.jobBody.trim() && (
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                 <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0 }}>{selectedJob.jobBody}</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{selectedJob.jobBody}</p>
               </div>
               )}
 
@@ -4759,7 +4759,7 @@ function JobSearchMapView({ onRegister }) {
                 ].filter(row => row.value && String(row.value).trim()).map(row => (
                   <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                     <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
-                    <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{row.value}</span>
+                    <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
                   </div>
                 ))}
 
@@ -4771,6 +4771,7 @@ function JobSearchMapView({ onRegister }) {
                       <span key={i} className="f-sans" style={{
                         display:"flex", alignItems:"center", gap:6, padding:"6px 12px",
                         borderRadius:20, background:"#F7F7F7", fontSize:13, color:"#222",
+                        overflowWrap:"break-word", wordBreak:"break-word", maxWidth:"100%",
                       }}>
                         <span>{ITEM_ICONS[thing] || "📦"}</span>{thing}
                       </span>
@@ -4780,7 +4781,7 @@ function JobSearchMapView({ onRegister }) {
 
                 <div style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                   <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>📝 備考・注意</span>
-                  <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{selectedJob.notes}</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{selectedJob.notes}</span>
                 </div>
               </div>
 
@@ -4817,7 +4818,7 @@ function JobSearchMapView({ onRegister }) {
                             }) : place.icon}
                           </div>
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
-                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
+                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
                         </div>
                         );
                       })}
@@ -4845,7 +4846,7 @@ function JobSearchMapView({ onRegister }) {
                             }) : task.icon}
                           </div>
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
-                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
+                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
                         </div>
                         );
                       })}
