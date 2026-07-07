@@ -206,8 +206,8 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; background: #fff; }
-body { background: #fff; }
+html { scroll-behavior: smooth; background: #fff; overflow-x: hidden; }
+body { background: #fff; overflow-x: hidden; }
 
 ::-webkit-scrollbar { width: 2px; height: 2px; }
 ::-webkit-scrollbar-thumb { background: #EBEBEB; border-radius: 1px; }
@@ -7658,7 +7658,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>あなたの求人</h2>
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
-      <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE" }}>
+      <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
         {JOB_TABS.map(t => (
           <button key={t.k} onClick={()=>{ const _map={profile:"/profile/employer/profile",draft:"/profile/employer/drafts",active:"/profile/employer/active",applicants:"/profile/employer/applicants",expired:"/profile/employer/expired",calendar:"/profile/employer/calendar"}; window.location.hash=(_map[t.k]||"/profile/employer"); }} className="f-sans" style={{
             padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
@@ -7668,7 +7668,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           }}>{t.l}</button>
         ))}
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))", gap:20 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap:20 }}>
       {jobTab==="profile" ? (
         <EmployerProfile me={me} />
       ) : jobTab==="draft" ? (
