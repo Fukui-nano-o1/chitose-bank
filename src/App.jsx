@@ -9773,7 +9773,7 @@ const subDest=useCallback(async d=>{
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
       {showConstitution&&<DataConstitution onClose={()=>setShowConstitution(false)}/>}
       {showPrivacy&&<PrivacyPolicy onClose={()=>setShowPrivacy(false)}/>}
-      {me&&!me.isWorker&&!me.viaAccountHolder&&((!me.name?.trim()||!me.prefecture)||showOnboarding)&&(
+      {me&&!me.isWorker&&!me.viaAccountHolder&&showOnboarding&&(
         <OnboardingModal
           key={obModalKey}
           me={me}
