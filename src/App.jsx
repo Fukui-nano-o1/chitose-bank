@@ -7821,6 +7821,12 @@ function EmployerProfileEdit({ me }) {
   const [parkingCapacity, setParkingCapacity] = useState("");
   const [commuteAllowanceDetail, setCommuteAllowanceDetail] = useState("");
   const [transportArea, setTransportArea] = useState("");
+  const [introPath, setIntroPath] = useState("");
+  const [introJoy, setIntroJoy] = useState("");
+  const [introCrops, setIntroCrops] = useState("");
+  const [introAtmosphere, setIntroAtmosphere] = useState("");
+  const [introMessage, setIntroMessage] = useState("");
+  const [ownerComment, setOwnerComment] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -7842,6 +7848,12 @@ function EmployerProfileEdit({ me }) {
           setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
           setCommuteAllowanceDetail(data.commute_allowance_detail || "");
           setTransportArea(data.transport_area || "");
+          setIntroPath(data.intro_path ?? "");
+          setIntroJoy(data.intro_joy ?? "");
+          setIntroCrops(data.intro_crops ?? "");
+          setIntroAtmosphere(data.intro_atmosphere ?? "");
+          setIntroMessage(data.intro_message ?? "");
+          setOwnerComment(data.owner_comment ?? "");
         }
       } catch {}
       setLoading(false);
@@ -7933,6 +7945,12 @@ function EmployerProfileEdit({ me }) {
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
         commute_allowance_detail: hasCommuteAllowance ? (commuteAllowanceDetail || null) : null,
         transport_area: hasTransport ? (transportArea || null) : null,
+        intro_path: introPath || null,
+        intro_joy: introJoy || null,
+        intro_crops: introCrops || null,
+        intro_atmosphere: introAtmosphere || null,
+        intro_message: introMessage || null,
+        owner_comment: ownerComment || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
@@ -7996,6 +8014,36 @@ function EmployerProfileEdit({ me }) {
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
         <div><ToggleSwitch label="装飾OK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>農園紹介</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたいお題だけ、記入してください（任意）</p>
+      <div className="employer-intro-grid" style={{ marginBottom:16 }}>
+        {[
+          { label:"就農するまで", value:introPath, set:setIntroPath },
+          { label:"いま楽しいこと", value:introJoy, set:setIntroJoy },
+          { label:"どんな作物を、どんな想いで", value:introCrops, set:setIntroCrops },
+          { label:"職場の雰囲気", value:introAtmosphere, set:setIntroAtmosphere },
+          { label:"初めての人へのメッセージ", value:introMessage, set:setIntroMessage },
+        ].map((topic, i) => (
+          <div key={i}>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>{topic.label}（任意）</label>
+            <textarea
+              value={topic.value}
+              onChange={e => topic.set(e.target.value)}
+              maxLength={1000}
+              style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
+            />
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4, textAlign:"right" }}>{topic.value.length} / 1000</p>
+          </div>
+        ))}
+      </div>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>代表からのメッセージ（任意）</label>
+      <textarea
+        value={ownerComment}
+        onChange={e => setOwnerComment(e.target.value)}
+        maxLength={1000}
+        style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
+      />
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{ownerComment.length} / 1000</p>
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
     </div>
   );

@@ -109,3 +109,14 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+.employer-intro-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 641px) {
+  .employer-intro-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
