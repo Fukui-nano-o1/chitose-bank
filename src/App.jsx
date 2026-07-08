@@ -4824,7 +4824,9 @@ function JobSearchMapView({ onRegister }) {
                     </div>
                     <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em" }}>待遇</p>
-                    <div style={{ width:"fit-content", margin:"0 auto" }}>
+                    {/* 項目名列は固定72px+gap12なので、境界は常にコンテナ左端から78px(72+12/2)の位置。
+                        「待遇」見出しの中心(=カード中央)にその境界を合わせるため、中央からの相対位置で配置する */}
+                    <div style={{ width:"fit-content", position:"relative", left:"50%", transform:"translateX(-78px)" }}>
                       {perkRows.map((row, i) => (
                         <div key={row.label} style={{
                           display:"flex", alignItems:"center", gap:12, padding:"8px 0",
