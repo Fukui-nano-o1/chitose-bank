@@ -5039,6 +5039,42 @@ function JobSearchMapView({ onRegister }) {
             }}>{pinLabel(selectedJob)}</div>
           </div>
 
+          {/* 農園紹介（地図の下・全幅・記入済みのお題のみ表示。写真は次段階） */}
+          {empEmployer && (() => {
+            const topics = [
+              { label:"就農するまで", body: empEmployer.intro_path },
+              { label:"いま楽しいこと", body: empEmployer.intro_joy },
+              { label:"どんな作物を、どんな想いで", body: empEmployer.intro_crops },
+              { label:"職場の雰囲気", body: empEmployer.intro_atmosphere },
+              { label:"初めての人へのメッセージ", body: empEmployer.intro_message },
+            ].filter(t => t.body && t.body.trim());
+            const comment = empEmployer.owner_comment && empEmployer.owner_comment.trim();
+            if (topics.length === 0 && !comment) return null;
+            return (
+              <div style={{ marginBottom:100 }}>
+                <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
+                  {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
+                </h3>
+                {topics.length > 0 && (
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
+                    {topics.map((t, i) => (
+                      <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
+                        <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {comment && (
+                  <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px" }}>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* 農家へのレビュー（段階2-a・ガワのみ・取引実績ベース・匿名・日付なし） */}
           {(() => {
             const allReviews = selectedJob.farmerReviews || [];
