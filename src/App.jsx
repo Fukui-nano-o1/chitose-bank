@@ -7793,6 +7793,9 @@ function EmployerProfileEdit({ me }) {
   const [hasBonus, setHasBonus] = useState(false);
   const [employerPaysSupplies, setEmployerPaysSupplies] = useState(false);
   const [accessoryOk, setAccessoryOk] = useState(false);
+  const [parkingCapacity, setParkingCapacity] = useState("");
+  const [commuteAllowanceDetail, setCommuteAllowanceDetail] = useState("");
+  const [transportArea, setTransportArea] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -7811,6 +7814,9 @@ function EmployerProfileEdit({ me }) {
           setHasBonus(data.has_bonus ?? false);
           setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
           setAccessoryOk(data.accessory_ok ?? false);
+          setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
+          setCommuteAllowanceDetail(data.commute_allowance_detail || "");
+          setTransportArea(data.transport_area || "");
         }
       } catch {}
       setLoading(false);
@@ -7899,6 +7905,9 @@ function EmployerProfileEdit({ me }) {
         auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(),
         has_transport: hasTransport, has_parking: hasParking, has_commute_allowance: hasCommuteAllowance,
         has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
+        parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
+        commute_allowance_detail: hasCommuteAllowance ? (commuteAllowanceDetail || null) : null,
+        transport_area: hasTransport ? (transportArea || null) : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
@@ -7933,9 +7942,31 @@ function EmployerProfileEdit({ me }) {
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>求人に共通する条件</label>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>ここで設定した内容は、あなたが出す全ての求人に共通して表示されます。</p>
       <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
-        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="送迎" checked={hasTransport} onChange={setHasTransport} /></div>
-        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="駐車場" checked={hasParking} onChange={setHasParking} /></div>
-        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="通勤手当" checked={hasCommuteAllowance} onChange={setHasCommuteAllowance} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}>
+          <ToggleSwitch label="送迎" checked={hasTransport} onChange={setHasTransport} />
+          {hasTransport && (
+            <div style={{ marginLeft:16, paddingBottom:12 }}>
+              <input value={transportArea} onChange={e=>setTransportArea(e.target.value)} placeholder="例：吉野川市内" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+            </div>
+          )}
+        </div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}>
+          <ToggleSwitch label="駐車場" checked={hasParking} onChange={setHasParking} />
+          {hasParking && (
+            <div style={{ marginLeft:16, paddingBottom:12, display:"flex", alignItems:"center", gap:8 }}>
+              <input type="number" value={parkingCapacity} onChange={e=>setParkingCapacity(e.target.value)} placeholder="3" className="field f-sans" style={{ width:80, fontSize:13 }} />
+              <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>台まで駐車できます</span>
+            </div>
+          )}
+        </div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}>
+          <ToggleSwitch label="通勤手当" checked={hasCommuteAllowance} onChange={setHasCommuteAllowance} />
+          {hasCommuteAllowance && (
+            <div style={{ marginLeft:16, paddingBottom:12 }}>
+              <input value={commuteAllowanceDetail} onChange={e=>setCommuteAllowanceDetail(e.target.value)} placeholder="例：上限500円 / 実費支給" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+            </div>
+          )}
+        </div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="賞与" checked={hasBonus} onChange={setHasBonus} /></div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
         <div><ToggleSwitch label="装飾OK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
