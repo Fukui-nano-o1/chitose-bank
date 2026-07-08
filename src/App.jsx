@@ -4693,7 +4693,7 @@ function JobSearchMapView({ onRegister }) {
       {/* 個人情報保護注記 */}
       <div style={{ padding:"7px 12px", background:"#F7F7F7", borderRadius:8, marginBottom:12 }}>
         <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
-          詳細住所は初期表示しません。仕事の場所は市町村・地区単位で表示します。
+          お支払いは、作業当日の現金手渡しが原則です。
         </p>
       </div>
 
@@ -4799,6 +4799,7 @@ function JobSearchMapView({ onRegister }) {
                     </div>
                   ))}
                 </div>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
               </div>
 
               {empEmployer && empEmployer.nickname && (() => {
@@ -4993,7 +4994,7 @@ function JobSearchMapView({ onRegister }) {
                 disabled={applying}
                 className="btn-primary f-sans"
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
-              >{applying ? "送信中..." : "この仕事に興味がある"}</button>
+              >{applying ? "送信中..." : "応募"}</button>
               <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
 
               {/* 補足文 */}
@@ -5189,7 +5190,7 @@ function JobSearchMapView({ onRegister }) {
             disabled={applying}
             className="btn-primary f-sans"
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
-          >{applying ? "送信中..." : "この仕事に興味がある"}</button>
+          >{applying ? "送信中..." : "応募"}</button>
         </div>
       )}
 
@@ -5202,7 +5203,7 @@ function JobSearchMapView({ onRegister }) {
             disabled={applying}
             className="btn-primary f-sans"
             style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
-          >{applying ? "送信中..." : "この仕事に興味がある"}</button>
+          >{applying ? "送信中..." : "応募"}</button>
         </div>
       )}
 
