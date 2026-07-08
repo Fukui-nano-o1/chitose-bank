@@ -4801,20 +4801,42 @@ function JobSearchMapView({ onRegister }) {
                 </div>
               </div>
 
-              {empEmployer && empEmployer.nickname && (
-                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14, display:"flex", alignItems:"center", gap:12 }}>
-                  <div style={{
-                    width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
-                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, overflow:"hidden",
-                  }}>{empEmployer.avatar_url ? <img src={empEmployer.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🧑‍🌾"}</div>
-                  <div>
-                    <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
-                    {empEmployer.pr && (
-                      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
+              {empEmployer && empEmployer.nickname && (() => {
+                const perks = [];
+                if (empEmployer.has_transport) perks.push(`送迎あり${empEmployer.transport_area ? "（" + empEmployer.transport_area + "）" : ""}`);
+                if (empEmployer.has_parking) perks.push(`駐車場あり${empEmployer.parking_capacity ? "（" + empEmployer.parking_capacity + "台）" : ""}`);
+                if (empEmployer.has_commute_allowance) perks.push(`通勤手当あり${empEmployer.commute_allowance_detail ? "（" + empEmployer.commute_allowance_detail + "）" : ""}`);
+                if (empEmployer.has_bonus) perks.push("賞与あり");
+                if (empEmployer.employer_pays_supplies) perks.push("持ち物は農家負担");
+                if (empEmployer.accessory_ok) perks.push("装飾OK");
+                return (
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <div style={{
+                        width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
+                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, overflow:"hidden",
+                      }}>{empEmployer.avatar_url ? <img src={empEmployer.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🧑‍🌾"}</div>
+                      <div>
+                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
+                        {empEmployer.pr && (
+                          <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
+                        )}
+                      </div>
+                    </div>
+                    {perks.length > 0 && (
+                      <>
+                        <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 10px" }} />
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>待遇</p>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                          {perks.map(p => (
+                            <span key={p} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#00A86B", background:"#E6F7EF", padding:"5px 10px", borderRadius:12 }}>{p}</span>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* 作業説明 */}
               {selectedJob.jobBody && selectedJob.jobBody.trim() && (
