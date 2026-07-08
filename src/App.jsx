@@ -7863,6 +7863,8 @@ function EmployerProfileEdit({ me }) {
   const [introAtmosphere, setIntroAtmosphere] = useState("");
   const [introMessage, setIntroMessage] = useState("");
   const [ownerComment, setOwnerComment] = useState("");
+  const [staffCount, setStaffCount] = useState("");
+  const [commitment, setCommitment] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -7890,6 +7892,8 @@ function EmployerProfileEdit({ me }) {
           setIntroAtmosphere(data.intro_atmosphere ?? "");
           setIntroMessage(data.intro_message ?? "");
           setOwnerComment(data.owner_comment ?? "");
+          setStaffCount(data.staff_count != null ? String(data.staff_count) : "");
+          setCommitment(data.commitment ?? "");
         }
       } catch {}
       setLoading(false);
@@ -7987,6 +7991,8 @@ function EmployerProfileEdit({ me }) {
         intro_atmosphere: introAtmosphere || null,
         intro_message: introMessage || null,
         owner_comment: ownerComment || null,
+        staff_count: staffCount === "" ? null : Number(staffCount),
+        commitment: commitment || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
@@ -8050,6 +8056,11 @@ function EmployerProfileEdit({ me }) {
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
         <div><ToggleSwitch label="装飾OK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>従業員数（任意）</label>
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
+        <input type="number" value={staffCount} onChange={e=>setStaffCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
+        <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>人</span>
+      </div>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>農園紹介</label>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたいお題だけ、記入してください（任意）</p>
       <div className="employer-intro-grid" style={{ marginBottom:16 }}>
@@ -8072,6 +8083,15 @@ function EmployerProfileEdit({ me }) {
           </div>
         ))}
       </div>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>こだわり（任意）</label>
+      <textarea
+        value={commitment}
+        onChange={e => setCommitment(e.target.value)}
+        placeholder="例：農薬をできるだけ使わない栽培をしています"
+        maxLength={1000}
+        style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
+      />
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{commitment.length} / 1000</p>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>代表からのメッセージ（任意）</label>
       <textarea
         value={ownerComment}
