@@ -4824,7 +4824,7 @@ function JobSearchMapView({ onRegister }) {
                     </div>
                     <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em" }}>待遇</p>
-                    <div>
+                    <div style={{ width:"fit-content", margin:"0 auto" }}>
                       {perkRows.map((row, i) => (
                         <div key={row.label} style={{
                           display:"flex", alignItems:"center", gap:12, padding:"8px 0",
