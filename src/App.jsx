@@ -7757,6 +7757,32 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
+function ToggleSwitch({ checked, onChange, label }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0" }}>
+      <span className="f-sans" style={{ fontSize:14, color:"#222" }}>{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        onClick={() => onChange(!checked)}
+        style={{
+          width:48, height:28, borderRadius:14, flexShrink:0,
+          border:"none", padding:3, cursor:"pointer",
+          background: checked ? "#00A86B" : "#CCC",
+          transition:"background .15s",
+        }}
+      >
+        <div style={{
+          width:22, height:22, borderRadius:"50%", background:"#fff",
+          transform: checked ? "translateX(20px)" : "translateX(0px)",
+          transition:"transform .15s",
+        }} />
+      </button>
+    </div>
+  );
+}
 function EmployerProfileEdit({ me }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
@@ -7906,24 +7932,13 @@ function EmployerProfileEdit({ me }) {
       <textarea value={pr} onChange={e=>setPr(e.target.value)} placeholder="家族でブロッコリーを育てています。丁寧に教えます。" rows={4} className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }} />
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>求人に共通する条件</label>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>ここで設定した内容は、あなたが出す全ての求人に共通して表示されます。</p>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
-        {[
-          { label:"送迎", sel: hasTransport, onClick: () => setHasTransport(v=>!v) },
-          { label:"駐車場", sel: hasParking, onClick: () => setHasParking(v=>!v) },
-          { label:"通勤手当", sel: hasCommuteAllowance, onClick: () => setHasCommuteAllowance(v=>!v) },
-          { label:"賞与", sel: hasBonus, onClick: () => setHasBonus(v=>!v) },
-          { label:"持ち物は農家負担", sel: employerPaysSupplies, onClick: () => setEmployerPaysSupplies(v=>!v) },
-          { label:"装飾OK", sel: accessoryOk, onClick: () => setAccessoryOk(v=>!v) },
-        ].map(({ label, sel, onClick }) => (
-          <button key={label} onClick={onClick} className="f-sans" style={{
-            padding:"8px 16px", borderRadius:20,
-            border:`1px solid ${sel ? C.accent : C.border}`,
-            background: sel ? C.accent : "#fff",
-            color: sel ? "#fff" : C.ink,
-            fontSize:13, fontWeight: sel ? 600 : 400,
-            cursor:"pointer", transition:"all .12s",
-          }}>{label}</button>
-        ))}
+      <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="送迎" checked={hasTransport} onChange={setHasTransport} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="駐車場" checked={hasParking} onChange={setHasParking} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="通勤手当" checked={hasCommuteAllowance} onChange={setHasCommuteAllowance} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="賞与" checked={hasBonus} onChange={setHasBonus} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
+        <div><ToggleSwitch label="装飾OK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
     </div>
