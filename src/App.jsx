@@ -7761,6 +7761,12 @@ function EmployerProfileEdit({ me }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [hasTransport, setHasTransport] = useState(false);
+  const [hasParking, setHasParking] = useState(false);
+  const [hasCommuteAllowance, setHasCommuteAllowance] = useState(false);
+  const [hasBonus, setHasBonus] = useState(false);
+  const [employerPaysSupplies, setEmployerPaysSupplies] = useState(false);
+  const [accessoryOk, setAccessoryOk] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -7771,7 +7777,15 @@ function EmployerProfileEdit({ me }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (data) { setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || ""); }
+        if (data) {
+          setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || "");
+          setHasTransport(data.has_transport ?? false);
+          setHasParking(data.has_parking ?? false);
+          setHasCommuteAllowance(data.has_commute_allowance ?? false);
+          setHasBonus(data.has_bonus ?? false);
+          setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
+          setAccessoryOk(data.accessory_ok ?? false);
+        }
       } catch {}
       setLoading(false);
     })();
@@ -7855,7 +7869,12 @@ function EmployerProfileEdit({ me }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
-      const { error } = await supabase.from("employer_profiles").upsert({ auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(), updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      const { error } = await supabase.from("employer_profiles").upsert({
+        auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(),
+        has_transport: hasTransport, has_parking: hasParking, has_commute_allowance: hasCommuteAllowance,
+        has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) { setSaved(true); setTimeout(()=>setSaved(false), 2000); }
       else alert("保存に失敗しました：" + error.message);
@@ -7885,6 +7904,27 @@ function EmployerProfileEdit({ me }) {
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：山川ファーム / 千歳農園" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>紹介・PR</label>
       <textarea value={pr} onChange={e=>setPr(e.target.value)} placeholder="家族でブロッコリーを育てています。丁寧に教えます。" rows={4} className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }} />
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>求人に共通する条件</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>ここで設定した内容は、あなたが出す全ての求人に共通して表示されます。</p>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+        {[
+          { label:"送迎", sel: hasTransport, onClick: () => setHasTransport(v=>!v) },
+          { label:"駐車場", sel: hasParking, onClick: () => setHasParking(v=>!v) },
+          { label:"通勤手当", sel: hasCommuteAllowance, onClick: () => setHasCommuteAllowance(v=>!v) },
+          { label:"賞与", sel: hasBonus, onClick: () => setHasBonus(v=>!v) },
+          { label:"持ち物は農家負担", sel: employerPaysSupplies, onClick: () => setEmployerPaysSupplies(v=>!v) },
+          { label:"装飾OK", sel: accessoryOk, onClick: () => setAccessoryOk(v=>!v) },
+        ].map(({ label, sel, onClick }) => (
+          <button key={label} onClick={onClick} className="f-sans" style={{
+            padding:"8px 16px", borderRadius:20,
+            border:`1px solid ${sel ? C.accent : C.border}`,
+            background: sel ? C.accent : "#fff",
+            color: sel ? "#fff" : C.ink,
+            fontSize:13, fontWeight: sel ? 600 : 400,
+            cursor:"pointer", transition:"all .12s",
+          }}>{label}</button>
+        ))}
+      </div>
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
     </div>
   );
