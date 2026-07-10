@@ -4569,8 +4569,9 @@ function JobSearchMapView({ onRegister }) {
             lat: 34.05, lng: 134.23,
             count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
             nearestStation: j.nearest_station || "", workTime: j.work_time || "",
-            breakTime: j.break_time || "", notes: j.notes || "",
-            commuteTime: j.commute_time || "", jobBody: "",
+            breakTime: j.break_time || "",
+            commuteTime: j.commute_time || "", jobBody: j.notes || "",
+            cautions: j.cautions || "",
             wanted: "", items: j.belongings || "",
             payTiming: "", payMethod: "",
             dateStart: j.date_start ? new Date(j.date_start) : null,
@@ -4880,7 +4881,7 @@ function JobSearchMapView({ onRegister }) {
 
                 <div style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                   <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>📝 備考・注意</span>
-                  <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{selectedJob.notes}</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{selectedJob.cautions}</span>
                 </div>
               </div>
 
