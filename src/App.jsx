@@ -1290,6 +1290,8 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
   const [postalCode, setPostalCode] = useState("");
   const [addressAuto, setAddressAuto] = useState("");   // 郵便番号検索で埋まる部分
   const [addressDetail, setAddressDetail] = useState(""); // 番地・建物名(手入力)
+  const [apiAddress, setApiAddress] = useState("");       // 郵便番号検索で返ったAPI住所(都道府県+市区町村+町域)。addressAutoとの前方一致照合用
+  const [apiAddressZip, setApiAddressZip] = useState(""); // apiAddressが対応する郵便番号(7桁)。postalCode変更後の未再検索を検知するガード
   const [zipSearching, setZipSearching] = useState(false);
   const [zipError, setZipError] = useState("");
   const [entityType, setEntityType] = useState("individual");
@@ -1319,12 +1321,17 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
   const missingCityWord = !!addressAuto.trim() && !/[市区町村]/.test(addressAuto);
   const zipDigits = postalCode.replace(/[^0-9]/g, "");
   const zipNotSevenDigits = !!postalCode.trim() && zipDigits.length !== 7;
+  // 郵便番号と住所の前方一致検証。apiAddressZipが現在のzipDigitsと食い違う場合は
+  // 郵便番号変更後の未再検索とみなし未検証扱い（=不一致エラー）にする
+  const zipAddressVerified = zipDigits.length === 7 && apiAddressZip === zipDigits
+    && !!apiAddress.trim() && addressAuto.startsWith(apiAddress);
+  const zipAddressMismatch = !!addressAuto.trim() && zipDigits.length === 7 && !zipAddressVerified;
 
   const isAdminUser = ACCOUNT_ALLOWLIST.includes(sess?.user?.email);
   const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && addressAuto.trim() && addressDetail.trim()
     && entityType && (entityType === "individual" || (companyName.trim() && companyNumber.trim())) && agreed
     && !addressAutoHasAlphabet && !addressDetailHasAlphabet && !missingPrefectureWord && !missingCityWord
-    && zipDigits.length === 7);
+    && zipDigits.length === 7 && !zipAddressMismatch);
   const canSubmit = isAdminUser && formValid;
 
   // ① 非公開情報(送達先)用の住所検索。求人フローsearchZip(②公開情報)とは
@@ -1338,7 +1345,10 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
       const data = await res.json();
       if (data.status === 200 && data.results) {
         const r = data.results[0];
-        setAddressAuto((r.address1 || "") + (r.address2 || "") + (r.address3 || ""));
+        const full = (r.address1 || "") + (r.address2 || "") + (r.address3 || "");
+        setAddressAuto(full);
+        setApiAddress(full);
+        setApiAddressZip(zip);
         setZipError("");
       } else {
         setZipError("郵便番号が見つかりませんでした");
@@ -1477,6 +1487,7 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
               {addressAuto.trim() && addressAutoHasAlphabet && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>住所は日本語で入力してください</p>}
               {addressAuto.trim() && missingPrefectureWord && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>都道府県が含まれていません</p>}
               {addressAuto.trim() && missingCityWord && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>市区町村が含まれていません</p>}
+              {addressAuto.trim() && !addressAutoHasAlphabet && !missingPrefectureWord && !missingCityWord && zipAddressMismatch && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>郵便番号と住所が一致しません</p>}
             </div>
             <div>
               <label className="lbl f-sans">番地・建物名</label>
