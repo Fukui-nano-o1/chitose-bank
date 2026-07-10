@@ -501,7 +501,7 @@ input:focus { outline: none; }
     z-index: 500;
     background: #fff;
     border-top: 1px solid #EBEBEB;
-    padding: 8px 16px 12px;
+    padding: 14px 16px 18px;
     align-items: stretch;
     justify-content: flex-start;
     gap: 4px;
@@ -516,6 +516,11 @@ input:focus { outline: none; }
 @media (max-width: 759px) {
   .job-detail-back-btn { margin-bottom: 8px !important; }
   .job-detail-more-jobs { margin-bottom: 4px !important; }
+}
+
+/* ── 求人詳細（スマホ専用）：本文末尾に下部応募フッター分の余白を確保（隠れ防止） ── */
+@media (max-width: 759px) {
+  .job-detail-body-mobile { padding-bottom: 120px; }
 }
 
 /* ── LandingFlow Step6 grid ── */
@@ -4781,7 +4786,7 @@ function JobSearchMapView({ onRegister }) {
 
       {/* ── 詳細ページ ── */}
       {selectedJob && (
-        <div className="appear">
+        <div className="appear job-detail-body-mobile">
           <button onClick={() => { setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{} }} className="f-sans job-detail-back-btn" style={{
             display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
             fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0", marginBottom:20,
