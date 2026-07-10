@@ -1311,9 +1311,20 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
     : "";
   const isAdult = !!birthDateStr && new Date(birthDateStr) <= cutoff;
 
+  // 住所バリデーション（入力チェックのみ・account_holdersの構造やinsertには関与しない）
+  const ALPHABET_RE = /[a-zA-Zａ-ｚＡ-Ｚ]/;
+  const addressAutoHasAlphabet = ALPHABET_RE.test(addressAuto);
+  const addressDetailHasAlphabet = ALPHABET_RE.test(addressDetail);
+  const missingPrefectureWord = !!addressAuto.trim() && !/[都道府県]/.test(addressAuto);
+  const missingCityWord = !!addressAuto.trim() && !/[市区町村]/.test(addressAuto);
+  const zipDigits = postalCode.replace(/[^0-9]/g, "");
+  const zipNotSevenDigits = !!postalCode.trim() && zipDigits.length !== 7;
+
   const isAdminUser = ACCOUNT_ALLOWLIST.includes(sess?.user?.email);
   const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && addressAuto.trim() && addressDetail.trim()
-    && entityType && (entityType === "individual" || (companyName.trim() && companyNumber.trim())) && agreed);
+    && entityType && (entityType === "individual" || (companyName.trim() && companyNumber.trim())) && agreed
+    && !addressAutoHasAlphabet && !addressDetailHasAlphabet && !missingPrefectureWord && !missingCityWord
+    && zipDigits.length === 7);
   const canSubmit = isAdminUser && formValid;
 
   // ① 非公開情報(送達先)用の住所検索。求人フローsearchZip(②公開情報)とは
@@ -1458,14 +1469,19 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
                 }}>{zipSearching ? "検索中..." : "住所を検索"}</button>
               </div>
               {zipError && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>{zipError}</p>}
+              {!zipError && zipNotSevenDigits && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>郵便番号は7桁で入力してください</p>}
             </div>
             <div style={{ marginBottom:16 }}>
               <label className="lbl f-sans">{entityType==="corporate" ? "本店所在地" : "住所"}</label>
               <input className="field f-sans" type="text" value={addressAuto} onChange={e=>setAddressAuto(e.target.value)} placeholder="郵便番号から自動入力されます" />
+              {addressAuto.trim() && addressAutoHasAlphabet && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>住所は日本語で入力してください</p>}
+              {addressAuto.trim() && missingPrefectureWord && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>都道府県が含まれていません</p>}
+              {addressAuto.trim() && missingCityWord && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>市区町村が含まれていません</p>}
             </div>
             <div>
               <label className="lbl f-sans">番地・建物名</label>
               <input className="field f-sans" type="text" value={addressDetail} onChange={e=>setAddressDetail(e.target.value)} placeholder="1-2-3 ○○マンション101" />
+              {addressDetail.trim() && addressDetailHasAlphabet && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>住所は日本語で入力してください</p>}
             </div>
           </div>
 
