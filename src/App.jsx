@@ -4187,6 +4187,14 @@ const ITEM_ICONS = {
 // 給与表示ラベル（時給/日給）。JobSearchMapView・FarmerDashboard共通
 function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`; }
 
+// 最寄り駅からの移動時間ラベル。「駅」の有無を正規化して「○○駅から◯分」に統一（求人詳細・農家プレビュー共通）
+function stationLabel(station, commute) {
+  const s = (station || "").trim();
+  if (!s) return commute || "";
+  const withEki = s.endsWith("駅") ? s : s + "駅";
+  return `${withEki}から${commute || ""}`.trim();
+}
+
 function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -4791,7 +4799,7 @@ function JobSearchMapView({ onRegister }) {
                     { label:"勤務時間", value: selectedJob.workTime },
                     { label:"休憩時間", value: selectedJob.breakTime },
                     { label:"募集人数", value: selectedJob.count },
-                    { label:"移動時間", value: selectedJob.commuteTime },
+                    { label:"移動時間", value: stationLabel(selectedJob.nearestStation, selectedJob.commuteTime) },
                     { label:"報酬",     value: (selectedJob.payTiming || selectedJob.payMethod) ? `${payLabel(selectedJob)}　${[selectedJob.payTiming, selectedJob.payMethod].filter(Boolean).join("・")}` : payLabel(selectedJob) },
                   ].filter(row => row.value && String(row.value).trim()).map(row => (
                     <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
@@ -5921,8 +5929,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <div style={{ marginBottom:14 }}>
                   <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>最寄り駅からの移動時間</label>
                   <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-                    <input value={nearestStation} onChange={e => setNearestStation(e.target.value)} placeholder="例：阿波山川駅" className="field f-sans" style={{ fontSize:14, maxWidth:160 }} />
-                    <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>から</span>
+                    <input value={nearestStation} onChange={e => setNearestStation(e.target.value)} placeholder="例：阿波山川" className="field f-sans" style={{ fontSize:14, maxWidth:160 }} />
+                    <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>駅から</span>
                     <select value={commuteTime} onChange={e => setCommuteTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
                       <option value="">選択してください</option>
                       <option value="徒歩5分以内">徒歩5分以内</option>
@@ -6397,7 +6405,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const tmpl = JT_MAP[jobTemplate] || JT_MAP["収穫補助"];
             const titleRequired = `${farmerCrop || "作物"}${farmerTask || "作業"}スタッフ ${jobCount ? jobCount + "人募集" : ""}`.trim();
             const titleOptional = [
-              nearestStation ? `${nearestStation}から${commuteTime || ""}`.trim() : "",
+              stationLabel(nearestStation, commuteTime),
             ].filter(Boolean).join("・");
             const listingTitle = titleOptional ? `${titleRequired}｜${titleOptional}` : titleRequired;
             const subInfo = [farmerRegion || "地域未入力", jobDateLabel !== "日程を選択してください" ? jobDateLabel : "日程未設定", workTimeLabel].join("・");
