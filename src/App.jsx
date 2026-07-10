@@ -4792,12 +4792,6 @@ function JobSearchMapView({ onRegister }) {
             fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0", marginBottom:20,
           }}>← 一覧に戻る</button>
 
-          {/* ヘッダー */}
-          <div style={{ marginBottom:20 }}>
-            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}</h2>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.region}</p>
-          </div>
-
           {/* 写真ギャラリー（ダミー3枚／将来 selectedJob.photos 配列を受け取る想定・最大10枚） */}
           {(() => {
             const photos = selectedJob.photos || [selectedJob.icon, selectedJob.icon, selectedJob.icon];
@@ -4836,6 +4830,12 @@ function JobSearchMapView({ onRegister }) {
               </>
             );
           })()}
+
+          {/* ヘッダー */}
+          <div style={{ marginBottom:20 }}>
+            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}</h2>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.region}</p>
+          </div>
 
           {/* 2カラム: 左=情報 / 右=応募パネル */}
           <div className="job-detail-2col">
