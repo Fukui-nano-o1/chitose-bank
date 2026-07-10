@@ -6580,7 +6580,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               setJobSaving(true);
               try {
                 const { data: { session } } = await supabase.auth.getSession();
-                if (!session || !isAdmin(session.user)) { saveDraft(); onLogin(); return; }
+                if (!session) { saveDraft(); onLogin(); return; }
                 let _jn = draftJobNumber;
                 if (!_jn) { try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _jn = _d.job_number ?? null; } catch {} }
                 let error;
