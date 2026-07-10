@@ -461,6 +461,12 @@ input:focus { outline: none; }
     top: 73px; /* モバイル: タブバー高さ57px + 余白16px */
   }
 }
+/* スマホは応募パネル全体を非表示（給与・応募は下部フッターに集約済み） */
+@media (max-width: 759px) {
+  .job-apply-panel {
+    display: none;
+  }
+}
 
 /* ── 応募パネルが画面外に出た時のPC専用下固定バー（スマホは既存の縦積み導線のため非表示） ── */
 .pc-apply-bar {
@@ -489,15 +495,16 @@ input:focus { outline: none; }
 @media (max-width: 759px) {
   .mobile-apply-bar {
     display: flex;
+    flex-direction: column;
     position: fixed;
     bottom: 0; left: 0; right: 0;
     z-index: 500;
     background: #fff;
     border-top: 1px solid #EBEBEB;
-    padding: 12px 16px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    padding: 8px 16px 12px;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 4px;
     transition: transform .25s ease;
   }
   body.job-detail-scrolling .mobile-apply-bar { transform: translateY(100%); }
@@ -5245,25 +5252,30 @@ function JobSearchMapView({ onRegister }) {
       {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS) */}
       {selectedJob && (
         <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
-          <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            {selectedJob.dateStart && (
+          <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+            応募しても即採用ではなく、面接後に決まります
+          </p>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
+            <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              {selectedJob.dateStart && (
+                <button
+                  onClick={() => setShowCalendarModal(true)}
+                  aria-label="開催期間カレンダーを見る"
+                  style={{
+                    width:44, height:44, borderRadius:12, border:"1px solid #EBEBEB",
+                    background:"#F7F7F7", fontSize:18, cursor:"pointer", flexShrink:0,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}
+                >📅</button>
+              )}
               <button
-                onClick={() => setShowCalendarModal(true)}
-                aria-label="開催期間カレンダーを見る"
-                style={{
-                  width:44, height:44, borderRadius:12, border:"1px solid #EBEBEB",
-                  background:"#F7F7F7", fontSize:18, cursor:"pointer", flexShrink:0,
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                }}
-              >📅</button>
-            )}
-            <button
-              onClick={handleApply}
-              disabled={applying}
-              className="btn-primary f-sans"
-              style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
-            >{applying ? "送信中..." : "応募"}</button>
+                onClick={handleApply}
+                disabled={applying}
+                className="btn-primary f-sans"
+                style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
+              >{applying ? "送信中..." : "応募"}</button>
+            </div>
           </div>
         </div>
       )}
