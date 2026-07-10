@@ -472,6 +472,16 @@ input:focus { outline: none; }
   }
 }
 
+/* ── 開催期間カレンダー（地図の下）：PCのみ表示・スマホはフッター📅のモーダルで見せる ── */
+.calendar-below-map {
+  display: block;
+}
+@media (max-width: 759px) {
+  .calendar-below-map {
+    display: none;
+  }
+}
+
 /* ── 求人詳細（スマホ専用）：下部応募フッター。スクロール中は上下バーを隠す ── */
 .mobile-apply-bar {
   display: none;
@@ -4586,6 +4596,7 @@ function JobSearchMapView({ onRegister }) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   useEffect(() => {
     (async () => {
       try {
@@ -5038,12 +5049,6 @@ function JobSearchMapView({ onRegister }) {
                 まだ応募は確定しません。正確な金額は面接後に決定します。
               </p>
 
-              {/* 開催期間カレンダー（CalendarView readOnly・生データdate_start/date_endから） */}
-              {selectedJob.dateStart && (
-                <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #EBEBEB" }}>
-                  <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
-                </div>
-              )}
             </div>
             </div>
           </div>
@@ -5075,6 +5080,13 @@ function JobSearchMapView({ onRegister }) {
               fontFamily:"'DM Mono',monospace",
             }}>{pinLabel(selectedJob)}</div>
           </div>
+
+          {/* 開催期間カレンダー（地図の下・全幅・PCのみ表示。スマホはフッター📅からモーダル） */}
+          {selectedJob.dateStart && (
+            <div className="calendar-below-map" style={{ marginBottom:100 }}>
+              <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
+            </div>
+          )}
 
           {/* 農園紹介（地図の下・全幅・記入済みのお題のみ表示。写真は次段階） */}
           {empEmployer && (() => {
@@ -5234,12 +5246,25 @@ function JobSearchMapView({ onRegister }) {
       {selectedJob && (
         <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
           <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
-          <button
-            onClick={handleApply}
-            disabled={applying}
-            className="btn-primary f-sans"
-            style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
-          >{applying ? "送信中..." : "応募"}</button>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            {selectedJob.dateStart && (
+              <button
+                onClick={() => setShowCalendarModal(true)}
+                aria-label="開催期間カレンダーを見る"
+                style={{
+                  width:44, height:44, borderRadius:12, border:"1px solid #EBEBEB",
+                  background:"#F7F7F7", fontSize:18, cursor:"pointer", flexShrink:0,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}
+              >📅</button>
+            )}
+            <button
+              onClick={handleApply}
+              disabled={applying}
+              className="btn-primary f-sans"
+              style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
+            >{applying ? "送信中..." : "応募"}</button>
+          </div>
         </div>
       )}
 
@@ -5259,6 +5284,29 @@ function JobSearchMapView({ onRegister }) {
             display:"flex", alignItems:"center", justifyContent:"center",
           }}>✕</button>
           <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
+        </div>
+      )}
+
+      {/* 開催期間カレンダー（スマホ専用モーダル・フッター📅から開く） */}
+      {showCalendarModal && selectedJob.dateStart && (
+        <div onClick={() => setShowCalendarModal(false)} style={{
+          position:"fixed", inset:0, zIndex:10000,
+          background:"rgba(0,0,0,0.5)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          padding:16, animation:"fadeIn .2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:"#fff", borderRadius:16, padding:20,
+            maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
+            position:"relative",
+          }}>
+            <button onClick={() => setShowCalendarModal(false)} style={{
+              position:"absolute", top:12, right:12,
+              width:36, height:36, borderRadius:"50%",
+              background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
+            }}>✕</button>
+            <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
+          </div>
         </div>
       )}
     </div>
