@@ -5454,6 +5454,10 @@ function LFSummaryRow({ label, value }) {
   );
 }
 
+// サービス提供範囲。展開時はこの配列に都道府県を追加するだけでよい
+const ALLOWED_PREFECTURES = ["徳島県"];
+const isAllowedPrefecture = (pref) => ALLOWED_PREFECTURES.includes((pref || "").trim());
+
 // 時給・日給が最低賃金を下回っていないかを判定する純関数
 // workHours: 勤務時間（終了時刻 - 開始時刻、時間単位）。6時間超で休憩45分、8時間超で休憩60分を控除した実労働時間で日給を時給換算する。
 function validateMinWage(hourly, daily, workHours, minWage) {
@@ -5889,7 +5893,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&!!farmerPref.trim()&&!!farmerCity.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation && breakTime !== ""), true, true, true, true, true, true, true];
+  const prefNotAllowed = !!farmerPref.trim() && !isAllowedPrefecture(farmerPref);
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&!!farmerPref.trim()&&!!farmerCity.trim()&&!!farmerAddr.trim()&&!prefNotAllowed, !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation && breakTime !== ""), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -6036,6 +6041,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 />
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
                 {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
+                {prefNotAllowed && (
+                  <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", marginTop:4 }}>
+                    現在、徳島県内の求人のみ受け付けています。他の地域への展開は準備中です
+                  </p>
+                )}
                 {/* 5-c. 最寄り駅からの移動時間 */}
                 <div style={{ marginBottom:14 }}>
                   <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>最寄り駅からの移動時間</label>
