@@ -4086,7 +4086,7 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 }
 
 // ── JobSearchMapView ────────────────────────────────────────
-// 「募集中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
+// 「公開中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
 // 将来: Google Maps / Mapbox / Leaflet に差し替え可能な構造にしてある。
 const JOB_SEARCH_SAMPLES = []; // 役所説明用ダミーは撤去。さがすはjobs_public(実データ)のみ表示
 
@@ -4780,7 +4780,7 @@ function JobSearchMapView({ onRegister }) {
           {jobList.length === 0 && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
               <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
-              <p style={{ fontSize:14, margin:0 }}>現在、募集中の求人はありません</p>
+              <p style={{ fontSize:14, margin:0 }}>現在、公開中の求人はありません</p>
             </div>
           )}
           {jobList.map(job => (
@@ -4854,7 +4854,7 @@ function JobSearchMapView({ onRegister }) {
                     { label:"日程",     value: selectedJob.dateLabel },
                     { label:"勤務時間", value: selectedJob.workTime },
                     { label:"休憩時間", value: selectedJob.breakTime },
-                    { label:"募集人数", value: selectedJob.count },
+                    { label:"採用人数", value: selectedJob.count },
                     { label:"移動時間", value: stationLabel(selectedJob.nearestStation, selectedJob.commuteTime) },
                     { label:"報酬",     value: (selectedJob.payTiming || selectedJob.payMethod) ? `${payLabel(selectedJob)}　${[selectedJob.payTiming, selectedJob.payMethod].filter(Boolean).join("・")}` : payLabel(selectedJob) },
                   ].filter(row => row.value && String(row.value).trim()).map(row => (
@@ -4874,7 +4874,7 @@ function JobSearchMapView({ onRegister }) {
                   { label:"通勤手当", on: empEmployer.has_commute_allowance, value: empEmployer.has_commute_allowance ? `あり${empEmployer.commute_allowance_detail ? "（" + empEmployer.commute_allowance_detail + "）" : ""}` : "‐" },
                   { label:"賞与",     on: empEmployer.has_bonus,            value: empEmployer.has_bonus ? "あり" : "‐" },
                   { label:"持ち物",   on: empEmployer.employer_pays_supplies, value: empEmployer.employer_pays_supplies ? "農家負担" : "‐" },
-                  { label:"装飾",     on: empEmployer.accessory_ok,          value: empEmployer.accessory_ok ? "OK" : "‐" },
+                  { label:"アクセサリー", on: empEmployer.accessory_ok,          value: empEmployer.accessory_ok ? "OK" : "‐" },
                 ];
                 return (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
@@ -5940,7 +5940,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </h1>
                 <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.9, margin:0 }}>
                   {role === "farmer"
-                    ? "求人に欠かせない情報を入力します。作物、作業内容、場所、日程、募集人数、報酬の6つを、ひとつずつうかがいます。"
+                    ? "求人に欠かせない情報を入力します。作物、作業内容、場所、日程、採用人数、報酬の6つを、ひとつずつうかがいます。"
                     : "はじめに、希望する作業内容や、働ける時期・条件についてうかがいます。次に、勤務できる地域、曜日、時間帯、希望する報酬など、お仕事探しに必要な情報をご入力ください。"}
                 </p>
               </div>
@@ -6070,12 +6070,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
                     {/* ── 農家 Step3: 詳細入力 ── */}
           {isFarmer && step === 4 && farmerPurpose === "post" && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>募集人数と作業日程を入力してください</h2>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>採用人数と作業日程を入力してください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>何人募集するか、いつ作業を行うかを入力します。</p>
             <LFWizCard>
-              {/* 5. 募集人数 */}
+              {/* 5. 採用人数 */}
               <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集人数</label>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>採用人数</label>
                 <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
               </div>
               {/* 3. 開催日（カレンダー） */}
@@ -6130,7 +6130,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <LFPrivacyNote />
           </>)}
 
-          {/* ── 農家 step5: 募集人数（骨格・中身は段階Bで移植） ── */}
+          {/* ── 農家 step5: 採用人数（骨格・中身は段階Bで移植） ── */}
           {isFarmer && step === 5 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>勤務条件を入力してください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>働く時間と報酬を入力します。金額に迷ったら、表示される地域の相場を参考にできます。無理のない範囲で、働き手に選ばれやすい条件を整えましょう。</p>
@@ -6603,7 +6603,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
             // プロフィール完成度
             const profileFields = [farmerDisplayName, farmerRegion, farmerCrop, farmerTask, farmerWanted, farmerPayType, jobCount, jobDateStart, workTimeLabel, hourlyWageInput || dailyWageInput];
-            const fieldNames     = ["表示名","地域","作物","作業","希望する働き手","支払い方式","募集人数","作業日程","勤務時間","報酬"];
+            const fieldNames     = ["表示名","地域","作物","作業","希望する働き手","支払い方式","採用人数","作業日程","勤務時間","報酬"];
             const filledCount   = profileFields.filter(Boolean).length;
             const profilePct    = Math.round(filledCount / profileFields.length * 100);
             const missingFields = fieldNames.filter((_, i) => !profileFields[i]);
@@ -6941,7 +6941,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div className="f-sans" style={lfStyles.cardDesc}>農家からオファーを受けたい</div>
             </LFCardBtn>
             <LFCardBtn selected={workerPurpose==="search"} onClick={() => selectAndNext(setWorkerPurpose, "search")}>
-              <div className="f-sans" style={lfStyles.cardTitle}>🔍 募集中の仕事を探す</div>
+              <div className="f-sans" style={lfStyles.cardTitle}>🔍 公開中の仕事を探す</div>
               <div className="f-sans" style={lfStyles.cardDesc}>自分から応募したい</div>
             </LFCardBtn>
           </>)}
@@ -7299,7 +7299,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ</p>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {[
-            { k:"jobs",  l:"募集中の仕事" },
+            { k:"jobs",  l:"公開中の仕事" },
             { k:"board", l:"公開ボード" },
             { k:"input", l:"データ入力" },
             { k:"plan",  l:"五年計画" },
@@ -8190,7 +8190,7 @@ function EmployerProfileEdit({ me }) {
         </div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="賞与" checked={hasBonus} onChange={setHasBonus} /></div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
-        <div><ToggleSwitch label="装飾OK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
+        <div><ToggleSwitch label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>従業員数（任意）</label>
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
@@ -8285,7 +8285,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const JOB_TABS = [
     { k:"profile", l:"プロフィール" },
     { k:"draft",   l:"作成中" },
-    { k:"active",  l:"募集中" },
+    { k:"active",  l:"公開中" },
     { k:"applicants", l:"応募者" },
     { k:"expired", l:"期限切れ" },
     { k:"calendar", l:"カレンダー" },
@@ -8337,7 +8337,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         dbActive.length === 0 ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
             <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
-            <p style={{ fontSize:14, margin:0 }}>募集中の求人はまだありません</p>
+            <p style={{ fontSize:14, margin:0 }}>公開中の求人はまだありません</p>
           </div>
         ) : (
           dbActive.map(d => (
