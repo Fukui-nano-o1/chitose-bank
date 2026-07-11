@@ -6041,7 +6041,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   ref={addrRef}
                   value={farmerAddr}
                   onChange={e => setFarmerAddr(e.target.value)}
-                  placeholder="例：山川町〇〇 1-2-3"
+                  placeholder="例：1-2-3 〇〇ハイツ101"
                   className="field f-sans"
                   style={{ fontSize:16 }}
                 />
