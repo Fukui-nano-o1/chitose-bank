@@ -4086,7 +4086,7 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 }
 
 // ── JobSearchMapView ────────────────────────────────────────
-// 「公開中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
+// 「募集中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
 // 将来: Google Maps / Mapbox / Leaflet に差し替え可能な構造にしてある。
 const JOB_SEARCH_SAMPLES = []; // 役所説明用ダミーは撤去。さがすはjobs_public(実データ)のみ表示
 
@@ -4780,7 +4780,7 @@ function JobSearchMapView({ onRegister }) {
           {jobList.length === 0 && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
               <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
-              <p style={{ fontSize:14, margin:0 }}>現在、公開中の求人はありません</p>
+              <p style={{ fontSize:14, margin:0 }}>現在、募集中の求人はありません</p>
             </div>
           )}
           {jobList.map(job => (
@@ -6941,7 +6941,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div className="f-sans" style={lfStyles.cardDesc}>農家からオファーを受けたい</div>
             </LFCardBtn>
             <LFCardBtn selected={workerPurpose==="search"} onClick={() => selectAndNext(setWorkerPurpose, "search")}>
-              <div className="f-sans" style={lfStyles.cardTitle}>🔍 公開中の仕事を探す</div>
+              <div className="f-sans" style={lfStyles.cardTitle}>🔍 募集中の仕事を探す</div>
               <div className="f-sans" style={lfStyles.cardDesc}>自分から応募したい</div>
             </LFCardBtn>
           </>)}
@@ -7299,7 +7299,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ</p>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {[
-            { k:"jobs",  l:"公開中の仕事" },
+            { k:"jobs",  l:"募集中の仕事" },
             { k:"board", l:"公開ボード" },
             { k:"input", l:"データ入力" },
             { k:"plan",  l:"五年計画" },
