@@ -4627,7 +4627,8 @@ function JobSearchMapView({ onRegister }) {
             dateLabel: j.date_label || "",
             payType: j.pay_type === "日給" ? "daily" : "hourly",
             pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
-            region: [j.prefecture, j.city].filter(Boolean).join("") || "",
+            town: j.town || "",
+            region: [j.prefecture, j.city, j.town].filter(Boolean).join("") || "",
             experience: j.job_exp || "未経験可",
             icon: "🌾",
             lat: 34.05, lng: 134.23,
@@ -4840,8 +4841,7 @@ function JobSearchMapView({ onRegister }) {
 
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
-            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}</h2>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.region}</p>
+            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}</h2>
           </div>
 
           {/* 2カラム: 左=情報 / 右=応募パネル */}
@@ -5532,10 +5532,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [farmerZip,         setFarmerZip]         = useState(d.farmerZip ?? "");
   const [farmerPref,        setFarmerPref]        = useState(d.farmerPref ?? "");
   const [farmerCity,        setFarmerCity]        = useState(d.farmerCity ?? "");
+  const [farmerTown,        setFarmerTown]        = useState(d.farmerTown ?? "");
   const [farmerAddr,        setFarmerAddr]        = useState(d.farmerAddr ?? "");
   const zipRef   = useRef(null);
   const prefRef  = useRef(null);
   const cityRef  = useRef(null);
+  const townRef  = useRef(null);
   const addrRef  = useRef(null);
   const [minWage, setMinWage] = useState(null);
   useEffect(() => {
@@ -5565,7 +5567,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setFarmerCity(r.address2);
         setFarmerRegion(r.address1 + r.address2);
         setZipError("");
-        setTimeout(() => { addrRef.current?.focus(); }, 0);
+        setTimeout(() => { townRef.current?.focus(); }, 0);
       } else {
         setZipError("郵便番号が見つかりませんでした");
       }
@@ -5722,7 +5724,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       const draft = {
         role: "farmer", farmerStep: step, job_number: draftJobNumber, // 保存時点の実ステップとupsertキーを記録
         farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
-        farmerZip, farmerPref, farmerCity, farmerAddr, jobPhotos,
+        farmerZip, farmerPref, farmerCity, farmerTown, farmerAddr, jobPhotos,
         farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
         farmerWanted, farmerPayType, payTiming, payMethod,
         startHour, startMinute, endHour, endMinute,
@@ -5745,6 +5747,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     zip:             farmerZip,
     prefecture:      farmerPref,
     city:            farmerCity,
+    town:            farmerTown,
     address:         farmerAddr,
     date_label:      jobDateLabel,
     date_start:      jobDateStart ? jobDateStart.toISOString().slice(0,10) : null,
@@ -5879,7 +5882,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
   const prefNotAllowed = !!farmerPref.trim() && !isAllowedPrefecture(farmerPref);
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation && breakTime !== ""), true, true, true, true, true, true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation && breakTime !== ""), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -6017,11 +6020,22 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   ref={cityRef}
                   value={farmerCity}
                   onChange={e => { setFarmerCity(e.target.value); setFarmerRegion(farmerPref + e.target.value); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addrRef.current?.focus(); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); townRef.current?.focus(); } }}
                   placeholder="例：吉野川市"
                   className="field f-sans"
                   style={{ fontSize:16, marginBottom:12 }}
                 />
+                <label className="f-sans" style={lfStyles.inputLabel}>町域</label>
+                <input
+                  ref={townRef}
+                  value={farmerTown}
+                  onChange={e => setFarmerTown(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addrRef.current?.focus(); } }}
+                  placeholder="例：山川町〇〇"
+                  className="field f-sans"
+                  style={{ fontSize:16, marginBottom:12 }}
+                />
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:-6, marginBottom:12 }}>この項目は求人票に公開されます</p>
                 <label className="f-sans" style={lfStyles.inputLabel}>番地・建物名</label>
                 <input
                   ref={addrRef}
@@ -6031,8 +6045,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   className="field f-sans"
                   style={{ fontSize:16 }}
                 />
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
-                {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>番地・建物名は求人票には公開されません。応募を承認した方にのみお伝えします。</p>
+                {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerTown.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
                 {prefNotAllowed && (
                   <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", marginTop:4 }}>
                     現在、徳島県内の求人のみ受け付けています。他の地域への展開は準備中です
