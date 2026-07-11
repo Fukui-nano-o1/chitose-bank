@@ -9,6 +9,14 @@ const peekApplyReturn  = () => { try { return localStorage.getItem(APPLY_RETURN_
 const setApplyReturn   = (n) => { try { localStorage.setItem(APPLY_RETURN_KEY, String(n)); } catch {} };
 const clearApplyReturn = () => { try { localStorage.removeItem(APPLY_RETURN_KEY); } catch {} };
 
+// 未入力の表示は必ずこの関数を通す。記号を変えたい場合はここだけ変更する
+const EMPTY_MARK = "ー";
+const disp = (v) => {
+  if (v === null || v === undefined) return EMPTY_MARK;
+  const s = String(v).trim();
+  return s === "" ? EMPTY_MARK : s;
+};
+
 // ══════════════════════════════════════════════════════════
 // DESIGN SYSTEM — 「台帳の美学」
 // 和紙と墨、金泥で書かれた帳簿を現代に翻訳する
@@ -4869,12 +4877,12 @@ function JobSearchMapView({ onRegister }) {
 
               {empEmployer && empEmployer.nickname && (() => {
                 const perkRows = [
-                  { label:"送迎",     on: empEmployer.has_transport,        value: empEmployer.has_transport ? `あり${empEmployer.transport_area ? "（" + empEmployer.transport_area + "）" : ""}` : "‐" },
-                  { label:"駐車場",   on: empEmployer.has_parking,          value: empEmployer.has_parking ? `あり${empEmployer.parking_capacity ? "（" + empEmployer.parking_capacity + "台）" : ""}` : "‐" },
-                  { label:"通勤手当", on: empEmployer.has_commute_allowance, value: empEmployer.has_commute_allowance ? `あり${empEmployer.commute_allowance_detail ? "（" + empEmployer.commute_allowance_detail + "）" : ""}` : "‐" },
-                  { label:"賞与",     on: empEmployer.has_bonus,            value: empEmployer.has_bonus ? "あり" : "‐" },
-                  { label:"持ち物",   on: empEmployer.employer_pays_supplies, value: empEmployer.employer_pays_supplies ? "農家負担" : "‐" },
-                  { label:"アクセサリー", on: empEmployer.accessory_ok,          value: empEmployer.accessory_ok ? "OK" : "‐" },
+                  { label:"送迎",     on: empEmployer.has_transport,        value: empEmployer.has_transport ? `あり${empEmployer.transport_area ? "（" + empEmployer.transport_area + "）" : ""}` : EMPTY_MARK },
+                  { label:"駐車場",   on: empEmployer.has_parking,          value: empEmployer.has_parking ? `あり${empEmployer.parking_capacity ? "（" + empEmployer.parking_capacity + "台）" : ""}` : EMPTY_MARK },
+                  { label:"通勤手当", on: empEmployer.has_commute_allowance, value: empEmployer.has_commute_allowance ? `あり${empEmployer.commute_allowance_detail ? "（" + empEmployer.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
+                  { label:"賞与",     on: empEmployer.has_bonus,            value: empEmployer.has_bonus ? "あり" : EMPTY_MARK },
+                  { label:"持ち物",   on: empEmployer.employer_pays_supplies, value: empEmployer.employer_pays_supplies ? "農家負担" : EMPTY_MARK },
+                  { label:"アクセサリー", on: empEmployer.accessory_ok,          value: empEmployer.accessory_ok ? "OK" : EMPTY_MARK },
                 ];
                 return (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
@@ -4915,38 +4923,19 @@ function JobSearchMapView({ onRegister }) {
               </div>
               )}
 
-              {/* 経験・持ち物・備考（見出しにアイコン、持ち物は設備一覧風に展開） */}
+              {/* 経験・持ち物・備考（配列駆動・未入力は「ー」） */}
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                 {[
-                  { label:"💪 必要経験",       value: selectedJob.experience },
-                  { label:"🙋 希望する働き手", value: selectedJob.wanted },
-                ].filter(row => row.value && String(row.value).trim()).map(row => (
+                  { label:"必要経験",       value: disp(selectedJob.experience) },
+                  { label:"希望する働き手", value: disp(selectedJob.wanted) },
+                  { label:"持ち物",         value: disp(selectedJob.items) },
+                  { label:"備考・注意",     value: disp(selectedJob.cautions) },
+                ].map(row => (
                   <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                     <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
                     <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
                   </div>
                 ))}
-
-                {/* 持ち物（Airbnb設備一覧風：アイコン+ラベルを並べる） */}
-                <div style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:8 }}>🎒 持ち物</span>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                    {(selectedJob.items || "").split(/[、,，・\n]/).map(s => s.trim()).filter(Boolean).map((thing, i) => (
-                      <span key={i} className="f-sans" style={{
-                        display:"flex", alignItems:"center", gap:6, padding:"6px 12px",
-                        borderRadius:20, background:"#F7F7F7", fontSize:13, color:"#222",
-                        overflowWrap:"break-word", wordBreak:"break-word", maxWidth:"100%",
-                      }}>
-                        <span>{ITEM_ICONS[thing] || "📦"}</span>{thing}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>📝 備考・注意</span>
-                  <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{selectedJob.cautions}</span>
-                </div>
               </div>
 
               {/* 注記 */}
@@ -6757,9 +6746,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:8, whiteSpace:"pre-wrap" }}>{jobCautions && jobCautions.trim() ? jobCautions : "未設定"}</p>
                   {/* 必要経験・希望する働き手（公開イメージ） */}
                   <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:16 }}>
-                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>💪 必要経験</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>必要経験</p>
                     <p className="f-sans" style={{ fontSize:14, color:"#222", marginBottom:14 }}>{jobExp || "未設定"}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>🙋 希望する働き手</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>希望する働き手</p>
                     <p className="f-sans" style={{ fontSize:14, color:"#222", margin:0 }}>{farmerWanted || "未設定"}</p>
                   </div>
                 </div>
