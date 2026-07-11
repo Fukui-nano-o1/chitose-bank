@@ -4,6 +4,11 @@ const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env
 import { useState, useEffect, useCallback, useRef } from "react";
 import Terms, { TERMS_ARTICLES } from "./Terms.jsx";
 
+const APPLY_RETURN_KEY = 'applyReturnJob';
+const peekApplyReturn  = () => { try { return localStorage.getItem(APPLY_RETURN_KEY); } catch { return null; } };
+const setApplyReturn   = (n) => { try { localStorage.setItem(APPLY_RETURN_KEY, String(n)); } catch {} };
+const clearApplyReturn = () => { try { localStorage.removeItem(APPLY_RETURN_KEY); } catch {} };
+
 // ══════════════════════════════════════════════════════════
 // DESIGN SYSTEM — 「台帳の美学」
 // 和紙と墨、金泥で書かれた帳簿を現代に翻訳する
@@ -4648,7 +4653,8 @@ function JobSearchMapView({ onRegister }) {
     if (!m) return;
     const jn = parseInt(m[1],10);
     const found = jobList.find(j => j.id === jn);
-    if (found) { setSelectedJob(found); }
+    if (found) { setSelectedJob(found); clearApplyReturn(); return; }
+    if (dbJobs && dbJobs.length > 0) clearApplyReturn();
   }, [dbJobs]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [reviewSort, setReviewSort] = useState("new");
@@ -4676,7 +4682,7 @@ function JobSearchMapView({ onRegister }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setApplying(false);
-        try { localStorage.setItem('applyReturnJob', String(selectedJob.id)); } catch {}
+        setApplyReturn(selectedJob.id);
         if (onRegister) onRegister();
         return;
       }
@@ -4685,7 +4691,7 @@ function JobSearchMapView({ onRegister }) {
         .select('id').eq('auth_id', session.user.id).maybeSingle();
       if (!ah) {
         setApplying(false);
-        try { localStorage.setItem('applyReturnJob', String(selectedJob.id)); } catch {}
+        setApplyReturn(selectedJob.id);
         window.location.hash = "/account";
         return;
       }
@@ -9607,8 +9613,7 @@ const subDest=useCallback(async d=>{
         {(needsAccountHolder || openAccountForm) ? (
           <AccountHolderForm onDone={()=>{
             setNeedsAccountHolder(false); setOpenAccountForm(false);
-            let ret = null;
-            try { ret = localStorage.getItem('applyReturnJob'); localStorage.removeItem('applyReturnJob'); } catch {}
+            const ret = peekApplyReturn();
             if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
             else { window.location.hash="/search"; setTab("search"); }
           }} onSessionExpired={()=>{
@@ -9639,23 +9644,15 @@ const subDest=useCallback(async d=>{
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="role"&&<RoleSelectScreen onGoLogin={()=>setTab("login")} onRegistered={(p,role)=>{
           setMe(p); setTab("profile");
-          let ret=null;
-          try { ret = localStorage.getItem('applyReturnJob'); } catch {}
-          if (ret) {
-            try { localStorage.removeItem('applyReturnJob'); } catch {}
-            window.location.hash = "/work/job/" + ret; setTab("search");
-          }
+          const ret = peekApplyReturn();
+          if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
         }}/>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
               setMe(f);setAuthV("login");loadNotifs(f.id);setTab("profile");
-              let ret=null;
-              try { ret = localStorage.getItem('applyReturnJob'); } catch {}
-              if (ret) {
-                try { localStorage.removeItem('applyReturnJob'); } catch {}
-                window.location.hash = "/work/job/" + ret; setTab("search");
-              }
+              const ret = peekApplyReturn();
+              if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
             }} onNeedRole={()=>setTab("role")}/>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
