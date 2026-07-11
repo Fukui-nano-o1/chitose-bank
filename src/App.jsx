@@ -5693,6 +5693,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setFarmerZip(data.zip ?? "");
         setFarmerPref(data.prefecture ?? "");
         setFarmerCity(data.city ?? "");
+        setFarmerTown(data.town ?? "");
         setFarmerAddr(data.address ?? "");
         setFarmerRegion((data.prefecture ?? "") + (data.city ?? "") + (data.town ?? ""));
         setJobDateStart(data.date_start ? new Date(data.date_start) : null);
