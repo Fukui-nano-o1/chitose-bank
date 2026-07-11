@@ -1317,7 +1317,7 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
   const [postalCode, setPostalCode] = useState("");
   const [addressAuto, setAddressAuto] = useState("");   // 郵便番号検索で埋まる部分
   const [addressDetail, setAddressDetail] = useState(""); // 番地・建物名(手入力)
-  const [apiAddress, setApiAddress] = useState("");       // 郵便番号検索で返ったAPI住所(都道府県+市区町村+町域)。addressAutoとの前方一致照合用
+  const [apiAddress, setApiAddress] = useState("");       // 郵便番号検索で返ったAPI住所(都道府県+市区町村)。addressAutoとの前方一致照合用
   const [apiAddressZip, setApiAddressZip] = useState(""); // apiAddressが対応する郵便番号(7桁)。postalCode変更後の未再検索を検知するガード
   const [zipSearching, setZipSearching] = useState(false);
   const [zipError, setZipError] = useState("");
@@ -1372,7 +1372,7 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
       const data = await res.json();
       if (data.status === 200 && data.results) {
         const r = data.results[0];
-        const full = (r.address1 || "") + (r.address2 || "") + (r.address3 || "");
+        const full = (r.address1 || "") + (r.address2 || "");
         setAddressAuto(full);
         setApiAddress(full);
         setApiAddressZip(zip);
@@ -1510,7 +1510,7 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
             </div>
             <div style={{ marginBottom:16 }}>
               <label className="lbl f-sans">{entityType==="corporate" ? "本店所在地" : "住所"}</label>
-              <input className="field f-sans" type="text" value={addressAuto} onChange={e=>setAddressAuto(e.target.value)} placeholder="郵便番号から自動入力されます" />
+              <input className="field f-sans" type="text" value={addressAuto} onChange={e=>setAddressAuto(e.target.value)} placeholder="例：徳島県吉野川市（町名から先はご自身で入力してください）" />
               {addressAuto.trim() && addressAutoHasAlphabet && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>住所は日本語で入力してください</p>}
               {addressAuto.trim() && missingPrefectureWord && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>都道府県が含まれていません</p>}
               {addressAuto.trim() && missingCityWord && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>市区町村が含まれていません</p>}
