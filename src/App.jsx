@@ -4699,7 +4699,7 @@ function JobSearchMapView({ onRegister }) {
       setApplying(false);
       if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
       if (data && data.ok) { window.location.hash = "/apply/done"; }
-      else if (data && data.reason === "not_logged_in") { if (onRegister) onRegister(); }
+      else if (data && data.reason === "not_logged_in") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); }
       else if (data && data.reason === "own_job") { alert("自分の求人には応募できません。"); }
       else if (data && data.reason === "job_not_open") { alert("この求人は現在募集を受け付けていません。"); }
       else { alert("応募できませんでした。"); }
