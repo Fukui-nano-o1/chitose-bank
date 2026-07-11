@@ -5533,6 +5533,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [farmerPref,        setFarmerPref]        = useState(d.farmerPref ?? "");
   const [farmerCity,        setFarmerCity]        = useState(d.farmerCity ?? "");
   const [farmerAddr,        setFarmerAddr]        = useState(d.farmerAddr ?? "");
+  const zipRef   = useRef(null);
+  const prefRef  = useRef(null);
+  const cityRef  = useRef(null);
+  const addrRef  = useRef(null);
   const [minWage, setMinWage] = useState(null);
   useEffect(() => {
     let cancelled = false;
@@ -5561,6 +5565,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setFarmerCity(r.address2);
         setFarmerRegion(r.address1 + r.address2);
         setZipError("");
+        setTimeout(() => { addrRef.current?.focus(); }, 0);
       } else {
         setZipError("郵便番号が見つかりませんでした");
       }
@@ -5569,6 +5574,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     }
     setZipSearching(false);
   };
+  useEffect(() => {
+    const digits = farmerZip.replace(/[^0-9]/g, "");
+    if (digits.length === 7) { searchZip(); }
+  }, [farmerZip]);
   const [farmerCropPill,    setFarmerCropPill]    = useState(d.farmerCropPill ?? ""); // 作物ピル選択
   const [farmerCropText,    setFarmerCropText]    = useState(d.farmerCropText ?? ""); // 作物自由入力
   const [farmerTaskPill,    setFarmerTaskPill]    = useState(d.farmerTaskPill ?? ""); // 作業ピル選択
@@ -5978,8 +5987,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <label className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
                 <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:8 }}>
                   <input
+                    ref={zipRef}
                     value={farmerZip}
                     onChange={e => setFarmerZip(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchZip(); } }}
                     placeholder="例：779-3401"
                     className="field f-sans"
                     style={{ fontSize:16, flex:1, marginBottom:0 }}
@@ -5993,22 +6004,27 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 {zipError && <p className="f-sans" style={{ fontSize:12, color:"#E53935", marginBottom:12 }}>{zipError}</p>}
                 <label className="f-sans" style={lfStyles.inputLabel}>都道府県</label>
                 <input
+                  ref={prefRef}
                   value={farmerPref}
                   onChange={e => { setFarmerPref(e.target.value); setFarmerRegion(e.target.value + farmerCity); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); cityRef.current?.focus(); } }}
                   placeholder="例：徳島県"
                   className="field f-sans"
                   style={{ fontSize:16, marginBottom:12 }}
                 />
                 <label className="f-sans" style={lfStyles.inputLabel}>市区町村</label>
                 <input
+                  ref={cityRef}
                   value={farmerCity}
                   onChange={e => { setFarmerCity(e.target.value); setFarmerRegion(farmerPref + e.target.value); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addrRef.current?.focus(); } }}
                   placeholder="例：吉野川市"
                   className="field f-sans"
                   style={{ fontSize:16, marginBottom:12 }}
                 />
                 <label className="f-sans" style={lfStyles.inputLabel}>番地・建物名</label>
                 <input
+                  ref={addrRef}
                   value={farmerAddr}
                   onChange={e => setFarmerAddr(e.target.value)}
                   placeholder="例：山川町〇〇 1-2-3"
