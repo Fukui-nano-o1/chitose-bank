@@ -4099,20 +4099,13 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 const JOB_SEARCH_SAMPLES = []; // 役所説明用ダミーは撤去。さがすはjobs_public(実データ)のみ表示
 
 // 応募パネルの「最高額」自動計算（段階2-a・ダミー前提）
-// workTime "8:00〜16:00" / dateLabel "6/10〜6/13" or "6/15" を想定。フォーマット外は null を返す
+// workTime "8:00〜16:00" を想定。日数は job.dateStart / job.dateEnd（date型）から算出。フォーマット外は null を返す
 function calcMaxPay(job) {
   const timeMatch = /^(\d{1,2}):(\d{2})〜(\d{1,2}):(\d{2})$/.exec(job.workTime || "");
-  const dateMatch = /^(\d{1,2})\/(\d{1,2})(?:〜(\d{1,2})\/(\d{1,2}))?$/.exec(job.dateLabel || "");
-  if (!dateMatch) return null;
-
-  const [, m1, d1, m2, d2] = dateMatch;
-  let days = 1;
-  if (m2 && d2) {
-    const start = new Date(2026, Number(m1) - 1, Number(d1));
-    const end = new Date(2026, Number(m2) - 1, Number(d2));
-    days = Math.round((end - start) / 86400000) + 1;
-  }
-  if (!Number.isFinite(days) || days < 1) return null;
+  if (!job.dateStart) return null;
+  const end = job.dateEnd || job.dateStart;
+  const days = Math.round((end - job.dateStart) / 86400000) + 1;
+  if (!Number.isFinite(days) || days <= 0) return null;
 
   if (job.payType === "daily") {
     return job.pay * days;
@@ -5035,12 +5028,6 @@ function JobSearchMapView({ onRegister }) {
               </p>
 
               <div style={{ height:1, background:"#EBEBEB", margin:"0 0 16px" }} />
-
-              {/* 期間 */}
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:20 }}>
-                <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>期間</span>
-                <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{selectedJob.dateLabel}</span>
-              </div>
 
               {/* CTAボタン */}
               <button
