@@ -5694,6 +5694,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setFarmerPref(data.prefecture ?? "");
         setFarmerCity(data.city ?? "");
         setFarmerAddr(data.address ?? "");
+        setFarmerRegion((data.prefecture ?? "") + (data.city ?? "") + (data.town ?? ""));
         setJobDateStart(data.date_start ? new Date(data.date_start) : null);
         setJobDateEnd(data.date_end ? new Date(data.date_end) : null);
         setJobCount(data.headcount != null ? String(data.headcount) : "");
@@ -6009,27 +6010,28 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <input
                   ref={prefRef}
                   value={farmerPref}
-                  onChange={e => { setFarmerPref(e.target.value); setFarmerRegion(e.target.value + farmerCity); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); cityRef.current?.focus(); } }}
+                  readOnly
                   placeholder="例：徳島県"
                   className="field f-sans"
-                  style={{ fontSize:16, marginBottom:12 }}
+                  style={{ fontSize:16, marginBottom:12, background:"#F7F7F7", color:"#717171", cursor:"not-allowed" }}
                 />
                 <label className="f-sans" style={lfStyles.inputLabel}>市区町村</label>
                 <input
                   ref={cityRef}
                   value={farmerCity}
-                  onChange={e => { setFarmerCity(e.target.value); setFarmerRegion(farmerPref + e.target.value); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); townRef.current?.focus(); } }}
+                  readOnly
                   placeholder="例：吉野川市"
                   className="field f-sans"
-                  style={{ fontSize:16, marginBottom:12 }}
+                  style={{ fontSize:16, marginBottom:12, background:"#F7F7F7", color:"#717171", cursor:"not-allowed" }}
                 />
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4 }}>
+                  郵便番号から自動で入力されます。誤りがある場合は郵便番号を修正してください
+                </p>
                 <label className="f-sans" style={lfStyles.inputLabel}>町域</label>
                 <input
                   ref={townRef}
                   value={farmerTown}
-                  onChange={e => setFarmerTown(e.target.value)}
+                  onChange={e => { setFarmerTown(e.target.value); setFarmerRegion(farmerPref + farmerCity + e.target.value); }}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addrRef.current?.focus(); } }}
                   placeholder="例：山川町〇〇"
                   className="field f-sans"
