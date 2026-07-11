@@ -5454,20 +5454,21 @@ function LFSummaryRow({ label, value }) {
   );
 }
 
-// 徳島県最低賃金（地域別最低賃金） 2026/1/1発効。改定時に要更新。確認先：徳島労働局 賃金室 088-652-9165
-const MIN_WAGE_TOKUSHIMA = 1046;
-
-// 時給・日給が徳島県最低賃金を下回っていないかを判定する純関数
+// 時給・日給が最低賃金を下回っていないかを判定する純関数
 // workHours: 勤務時間（終了時刻 - 開始時刻、時間単位）。6時間超で休憩45分、8時間超で休憩60分を控除した実労働時間で日給を時給換算する。
-function validateMinWage(hourly, daily, workHours) {
-  const hourlyViolation = hourly > 0 && hourly < MIN_WAGE_TOKUSHIMA;
+function validateMinWage(hourly, daily, workHours, minWage) {
+  // 最低賃金が取得できていない場合は検証不能。安全側に倒して掲載を止める
+  if (!minWage || minWage <= 0) {
+    return { hourlyViolation: hourly > 0, dailyViolation: daily > 0, unknownWage: true };
+  }
+  const hourlyViolation = hourly > 0 && hourly < minWage;
   let dailyViolation = false;
   if (daily > 0 && workHours > 0) {
     const breakHours = workHours > 8 ? 1 : workHours > 6 ? 0.75 : 0;
     const actualHours = workHours - breakHours;
-    if (actualHours > 0 && daily / actualHours < MIN_WAGE_TOKUSHIMA) dailyViolation = true;
+    if (actualHours > 0 && daily / actualHours < minWage) dailyViolation = true;
   }
-  return { hourlyViolation, dailyViolation };
+  return { hourlyViolation, dailyViolation, unknownWage: false };
 }
 
 function LFWageNote() {
@@ -5552,6 +5553,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [farmerPref,        setFarmerPref]        = useState(d.farmerPref ?? "");
   const [farmerCity,        setFarmerCity]        = useState(d.farmerCity ?? "");
   const [farmerAddr,        setFarmerAddr]        = useState(d.farmerAddr ?? "");
+  const [minWage, setMinWage] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!farmerPref) { setMinWage(null); return; }
+    (async () => {
+      try {
+        const { data } = await supabase.rpc('get_minimum_wage', { p_prefecture: farmerPref });
+        if (!cancelled) setMinWage(typeof data === 'number' ? data : null);
+      } catch { if (!cancelled) setMinWage(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [farmerPref]);
   const [zipSearching,      setZipSearching]      = useState(false);
   const [zipError,          setZipError]          = useState("");
   // 郵便番号から住所を検索（zipcloud・無料・認証不要）。都道府県・市区町村を自動入力
@@ -5631,7 +5644,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const hourlyWage = Number(hourlyWageInput.replace(/[^\d]/g, "")) || 0;
   const dailyWage  = Number(dailyWageInput.replace(/[^\d]/g, "")) || 0;
   const workHours = (Number(endHour) + Number(endMinute) / 60) - (Number(startHour) + Number(startMinute) / 60);
-  const { hourlyViolation, dailyViolation } = validateMinWage(hourlyWage, dailyWage, workHours);
+  const { hourlyViolation, dailyViolation, unknownWage } = validateMinWage(hourlyWage, dailyWage, workHours, minWage);
   const calcFarmerMaxPay = () => {
     const days   = jobDateStart ? Math.floor(((jobDateEnd || jobDateStart) - jobDateStart) / 86400000) + 1 : 0;
     const breakH = (Number(String(breakTime).replace(/[^\d]/g,"")) || 0) / 60;
@@ -6157,7 +6170,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <input inputMode="numeric" value={hourlyWageInput} onChange={e => setHourlyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：1200" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
                 <LFWageCompare type="時給" value={hourlyWage} avg={AVG_HOURLY} count={AVG_COUNT} />
                 {hourlyViolation && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
+                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
                 )}
               </div>
               <div style={{ marginBottom:14 }}>
@@ -6165,7 +6178,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <input inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
                 {dailyViolation && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>徳島県の最低賃金（時給{MIN_WAGE_TOKUSHIMA.toLocaleString()}円）を下回っています。この金額では掲載できません</p>
+                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
+                )}
+                {unknownWage && (hourlyWage > 0 || dailyWage > 0) && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>
+                    この地域の最低賃金データが未登録のため、金額を確認できません。運営にお問い合わせください
+                  </p>
                 )}
               </div>
               {false && (
