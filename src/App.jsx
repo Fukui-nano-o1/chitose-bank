@@ -131,14 +131,6 @@ const THIS_YEAR   = new Date().getFullYear();
 const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 // 管理者判定（届出後にゲートを外す際はここを変更する。保存・入力機能のゲートにも使用）
 const isAdmin = (user) => user?.email === ADMIN_EMAIL;
-// ①登録フロー(account_holders)専用の許可リスト。RLS側(ANY ARRAY)と一字一句同じ4メールを維持すること
-const ACCOUNT_ALLOWLIST = [
-  "t5fki6643qty@gmail.com",
-  "hmktsr15231@gmail.com",
-  "wuren9042@gmail.com",
-  "coirakoira@gmail.com",
-];
-
 // account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
 const TERMS_VERSION = "v1-2026-07";
 const PRIVACY_VERSION = "v1-2026-07";
@@ -1418,12 +1410,23 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
     && !!apiAddress.trim() && addressAuto.startsWith(apiAddress);
   const zipAddressMismatch = !!addressAuto.trim() && zipDigits.length === 7 && !zipAddressVerified;
 
-  const isAdminUser = ACCOUNT_ALLOWLIST.includes(sess?.user?.email);
+  const [isAllowed, setIsAllowed] = useState(null);  // null=判定中
+  useEffect(() => {
+    let cancelled = false;
+    if (!sess?.user) { setIsAllowed(false); return; }
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('am_i_account_allowed');
+        if (!cancelled) setIsAllowed(error ? false : !!data);
+      } catch { if (!cancelled) setIsAllowed(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [sess?.user?.id]);
   const formValid = !!(fullName.trim() && isAdult && postalCode.trim() && addressAuto.trim() && addressDetail.trim()
     && entityType && (entityType === "individual" || (companyName.trim() && companyNumber.trim())) && agreed
     && !addressAutoHasAlphabet && !addressDetailHasAlphabet && !missingPrefectureWord && !missingCityWord
     && zipDigits.length === 7 && !zipAddressMismatch);
-  const canSubmit = isAdminUser && formValid;
+  const canSubmit = isAllowed === true && formValid;
 
   // ① 非公開情報(送達先)用の住所検索。求人フローsearchZip(②公開情報)とは
   // 情報の層が異なるため意図的に分離。共通化しない。
@@ -1610,9 +1613,9 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
 
           <div>
             <button className="btn-primary" style={{ width:"100%" }} disabled={!canSubmit || busy} onClick={submit}>
-              {!isAdminUser ? "準備中" : busy ? "登録中…" : "登録する"}
+              {isAllowed === null ? "確認中…" : !isAllowed ? "準備中" : busy ? "登録中…" : "登録する"}
             </button>
-            {!isAdminUser && (
+            {isAllowed === false && (
               <p className="f-sans" style={{ fontSize:11, color:C.dim, textAlign:"center", marginTop:10 }}>
                 現在準備中です。もうしばらくお待ちください
               </p>
