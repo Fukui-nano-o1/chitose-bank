@@ -8130,6 +8130,7 @@ function EmployerProfileEdit({ me }) {
   const [ownerComment, setOwnerComment] = useState("");
   const [staffCount, setStaffCount] = useState("");
   const [commitment, setCommitment] = useState("");
+  const [introOpen, setIntroOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -8159,6 +8160,9 @@ function EmployerProfileEdit({ me }) {
           setOwnerComment(data.owner_comment ?? "");
           setStaffCount(data.staff_count != null ? String(data.staff_count) : "");
           setCommitment(data.commitment ?? "");
+          // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
+          const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || data.commitment || (data.staff_count != null && data.staff_count !== ""));
+          if (hasIntroContent) setIntroOpen(true);
         }
       } catch {}
       setLoading(false);
@@ -8321,50 +8325,60 @@ function EmployerProfileEdit({ me }) {
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
         <div><ToggleSwitch label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>従業員数（任意）</label>
-      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-        <input type="number" value={staffCount} onChange={e=>setStaffCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
-        <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>人</span>
-      </div>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>農園紹介</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたいお題だけ、記入してください（任意）</p>
-      <div className="employer-intro-grid" style={{ marginBottom:16 }}>
-        {[
-          { label:"就農するまで", value:introPath, set:setIntroPath },
-          { label:"いま楽しいこと", value:introJoy, set:setIntroJoy },
-          { label:"どんな作物を、どんな想いで", value:introCrops, set:setIntroCrops },
-          { label:"職場の雰囲気", value:introAtmosphere, set:setIntroAtmosphere },
-          { label:"初めての人へのメッセージ", value:introMessage, set:setIntroMessage },
-        ].map((topic, i) => (
-          <div key={i}>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>{topic.label}（任意）</label>
+      <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB", paddingTop:16 }}>
+        <button type="button" onClick={()=>setIntroOpen(o=>!o)} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:0, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#222" }}>
+          <span>農園の紹介を書く（任意・あとからでも書けます）</span>
+          <span style={{ fontSize:11, color:"#717171" }}>{introOpen ? "▲" : "▼"}</span>
+        </button>
+        {introOpen && (
+          <div style={{ marginTop:16 }}>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>従業員数（任意）</label>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
+              <input type="number" value={staffCount} onChange={e=>setStaffCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
+              <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>人</span>
+            </div>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>農園紹介</label>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたいお題だけ、記入してください（任意）</p>
+            <div className="employer-intro-grid" style={{ marginBottom:16 }}>
+              {[
+                { label:"就農するまで", value:introPath, set:setIntroPath },
+                { label:"いま楽しいこと", value:introJoy, set:setIntroJoy },
+                { label:"どんな作物を、どんな想いで", value:introCrops, set:setIntroCrops },
+                { label:"職場の雰囲気", value:introAtmosphere, set:setIntroAtmosphere },
+                { label:"初めての人へのメッセージ", value:introMessage, set:setIntroMessage },
+              ].map((topic, i) => (
+                <div key={i}>
+                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>{topic.label}（任意）</label>
+                  <textarea
+                    value={topic.value}
+                    onChange={e => topic.set(e.target.value)}
+                    maxLength={1000}
+                    style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
+                  />
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4, textAlign:"right" }}>{topic.value.length} / 1000</p>
+                </div>
+              ))}
+            </div>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>こだわり（任意）</label>
             <textarea
-              value={topic.value}
-              onChange={e => topic.set(e.target.value)}
+              value={commitment}
+              onChange={e => setCommitment(e.target.value)}
+              placeholder="例：農薬をできるだけ使わない栽培をしています"
               maxLength={1000}
-              style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
+              style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
             />
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4, textAlign:"right" }}>{topic.value.length} / 1000</p>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{commitment.length} / 1000</p>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>代表からのメッセージ（任意）</label>
+            <textarea
+              value={ownerComment}
+              onChange={e => setOwnerComment(e.target.value)}
+              maxLength={1000}
+              style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
+            />
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{ownerComment.length} / 1000</p>
           </div>
-        ))}
+        )}
       </div>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>こだわり（任意）</label>
-      <textarea
-        value={commitment}
-        onChange={e => setCommitment(e.target.value)}
-        placeholder="例：農薬をできるだけ使わない栽培をしています"
-        maxLength={1000}
-        style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
-      />
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{commitment.length} / 1000</p>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>代表からのメッセージ（任意）</label>
-      <textarea
-        value={ownerComment}
-        onChange={e => setOwnerComment(e.target.value)}
-        maxLength={1000}
-        style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
-      />
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{ownerComment.length} / 1000</p>
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
     </div>
   );
