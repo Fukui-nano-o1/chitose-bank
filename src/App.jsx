@@ -5811,6 +5811,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [confActiveSlide, setConfActiveSlide] = useState(0);
   const confScrollRef = useRef(null);
   const captionTextareaRef = useRef(null);
+  const flowScrollRef = useRef(null); // スクロール領域（step遷移時に先頭へ戻す用）
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -6016,6 +6017,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     if (role === "farmer" && step >= 1 && step <= 11) saveDraft();
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // step遷移時にスクロール位置をトップへリセット（前ページの途中位置が引き継がれるのを防ぐ）
+  useEffect(() => {
+    try {
+      if (flowScrollRef.current) flowScrollRef.current.scrollTo(0, 0);
+      window.scrollTo(0, 0);
+    } catch {}
+  }, [step]);
+
   // 選択した瞬間に次へ進む（140ms で選択状態を視認させてから遷移）
   const selectAndNext = (setter, value) => {
     setter(value);
@@ -6137,7 +6146,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       )}
 
       {/* スクロール領域 */}
-      <div style={embedded ? {} : ((step === 0 || step === 6)
+      <div ref={flowScrollRef} style={embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center" }
         : { height:"100%", overflowY:"auto" })}>
         <div key={step} className="fade-in" style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
