@@ -427,7 +427,11 @@ input:focus { outline: none; }
 
 .app-header {
   position: sticky; top: 0; z-index: 20;
+  width: 100%;
   background: #fff; border-bottom: 1px solid #EBEBEB;
+}
+.app-header-inner {
+  max-width: 1200px; margin: 0 auto;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 24px; height: 64px;
 }
@@ -9820,6 +9824,7 @@ const subDest=useCallback(async d=>{
 
       {/* ── PC HEADER ── */}
       <header className="app-header">
+        <div className="app-header-inner">
         <button onClick={() => { setTab("search"); window.location.hash = "/search"; }}
           style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
                    fontSize:17, fontWeight:800, color:"#00A86B", padding:0 }}>
@@ -9880,6 +9885,7 @@ const subDest=useCallback(async d=>{
               )}
             </div>
           )}
+        </div>
         </div>
       </header>
 
