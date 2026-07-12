@@ -1186,7 +1186,13 @@ function LoginScreen({ farmers, onLogin, onGoRegister, onNeedRole }) {
     setSending(true); setErr("");
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
     setSending(false);
-    if (error) { setErr("メール送信に失敗しました。しばらく経ってから再度お試しください"); return; }
+    if (error) {
+      const isInviteOnly = /signup/i.test(error.message || "");
+      setErr(isInviteOnly
+        ? "このメールアドレスは招待されていません。招待を受けたアドレスでお試しください"
+        : "メール送信に失敗しました。しばらく経ってから再度お試しください");
+      return;
+    }
     setPending({ email: email.trim().toLowerCase() });
     setCode("");
   };
@@ -1234,7 +1240,7 @@ const verifyCode = async () => {
 
         <div className="ledger-card" style={{ padding:32 }}>
           <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:8,letterSpacing:".04em" }}>メールではじめる</div>
-          <p className="f-sans" style={{ fontSize:11,color:C.dim,lineHeight:1.7,marginBottom:24 }}>はじめての方も、登録済みの方も、こちらから</p>
+          <p className="f-sans" style={{ fontSize:11,color:C.dim,lineHeight:1.7,marginBottom:24 }}>招待制で運営しています</p>
 
           {!pending ? (
             /* ── STEP 1: メールアドレス入力 ── */
@@ -1295,8 +1301,7 @@ const verifyCode = async () => {
 
           <div style={{ textAlign:"center", marginTop:22 }}>
             <p className="f-sans" style={{ fontSize:11, color:C.dim, lineHeight:1.8 }}>
-              初めての方もこのフォームから登録できます。<br/>
-              メールアドレスを入力して認証コードを送信してください。
+              招待を受けた方のメールアドレスを入力して、認証コードを送信してください。
             </p>
           </div>
         </div>
