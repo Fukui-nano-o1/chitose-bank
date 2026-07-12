@@ -4660,13 +4660,14 @@ function JobCard({ job, variant }) {
   );
 }
 
-function JobSearchMapView({ onRegister }) {
+function JobSearchMapView({ onRegister, me }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   useEffect(() => {
+    if (!me) return;
     (async () => {
       try {
         const { data, error } = await supabase.from("jobs_public").select("*").order("job_number",{ascending:false});
@@ -4701,7 +4702,7 @@ function JobSearchMapView({ onRegister }) {
         }
       } catch {}
     })();
-  }, []);
+  }, [me]);
   const jobList = dbJobs || [];
   useEffect(() => {
     const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
@@ -4794,6 +4795,25 @@ function JobSearchMapView({ onRegister }) {
   };
 
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
+
+  if (!me) {
+    return (
+      <div style={{ textAlign:"center", padding:"80px 24px" }}>
+        <div style={{ fontSize:40, marginBottom:16 }}>🥦</div>
+        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:8 }}>
+          ただいま招待制で運営しています
+        </p>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
+          求人の閲覧にはログインが必要です。<br/>
+          招待を受けた方は、招待メールのアドレスでログインしてください。
+        </p>
+        <button onClick={onRegister} className="btn-primary"
+          style={{ padding:"14px 40px", fontSize:14, borderRadius:12 }}>
+          ログイン
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -9848,7 +9868,7 @@ const subDest=useCallback(async d=>{
             </p>
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
-        ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} /> : null}
+        ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} me={me} /> : null}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <ProfileHub me={me} onLogout={handleLogout}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
@@ -9872,7 +9892,7 @@ const subDest=useCallback(async d=>{
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
             />)}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
