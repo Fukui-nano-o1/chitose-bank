@@ -382,19 +382,6 @@ input:focus { outline: none; }
   border-radius: 4px;
 }
 
-/* ── Nav underline ── */
-.nav-item { position: relative; }
-.nav-item::after {
-  content: '';
-  position: absolute;
-  bottom: -1px; left: 50%; right: 50%;
-  height: 2px;
-  background: var(--mode-accent, #00A86B);
-  transition: left .25s ease, right .25s ease;
-  border-radius: 2px;
-}
-.nav-item.active::after { left: 0; right: 0; }
-
 /* ── Bottom tab bar (mobile) ── */
 .bottom-tab-bar {
   display: flex;
@@ -435,8 +422,6 @@ input:focus { outline: none; }
   .bottom-tab-bar button:hover { color: #008F5B; }
   .bottom-tab-bar button.active { color: #00A86B; font-weight: 600; }
   .bottom-tab-bar button span.icon { font-size: 20px; line-height: 1; }
-  /* Hide desktop header nav on mobile */
-  .header-nav { display: none !important; }
   header { padding: 0 16px !important; height: 52px !important; }
   main { padding: 10px 12px 90px !important; }
   .ledger-card { padding: 16px !important; }
@@ -4167,8 +4152,6 @@ function FiveYearPlanTab({ loggedInFarmer, records }) {
 // ── JobSearchMapView ────────────────────────────────────────
 // 「募集中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
 // 将来: Google Maps / Mapbox / Leaflet に差し替え可能な構造にしてある。
-const JOB_SEARCH_SAMPLES = []; // 役所説明用ダミーは撤去。さがすはjobs_public(実データ)のみ表示
-
 // 応募パネルの「最高額」自動計算（段階2-a・ダミー前提）
 // workTime "8:00〜16:00" を想定。日数は job.dateStart / job.dateEnd（date型）から算出。フォーマット外は null を返す
 function calcMaxPay(job) {
@@ -4303,12 +4286,6 @@ function CalendarView({ start, end, readOnly = false, onSelect }) {
     </div>
   );
 }
-
-// 持ち物名→絵文字の対応表（段階2-a・ガワのみ）。無い語は汎用アイコン📦にフォールバック
-const ITEM_ICONS = {
-  "長靴":"👢", "軍手":"🧤", "帽子":"🧢", "飲み物":"🥤",
-  "タオル":"🧻", "動きやすい服":"👕", "雨具":"🌂", "日焼け止め":"🧴",
-};
 
 // 給与表示ラベル（時給/日給）。JobSearchMapView・FarmerDashboard共通
 function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`; }
@@ -4722,7 +4699,7 @@ function JobSearchMapView({ onRegister }) {
       } catch {}
     })();
   }, []);
-  const jobList = (dbJobs && dbJobs.length > 0) ? dbJobs : JOB_SEARCH_SAMPLES;
+  const jobList = dbJobs || [];
   useEffect(() => {
     const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
     if (!m) return;
@@ -4813,13 +4790,7 @@ function JobSearchMapView({ onRegister }) {
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
   };
 
-  const pinLabel = j => j.payType === "hourly" ? `¥${j.pay.toLocaleString()}/h` : `¥${j.pay.toLocaleString()}/日`;
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
-
-  // 将来の実地図APIに差し替える際はこの座標変換を修正する
-  const MIN_LAT=34.04, MAX_LAT=34.12, MIN_LNG=134.20, MAX_LNG=134.38;
-  const pinX = lng => `${Math.max(6, Math.min(88, Math.round((lng-MIN_LNG)/(MAX_LNG-MIN_LNG)*86)))}%`;
-  const pinY = lat => `${Math.max(12, Math.min(75, Math.round((1-(lat-MIN_LAT)/(MAX_LAT-MIN_LAT))*70)))}%`;
 
   return (
     <div>
