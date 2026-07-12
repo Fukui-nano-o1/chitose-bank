@@ -1230,9 +1230,10 @@ const verifyCode = async () => {
       });
       return;
     }
-    // workers行チェックはC（働き手登録の配線）で追加予定
-    // プロフィール無し＝初回 → 役割選択の部屋へ
-    if (onNeedRole) onNeedRole();
+    // farmers行なし＝働き手または初回。役割は聞かない（アクションベース設計）。
+    // 最小形の me でログインさせる。account_holders 未登録なら
+    // 既存の needsAccountHolder ゲートが①フォームを自動表示する。
+    onLogin({ id: data.user.id, email: normalizedEmail, name: "", isWorker: true });
 };
 
   return (
