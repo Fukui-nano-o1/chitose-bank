@@ -8130,7 +8130,6 @@ function EmployerProfileEdit({ me }) {
   const [introMessage, setIntroMessage] = useState("");
   const [ownerComment, setOwnerComment] = useState("");
   const [staffCount, setStaffCount] = useState("");
-  const [commitment, setCommitment] = useState("");
   const [introOpen, setIntroOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -8160,9 +8159,8 @@ function EmployerProfileEdit({ me }) {
           setIntroMessage(data.intro_message ?? "");
           setOwnerComment(data.owner_comment ?? "");
           setStaffCount(data.staff_count != null ? String(data.staff_count) : "");
-          setCommitment(data.commitment ?? "");
           // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
-          const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || data.commitment || (data.staff_count != null && data.staff_count !== ""));
+          const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || (data.staff_count != null && data.staff_count !== ""));
           if (hasIntroContent) setIntroOpen(true);
         }
       } catch {}
@@ -8262,7 +8260,6 @@ function EmployerProfileEdit({ me }) {
         intro_message: introMessage || null,
         owner_comment: ownerComment || null,
         staff_count: staffCount === "" ? null : Number(staffCount),
-        commitment: commitment || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
@@ -8370,15 +8367,6 @@ function EmployerProfileEdit({ me }) {
                 </div>
               ))}
             </div>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>こだわり（任意）</label>
-            <textarea
-              value={commitment}
-              onChange={e => setCommitment(e.target.value)}
-              placeholder="例：農薬をできるだけ使わない栽培をしています"
-              maxLength={1000}
-              style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
-            />
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{commitment.length} / 1000</p>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>代表からのメッセージ（任意）</label>
             <textarea
               value={ownerComment}
@@ -9936,13 +9924,6 @@ const subDest=useCallback(async d=>{
               if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
             }}/>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="board"&&<BoardTab farmers={farmers} destApproved={destOk} records={recs} userLevel={userLevel} onLogin={()=>setTab("login")} me={me} onGoPlan={()=>setTab("plan")} onShowConstitution={()=>setShowConstitution(true)} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)}/>}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="labor"&&(
-          <FarmerDashboard
-              onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-              onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
-              me={me}
-            />)}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
           ? <InputTab loggedInFarmer={me} destApproved={destOk} destPending={destPend}
               records={recs} onAddRecord={addRec} onSubmitDest={subDest} onGoBoard={()=>setTab("board")} onDeleteRec={deleteRec}/>
