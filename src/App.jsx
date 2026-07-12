@@ -73,6 +73,7 @@ async function geocodeTown(prefecture, city, town) {
 // ハンバーガーメニュー。項目の追加・削除はこの配列を編集するだけでよい。
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
 const MENU_ITEMS = [
+  { key:"admin",   label:"管理",         hash:"/admin",   auth:true, adminOnly:true },
   { key:"profile", label:"プロフィール", hash:"/profile", auth:true  },
   { key:"charter", label:"運営憲章",     hash:"/charter", auth:false },
   { key:"terms",   label:"利用規約",     hash:"/terms",   auth:false },
@@ -9809,7 +9810,10 @@ const subDest=useCallback(async d=>{
                           border:"1px solid #EBEBEB", borderRadius:12,
                           boxShadow:"0 4px 16px rgba(0,0,0,.08)", padding:"8px 0", zIndex:30 }}>
               {MENU_ITEMS
-                .filter(item => (item.auth ? !!me : true) && (item.guestOnly ? !me : true))
+                .filter(item =>
+                  (item.auth ? !!me : true) &&
+                  (item.guestOnly ? !me : true) &&
+                  (item.adminOnly ? isAdmin(me) : true))
                 .map(item => (
                   <button key={item.key}
                     onClick={() => { setMenuOpen(false); window.location.hash = item.hash; }}
