@@ -594,6 +594,61 @@ input:focus { outline: none; }
   .job-detail-body-mobile { padding-bottom: 120px; }
 }
 
+/* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-areas: "tabs content" "card content";
+  gap: 32px;
+  align-items: start;
+}
+.profile-tabs {
+  grid-area: tabs;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-tab-btn {
+  text-align: left;
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 400;
+  color: #717171;
+}
+.profile-tab-btn.active {
+  background: #F7F7F7;
+  color: #222;
+  font-weight: 700;
+}
+.profile-sidecard { grid-area: card; }
+.profile-content { grid-area: content; min-width: 0; }
+@media (max-width: 768px) {
+  .profile-grid { display: block !important; }
+  .profile-tabs {
+    flex-direction: row;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #EEE;
+    flex-wrap: wrap;
+  }
+  .profile-tab-btn {
+    padding: 8px 4px;
+    margin-bottom: -1px;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+  }
+  .profile-tab-btn.active {
+    background: none;
+    border-bottom: 2px solid #00A86B;
+  }
+  .profile-sidecard { margin-top: 24px; }
+}
+
 /* ── LandingFlow Step6 grid ── */
 .lf-map-hero { height: 360px; }
 .lf-preview-grid {
@@ -4464,16 +4519,17 @@ function WorkerProfilePreview({ me, onEdit }) {
   if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
   const isEmpty = !nickname && !pr && !avatarUrl;
   return (
-    <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>働き手プロフィール</p>
+    <div>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>応募したとき、農家にこのように表示されます。</p>
       {isEmpty ? (
-        <div style={{ textAlign:"center", padding:"32px 20px", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:20 }} className="f-sans">
-          <div style={{ fontSize:32, marginBottom:10 }}>🧑‍🌾</div>
-          <p style={{ fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>まだプロフィールがありません。自己紹介を書くと、応募が承認されやすくなります。</p>
+        <div style={{ textAlign:"center", padding:"40px 20px", border:"1px solid #EBEBEB", borderRadius:16 }} className="f-sans">
+          <div style={{ fontSize:32, marginBottom:14 }}>🧑‍🌾</div>
+          <p style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 8px" }}>プロフィールを完成させましょう</p>
+          <p style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
+          <button onClick={onEdit} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12 }}>はじめる</button>
         </div>
       ) : (
-        <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", marginBottom:20 }}>
+        <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom: pr ? 16 : 0 }}>
             <div style={{ width:56, height:56, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
               {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:24 }}>🧑‍🌾</span>}
@@ -4485,7 +4541,6 @@ function WorkerProfilePreview({ me, onEdit }) {
           )}
         </div>
       )}
-      <button onClick={onEdit} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>編集する</button>
     </div>
   );
 }
@@ -4593,40 +4648,44 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
     })();
     return () => { cancelled = true; };
   }, []);
+  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"応募中", approved:"承認済み", wcalendar:"カレンダー" };
   return (
-    <div style={{maxWidth:720,margin:"0 auto",padding:"32px 24px"}}>
+    <div style={{maxWidth:1024,margin:"0 auto",padding:"32px 24px"}}>
       {pTab === "worker" ? (
-        <>
-          <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", flexWrap:"wrap" }}>
+        <div className="profile-grid">
+          <div className="profile-tabs">
             {WORKER_TABS.map(t => (
-              <button key={t.k} onClick={()=>{ const _map={wprofile:"/profile/worker/profile",applying:"/profile/worker/applying",approved:"/profile/worker/approved",wcalendar:"/profile/worker/calendar"}; window.location.hash=(_map[t.k]||"/profile/worker"); }} className="f-sans" style={{
-                padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
-                fontSize:13, fontWeight: wTab===t.k ? 700 : 400,
-                color: wTab===t.k ? "#222" : "#999",
-                borderBottom: wTab===t.k ? "2px solid #00A86B" : "2px solid transparent",
-              }}>{t.l}</button>
+              <button key={t.k} onClick={()=>{ const _map={wprofile:"/profile/worker/profile",applying:"/profile/worker/applying",approved:"/profile/worker/approved",wcalendar:"/profile/worker/calendar"}; window.location.hash=(_map[t.k]||"/profile/worker"); }} className={"profile-tab-btn f-sans" + (wTab===t.k ? " active" : "")}>{t.l}</button>
             ))}
           </div>
-          {wTab === "wprofile" ? (
-            wProfileMode === "edit" ? (
-              <WorkerProfileEdit me={me} onDone={()=>setWProfileMode("preview")} onCancel={()=>setWProfileMode("preview")} />
-            ) : (
-              <WorkerProfilePreview me={me} onEdit={()=>setWProfileMode("edit")} />
-            )
-          ) : wTab === "applying" ? (
-            <WorkerApplications filter="applying" me={me} />
-          ) : wTab === "approved" ? (
-            <WorkerApplications filter="approved" me={me} />
-          ) : (
-            <div style={{ maxWidth:720 }}>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8, lineHeight:1.7 }}>承認された求人の日程を、ここで確認できます。</p>
-              <CalendarView readOnly={true} />
-              <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の日程表示は今後追加されます。</p>
+          <div className="profile-content">
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
+              {wTab === "wprofile" && wProfileMode === "preview" && (
+                <button onClick={()=>setWProfileMode("edit")} className="f-sans" style={{ background:"#F7F7F7", border:"none", borderRadius:16, padding:"6px 14px", fontSize:13, fontWeight:600, color:"#222", cursor:"pointer" }}>編集</button>
+              )}
             </div>
-          )}
+            {wTab === "wprofile" ? (
+              wProfileMode === "edit" ? (
+                <WorkerProfileEdit me={me} onDone={()=>setWProfileMode("preview")} onCancel={()=>setWProfileMode("preview")} />
+              ) : (
+                <WorkerProfilePreview me={me} onEdit={()=>setWProfileMode("edit")} />
+              )
+            ) : wTab === "applying" ? (
+              <WorkerApplications filter="applying" me={me} />
+            ) : wTab === "approved" ? (
+              <WorkerApplications filter="approved" me={me} />
+            ) : (
+              <div style={{ maxWidth:720 }}>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8, lineHeight:1.7 }}>承認された求人の日程を、ここで確認できます。</p>
+                <CalendarView readOnly={true} />
+                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の日程表示は今後追加されます。</p>
+              </div>
+            )}
+          </div>
           {hasEmployerSide && (
             <button onClick={()=>{ window.location.hash = "/profile/employer"; }}
-              className="f-sans"
+              className="f-sans profile-sidecard"
               style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
                 padding:"16px", marginTop:24, background:"#F7FBF9",
                 border:"1px solid #D8EEE3", borderRadius:12,
@@ -4640,7 +4699,7 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
               <span style={{ fontSize:14, color:"#00A86B" }}>→</span>
             </button>
           )}
-        </>
+        </div>
       ) : (
         <>
           <button onClick={()=>{ window.location.hash = "/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:16 }}>← プロフィールへ</button>
