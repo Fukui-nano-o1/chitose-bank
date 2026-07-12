@@ -5537,42 +5537,47 @@ function JobLocationMap({ lat, lng, radius, label }) {
   const mapRef = useRef(null);
 
   useEffect(() => {
-    if (!ref.current) return;
-    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+    try {
+      if (!ref.current) return;
+      if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
 
-    const r = Number.isFinite(radius) && radius > 0 ? radius : 800;
+      const r = Number.isFinite(radius) && radius > 0 ? radius : 800;
 
-    // 操作を全て無効化する。位置を示すための図であり、地図アプリではない。
-    // モバイルでのスクロール奪取を構造的に防ぐ。
-    const map = L.map(ref.current, {
-      dragging: false,
-      scrollWheelZoom: false,
-      doubleClickZoom: false,
-      touchZoom: false,
-      boxZoom: false,
-      keyboard: false,
-      zoomControl: false,
-      attributionControl: true,
-    });
-    mapRef.current = map;
+      // 操作を全て無効化する。位置を示すための図であり、地図アプリではない。
+      // モバイルでのスクロール奪取を構造的に防ぐ。
+      const map = L.map(ref.current, {
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        touchZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        zoomControl: false,
+        attributionControl: true,
+      });
+      mapRef.current = map;
+      map.setView([lat, lng], 14);
 
-    L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
-      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">国土地理院</a>',
-      maxZoom: 18,
-    }).addTo(map);
+      L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
+        attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">国土地理院</a>',
+        maxZoom: 18,
+      }).addTo(map);
 
-    const circle = L.circle([lat, lng], {
-      radius: r,
-      color: "#00A86B",
-      weight: 2,
-      fillColor: "#00A86B",
-      fillOpacity: 0.15,
-    }).addTo(map);
+      L.circle([lat, lng], {
+        radius: r,
+        color: "#00A86B",
+        weight: 2,
+        fillColor: "#00A86B",
+        fillOpacity: 0.15,
+      }).addTo(map);
 
-    map.fitBounds(circle.getBounds(), { padding: [16, 16] });
+      map.fitBounds(L.latLng(lat, lng).toBounds(r * 2), { padding: [16, 16] });
+    } catch (e) {
+      console.error("JobLocationMap:", e);
+    }
 
-    return () => { map.remove(); mapRef.current = null; };
+    return () => { try { mapRef.current?.remove(); } catch {} mapRef.current = null; };
   }, [lat, lng, radius]);
 
   if (lat == null || lng == null) {
