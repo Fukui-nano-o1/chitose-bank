@@ -4492,7 +4492,7 @@ function WorkerProfileEdit({ me }) {
   );
 }
 
-function WorkerApplications({ filter }) {
+function WorkerApplications({ filter, me }) {
   const [allApps, setAllApps] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -4535,7 +4535,8 @@ function WorkerApplications({ filter }) {
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
-                {(a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
+                {/* 法務ゲート：職安法の届出/許可確認まで当事者間チャットは稼働禁止（CLAUDE.md） */}
+                {isAdmin(me) && (a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
                   <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
                 )}
               </div>
@@ -4606,9 +4607,9 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
           {wTab === "wprofile" ? (
             <WorkerProfileEdit me={me} />
           ) : wTab === "applying" ? (
-            <WorkerApplications filter="applying" />
+            <WorkerApplications filter="applying" me={me} />
           ) : wTab === "approved" ? (
-            <WorkerApplications filter="approved" />
+            <WorkerApplications filter="approved" me={me} />
           ) : (
             <div style={{ maxWidth:480 }}>
               <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8, lineHeight:1.7 }}>承認された求人の日程を、ここで確認できます。</p>
@@ -4838,9 +4839,14 @@ function JobSearchMapView({ onRegister, me }) {
   };
 
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
-  const alreadyApplied = myApplication && myApplication.status === "applied";
-  const applyBtnLabel = applying ? "送信中..." : alreadyApplied ? "応募済み（承認待ち）" : "応募";
-  const applyBtnStyle = alreadyApplied ? { background:"#EBEBEB", color:"#717171" } : {};
+  const myAppStatus = myApplication?.status;
+  const applyBtnDisabled = myAppStatus === "applied" || myAppStatus === "approved" || myAppStatus === "rejected";
+  const applyBtnLabel = applying ? "送信中..."
+    : myAppStatus === "approved" ? "承認されました — 日程調整のご連絡をお待ちください"
+    : myAppStatus === "rejected" ? "今回は見送りとなりました"
+    : myAppStatus === "applied" ? "応募済み（承認待ち）"
+    : "応募";
+  const applyBtnStyle = applyBtnDisabled ? { background:"#EBEBEB", color:"#717171" } : {};
 
   if (!me) {
     return (
@@ -5145,7 +5151,7 @@ function JobSearchMapView({ onRegister, me }) {
               {/* CTAボタン */}
               <button
                 onClick={handleApply}
-                disabled={applying || alreadyApplied}
+                disabled={applying || applyBtnDisabled}
                 className="btn-primary f-sans"
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14, ...applyBtnStyle }}
               >{applyBtnLabel}</button>
@@ -5324,7 +5330,7 @@ function JobSearchMapView({ onRegister, me }) {
           <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
           <button
             onClick={handleApply}
-            disabled={applying || alreadyApplied}
+            disabled={applying || applyBtnDisabled}
             className="btn-primary f-sans"
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
           >{applyBtnLabel}</button>
@@ -5353,7 +5359,7 @@ function JobSearchMapView({ onRegister, me }) {
               )}
               <button
                 onClick={handleApply}
-                disabled={applying || alreadyApplied}
+                disabled={applying || applyBtnDisabled}
                 className="btn-primary f-sans"
                 style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
               >{applyBtnLabel}</button>
@@ -8542,16 +8548,37 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
           </div>
         ) : (
-          dbApplicants.map(a => (
+          dbApplicants.map(a => {
+            const badgeColor = a.status==="approved" ? {bg:"#E6F7EF",fg:"#00A86B"} : a.status==="rejected" ? {bg:"#F5F5F5",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"};
+            return (
             <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-              <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:"#FFF4E0", color:"#C77700" }}>
+              <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:badgeColor.bg, color:badgeColor.fg }}>
                 {a.status==="applied" ? "承認待ち" : a.status==="approved" ? "承認済み" : a.status==="rejected" ? "見送り" : a.status}
               </div>
               <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
-              <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
+              {a.status === "applied" && (
+                <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                  <button onClick={async ()=>{
+                    const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
+                    if (error || !data?.ok) { alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                    setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
+                  }} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
+                  <button onClick={async ()=>{
+                    if (!confirm('この応募を見送りますか？')) return;
+                    const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
+                    if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                    setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
+                  }} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
+                </div>
+              )}
+              {/* 法務ゲート：職安法の届出/許可確認まで当事者間チャットは稼働禁止（CLAUDE.md） */}
+              {isAdmin(me) && (
+                <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
+              )}
             </div>
-          ))
+            );
+          })
         )
       ) : jobTab==="calendar" ? (
         <div style={{ gridColumn:"1/-1", maxWidth:480 }}>
@@ -9947,6 +9974,7 @@ const subDest=useCallback(async d=>{
           <FarmerDashboard
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
+              me={me}
             />)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="jobs"&&<JobSearchMapView onRegister={()=>setTab("login")} me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="input"&&(me
