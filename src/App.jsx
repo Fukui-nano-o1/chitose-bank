@@ -8516,6 +8516,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
   const [dbApplicants, setDbApplicants] = useState([]);
+  const [workerProfiles, setWorkerProfiles] = useState({});
   const [draftsLoading, setDraftsLoading] = useState(true);
   useEffect(() => {
     (async () => {
@@ -8527,7 +8528,18 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: adata, error: aerror } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).in("status",["pending","open"]).order("job_number",{ascending:false});
         if (!aerror && adata) setDbActive(adata);
         const { data: appData, error: appErr } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
-        if (!appErr && appData) setDbApplicants(appData);
+        if (!appErr && appData) {
+          setDbApplicants(appData);
+          const workerIds = [...new Set(appData.map(a => a.worker_id).filter(Boolean))];
+          if (workerIds.length > 0) {
+            const { data: wpData, error: wpErr } = await supabase.from("worker_profiles").select("auth_id,nickname,pr,avatar_url").in("auth_id", workerIds);
+            if (!wpErr && wpData) {
+              const map = {};
+              wpData.forEach(wp => { map[wp.auth_id] = wp; });
+              setWorkerProfiles(map);
+            }
+          }
+        }
       } catch {}
       setDraftsLoading(false);
       try { if (sessionStorage.getItem("cb_afterDraftSave")==="1") { setJobTab("draft"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
@@ -8614,10 +8626,22 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         ) : (
           dbApplicants.map(a => {
             const badgeColor = a.status==="approved" ? {bg:"#E6F7EF",fg:"#00A86B"} : a.status==="rejected" ? {bg:"#F5F5F5",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"};
+            const wp = workerProfiles[a.worker_id];
             return (
             <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
               <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:badgeColor.bg, color:badgeColor.fg }}>
                 {a.status==="applied" ? "承認待ち" : a.status==="approved" ? "承認済み" : a.status==="rejected" ? "見送り" : a.status}
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                <div style={{ width:36, height:36, borderRadius:"50%", background:"#E6F7EF", border:"1px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+                  {wp?.avatar_url ? <img src={wp.avatar_url} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:16 }}>🧑‍🌾</span>}
+                </div>
+                <div style={{ minWidth:0 }}>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{wp?.nickname || "名前未設定"}</p>
+                  {wp?.pr && (
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{wp.pr}</p>
+                  )}
+                </div>
               </div>
               <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
