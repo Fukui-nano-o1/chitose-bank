@@ -8219,7 +8219,7 @@ function ToggleSwitch({ checked, onChange, label }) {
     </div>
   );
 }
-function EmployerProfileEdit({ me }) {
+function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -8372,7 +8372,10 @@ function EmployerProfileEdit({ me }) {
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
-      if (!error) { setSaved(true); setTimeout(()=>setSaved(false), 2000); }
+      if (!error) {
+        setSaved(true);
+        setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
+      }
       else alert("保存に失敗しました：" + error.message);
     } catch { setSaving(false); alert("保存に失敗しました。"); }
   };
@@ -8488,6 +8491,98 @@ function EmployerProfileEdit({ me }) {
         )}
       </div>
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
+      {onCancel && (
+        <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:12, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>キャンセル</button>
+      )}
+    </div>
+  );
+}
+
+function FarmerProfilePreview({ me, onEdit }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        if (ep) setData(ep);
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+  if (loading) return <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
+  const isEmpty = !data || (!data.nickname && !data.pr && !data.avatar_url);
+  const perks = data ? [
+    { on: data.has_transport, label: `🚗送迎あり${data.transport_area ? "（" + data.transport_area + "）" : ""}` },
+    { on: data.has_parking, label: `🅿️駐車場あり${data.parking_capacity ? "（" + data.parking_capacity + "台）" : ""}` },
+    { on: data.has_commute_allowance, label: `💰通勤手当あり${data.commute_allowance_detail ? "（" + data.commute_allowance_detail + "）" : ""}` },
+    { on: data.has_bonus, label: "🎁賞与あり" },
+    { on: data.employer_pays_supplies, label: "🎒持ち物は農家負担" },
+    { on: data.accessory_ok, label: "💍アクセサリーOK" },
+  ].filter(p => p.on) : [];
+  const topics = data ? [
+    { label:"就農するまで", body: data.intro_path },
+    { label:"いま楽しいこと", body: data.intro_joy },
+    { label:"どんな作物を、どんな想いで", body: data.intro_crops },
+    { label:"職場の雰囲気", body: data.intro_atmosphere },
+    { label:"初めての人へのメッセージ", body: data.intro_message },
+  ].filter(t => t.body && t.body.trim()) : [];
+  const comment = data?.owner_comment && data.owner_comment.trim();
+  return (
+    <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>雇い手プロフィール</p>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人詳細で、働き手にこのように表示されます。</p>
+      {isEmpty ? (
+        <div style={{ textAlign:"center", padding:"32px 20px", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:20 }} className="f-sans">
+          <div style={{ fontSize:32, marginBottom:10 }}>🧑‍🌾</div>
+          <p style={{ fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>まだプロフィールがありません。紹介を書くと、働き手に安心して応募してもらいやすくなります。</p>
+        </div>
+      ) : (
+        <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", marginBottom:20 }}>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", marginBottom: perks.length ? 14 : 0 }}>
+            <div style={{ width:56, height:56, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", marginBottom:8 }}>
+              {data.avatar_url ? <img src={data.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:24 }}>🧑‍🌾</span>}
+            </div>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{data.nickname || "農園名未設定"}</p>
+            {data.pr && (
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{data.pr}</p>
+            )}
+          </div>
+          {perks.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {perks.map((p, i) => (
+                <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#00A86B", background:"#E6F7EF", padding:"5px 12px", borderRadius:20 }}>{p.label}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {(topics.length > 0 || comment) && (
+        <div style={{ marginBottom:20 }}>
+          <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
+            {data.nickname ? `${data.nickname}の農園紹介` : "農園紹介"}
+          </h3>
+          {topics.length > 0 && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
+              {topics.map((t, i) => (
+                <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {comment && (
+            <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px" }}>
+              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
+            </div>
+          )}
+        </div>
+      )}
+      <button onClick={onEdit} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>編集する</button>
     </div>
   );
 }
@@ -8518,6 +8613,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [dbApplicants, setDbApplicants] = useState([]);
   const [workerProfiles, setWorkerProfiles] = useState({});
   const [draftsLoading, setDraftsLoading] = useState(true);
+  const [profileMode, setProfileMode] = useState("preview");
   useEffect(() => {
     (async () => {
       try {
@@ -8573,7 +8669,11 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap:20 }}>
       {jobTab==="profile" ? (
-        <EmployerProfileEdit me={me} />
+        profileMode === "edit" ? (
+          <EmployerProfileEdit me={me} onDone={()=>setProfileMode("preview")} onCancel={()=>setProfileMode("preview")} />
+        ) : (
+          <FarmerProfilePreview me={me} onEdit={()=>setProfileMode("edit")} />
+        )
       ) : jobTab==="draft" ? (
         draftsLoading ? (
           <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
