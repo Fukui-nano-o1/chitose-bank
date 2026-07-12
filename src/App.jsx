@@ -4742,6 +4742,19 @@ function JobSearchMapView({ onRegister, me }) {
     })();
     return () => { cancelled = true; };
   }, [selectedJob?.id]);
+  const [myApplication, setMyApplication] = useState(null);
+  useEffect(() => {
+    if (!selectedJob || !me) { setMyApplication(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from('applications').select('id,status')
+          .eq('job_number', selectedJob.id).maybeSingle();
+        if (!cancelled) setMyApplication(data || null);
+      } catch { if (!cancelled) setMyApplication(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedJob?.id, me]);
   const [applying, setApplying] = useState(false);
   const handleApply = async () => {
     if (applying || !selectedJob) return;
@@ -4766,7 +4779,10 @@ function JobSearchMapView({ onRegister, me }) {
       const { data, error } = await supabase.rpc("apply_to_job", { p_job_number: selectedJob.id });
       setApplying(false);
       if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
-      if (data && data.ok) { window.location.hash = "/apply/done"; }
+      if (data && data.ok) {
+        try { if (data.already) sessionStorage.setItem("cb_applyAlready","1"); else sessionStorage.removeItem("cb_applyAlready"); } catch {}
+        window.location.hash = "/apply/done";
+      }
       else if (data && data.reason === "not_logged_in") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); }
       else if (data && data.reason === "own_job") { alert("自分の求人には応募できません。"); }
       else if (data && data.reason === "job_not_open") { alert("この求人は現在募集を受け付けていません。"); }
@@ -4807,6 +4823,9 @@ function JobSearchMapView({ onRegister, me }) {
   };
 
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
+  const alreadyApplied = myApplication && myApplication.status === "applied";
+  const applyBtnLabel = applying ? "送信中..." : alreadyApplied ? "応募済み（承認待ち）" : "応募";
+  const applyBtnStyle = alreadyApplied ? { background:"#EBEBEB", color:"#717171" } : {};
 
   if (!me) {
     return (
@@ -5111,10 +5130,10 @@ function JobSearchMapView({ onRegister, me }) {
               {/* CTAボタン */}
               <button
                 onClick={handleApply}
-                disabled={applying}
+                disabled={applying || alreadyApplied}
                 className="btn-primary f-sans"
-                style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14 }}
-              >{applying ? "送信中..." : "応募"}</button>
+                style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14, ...applyBtnStyle }}
+              >{applyBtnLabel}</button>
               <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
 
               {/* 補足文 */}
@@ -5290,10 +5309,10 @@ function JobSearchMapView({ onRegister, me }) {
           <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
           <button
             onClick={handleApply}
-            disabled={applying}
+            disabled={applying || alreadyApplied}
             className="btn-primary f-sans"
-            style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
-          >{applying ? "送信中..." : "応募"}</button>
+            style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
+          >{applyBtnLabel}</button>
         </div>
       )}
 
@@ -5319,10 +5338,10 @@ function JobSearchMapView({ onRegister, me }) {
               )}
               <button
                 onClick={handleApply}
-                disabled={applying}
+                disabled={applying || alreadyApplied}
                 className="btn-primary f-sans"
-                style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}
-              >{applying ? "送信中..." : "応募"}</button>
+                style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
+              >{applyBtnLabel}</button>
             </div>
           </div>
         </div>
@@ -9442,6 +9461,9 @@ export default function App(){
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
       if (showJobPost && !rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(false); }
       setShowApplyDone(rawHash === "apply/done");
+      if (rawHash === "apply/done") {
+        try { setApplyAlready(sessionStorage.getItem("cb_applyAlready")==="1"); sessionStorage.removeItem("cb_applyAlready"); } catch {}
+      }
       const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
       setChatAppId(_cm ? _cm[1] : null);
       if (rawHash === "account") {
@@ -9480,6 +9502,7 @@ export default function App(){
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
+  const [applyAlready,setApplyAlready]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")==="1");
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
@@ -9876,11 +9899,15 @@ const subDest=useCallback(async d=>{
         ) : showApplyDone ? (
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
             <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
-            <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>応募を受け付けました</h2>
+            <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>{applyAlready ? "この求人には応募済みです" : "応募を受け付けました"}</h2>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:8 }}>
-              これはまだ採用ではありません。<br/>
-              農家が内容を確認し、承認するとお知らせします。<br/>
-              その後、打ち合わせ・面接を経て、契約となります。
+              {applyAlready ? (
+                "農家が内容を確認し、承認するとお知らせします。"
+              ) : (<>
+                これはまだ採用ではありません。<br/>
+                農家が内容を確認し、承認するとお知らせします。<br/>
+                その後、打ち合わせ・面接を経て、契約となります。
+              </>)}
             </p>
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginBottom:28 }}>
               chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。
