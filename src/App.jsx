@@ -5857,6 +5857,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [draftMsg, setDraftMsg] = useState("");
   const [draftBarFull, setDraftBarFull] = useState(false);
   const [draftOverlay, setDraftOverlay] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
@@ -6047,14 +6048,35 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       )}
 
-      {/* 保存して終了ボタン（TODO: 管理者(isAdmin)限定で下書き保存を実装する。現状は保存せず閉じるのみ） */}
+      {/* 終了ボタン（押すと保存して終了／保存せずに終了／キャンセルの3択モーダルを開く） */}
       {!embedded && step !== 12 && step !== 11 && step !== 0 && step !== 6 && (
-        <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{
+        <button onClick={() => setShowExitModal(true)} disabled={draftSaving} className="f-sans" style={{
           position:"absolute", top:step > 0 ? 24 : 16, right:20,
           background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"8px 18px",
           fontSize:13, color:"#222", fontWeight:600, cursor:"pointer", zIndex:2,
           boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>{draftSaving ? "保存中..." : "一時保存して終了"}</button>
+        }}>{draftSaving ? "保存中..." : "終了"}</button>
+      )}
+
+      {/* 終了3択モーダル */}
+      {showExitModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:28, maxWidth:360, width:"100%", boxShadow:"0 8px 40px rgba(0,0,0,0.15)" }}>
+            <h3 className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", marginBottom:20, textAlign:"center" }}>作成を終了しますか？</h3>
+            <div style={{ display:"grid", gap:10 }}>
+              <button onClick={() => { setShowExitModal(false); handleTopSaveExit(); }} disabled={draftSaving} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12 }}>保存して終了</button>
+              <div>
+                <button onClick={() => {
+                  try { localStorage.removeItem('landingFlowDraft_v1'); localStorage.removeItem('postLoginReturnTo'); } catch {}
+                  setShowExitModal(false);
+                  window.location.hash = "/profile/employer";
+                }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12, background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer" }}>保存せずに終了</button>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", marginTop:6 }}>最後に「保存して終了」した内容は残ります</p>
+              </div>
+              <button onClick={() => setShowExitModal(false)} className="f-sans" style={{ width:"100%", padding:"10px", background:"none", border:"none", fontSize:13, color:"#717171", cursor:"pointer" }}>キャンセル</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* スクロール領域 */}
@@ -6384,8 +6406,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </div>
               </div>
             </div>
-            <div style={{ position:"absolute", bottom:24, right:20, zIndex:2 }}>
+            <div style={{ position:"absolute", bottom:24, right:20, zIndex:2, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:10 }}>
               <button onClick={() => setStep(7)} className="btn-primary" style={{ padding:"14px 40px", fontSize:15, fontWeight:700 }}>次へ</button>
+              <button onClick={() => setStep(11)} className="f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, background:"#fff", border:"1px solid #00A86B", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>あとで書く — 確認画面へ進む →</button>
             </div>
           </>)}
 
@@ -7246,10 +7269,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         }}>
           <button onClick={goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
           {!isAutoStep && step !== 11 && (
-            <button onClick={canGoNext ? goNext : undefined} className="btn-primary" style={{
-              padding:"14px 28px", fontSize:15, fontWeight:700,
-              cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
-            }}>次へ →</button>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+              <button onClick={canGoNext ? goNext : undefined} className="btn-primary" style={{
+                padding:"14px 28px", fontSize:15, fontWeight:700,
+                cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
+              }}>次へ →</button>
+              {step >= 7 && step <= 10 && (
+                <button onClick={() => setStep(11)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0 }}>残りをスキップして確認へ →</button>
+              )}
+            </div>
           )}
         </div>
       )}
