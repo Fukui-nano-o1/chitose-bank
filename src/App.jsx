@@ -65,6 +65,16 @@ async function geocodeTown(prefecture, city, town) {
   }
 }
 
+// ハンバーガーメニュー。項目の追加・削除はこの配列を編集するだけでよい。
+// auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
+const MENU_ITEMS = [
+  { key:"profile", label:"プロフィール", hash:"/profile", auth:true  },
+  { key:"charter", label:"運営憲章",     hash:"/charter", auth:false },
+  { key:"terms",   label:"利用規約",     hash:"/terms",   auth:false },
+  { key:"privacy", label:"プライバシー", hash:"/privacy", auth:false },
+  { key:"login",   label:"ログイン",     hash:"/login",   auth:false, guestOnly:true },
+];
+
 // ══════════════════════════════════════════════════════════
 // DESIGN SYSTEM — 「台帳の美学」
 // 和紙と墨、金泥で書かれた帳簿を現代に翻訳する
@@ -430,6 +440,19 @@ input:focus { outline: none; }
   header { padding: 0 16px !important; height: 52px !important; }
   main { padding: 10px 12px 90px !important; }
   .ledger-card { padding: 16px !important; }
+}
+
+.app-header {
+  position: sticky; top: 0; z-index: 20;
+  background: #fff; border-bottom: 1px solid #EBEBEB;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 64px;
+}
+@media (max-width: 768px) {
+  .app-header { display: none !important; }
+}
+@media (min-width: 769px) {
+  .bottom-tab-bar { display: none !important; }
 }
 
 /* ── Job search layout ── */
@@ -9454,6 +9477,7 @@ export default function App(){
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
   const [showPrivacy,setShowPrivacy]=useState(false);
@@ -9496,6 +9520,12 @@ export default function App(){
     document.addEventListener('mousedown',close);
     return()=>document.removeEventListener('mousedown',close);
   },[showNotifs]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = () => setMenuOpen(false);
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
+  }, [menuOpen]);
 
   useEffect(()=>{(async()=>{
     const { data, error } = await supabase.rpc('public_farmers_count');
@@ -9530,7 +9560,7 @@ export default function App(){
         f = [loggedIn];
         setMe({ ...loggedIn, id: session.user.id });
         const _onNewJobFlow = (() => { const h = window.location.hash.replace(/^#\/?/, ""); return h === "work/new" || h.startsWith("work/new/"); })();
-        if (!initialHashTab && !_onNewJobFlow) setTab("profile"); // hash無しの時はプロフィールへ（しごとタブ廃止・アクションベース化）
+        if (!initialHashTab && !_onNewJobFlow) setTab("search"); // hash無しの時はさがすへ（デフォルトタブ）
       }
       const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
       if (dbRecs) {
@@ -9738,6 +9768,68 @@ const subDest=useCallback(async d=>{
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
       <style>{CSS}</style>
+
+      {/* ── PC HEADER ── */}
+      <header className="app-header">
+        <button onClick={() => { setTab("search"); window.location.hash = "/search"; }}
+          style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
+                   fontSize:17, fontWeight:800, color:"#00A86B", padding:0 }}>
+          🥦 chitose-bank
+        </button>
+
+        <div style={{ display:"flex", alignItems:"center", gap:12, position:"relative" }}>
+          <button onClick={() => { window.location.hash = "/work/new"; }}
+            className="f-sans"
+            style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
+                     fontSize:14, fontWeight:600, color:"#222", padding:"8px 14px", borderRadius:20 }}>
+            求人を出す
+          </button>
+
+          <button onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
+            aria-label="メニュー"
+            style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
+                     background:"#fff", border:"1px solid #EBEBEB", borderRadius:24,
+                     padding:"6px 8px 6px 12px", fontFamily:"inherit" }}>
+            <span style={{ fontSize:14, lineHeight:1 }}>☰</span>
+            <span style={{ width:28, height:28, borderRadius:"50%", background:"#F7F7F7",
+                           display:"flex", alignItems:"center", justifyContent:"center",
+                           fontSize:12, color:"#717171", overflow:"hidden" }}>
+              {me?.avatar_url
+                ? <img src={me.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                : "👤"}
+            </span>
+          </button>
+
+          {menuOpen && (
+            <div style={{ position:"absolute", top:52, right:0, minWidth:200, background:"#fff",
+                          border:"1px solid #EBEBEB", borderRadius:12,
+                          boxShadow:"0 4px 16px rgba(0,0,0,.08)", padding:"8px 0", zIndex:30 }}>
+              {MENU_ITEMS
+                .filter(item => (item.auth ? !!me : true) && (item.guestOnly ? !me : true))
+                .map(item => (
+                  <button key={item.key}
+                    onClick={() => { setMenuOpen(false); window.location.hash = item.hash; }}
+                    className="f-sans"
+                    style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                             border:"none", cursor:"pointer", fontFamily:"inherit",
+                             fontSize:14, color:"#222", padding:"10px 16px" }}>
+                    {item.label}
+                  </button>
+                ))}
+              {me && (
+                <button onClick={() => { setMenuOpen(false); handleLogout(); }}
+                  className="f-sans"
+                  style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                           border:"none", cursor:"pointer", fontFamily:"inherit",
+                           fontSize:14, color:"#E24B4A", padding:"10px 16px",
+                           borderTop:"1px solid #EBEBEB", marginTop:4 }}>
+                  ログアウト
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </header>
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       {TABS.length>1&&<div className="bottom-tab-bar">
