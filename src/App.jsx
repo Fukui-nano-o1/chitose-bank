@@ -4519,6 +4519,24 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
     { k:"approved",  l:"承認済み" },
     { k:"wcalendar", l:"カレンダー" },
   ];
+  const [hasEmployerSide, setHasEmployerSide] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || cancelled) return;
+        const { count } = await supabase.from("jobs")
+          .select("job_number", { count: "exact", head: true })
+          .eq("farmer_id", session.user.id);
+        if (!cancelled && (count || 0) > 0) { setHasEmployerSide(true); return; }
+        const { data: ep } = await supabase.from("employer_profiles")
+          .select("auth_id").eq("auth_id", session.user.id).maybeSingle();
+        if (!cancelled && ep) setHasEmployerSide(true);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
   return (
     <div style={{maxWidth:480,margin:"0 auto",padding:"32px 24px"}}>
       {pTab === "worker" ? (
@@ -4546,20 +4564,22 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
               <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の日程表示は今後追加されます。</p>
             </div>
           )}
-          <button onClick={()=>{ window.location.hash = "/profile/employer"; }}
-            className="f-sans"
-            style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
-              padding:"16px", marginTop:24, background:"#F7FBF9",
-              border:"1px solid #D8EEE3", borderRadius:12,
-              boxShadow:"0 2px 8px rgba(0,0,0,.06)", cursor:"pointer", textAlign:"left" }}>
-            <span>
-              <span style={{ fontSize:15, fontWeight:700, color:"#00A86B" }}>🌱 あなたの求人</span>
-              <span style={{ fontSize:11, color:"#717171", display:"block", marginTop:2 }}>
-                求人の作成・応募者の確認・農園プロフィール
+          {hasEmployerSide && (
+            <button onClick={()=>{ window.location.hash = "/profile/employer"; }}
+              className="f-sans"
+              style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
+                padding:"16px", marginTop:24, background:"#F7FBF9",
+                border:"1px solid #D8EEE3", borderRadius:12,
+                boxShadow:"0 2px 8px rgba(0,0,0,.06)", cursor:"pointer", textAlign:"left" }}>
+              <span>
+                <span style={{ fontSize:15, fontWeight:700, color:"#00A86B" }}>🌱 あなたの求人</span>
+                <span style={{ fontSize:11, color:"#717171", display:"block", marginTop:2 }}>
+                  求人の作成・応募者の確認・農園プロフィール
+                </span>
               </span>
-            </span>
-            <span style={{ fontSize:14, color:"#00A86B" }}>→</span>
-          </button>
+              <span style={{ fontSize:14, color:"#00A86B" }}>→</span>
+            </button>
+          )}
         </>
       ) : (
         <>
