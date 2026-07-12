@@ -4306,7 +4306,7 @@ function ChatView({ applicationId, onBack }) {
   );
 }
 
-function WorkerProfileEdit({ me }) {
+function WorkerProfileEdit({ me, onDone, onCancel }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -4406,7 +4406,10 @@ function WorkerProfileEdit({ me }) {
       if (!session) { setSaving(false); return; }
       const { error } = await supabase.from("worker_profiles").upsert({ auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(), updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       setSaving(false);
-      if (!error) { setSaved(true); setTimeout(()=>setSaved(false), 2000); }
+      if (!error) {
+        setSaved(true);
+        setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
+      }
       else alert("保存に失敗しました：" + error.message);
     } catch { setSaving(false); alert("保存に失敗しました。"); }
   };
@@ -4435,6 +4438,54 @@ function WorkerProfileEdit({ me }) {
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>自己紹介・PR</label>
       <textarea value={pr} onChange={e=>setPr(e.target.value)} placeholder="農作業の経験や、意気込みなど" rows={4} className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }} />
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
+      {onCancel && (
+        <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:12, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>キャンセル</button>
+      )}
+    </div>
+  );
+}
+
+function WorkerProfilePreview({ me, onEdit }) {
+  const [nickname, setNickname] = useState("");
+  const [pr, setPr] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const { data } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        if (data) { setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || ""); }
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+  if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
+  const isEmpty = !nickname && !pr && !avatarUrl;
+  return (
+    <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>働き手プロフィール</p>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>応募したとき、農家にこのように表示されます。</p>
+      {isEmpty ? (
+        <div style={{ textAlign:"center", padding:"32px 20px", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:20 }} className="f-sans">
+          <div style={{ fontSize:32, marginBottom:10 }}>🧑‍🌾</div>
+          <p style={{ fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>まだプロフィールがありません。自己紹介を書くと、応募が承認されやすくなります。</p>
+        </div>
+      ) : (
+        <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", marginBottom:20 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom: pr ? 16 : 0 }}>
+            <div style={{ width:56, height:56, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+              {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:24 }}>🧑‍🌾</span>}
+            </div>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{nickname || "名前未設定"}</p>
+          </div>
+          {pr && (
+            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{pr}</p>
+          )}
+        </div>
+      )}
+      <button onClick={onEdit} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>編集する</button>
     </div>
   );
 }
@@ -4512,6 +4563,7 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
     return "wprofile";
   };
   const [wTab, setWTab] = useState(() => { try { return hashToWTab(); } catch { return "wprofile"; } });
+  const [wProfileMode, setWProfileMode] = useState("preview");
   useEffect(() => {
     const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); };
     window.addEventListener("hashchange", onHash);
@@ -4556,7 +4608,11 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
             ))}
           </div>
           {wTab === "wprofile" ? (
-            <WorkerProfileEdit me={me} />
+            wProfileMode === "edit" ? (
+              <WorkerProfileEdit me={me} onDone={()=>setWProfileMode("preview")} onCancel={()=>setWProfileMode("preview")} />
+            ) : (
+              <WorkerProfilePreview me={me} onEdit={()=>setWProfileMode("edit")} />
+            )
           ) : wTab === "applying" ? (
             <WorkerApplications filter="applying" me={me} />
           ) : wTab === "approved" ? (
