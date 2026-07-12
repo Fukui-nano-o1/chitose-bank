@@ -8325,13 +8325,23 @@ function EmployerProfileEdit({ me }) {
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
         <div><ToggleSwitch label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
-      <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB", paddingTop:16 }}>
-        <button type="button" onClick={()=>setIntroOpen(o=>!o)} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:0, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#222" }}>
-          <span>農園の紹介を書く（任意・あとからでも書けます）</span>
-          <span style={{ fontSize:11, color:"#717171" }}>{introOpen ? "▲" : "▼"}</span>
+      <div style={{ marginBottom:16 }}>
+        <button type="button" onClick={()=>setIntroOpen(o=>!o)} className="f-sans" style={{
+          width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
+          padding:"16px", background:"#F7FBF9",
+          border:"1px solid #D8EEE3", borderRadius: introOpen ? "12px 12px 0 0" : 12,
+          boxShadow:"0 2px 8px rgba(0,0,0,.06)",
+          cursor:"pointer", fontFamily:"inherit", textAlign:"left",
+          marginTop:20,
+        }}>
+          <span>
+            <span style={{ fontSize:15, fontWeight:700, color:"#00A86B" }}>📝 農園の紹介を書く</span>
+            <span style={{ fontSize:11, color:"#717171", display:"block", marginTop:2 }}>任意・あとからでも書けます</span>
+          </span>
+          <span style={{ fontSize:14, color:"#00A86B" }}>{introOpen ? "▲" : "▼"}</span>
         </button>
         {introOpen && (
-          <div style={{ marginTop:16 }}>
+          <div style={{ border:"1px solid #D8EEE3", borderTop:"none", borderRadius:"0 0 12px 12px", padding:"16px", background:"#fff" }}>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>従業員数（任意）</label>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
               <input type="number" value={staffCount} onChange={e=>setStaffCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
