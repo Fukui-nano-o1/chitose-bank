@@ -1441,7 +1441,7 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
 
   return (
     <div className="fade-in" style={{ minHeight:"80vh", padding:"28px 24px 64px" }}>
-      <div style={{ width:"100%", maxWidth:480, margin:"0 auto" }}>
+      <div style={{ width:"100%", maxWidth:640, margin:"0 auto" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
           <div className="f-sans" style={{ fontSize:20, fontWeight:700, color:C.ink }}>新規登録①：本人情報の入力</div>
@@ -4538,7 +4538,7 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
     return () => { cancelled = true; };
   }, []);
   return (
-    <div style={{maxWidth:480,margin:"0 auto",padding:"32px 24px"}}>
+    <div style={{maxWidth:720,margin:"0 auto",padding:"32px 24px"}}>
       {pTab === "worker" ? (
         <>
           <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", flexWrap:"wrap" }}>
@@ -4558,7 +4558,7 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
           ) : wTab === "approved" ? (
             <WorkerApplications filter="approved" me={me} />
           ) : (
-            <div style={{ maxWidth:480 }}>
+            <div style={{ maxWidth:720 }}>
               <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8, lineHeight:1.7 }}>承認された求人の日程を、ここで確認できます。</p>
               <CalendarView readOnly={true} />
               <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の日程表示は今後追加されます。</p>
@@ -8289,7 +8289,7 @@ function EmployerProfileEdit({ me }) {
   };
   if (loading) return <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
   return (
-    <div style={{ gridColumn:"1/-1", maxWidth:480 }}>
+    <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>雇い手プロフィール</p>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に掲載したとき、働き手に伝わる紹介です。任意で入力できます。</p>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>
@@ -9898,7 +9898,7 @@ const subDest=useCallback(async d=>{
       </div>}
 
       {/* ── MAIN ── */}
-      <main style={{maxWidth:920,margin:"0 auto",padding:"16px 24px 72px"}}>
+      <main style={{maxWidth:1200,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
         {(needsAccountHolder || openAccountForm) ? (
           <AccountHolderForm onDone={()=>{
