@@ -9567,6 +9567,10 @@ export default function App(){
         setMe({ ...loggedIn, id: session.user.id });
         const _onNewJobFlow = (() => { const h = window.location.hash.replace(/^#\/?/, ""); return h === "work/new" || h.startsWith("work/new/"); })();
         if (!initialHashTab && !_onNewJobFlow) setTab("search"); // hash無しの時はさがすへ（デフォルトタブ）
+      } else {
+        // farmers行なし＝働き手または初回。最小形の me でログインさせる（段階1と同じ形）。
+        // account_holders未登録ならneedsAccountHolderゲートが後段で①フォームを自動表示する。
+        setMe({ id: session.user.id, email: session.user.email || "", name: "", isWorker: true });
       }
       const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
       if (dbRecs) {
