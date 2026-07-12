@@ -4519,22 +4519,8 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
     { k:"approved",  l:"承認済み" },
     { k:"wcalendar", l:"カレンダー" },
   ];
-  const P_TABS = [
-    { k:"worker",   l:"働き手として" },
-    { k:"employer", l:"雇い手として" },
-  ];
   return (
     <div style={{maxWidth:480,margin:"0 auto",padding:"32px 24px"}}>
-      <div style={{ display:"flex", gap:8, marginBottom:24, borderBottom:"1px solid #EEE" }}>
-        {P_TABS.map(t => (
-          <button key={t.k} onClick={()=>{ window.location.hash = t.k==="employer" ? "/profile/employer" : "/profile/worker"; }} className="f-sans" style={{
-            padding:"10px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
-            fontSize:14, fontWeight: pTab===t.k ? 700 : 400,
-            color: pTab===t.k ? "#222" : "#999",
-            borderBottom: pTab===t.k ? "2px solid #00A86B" : "2px solid transparent",
-          }}>{t.l}</button>
-        ))}
-      </div>
       {pTab === "worker" ? (
         <>
           <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", flexWrap:"wrap" }}>
@@ -4560,9 +4546,24 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
               <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の日程表示は今後追加されます。</p>
             </div>
           )}
+          <button onClick={()=>{ window.location.hash = "/profile/employer"; }}
+            className="f-sans"
+            style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
+              padding:"16px", marginTop:24, background:"#F7FBF9",
+              border:"1px solid #D8EEE3", borderRadius:12,
+              boxShadow:"0 2px 8px rgba(0,0,0,.06)", cursor:"pointer", textAlign:"left" }}>
+            <span>
+              <span style={{ fontSize:15, fontWeight:700, color:"#00A86B" }}>🌱 あなたの求人</span>
+              <span style={{ fontSize:11, color:"#717171", display:"block", marginTop:2 }}>
+                求人の作成・応募者の確認・農園プロフィール
+              </span>
+            </span>
+            <span style={{ fontSize:14, color:"#00A86B" }}>→</span>
+          </button>
         </>
       ) : (
         <>
+          <button onClick={()=>{ window.location.hash = "/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:16 }}>← プロフィールへ</button>
           {me&&!me.isWorker&&me.status==="pending"&&(
             <div className="f-sans" style={{margin:"0 auto 16px",padding:"14px 18px",background:"#FFF8E7",border:"1px solid #F5D98F",borderRadius:12,fontSize:13,color:"#8A6D1D",lineHeight:1.7}}>
               🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
