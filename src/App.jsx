@@ -4724,6 +4724,21 @@ function JobSearchMapView({ onRegister, me }) {
     if (found) { setSelectedJob(found); clearApplyReturn(); return; }
     if (dbJobs && dbJobs.length > 0) clearApplyReturn();
   }, [dbJobs]);
+  useEffect(() => {
+    const onHash = () => {
+      const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
+      if (!m) { setSelectedJob(null); return; }
+      const jn = parseInt(m[1],10);
+      const found = jobList.find(j => j.id === jn);
+      if (found) setSelectedJob(found);
+    };
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("popstate", onHash);
+    };
+  }, [jobList]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [reviewSort, setReviewSort] = useState("new");
   const [showAllReviews, setShowAllReviews] = useState(false);
