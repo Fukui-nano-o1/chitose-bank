@@ -17,6 +17,52 @@ const disp = (v) => {
   return s === "" ? EMPTY_MARK : s;
 };
 
+// 国土地理院 住所検索API（APIキー不要・無料）
+// 町域レベルの重心を返す。番地を渡してはならない。
+async function geocodeTown(prefecture, city, town) {
+  const q = `${prefecture || ""}${city || ""}${town || ""}`.trim();
+  if (!q) return null;
+  try {
+    const res = await fetch(
+      "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q)
+    );
+    if (!res.ok) return null;
+    const features = await res.json();
+    if (!Array.isArray(features) || features.length === 0) return null;
+
+    // 検索語で始まる結果のみを採用する（無関係な一致を排除）
+    const hits = features.filter(f => (f?.properties?.title || "").startsWith(q));
+    const use = hits.length > 0 ? hits : features;
+
+    // 全点の重心を取る（先頭1件を採用しない）
+    const pts = use
+      .map(f => f?.geometry?.coordinates)
+      .filter(c => Array.isArray(c) && c.length === 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]));
+    if (pts.length === 0) return null;
+
+    const lng = pts.reduce((s, c) => s + c[0], 0) / pts.length;
+    const lat = pts.reduce((s, c) => s + c[1], 0) / pts.length;
+
+    // 重心から最も遠い点までの距離を半径にする（町域の広がりを円が覆う）
+    // 緯度1度≒111km、経度1度≒111km×cos(緯度)
+    const mPerLat = 111000;
+    const mPerLng = 111000 * Math.cos((lat * Math.PI) / 180);
+    let maxDist = 0;
+    for (const c of pts) {
+      const dx = (c[0] - lng) * mPerLng;
+      const dy = (c[1] - lat) * mPerLat;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > maxDist) maxDist = d;
+    }
+    // 最小500m・最大3000mに収める（1点しか返らない場合の下限を確保）
+    const radius = Math.round(Math.min(Math.max(maxDist, 500), 3000));
+
+    return { lat, lng, radius, from: q };
+  } catch {
+    return null;
+  }
+}
+
 // ══════════════════════════════════════════════════════════
 // DESIGN SYSTEM — 「台帳の美学」
 // 和紙と墨、金泥で書かれた帳簿を現代に翻訳する
@@ -4631,7 +4677,9 @@ function JobSearchMapView({ onRegister }) {
             region: [j.prefecture, j.city, j.town].filter(Boolean).join("") || "",
             experience: j.job_exp || "未経験可",
             icon: "🌾",
-            lat: 34.05, lng: 134.23,
+            lat:    j.lat != null ? Number(j.lat) : null,
+            lng:    j.lng != null ? Number(j.lng) : null,
+            radius: j.geo_radius_m != null ? Number(j.geo_radius_m) : null,
             count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
             nearestStation: j.nearest_station || "", workTime: j.work_time || "",
             breakTime: j.break_time || "",
@@ -5742,42 +5790,49 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     } catch {}
   };
 
-  const buildJobPayload = (authUid, statusVal = "pending") => ({
-    farmer_id:       authUid,
-    crop:            farmerCrop,
-    task:            farmerTask,
-    zip:             farmerZip,
-    prefecture:      farmerPref,
-    city:            farmerCity,
-    town:            farmerTown,
-    address:         farmerAddr,
-    date_label:      jobDateLabel,
-    date_start:      jobDateStart ? jobDateStart.toISOString().slice(0,10) : null,
-    date_end:        jobDateEnd ? jobDateEnd.toISOString().slice(0,10) : null,
-    headcount:       Number(jobCount) || null,
-    pay_type:        hourlyWage > 0 ? "時給" : "日給",
-    hourly_wage:     hourlyWageInput,
-    daily_wage:      dailyWageInput,
-    work_time:       workTimeLabel,
-    break_time:      breakTime,
-    nearest_station: nearestStation,
-    commute_time:    commuteTime,
-    job_exp:         jobExp,
-    notes:           jobDescription,
-    belongings:      jobNotes,
-    cautions:        jobCautions,
-    danger_places:   jobDangerPlaces,
-    danger_tasks:    jobDangerTasks,
-    photos:          jobPhotos,
-    draft_step:      step,
-    status:          statusVal,
-  });
+  const buildJobPayload = async (authUid, statusVal = "pending") => {
+    const geo = await geocodeTown(farmerPref, farmerCity, farmerTown);
+    return {
+      farmer_id:       authUid,
+      crop:            farmerCrop,
+      task:            farmerTask,
+      zip:             farmerZip,
+      prefecture:      farmerPref,
+      city:            farmerCity,
+      town:            farmerTown,
+      address:         farmerAddr,
+      date_label:      jobDateLabel,
+      date_start:      jobDateStart ? jobDateStart.toISOString().slice(0,10) : null,
+      date_end:        jobDateEnd ? jobDateEnd.toISOString().slice(0,10) : null,
+      headcount:       Number(jobCount) || null,
+      pay_type:        hourlyWage > 0 ? "時給" : "日給",
+      hourly_wage:     hourlyWageInput,
+      daily_wage:      dailyWageInput,
+      work_time:       workTimeLabel,
+      break_time:      breakTime,
+      nearest_station: nearestStation,
+      commute_time:    commuteTime,
+      job_exp:         jobExp,
+      notes:           jobDescription,
+      belongings:      jobNotes,
+      cautions:        jobCautions,
+      danger_places:   jobDangerPlaces,
+      danger_tasks:    jobDangerTasks,
+      photos:          jobPhotos,
+      draft_step:      step,
+      status:          statusVal,
+      lat:             geo ? geo.lat : null,
+      lng:             geo ? geo.lng : null,
+      geo_radius_m:    geo ? geo.radius : null,
+      geocoded_from:   geo ? geo.from : null,
+    };
+  };
 
   const saveDraftToSupabase = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return { ok:false, reason:"no_session" };
-      const payload = buildJobPayload(session.user.id, "draft");
+      const payload = await buildJobPayload(session.user.id, "draft");
       if (draftJobNumber) {
         const { error } = await supabase.from("jobs").update(payload).eq("job_number", draftJobNumber).eq("farmer_id", session.user.id);
         if (error) return { ok:false, reason:error.message };
@@ -6627,11 +6682,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 let _jn = draftJobNumber;
                 if (!_jn) { try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _jn = _d.job_number ?? null; } catch {} }
                 let error;
+                const payload = await buildJobPayload(session.user.id, "pending");
                 if (_jn) {
-                  const r = await supabase.from("jobs").update(buildJobPayload(session.user.id, "pending")).eq("job_number", _jn).eq("farmer_id", session.user.id);
+                  const r = await supabase.from("jobs").update(payload).eq("job_number", _jn).eq("farmer_id", session.user.id);
                   error = r.error;
                 } else {
-                  const r = await supabase.from("jobs").insert(buildJobPayload(session.user.id, "pending")).select("job_number").single();
+                  const r = await supabase.from("jobs").insert(payload).select("job_number").single();
                   error = r.error;
                   if (!error && r.data) setDraftJobNumber(r.data.job_number);
                 }
