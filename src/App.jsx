@@ -3,6 +3,8 @@ const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Terms, { TERMS_ARTICLES } from "./Terms.jsx";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const APPLY_RETURN_KEY = 'applyReturnJob';
 const peekApplyReturn  = () => { try { return localStorage.getItem(APPLY_RETURN_KEY); } catch { return null; } };
@@ -5095,32 +5097,14 @@ function JobSearchMapView({ onRegister }) {
             </div>
           </div>
 
-          {/* 地図（単一ピン・2カラムの外で全幅） */}
-          <div style={{
-            width:"100%", position:"relative", borderRadius:16, overflow:"hidden",
-            height:480, border:"1px solid #EBEBEB", marginBottom:100,
-            background:"linear-gradient(145deg, #c8e6c9 0%, #a5d6a7 35%, #88c98a 65%, #b2dfb4 100%)",
-          }}>
-            {/* 道路（ダミー） */}
-            <div style={{ position:"absolute", top:"43%", left:0, right:0, height:3, background:"rgba(255,255,255,0.55)", transform:"rotate(-2deg)" }} />
-            <div style={{ position:"absolute", top:"22%", left:"15%", right:"5%", height:2, background:"rgba(255,255,255,0.4)", transform:"rotate(7deg)" }} />
-            <div style={{ position:"absolute", top:0, bottom:0, left:"40%", width:2, background:"rgba(255,255,255,0.4)", transform:"rotate(1deg)" }} />
-            <div style={{ position:"absolute", top:"60%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-5deg)" }} />
-            {/* 地名ラベル */}
-            <div style={{ position:"absolute", top:8, left:8, padding:"3px 8px", background:"rgba(255,255,255,0.85)", borderRadius:8 }}>
-              <span className="f-sans" style={{ fontSize:9, color:"#555" }}>吉野川流域・徳島県</span>
-            </div>
-            {/* ピン（単一・selectedJobのみ） */}
-            <div style={{
-              position:"absolute", left:pinX(selectedJob.lng), top:pinY(selectedJob.lat),
-              transform:"translate(-50%, -100%)",
-              background:"#00A86B", color:"#fff",
-              border:"2px solid #00A86B", borderRadius:20,
-              padding:"4px 9px", fontSize:11, fontWeight:700,
-              whiteSpace:"nowrap",
-              boxShadow:"0 2px 6px rgba(0,0,0,0.18)",
-              fontFamily:"'DM Mono',monospace",
-            }}>{pinLabel(selectedJob)}</div>
+          {/* 地図（集合場所のおおよその範囲・円のみ） */}
+          <div style={{ width:"100%", marginBottom:100 }}>
+            <JobLocationMap
+              lat={selectedJob.lat}
+              lng={selectedJob.lng}
+              radius={selectedJob.radius}
+              label={selectedJob.region}
+            />
           </div>
 
           {/* 開催期間カレンダー（地図の下・全幅・PCのみ表示。スマホはフッター📅からモーダル） */}
@@ -5544,6 +5528,70 @@ function LFFakeFilterRow() {
 function buildGoogleMapsUrl(region) {
   const query = `${region || "徳島県吉野川市"} 周辺`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+// 集合場所の地図。円のみを描き、ピンは立てない。
+// 座標は町域レベルの重心であり、番地は特定できない。
+function JobLocationMap({ lat, lng, radius, label }) {
+  const ref = useRef(null);
+  const mapRef = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+
+    const r = Number.isFinite(radius) && radius > 0 ? radius : 800;
+
+    // 操作を全て無効化する。位置を示すための図であり、地図アプリではない。
+    // モバイルでのスクロール奪取を構造的に防ぐ。
+    const map = L.map(ref.current, {
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      touchZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      zoomControl: false,
+      attributionControl: true,
+    });
+    mapRef.current = map;
+
+    L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">国土地理院</a>',
+      maxZoom: 18,
+    }).addTo(map);
+
+    const circle = L.circle([lat, lng], {
+      radius: r,
+      color: "#00A86B",
+      weight: 2,
+      fillColor: "#00A86B",
+      fillOpacity: 0.15,
+    }).addTo(map);
+
+    map.fitBounds(circle.getBounds(), { padding: [16, 16] });
+
+    return () => { map.remove(); mapRef.current = null; };
+  }, [lat, lng, radius]);
+
+  if (lat == null || lng == null) {
+    return (
+      <div className="f-sans" style={{ padding:"24px", textAlign:"center", background:"#F7F7F7", borderRadius:12, fontSize:13, color:"#717171" }}>
+        地図は準備中です
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div ref={ref} style={{ width:"100%", height:240, borderRadius:12, overflow:"hidden" }} />
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
+        {label ? label + "のおおよその範囲です。" : "おおよその範囲です。"}
+        正確な集合場所は、応募を承認した方にのみお伝えします
+      </p>
+    </div>
+  );
 }
 
 // ── LandingFlow ──────────────────────────────────────────────
