@@ -24,9 +24,12 @@ const disp = (v) => {
 async function geocodeTown(prefecture, city, town) {
   const q = `${prefecture || ""}${city || ""}${town || ""}`.trim();
   if (!q) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 4000);
   try {
     const res = await fetch(
-      "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q)
+      "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q),
+      { signal: ctrl.signal }
     );
     if (!res.ok) return null;
     const features = await res.json();
@@ -62,6 +65,8 @@ async function geocodeTown(prefecture, city, town) {
     return { lat, lng, radius, from: q };
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
