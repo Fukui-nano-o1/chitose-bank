@@ -5906,6 +5906,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   };
   const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
   const [jobSaving, setJobSaving] = useState(false);
+  const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
@@ -7109,15 +7110,40 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{periodLabel}</span>
                   </div>
                   <ConfCalendar />
+                  {/* 掲載前チェックリスト（「読ませたい塊」単位・4項目） */}
+                  <div style={{ marginBottom:6 }}>
+                    <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
+                    {[
+                      "報酬・勤務時間・休憩の内容に間違いはありません",
+                      "危険な場所・作業は、漏れなく記載しました（該当が無いことを確認しました）",
+                      "日程・場所・人数は、実際に働いていただける内容です",
+                      "記載内容は事実です。掲載には運営の審査があることに同意します",
+                    ].map((text, i) => (
+                      <label key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"8px 0", cursor:"pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={publishChecks[i]}
+                          onChange={() => setPublishChecks(prev => prev.map((v, idx) => idx === i ? !v : v))}
+                          style={{ marginTop:3, width:18, height:18, flexShrink:0, accentColor:"#00A86B", cursor:"pointer" }}
+                        />
+                        <span className="f-sans" style={{ fontSize:14, color: publishChecks[i] ? "#00A86B" : "#222", lineHeight:1.6 }}>
+                          {publishChecks[i] ? "✓ " : ""}{text}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                   {/* 保存ボタン */}
                   <button
                     onClick={handleSaveJob}
-                    disabled={jobSaving}
+                    disabled={jobSaving || !publishChecks.every(Boolean)}
                     className="btn-primary"
-                    style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginBottom:10 }}
+                    style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginBottom:10, ...(!publishChecks.every(Boolean) ? { background:"#EBEBEB", color:"#717171" } : {}) }}
                   >
                     {jobSaving ? "保存中..." : "掲載する"}
                   </button>
+                  {!publishChecks.every(Boolean) && (
+                    <p style={{ fontSize:11, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
+                  )}
                   <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
                   <button
                     onClick={handleSaveDraft}
