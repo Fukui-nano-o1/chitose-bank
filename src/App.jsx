@@ -221,6 +221,9 @@ async function sSet(k,v){try{await window.storage.set(k,JSON.stringify(v),true);
 const cn  = n => Math.round(n).toLocaleString("ja-JP");
 const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/1000)/10).toFixed(1)+"万":cn(a); };
 function uid(){ return Math.random().toString(36).slice(2,9); }
+// 日付キー（YYYY-MM-DD）はローカル整形で統一する。toISOString().slice(0,10)は
+// UTC変換を経るため、JST等UTC+の地域では日付が前日にズレる（date_start保存バグの原因）
+const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
 
 function toKatakana(str) {
@@ -4197,7 +4200,8 @@ function calcMaxPay(job) {
 // 読み書き両用カレンダー（モジュールレベル・入力側と詳細表示側で共有）
 function CalendarView({ start, end, readOnly = false, onSelect }) {
   const WD_CV = ["日","月","火","水","木","金","土"];
-  const isSameDayCV = (a, b) => a && b && a.toDateString() === b.toDateString();
+  const isSameDayCV = (a, b) => a && b && ymdLocal(a) === ymdLocal(b);
+  const todayYmdCV = ymdLocal(new Date());
   const initY = start ? start.getFullYear() : new Date().getFullYear();
   const initM = start ? start.getMonth() : new Date().getMonth();
   const [cvYear, setCvYear] = useState(initY);
@@ -4241,12 +4245,14 @@ function CalendarView({ start, end, readOnly = false, onSelect }) {
               const isStart = isSameDayCV(dt, start);
               const isEnd = isSameDayCV(dt, end2);
               const inRange = start && end2 && dt > start && dt < end2;
+              const isToday = ymdLocal(dt) === todayYmdCV;
               return (
                 <div key={dd} style={{
                   padding:"5px 2px", borderRadius:6, fontSize:13, textAlign:"center",
                   background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
                   color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
                   fontWeight: (isStart||isEnd) ? 700 : 400,
+                  boxShadow: isToday && !(isStart||isEnd) ? "inset 0 0 0 1.5px #00A86B" : "none",
                 }}>{dd}</div>
               );
             })}
@@ -4289,12 +4295,14 @@ function CalendarView({ start, end, readOnly = false, onSelect }) {
           const isStart = isSameDayCV(dt, start);
           const isEnd = isSameDayCV(dt, end);
           const inRange = start && end && dt > start && dt < end;
+          const isToday = ymdLocal(dt) === todayYmdCV;
           return (
             <button key={dd} onClick={readOnly ? undefined : () => onSelect && onSelect(dt)} style={{
               padding:"7px 2px", borderRadius:8, border:"none", cursor: readOnly ? "default" : "pointer", fontSize:13, textAlign:"center",
               background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
               color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
               fontWeight: (isStart||isEnd) ? 700 : 400,
+              boxShadow: isToday && !(isStart||isEnd) ? "inset 0 0 0 1.5px #00A86B" : "none",
             }}>{dd}</button>
           );
         })}
@@ -6101,8 +6109,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       town:            farmerTown,
       address:         farmerAddr,
       date_label:      jobDateLabel,
-      date_start:      jobDateStart ? jobDateStart.toISOString().slice(0,10) : null,
-      date_end:        jobDateEnd ? jobDateEnd.toISOString().slice(0,10) : null,
+      date_start:      jobDateStart ? ymdLocal(jobDateStart) : null,
+      date_end:        jobDateEnd ? ymdLocal(jobDateEnd) : null,
       headcount:       Number(jobCount) || null,
       pay_type:        hourlyWage > 0 ? "時給" : "日給",
       hourly_wage:     hourlyWageInput,
@@ -6955,7 +6963,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             const ConfCalendar = () => {
               if (!jobDateStart) return null;
               const WD2 = ["日","月","火","水","木","金","土"];
-              const sameDay = (a, b) => a && b && a.toDateString() === b.toDateString();
+              const sameDay = (a, b) => a && b && ymdLocal(a) === ymdLocal(b);
+              const todayYmdConf = ymdLocal(new Date());
               const end = jobDateEnd || jobDateStart;
               // 開始月〜終了月を列挙
               const months = [];
@@ -6988,12 +6997,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         const isStart = sameDay(dt, jobDateStart);
                         const isEnd   = sameDay(dt, jobDateEnd);
                         const inRange = jobDateStart && jobDateEnd && dt > jobDateStart && dt < jobDateEnd;
+                        const isToday = ymdLocal(dt) === todayYmdConf;
                         return (
                           <div key={dd} style={{
                             padding:"7px 2px", borderRadius:8, fontSize:13, textAlign:"center",
                             background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
                             color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
                             fontWeight: (isStart||isEnd) ? 700 : 400,
+                            boxShadow: isToday && !(isStart||isEnd) ? "inset 0 0 0 1.5px #00A86B" : "none",
                           }}>{dd}</div>
                         );
                       })}
