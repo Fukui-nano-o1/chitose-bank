@@ -6160,6 +6160,23 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
+  // 掲載（status=pending投入）前の必須項目チェック。欠けている項目名を返す
+  const getPublishMissingFields = () => {
+    const checks = [
+      ["作物",                   !!farmerCrop],
+      ["作業",                   !!farmerTask],
+      ["郵便番号",                !!farmerZip.trim()],
+      ["都道府県（徳島県）",        isAllowedPrefecture(farmerPref)],
+      ["市区町村",                !!farmerCity.trim()],
+      ["町域",                   !!farmerTown.trim()],
+      ["作業日程（開始日）",       !!jobDateStart],
+      ["採用人数",                Number(jobCount) > 0],
+      ["時給または日給（最低賃金以上）", (!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation],
+      ["休憩時間",                breakTime !== ""],
+    ];
+    return checks.filter(([, ok]) => !ok).map(([label]) => label);
+  };
+
   // ── OUTER SHELL ─────────────────────────────────────────────
   return (
     <div style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
@@ -6915,6 +6932,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             // jobs INSERT用ペイロードはトップレベルに移設（saveDraftToSupabaseからも参照するため）
             const handleSaveJob = async () => {
               if (jobSaving) return;
+              const missing = getPublishMissingFields();
+              if (missing.length > 0) {
+                alert("掲載前に以下の項目を入力してください：\n" + missing.join("\n"));
+                return;
+              }
               setJobSaving(true);
               try {
                 const { data: { session } } = await supabase.auth.getSession();
@@ -7813,15 +7835,26 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <div style={{ display:"grid", gap:12 }}>
           {pendingJobs.length === 0 ? (
             <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>公開待ちの求人はありません</p>
-          ) : pendingJobs.map(j => (
+          ) : pendingJobs.map(j => {
+            const hoursElapsed = (Date.now() - new Date(j.created_at).getTime()) / 3600000;
+            const elapsedBadge = hoursElapsed >= 48
+              ? { label:"期限超過", bg:"#FDECEC", fg:"#E24B4A" }
+              : hoursElapsed >= 24
+                ? { label:`${Math.floor(hoursElapsed)}時間前・本日中に審査`, bg:"#FFF4E0", fg:"#C77700" }
+                : { label:`${Math.floor(hoursElapsed)}時間前`, bg:"#F5F5F5", fg:"#717171" };
+            return (
             <div key={j.job_number} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff", display:"flex", justifyContent:"space-between", alignItems:"center", gap:16 }}>
               <div>
-                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>#{j.job_number} {j.crop} {j.task}</p>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>#{j.job_number} {j.crop} {j.task}</p>
+                  <span className="f-sans" style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20, background:elapsedBadge.bg, color:elapsedBadge.fg, whiteSpace:"nowrap" }}>{elapsedBadge.label}</span>
+                </div>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{[j.prefecture,j.city].filter(Boolean).join("")} ・ {j.date_label||""} ・ {j.headcount||"?"}名</p>
               </div>
               <button onClick={()=>publishJob(j.job_number)} disabled={publishing===j.job_number} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{publishing===j.job_number ? "公開中..." : "公開する"}</button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
