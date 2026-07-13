@@ -4392,9 +4392,15 @@ function ChatView({ applicationId, onBack }) {
   );
 }
 
+const PR_PROMPTS = [
+  { q:"農作業に興味を持ったきっかけは？", placeholder:"きっかけを、あなたの言葉で" },
+  { q:"働くうえで大事にしていることは？", placeholder:"大事にしていることを、あなたの言葉で" },
+  { q:"農家さんに一言、伝えたいことは？", placeholder:"伝えたいことを、あなたの言葉で" },
+];
 function WorkerProfileEdit({ me, onDone, onCancel }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
+  const [prPromptIndex, setPrPromptIndex] = useState(null); // 選んだ問い(ヒント)。PR欄への保存内容には含めない
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -4522,7 +4528,32 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ニックネーム</label>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：たき" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>自己紹介・PR</label>
-      <textarea value={pr} onChange={e=>setPr(e.target.value)} placeholder="農作業の経験や、意気込みなど" rows={4} className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }} />
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+        {PR_PROMPTS.map((p, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setPrPromptIndex(i)}
+            className="f-sans"
+            style={{
+              padding:"6px 12px", borderRadius:20,
+              border:"1px solid " + (prPromptIndex===i ? "#00A86B" : "#EBEBEB"),
+              background: prPromptIndex===i ? "#E6F7EF" : "#F7F7F7",
+              color: prPromptIndex===i ? "#00A86B" : "#717171",
+              fontSize:12, fontWeight:600, cursor:"pointer",
+            }}
+          >{p.q}</button>
+        ))}
+      </div>
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", marginBottom:8 }}>うまく書く必要はありません。あなたの言葉が、いちばん伝わります</p>
+      <textarea
+        value={pr}
+        onChange={e=>setPr(e.target.value)}
+        placeholder={prPromptIndex != null ? PR_PROMPTS[prPromptIndex].placeholder : "農作業の経験や、意気込みなど"}
+        rows={4}
+        className="field f-sans"
+        style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }}
+      />
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:12, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>キャンセル</button>
