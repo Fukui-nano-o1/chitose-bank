@@ -8219,8 +8219,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       </div>
 
-      {/* 下部ナビ（ホーム・完了画面以外） */}
-      {step > 0 && step < TOTAL && step !== 12 && (
+      {/* 下部ナビ（ホーム・完了画面以外。掲載モーダル展開中も非表示） */}
+      {step > 0 && step < TOTAL && step !== 12 && !publishModal && (
         <div style={embedded ? {
           background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 20px",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
