@@ -6661,6 +6661,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
   const [jobSaving, setJobSaving] = useState(false);
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
+  const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
@@ -7722,6 +7723,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 if (error) { alert("掲載エラー: " + error.message); return; }
                 try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                 setDraftJobNumber(null);
+                setPublishModal(false);
                 setStep(12);
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
@@ -7946,41 +7948,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{periodLabel}</span>
                   </div>
                   <ConfCalendar />
-                  {/* 掲載前チェックリスト（「読ませたい塊」単位・4項目） */}
-                  <div style={{ marginBottom:6 }}>
-                    <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
-                    {[
-                      "報酬・勤務時間・休憩の内容に間違いはありません",
-                      "危険な場所・作業は、漏れなく記載しました（該当が無いことを確認しました）",
-                      "日程・場所・人数は、実際に働いていただける内容です",
-                      "記載内容は事実です。掲載には運営の審査があることに同意します",
-                    ].map((text, i) => (
-                      <label key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"8px 0", cursor:"pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={publishChecks[i]}
-                          onChange={() => setPublishChecks(prev => prev.map((v, idx) => idx === i ? !v : v))}
-                          style={{ marginTop:3, width:18, height:18, flexShrink:0, accentColor:"#00A86B", cursor:"pointer" }}
-                        />
-                        <span className="f-sans" style={{ fontSize:14, color: publishChecks[i] ? "#00A86B" : "#222", lineHeight:1.6 }}>
-                          {publishChecks[i] ? "✓ " : ""}{text}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  {/* 保存ボタン */}
-                  <button
-                    onClick={handleSaveJob}
-                    disabled={jobSaving || !publishChecks.every(Boolean)}
-                    className="btn-primary"
-                    style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginBottom:10, ...(!publishChecks.every(Boolean) ? { background:"#EBEBEB", color:"#717171" } : {}) }}
-                  >
-                    {jobSaving ? "保存中..." : "掲載する"}
-                  </button>
-                  {!publishChecks.every(Boolean) && (
-                    <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
-                  )}
-                  <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
+                  {/* 掲載チェックリスト・掲載ボタン・注意文は下部ナビ「掲載する」のモーダルへ移植（2026-07-13） */}
                   <button
                     onClick={handleSaveDraft}
                     disabled={draftSaving}
@@ -7990,7 +7958,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {draftSaving ? "保存中..." : "一時保存（作成中に残す）"}
                   </button>
                   {draftMsg && <p className="f-sans" style={{ fontSize:13, color:draftMsg.startsWith("保存に失敗") ? "#E24B4A" : "#00A86B", textAlign:"center", marginBottom:8 }}>{draftMsg}</p>}
-                  <p className="f-sans" style={{ fontSize:13, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", marginBottom:8 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
                   {draftOverlay && (
                     <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.92)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
                       <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
@@ -8032,6 +7999,49 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </div>
               </a>
 
+              {/* ═══ 掲載モーダル（下部ナビ「掲載する」から展開。チェックリスト・同意・掲載・注意文を右パネルから移植） ═══ */}
+              {publishModal && (
+                <div onClick={() => setPublishModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+                  <div onClick={(e) => e.stopPropagation()} style={{ width:"100%", maxWidth:520, maxHeight:"85vh", overflowY:"auto", background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 20px calc(20px + env(safe-area-inset-bottom, 0px))", boxSizing:"border-box" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                      <h3 className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:0 }}>掲載前の確認</h3>
+                      <button onClick={() => setPublishModal(false)} aria-label="閉じる" style={{ background:"none", border:"none", fontSize:22, color:"#717171", cursor:"pointer", padding:"0 4px", lineHeight:1 }}>×</button>
+                    </div>
+                    <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
+                    {[
+                      "報酬・勤務時間・休憩の内容に間違いはありません",
+                      "危険な場所・作業は、漏れなく記載しました（該当が無いことを確認しました）",
+                      "日程・場所・人数は、実際に働いていただける内容です",
+                      "記載内容は事実です。掲載には運営の審査があることに同意します",
+                    ].map((text, i) => (
+                      <label key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"8px 0", cursor:"pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={publishChecks[i]}
+                          onChange={() => setPublishChecks(prev => prev.map((v, idx) => idx === i ? !v : v))}
+                          style={{ marginTop:3, width:18, height:18, flexShrink:0, accentColor:"#00A86B", cursor:"pointer" }}
+                        />
+                        <span className="f-sans" style={{ fontSize:14, color: publishChecks[i] ? "#00A86B" : "#222", lineHeight:1.6 }}>
+                          {publishChecks[i] ? "✓ " : ""}{text}
+                        </span>
+                      </label>
+                    ))}
+                    <button
+                      onClick={handleSaveJob}
+                      disabled={jobSaving || !publishChecks.every(Boolean)}
+                      className="btn-primary"
+                      style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginTop:12, marginBottom:10, ...(!publishChecks.every(Boolean) ? { background:"#EBEBEB", color:"#717171" } : {}) }}
+                    >
+                      {jobSaving ? "保存中..." : "同意して掲載する"}
+                    </button>
+                    {!publishChecks.every(Boolean) && (
+                      <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
+                    )}
+                    <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:0 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
+                  </div>
+                </div>
+              )}
             </>);
           })()}
 
@@ -8231,6 +8241,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <button onClick={() => setStep(11)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0 }}>残りをスキップして確認へ →</button>
               )}
             </div>
+          )}
+          {/* 確認ページ(step11)：下部ナビ右に「掲載する」→チェックリストモーダル展開（求人詳細の応募フッターと同型） */}
+          {isFarmer && step === 11 && (
+            <button onClick={() => setPublishModal(true)} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
           )}
         </div>
       )}
