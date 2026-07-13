@@ -4451,11 +4451,23 @@ function mapJobPublicRow(j) {
   };
 }
 
+// 共通アバター部品：写真あり→円形サムネ／写真なし→緑丸＋頭文字2字。
+// 全画面（ヘッダー・応募者カード・チャット・求人詳細の紹介・プロフィール）でこれに統一する。
+const Avatar = ({ url, name, size = 40 }) => url
+  ? <img src={url} alt="" width={size} height={size}
+      style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
+  : <div style={{ width:size, height:size, borderRadius:"50%", background:"#00A86B",
+      color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
+      fontSize:size*0.38, fontWeight:700, flexShrink:0 }}>
+      {(name||"？").replace(/\s/g,"").slice(0,2)}
+    </div>;
+
 function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState(null);
+  const [partner, setPartner] = useState(null); // { nickname, avatar_url }
   const load = async () => {
     try {
       const { data } = await supabase.from("messages").select("*").eq("application_id", applicationId).order("created_at",{ascending:true});
@@ -4464,7 +4476,19 @@ function ChatView({ applicationId, onBack }) {
   };
   useEffect(() => {
     (async () => {
-      try { const { data:{ session } } = await supabase.auth.getSession(); if (session) setMyId(session.user.id); } catch {}
+      try {
+        const { data:{ session } } = await supabase.auth.getSession();
+        if (!session) { load(); return; }
+        setMyId(session.user.id);
+        const { data: app } = await supabase.from("applications").select("farmer_id,worker_id").eq("id", applicationId).maybeSingle();
+        if (app) {
+          const iAmWorker = session.user.id === app.worker_id;
+          const table = iAmWorker ? "employer_profiles" : "worker_profiles";
+          const partnerId = iAmWorker ? app.farmer_id : app.worker_id;
+          const { data: pData } = await supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle();
+          if (pData) setPartner(pData);
+        }
+      } catch {}
       load();
     })();
   }, [applicationId]);
@@ -4482,6 +4506,12 @@ function ChatView({ applicationId, onBack }) {
   return (
     <div style={{ maxWidth:600, margin:"0 auto", display:"flex", flexDirection:"column", height:"70vh" }}>
       <button onClick={onBack} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:13, cursor:"pointer", padding:"8px 0", textAlign:"left" }}>← 戻る</button>
+      {partner && (
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0 12px", borderBottom:"1px solid #EEE" }}>
+          <Avatar url={partner.avatar_url} name={partner.nickname} size={36} />
+          <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
+        </div>
+      )}
       <div style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
         {msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>打ち合わせや面接の連絡は、ここで行えます。</p>
@@ -4529,8 +4559,8 @@ function ChatList() {
         const jobNumbers = [...new Set(all.map(a => a.job_number).filter(Boolean))];
 
         const [epRes, wpRes, jobRes] = await Promise.all([
-          farmerIds.length ? supabase.from("employer_profiles").select("auth_id,nickname").in("auth_id", farmerIds) : Promise.resolve({ data: [] }),
-          workerIds.length ? supabase.from("worker_profiles").select("auth_id,nickname").in("auth_id", workerIds) : Promise.resolve({ data: [] }),
+          farmerIds.length ? supabase.from("employer_profiles").select("auth_id,nickname,avatar_url").in("auth_id", farmerIds) : Promise.resolve({ data: [] }),
+          workerIds.length ? supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", workerIds) : Promise.resolve({ data: [] }),
           jobNumbers.length ? supabase.from("jobs_public").select("job_number,crop,task").in("job_number", jobNumbers) : Promise.resolve({ data: [] }),
         ]);
         if (cancelled) return;
@@ -4539,11 +4569,15 @@ function ChatList() {
         const jobMap = {}; (jobRes.data || []).forEach(j => { jobMap[j.job_number] = j; });
 
         const merged = all
-          .map(a => ({
-            ...a,
-            partnerName: a._role === "worker" ? (epMap[a.farmer_id]?.nickname || "") : (wpMap[a.worker_id]?.nickname || ""),
-            job: jobMap[a.job_number] || null,
-          }))
+          .map(a => {
+            const partner = a._role === "worker" ? epMap[a.farmer_id] : wpMap[a.worker_id];
+            return {
+              ...a,
+              partnerName: partner?.nickname || "",
+              partnerAvatar: partner?.avatar_url || "",
+              job: jobMap[a.job_number] || null,
+            };
+          })
           .sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
         setRows(merged);
       } catch {}
@@ -4568,13 +4602,16 @@ function ChatList() {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
             return (
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
-                className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff",
+                className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
                   border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
-                  <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
-                  <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:"#E6F7EF", color:"#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
+                <Avatar url={a.partnerAvatar} name={a.partnerName} size={40} />
+                <div style={{ minWidth:0, flex:1 }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
+                    <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
+                    <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:"#E6F7EF", color:"#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
+                  </div>
+                  {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}</p>}
                 </div>
-                {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}</p>}
               </button>
             );
           })}
@@ -4622,7 +4659,7 @@ const WORKER_QA_QUESTIONS = [
     "このバイトで得たいことは？",
   ]},
 ];
-function WorkerProfileEdit({ me, onDone, onCancel }) {
+function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
   const [prPromptIndex, setPrPromptIndex] = useState(null); // 選んだ問い(ヒント)。PR欄への保存内容には含めない
@@ -4716,6 +4753,7 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
       const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
       await supabase.from('worker_profiles').upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       setAvatarUrl(url);
+      if (typeof onAvatarChange === "function") onAvatarChange({ url, name: nickname });
     } catch { alert("画像のアップロードに失敗しました。"); }
     setUploading(false);
   };
@@ -4732,6 +4770,7 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
       }
       await supabase.from('worker_profiles').upsert({ auth_id: session.user.id, avatar_url: '', updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       setAvatarUrl('');
+      if (typeof onAvatarChange === "function") onAvatarChange({ url: "", name: nickname });
     } catch { alert("削除に失敗しました。"); }
     setUploading(false);
   };
@@ -4745,6 +4784,7 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
       setSaving(false);
       if (!error) {
         setSaved(true);
+        if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
         setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
       }
       else alert("保存に失敗しました：" + error.message);
@@ -4757,8 +4797,8 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に応募したとき、農家に伝わる自己紹介です。任意で入力できます。</p>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>アイコン</label>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
-        <div style={{ width:64, height:64, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
-          {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:28 }}>🧑‍🌾</span>}
+        <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+          <Avatar url={avatarUrl} name={nickname} size={64} />
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
@@ -4909,8 +4949,8 @@ function WorkerProfilePreview({ me, onEdit }) {
       ) : (
         <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom: (pr || prQa.length > 0) ? 16 : 0 }}>
-            <div style={{ width:56, height:56, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
-              {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:24 }}>🧑‍🌾</span>}
+            <div style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+              <Avatar url={avatarUrl} name={nickname} size={56} />
             </div>
             <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{nickname || "名前未設定"}</p>
           </div>
@@ -4989,7 +5029,7 @@ function WorkerApplications({ filter, me }) {
   );
 }
 
-function ProfileHub({ me, onLogout, onNewJob, onResume }) {
+function ProfileHub({ me, onLogout, onNewJob, onResume, onAvatarChange }) {
   const hashToPTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer" || h.startsWith("profile/employer/")) return "employer";
@@ -5058,7 +5098,7 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
             </div>
             {wTab === "wprofile" ? (
               wProfileMode === "edit" ? (
-                <WorkerProfileEdit me={me} onDone={()=>{
+                <WorkerProfileEdit me={me} onAvatarChange={onAvatarChange} onDone={()=>{
                   setWProfileMode("preview");
                   const ret = peekApplyReturn();
                   if (ret) { clearApplyReturn(); window.location.hash = "/work/job/" + ret; }
@@ -5541,10 +5581,9 @@ function JobSearchMapView({ onRegister, me }) {
                 return (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
-                      <div style={{
-                        width:44, height:44, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
-                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, overflow:"hidden", marginBottom:8,
-                      }}>{empEmployer.avatar_url ? <img src={empEmployer.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🧑‍🌾"}</div>
+                      <div style={{ marginBottom:8 }}>
+                        <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={44} />
+                      </div>
                       <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
                       {empEmployer.pr && (
                         <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
@@ -9626,8 +9665,8 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に掲載したとき、働き手に伝わる紹介です。任意で入力できます。</p>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
-        <div style={{ width:64, height:64, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
-          {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:28 }}>🧑‍🌾</span>}
+        <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+          <Avatar url={avatarUrl} name={nickname} size={64} />
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
@@ -9782,8 +9821,8 @@ function FarmerProfilePreview({ me, onEdit }) {
       ) : (
         <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", marginBottom:20 }}>
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", marginBottom: perks.length ? 14 : 0 }}>
-            <div style={{ width:56, height:56, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", marginBottom:8 }}>
-              {data.avatar_url ? <img src={data.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:24 }}>🧑‍🌾</span>}
+            <div style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", marginBottom:8 }}>
+              <Avatar url={data.avatar_url} name={data.nickname} size={56} />
             </div>
             <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{data.nickname || "農園名未設定"}</p>
             {data.pr && (
@@ -9973,8 +10012,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                 {a.status==="applied" ? "承認待ち" : a.status==="approved" ? "承認済み" : a.status==="rejected" ? "見送り" : a.status}
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                <div style={{ width:36, height:36, borderRadius:"50%", background:"#E6F7EF", border:"1px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
-                  {wp?.avatar_url ? <img src={wp.avatar_url} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:16 }}>🧑‍🌾</span>}
+                <div style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+                  <Avatar url={wp?.avatar_url} name={wp?.nickname} size={36} />
                 </div>
                 <div style={{ minWidth:0 }}>
                   <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{wp?.nickname || "名前未設定"}</p>
@@ -10976,6 +11015,20 @@ export default function App(){
   const [loaded,setLoaded]=useState(false);
   const [badgeCnt,setBadgeCnt]=useState(0);
   const [me,setMe]=useState(null);
+  // ヘッダー（PC・モバイル下部バー）共通のアバター表示規則：worker_profilesのavatar_url＋nicknameに一本化。
+  // ログイン状態(me.id)が変わるたびに1回取得。編集画面での変更はonAvatarChangeで即時反映（再取得を待たない）。
+  const [meAvatar,setMeAvatar]=useState({ url:"", name:"" });
+  useEffect(() => {
+    if (!me?.id) { setMeAvatar({ url:"", name:"" }); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("worker_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle();
+        if (!cancelled) setMeAvatar({ url: data?.avatar_url || "", name: data?.nickname || me.name || "" });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [me?.id]);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
   const [authV,setAuthV]=useState("login");
@@ -11306,12 +11359,8 @@ const subDest=useCallback(async d=>{
                      background:"#fff", border:"1px solid #EBEBEB", borderRadius:24,
                      padding:"6px 8px 6px 12px", fontFamily:"inherit" }}>
             <span style={{ fontSize:14, lineHeight:1 }}>☰</span>
-            <span style={{ width:28, height:28, borderRadius:"50%", background:"#F7F7F7",
-                           display:"flex", alignItems:"center", justifyContent:"center",
-                           fontSize:12, color:"#717171", overflow:"hidden" }}>
-              {me?.avatar_url
-                ? <img src={me.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                : "👤"}
+            <span style={{ width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+              <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={28} />
             </span>
           </button>
 
@@ -11357,7 +11406,9 @@ const subDest=useCallback(async d=>{
             <button key={t.k}
               onClick={() => { setTab(t.k); window.location.hash = "/" + t.k; }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
-              <span className="icon">{t.icon}</span>
+              <span className="icon">
+                {t.k === "profile" && me ? <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={20} /> : t.icon}
+              </span>
               <span className="label">{t.label}</span>
             </button>
           ))}
@@ -11417,7 +11468,8 @@ const subDest=useCallback(async d=>{
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <ProfileHub me={me} onLogout={handleLogout}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-              onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }} />
+              onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
+              onAvatarChange={(a)=>setMeAvatar(a)} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="chats"&&(me
           ? <ChatList />
