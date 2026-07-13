@@ -490,6 +490,30 @@ input:focus { outline: none; }
   .app-header-post-btn .post-label-short { display: inline; }
 }
 
+/* ── プロフィール画面：雇い手空間への浮遊ボタン（モバイル専用・下部バーの真上に固定） ── */
+.profile-employer-fab { display: none; }
+@media (max-width: 768px) {
+  .profile-employer-fab {
+    display: block;
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
+    z-index: 60;
+    background: #00A86B;
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    padding: 12px 28px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Noto Sans JP', sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+}
+
 /* ── Job search layout ── */
 .job-search-layout {
   display: block;
@@ -4995,6 +5019,9 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
   const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"応募中", approved:"承認済み", wcalendar:"カレンダー" };
   return (
     <div style={{maxWidth:1024,margin:"0 auto",padding:"32px 24px"}}>
+      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="profile-employer-fab f-sans">
+        {hasEmployerSide ? "🌱 あなたの求人" : "🌱 雇い手になる"}
+      </button>
       {pTab === "worker" ? (
         <div className="profile-grid">
           <div className="profile-tabs">
