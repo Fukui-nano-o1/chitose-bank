@@ -4698,7 +4698,11 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
             </div>
             {wTab === "wprofile" ? (
               wProfileMode === "edit" ? (
-                <WorkerProfileEdit me={me} onDone={()=>setWProfileMode("preview")} onCancel={()=>setWProfileMode("preview")} />
+                <WorkerProfileEdit me={me} onDone={()=>{
+                  setWProfileMode("preview");
+                  const ret = peekApplyReturn();
+                  if (ret) { clearApplyReturn(); window.location.hash = "/work/job/" + ret; }
+                }} onCancel={()=>setWProfileMode("preview")} />
               ) : (
                 <WorkerProfilePreview me={me} onEdit={()=>setWProfileMode("edit")} />
               )
@@ -4861,6 +4865,26 @@ function JobSearchMapView({ onRegister, me }) {
     return () => { cancelled = true; };
   }, [selectedJob?.id, me]);
   const [applying, setApplying] = useState(false);
+  const [showProfileGate, setShowProfileGate] = useState(false); // プロフィール空チェック（ソフトゲート・応募は止めない）
+
+  // apply_to_job本体（プロフィールゲート通過後、または「このまま応募する」選択後に呼ぶ）
+  const doApply = async () => {
+    setApplying(true);
+    try {
+      const { data, error } = await supabase.rpc("apply_to_job", { p_job_number: selectedJob.id });
+      setApplying(false);
+      if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
+      if (data && data.ok) {
+        try { if (data.already) sessionStorage.setItem("cb_applyAlready","1"); else sessionStorage.removeItem("cb_applyAlready"); } catch {}
+        window.location.hash = "/apply/done";
+      }
+      else if (data && data.reason === "not_logged_in") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); }
+      else if (data && data.reason === "own_job") { alert("自分の求人には応募できません。"); }
+      else if (data && data.reason === "job_not_open") { alert("この求人は現在募集を受け付けていません。"); }
+      else { alert("応募できませんでした。"); }
+    } catch { setApplying(false); alert("応募に失敗しました。"); }
+  };
+
   const handleApply = async () => {
     if (applying || !selectedJob) return;
     setApplying(true);
@@ -4881,17 +4905,19 @@ function JobSearchMapView({ onRegister, me }) {
         window.location.hash = "/account";
         return;
       }
-      const { data, error } = await supabase.rpc("apply_to_job", { p_job_number: selectedJob.id });
-      setApplying(false);
-      if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
-      if (data && data.ok) {
-        try { if (data.already) sessionStorage.setItem("cb_applyAlready","1"); else sessionStorage.removeItem("cb_applyAlready"); } catch {}
-        window.location.hash = "/apply/done";
+      // プロフィール空チェック（ソフトゲート：nickname・prが両方空の時だけ一呼吸置かせる。取得失敗は「入力済み」側に倒し応募を止めない）
+      let profileBlank = false;
+      try {
+        const { data: wp } = await supabase.from('worker_profiles').select('nickname, pr').eq('auth_id', session.user.id).maybeSingle();
+        const isBlank = v => !v || !v.trim();
+        profileBlank = !!wp && isBlank(wp.nickname) && isBlank(wp.pr);
+      } catch { profileBlank = false; }
+      if (profileBlank) {
+        setApplying(false);
+        setShowProfileGate(true);
+        return;
       }
-      else if (data && data.reason === "not_logged_in") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); }
-      else if (data && data.reason === "own_job") { alert("自分の求人には応募できません。"); }
-      else if (data && data.reason === "job_not_open") { alert("この求人は現在募集を受け付けていません。"); }
-      else { alert("応募できませんでした。"); }
+      await doApply();
     } catch { setApplying(false); alert("応募に失敗しました。"); }
   };
 
@@ -5497,6 +5523,32 @@ function JobSearchMapView({ onRegister, me }) {
               background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
             }}>✕</button>
             <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
+          </div>
+        </div>
+      )}
+
+      {/* プロフィール空チェック（ソフトゲート）：応募は止めず、書くと承認されやすい旨だけ伝える */}
+      {showProfileGate && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:10000,
+          background:"rgba(0,0,0,0.4)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:16,
+        }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:360, width:"100%", textAlign:"center" }}>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィールがまだ空です</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:20 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              <button
+                onClick={() => { setApplyReturn(selectedJob.id); setShowProfileGate(false); window.location.hash = "/profile/worker/profile"; }}
+                className="f-sans"
+                style={{ padding:"12px", background:"#00A86B", color:"#fff", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer" }}
+              >プロフィールを書く</button>
+              <button
+                onClick={() => { setShowProfileGate(false); doApply(); }}
+                className="f-sans"
+                style={{ padding:"12px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer" }}
+              >このまま応募する</button>
+            </div>
           </div>
         </div>
       )}
