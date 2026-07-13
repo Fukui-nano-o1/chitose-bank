@@ -7732,23 +7732,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               }
             };
 
-            const handleSaveDraft = async () => {
-              if (draftSaving) return;
-              setDraftSaving(true); setDraftMsg("");
-              const res = await saveDraftToSupabase();
-              setDraftSaving(false);
-              if (res.ok) {
-                setDraftBarFull(true);
-                try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
-                setDraftMsg("作成中に保存しました（求人番号 " + res.jobNumber + "）");
-                setDraftOverlay(true);
-                setTimeout(() => { setDraftOverlay(false); window.location.hash = "/work"; if (typeof onComplete === "function") onComplete(); }, 1100);
-              } else if (res.reason === "no_session") {
-                saveDraft(); onLogin();
-              } else {
-                setDraftMsg("保存に失敗しました：" + res.reason);
-              }
-            };
+            // 一時保存は下部ナビの「保存」ボタン（トップレベルのhandleTopSaveExitを再利用）に移設（2026-07-13）
 
             return (<>
               {/* タイトル */}
@@ -7806,8 +7790,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </p>
               </div>
 
-              {/* ═══ 2カラムグリッド（求人詳細ページの job-detail-2col と同一構造） ═══ */}
-              <div className="lf-preview-grid">
+              {/* ═══ 掲載プレビュー本体（右パネル削除により1カラム・中央寄せ） ═══ */}
+              <div style={{ maxWidth:870, margin:"0 auto" }}>
 
                 {/* ── 左: 掲載プレビュー（求人詳細ページの左カラムと同一構造） ── */}
                 <div>
@@ -7933,39 +7917,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   )}
                 </div>
 
-                {/* ── 右: 編集パネル ── */}
-                <div style={{ position:"sticky", top:88, border:"1px solid #EBEBEB", borderRadius:28, padding:24, background:"#fff", boxShadow:"0 16px 40px rgba(0,0,0,0.10)" }}>
-                  {/* 報酬・最高額・期間 */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                    <p className="f-mono" style={{ fontSize:26, fontWeight:800, color:"#222", margin:0 }}>{rewardLabel}</p>
-                    <button onClick={() => { setReturnToConfirm(true); setStep(5); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                  </div>
-                  {maxPay > 0 && (
-                    <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:16 }}>期間内に全て勤務した場合の最高額：<span className="f-mono" style={{ fontWeight:700, color:"#00A86B" }}>¥{maxPay.toLocaleString()}</span></p>
-                  )}
-                  <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderTop:"1px solid #F0F0F0", borderBottom:"1px solid #F0F0F0", marginBottom:16 }}>
-                    <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>期間</span>
-                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{periodLabel}</span>
-                  </div>
-                  <ConfCalendar />
-                  {/* 掲載チェックリスト・掲載ボタン・注意文は下部ナビ「掲載する」のモーダルへ移植（2026-07-13） */}
-                  <button
-                    onClick={handleSaveDraft}
-                    disabled={draftSaving}
-                    className="f-sans"
-                    style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:14, marginBottom:8, background:"#F7F7F7", border:"1px solid #DDD", color:"#222", cursor:"pointer" }}
-                  >
-                  {draftSaving ? "保存中..." : "一時保存（作成中に残す）"}
-                  </button>
-                  {draftMsg && <p className="f-sans" style={{ fontSize:13, color:draftMsg.startsWith("保存に失敗") ? "#E24B4A" : "#00A86B", textAlign:"center", marginBottom:8 }}>{draftMsg}</p>}
-                  {draftOverlay && (
-                    <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.92)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
-                      <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
-                      <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>保存しています…</p>
-                      <style>{`@keyframes cbspin { to { transform: rotate(360deg); } }`}</style>
-                    </div>
-                  )}
-                </div>
+                {/* 右パネル（報酬・期間・カレンダー・一時保存）は削除（2026-07-13）。
+                    報酬・日程は左の主要情報カードに編集リンク付きで表示済み。
+                    一時保存は下部ナビ「保存」・保存中オーバーレイはLandingFlowトップレベルへ移設 */}
               </div>
               {/* ═══ 大きな地図（2カラムの後・移動先） ═══ */}
               <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28, maxWidth:1000, margin:"0 auto 28px" }}>
@@ -8219,6 +8173,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       </div>
 
+      {/* 保存中オーバーレイ（下部ナビ「保存」・保存して終了 共通。どのstepでも表示。旧:確認ページ右パネル内） */}
+      {draftOverlay && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.92)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+          <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
+          <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>保存しています…</p>
+          <style>{`@keyframes cbspin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
       {/* 下部ナビ（ホーム・完了画面以外。掲載モーダル展開中も非表示） */}
       {step > 0 && step < TOTAL && step !== 12 && !publishModal && (
         <div style={embedded ? {
@@ -8242,9 +8205,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               )}
             </div>
           )}
-          {/* 確認ページ(step11)：下部ナビ右に「掲載する」→チェックリストモーダル展開（求人詳細の応募フッターと同型） */}
+          {/* 確認ページ(step11)：下部ナビ右に「保存」＋「掲載する」（求人詳細の応募フッターと同型） */}
           {isFarmer && step === 11 && (
-            <button onClick={() => setPublishModal(true)} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => setPublishModal(true)} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
+            </div>
           )}
         </div>
       )}
