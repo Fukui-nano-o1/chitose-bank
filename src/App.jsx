@@ -82,16 +82,21 @@ const MENU_ITEMS = [
   { key:"login",   label:"ログイン",     hash:"/login",   auth:false, guestOnly:true },
 ];
 
-// モバイル下部バー（5機能タブ）。2026-07-14: ハンバーガーは廃止し機能タブ化。
-// カレンダーは未実装のため保留（実装後にこの配列へ差し込む。空タブは出さない）。
-// ハンバーガーに残っていた項目の行き先：求人を出す=雇い手空間内（既存導線）、
-// あなたの求人=プロフィールの浮遊ボタンへ一本化、管理・運営憲章・規約・
-// プライバシー・ログアウト=プロフィール画面最下部（Airbnb同型・法務系は奥へ）。
+// モバイル下部バー：☰(左端・アイコンのみ)＋5機能タブ。カレンダーが中央に来る並び。
+// ☰の中身はMOBILE_MENU_ITEMS（求人を出す・管理・運営憲章・利用規約・プライバシー・ログアウト）。
 const MOBILE_TABS = [
-  { k:"search",  icon:"🔍", label:"さがす" },
-  { k:"saved",   icon:"♡",  label:"いいね" },
-  { k:"chats",   icon:"💬", label:"チャット" },
-  { k:"profile", icon:"👤", label:"プロフィール" },
+  { k:"search",   icon:"🔍", label:"さがす" },
+  { k:"saved",    icon:"♡",  label:"いいね" },
+  { k:"calendar", icon:"📅", label:"カレンダー" },
+  { k:"chats",    icon:"💬", label:"チャット" },
+  { k:"profile",  icon:"👤", label:"プロフィール" },
+];
+// モバイル☰メニューの静的リンク項目（求人を出す・ログアウトは動作が固有なので別途JSXで扱う）
+const MOBILE_MENU_ITEMS = [
+  { key:"admin",   label:"管理",           hash:"/admin",   auth:false, adminOnly:true },
+  { key:"charter", label:"運営憲章",       hash:"/charter" },
+  { key:"terms",   label:"利用規約",       hash:"/terms" },
+  { key:"privacy", label:"プライバシー",   hash:"/privacy" },
 ];
 
 // ══════════════════════════════════════════════════════════
@@ -478,11 +483,14 @@ input:focus { outline: none; }
     border-top: 1px solid #EBEBEB;
     z-index: 49;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    transition: transform .25s ease;
   }
+  /* スクロール連動の自動格納（Part C）。求人詳細では上のdisplay:noneガードが優先される */
+  body.cb-scroll-hide .app-header-mobile { transform: translateY(calc(100% + env(safe-area-inset-bottom, 0px))); }
   .bottom-tab-bar { display: none !important; }
 }
 
-/* ── モバイル下部バー：5機能タブ（さがす／いいね／チャット／プロフィール。カレンダーは未実装のため保留） ── */
+/* ── モバイル下部バー最終形：☰（アイコンのみ・コンパクト）＋5機能タブ（さがす／いいね／カレンダー／チャット／プロフィール） ── */
 .app-header-mobile-tabs {
   display: flex;
   height: 64px;
@@ -504,6 +512,35 @@ input:focus { outline: none; }
 .app-header-mobile-tab .icon { font-size: 20px; line-height: 1; }
 .app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
 .app-header-mobile-tab.active { color: #00A86B; font-weight: 600; }
+/* ☰はラベルなし・幅を抑えたコンパクト版（タブ5本と横並びで折り返さないため） */
+.app-header-mobile-hamburger { flex: 0 0 44px; }
+.app-header-mobile-hamburger .icon { font-size: 19px; }
+/* ☰の中身（求人を出す・管理・運営憲章・利用規約・プライバシー・ログアウト）。バーの真上に開く */
+.app-header-mobile-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 12px;
+  right: 12px;
+  margin-bottom: 8px;
+  background: #fff;
+  border: 1px solid #EBEBEB;
+  border-radius: 12px;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.08);
+  padding: 8px 0;
+  z-index: 30;
+}
+.app-header-mobile-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  color: #222;
+  padding: 12px 16px;
+}
 .app-header-post-btn .post-label-short { display: none; }
 @media (max-width: 380px) {
   .app-header-post-btn .post-label-full { display: none; }
@@ -531,7 +568,10 @@ input:focus { outline: none; }
     box-shadow: 0 4px 12px rgba(0,0,0,.15);
     cursor: pointer;
     white-space: nowrap;
+    transition: transform .25s ease;
   }
+  /* スクロール連動の自動格納（Part C）。下部バーと同時に沈む */
+  body.cb-scroll-hide .profile-employer-fab { transform: translateX(-50%) translateY(150%); }
 }
 
 /* ── Job search layout ── */
@@ -651,7 +691,7 @@ input:focus { outline: none; }
   }
 }
 
-/* ── 求人詳細（スマホ専用）：下部応募フッター。スクロール中は下部バーを隠す ── */
+/* ── 求人詳細（スマホ専用）：下部応募フッター。応募ボタンは常時見せる（格納対象外） ── */
 .mobile-apply-bar {
   display: none;
 }
@@ -668,19 +708,14 @@ input:focus { outline: none; }
     align-items: stretch;
     justify-content: flex-start;
     gap: 4px;
-    transition: transform .25s ease;
   }
-  body.job-detail-scrolling .mobile-apply-bar { transform: translateY(100%); }
   /* 求人詳細ページでは下部タブバーを完全非表示にし、下部応募フッターと二重に重ならないようにする
      （両方ともbottom:0のため。2026-07-14: タブバーのtop→bottom移設で新たに必要になったガード） */
   body:has(.mobile-apply-bar) .bottom-tab-bar { display: none; }
-  .bottom-tab-bar { transition: transform .25s ease; }
-  body.job-detail-scrolling .bottom-tab-bar { transform: translateY(100%); }
   /* 統合後の下部バー(.app-header-mobile)も同様に、求人詳細ページでは応募フッターと
-     二重にbottom:0で重ならないよう非表示にする（旧.bottom-tab-bar用ガードと同じ作法） */
+     二重にbottom:0で重ならないよう非表示にする（旧.bottom-tab-bar用ガードと同じ作法）。
+     このdisplay:noneはスクロール連動の格納機構(下記cb-scroll-hide)より優先される。 */
   body:has(.mobile-apply-bar) .app-header-mobile { display: none; }
-  .app-header-mobile { transition: transform .25s ease; }
-  body.job-detail-scrolling .app-header-mobile { transform: translateY(100%); }
 }
 
 /* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
@@ -5029,7 +5064,125 @@ function WorkerApplications({ filter, me }) {
   );
 }
 
-function ProfileHub({ me, onLogout, onNewJob, onResume, onAvatarChange }) {
+// 予定に載せる応募ステータス（見送り・応募中は除く。completedは「終わった予定」として残す）
+const CALENDAR_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","working","completed"];
+
+// #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
+// 紐づく求人の作業日程を月表示に緑ドットで示す。日付タップでその日の仕事リストを表示。
+// jobs_publicはstatus='open'のみのビューなので使わない（承認後にjobが非公開へ移っても
+// 自分の予定は見えるべき）。jobsテーブルを直接読む＝本人(farmer_id)またはadminのRLSに乗る。
+function MyCalendar() {
+  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs] = useState([]); // [{job_number,crop,task,work_time,date_start,date_end}]
+  const [cvYear, setCvYear] = useState(new Date().getFullYear());
+  const [cvMonth, setCvMonth] = useState(new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const uid = session.user.id;
+        const [{ data: asWorker }, { data: asFarmer }] = await Promise.all([
+          supabase.from("applications").select("job_number").eq("worker_id", uid).in("status", CALENDAR_ELIGIBLE_STATUSES),
+          supabase.from("applications").select("job_number").eq("farmer_id", uid).in("status", CALENDAR_ELIGIBLE_STATUSES),
+        ]);
+        const jobNumbers = [...new Set([...(asWorker || []), ...(asFarmer || [])].map(a => a.job_number).filter(Boolean))];
+        if (cancelled) return;
+        if (jobNumbers.length === 0) { setJobs([]); setLoading(false); return; }
+        const { data } = await supabase.from("jobs").select("job_number,crop,task,work_time,date_start,date_end").in("job_number", jobNumbers);
+        if (!cancelled) setJobs(data || []);
+      } catch {}
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const WD = ["日","月","火","水","木","金","土"];
+  const todayYmd = ymdLocal(new Date());
+  const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
+  const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
+  const jobsOnDay = (dt) => {
+    const ymd = ymdLocal(dt);
+    return jobs.filter(j => j.date_start && ymd >= j.date_start && ymd <= (j.date_end || j.date_start));
+  };
+
+  const firstDay = new Date(cvYear, cvMonth, 1).getDay();
+  const daysInMonth = new Date(cvYear, cvMonth + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
+  const selJobs = selectedDay ? jobsOnDay(selectedDay) : [];
+
+  return (
+    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
+      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>カレンダー</h2>
+      {loading ? (
+        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+      ) : jobs.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
+          <div style={{ fontSize:40, marginBottom:12 }}>📅</div>
+          <p style={{ fontSize:14, margin:0 }}>予定はまだありません。<br/>応募が承認されると、ここに表示されます。</p>
+        </div>
+      ) : (
+        <>
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+              <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"‹"}</button>
+              <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{cvYear}年{cvMonth+1}月</span>
+              <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"›"}</button>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:4 }}>
+              {WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
+              {cells.map((dd, i) => {
+                if (!dd) return <div key={`e${i}`} />;
+                const dt = new Date(cvYear, cvMonth, dd);
+                const ymd = ymdLocal(dt);
+                const hasJob = jobsOnDay(dt).length > 0;
+                const isToday = ymd === todayYmd;
+                const isSelected = selectedDay && ymdLocal(selectedDay) === ymd;
+                return (
+                  <button key={dd} onClick={() => setSelectedDay(dt)} style={{
+                    display:"flex", flexDirection:"column", alignItems:"center", gap:2,
+                    padding:"7px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13,
+                    background: isSelected ? "#E6F7EF" : "transparent",
+                    color:"#222", fontWeight: isToday ? 700 : 400,
+                    boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
+                  }}>
+                    <span>{dd}</span>
+                    <span style={{ width:5, height:5, borderRadius:"50%", background: hasJob ? "#00A86B" : "transparent" }} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {selectedDay && (
+            <div style={{ marginTop:16 }}>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>{ymdLocal(selectedDay).replace(/-/g,"/")}の予定</p>
+              {selJobs.length === 0 ? (
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>この日の予定はありません。</p>
+              ) : (
+                <div style={{ display:"grid", gap:8 }}>
+                  {selJobs.map(j => (
+                    <button key={j.job_number} onClick={() => { window.location.hash = "/work/job/" + j.job_number; }}
+                      className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+                      <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>
+                      <p style={{ fontSize:12, color:"#717171", margin:0 }}>{j.work_time ? j.work_time + "　" : ""}求人番号 {j.job_number}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const hashToPTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer" || h.startsWith("profile/employer/")) return "employer";
@@ -5111,10 +5264,9 @@ function ProfileHub({ me, onLogout, onNewJob, onResume, onAvatarChange }) {
             ) : wTab === "approved" ? (
               <WorkerApplications filter="approved" me={me} />
             ) : (
-              <div style={{ maxWidth:720 }}>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8, lineHeight:1.7 }}>承認された求人の日程を、ここで確認できます。</p>
-                <CalendarView readOnly={true} />
-                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の日程表示は今後追加されます。</p>
+              <div style={{ maxWidth:720, textAlign:"center", padding:"32px 0" }}>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16, lineHeight:1.7 }}>承認された求人の日程は、カレンダーでまとめて確認できます。</p>
+                <button onClick={()=>{ window.location.hash = "/calendar"; }} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12 }}>カレンダーへ →</button>
               </div>
             )}
           </div>
@@ -5130,21 +5282,6 @@ function ProfileHub({ me, onLogout, onNewJob, onResume, onAvatarChange }) {
           <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} />
         </>
       )}
-      {/* 法務・管理系リンク（Airbnb同型：プロフィール最下部に集約。旧ハンバーガー項目の行き先） */}
-      <div style={{marginTop:32,paddingTop:24,borderTop:"1px solid #EEE",textAlign:"center"}}>
-        {isAdmin(me) && (
-          <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans"
-            style={{display:"block",width:"100%",maxWidth:280,margin:"0 auto 16px",padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>
-            ⚙️ 管理
-          </button>
-        )}
-        <div style={{display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap",marginBottom:20}}>
-          <button onClick={()=>{ window.location.hash = "/charter"; }} className="f-sans" style={{background:"none",border:"none",fontSize:12,color:"#717171",cursor:"pointer",padding:0}}>運営憲章</button>
-          <button onClick={()=>{ window.location.hash = "/terms"; }} className="f-sans" style={{background:"none",border:"none",fontSize:12,color:"#717171",cursor:"pointer",padding:0}}>利用規約</button>
-          <button onClick={()=>{ window.location.hash = "/privacy"; }} className="f-sans" style={{background:"none",border:"none",fontSize:12,color:"#717171",cursor:"pointer",padding:0}}>プライバシーポリシー</button>
-        </div>
-        <button onClick={onLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
-      </div>
     </div>
   );
 }
@@ -5391,22 +5528,6 @@ function JobSearchMapView({ onRegister, me }) {
     return () => observer.disconnect();
   }, [selectedJob]);
 
-  // 求人詳細（スマホ専用）：スクロール中は上下バーを隠す。停止後400msで再表示
-  useEffect(() => {
-    if (!selectedJob) { document.body.classList.remove('job-detail-scrolling'); return; }
-    let timeoutId;
-    const onScroll = () => {
-      document.body.classList.add('job-detail-scrolling');
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => document.body.classList.remove('job-detail-scrolling'), 400);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      clearTimeout(timeoutId);
-      document.body.classList.remove('job-detail-scrolling');
-    };
-  }, [selectedJob]);
   const handlePhotoScroll = e => {
     const el = e.target;
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
@@ -10056,10 +10177,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           })
         )
       ) : jobTab==="calendar" ? (
-        <div style={{ gridColumn:"1/-1", maxWidth:480 }}>
-          <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8, lineHeight:1.7 }}>あなたの求人の日程と、承認した働き手がいつ来るかを、ここで確認できます。</p>
-          <CalendarView readOnly={true} />
-          <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", marginTop:12, lineHeight:1.7 }}>※ 求人の期間や来訪予定の表示は今後追加されます。</p>
+        <div style={{ gridColumn:"1/-1", maxWidth:480, textAlign:"center", padding:"32px 0" }}>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16, lineHeight:1.7 }}>あなたの求人の日程と、承認した働き手がいつ来るかは、カレンダーでまとめて確認できます。</p>
+          <button onClick={()=>{ window.location.hash = "/calendar"; }} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12 }}>カレンダーへ →</button>
         </div>
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
@@ -10956,7 +11076,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats","saved"];
+  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats","saved","calendar"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -11040,6 +11160,7 @@ export default function App(){
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // モバイル下部バー左端☰（PCのmenuOpenとは別系統）
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
   const [showPrivacy,setShowPrivacy]=useState(false);
@@ -11088,6 +11209,33 @@ export default function App(){
     document.addEventListener("click", onDoc);
     return () => document.removeEventListener("click", onDoc);
   }, [menuOpen]);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onDoc = () => setMobileMenuOpen(false);
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
+  }, [mobileMenuOpen]);
+
+  // モバイル専用：下部バー＋浮遊ボタン「🌱 雇う」のスクロール連動格納。
+  // 下方向に30px超スクロールで格納、上方向スクロール or 最上部付近で復帰。
+  // チャット画面(chatAppId)は入力欄との干渉を避けるため対象外。求人詳細の応募フッター
+  // (.mobile-apply-bar)はこのクラスの対象外＝CSS側で触れていないので常時表示のまま。
+  useEffect(() => {
+    if (chatAppId) { document.body.classList.remove('cb-scroll-hide'); return; }
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const diff = y - lastY;
+      if (y < 40) { document.body.classList.remove('cb-scroll-hide'); lastY = y; return; }
+      if (diff > 30) { document.body.classList.add('cb-scroll-hide'); lastY = y; }
+      else if (diff < -10) { document.body.classList.remove('cb-scroll-hide'); lastY = y; }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      document.body.classList.remove('cb-scroll-hide');
+    };
+  }, [chatAppId]);
 
   useEffect(()=>{(async()=>{
     const { data, error } = await supabase.rpc('public_farmers_count');
@@ -11399,12 +11547,31 @@ const subDest=useCallback(async d=>{
         </div>
       </header>
 
-      {/* ── MOBILE BOTTOM NAV（5機能タブ。カレンダーは未実装のため保留し4タブで運用） ── */}
+      {/* ── MOBILE BOTTOM NAV（最終形：☰＋5機能タブ。カレンダーが中央） ── */}
       <header className="app-header app-header-mobile">
+        {mobileMenuOpen && (
+          <div className="app-header-mobile-menu" onClick={(e)=>e.stopPropagation()}>
+            <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">求人を出す</button>
+            {MOBILE_MENU_ITEMS
+              .filter(item => !item.adminOnly || isAdmin(me))
+              .map(item => (
+                <button key={item.key} onClick={()=>{ setMobileMenuOpen(false); window.location.hash = item.hash; }} className="f-sans app-header-mobile-menu-item">{item.label}</button>
+              ))}
+            {me && (
+              <button onClick={()=>{ setMobileMenuOpen(false); handleLogout(); }} className="f-sans app-header-mobile-menu-item" style={{ color:"#E24B4A", borderTop:"1px solid #EBEBEB" }}>ログアウト</button>
+            )}
+          </div>
+        )}
         <div className="app-header-mobile-tabs">
+          <button
+            onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); }}
+            aria-label="メニュー"
+            className={"app-header-mobile-tab app-header-mobile-hamburger" + (mobileMenuOpen ? " active" : "")}>
+            <span className="icon">☰</span>
+          </button>
           {MOBILE_TABS.map(t => (
             <button key={t.k}
-              onClick={() => { setTab(t.k); window.location.hash = "/" + t.k; }}
+              onClick={() => { setMobileMenuOpen(false); setTab(t.k); window.location.hash = "/" + t.k; }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
               <span className="icon">
                 {t.k === "profile" && me ? <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={20} /> : t.icon}
@@ -11466,7 +11633,7 @@ const subDest=useCallback(async d=>{
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} me={me} /> : null}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
-          ? <ProfileHub me={me} onLogout={handleLogout}
+          ? <ProfileHub me={me}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(a)} />
@@ -11477,6 +11644,9 @@ const subDest=useCallback(async d=>{
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="saved"&&(me
           ? <SavedJobsView me={me} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>いいねを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="calendar"&&(me
+          ? <MyCalendar />
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>カレンダーを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
