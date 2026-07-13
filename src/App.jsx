@@ -512,9 +512,41 @@ input:focus { outline: none; }
 .app-header-mobile-tab .icon { font-size: 20px; line-height: 1; }
 .app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
 .app-header-mobile-tab.active { color: #00A86B; font-weight: 600; }
-/* ☰はラベルなし・幅を抑えたコンパクト版（タブ5本と横並びで折り返さないため） */
-.app-header-mobile-hamburger { flex: 0 0 44px; }
-.app-header-mobile-hamburger .icon { font-size: 19px; }
+/* ── モバイル☰の上部浮遊ボタン（2026-07-13 下部バーから移設。fixed＝スクロール追従。
+   下部バーのcb-scroll-hide格納の影響を受けず常時表示） ── */
+.app-header-mobile-float { display: none; }
+@media (max-width: 768px) {
+  .app-header-mobile-float {
+    display: block;
+    position: fixed;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: 12px;
+    z-index: 60;
+  }
+  /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
+  body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
+}
+.app-header-mobile-float-btn {
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff;
+  border: 1px solid #EBEBEB;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  cursor: pointer;
+  color: #222;
+  padding: 0;
+}
+.app-header-mobile-float-btn .icon { font-size: 19px; line-height: 1; }
+.app-header-mobile-float-btn.active { color: #00A86B; }
+/* 浮遊☰から開くメニューはボタンの真下に開く（下部バー時代のbottom:100%上開きを上書き） */
+.app-header-mobile-float .app-header-mobile-menu {
+  bottom: auto; top: 100%;
+  margin-bottom: 0; margin-top: 8px;
+  left: 0; right: auto;
+  min-width: 220px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+}
 /* ☰の中身（求人を出す・管理・運営憲章・利用規約・プライバシー・ログアウト）。バーの真上に開く */
 .app-header-mobile-menu {
   position: absolute;
@@ -11547,8 +11579,14 @@ const subDest=useCallback(async d=>{
         </div>
       </header>
 
-      {/* ── MOBILE BOTTOM NAV（最終形：☰＋5機能タブ。カレンダーが中央） ── */}
-      <header className="app-header app-header-mobile">
+      {/* ── MOBILE ☰浮遊ボタン（2026-07-13 下部バーから上部左へ移設。fixed＝スクロール追従） ── */}
+      <div className="app-header-mobile-float">
+        <button
+          onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); }}
+          aria-label="メニュー"
+          className={"app-header-mobile-float-btn" + (mobileMenuOpen ? " active" : "")}>
+          <span className="icon">☰</span>
+        </button>
         {mobileMenuOpen && (
           <div className="app-header-mobile-menu" onClick={(e)=>e.stopPropagation()}>
             <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">求人を出す</button>
@@ -11562,13 +11600,11 @@ const subDest=useCallback(async d=>{
             )}
           </div>
         )}
+      </div>
+
+      {/* ── MOBILE BOTTOM NAV（5機能タブ。カレンダーが中央。☰は上部浮遊へ移設済み） ── */}
+      <header className="app-header app-header-mobile">
         <div className="app-header-mobile-tabs">
-          <button
-            onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); }}
-            aria-label="メニュー"
-            className={"app-header-mobile-tab app-header-mobile-hamburger" + (mobileMenuOpen ? " active" : "")}>
-            <span className="icon">☰</span>
-          </button>
           {MOBILE_TABS.map(t => (
             <button key={t.k}
               onClick={() => { setMobileMenuOpen(false); setTab(t.k); window.location.hash = "/" + t.k; }}
