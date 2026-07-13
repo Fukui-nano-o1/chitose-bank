@@ -6607,7 +6607,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       letterSpacing:"-0.035em", color:"#222", textAlign:"center", margin:"32px 0 10px",
     },
     subtitle: {
-      fontSize:"clamp(14px, 1.6vw, 17px)", lineHeight:1.85, color:"#717171",
+      fontSize:"clamp(16px, 1.6vw, 18px)", lineHeight:1.7, color:"#717171",
       textAlign:"center", margin:"0 auto 28px", maxWidth:520,
     },
     question: {
@@ -6622,11 +6622,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       fontSize:"clamp(13px, 1.4vw, 15px)", lineHeight:1.75, color:"#717171",
     },
     note: {
-      fontSize:"clamp(11px, 1.1vw, 12px)", lineHeight:1.8, color:"#B0B0B0", textAlign:"center",
+      fontSize:"clamp(13px, 1.1vw, 14px)", lineHeight:1.8, color:"#B0B0B0", textAlign:"center",
     },
     inputLabel: { fontSize:14, fontWeight:700, color:"#222", marginBottom:6, display:"block" },
     featureTitle: { fontSize:"clamp(14px, 1.5vw, 16px)", fontWeight:700, color:"#222", marginBottom:3 },
-    featureDesc: { fontSize:"clamp(12px, 1.3vw, 14px)", lineHeight:1.75, color:"#717171" },
+    featureDesc: { fontSize:"clamp(13px, 1.3vw, 14px)", lineHeight:1.75, color:"#717171" },
   };
 
   // canGoNext per step
@@ -6691,7 +6691,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   window.location.hash = "/profile/employer";
                   if (typeof onSkip === "function") onSkip();
                 }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12, background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer" }}>保存せずに終了</button>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", marginTop:6 }}>最後に「保存して終了」した内容は残ります</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", marginTop:6 }}>最後に「保存して終了」した内容は残ります</p>
               </div>
               <button onClick={() => setShowExitModal(false)} className="f-sans" style={{ width:"100%", padding:"10px", background:"none", border:"none", fontSize:13, color:"#717171", cursor:"pointer" }}>キャンセル</button>
             </div>
@@ -6715,7 +6715,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <h1 className="f-sans" style={{ fontSize:38, fontWeight:800, color:"#222", lineHeight:1.25, margin:"0 0 20px" }}>
                   {role === "farmer" ? "まず、基本情報から" : "あなたの希望を入力"}
                 </h1>
-                <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.9, margin:0 }}>
+                <p className="f-sans" style={{ fontSize:16, color:"#222", lineHeight:1.7, margin:0 }}>
                   {role === "farmer"
                     ? "求人に欠かせない情報を入力します。作物、作業内容、場所、日程、採用人数、報酬の6つを、ひとつずつうかがいます。"
                     : "はじめに、希望する作業内容や、働ける時期・条件についてうかがいます。次に、勤務できる地域、曜日、時間帯、希望する報酬など、お仕事探しに必要な情報をご入力ください。"}
@@ -6793,7 +6793,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     cursor: zipSearching ? "default" : "pointer", whiteSpace:"nowrap",
                   }}>{zipSearching ? "検索中..." : "住所を検索"}</button>
                 </div>
-                {zipError && <p className="f-sans" style={{ fontSize:12, color:"#E53935", marginBottom:12 }}>{zipError}</p>}
+                {zipError && <p className="f-sans" style={{ fontSize:14, color:"#E53935", marginBottom:12 }}>{zipError}</p>}
                 <label className="f-sans" style={lfStyles.inputLabel}>都道府県</label>
                 <input
                   ref={prefRef}
@@ -6812,7 +6812,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   className="field f-sans"
                   style={{ fontSize:16, marginBottom:12, background:"#F7F7F7", color:"#717171", cursor:"not-allowed" }}
                 />
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4 }}>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:4 }}>
                   郵便番号から自動で入力されます。誤りがある場合は郵便番号を修正してください
                 </p>
                 <label className="f-sans" style={lfStyles.inputLabel}>町域</label>
@@ -6825,7 +6825,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   className="field f-sans"
                   style={{ fontSize:16, marginBottom:12 }}
                 />
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:-6, marginBottom:12 }}>この項目は求人票に公開されます</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:-6, marginBottom:12 }}>この項目は求人票に公開されます</p>
                 <label className="f-sans" style={lfStyles.inputLabel}>番地・建物名</label>
                 <input
                   ref={addrRef}
@@ -6835,10 +6835,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   className="field f-sans"
                   style={{ fontSize:16 }}
                 />
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6 }}>番地・建物名は求人票には公開されません。応募を承認した方にのみお伝えします。</p>
-                {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerTown.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:12, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:6 }}>番地・建物名は求人票には公開されません。応募を承認した方にのみお伝えします。</p>
+                {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerTown.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:14, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
                 {prefNotAllowed && (
-                  <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", marginTop:4 }}>
+                  <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:4 }}>
                     現在、徳島県内の求人のみ受け付けています。他の地域への展開は準備中です
                   </p>
                 )}
@@ -6945,13 +6945,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 return (
                   <div style={{ marginBottom:14 }}>
                     <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
                     <div style={rowStyle}>
                       <input type="time" value={toTime(startHour, startMinute)} onChange={e => fromTime(e.target.value, setStartHour, setStartMinute)} style={timeStyle} />
                       <span style={{ margin:"0 6px", color:"#717171", fontWeight:700, fontSize:16 }}>〜</span>
                       <input type="time" value={toTime(endHour, endMinute)} onChange={e => fromTime(e.target.value, setEndHour, setEndMinute)} style={timeStyle} />
                     </div>
-                    <p className="f-sans" style={{ fontSize:12, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
+                    <p className="f-sans" style={{ fontSize:14, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
                   </div>
                 );
               })()}
@@ -6976,7 +6976,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <input inputMode="numeric" value={hourlyWageInput} onChange={e => setHourlyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：1200" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
                 <LFWageCompare type="時給" value={hourlyWage} avg={AVG_HOURLY} count={AVG_COUNT} />
                 {hourlyViolation && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
+                  <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
                 )}
               </div>
               <div style={{ marginBottom:14 }}>
@@ -6984,10 +6984,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <input inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
                 {dailyViolation && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
+                  <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
                 )}
                 {unknownWage && (hourlyWage > 0 || dailyWage > 0) && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#E24B4A", marginTop:6 }}>
+                  <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:6 }}>
                     この地域の最低賃金データが未登録のため、金額を確認できません。運営にお問い合わせください
                   </p>
                 )}
@@ -7014,7 +7014,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <div style={{ marginBottom:36 }}>
                   <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"0 0 8px" }}>ステップ2</p>
                   <h1 className="f-sans" style={{ fontSize:38, fontWeight:800, color:"#222", lineHeight:1.25, margin:"0 0 20px" }}>ここからは任意です</h1>
-                  <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.7, margin:0 }}>ここから先は、入力しなくても求人を出せます。ですが、写真や作業の詳しい説明、勤務条件などを加えると、働き手が「ここで働きたい」と感じやすくなります。あなたの求人を、もっと魅力的にしましょう。</p>
+                  <p className="f-sans" style={{ fontSize:16, color:"#222", lineHeight:1.7, margin:0 }}>ここから先は、入力しなくても求人を出せます。ですが、写真や作業の詳しい説明、勤務条件などを加えると、働き手が「ここで働きたい」と感じやすくなります。あなたの求人を、もっと魅力的にしましょう。</p>
                 </div>
               </div>
               <div style={{ background:"#fff", border:"1px solid #EEE", borderRadius:16, overflow:"hidden", boxShadow:"0 4px 16px rgba(0,0,0,0.06)" }}>
@@ -7026,8 +7026,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </div>
               </div>
             </div>
-            <div style={{ position:"absolute", bottom:24, right:20, zIndex:2, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:10 }}>
-              <button onClick={() => setStep(7)} className="btn-primary" style={{ padding:"14px 40px", fontSize:15, fontWeight:700 }}>次へ</button>
+            <div style={{ display:"flex", justifyContent:"flex-end", marginTop:24 }}>
               <button onClick={() => setStep(11)} className="f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, background:"#fff", border:"1px solid #00A86B", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>あとで書く — 確認画面へ進む →</button>
             </div>
           </>)}
@@ -7068,7 +7067,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         e.target.value = '';
                       }} />
                     </label>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:8 }}>{jobPhotos.length} / 10 枚</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:8 }}>{jobPhotos.length} / 10 枚</p>
                   </div>
 
                   {/* 空状態：大タップゾーン */}
@@ -7076,7 +7075,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <label className="f-sans" style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"48px 24px", border:"2px dashed #D8D8D8", borderRadius:16, cursor: photoUploading ? "wait" : "pointer", background:"#FAFAFA", textAlign:"center" }}>
                       <span style={{ fontSize:44, lineHeight:1 }}>📷</span>
                       <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>写真をドロップ、またはタップして追加</span>
-                      <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", maxWidth:280, lineHeight:1.6 }}>畑の全景・作業の様子・収穫物が伝わる写真ほど、応募が増えます。1枚目がカバー写真になります。</span>
+                      <span className="f-sans" style={{ fontSize:14, color:"#B0B0B0", maxWidth:280, lineHeight:1.6 }}>畑の全景・作業の様子・収穫物が伝わる写真ほど、応募が増えます。1枚目がカバー写真になります。</span>
                       <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} disabled={photoUploading} onChange={async e => {
                         const files = Array.from(e.target.files || []);
                         if (files.length === 0) return;
@@ -7143,13 +7142,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 maxLength={1000}
                 style={{ background:"#fff", color:"#222", width:"100%", minHeight:200, padding:"16px", fontSize:15, lineHeight:1.8, border:"1px solid #E5E5E5", borderRadius:14, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
               />
-              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:8, textAlign:"right" }}>{jobDescription.length} / 1000</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:8, textAlign:"right" }}>{jobDescription.length} / 1000</p>
             </LFWizCard>
 
     {jobPhotos.length > 0 && (
       <LFWizCard>
         <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:6 }}>写真ごとの説明</p>
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14 }}>写真を選ぶと、その写真について一言添えられます。</p>
+        <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:14 }}>写真を選ぶと、その写真について一言添えられます。</p>
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
           {jobPhotos.map((p, i) => (
             <button key={i} onClick={() => { setSelectedPhotoIndex(i); captionTextareaRef.current?.focus(); }} style={{ padding:0, border: i === selectedPhotoIndex ? "3px solid #00A86B" : "3px solid transparent", borderRadius:12, cursor:"pointer", background:"none", lineHeight:0 }}>
@@ -7180,7 +7179,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <LFWizCard>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な場所（任意）</label>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な場所があれば入力してください。</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な場所があれば入力してください。</p>
                 {jobDangerPlaces.slice(0, showPlace2 ? 2 : 1).map((place, i) => (
                   <div key={i} style={{ marginBottom:8 }}>
                     <input value={place.label} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, label: e.target.value } : p))} placeholder={`危険な場所${i + 1}（例：ぬかるみ）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
@@ -7231,7 +7230,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </div>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な作業（任意）</label>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な作業があれば入力してください。</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な作業があれば入力してください。</p>
                 {jobDangerTasks.slice(0, showTask2 ? 2 : 1).map((task, i) => (
                   <div key={i} style={{ marginBottom:8 }}>
                     <input value={task.label} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, label: e.target.value } : t))} placeholder={`危険な作業${i + 1}（例：重いコンテナの運搬）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
@@ -7394,7 +7393,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginBottom:16 }}>
                   {shown.map(renderMonth)}
                   {months.length > LIMIT && (
-                    <p className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", marginTop:4 }}>ほか {months.length - LIMIT} か月　〜 {fmtEnd} まで</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", marginTop:4 }}>ほか {months.length - LIMIT} か月　〜 {fmtEnd} まで</p>
                   )}
                 </div>
               );
@@ -7506,7 +7505,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         <span key={i} style={{ fontSize:10, color: i === confActiveSlide ? "#00A86B" : "#D0D0D0" }}>{i === confActiveSlide ? "●" : "○"}</span>
                       ))}
                     </div>
-                    {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>}
+                    {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>}
                   </div>
                 );
               })()}
@@ -7575,7 +7574,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {/* 報酬・最高額・期間 */}
                   <p className="f-mono" style={{ fontSize:26, fontWeight:800, color:"#222", marginBottom:6 }}>{rewardLabel}</p>
                   {maxPay > 0 && (
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:16 }}>期間内に全て勤務した場合の最高額：<span className="f-mono" style={{ fontWeight:700, color:"#00A86B" }}>¥{maxPay.toLocaleString()}</span></p>
+                    <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:16 }}>期間内に全て勤務した場合の最高額：<span className="f-mono" style={{ fontWeight:700, color:"#00A86B" }}>¥{maxPay.toLocaleString()}</span></p>
                   )}
                   <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderTop:"1px solid #F0F0F0", borderBottom:"1px solid #F0F0F0", marginBottom:16 }}>
                     <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>期間</span>
@@ -7614,9 +7613,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     {jobSaving ? "保存中..." : "掲載する"}
                   </button>
                   {!publishChecks.every(Boolean) && (
-                    <p style={{ fontSize:11, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
+                    <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
                   )}
-                  <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
+                  <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
                   <button
                     onClick={handleSaveDraft}
                     disabled={draftSaving}
@@ -7625,8 +7624,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   >
                   {draftSaving ? "保存中..." : "一時保存（作成中に残す）"}
                   </button>
-                  {draftMsg && <p className="f-sans" style={{ fontSize:11, color:draftMsg.startsWith("保存に失敗") ? "#E24B4A" : "#00A86B", textAlign:"center", marginBottom:8 }}>{draftMsg}</p>}
-                  <p className="f-sans" style={{ fontSize:11, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", marginBottom:8 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
+                  {draftMsg && <p className="f-sans" style={{ fontSize:13, color:draftMsg.startsWith("保存に失敗") ? "#E24B4A" : "#00A86B", textAlign:"center", marginBottom:8 }}>{draftMsg}</p>}
+                  <p className="f-sans" style={{ fontSize:13, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", marginBottom:8 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
                   {draftOverlay && (
                     <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.92)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
                       <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
@@ -7684,7 +7683,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                             </div>
                           )}
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
-                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
+                          <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
                         </div>
                       ))}
                     </div>
@@ -7704,7 +7703,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                             </div>
                           )}
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
-                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
+                          <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
                         </div>
                       ))}
                     </div>
@@ -7729,7 +7728,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       </div>
                     ))}
                   </div>
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:10 }}>※ レビューは実際に働いた方のみ投稿できます。現在は表示イメージです。</p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:10 }}>※ レビューは実際に働いた方のみ投稿できます。現在は表示イメージです。</p>
                 </div>
               </div>
             </>);
@@ -7788,7 +7787,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={lfStyles.inputLabel}>活動地域</label>
                 <input value={workerRegion} onChange={e => setWorkerRegion(e.target.value)} placeholder="例：吉野川市" className="field f-sans" style={{ fontSize:16 }} />
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4, lineHeight:1.5 }}>※ 市町村まで。番地・字は公開されません</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:4, lineHeight:1.5 }}>※ 市町村まで。番地・字は公開されません</p>
               </div>
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={lfStyles.inputLabel}>移動手段</label>
@@ -7833,7 +7832,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <label className="f-sans" style={lfStyles.inputLabel}>日給の場合の想定勤務時間 <span style={{ fontSize:13, color:"#B0B0B0", fontWeight:400 }}>（時間）</span></label>
                 <input type="number" value={workerHours} onChange={e => setWorkerHours(e.target.value)} placeholder="例：8" className="field f-mono" style={{ fontSize:16, maxWidth:120 }} />
                 {workerDaily && workerHours && parseFloat(workerHours) > 0 && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#717171", marginTop:4 }}>
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", marginTop:4 }}>
                     時給換算：<span className="f-mono" style={{ fontWeight:700 }}>¥{Math.round(parseFloat(workerDaily)/parseFloat(workerHours)).toLocaleString()}/h</span>
                   </p>
                 )}
@@ -7894,7 +7893,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <div style={{ textAlign:"center", paddingTop:20 }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
               <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", marginBottom:10 }}>ありがとうございます</h2>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
+              <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
                 この機能は現在構想段階です。<br/>
                 実装前に労働局・関係機関へ確認した上で、段階的に追加予定です。
               </p>
