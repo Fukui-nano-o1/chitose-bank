@@ -5071,6 +5071,30 @@ function JobSearchMapView({ onRegister, me }) {
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportTargetField, setReportTargetField] = useState("");
+  const [reportIssueType, setReportIssueType] = useState("");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportSending, setReportSending] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
+  const REPORT_TARGET_FIELDS = ["報酬","勤務時間・休憩","危険情報","作業の説明","写真","場所・日程","その他"];
+  const REPORT_ISSUE_TYPES = ["虚偽・誇大の疑い","最低賃金違反","差別的条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","不快・不適切な表現","その他"];
+  const closeReportModal = () => { setShowReportModal(false); setReportTargetField(""); setReportIssueType(""); setReportDetail(""); };
+  const submitReport = async () => {
+    if (reportSending || !reportTargetField || !reportIssueType || !selectedJob || !me) return;
+    setReportSending(true);
+    const { error } = await supabase.from('job_reports').insert({
+      job_number: selectedJob.id,
+      reporter_id: me.id,
+      target_field: reportTargetField,
+      issue_type: reportIssueType,
+      detail: reportDetail.trim() || null,
+    });
+    setReportSending(false);
+    if (error) { alert("報告の送信に失敗しました：" + error.message); return; }
+    setReportDone(true);
+    setTimeout(() => { setReportDone(false); closeReportModal(); }, 1500);
+  };
   useEffect(() => {
     if (!me) return;
     (async () => {
@@ -5712,6 +5736,16 @@ function JobSearchMapView({ onRegister, me }) {
             </Carousel>
             )}
           </div>
+
+          {/* 通報リンク（目立たせない・ログイン時のみ） */}
+          {me && (
+            <div style={{ textAlign:"center", marginTop:8 }}>
+              <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
+                background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
+                fontSize:12, color:"#717171", textDecoration:"underline", padding:4,
+              }}>⚑ この求人を報告する</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -5802,6 +5836,49 @@ function JobSearchMapView({ onRegister, me }) {
               background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
             }}>✕</button>
             <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
+          </div>
+        </div>
+      )}
+
+      {/* 通報モーダル：差し戻しモーダル(759e54c)と同じ視覚文法・語彙 */}
+      {showReportModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+            {reportDone ? (
+              <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>報告を受け付けました。運営が確認します</p>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>この求人を報告する</p>
+                <div style={{ display:"grid", gap:8, marginBottom:8 }}>
+                  <select value={reportTargetField} onChange={e=>setReportTargetField(e.target.value)} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" }}>
+                    <option value="">対象項目を選択</option>
+                    {REPORT_TARGET_FIELDS.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select value={reportIssueType} onChange={e=>setReportIssueType(e.target.value)} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" }}>
+                    <option value="">問題の種類を選択</option>
+                    {REPORT_ISSUE_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <textarea
+                    value={reportDetail}
+                    onChange={e=>setReportDetail(e.target.value)}
+                    placeholder="詳細（任意）"
+                    rows={4}
+                    className="f-sans"
+                    style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }}
+                  />
+                </div>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>報告は運営のみが確認します。求人の掲載者にはあなたの情報は伝わりません</p>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={closeReportModal} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                  <button
+                    onClick={submitReport}
+                    disabled={reportSending || !reportTargetField || !reportIssueType}
+                    className="f-sans"
+                    style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: (reportTargetField && reportIssueType) ? "#E24B4A" : "#EBEBEB", color: (reportTargetField && reportIssueType) ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}
+                  >{reportSending ? "送信中..." : "送信する"}</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
