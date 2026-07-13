@@ -602,8 +602,10 @@ input:focus { outline: none; }
     white-space: nowrap;
     transition: transform .25s ease;
   }
-  /* スクロール連動の自動格納（Part C）。下部バーと同時に沈む */
-  body.cb-scroll-hide .profile-employer-fab { transform: translateX(-50%) translateY(150%); }
+  /* スクロール連動の自動格納（Part C）。下部バーと同時に沈む。
+     沈む量=浮遊位置(バー64px+隙間12px+セーフエリア)+自身の高さ(100%)。
+     旧150%では下がりきらず画面内に残りフッターを覆っていた */
+  body.cb-scroll-hide .profile-employer-fab { transform: translateX(-50%) translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
 }
 
 /* ── Job search layout ── */
