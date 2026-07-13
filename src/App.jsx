@@ -7718,6 +7718,19 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [publishing, setPublishing] = useState(null);
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
 
+  // 審査メールのボタン（#/admin/review/{job_number}）からの深いリンク対応。
+  // マウント時に加え、既にAdminTabが開いた状態で別の審査メールのリンクを踏んだ場合(hashchange)にも追従
+  useEffect(() => {
+    const applyReviewHash = () => {
+      const h = window.location.hash.replace(/^#\/?/, "");
+      const m = h.match(/^admin\/review\/(\d+)$/);
+      if (m) { setSub("jobs"); setPreviewJobNumber(parseInt(m[1], 10)); }
+    };
+    applyReviewHash();
+    window.addEventListener("hashchange", applyReviewHash);
+    return () => window.removeEventListener("hashchange", applyReviewHash);
+  }, []);
+
   const TIERS = ["1-3","4-10","10+"];
 
   const load = useCallback(async () => {
@@ -8125,8 +8138,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <AdminJobPreview
           jobNumber={previewJobNumber}
           publishing={publishing===previewJobNumber}
-          onClose={()=>setPreviewJobNumber(null)}
-          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); }}
+          onClose={()=>{ setPreviewJobNumber(null); window.location.hash = "/admin"; }}
+          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); window.location.hash = "/admin"; }}
         />
       )}
 
@@ -10042,7 +10055,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms"];
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
@@ -10054,7 +10067,9 @@ export default function App(){
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
     const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/worker/profile" || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
-    if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && window.location.hash !== target) window.location.hash = "/" + tab;
+    // 審査メールの深いリンク(#/admin/review/{job_number})を、tab同期で#/adminに巻き戻さないよう保持
+    const _subTabOfAdmin = (tab === "admin") && _curHash.startsWith("admin/review/");
+    if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && !_subTabOfAdmin && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
   useEffect(() => {
