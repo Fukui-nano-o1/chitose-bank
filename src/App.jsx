@@ -4588,8 +4588,8 @@ function WorkerApplications({ filter, me }) {
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
-                {/* 法務ゲート：職安法の届出/許可確認まで当事者間チャットは稼働禁止（CLAUDE.md） */}
-                {isAdmin(me) && (a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
+                {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
+                {(a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
                   <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
                 )}
               </div>
@@ -4923,13 +4923,15 @@ function JobSearchMapView({ onRegister, me }) {
 
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
   const myAppStatus = myApplication?.status;
-  const applyBtnDisabled = myAppStatus === "applied" || myAppStatus === "approved" || myAppStatus === "rejected";
+  const applyBtnDisabled = myAppStatus === "applied" || myAppStatus === "rejected";
   const applyBtnLabel = applying ? "送信中..."
-    : myAppStatus === "approved" ? "承認されました — 日程調整のご連絡をお待ちください"
+    : myAppStatus === "approved" ? "承認されました — チャットを開く"
     : myAppStatus === "rejected" ? "今回は見送りとなりました"
     : myAppStatus === "applied" ? "応募済み（承認待ち）"
     : "応募";
   const applyBtnStyle = applyBtnDisabled ? { background:"#EBEBEB", color:"#717171" } : {};
+  // 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照）
+  const applyBtnOnClick = myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; }) : handleApply;
 
   if (!me) {
     return (
@@ -5233,7 +5235,7 @@ function JobSearchMapView({ onRegister, me }) {
 
               {/* CTAボタン */}
               <button
-                onClick={handleApply}
+                onClick={applyBtnOnClick}
                 disabled={applying || applyBtnDisabled}
                 className="btn-primary f-sans"
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14, ...applyBtnStyle }}
@@ -5412,7 +5414,7 @@ function JobSearchMapView({ onRegister, me }) {
         }}>
           <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
           <button
-            onClick={handleApply}
+            onClick={applyBtnOnClick}
             disabled={applying || applyBtnDisabled}
             className="btn-primary f-sans"
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
@@ -5441,7 +5443,7 @@ function JobSearchMapView({ onRegister, me }) {
                 >📅</button>
               )}
               <button
-                onClick={handleApply}
+                onClick={applyBtnOnClick}
                 disabled={applying || applyBtnDisabled}
                 className="btn-primary f-sans"
                 style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
@@ -8828,10 +8830,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   }} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
                 </div>
               )}
-              {/* 法務ゲート：職安法の届出/許可確認まで当事者間チャットは稼働禁止（CLAUDE.md） */}
-              {isAdmin(me) && (
-                <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
-              )}
+              {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
+              <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
             </div>
             );
           })
