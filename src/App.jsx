@@ -74,6 +74,7 @@ async function geocodeTown(prefecture, city, town) {
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
 const MENU_ITEMS = [
   { key:"admin",   label:"管理",         hash:"/admin",   auth:true, adminOnly:true },
+  { key:"chats",   label:"チャット",     hash:"/chats",   auth:true  },
   { key:"profile", label:"プロフィール", hash:"/profile", auth:true  },
   { key:"charter", label:"運営憲章",     hash:"/charter", auth:false },
   { key:"terms",   label:"利用規約",     hash:"/terms",   auth:false },
@@ -383,15 +384,18 @@ input:focus { outline: none; }
   border-radius: 4px;
 }
 
-/* ── Bottom tab bar (mobile) ── */
+/* ── Bottom tab bar (mobile) ──
+   2026-07-14: top:0→bottom:0 に変更。day5-6時代は上部ヘッダー不在でこのバー自身が
+   上部ナビを兼ねていたが、.app-headerをモバイルにも表示する今回の変更で前提が変わったため、
+   本来の名前・見た目（画面下部のタブバー）に戻す。 */
 .bottom-tab-bar {
   display: flex;
   position: fixed;
-  top: 0; left: 0; right: 0;
+  bottom: 0; left: 0; right: 0;
   background: #FFFFFF;
-  border-bottom: 1px solid #EBEBEB;
+  border-top: 1px solid #EBEBEB;
   z-index: 49;
-  padding: 6px 0;
+  padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
   justify-content: center;
   gap: 24px;
 }
@@ -399,11 +403,11 @@ input:focus { outline: none; }
   .bottom-tab-bar {
     display: flex;
     position: fixed;
-    top: 0; left: 0; right: 0;
+    bottom: 0; left: 0; right: 0;
     background: #FFFFFF;
-    border-bottom: 1px solid #EBEBEB;
+    border-top: 1px solid #EBEBEB;
     z-index: 49;
-    padding: 6px 0;
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
   }
   .bottom-tab-bar button {
     flex: 1;
@@ -423,8 +427,8 @@ input:focus { outline: none; }
   .bottom-tab-bar button:hover { color: #008F5B; }
   .bottom-tab-bar button.active { color: #00A86B; font-weight: 600; }
   .bottom-tab-bar button span.icon { font-size: 20px; line-height: 1; }
-  header { padding: 0 16px !important; height: 52px !important; }
-  main { padding: 10px 12px 90px !important; }
+  header { padding: 0 16px !important; }
+  main { padding: 10px 12px calc(90px + env(safe-area-inset-bottom, 0px)) !important; }
   .ledger-card { padding: 16px !important; }
 }
 
@@ -439,10 +443,17 @@ input:focus { outline: none; }
   padding: 0 24px; height: 64px;
 }
 @media (max-width: 768px) {
-  .app-header { display: none !important; }
+  /* 2026-07-14: モバイルにも.app-headerを表示（旧: display:none）。
+     下部タブバーをbottom:0へ移設したため、上下で衝突しなくなった */
+  .app-header-inner { padding: 0 16px; }
 }
 @media (min-width: 769px) {
   .bottom-tab-bar { display: none !important; }
+}
+.app-header-post-btn .post-label-short { display: none; }
+@media (max-width: 380px) {
+  .app-header-post-btn .post-label-full { display: none; }
+  .app-header-post-btn .post-label-short { display: inline; }
 }
 
 /* ── Job search layout ── */
@@ -562,7 +573,7 @@ input:focus { outline: none; }
   }
 }
 
-/* ── 求人詳細（スマホ専用）：下部応募フッター。スクロール中は上下バーを隠す ── */
+/* ── 求人詳細（スマホ専用）：下部応募フッター。スクロール中は下部バーを隠す ── */
 .mobile-apply-bar {
   display: none;
 }
@@ -582,8 +593,11 @@ input:focus { outline: none; }
     transition: transform .25s ease;
   }
   body.job-detail-scrolling .mobile-apply-bar { transform: translateY(100%); }
+  /* 求人詳細ページでは下部タブバーを完全非表示にし、下部応募フッターと二重に重ならないようにする
+     （両方ともbottom:0のため。2026-07-14: タブバーのtop→bottom移設で新たに必要になったガード） */
+  body:has(.mobile-apply-bar) .bottom-tab-bar { display: none; }
   .bottom-tab-bar { transition: transform .25s ease; }
-  body.job-detail-scrolling .bottom-tab-bar { transform: translateY(-100%); }
+  body.job-detail-scrolling .bottom-tab-bar { transform: translateY(100%); }
 }
 
 /* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
@@ -4396,6 +4410,93 @@ function ChatView({ applicationId, onBack }) {
         <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") send(); }} placeholder="メッセージを入力" className="field f-sans" style={{ flex:1, fontSize:14 }} />
         <button onClick={send} disabled={sending} className="f-sans" style={{ padding:"10px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{sending?"...":"送信"}</button>
       </div>
+    </div>
+  );
+}
+
+// チャット可能な段階（承認以降）のapplicationsを一覧表示。自分がworker/farmerどちらの当事者でも拾う
+const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","working"];
+const CHAT_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中" };
+function ChatList() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const uid = session.user.id;
+        const [{ data: asWorker }, { data: asFarmer }] = await Promise.all([
+          supabase.from("applications").select("*").eq("worker_id", uid).in("status", CHAT_ELIGIBLE_STATUSES),
+          supabase.from("applications").select("*").eq("farmer_id", uid).in("status", CHAT_ELIGIBLE_STATUSES),
+        ]);
+        // worker_id===farmer_id（自分の求人に自分で応募したテストデータ等）で同一行が
+        // 両方のクエリに一致するケースがあるため、id基準で重複排除する
+        const byId = new Map();
+        [...(asWorker || []).map(a => ({ ...a, _role: "worker" })),
+         ...(asFarmer || []).map(a => ({ ...a, _role: "farmer" }))]
+          .forEach(a => { if (!byId.has(a.id)) byId.set(a.id, a); });
+        const all = [...byId.values()];
+        if (cancelled) return;
+        if (all.length === 0) { setRows([]); setLoading(false); return; }
+
+        const farmerIds = [...new Set(all.filter(a => a._role === "worker").map(a => a.farmer_id).filter(Boolean))];
+        const workerIds = [...new Set(all.filter(a => a._role === "farmer").map(a => a.worker_id).filter(Boolean))];
+        const jobNumbers = [...new Set(all.map(a => a.job_number).filter(Boolean))];
+
+        const [epRes, wpRes, jobRes] = await Promise.all([
+          farmerIds.length ? supabase.from("employer_profiles").select("auth_id,nickname").in("auth_id", farmerIds) : Promise.resolve({ data: [] }),
+          workerIds.length ? supabase.from("worker_profiles").select("auth_id,nickname").in("auth_id", workerIds) : Promise.resolve({ data: [] }),
+          jobNumbers.length ? supabase.from("jobs_public").select("job_number,crop,task").in("job_number", jobNumbers) : Promise.resolve({ data: [] }),
+        ]);
+        if (cancelled) return;
+        const epMap = {}; (epRes.data || []).forEach(e => { epMap[e.auth_id] = e; });
+        const wpMap = {}; (wpRes.data || []).forEach(w => { wpMap[w.auth_id] = w; });
+        const jobMap = {}; (jobRes.data || []).forEach(j => { jobMap[j.job_number] = j; });
+
+        const merged = all
+          .map(a => ({
+            ...a,
+            partnerName: a._role === "worker" ? (epMap[a.farmer_id]?.nickname || "") : (wpMap[a.worker_id]?.nickname || ""),
+            job: jobMap[a.job_number] || null,
+          }))
+          .sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
+        setRows(merged);
+      } catch {}
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0" }}>
+      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>チャット</h2>
+      {loading ? (
+        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+      ) : rows.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
+          <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
+          <p style={{ fontSize:14, margin:0 }}>チャットはまだありません。<br/>応募が承認されると、ここに表示されます。</p>
+        </div>
+      ) : (
+        <div style={{ display:"grid", gap:10 }}>
+          {rows.map(a => {
+            const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
+            return (
+              <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
+                className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff",
+                  border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
+                  <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
+                  <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:"#E6F7EF", color:"#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
+                </div>
+                {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}</p>}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -10539,7 +10640,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms"];
+  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -10915,10 +11016,11 @@ const subDest=useCallback(async d=>{
 
         <div style={{ display:"flex", alignItems:"center", gap:12, position:"relative" }}>
           <button onClick={() => { window.location.hash = "/work/new"; }}
-            className="f-sans"
+            className="f-sans app-header-post-btn"
             style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
                      fontSize:14, fontWeight:600, color:"#222", padding:"8px 14px", borderRadius:20 }}>
-            求人を出す
+            <span className="post-label-full">求人を出す</span>
+            <span className="post-label-short">＋求人</span>
           </button>
 
           <button onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
@@ -11024,6 +11126,9 @@ const subDest=useCallback(async d=>{
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="chats"&&(me
+          ? <ChatList />
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>チャットを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
