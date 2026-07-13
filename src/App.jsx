@@ -4405,10 +4405,46 @@ const PR_PROMPTS = [
   { q:"働くうえで大事にしていることは？", placeholder:"大事にしていることを、あなたの言葉で" },
   { q:"農家さんに一言、伝えたいことは？", placeholder:"伝えたいことを、あなたの言葉で" },
 ];
+// 働き手プロフィールQ&A：20問メニュー（4グループ）。答えた問いだけがpr_qaに残る＝義務ではない
+const WORKER_QA_QUESTIONS = [
+  { group:"きっかけ・興味", questions:[
+    "農業のバイトを始めたのはいつですか？",
+    "農作業に興味を持ったきっかけは？",
+    "農業にどれくらい興味がありますか？",
+    "将来、農業とどう関わりたいですか？",
+  ]},
+  { group:"姿勢", questions:[
+    "バイトをするうえで心がけていることは？",
+    "働くうえで大事にしていることは？",
+    "自分の強みはなんですか？",
+    "人と働くときに気をつけていることは？",
+  ]},
+  { group:"経験", questions:[
+    "これまでの農作業の経験を教えてください",
+    "農業以外の仕事・バイトの経験は？",
+    "使ったことのある道具や機械はありますか？",
+    "体を動かすことは好きですか？",
+  ]},
+  { group:"条件・生活", questions:[
+    "どのくらいの頻度で働きたいですか？",
+    "働けるのはどの季節・時期ですか？",
+    "朝と夕方、どちらが動きやすいですか？",
+    "どのくらいの距離まで通えますか？",
+  ]},
+  { group:"ひとこと", questions:[
+    "農家さんに一言お願いします",
+    "趣味や普段していることは？",
+    "chitose-bankを知ったきっかけは？",
+    "このバイトで得たいことは？",
+  ]},
+];
 function WorkerProfileEdit({ me, onDone, onCancel }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
   const [prPromptIndex, setPrPromptIndex] = useState(null); // 選んだ問い(ヒント)。PR欄への保存内容には含めない
+  const [prQa, setPrQa] = useState([]); // [{q,a}]（20問メニューのうち答えた分だけ）
+  const [activeQ, setActiveQ] = useState(null); // 現在テキストエリアを開いている問い
+  const [qaDraft, setQaDraft] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -4420,11 +4456,28 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         const { data } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (data) { setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || ""); }
+        if (data) {
+          setNickname(data.nickname || "");
+          setPr(data.pr || "");
+          setAvatarUrl(data.avatar_url || "");
+          setPrQa(Array.isArray(data.pr_qa) ? data.pr_qa : []);
+        }
       } catch {}
       setLoading(false);
     })();
   }, []);
+  const qaAnswerFor = (q) => prQa.find(x => x.q === q)?.a || "";
+  const openQuestion = (q) => { setActiveQ(q); setQaDraft(qaAnswerFor(q)); };
+  const saveQaAnswer = () => {
+    const text = qaDraft.trim();
+    if (!text) return;
+    setPrQa(prev => prev.some(x => x.q === activeQ) ? prev.map(x => x.q === activeQ ? { ...x, a: text } : x) : [...prev, { q: activeQ, a: text }]);
+    setActiveQ(null); setQaDraft("");
+  };
+  const deleteQaAnswer = (q) => {
+    setPrQa(prev => prev.filter(x => x.q !== q));
+    if (activeQ === q) { setActiveQ(null); setQaDraft(""); }
+  };
   // 任意形式の画像をCanvasでjpegに統一変換（heic以外の全形式に対応・バケット制限も回避）
   const convertToJpeg = (file) => new Promise((resolve, reject) => {
     const img = new Image();
@@ -4504,7 +4557,7 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
-      const { error } = await supabase.from("worker_profiles").upsert({ auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(), updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      const { error } = await supabase.from("worker_profiles").upsert({ auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(), pr_qa: prQa, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) {
         setSaved(true);
@@ -4562,6 +4615,71 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
         className="field f-sans"
         style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }}
       />
+
+      <div style={{ marginTop:8, marginBottom:16, paddingTop:24, borderTop:"1px solid #F0F0F0" }}>
+        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:12 }}>質問に答えて、あなたを伝える（好きな質問だけでOK）</p>
+        {prQa.length > 0 && (
+          <div style={{ display:"grid", gap:8, marginBottom:16 }}>
+            {prQa.map(({ q, a }) => (
+              <div key={q} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", background:"#F7FBF9" }}>
+                <p className="f-sans" style={{ fontSize:11, color:"#717171", marginBottom:4 }}>{q}</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {WORKER_QA_QUESTIONS.map(({ group, questions }) => (
+          <div key={group} style={{ marginBottom:14 }}>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, marginBottom:6, letterSpacing:".04em" }}>{group}</p>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {questions.map(q => {
+                const answered = prQa.some(x => x.q === q);
+                return (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => openQuestion(q)}
+                    className="f-sans"
+                    style={{
+                      padding:"6px 12px", borderRadius:20,
+                      border:"1px solid " + (answered ? "#00A86B" : "#EBEBEB"),
+                      background: answered ? "#E6F7EF" : "#F7F7F7",
+                      color: answered ? "#00A86B" : "#717171",
+                      fontSize:12, fontWeight:600, cursor:"pointer",
+                    }}
+                  >{answered ? "✓ " : ""}{q}</button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {activeQ && (
+          <div style={{ border:"1px solid #00A86B", borderRadius:12, padding:14, marginTop:4 }}>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>{activeQ}</p>
+            <textarea
+              value={qaDraft}
+              onChange={e=>setQaDraft(e.target.value)}
+              rows={3}
+              autoFocus
+              className="field f-sans"
+              style={{ width:"100%", fontSize:14, marginBottom:10, resize:"vertical" }}
+            />
+            <div style={{ display:"flex", gap:8 }}>
+              <button
+                onClick={saveQaAnswer}
+                disabled={!qaDraft.trim()}
+                className="f-sans"
+                style={{ flex:1, padding:"10px", background: qaDraft.trim() ? "#00A86B" : "#EBEBEB", color: qaDraft.trim() ? "#fff" : "#717171", border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}
+              >保存</button>
+              {prQa.some(x => x.q === activeQ) && (
+                <button onClick={() => deleteQaAnswer(activeQ)} className="f-sans" style={{ padding:"10px 16px", background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A44", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>削除</button>
+              )}
+              <button onClick={() => { setActiveQ(null); setQaDraft(""); }} className="f-sans" style={{ padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>閉じる</button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:12, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>キャンセル</button>
@@ -4573,6 +4691,7 @@ function WorkerProfileEdit({ me, onDone, onCancel }) {
 function WorkerProfilePreview({ me, onEdit }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
+  const [prQa, setPrQa] = useState([]);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -4581,13 +4700,18 @@ function WorkerProfilePreview({ me, onEdit }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         const { data } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (data) { setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || ""); }
+        if (data) {
+          setNickname(data.nickname || "");
+          setPr(data.pr || "");
+          setAvatarUrl(data.avatar_url || "");
+          setPrQa(Array.isArray(data.pr_qa) ? data.pr_qa : []);
+        }
       } catch {}
       setLoading(false);
     })();
   }, []);
   if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
-  const isEmpty = !nickname && !pr && !avatarUrl;
+  const isEmpty = !nickname && !pr && !avatarUrl && prQa.length === 0;
   return (
     <div>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>応募したとき、農家にこのように表示されます。</p>
@@ -4600,14 +4724,24 @@ function WorkerProfilePreview({ me, onEdit }) {
         </div>
       ) : (
         <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom: pr ? 16 : 0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom: (pr || prQa.length > 0) ? 16 : 0 }}>
             <div style={{ width:56, height:56, borderRadius:"50%", background:"#E6F7EF", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
               {avatarUrl ? <img src={avatarUrl} alt="avatar" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:24 }}>🧑‍🌾</span>}
             </div>
             <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{nickname || "名前未設定"}</p>
           </div>
           {pr && (
-            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{pr}</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", marginBottom: prQa.length > 0 ? 16 : 0 }}>{pr}</p>
+          )}
+          {prQa.length > 0 && (
+            <div style={{ display:"grid", gap:10 }}>
+              {prQa.map(({ q, a }) => (
+                <div key={q}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -4904,7 +5038,9 @@ function JobSearchMapView({ onRegister, me }) {
     return () => { cancelled = true; };
   }, [selectedJob?.id, me]);
   const [applying, setApplying] = useState(false);
-  const [showProfileGate, setShowProfileGate] = useState(false); // プロフィール空チェック（ソフトゲート・応募は止めない）
+  // プロフィールゲートのモーダル状態。null=非表示 / {mode:"soft"}=クライアント側の空チェック（両方選べる）
+  // / {mode:"hard", hasNickname, qaAnswered, qaRequired}=サーバー側の必須ゲート（プロフィールを書く、のみ）
+  const [profileGate, setProfileGate] = useState(null);
 
   // apply_to_job本体（プロフィールゲート通過後、または「このまま応募する」選択後に呼ぶ）
   const doApply = async () => {
@@ -4920,6 +5056,9 @@ function JobSearchMapView({ onRegister, me }) {
       else if (data && data.reason === "not_logged_in") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); }
       else if (data && data.reason === "own_job") { alert("自分の求人には応募できません。"); }
       else if (data && data.reason === "job_not_open") { alert("この求人は現在募集を受け付けていません。"); }
+      else if (data && data.reason === "profile_incomplete") {
+        setProfileGate({ mode:"hard", hasNickname: !!data.has_nickname, qaAnswered: data.qa_answered ?? 0, qaRequired: data.qa_required ?? 5 });
+      }
       else { alert("応募できませんでした。"); }
     } catch { setApplying(false); alert("応募に失敗しました。"); }
   };
@@ -4953,7 +5092,7 @@ function JobSearchMapView({ onRegister, me }) {
       } catch { profileBlank = false; }
       if (profileBlank) {
         setApplying(false);
-        setShowProfileGate(true);
+        setProfileGate({ mode:"soft" });
         return;
       }
       await doApply();
@@ -5566,28 +5705,50 @@ function JobSearchMapView({ onRegister, me }) {
         </div>
       )}
 
-      {/* プロフィール空チェック（ソフトゲート）：応募は止めず、書くと承認されやすい旨だけ伝える */}
-      {showProfileGate && (
+      {/* プロフィールゲート：softは応募を止めず誘導するだけ／hardはサーバー側の必須条件未達（プロフィールを書くのみ） */}
+      {profileGate && (
         <div style={{
           position:"fixed", inset:0, zIndex:10000,
           background:"rgba(0,0,0,0.4)",
           display:"flex", alignItems:"center", justifyContent:"center", padding:16,
         }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:360, width:"100%", textAlign:"center" }}>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィールがまだ空です</p>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:20 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              <button
-                onClick={() => { setApplyReturn(selectedJob.id); setShowProfileGate(false); window.location.hash = "/profile/worker/profile"; }}
-                className="f-sans"
-                style={{ padding:"12px", background:"#00A86B", color:"#fff", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer" }}
-              >プロフィールを書く</button>
-              <button
-                onClick={() => { setShowProfileGate(false); doApply(); }}
-                className="f-sans"
-                style={{ padding:"12px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer" }}
-              >このまま応募する</button>
-            </div>
+            {profileGate.mode === "hard" ? (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>応募には自己紹介が必要です</p>
+                <div style={{ display:"flex", justifyContent:"center", gap:16, marginBottom:16 }}>
+                  <span className="f-sans" style={{ fontSize:13, fontWeight:600, color: profileGate.hasNickname ? "#00A86B" : "#E24B4A" }}>
+                    ニックネーム {profileGate.hasNickname ? "✓" : "✗"}
+                  </span>
+                  <span className="f-sans" style={{ fontSize:13, fontWeight:600, color: profileGate.qaAnswered >= profileGate.qaRequired ? "#00A86B" : "#717171" }}>
+                    質問への回答 {profileGate.qaAnswered}/{profileGate.qaRequired}
+                  </span>
+                </div>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:20 }}>あなたのことが伝わると、農家は安心して承認できます。</p>
+                <button
+                  onClick={() => { setApplyReturn(selectedJob.id); setProfileGate(null); window.location.hash = "/profile/worker/profile"; }}
+                  className="f-sans"
+                  style={{ width:"100%", padding:"12px", background:"#00A86B", color:"#fff", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer" }}
+                >プロフィールを書く</button>
+              </>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィールがまだ空です</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:20 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  <button
+                    onClick={() => { setApplyReturn(selectedJob.id); setProfileGate(null); window.location.hash = "/profile/worker/profile"; }}
+                    className="f-sans"
+                    style={{ padding:"12px", background:"#00A86B", color:"#fff", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer" }}
+                  >プロフィールを書く</button>
+                  <button
+                    onClick={() => { setProfileGate(null); doApply(); }}
+                    className="f-sans"
+                    style={{ padding:"12px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer" }}
+                  >このまま応募する</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -9329,7 +9490,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           setDbApplicants(appData);
           const workerIds = [...new Set(appData.map(a => a.worker_id).filter(Boolean))];
           if (workerIds.length > 0) {
-            const { data: wpData, error: wpErr } = await supabase.from("worker_profiles").select("auth_id,nickname,pr,avatar_url").in("auth_id", workerIds);
+            const { data: wpData, error: wpErr } = await supabase.from("worker_profiles").select("auth_id,nickname,pr,pr_qa,avatar_url").in("auth_id", workerIds);
             if (!wpErr && wpData) {
               const map = {};
               wpData.forEach(wp => { map[wp.auth_id] = wp; });
@@ -9444,6 +9605,16 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   )}
                 </div>
               </div>
+              {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (
+                <div style={{ display:"grid", gap:6, marginBottom:10 }}>
+                  {wp.pr_qa.map(({ q, a: ans }) => (
+                    <div key={q}>
+                      <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+                      <p className="f-sans" style={{ fontSize:12, color:"#222", margin:0, lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{ans}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
               {a.status === "applied" && (
@@ -9988,7 +10159,8 @@ const PRIVACY_SECTIONS = [
     ]},
     { id:"privacy-13", title:"13. お問い合わせ窓口", body:[
       "本ポリシーおよび個人情報の取り扱いに関する請求、苦情、問い合わせは、次の窓口で受け付ける。",
-      "窓口：【　　　　　】",
+      "窓口：t5fki6643qty@gmail.com",
+      "当社は、苦情の申し出を受けた場合、内容を確認のうえ遅滞なく対応する。",
     ]},
     { id:"privacy-14", title:"14. 改定", body:[
       "当社は、本ポリシーを改定する場合、本サービス上で公表する。",
@@ -10016,7 +10188,7 @@ function PrivacyPolicy({ onClose }) {
       >
         <button onClick={onClose} aria-label="閉じる" style={{ position:"absolute", top:18, right:18, width:40, height:40, borderRadius:999, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:24, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.12)", cursor:"pointer", zIndex:10 }}>×</button>
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 4px", textAlign:"center" }}>プライバシーポリシー</h2>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 最終更新日：2026年7月8日</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 制定日：2026年7月5日 · 最終改定日：2026年7月13日</p>
         <div style={{ display:"grid", gap:20 }}>
           {sections.map((s, i) => (
             <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
