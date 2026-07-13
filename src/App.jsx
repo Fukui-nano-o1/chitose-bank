@@ -82,19 +82,16 @@ const MENU_ITEMS = [
   { key:"login",   label:"ログイン",     hash:"/login",   auth:false, guestOnly:true },
 ];
 
-// ハンバーガーメニュー（モバイル下部バー用）。2026-07-14: モバイルはアバターが
-// プロフィール導線を兼ねるため「プロフィール」項目は持たず、代わりに「あなたの求人」
-// （雇い手空間の入口）を置く。「求人を出す」はPCでは独立ボタンだが、モバイルは
-// バーの省スペース化のためこのメニュー先頭に集約する。
-const MOBILE_MENU_ITEMS = [
-  { key:"newjob",  label:"求人を出す",     hash:"/work/new",         auth:false },
-  { key:"chats",   label:"チャット",       hash:"/chats",             auth:true  },
-  { key:"employer",label:"あなたの求人",   hash:"/profile/employer", auth:true  },
-  { key:"admin",   label:"管理",           hash:"/admin",             auth:true, adminOnly:true },
-  { key:"charter", label:"運営憲章",       hash:"/charter",           auth:false },
-  { key:"terms",   label:"利用規約",       hash:"/terms",             auth:false },
-  { key:"privacy", label:"プライバシー",   hash:"/privacy",           auth:false },
-  { key:"login",   label:"ログイン",       hash:"/login",             auth:false, guestOnly:true },
+// モバイル下部バー（5機能タブ）。2026-07-14: ハンバーガーは廃止し機能タブ化。
+// カレンダーは未実装のため保留（実装後にこの配列へ差し込む。空タブは出さない）。
+// ハンバーガーに残っていた項目の行き先：求人を出す=雇い手空間内（既存導線）、
+// あなたの求人=プロフィールの浮遊ボタンへ一本化、管理・運営憲章・規約・
+// プライバシー・ログアウト=プロフィール画面最下部（Airbnb同型・法務系は奥へ）。
+const MOBILE_TABS = [
+  { k:"search",  icon:"🔍", label:"さがす" },
+  { k:"saved",   icon:"♡",  label:"いいね" },
+  { k:"chats",   icon:"💬", label:"チャット" },
+  { k:"profile", icon:"👤", label:"プロフィール" },
 ];
 
 // ══════════════════════════════════════════════════════════
@@ -484,6 +481,29 @@ input:focus { outline: none; }
   }
   .bottom-tab-bar { display: none !important; }
 }
+
+/* ── モバイル下部バー：5機能タブ（さがす／いいね／チャット／プロフィール。カレンダーは未実装のため保留） ── */
+.app-header-mobile-tabs {
+  display: flex;
+  height: 64px;
+}
+.app-header-mobile-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #717171;
+  font-family: 'Noto Sans JP', sans-serif;
+  padding: 0;
+}
+.app-header-mobile-tab .icon { font-size: 20px; line-height: 1; }
+.app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
+.app-header-mobile-tab.active { color: #00A86B; font-weight: 600; }
 .app-header-post-btn .post-label-short { display: none; }
 @media (max-width: 380px) {
   .app-header-post-btn .post-label-full { display: none; }
@@ -5086,7 +5106,19 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
           <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} />
         </>
       )}
+      {/* 法務・管理系リンク（Airbnb同型：プロフィール最下部に集約。旧ハンバーガー項目の行き先） */}
       <div style={{marginTop:32,paddingTop:24,borderTop:"1px solid #EEE",textAlign:"center"}}>
+        {isAdmin(me) && (
+          <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans"
+            style={{display:"block",width:"100%",maxWidth:280,margin:"0 auto 16px",padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>
+            ⚙️ 管理
+          </button>
+        )}
+        <div style={{display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap",marginBottom:20}}>
+          <button onClick={()=>{ window.location.hash = "/charter"; }} className="f-sans" style={{background:"none",border:"none",fontSize:12,color:"#717171",cursor:"pointer",padding:0}}>運営憲章</button>
+          <button onClick={()=>{ window.location.hash = "/terms"; }} className="f-sans" style={{background:"none",border:"none",fontSize:12,color:"#717171",cursor:"pointer",padding:0}}>利用規約</button>
+          <button onClick={()=>{ window.location.hash = "/privacy"; }} className="f-sans" style={{background:"none",border:"none",fontSize:12,color:"#717171",cursor:"pointer",padding:0}}>プライバシーポリシー</button>
+        </div>
         <button onClick={onLogout} className="f-sans" style={{padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログアウト</button>
       </div>
     </div>
@@ -5094,7 +5126,8 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
 }
 
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
-function JobCard({ job, variant }) {
+// saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
+function JobCard({ job, variant, saved, onToggleSave }) {
   const isList = variant === "list";
   const p0 = job.photos?.[0];
   const topSrc = typeof p0 === "string" ? p0 : p0?.url;
@@ -5102,8 +5135,8 @@ function JobCard({ job, variant }) {
   const photoHeight = isList ? 210 : 220;
   const photoRadius = isList ? "12px 12px 0 0" : 16;
   const cardStyle = isList
-    ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden" }
-    : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent" };
+    ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden", position:"relative" }
+    : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", position:"relative" };
   return (
     <a
       href={"#/work/job/" + job.id}
@@ -5111,6 +5144,18 @@ function JobCard({ job, variant }) {
       rel="noopener noreferrer"
       style={cardStyle}
     >
+      {typeof onToggleSave === "function" && (
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSave(job); }}
+          aria-label={saved ? "いいねを解除" : "いいね"}
+          style={{ position:"absolute", top:10, right:10, zIndex:2, width:32, height:32, borderRadius:"50%",
+                   background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer",
+                   display:"flex", alignItems:"center", justifyContent:"center",
+                   boxShadow:"0 1px 4px rgba(0,0,0,.18)", fontSize:16,
+                   color: saved ? "#E24B4A" : "#717171" }}>
+          {saved ? "♥" : "♡"}
+        </button>
+      )}
       {topSrc ? (
         <img src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius }} />
       ) : (
@@ -5174,6 +5219,27 @@ function JobSearchMapView({ onRegister, me }) {
     })();
   }, [me]);
   const jobList = dbJobs || [];
+
+  // ── いいね（お気に入り）：saved_jobs（本人のみRLS）。job_number(=job.id)をキーに管理 ──
+  const [savedIds, setSavedIds] = useState(new Set());
+  useEffect(() => {
+    if (!me) { setSavedIds(new Set()); return; }
+    (async () => {
+      try {
+        const { data } = await supabase.from("saved_jobs").select("job_number").eq("worker_id", me.id);
+        setSavedIds(new Set((data || []).map(r => r.job_number)));
+      } catch {}
+    })();
+  }, [me]);
+  const toggleSave = async (job) => {
+    if (!me) return;
+    const isSaved = savedIds.has(job.id);
+    setSavedIds(prev => { const next = new Set(prev); isSaved ? next.delete(job.id) : next.add(job.id); return next; });
+    const { error } = isSaved
+      ? await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", job.id)
+      : await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: job.id });
+    if (error) setSavedIds(prev => { const next = new Set(prev); isSaved ? next.add(job.id) : next.delete(job.id); return next; });
+  };
   useEffect(() => {
     const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
     if (!m) return;
@@ -5391,7 +5457,7 @@ function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
           {jobList.map(job => (
-            <JobCard key={job.id} job={job} variant="list" />
+            <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={toggleSave} />
           ))}
         </div>
       </div>
@@ -5400,10 +5466,16 @@ function JobSearchMapView({ onRegister, me }) {
       {/* ── 詳細ページ ── */}
       {selectedJob && (
         <div className="appear job-detail-body-mobile">
-          <button onClick={() => { setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{} }} className="f-sans job-detail-back-btn" style={{
-            display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
-            fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0", marginBottom:20,
-          }}>← 一覧に戻る</button>
+          <div className="job-detail-back-btn" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+            <button onClick={() => { setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{} }} className="f-sans" style={{
+              display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
+              fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0",
+            }}>← 一覧に戻る</button>
+            <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans" style={{
+              display:"flex", alignItems:"center", gap:6, background:"none", border:"1px solid #EBEBEB", borderRadius:20,
+              fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"6px 14px",
+            }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+          </div>
 
           {/* 写真ギャラリー（ダミー3枚／将来 selectedJob.photos 配列を受け取る想定・最大10枚） */}
           {(() => {
@@ -5797,7 +5869,7 @@ function JobSearchMapView({ onRegister, me }) {
               style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
             >
               {jobList.filter(job => job.id !== selectedJob.id).map(job => (
-                <JobCard key={job.id} job={job} variant="related" />
+                <JobCard key={job.id} job={job} variant="related" saved={savedIds.has(job.id)} onToggleSave={toggleSave} />
               ))}
             </Carousel>
             )}
@@ -7958,6 +8030,51 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               )}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SavedJobsView（いいね一覧・#/saved）：saved_jobs(本人のみ)とjobs_publicをjoinして表示 ──
+function SavedJobsView({ me }) {
+  const [jobs, setJobs] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: saved } = await supabase.from("saved_jobs").select("job_number").eq("worker_id", me.id);
+        const nums = (saved || []).map(r => r.job_number);
+        if (!nums.length) { if (!cancelled) setJobs([]); return; }
+        const { data } = await supabase.from("jobs_public").select("*").in("job_number", nums).order("job_number",{ascending:false});
+        if (!cancelled) setJobs((data || []).map(mapJobPublicRow));
+      } catch { if (!cancelled) setJobs([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [me?.id]);
+
+  const handleUnsave = async (job) => {
+    setJobs(prev => (prev || []).filter(j => j.id !== job.id));
+    await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", job.id);
+  };
+
+  if (jobs === null) return null;
+
+  return (
+    <div>
+      <div style={{ marginBottom:14 }}>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>いいねした求人</h2>
+      </div>
+      {jobs.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"80px 24px" }}>
+          <div style={{ fontSize:40, marginBottom:16 }}>♡</div>
+          <p className="f-sans" style={{ fontSize:14, color:"#717171" }}>気になる求人を♡で保存できます</p>
+        </div>
+      ) : (
+        <div>
+          {jobs.map(job => (
+            <JobCard key={job.id} job={job} variant="list" saved={true} onToggleSave={handleUnsave} />
+          ))}
         </div>
       )}
     </div>
@@ -10782,7 +10899,7 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats"];
+  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats","saved"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -11215,67 +11332,17 @@ const subDest=useCallback(async d=>{
         </div>
       </header>
 
-      {/* ── MOBILE BOTTOM NAV（下部バー1本に統合。ロゴ／アバター／ハンバーガーの3ボタン） ── */}
+      {/* ── MOBILE BOTTOM NAV（5機能タブ。カレンダーは未実装のため保留し4タブで運用） ── */}
       <header className="app-header app-header-mobile">
-        <div className="app-header-inner">
-        <button onClick={() => { setTab("search"); window.location.hash = "/search"; }}
-          style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
-                   fontSize:17, fontWeight:800, color:"#00A86B", padding:0 }}>
-          🥦 chitose-bank
-        </button>
-
-        <div style={{ display:"flex", alignItems:"center", gap:8, position:"relative" }}>
-          <button onClick={() => { setMenuOpen(false); window.location.hash = "/profile"; }}
-            aria-label="プロフィール"
-            style={{ width:44, height:44, borderRadius:"50%", background:"#F7F7F7",
-                     border:"1px solid #EBEBEB", display:"flex", alignItems:"center",
-                     justifyContent:"center", cursor:"pointer", fontSize:16, color:"#717171",
-                     overflow:"hidden", padding:0 }}>
-            {me?.avatar_url
-              ? <img src={me.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-              : "👤"}
-          </button>
-
-          <button onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
-            aria-label="メニュー"
-            style={{ width:44, height:44, borderRadius:"50%", background:"#F7F7F7",
-                     border:"1px solid #EBEBEB", display:"flex", alignItems:"center",
-                     justifyContent:"center", cursor:"pointer", fontSize:18, padding:0 }}>
-            ☰
-          </button>
-
-          {menuOpen && (
-            <div style={{ position:"absolute", bottom:52, top:"auto", right:0, minWidth:200, background:"#fff",
-                          border:"1px solid #EBEBEB", borderRadius:12,
-                          boxShadow:"0 -4px 16px rgba(0,0,0,.08)", padding:"8px 0", zIndex:30 }}>
-              {MOBILE_MENU_ITEMS
-                .filter(item =>
-                  (item.auth ? !!me : true) &&
-                  (item.guestOnly ? !me : true) &&
-                  (item.adminOnly ? isAdmin(me) : true))
-                .map(item => (
-                  <button key={item.key}
-                    onClick={() => { setMenuOpen(false); window.location.hash = item.hash; }}
-                    className="f-sans"
-                    style={{ display:"block", width:"100%", textAlign:"left", background:"none",
-                             border:"none", cursor:"pointer", fontFamily:"inherit",
-                             fontSize:14, color:"#222", padding:"10px 16px" }}>
-                    {item.label}
-                  </button>
-                ))}
-              {me && (
-                <button onClick={() => { setMenuOpen(false); handleLogout(); }}
-                  className="f-sans"
-                  style={{ display:"block", width:"100%", textAlign:"left", background:"none",
-                           border:"none", cursor:"pointer", fontFamily:"inherit",
-                           fontSize:14, color:"#E24B4A", padding:"10px 16px",
-                           borderTop:"1px solid #EBEBEB", marginTop:4 }}>
-                  ログアウト
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        <div className="app-header-mobile-tabs">
+          {MOBILE_TABS.map(t => (
+            <button key={t.k}
+              onClick={() => { setTab(t.k); window.location.hash = "/" + t.k; }}
+              className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
+              <span className="icon">{t.icon}</span>
+              <span className="label">{t.label}</span>
+            </button>
+          ))}
         </div>
       </header>
 
@@ -11337,6 +11404,9 @@ const subDest=useCallback(async d=>{
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="chats"&&(me
           ? <ChatList />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>チャットを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="saved"&&(me
+          ? <SavedJobsView me={me} />
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>いいねを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
