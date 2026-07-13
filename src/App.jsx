@@ -6505,6 +6505,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const goNext = () => setStep(s => s + 1);
   const goBack = () => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); };
 
+  // 確認ページ(step11)からの編集ジャンプ中フラグ。trueの間、共通フッターの「次へ／戻る」は
+  // 通常の順送りでなく確認ページへ直帰する（Airbnb出品確認の「編集→保存して確認へ戻る」と同型）。
+  const [returnToConfirm, setReturnToConfirm] = useState(false);
+  useEffect(() => {
+    if (step === 11) setReturnToConfirm(false); // 確認ページ到達で必ず解除（保険）
+  }, [step]);
+
   useEffect(() => {
     if (onStepChange && role === "farmer" && step >= 1 && step <= 11) onStepChange(step);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -7126,7 +7133,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </div>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", marginTop:24 }}>
-              <button onClick={() => setStep(11)} className="f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, background:"#fff", border:"1px solid #00A86B", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>あとで書く — 確認画面へ進む →</button>
+              {!returnToConfirm && (
+                <button onClick={() => setStep(11)} className="f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, background:"#fff", border:"1px solid #00A86B", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>あとで書く — 確認画面へ進む →</button>
+              )}
             </div>
           </>)}
 
@@ -7572,7 +7581,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               {/* 公開イメージ：タイトル＋住所（公開求人と同一構造） */}
               <div style={{ marginBottom:20 }}>
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{farmerRegion || "地域未設定"}</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2, display:"flex", alignItems:"center", gap:8 }}>
+                  {farmerRegion || "地域未設定"}
+                  <button onClick={() => { setReturnToConfirm(true); setStep(3); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                </p>
               </div>
 
               {/* 公開イメージ・セクション②：写真ギャラリー（公開求人と同サイズ・ダミー） */}
@@ -7581,6 +7593,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
                 return (
                   <div style={{ marginBottom:28, maxWidth:1000, margin:"0 auto 28px" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", maxWidth:870, margin:"0 auto 8px" }}>
+                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>写真</p>
+                      <button onClick={() => { setReturnToConfirm(true); setStep(7); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                    </div>
                     <div style={{ position:"relative", maxWidth:870, margin:"0 auto" }}>
                       <div ref={confScrollRef} onScroll={e => { const w = e.currentTarget.offsetWidth; if (w > 0) setConfActiveSlide(Math.round(e.currentTarget.scrollLeft / w)); }} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12 }}>
                         {jobPhotos.length > 0
@@ -7621,13 +7637,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {/* 募集概要カード */}
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
                     {[
-                      { label:"作物",   value:farmerCrop || "未設定" },
-                      { label:"作業",   value:farmerTask || "未設定" },
-                      { label:"人数",   value:jobCount ? `${jobCount}人募集` : "未設定" },
+                      { label:"作物",   value:farmerCrop || "未設定", editStep:1 },
+                      { label:"作業",   value:farmerTask || "未設定", editStep:2 },
+                      { label:"人数",   value:jobCount ? `${jobCount}人募集` : "未設定", editStep:4 },
                       { label:"経験",   value:jobExp || "未設定" },
                     ].map(item => (
                       <div key={item.label} style={{ padding:"14px 16px", background:"#F7F7F7", borderRadius:16 }}>
-                        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginBottom:4 }}>{item.label}</p>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:0 }}>{item.label}</p>
+                          {item.editStep && (
+                            <button onClick={() => { setReturnToConfirm(true); setStep(item.editStep); }} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                          )}
+                        </div>
                         <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{item.value}</p>
                       </div>
                     ))}
@@ -7643,11 +7664,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   </div>
 
                   {/* 募集本文 */}
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>募集内容</p>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>募集内容</p>
+                    <button onClick={() => { setReturnToConfirm(true); setStep(8); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                  </div>
                   <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16, whiteSpace:"pre-wrap" }}>{jobDescription || tmpl.body}</p>
 
                   {/* 持ち物・注意事項 */}
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10 }}>持ち物・注意事項</p>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>持ち物・注意事項</p>
+                    <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                  </div>
                   {jobNotes && jobNotes.trim() ? (
                     <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
                       {jobNotes.split(/[、,，\n]/).map(n => n.trim()).filter(Boolean).map((n,i) => (
@@ -7671,7 +7698,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 {/* ── 右: 編集パネル ── */}
                 <div style={{ position:"sticky", top:88, border:"1px solid #EBEBEB", borderRadius:28, padding:24, background:"#fff", boxShadow:"0 16px 40px rgba(0,0,0,0.10)" }}>
                   {/* 報酬・最高額・期間 */}
-                  <p className="f-mono" style={{ fontSize:26, fontWeight:800, color:"#222", marginBottom:6 }}>{rewardLabel}</p>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                    <p className="f-mono" style={{ fontSize:26, fontWeight:800, color:"#222", margin:0 }}>{rewardLabel}</p>
+                    <button onClick={() => { setReturnToConfirm(true); setStep(5); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                  </div>
                   {maxPay > 0 && (
                     <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:16 }}>期間内に全て勤務した場合の最高額：<span className="f-mono" style={{ fontWeight:700, color:"#00A86B" }}>¥{maxPay.toLocaleString()}</span></p>
                   )}
@@ -7768,6 +7798,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
               {/* ═══ 詳細確認ミニ表（下部格下げ） ═══ */}
               <div style={{ maxWidth:1120, margin:"24px auto 0" }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>危険情報</p>
+                  <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                </div>
                 {jobDangerTasks.some(t => t.label) && (
                   <div style={{ marginTop:16 }}>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な作業</p>
@@ -8018,14 +8052,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           padding:"16px 20px calc(16px + env(safe-area-inset-bottom, 0px))",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         }}>
-          <button onClick={goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
+          <button onClick={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
           {!isAutoStep && step !== 11 && (
             <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
-              <button onClick={canGoNext ? goNext : undefined} className="btn-primary" style={{
+              <button onClick={canGoNext ? (returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
                 padding:"14px 28px", fontSize:15, fontWeight:700,
                 cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
-              }}>次へ →</button>
-              {step >= 7 && step <= 10 && (
+              }}>{returnToConfirm ? "確認に戻る →" : "次へ →"}</button>
+              {!returnToConfirm && step >= 7 && step <= 10 && (
                 <button onClick={() => setStep(11)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0 }}>残りをスキップして確認へ →</button>
               )}
             </div>
