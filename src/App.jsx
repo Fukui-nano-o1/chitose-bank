@@ -70,7 +70,7 @@ async function geocodeTown(prefecture, city, town) {
   }
 }
 
-// ハンバーガーメニュー。項目の追加・削除はこの配列を編集するだけでよい。
+// ハンバーガーメニュー（PC）。項目の追加・削除はこの配列を編集するだけでよい。
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
 const MENU_ITEMS = [
   { key:"admin",   label:"管理",         hash:"/admin",   auth:true, adminOnly:true },
@@ -80,6 +80,21 @@ const MENU_ITEMS = [
   { key:"terms",   label:"利用規約",     hash:"/terms",   auth:false },
   { key:"privacy", label:"プライバシー", hash:"/privacy", auth:false },
   { key:"login",   label:"ログイン",     hash:"/login",   auth:false, guestOnly:true },
+];
+
+// ハンバーガーメニュー（モバイル下部バー用）。2026-07-14: モバイルはアバターが
+// プロフィール導線を兼ねるため「プロフィール」項目は持たず、代わりに「あなたの求人」
+// （雇い手空間の入口）を置く。「求人を出す」はPCでは独立ボタンだが、モバイルは
+// バーの省スペース化のためこのメニュー先頭に集約する。
+const MOBILE_MENU_ITEMS = [
+  { key:"newjob",  label:"求人を出す",     hash:"/work/new",         auth:false },
+  { key:"chats",   label:"チャット",       hash:"/chats",             auth:true  },
+  { key:"employer",label:"あなたの求人",   hash:"/profile/employer", auth:true  },
+  { key:"admin",   label:"管理",           hash:"/admin",             auth:true, adminOnly:true },
+  { key:"charter", label:"運営憲章",       hash:"/charter",           auth:false },
+  { key:"terms",   label:"利用規約",       hash:"/terms",             auth:false },
+  { key:"privacy", label:"プライバシー",   hash:"/privacy",           auth:false },
+  { key:"login",   label:"ログイン",       hash:"/login",             auth:false, guestOnly:true },
 ];
 
 // ══════════════════════════════════════════════════════════
@@ -450,6 +465,25 @@ input:focus { outline: none; }
 @media (min-width: 769px) {
   .bottom-tab-bar { display: none !important; }
 }
+
+/* ── モバイルナビの下部バー統合（2026-07-14）：.app-headerをPC用(.app-header-desktop・
+   上部sticky・無変更)とモバイル用(.app-header-mobile・下部fixed)に出し分ける。
+   旧.bottom-tab-barはモバイルでも非表示にする（削除ではなく非表示化。PCは元々
+   min-width:769pxで非表示済みなので上のルールは無変更） ── */
+.app-header-mobile { display: none; }
+@media (max-width: 768px) {
+  .app-header-desktop { display: none; }
+  .app-header-mobile {
+    display: block;
+    position: fixed;
+    top: auto; bottom: 0;
+    border-bottom: none;
+    border-top: 1px solid #EBEBEB;
+    z-index: 49;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bottom-tab-bar { display: none !important; }
+}
 .app-header-post-btn .post-label-short { display: none; }
 @media (max-width: 380px) {
   .app-header-post-btn .post-label-full { display: none; }
@@ -598,6 +632,11 @@ input:focus { outline: none; }
   body:has(.mobile-apply-bar) .bottom-tab-bar { display: none; }
   .bottom-tab-bar { transition: transform .25s ease; }
   body.job-detail-scrolling .bottom-tab-bar { transform: translateY(100%); }
+  /* 統合後の下部バー(.app-header-mobile)も同様に、求人詳細ページでは応募フッターと
+     二重にbottom:0で重ならないよう非表示にする（旧.bottom-tab-bar用ガードと同じ作法） */
+  body:has(.mobile-apply-bar) .app-header-mobile { display: none; }
+  .app-header-mobile { transition: transform .25s ease; }
+  body.job-detail-scrolling .app-header-mobile { transform: translateY(100%); }
 }
 
 /* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
@@ -11082,8 +11121,8 @@ const subDest=useCallback(async d=>{
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
       <style>{CSS}</style>
 
-      {/* ── PC HEADER ── */}
-      <header className="app-header">
+      {/* ── PC HEADER（無変更） ── */}
+      <header className="app-header app-header-desktop">
         <div className="app-header-inner">
         <button onClick={() => { setTab("search"); window.location.hash = "/search"; }}
           style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
@@ -11150,7 +11189,73 @@ const subDest=useCallback(async d=>{
         </div>
       </header>
 
-      {/* ── MOBILE BOTTOM TAB BAR ── */}
+      {/* ── MOBILE BOTTOM NAV（下部バー1本に統合。ロゴ／アバター／ハンバーガーの3ボタン） ── */}
+      <header className="app-header app-header-mobile">
+        <div className="app-header-inner">
+        <button onClick={() => { setTab("search"); window.location.hash = "/search"; }}
+          style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
+                   fontSize:17, fontWeight:800, color:"#00A86B", padding:0 }}>
+          🥦 chitose-bank
+        </button>
+
+        <div style={{ display:"flex", alignItems:"center", gap:8, position:"relative" }}>
+          <button onClick={() => { setMenuOpen(false); window.location.hash = "/profile"; }}
+            aria-label="プロフィール"
+            style={{ width:44, height:44, borderRadius:"50%", background:"#F7F7F7",
+                     border:"1px solid #EBEBEB", display:"flex", alignItems:"center",
+                     justifyContent:"center", cursor:"pointer", fontSize:16, color:"#717171",
+                     overflow:"hidden", padding:0 }}>
+            {me?.avatar_url
+              ? <img src={me.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+              : "👤"}
+          </button>
+
+          <button onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
+            aria-label="メニュー"
+            style={{ width:44, height:44, borderRadius:"50%", background:"#F7F7F7",
+                     border:"1px solid #EBEBEB", display:"flex", alignItems:"center",
+                     justifyContent:"center", cursor:"pointer", fontSize:18, padding:0 }}>
+            ☰
+          </button>
+
+          {menuOpen && (
+            <div style={{ position:"absolute", bottom:52, top:"auto", right:0, minWidth:200, background:"#fff",
+                          border:"1px solid #EBEBEB", borderRadius:12,
+                          boxShadow:"0 -4px 16px rgba(0,0,0,.08)", padding:"8px 0", zIndex:30 }}>
+              {MOBILE_MENU_ITEMS
+                .filter(item =>
+                  (item.auth ? !!me : true) &&
+                  (item.guestOnly ? !me : true) &&
+                  (item.adminOnly ? isAdmin(me) : true))
+                .map(item => (
+                  <button key={item.key}
+                    onClick={() => { setMenuOpen(false); window.location.hash = item.hash; }}
+                    className="f-sans"
+                    style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                             border:"none", cursor:"pointer", fontFamily:"inherit",
+                             fontSize:14, color:"#222", padding:"10px 16px" }}>
+                    {item.label}
+                  </button>
+                ))}
+              {me && (
+                <button onClick={() => { setMenuOpen(false); handleLogout(); }}
+                  className="f-sans"
+                  style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                           border:"none", cursor:"pointer", fontFamily:"inherit",
+                           fontSize:14, color:"#E24B4A", padding:"10px 16px",
+                           borderTop:"1px solid #EBEBEB", marginTop:4 }}>
+                  ログアウト
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        </div>
+      </header>
+
+      {/* ── 旧・下部タブバー（さがす/プロフィール/管理）：モバイル下部バー統合につき廃止。
+           削除ではなく非表示化（CSS）。PCは元々min-width:769pxで非表示済みのため無変更。
+           不要と判断できたら後日A群としてこのブロックごと削除する ── */}
       {TABS.length>1&&<div className="bottom-tab-bar">
         {TABS.map(({k,badge,l})=>{
           const icons={search:"🔍",work:"🤝",profile:"👤",admin:"⚙️",labor:"🤝"};
