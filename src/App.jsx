@@ -7619,12 +7619,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               "草刈り":   { body:"圃場周辺の草刈り、片付け、運搬補助をお願いします。", items:["長袖","長ズボン","飲み物","タオル"], notes:"機械を使う作業は経験者のみを想定しています。" },
             };
             const tmpl = JT_MAP[jobTemplate] || JT_MAP["収穫補助"];
-            const titleRequired = `${farmerCrop || "作物"}${farmerTask || "作業"}スタッフ ${jobCount ? jobCount + "人募集" : ""}`.trim();
-            const titleOptional = [
-              stationLabel(nearestStation, commuteTime),
-            ].filter(Boolean).join("・");
-            const listingTitle = titleOptional ? `${titleRequired}｜${titleOptional}` : titleRequired;
-            const subInfo = [farmerRegion || "地域未入力", jobDateLabel !== "日程を選択してください" ? jobDateLabel : "日程未設定", workTimeLabel].join("・");
             const rewardLabel = hourlyWage > 0 ? `¥${hourlyWage.toLocaleString()} / 時` : dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定";
             const wageType = hourlyWage > 0 ? "時給" : "日給";
             const wageNum  = hourlyWage > 0 ? hourlyWage : dailyWage;
@@ -7754,9 +7748,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               }
             };
 
-            const tagStyle = { padding:"6px 14px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:13 };
-            const inputSt = { width:"100%", height:48, borderRadius:14, border:"1px solid #E5E5E5", fontSize:15, padding:"0 14px", outline:"none", boxSizing:"border-box" };
-
             return (<>
               {/* タイトル */}
               <h2 className="f-sans" style={{ fontSize:"clamp(20px,3vw,30px)", fontWeight:850, color:"#222", marginBottom:6, lineHeight:1.3 }}>
@@ -7764,16 +7755,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </h2>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手には、以下のように表示されます。</p>
 
-              {/* 公開イメージ：タイトル＋住所（公開求人と同一構造） */}
-              <div style={{ marginBottom:20 }}>
-                <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2, display:"flex", alignItems:"center", gap:8 }}>
-                  {farmerRegion || "地域未設定"}
-                  <button onClick={() => { setReturnToConfirm(true); setStep(3); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                </p>
-              </div>
-
-              {/* 公開イメージ・セクション②：写真ギャラリー（公開求人と同サイズ・ダミー） */}
+              {/* 公開イメージ・セクション①：写真ギャラリー（求人詳細ページと同じく写真が先頭） */}
               {(() => {
                 const cropIcon = farmerCrop && farmerCrop.includes("ブロッコリー") ? "🥦" : farmerCrop && farmerCrop.includes("なす") ? "🍆" : farmerCrop && farmerCrop.includes("トマト") ? "🍅" : farmerCrop && farmerCrop.includes("ねぎ") ? "🌿" : "🌱";
                 const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
@@ -7811,74 +7793,142 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 );
               })()}
 
-              {/* ═══ 2カラムグリッド ═══ */}
+              {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
+              <div style={{ marginBottom:20 }}>
+                <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}` : ""}</h2>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", margin:0, marginTop:4, display:"flex", alignItems:"center", gap:10 }}>
+                  編集：
+                  <button onClick={() => { setReturnToConfirm(true); setStep(1); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作物</button>
+                  <button onClick={() => { setReturnToConfirm(true); setStep(2); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作業</button>
+                  <button onClick={() => { setReturnToConfirm(true); setStep(3); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>場所</button>
+                </p>
+              </div>
+
+              {/* ═══ 2カラムグリッド（求人詳細ページの job-detail-2col と同一構造） ═══ */}
               <div className="lf-preview-grid">
 
-                {/* ── 左: 掲載プレビュー ── */}
+                {/* ── 左: 掲載プレビュー（求人詳細ページの左カラムと同一構造） ── */}
                 <div>
-                  <h3 className="f-sans" style={{ fontSize:"clamp(20px,2.5vw,26px)", fontWeight:800, color:"#222", marginBottom:6, lineHeight:1.3 }}>{listingTitle}</h3>
-                  <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:18 }}>{subInfo}</p>
-                  <div style={{ borderBottom:"1px solid #EBEBEB", marginBottom:20 }} />
-
-                  {/* 募集概要カード */}
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
-                    {[
-                      { label:"作物",   value:farmerCrop || "未設定", editStep:1 },
-                      { label:"作業",   value:farmerTask || "未設定", editStep:2 },
-                      { label:"人数",   value:jobCount ? `${jobCount}人募集` : "未設定", editStep:4 },
-                      { label:"経験",   value:jobExp || "未設定" },
-                    ].map(item => (
-                      <div key={item.label} style={{ padding:"14px 16px", background:"#F7F7F7", borderRadius:16 }}>
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:0 }}>{item.label}</p>
-                          {item.editStep && (
-                            <button onClick={() => { setReturnToConfirm(true); setStep(item.editStep); }} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                          )}
+                  {/* 主要情報カード（詳細ページと同じ・各行に編集リンク・未入力は「未設定」表示） */}
+                  <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div className="job-detail-info-grid">
+                      {[
+                        { label:"日程",     value: jobDateLabel !== "日程を選択してください" ? jobDateLabel : "", editStep:4 },
+                        { label:"勤務時間", value: workTimeLabel, editStep:5 },
+                        { label:"休憩時間", value: breakTime, editStep:5 },
+                        { label:"採用人数", value: jobCount ? `${jobCount}人` : "", editStep:4 },
+                        { label:"移動時間", value: stationLabel(nearestStation, commuteTime), editStep:3 },
+                        { label:"報酬",     value: rewardLabel !== "未設定" ? `${rewardLabel}${(payTiming || payMethod) ? "　" + [payTiming, payMethod].filter(Boolean).join("・") : ""}` : "", editStep:5 },
+                      ].map(row => (
+                        <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                          <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"flex", alignItems:"center", gap:6 }}>
+                            {row.label}
+                            <button onClick={() => { setReturnToConfirm(true); setStep(row.editStep); }} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                          </span>
+                          <span className="f-sans" style={{ fontSize:15, color: row.value ? "#222" : "#B0B0B0", fontWeight: row.value ? 600 : 400, lineHeight:1.6 }}>{row.value || "未設定"}</span>
                         </div>
-                        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{item.value}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
                   </div>
 
-                  {/* 農家プロフィール（公開イメージ・確認ページにある変数のみ使用） */}
-                  <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 0", borderBottom:"1px solid #F7F7F7", marginBottom:16 }}>
-                    <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🧑‍🌾</div>
-                    <div>
+                  {/* 農家プロフィールカード（詳細ページと同じ中央寄せカード） */}
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
+                      <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, marginBottom:8 }}>🧑‍🌾</div>
                       <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
                       <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
                     </div>
                   </div>
 
-                  {/* 募集本文 */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>募集内容</p>
-                    <button onClick={() => { setReturnToConfirm(true); setStep(8); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                  </div>
-                  <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16, whiteSpace:"pre-wrap" }}>{jobDescription || tmpl.body}</p>
-
-                  {/* 持ち物・注意事項 */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>持ち物・注意事項</p>
-                    <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                  </div>
-                  {jobNotes && jobNotes.trim() ? (
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
-                      {jobNotes.split(/[、,，\n]/).map(n => n.trim()).filter(Boolean).map((n,i) => (
-                        <span key={i} style={{ ...tagStyle, background:"#FEF3E2", color:"#F5A623" }}>📌 {n}</span>
-                      ))}
+                  {/* 作業内容カード（詳細ページと同じ） */}
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:0 }}>作業内容</p>
+                      <button onClick={() => { setReturnToConfirm(true); setStep(8); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
-                  ) : (
-                    <p className="f-sans" style={{ fontSize:14, color:"#B0B0B0", marginBottom:8 }}>未設定</p>
-                  )}
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10, marginTop:16 }}>注意事項</p>
-                  <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:8, whiteSpace:"pre-wrap" }}>{jobCautions && jobCautions.trim() ? jobCautions : "未設定"}</p>
-                  {/* 必要経験・希望する働き手（公開イメージ） */}
-                  <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:16 }}>
-                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>必要経験</p>
-                    <p className="f-sans" style={{ fontSize:14, color:"#222", marginBottom:14 }}>{jobExp || "未設定"}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>希望する働き手</p>
-                    <p className="f-sans" style={{ fontSize:14, color:"#222", margin:0 }}>{farmerWanted || "未設定"}</p>
+                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{jobDescription || tmpl.body}</p>
                   </div>
+
+                  {/* 経験・持ち物・備考カード（詳細ページと同じ配列駆動・未入力は「未設定」） */}
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                      <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                    </div>
+                    {[
+                      { label:"必要経験",       value: jobExp },
+                      { label:"希望する働き手", value: farmerWanted },
+                      { label:"持ち物",         value: jobNotes },
+                      { label:"備考・注意",     value: jobCautions },
+                    ].map(row => (
+                      <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                        <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
+                        <span className="f-sans" style={{ fontSize:15, color: (row.value && String(row.value).trim()) ? "#222" : "#B0B0B0", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{(row.value && String(row.value).trim()) ? row.value : "未設定"}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 注記（詳細ページと同じ） */}
+                  <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:14 }}>
+                    本名・詳細住所は公開しません。
+                  </p>
+
+                  {/* 危険区域カード（詳細ページと同一構造：場所→作業・縦積み・全幅写真） */}
+                  {(jobDangerPlaces.some(p => p.label) || jobDangerTasks.some(t => t.label)) && (
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <span style={{ fontSize:18 }}>⚠️</span>
+                        <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
+                      </div>
+                      <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                    </div>
+                    {jobDangerPlaces.some(p => p.label) && (
+                      <>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
+                          {jobDangerPlaces.filter(p => p.label).map((place, i) => (
+                            <div key={i} style={{ width:"100%" }}>
+                              {(place.photos && place.photos.length > 0) ? (
+                                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                  {place.photos.map((ph, k) => (
+                                    <img key={k} src={ph.url} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ width:"100%", height:130, borderRadius:8, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>{place.icon}</div>
+                              )}
+                              <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
+                              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {jobDangerTasks.some(t => t.label) && (
+                      <>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                          {jobDangerTasks.filter(t => t.label).map((task, i) => (
+                            <div key={i} style={{ width:"100%" }}>
+                              {(task.photos && task.photos.length > 0) ? (
+                                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                  {task.photos.map((ph, k) => (
+                                    <img key={k} src={ph.url} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ width:"100%", height:130, borderRadius:8, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>{task.icon}</div>
+                              )}
+                              <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
+                              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  )}
                 </div>
 
                 {/* ── 右: 編集パネル ── */}
@@ -7982,53 +8032,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </div>
               </a>
 
-              {/* ═══ 詳細確認ミニ表（下部格下げ） ═══ */}
-              <div style={{ maxWidth:1120, margin:"24px auto 0" }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>危険情報</p>
-                  <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                </div>
-                {jobDangerTasks.some(t => t.label) && (
-                  <div style={{ marginTop:16 }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な作業</p>
-                    <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
-                      {jobDangerTasks.filter(t => t.label).map((task, i) => (
-                        <div key={i} style={{ flexShrink:0, width:200 }}>
-                          {task.photos && task.photos.length > 0 && (
-                            <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                              {task.photos.map((ph, k) => (
-                                <img key={k} src={ph.url} alt="" style={{ flex:1, width:0, height:110, objectFit:"cover", borderRadius:12, border:"1px solid #EEE" }} />
-                              ))}
-                            </div>
-                          )}
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
-                          <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {jobDangerPlaces.some(p => p.label) && (
-                  <div style={{ marginTop:16 }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な場所</p>
-                    <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
-                      {jobDangerPlaces.filter(p => p.label).map((place, i) => (
-                        <div key={i} style={{ flexShrink:0, width:200 }}>
-                          {place.photos && place.photos.length > 0 && (
-                            <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                              {place.photos.map((ph, k) => (
-                                <img key={k} src={ph.url} alt="" style={{ flex:1, width:0, height:110, objectFit:"cover", borderRadius:12, border:"1px solid #EEE" }} />
-                              ))}
-                            </div>
-                          )}
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
-                          <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             </>);
           })()}
 
