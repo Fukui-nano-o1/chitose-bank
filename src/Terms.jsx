@@ -65,8 +65,12 @@ export const TERMS_ARTICLES = [
     "本サービスに関して紛争が生じた場合、徳島地方裁判所を専属的合意管轄とする。",
   ]},
   { id:"terms-14", title:"第14条 お問い合わせ窓口", body:[
+    "運営者は、福井滝人とする。屋号は、chitose-bankとする。",
+    "所在地は、徳島県吉野川市とする。所在地の詳細は、法令に基づく求めに応じて開示する。",
+    "当社は、職業安定法に基づく特定募集情報等提供事業の届出をおこなっている。届出は2026年7月13日にe-Govを通じて提出し、受理番号は交付後に追記する。",
     "本規約に関する問い合わせは、次の窓口で受け付ける。",
-    "窓口：【　　　　　】",
+    "窓口：t5fki6643qty@gmail.com",
+    "当社は、苦情の申し出を受けた場合、内容を確認のうえ遅滞なく対応する。",
   ]},
   { id:"terms-15", title:"第15条 分離可能性", body:[
     "本規約の一部が無効とされた場合であっても、他の条項は効力を有する。",
@@ -96,7 +100,7 @@ export default function Terms({ onClose }) {
         }}>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: "#222", margin: 0, textAlign: "center" }}>利用規約</h1>
-            <p style={{ fontSize: 11, color: "#B0B0B0", marginTop: 4 }}>千歳（chitose-bank） v1.0 · 最終更新日：2026年7月8日</p>
+            <p style={{ fontSize: 11, color: "#B0B0B0", marginTop: 4 }}>千歳（chitose-bank） v1.0 · 制定日：2026年7月5日 · 最終改定日：2026年7月13日</p>
           </div>
           <button onClick={onClose} aria-label="閉じる" style={{
             width: 40, height: 40, borderRadius: 999, border: "1px solid #EBEBEB",
