@@ -606,6 +606,14 @@ input:focus { outline: none; }
      沈む量=浮遊位置(バー64px+隙間12px+セーフエリア)+自身の高さ(100%)。
      旧150%では下がりきらず画面内に残りフッターを覆っていた */
   body.cb-scroll-hide .profile-employer-fab { transform: translateX(-50%) translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
+  /* フッタードック：フッターが画面に入っている間(cb-fab-dock)は沈み込みを打ち消し、
+     フッター上端の12px上に追従して止まる（消えない）。--fab-dockはJS側でスクロール毎に
+     フッターの見えている高さ(px)を設定。max()で通常の浮遊位置より下には行かせない。
+     このルールは直前のcb-scroll-hide沈み込みより後に書くこと（同スペシフィシティ・後勝ち） */
+  body.cb-fab-dock .profile-employer-fab {
+    transform: translateX(-50%);
+    bottom: max(calc(64px + 12px + env(safe-area-inset-bottom, 0px)), calc(var(--fab-dock, 0px) + 12px));
+  }
 }
 
 /* ── Job search layout ── */
@@ -11262,6 +11270,18 @@ export default function App(){
     const onScroll = () => {
       const y = window.scrollY;
       const diff = y - lastY;
+      // 🌱雇うFABのフッタードック：フッターが画面に見えている間はcb-fab-dockを立て、
+      // 見えている高さを--fab-dockに書く（CSS側でフッター上端+12pxに追従＝消えずに止まる）
+      const foot = document.querySelector('.site-footer-fixed');
+      if (foot) {
+        const overlap = window.innerHeight - foot.getBoundingClientRect().top;
+        if (overlap > 0) {
+          document.documentElement.style.setProperty('--fab-dock', overlap + 'px');
+          document.body.classList.add('cb-fab-dock');
+        } else {
+          document.body.classList.remove('cb-fab-dock');
+        }
+      }
       if (y < 40) { document.body.classList.remove('cb-scroll-hide'); lastY = y; return; }
       // 最下部からの残り距離。64px以内=常に格納。180px以内=バウンス吸収帯（強フリックの
       // 跳ね返りやSafariツールバー伸縮で一瞬上向き判定になっても復帰させず状態維持）。
@@ -11273,9 +11293,11 @@ export default function App(){
       else if (diff < -10) { document.body.classList.remove('cb-scroll-hide'); lastY = y; }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll(); // 初期位置（リロード直後に最下部にいる場合等）でもドック判定を反映
     return () => {
       window.removeEventListener('scroll', onScroll);
       document.body.classList.remove('cb-scroll-hide');
+      document.body.classList.remove('cb-fab-dock');
     };
   }, [chatAppId]);
 
