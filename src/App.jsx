@@ -5040,7 +5040,7 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
   return (
     <div style={{maxWidth:1024,margin:"0 auto",padding:"32px 24px"}}>
       <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="profile-employer-fab f-sans">
-        {hasEmployerSide ? "🌱 あなたの求人" : "🌱 雇い手になる"}
+        {hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う"}
       </button>
       {pTab === "worker" ? (
         <div className="profile-grid">
@@ -5078,22 +5078,6 @@ function ProfileHub({ me, onLogout, onNewJob, onResume }) {
               </div>
             )}
           </div>
-          {hasEmployerSide && (
-            <button onClick={()=>{ window.location.hash = "/profile/employer"; }}
-              className="f-sans profile-sidecard"
-              style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
-                padding:"16px", marginTop:24, background:"#F7FBF9",
-                border:"1px solid #D8EEE3", borderRadius:12,
-                boxShadow:"0 2px 8px rgba(0,0,0,.06)", cursor:"pointer", textAlign:"left" }}>
-              <span>
-                <span style={{ fontSize:15, fontWeight:700, color:"#00A86B" }}>🌱 あなたの求人</span>
-                <span style={{ fontSize:11, color:"#717171", display:"block", marginTop:2 }}>
-                  求人の作成・応募者の確認・農園プロフィール
-                </span>
-              </span>
-              <span style={{ fontSize:14, color:"#00A86B" }}>→</span>
-            </button>
-          )}
         </div>
       ) : (
         <>
@@ -9910,7 +9894,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   return (
     <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 20px 80px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>あなたの求人</h2>
+        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>雇う｜あなたの求人</h2>
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
