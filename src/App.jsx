@@ -11250,6 +11250,8 @@ export default function App(){
 
   // モバイル専用：下部バー＋浮遊ボタン「🌱 雇う」のスクロール連動格納。
   // 下方向に30px超スクロールで格納、上方向スクロール or 最上部付近で復帰。
+  // 最下部付近（残り64px以内）では方向に関係なく常に格納＝フッターがバーに隠れない。
+  // iOSのバウンスが上スクロール扱いになりバーが復帰してフッターを覆う問題への対処。
   // チャット画面(chatAppId)は入力欄との干渉を避けるため対象外。求人詳細の応募フッター
   // (.mobile-apply-bar)はこのクラスの対象外＝CSS側で触れていないので常時表示のまま。
   useEffect(() => {
@@ -11259,6 +11261,8 @@ export default function App(){
       const y = window.scrollY;
       const diff = y - lastY;
       if (y < 40) { document.body.classList.remove('cb-scroll-hide'); lastY = y; return; }
+      const atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 64;
+      if (atBottom) { document.body.classList.add('cb-scroll-hide'); lastY = y; return; }
       if (diff > 30) { document.body.classList.add('cb-scroll-hide'); lastY = y; }
       else if (diff < -10) { document.body.classList.remove('cb-scroll-hide'); lastY = y; }
     };
