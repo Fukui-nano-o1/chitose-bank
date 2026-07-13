@@ -7472,7 +7472,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 // JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
 // 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
 // mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
-function AdminJobPreview({ jobNumber, onClose, onPublish, publishing }) {
+function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision }) {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -7507,6 +7507,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing }) {
         <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:0 }}>🔍 審査プレビュー — この求人はまだ公開されていません</p>
         <div style={{ display:"flex", gap:8, flexShrink:0 }}>
           <button onClick={onClose} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
+          <button onClick={onRequestRevision} disabled={!job} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", opacity: job ? 1 : 0.6 }}>修正を依頼</button>
           <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
         </div>
       </div>
@@ -7743,6 +7744,10 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [pendingJobs, setPendingJobs] = useState([]);
   const [publishing, setPublishing] = useState(null);
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
+  const [revisionTarget, setRevisionTarget] = useState(null); // job_number（差し戻しモーダルの対象）
+  const [revisionReason, setRevisionReason] = useState("");
+  const [revisionSending, setRevisionSending] = useState(false);
+  const [revisionDone, setRevisionDone] = useState(false);
 
   // 審査メールのボタン（#/admin/review/{job_number}）からの深いリンク対応。
   // マウント時に加え、既にAdminTabが開いた状態で別の審査メールのリンクを踏んだ場合(hashchange)にも追従
@@ -7785,6 +7790,23 @@ function AdminTab({ onJump, onShowAccountForm }) {
     load();
   };
   useEffect(() => { load(); }, [load, sub]);
+
+  const requestRevision = async () => {
+    if (revisionSending || !revisionReason.trim()) return;
+    setRevisionSending(true);
+    const { data, error } = await supabase.rpc('request_job_revision', { p_job_number: revisionTarget, p_reason: revisionReason.trim() });
+    setRevisionSending(false);
+    if (error || !data?.ok) { alert("修正依頼の送信に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    setRevisionDone(true);
+    setTimeout(() => {
+      setRevisionDone(false);
+      setRevisionTarget(null);
+      setRevisionReason("");
+      setPreviewJobNumber(null);
+      window.location.hash = "/admin";
+      load();
+    }, 1100);
+  };
 
   const ask = (msg, onOk) => setConfirm({ msg, onOk });
   const closeConfirm = () => setConfirm(null);
@@ -8152,6 +8174,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               </div>
               <div style={{ display:"flex", gap:8, flexShrink:0 }}>
                 <button onClick={()=>setPreviewJobNumber(j.job_number)} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>プレビュー</button>
+                <button onClick={()=>setRevisionTarget(j.job_number)} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#fff", color:"#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>修正を依頼</button>
                 <button onClick={()=>publishJob(j.job_number)} disabled={publishing===j.job_number} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{publishing===j.job_number ? "公開中..." : "公開する"}</button>
               </div>
             </div>
@@ -8166,7 +8189,40 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           publishing={publishing===previewJobNumber}
           onClose={()=>{ setPreviewJobNumber(null); window.location.hash = "/admin"; }}
           onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); window.location.hash = "/admin"; }}
+          onRequestRevision={()=>setRevisionTarget(previewJobNumber)}
         />
+      )}
+
+      {/* ── 差し戻し（修正依頼）モーダル ── */}
+      {revisionTarget != null && (
+        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+            {revisionDone ? (
+              <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>✓ 農家に修正依頼を送りました</p>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>修正をお願いする点</p>
+                <textarea
+                  value={revisionReason}
+                  onChange={e=>setRevisionReason(e.target.value)}
+                  placeholder="例：時給が最低賃金を下回っています／写真に人物が写っています"
+                  rows={4}
+                  className="f-sans"
+                  style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }}
+                />
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>{ setRevisionTarget(null); setRevisionReason(""); }} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                  <button
+                    onClick={requestRevision}
+                    disabled={revisionSending || !revisionReason.trim()}
+                    className="f-sans"
+                    style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: revisionReason.trim() ? "#EA580C" : "#EBEBEB", color: revisionReason.trim() ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}
+                  >{revisionSending ? "送信中..." : "送信する"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ── 記録データ管理 ── */}
