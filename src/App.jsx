@@ -7722,7 +7722,10 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
 // ── AdminTab ─────────────────────────────────────────────────
 function AdminTab({ onJump, onShowAccountForm }) {
-  const [sub, setSub] = useState("farmers");
+  const [sub, setSub] = useState("jobs"); // "jobs" | "account" | "other"（求人審査をデフォルトタブに）
+  const [otherOpen, setOtherOpen] = useState({ dev:false, legacy:false, system:false }); // その他タブのアコーディオン開閉
+  const [legacySub, setLegacySub] = useState("dests"); // 旧事業データ内の選択: dests|records|stats|datadef
+  const [systemSub, setSystemSub] = useState("sql"); // システム内の選択: sql|errors
   const [farmers, setFarmers] = useState([]);
   const [dests, setDests] = useState([]);
   const [records, setRecords] = useState([]);
@@ -7894,16 +7897,12 @@ CREATE INDEX idx_notifications_farmer
   const VARIETY_SQL = `ALTER TABLE records ADD COLUMN IF NOT EXISTS variety text DEFAULT '';
 ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
-  const SUB_TABS = [
-    { k:"farmers", l:"農家",      n: farmers.length },
-    { k:"dests",   l:"出荷先",    n: dests.filter(d=>d.status==="pending").length },
-    { k:"jobs",    l:"求人審査",  n: pendingJobs.length },
-    { k:"records", l:"記録データ", n: records.length },
-    { k:"stats",   l:"統計",      n: null },
-    { k:"sql",     l:"SQL",       n: null },
-    { k:"datadef", l:"データ定義", n: null },
-    { k:"errors",  l:"エラー",    n: null },
+  const TOP_TABS = [
+    { k:"jobs",    l:"求人審査",   icon:"🔍", n: pendingJobs.length },
+    { k:"account", l:"アカウント", icon:"👤", n: farmers.filter(f=>f.status==="pending").length },
+    { k:"other",   l:"その他",     icon:"🧰", n: null },
   ];
+  const topTab = sub==="jobs" ? "jobs" : sub==="account" ? "account" : "other";
 
   const Card = ({ children, style }) => (
     <div className="ledger-card" style={{ padding:"16px 20px", ...style }}>{children}</div>
@@ -7947,94 +7946,186 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </button>
       </div>
 
-      {/* 開発: 画面ジャンプ */}
-      <div style={{ marginBottom:16 }}>
-        <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ</p>
-        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-          {[
-            { k:"jobs",  l:"募集中の仕事" },
-            { k:"board", l:"公開ボード" },
-            { k:"input", l:"データ入力" },
-            { k:"plan",  l:"五年計画" },
-            { k:"labor", l:"お仕事" },
-            { k:"search",  l:"さがす" },
-            { k:"profile", l:"プロフィール" },
-            { k:"login",   l:"ログイン" },
-            { k:"charter", l:"運営憲章" },
-          ].map(({ k, l }) => (
-            <button key={k} onClick={() => onJump(k)} className="f-sans" style={{
-              padding:"6px 12px", borderRadius:8, border:"1px solid #EBEBEB",
-              background:"#F7F7F7", color:"#717171", fontSize:11, fontWeight:600,
-              cursor:"pointer",
-            }}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* 開発: 画面ジャンプ(LandingFlow) */}
-      <div style={{ marginBottom:16 }}>
-        <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ(LandingFlow)</p>
-        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-          {[
-            { l:"LFトップ",      dj:{ role:"",       step:0 } },
-            { l:"農1作物",       dj:{ role:"farmer", step:1 } },
-            { l:"農2作業",       dj:{ role:"farmer", step:2 } },
-            { l:"農3場所",       dj:{ role:"farmer", step:3 } },
-            { l:"農4日程人数",   dj:{ role:"farmer", step:4 } },
-            { l:"農5報酬",       dj:{ role:"farmer", step:5 } },
-            { l:"農6G2説明",     dj:{ role:"farmer", step:6 } },
-            { l:"農7写真",       dj:{ role:"farmer", step:7 } },
-            { l:"農8作業説明",   dj:{ role:"farmer", step:8 } },
-            { l:"農9危険",       dj:{ role:"farmer", step:9 } },
-            { l:"農10持ち物",    dj:{ role:"farmer", step:10 } },
-            { l:"農確認",        dj:{ role:"farmer", step:11 } },
-            { l:"農完了",        dj:{ role:"farmer", step:12 } },
-            { l:"ページX",       dj:{ role:"farmer", step:90 } },
-            { l:"働3",           dj:{ role:"worker", step:3 } },
-            { l:"働6求人",       dj:{ role:"worker", step:6, workerPurpose:"search" } },
-          ].map(({ l, dj }) => (
-            <button key={l} onClick={() => onJump("labor", dj)} className="f-sans" style={{
-              padding:"6px 12px", borderRadius:8, border:"1px solid #D0E8FF",
-              background:"#EBF5FF", color:"#1a73e8", fontSize:11, fontWeight:600,
-              cursor:"pointer",
-            }}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* サブタブ */}
+      {/* メインタブ（求人審査をデフォルト・毎日使うのはここだけ） */}
       <div style={{ display:"flex",gap:4,background:"#F7F7F7",border:"1px solid #EBEBEB",borderRadius:12,padding:4,marginBottom:24 }}>
-        {SUB_TABS.map(({ k, l, n }) => (
+        {TOP_TABS.map(({ k, l, icon, n }) => (
           <button key={k} onClick={() => setSub(k)} style={{
-            flex:1, padding:"9px 8px", border:"none", borderRadius:8, fontFamily:"inherit",
-            background:sub===k?"#fff":"transparent",
-            color:sub===k?"#222":"#717171",
-            fontSize:12, fontWeight:sub===k?700:400,
-            boxShadow:sub===k?"0 1px 4px rgba(0,0,0,0.08)":"none",
-            display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+            flex:1, padding:"11px 8px", border:"none", borderRadius:8, fontFamily:"inherit",
+            background:topTab===k?"#fff":"transparent",
+            color:topTab===k?"#222":"#717171",
+            fontSize:13, fontWeight:topTab===k?700:400,
+            boxShadow:topTab===k?"0 1px 4px rgba(0,0,0,0.08)":"none",
+            display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+            cursor:"pointer",
           }}>
-            {l}
-            {n!=null&&n>0&&<span style={{ padding:"1px 6px",borderRadius:8,fontSize:9,fontWeight:700,background:sub===k?"#E6F7EF":"#EBEBEB",color:sub===k?"#00A86B":"#717171" }}>{n}</span>}
+            <span>{icon}</span>{l}
+            {n!=null&&n>0&&<span style={{ padding:"1px 6px",borderRadius:8,fontSize:9,fontWeight:700,background:topTab===k?"#E6F7EF":"#EBEBEB",color:topTab===k?"#00A86B":"#717171" }}>{n}</span>}
           </button>
         ))}
       </div>
 
-      {/* DEV_TOOL: 本番公開前に削除 */}
-      <button onClick={onShowAccountForm} className="f-sans" style={{
-        padding:"8px 14px", borderRadius:8, border:"1px solid #EBEBEB",
-        background:"#fff", color:"#717171", fontSize:11, fontWeight:600,
-        cursor:"pointer", marginBottom:16,
-      }}>①登録画面を再表示(開発用)</button>
+      {/* ── その他（アコーディオン格納：開発ツール／旧事業データ／システム） ── */}
+      {sub==="other" && (
+        <div style={{ display:"grid", gap:12, marginBottom:24 }}>
+
+          {/* 開発ツール */}
+          <div>
+            <button type="button" onClick={()=>setOtherOpen(o=>({ ...o, dev:!o.dev }))} className="f-sans" style={{
+              width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
+              padding:"14px 16px", background:"#F7F7F7",
+              border:"1px solid #EBEBEB", borderRadius: otherOpen.dev ? "12px 12px 0 0" : 12,
+              cursor:"pointer", fontFamily:"inherit", textAlign:"left",
+            }}>
+              <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>🛠 開発ツール</span>
+              <span style={{ fontSize:12, color:"#717171" }}>{otherOpen.dev ? "▲" : "▼"}</span>
+            </button>
+            {otherOpen.dev && (
+              <div style={{ border:"1px solid #EBEBEB", borderTop:"none", borderRadius:"0 0 12px 12px", padding:16, background:"#fff" }}>
+                <div style={{ marginBottom:16 }}>
+                  <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ</p>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {[
+                      { k:"jobs",  l:"募集中の仕事" },
+                      { k:"board", l:"公開ボード" },
+                      { k:"input", l:"データ入力" },
+                      { k:"plan",  l:"五年計画" },
+                      { k:"labor", l:"お仕事" },
+                      { k:"search",  l:"さがす" },
+                      { k:"profile", l:"プロフィール" },
+                      { k:"login",   l:"ログイン" },
+                      { k:"charter", l:"運営憲章" },
+                    ].map(({ k, l }) => (
+                      <button key={k} onClick={() => onJump(k)} className="f-sans" style={{
+                        padding:"6px 12px", borderRadius:8, border:"1px solid #EBEBEB",
+                        background:"#F7F7F7", color:"#717171", fontSize:11, fontWeight:600,
+                        cursor:"pointer",
+                      }}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom:16 }}>
+                  <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ(LandingFlow)</p>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {[
+                      { l:"LFトップ",      dj:{ role:"",       step:0 } },
+                      { l:"農1作物",       dj:{ role:"farmer", step:1 } },
+                      { l:"農2作業",       dj:{ role:"farmer", step:2 } },
+                      { l:"農3場所",       dj:{ role:"farmer", step:3 } },
+                      { l:"農4日程人数",   dj:{ role:"farmer", step:4 } },
+                      { l:"農5報酬",       dj:{ role:"farmer", step:5 } },
+                      { l:"農6G2説明",     dj:{ role:"farmer", step:6 } },
+                      { l:"農7写真",       dj:{ role:"farmer", step:7 } },
+                      { l:"農8作業説明",   dj:{ role:"farmer", step:8 } },
+                      { l:"農9危険",       dj:{ role:"farmer", step:9 } },
+                      { l:"農10持ち物",    dj:{ role:"farmer", step:10 } },
+                      { l:"農確認",        dj:{ role:"farmer", step:11 } },
+                      { l:"農完了",        dj:{ role:"farmer", step:12 } },
+                      { l:"ページX",       dj:{ role:"farmer", step:90 } },
+                      { l:"働3",           dj:{ role:"worker", step:3 } },
+                      { l:"働6求人",       dj:{ role:"worker", step:6, workerPurpose:"search" } },
+                    ].map(({ l, dj }) => (
+                      <button key={l} onClick={() => onJump("labor", dj)} className="f-sans" style={{
+                        padding:"6px 12px", borderRadius:8, border:"1px solid #D0E8FF",
+                        background:"#EBF5FF", color:"#1a73e8", fontSize:11, fontWeight:600,
+                        cursor:"pointer",
+                      }}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <button onClick={onShowAccountForm} className="f-sans" style={{
+                  padding:"8px 14px", borderRadius:8, border:"1px solid #EBEBEB",
+                  background:"#fff", color:"#717171", fontSize:11, fontWeight:600,
+                  cursor:"pointer",
+                }}>①登録画面を再表示(開発用)</button>
+              </div>
+            )}
+          </div>
+
+          {/* 旧事業データ */}
+          <div>
+            <button type="button" onClick={()=>setOtherOpen(o=>({ ...o, legacy:!o.legacy }))} className="f-sans" style={{
+              width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
+              padding:"14px 16px", background:"#F7F7F7",
+              border:"1px solid #EBEBEB", borderRadius: otherOpen.legacy ? "12px 12px 0 0" : 12,
+              cursor:"pointer", fontFamily:"inherit", textAlign:"left",
+            }}>
+              <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>📦 旧事業データ</span>
+              <span style={{ fontSize:12, color:"#717171" }}>{otherOpen.legacy ? "▲" : "▼"}</span>
+            </button>
+            {otherOpen.legacy && (
+              <div style={{ border:"1px solid #EBEBEB", borderTop:"none", borderRadius:"0 0 12px 12px", padding:16, background:"#fff" }}>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {[
+                    { k:"dests",   l:"出荷先",     n: dests.filter(d=>d.status==="pending").length },
+                    { k:"records", l:"記録データ", n: records.length },
+                    { k:"stats",   l:"統計",       n: null },
+                    { k:"datadef", l:"データ定義", n: null },
+                  ].map(({ k, l, n }) => (
+                    <button key={k} onClick={() => setLegacySub(k)} className="f-sans" style={{
+                      padding:"7px 14px", borderRadius:8, border:"1px solid #EBEBEB",
+                      background:legacySub===k?"#222":"#F7F7F7",
+                      color:legacySub===k?"#fff":"#717171",
+                      fontSize:11, fontWeight:600, cursor:"pointer",
+                      display:"flex", alignItems:"center", gap:5,
+                    }}>
+                      {l}
+                      {n!=null&&n>0&&<span style={{ padding:"1px 6px",borderRadius:8,fontSize:9,fontWeight:700,background:legacySub===k?"#00A86B":"#EBEBEB",color:legacySub===k?"#fff":"#717171" }}>{n}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* システム */}
+          <div>
+            <button type="button" onClick={()=>setOtherOpen(o=>({ ...o, system:!o.system }))} className="f-sans" style={{
+              width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
+              padding:"14px 16px", background:"#F7F7F7",
+              border:"1px solid #EBEBEB", borderRadius: otherOpen.system ? "12px 12px 0 0" : 12,
+              cursor:"pointer", fontFamily:"inherit", textAlign:"left",
+            }}>
+              <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>⚙️ システム</span>
+              <span style={{ fontSize:12, color:"#717171" }}>{otherOpen.system ? "▲" : "▼"}</span>
+            </button>
+            {otherOpen.system && (
+              <div style={{ border:"1px solid #EBEBEB", borderTop:"none", borderRadius:"0 0 12px 12px", padding:16, background:"#fff" }}>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {[
+                    { k:"sql",    l:"SQL" },
+                    { k:"errors", l:"エラー" },
+                  ].map(({ k, l }) => (
+                    <button key={k} onClick={() => setSystemSub(k)} className="f-sans" style={{
+                      padding:"7px 14px", borderRadius:8, border:"1px solid #EBEBEB",
+                      background:systemSub===k?"#222":"#F7F7F7",
+                      color:systemSub===k?"#fff":"#717171",
+                      fontSize:11, fontWeight:600, cursor:"pointer",
+                    }}>{l}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
 
       {loading && <div style={{ textAlign:"center",padding:48,color:"#B0B0B0",fontSize:13 }}>読み込み中...</div>}
 
-      {/* ── 農家管理 ── */}
-      {!loading && sub==="farmers" && (
+      {/* ── アカウント管理（旧・農家タブ。一覧は最小表示、詳細は展開時のみ） ── */}
+      {!loading && sub==="account" && (
         <div className="fade-in" style={{ display:"grid", gap:8 }}>
           {farmers.length===0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>農家がいません</p>}
           {farmers.map(f => {
             const isOpen = expandedFarmer === f.id;
             const tier = f.experience_tier || "1-3";
+            const statusInfo = f.status === "pending"
+              ? { label:"承認待ち", bg:"#FFF4E0", fg:"#C77700" }
+              : f.status === "approved"
+                ? { label:"承認済み", bg:"#E6F7EF", fg:"#00A86B" }
+                : { label: f.status || "—", bg:"#F5F5F5", fg:"#717171" };
             const fRecs = records.filter(r => r.farmer_id === f.id || r.farmer_id === f.auth_id);
             const fRecsWithDate = fRecs.filter(r => r.created_at);
             const lastRecDate = fRecsWithDate.length > 0
@@ -8042,6 +8133,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               : null;
             const crops = Array.isArray(f.planned_crops) ? f.planned_crops : [];
             const detailRows = [
+              { label:"メールアドレス", value: f.email || "未設定" },
               { label:"都道府県",   value: f.prefecture || "未設定" },
               { label:"市区町村",   value: f.municipality || "未設定" },
               { label:"栽培作物",   crops },
@@ -8050,19 +8142,18 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             ];
             return (
               <div key={f.id} style={{ borderRadius:12, border:"1px solid #EBEBEB", background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-                {/* 閉じた状態 */}
+                {/* 閉じた状態：ニックネーム＋ステータスバッジのみ。個人情報は展開時のみ表示 */}
                 <div
                   onClick={() => setExpandedFarmer(isOpen ? null : f.id)}
                   style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", cursor:"pointer", userSelect:"none" }}
                 >
                   <div style={{ flex:1, minWidth:0 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{f.name}</p>
-                    <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"2px 0 0" }}>{f.email}</p>
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{f.name || "名前未設定"}</p>
                   </div>
                   <span style={{
                     padding:"3px 9px", borderRadius:8, fontSize:10, fontWeight:700, flexShrink:0, whiteSpace:"nowrap",
-                    background:"#E6F7EF", color:"#00A86B",
-                  }}>{tier}年</span>
+                    background:statusInfo.bg, color:statusInfo.fg,
+                  }}>{statusInfo.label}</span>
                   <span style={{ color:"#B0B0B0", fontSize:11, flexShrink:0 }}>{isOpen ? "▲" : "▼"}</span>
                 </div>
 
@@ -8102,8 +8193,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── 出荷先管理 ── */}
-      {!loading && sub==="dests" && (
+      {/* ── 出荷先管理（その他＞旧事業データ） ── */}
+      {!loading && sub==="other" && otherOpen.legacy && legacySub==="dests" && (
         <div className="fade-in">
           <div style={{ display:"grid",gap:12,marginBottom:20 }}>
             {dests.map(d => (
@@ -8225,8 +8316,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── 記録データ管理 ── */}
-      {!loading && sub==="records" && (
+      {/* ── 記録データ管理（その他＞旧事業データ） ── */}
+      {!loading && sub==="other" && otherOpen.legacy && legacySub==="records" && (
         <div className="fade-in">
           {/* フィルター */}
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:16 }}>
@@ -8282,8 +8373,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── 統計 ── */}
-      {!loading && sub==="stats" && (
+      {/* ── 統計（その他＞旧事業データ） ── */}
+      {!loading && sub==="other" && otherOpen.legacy && legacySub==="stats" && (
         <div className="fade-in" style={{ display:"grid",gap:16 }}>
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12 }}>
             {[
@@ -8325,8 +8416,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── SQL ── */}
-      {!loading && sub==="sql" && (
+      {/* ── SQL（その他＞システム） ── */}
+      {!loading && sub==="other" && otherOpen.system && systemSub==="sql" && (
         <div className="fade-in" style={{ display:"grid",gap:16 }}>
           <Card>
             <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>records 列追加SQL（品種・ブランド）</p>
@@ -8357,8 +8448,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── データ定義 ── */}
-      {!loading && sub==="datadef" && (
+      {/* ── データ定義（その他＞旧事業データ） ── */}
+      {!loading && sub==="other" && otherOpen.legacy && legacySub==="datadef" && (
         <div className="fade-in" id="data-definition-print">
           <div className="no-print" style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
             <button onClick={() => window.print()} className="btn-primary" style={{ padding:"10px 24px", fontSize:13 }}>
@@ -8600,8 +8691,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── エラー ── */}
-      {!loading && sub==="errors" && (
+      {/* ── エラー（その他＞システム） ── */}
+      {!loading && sub==="other" && otherOpen.system && systemSub==="errors" && (
         <div className="fade-in">
           {appErrors.length === 0 ? (
             <div style={{ textAlign:"center", padding:"48px 0", color:"#B0B0B0" }}>
