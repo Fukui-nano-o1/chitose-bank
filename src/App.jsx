@@ -4315,6 +4315,37 @@ function stationLabel(station, commute) {
   return `${withEki}から${commute || ""}`.trim();
 }
 
+// jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
+// さがす一覧・求人詳細・管理者プレビューで共通利用
+function mapJobPublicRow(j) {
+  return {
+    id: j.job_number,
+    crop: j.crop || "",
+    task: j.task || "",
+    dateLabel: j.date_label || "",
+    payType: j.pay_type === "日給" ? "daily" : "hourly",
+    pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
+    town: j.town || "",
+    region: [j.prefecture, j.city, j.town].filter(Boolean).join("") || "",
+    experience: j.job_exp || "未経験可",
+    icon: "🌾",
+    lat:    j.lat != null ? Number(j.lat) : null,
+    lng:    j.lng != null ? Number(j.lng) : null,
+    radius: j.geo_radius_m != null ? Number(j.geo_radius_m) : null,
+    count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
+    nearestStation: j.nearest_station || "", workTime: j.work_time || "",
+    breakTime: j.break_time || "",
+    commuteTime: j.commute_time || "", jobBody: j.notes || "",
+    cautions: j.cautions || "",
+    wanted: "", items: j.belongings || "",
+    payTiming: "", payMethod: "",
+    dateStart: j.date_start ? new Date(j.date_start) : null,
+    dateEnd: j.date_end ? new Date(j.date_end) : null,
+    dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
+    dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
+  };
+}
+
 function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -4768,32 +4799,7 @@ function JobSearchMapView({ onRegister, me }) {
       try {
         const { data, error } = await supabase.from("jobs_public").select("*").order("job_number",{ascending:false});
         if (!error && data) {
-          const mapped = data.map(j => ({
-            id: j.job_number,
-            crop: j.crop || "",
-            task: j.task || "",
-            dateLabel: j.date_label || "",
-            payType: j.pay_type === "日給" ? "daily" : "hourly",
-            pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
-            town: j.town || "",
-            region: [j.prefecture, j.city, j.town].filter(Boolean).join("") || "",
-            experience: j.job_exp || "未経験可",
-            icon: "🌾",
-            lat:    j.lat != null ? Number(j.lat) : null,
-            lng:    j.lng != null ? Number(j.lng) : null,
-            radius: j.geo_radius_m != null ? Number(j.geo_radius_m) : null,
-            count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
-            nearestStation: j.nearest_station || "", workTime: j.work_time || "",
-            breakTime: j.break_time || "",
-            commuteTime: j.commute_time || "", jobBody: j.notes || "",
-            cautions: j.cautions || "",
-            wanted: "", items: j.belongings || "",
-            payTiming: "", payMethod: "",
-            dateStart: j.date_start ? new Date(j.date_start) : null,
-            dateEnd: j.date_end ? new Date(j.date_end) : null,
-            dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
-            dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
-          }));
+          const mapped = data.map(mapJobPublicRow);
           setDbJobs(mapped);
         }
       } catch {}
@@ -7434,6 +7440,259 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   );
 }
 
+// ── AdminJobPreview（審査前プレビュー：働き手視点の求人詳細を管理者専用RPCで取得し全画面表示） ──
+// 求人詳細の描画（写真ギャラリー・情報グリッド・disp()の「ー」・危険箇所・地図・カレンダー）を
+// JobSearchMapViewの選択済み求人詳細と同じ見た目で再構成した軽量コンポーネント。
+// JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
+// 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
+// mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
+function AdminJobPreview({ jobNumber, onClose, onPublish, publishing }) {
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [dangerLightbox, setDangerLightbox] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setJob(null);
+    (async () => {
+      const { data, error } = await supabase.rpc('admin_preview_job', { p_job_number: jobNumber });
+      if (cancelled) return;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!error && row) setJob(mapJobPublicRow(row));
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [jobNumber]);
+
+  const handlePhotoScroll = e => {
+    const el = e.target;
+    setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:9000, background:"#fff", overflowY:"auto" }}>
+      {/* 審査バー（固定） */}
+      <div style={{
+        position:"sticky", top:0, zIndex:10, background:"#FFF8E7", borderBottom:"1px solid #F5D98F",
+        padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap",
+      }}>
+        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:0 }}>🔍 審査プレビュー — この求人はまだ公開されていません</p>
+        <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+          <button onClick={onClose} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
+          <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
+        </div>
+      </div>
+
+      <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
+        {loading && (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>読み込み中...</p>
+        )}
+        {!loading && !job && (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>求人が見つかりません（権限がないか、削除された可能性があります）</p>
+        )}
+        {job && (<>
+          {/* 写真ギャラリー */}
+          {(() => {
+            const photos = job.photos.length > 0 ? job.photos : [job.icon, job.icon, job.icon];
+            const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
+            return (
+              <>
+                <Carousel
+                  className="carousel-scroll"
+                  style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
+                  wrapperStyle={{ marginBottom:8 }}
+                  onScroll={handlePhotoScroll}
+                >
+                  {photos.map((photo, i) => {
+                    const src = typeof photo === "string" ? photo : photo?.url;
+                    const cap = typeof photo === "string" ? "" : photo?.caption;
+                    return (
+                      <div key={i} style={{
+                        flexShrink:0, width:"100%", height:392, borderRadius:12,
+                        background: bgColors[i % bgColors.length],
+                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:72,
+                        scrollSnapAlign:"start", position:"relative", overflow:"hidden",
+                      }}>
+                        {job.photos.length > 0
+                          ? <img src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                          : photo}
+                        {cap && (
+                          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:14, fontWeight:600, boxSizing:"border-box" }}>{cap}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </Carousel>
+                <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:20 }}>
+                  {photos.map((_, i) => (
+                    <span key={i} style={{ fontSize:10, color: i===activeSlide ? "#00A86B" : "#D0D0D0" }}>{i===activeSlide ? "●" : "○"}</span>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+
+          {/* ヘッダー */}
+          <div style={{ marginBottom:20 }}>
+            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{job.crop} {job.task}{job.region ? `｜${job.region}` : ""}</h2>
+          </div>
+
+          {/* 主要情報 */}
+          <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+            <div className="job-detail-info-grid">
+              {[
+                { label:"日程",     value: job.dateLabel },
+                { label:"勤務時間", value: job.workTime },
+                { label:"休憩時間", value: job.breakTime },
+                { label:"採用人数", value: job.count },
+                { label:"移動時間", value: stationLabel(job.nearestStation, job.commuteTime) },
+                { label:"報酬",     value: (job.payTiming || job.payMethod) ? `${payLabel(job)}　${[job.payTiming, job.payMethod].filter(Boolean).join("・")}` : payLabel(job) },
+              ].filter(row => row.value && String(row.value).trim()).map(row => (
+                <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
+          </div>
+
+          {/* 作業説明 */}
+          {job.jobBody && job.jobBody.trim() && (
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
+          </div>
+          )}
+
+          {/* 経験・持ち物・備考（配列駆動・未入力は「ー」） */}
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+            {[
+              { label:"必要経験",       value: disp(job.experience) },
+              { label:"希望する働き手", value: disp(job.wanted) },
+              { label:"持ち物",         value: disp(job.items) },
+              { label:"備考・注意",     value: disp(job.cautions) },
+            ].map(row => (
+              <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
+                <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* 注記 */}
+          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:20 }}>
+            本名・詳細住所は公開しません。
+          </p>
+
+          {/* 危険区域セクション（両方空なら見出しごと非表示） */}
+          {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
+              <span style={{ fontSize:18 }}>⚠️</span>
+              <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
+            </div>
+
+            {(job.dangerPlaces && job.dangerPlaces.length > 0) && (
+              <>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
+                <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
+                  {job.dangerPlaces.map((place, i) => {
+                    const placePhotos = place.photos || [];
+                    return (
+                    <div key={i} style={{ width:"100%" }}>
+                      {placePhotos.length > 0 ? (
+                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                          {placePhotos.map((p, k) => {
+                            const src = typeof p === "string" ? p : p?.url;
+                            return <img key={k} src={src} alt="" onClick={() => setDangerLightbox(src)} style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block", cursor:"pointer" }} />;
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{
+                          width:"100%", height:130, borderRadius:8, background:"#FEF3E2",
+                          display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
+                        }}>{place.icon}</div>
+                      )}
+                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
+                      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
+                    </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {(job.dangerTasks && job.dangerTasks.length > 0) && (
+              <>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
+                <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                  {job.dangerTasks.map((task, i) => {
+                    const taskPhotos = task.photos || [];
+                    return (
+                    <div key={i} style={{ width:"100%" }}>
+                      {taskPhotos.length > 0 ? (
+                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                          {taskPhotos.map((p, k) => {
+                            const src = typeof p === "string" ? p : p?.url;
+                            return <img key={k} src={src} alt="" onClick={() => setDangerLightbox(src)} style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block", cursor:"pointer" }} />;
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{
+                          width:"100%", height:130, borderRadius:8, background:"#FEF3E2",
+                          display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
+                        }}>{task.icon}</div>
+                      )}
+                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
+                      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
+                    </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+          )}
+
+          {/* 地図（集合場所のおおよその範囲・円のみ） */}
+          <div style={{ width:"100%", marginBottom:20 }}>
+            <JobLocationMap lat={job.lat} lng={job.lng} radius={job.radius} label={job.region} />
+          </div>
+
+          {/* 開催期間カレンダー */}
+          {job.dateStart && (
+            <div style={{ marginBottom:20 }}>
+              <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} />
+            </div>
+          )}
+        </>)}
+      </div>
+
+      {/* 危険箇所の写真ライトボックス（全画面拡大） */}
+      {dangerLightbox && (
+        <div onClick={() => setDangerLightbox(null)} style={{
+          position:"fixed", inset:0, zIndex:10000,
+          background:"rgba(0,0,0,0.92)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          cursor:"pointer", animation:"fadeIn .2s ease", padding:16,
+        }}>
+          <button onClick={e => { e.stopPropagation(); setDangerLightbox(null); }} style={{
+            position:"absolute", top:20, right:20,
+            width:40, height:40, borderRadius:"50%",
+            background:"rgba(255,255,255,0.15)", border:"none",
+            color:"#fff", fontSize:22, cursor:"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>✕</button>
+          <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── AdminTab ─────────────────────────────────────────────────
 function AdminTab({ onJump, onShowAccountForm }) {
   const [sub, setSub] = useState("farmers");
@@ -7457,6 +7716,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [appErrors, setAppErrors] = useState([]);
   const [pendingJobs, setPendingJobs] = useState([]);
   const [publishing, setPublishing] = useState(null);
+  const [previewJobNumber, setPreviewJobNumber] = useState(null);
 
   const TIERS = ["1-3","4-10","10+"];
 
@@ -7851,11 +8111,23 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 </div>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{[j.prefecture,j.city].filter(Boolean).join("")} ・ {j.date_label||""} ・ {j.headcount||"?"}名</p>
               </div>
-              <button onClick={()=>publishJob(j.job_number)} disabled={publishing===j.job_number} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{publishing===j.job_number ? "公開中..." : "公開する"}</button>
+              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+                <button onClick={()=>setPreviewJobNumber(j.job_number)} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>プレビュー</button>
+                <button onClick={()=>publishJob(j.job_number)} disabled={publishing===j.job_number} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{publishing===j.job_number ? "公開中..." : "公開する"}</button>
+              </div>
             </div>
             );
           })}
         </div>
+      )}
+
+      {previewJobNumber != null && (
+        <AdminJobPreview
+          jobNumber={previewJobNumber}
+          publishing={publishing===previewJobNumber}
+          onClose={()=>setPreviewJobNumber(null)}
+          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); }}
+        />
       )}
 
       {/* ── 記録データ管理 ── */}
