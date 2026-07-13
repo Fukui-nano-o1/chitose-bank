@@ -121,7 +121,7 @@ export default function Terms({ onClose }) {
             }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#222", marginBottom: 12 }}>{a.title}</h2>
               {a.body.map((p, j) => (
-                <p key={j} style={{ fontSize: 14, color: "#444", lineHeight: 1.9, margin: j < a.body.length-1 ? "0 0 8px" : 0, textAlign: "left" }}>{p}</p>
+                <p key={j} style={{ fontSize: 16, color: "#444", lineHeight: 1.9, margin: j < a.body.length-1 ? "0 0 8px" : 0, textAlign: "left" }}>{p}</p>
               ))}
             </div>
           ))}

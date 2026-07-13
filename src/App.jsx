@@ -4953,10 +4953,10 @@ function JobCard({ job, variant }) {
       )}
       <div style={{ padding: isList ? "12px 16px 16px" : "4px 2px 0" }}>
         <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom: isList?4:0 }}>
-          <p className="f-sans" style={{ fontSize: isList?15:11, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
+          <p className="f-sans" style={{ fontSize: isList?17:13, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
           <span className="f-sans" style={{ fontSize: isList?12:9, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
         </div>
-        <p className="f-mono" style={{ fontSize: isList?14:10, fontWeight:700, color:"#00A86B", margin:0 }}>
+        <p className="f-mono" style={{ fontSize: isList?16:12, fontWeight:700, color:"#00A86B", margin:0 }}>
           {payLabel(job)}
         </p>
       </div>
@@ -5150,7 +5150,7 @@ function JobSearchMapView({ onRegister, me }) {
         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:8 }}>
           ただいま招待制で運営しています
         </p>
-        <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
+        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
           求人の閲覧にはログインが必要です。<br/>
           招待を受けた方は、招待メールのアドレスでログインしてください。
         </p>
@@ -5168,7 +5168,7 @@ function JobSearchMapView({ onRegister, me }) {
       {/* ヘッダー */}
       <div style={{ marginBottom:14 }}>
         <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>近くの仕事を探す</h2>
-        <p className="f-sans" style={{ fontSize:13, color:"#717171" }}>地域・作物・日程・報酬で、通いやすい仕事を探せます。</p>
+        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6 }}>地域・作物・日程・報酬で、通いやすい仕事を探せます。</p>
       </div>
 
       {/* 個人情報保護注記 */}
@@ -5196,7 +5196,7 @@ function JobSearchMapView({ onRegister, me }) {
           {jobList.length === 0 && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
               <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
-              <p style={{ fontSize:14, margin:0 }}>現在、募集中の求人はありません</p>
+              <p style={{ fontSize:16, margin:0, lineHeight:1.6 }}>現在、募集中の求人はありません</p>
             </div>
           )}
           {jobList.map(job => (
@@ -5238,7 +5238,7 @@ function JobSearchMapView({ onRegister, me }) {
                       }}>
                         <img src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                         {cap && (
-                          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:14, fontWeight:600, boxSizing:"border-box" }}>{cap}</div>
+                          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, lineHeight:1.6, boxSizing:"border-box" }}>{cap}</div>
                         )}
                       </div>
                     );
@@ -5275,7 +5275,7 @@ function JobSearchMapView({ onRegister, me }) {
                   ].filter(row => row.value && String(row.value).trim()).map(row => (
                     <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
                       <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
-                      <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{row.value}</span>
+                      <span className="f-sans" style={{ fontSize:15, color:"#222", fontWeight:600, lineHeight:1.6 }}>{row.value}</span>
                     </div>
                   ))}
                 </div>
@@ -5300,7 +5300,7 @@ function JobSearchMapView({ onRegister, me }) {
                       }}>{empEmployer.avatar_url ? <img src={empEmployer.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🧑‍🌾"}</div>
                       <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
                       {empEmployer.pr && (
-                        <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
+                        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
                       )}
                     </div>
                     <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
@@ -5314,7 +5314,7 @@ function JobSearchMapView({ onRegister, me }) {
                           borderBottom: i < perkRows.length - 1 ? "1px solid #F7F7F7" : "none",
                         }}>
                           <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:72, flexShrink:0 }}>{row.label}</span>
-                          <span className="f-sans" style={{ fontSize:13, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400 }}>{row.value}</span>
+                          <span className="f-sans" style={{ fontSize:15, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400, lineHeight:1.6 }}>{row.value}</span>
                         </div>
                       ))}
                     </div>
@@ -5326,7 +5326,7 @@ function JobSearchMapView({ onRegister, me }) {
               {selectedJob.jobBody && selectedJob.jobBody.trim() && (
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                 <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{selectedJob.jobBody}</p>
+                <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{selectedJob.jobBody}</p>
               </div>
               )}
 
@@ -5340,7 +5340,7 @@ function JobSearchMapView({ onRegister, me }) {
                 ].map(row => (
                   <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                     <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
-                    <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
+                    <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
                   </div>
                 ))}
               </div>
@@ -5380,7 +5380,7 @@ function JobSearchMapView({ onRegister, me }) {
                               display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
                             }}>{place.icon}</div>
                           )}
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
+                          <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
                           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
                         </div>
                         );
@@ -5411,7 +5411,7 @@ function JobSearchMapView({ onRegister, me }) {
                               display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
                             }}>{task.icon}</div>
                           )}
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
+                          <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
                           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
                         </div>
                         );
@@ -5499,7 +5499,7 @@ function JobSearchMapView({ onRegister, me }) {
                     {topics.map((t, i) => (
                       <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
                         <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
-                        <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
+                        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
                       </div>
                     ))}
                   </div>
@@ -5507,7 +5507,7 @@ function JobSearchMapView({ onRegister, me }) {
                 {comment && (
                   <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px" }}>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
+                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
                   </div>
                 )}
               </div>
@@ -5535,7 +5535,7 @@ function JobSearchMapView({ onRegister, me }) {
                       display:"flex", alignItems:"center", justifyContent:"center", fontSize:16,
                     }}>🧑‍🌾</div>
                     <div>
-                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{selectedJob.farmerName}</p>
+                      <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{selectedJob.farmerName}</p>
                       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
                     </div>
                   </div>
@@ -5546,7 +5546,7 @@ function JobSearchMapView({ onRegister, me }) {
                       <span style={{ fontSize:36, color:"#00A86B" }}>★</span>
                       <span className="f-mono" style={{ fontSize:36, fontWeight:800, color:"#222" }}>{selectedJob.farmerRating}</span>
                     </div>
-                    <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.farmerReviewCount}件のレビュー</p>
+                    <p className="f-sans" style={{ fontSize:15, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.farmerReviewCount}件のレビュー</p>
                   </div>
 
                   {/* 右: バランス用の余白 */}
@@ -5576,10 +5576,10 @@ function JobSearchMapView({ onRegister, me }) {
                 <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                   {visibleReviews.map((review, i) => (
                     <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px" }}>
-                      <p style={{ margin:0, marginBottom:6, fontSize:13, color:"#00A86B", letterSpacing:1 }}>
+                      <p style={{ margin:0, marginBottom:6, fontSize:15, color:"#00A86B", letterSpacing:1 }}>
                         {"★".repeat(review.stars)}{"☆".repeat(5 - review.stars)}
                       </p>
-                      <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0 }}>{review.text}</p>
+                      <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.7, margin:0 }}>{review.text}</p>
                     </div>
                   ))}
                 </div>
@@ -5599,7 +5599,7 @@ function JobSearchMapView({ onRegister, me }) {
           <div className="job-detail-more-jobs" style={{ marginBottom:20 }}>
             <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:12 }}>その他の求人</h3>
             {jobList.filter(job => job.id !== selectedJob.id).length === 0 ? (
-              <p className="f-sans" style={{ fontSize:13, color:"#999", padding:"20px 0" }}>現在、他の求人はありません。</p>
+              <p className="f-sans" style={{ fontSize:15, color:"#999", padding:"20px 0" }}>現在、他の求人はありません。</p>
             ) : (
             <Carousel
               className="carousel-scroll"
@@ -5717,14 +5717,14 @@ function JobSearchMapView({ onRegister, me }) {
               <>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>応募には自己紹介が必要です</p>
                 <div style={{ display:"flex", justifyContent:"center", gap:16, marginBottom:16 }}>
-                  <span className="f-sans" style={{ fontSize:13, fontWeight:600, color: profileGate.hasNickname ? "#00A86B" : "#E24B4A" }}>
+                  <span className="f-sans" style={{ fontSize:15, fontWeight:600, color: profileGate.hasNickname ? "#00A86B" : "#E24B4A" }}>
                     ニックネーム {profileGate.hasNickname ? "✓" : "✗"}
                   </span>
-                  <span className="f-sans" style={{ fontSize:13, fontWeight:600, color: profileGate.qaAnswered >= profileGate.qaRequired ? "#00A86B" : "#717171" }}>
+                  <span className="f-sans" style={{ fontSize:15, fontWeight:600, color: profileGate.qaAnswered >= profileGate.qaRequired ? "#00A86B" : "#717171" }}>
                     質問への回答 {profileGate.qaAnswered}/{profileGate.qaRequired}
                   </span>
                 </div>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:20 }}>あなたのことが伝わると、農家は安心して承認できます。</p>
+                <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.8, marginBottom:20 }}>あなたのことが伝わると、農家は安心して承認できます。</p>
                 <button
                   onClick={() => { setApplyReturn(selectedJob.id); setProfileGate(null); window.location.hash = "/profile/worker/profile"; }}
                   className="f-sans"
@@ -5734,7 +5734,7 @@ function JobSearchMapView({ onRegister, me }) {
             ) : (
               <>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィールがまだ空です</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:20 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
+                <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.8, marginBottom:20 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   <button
                     onClick={() => { setApplyReturn(selectedJob.id); setProfileGate(null); window.location.hash = "/profile/worker/profile"; }}
@@ -7524,7 +7524,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
               <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>審査に提出されました</h2>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
+              <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
                 運営が確認後、公開されます。<br/>
                 公開までしばらくお待ちください。
               </p>
@@ -10194,7 +10194,7 @@ function PrivacyPolicy({ onClose }) {
             <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
               <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
               {s.body.map((p, j) => (
-                <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
+                <p key={j} className="f-sans" style={{ fontSize:16, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
               ))}
             </div>
           ))}
@@ -10238,14 +10238,14 @@ function DataConstitution({ onClose }) {
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>日本農業研究所（chitose-bank） v1.1 · 制定日：2026年5月25日</p>
         <div style={{ display:"grid", gap:20 }}>
           <div style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
-            <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin:0, textAlign:"left" }}>
+            <p className="f-sans" style={{ fontSize:16, color:"#444", lineHeight:1.9, margin:0, textAlign:"left" }}>
               本文書は、日本農業研究所（chitose-bank）がデータを取り扱う上での基本原則を定めたものです。すべての機能開発・運用判断はこの原則に基づきます。
             </p>
           </div>
           {articles.map(a => (
             <div key={a.num} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
               <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>第{a.num}条　{a.title}</h3>
-              <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin:0, textAlign:"left" }}>{a.body}</p>
+              <p className="f-sans" style={{ fontSize:16, color:"#444", lineHeight:1.9, margin:0, textAlign:"left" }}>{a.body}</p>
             </div>
           ))}
         </div>
@@ -11004,7 +11004,7 @@ const subDest=useCallback(async d=>{
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
             <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
             <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>{applyAlready ? "この求人には応募済みです" : "応募を受け付けました"}</h2>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, marginBottom:8 }}>
+            <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, marginBottom:8 }}>
               {applyAlready ? (
                 "農家が内容を確認し、承認するとお知らせします。"
               ) : (<>
