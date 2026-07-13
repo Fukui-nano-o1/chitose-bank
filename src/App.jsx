@@ -11261,8 +11261,12 @@ export default function App(){
       const y = window.scrollY;
       const diff = y - lastY;
       if (y < 40) { document.body.classList.remove('cb-scroll-hide'); lastY = y; return; }
-      const atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 64;
-      if (atBottom) { document.body.classList.add('cb-scroll-hide'); lastY = y; return; }
+      // 最下部からの残り距離。64px以内=常に格納。180px以内=バウンス吸収帯（強フリックの
+      // 跳ね返りやSafariツールバー伸縮で一瞬上向き判定になっても復帰させず状態維持）。
+      // 180pxを超えて上に戻したときだけ通常の方向判定に戻る。
+      const fromBottom = document.documentElement.scrollHeight - window.innerHeight - y;
+      if (fromBottom <= 64) { document.body.classList.add('cb-scroll-hide'); lastY = y; return; }
+      if (fromBottom <= 180) { lastY = y; return; }
       if (diff > 30) { document.body.classList.add('cb-scroll-hide'); lastY = y; }
       else if (diff < -10) { document.body.classList.remove('cb-scroll-hide'); lastY = y; }
     };
