@@ -7748,7 +7748,8 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [publishing, setPublishing] = useState(null);
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
   const [revisionTarget, setRevisionTarget] = useState(null); // job_number（差し戻しモーダルの対象）
-  const [revisionReason, setRevisionReason] = useState("");
+  const emptyFinding = () => ({ category:"", location:"", issueType:"", note:"" });
+  const [revisionFindings, setRevisionFindings] = useState([emptyFinding()]); // 指摘の積み上げ（対象項目/該当箇所/問題の種類/補足）
   const [revisionSending, setRevisionSending] = useState(false);
   const [revisionDone, setRevisionDone] = useState(false);
 
@@ -7766,6 +7767,8 @@ function AdminTab({ onJump, onShowAccountForm }) {
   }, []);
 
   const TIERS = ["1-3","4-10","10+"];
+  const REVISION_CATEGORIES = ["報酬","勤務時間・休憩","危険情報","作業の説明","必要経験","持ち物","注意事項","写真","場所・日程","その他"];
+  const REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い","差別的条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","表現が不明瞭","その他"];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -7794,17 +7797,33 @@ function AdminTab({ onJump, onShowAccountForm }) {
   };
   useEffect(() => { load(); }, [load, sub]);
 
+  // モーダルを開くたび（対象求人が変わるたび）指摘を1件の空欄にリセット
+  useEffect(() => {
+    if (revisionTarget != null) setRevisionFindings([emptyFinding()]);
+  }, [revisionTarget]);
+
+  const updateFinding = (i, patch) => setRevisionFindings(prev => prev.map((f, idx) => idx===i ? { ...f, ...patch } : f));
+  const addFinding = () => setRevisionFindings(prev => [...prev, emptyFinding()]);
+  const removeFinding = (i) => setRevisionFindings(prev => prev.length<=1 ? prev : prev.filter((_, idx) => idx!==i));
+
+  // 指摘の積み上げを1本のテキストに整形（RPC側は無変更・p_reasonはtextのまま）
+  const buildRevisionReasonText = (findings) => findings
+    .filter(f => f.category && f.issueType)
+    .map(f => `【${f.category}】${f.location.trim() ? f.location.trim() + " " : ""}→ ${f.issueType}${f.note.trim() ? `（${f.note.trim()}）` : ""}`)
+    .join("\n");
+
   const requestRevision = async () => {
-    if (revisionSending || !revisionReason.trim()) return;
+    const reasonText = buildRevisionReasonText(revisionFindings);
+    if (revisionSending || !reasonText) return;
     setRevisionSending(true);
-    const { data, error } = await supabase.rpc('request_job_revision', { p_job_number: revisionTarget, p_reason: revisionReason.trim() });
+    const { data, error } = await supabase.rpc('request_job_revision', { p_job_number: revisionTarget, p_reason: reasonText });
     setRevisionSending(false);
     if (error || !data?.ok) { alert("修正依頼の送信に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     setRevisionDone(true);
     setTimeout(() => {
       setRevisionDone(false);
       setRevisionTarget(null);
-      setRevisionReason("");
+      setRevisionFindings([emptyFinding()]);
       setPreviewJobNumber(null);
       window.location.hash = "/admin";
       load();
@@ -8284,30 +8303,57 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         />
       )}
 
-      {/* ── 差し戻し（修正依頼）モーダル ── */}
+      {/* ── 差し戻し（修正依頼）モーダル：指摘の積み上げ式 ── */}
       {revisionTarget != null && (
         <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:480, width:"100%", maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
             {revisionDone ? (
               <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>✓ 農家に修正依頼を送りました</p>
             ) : (
               <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>修正をお願いする点</p>
-                <textarea
-                  value={revisionReason}
-                  onChange={e=>setRevisionReason(e.target.value)}
-                  placeholder="例：時給が最低賃金を下回っています／写真に人物が写っています"
-                  rows={4}
-                  className="f-sans"
-                  style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }}
-                />
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={()=>{ setRevisionTarget(null); setRevisionReason(""); }} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12, flexShrink:0 }}>修正をお願いする点</p>
+                <div style={{ overflowY:"auto", marginBottom:12 }}>
+                  {revisionFindings.map((f, i) => (
+                    <div key={i} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:14, marginBottom:10, position:"relative" }}>
+                      {revisionFindings.length > 1 && (
+                        <button onClick={()=>removeFinding(i)} className="f-sans" style={{ position:"absolute", top:8, right:8, border:"none", background:"transparent", color:"#B0B0B0", fontSize:14, cursor:"pointer", padding:4 }}>✕</button>
+                      )}
+                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8 }}>指摘 {i+1}</p>
+                      <div style={{ display:"grid", gap:8 }}>
+                        <select value={f.category} onChange={e=>updateFinding(i,{category:e.target.value})} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" }}>
+                          <option value="">対象項目を選択</option>
+                          {REVISION_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <input
+                          value={f.location}
+                          onChange={e=>updateFinding(i,{location:e.target.value})}
+                          placeholder="該当箇所（任意・問題の語句や文をコピペ）"
+                          className="f-sans"
+                          style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }}
+                        />
+                        <select value={f.issueType} onChange={e=>updateFinding(i,{issueType:e.target.value})} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" }}>
+                          <option value="">問題の種類を選択</option>
+                          {REVISION_ISSUE_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <input
+                          value={f.note}
+                          onChange={e=>updateFinding(i,{note:e.target.value})}
+                          placeholder="補足（任意）"
+                          className="f-sans"
+                          style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={addFinding} className="f-sans" style={{ width:"100%", padding:"10px", border:"1.5px dashed #EBEBEB", borderRadius:10, background:"transparent", color:"#717171", fontSize:12, fontWeight:600, cursor:"pointer" }}>＋ 指摘を追加</button>
+                </div>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end", flexShrink:0 }}>
+                  <button onClick={()=>{ setRevisionTarget(null); setRevisionFindings([emptyFinding()]); }} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
                   <button
                     onClick={requestRevision}
-                    disabled={revisionSending || !revisionReason.trim()}
+                    disabled={revisionSending || !buildRevisionReasonText(revisionFindings)}
                     className="f-sans"
-                    style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: revisionReason.trim() ? "#EA580C" : "#EBEBEB", color: revisionReason.trim() ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}
+                    style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: buildRevisionReasonText(revisionFindings) ? "#EA580C" : "#EBEBEB", color: buildRevisionReasonText(revisionFindings) ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}
                   >{revisionSending ? "送信中..." : "送信する"}</button>
                 </div>
               </>
