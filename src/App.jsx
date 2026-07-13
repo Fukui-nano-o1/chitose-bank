@@ -6662,6 +6662,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobSaving, setJobSaving] = useState(false);
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
   const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
+  const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
@@ -6841,6 +6842,19 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       alert("保存に失敗しました：" + res.reason);
     }
   };
+
+  // 確認ページ用：本人の雇い手プロフィールを取得（詳細ページと同構造のプロフィールカード・農園紹介に使用。
+  // 未ログイン・未作成なら null のまま＝最小カードにフォールバック）
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        if (data) setConfEmployer(data);
+      } catch {}
+    })();
+  }, []);
 
   // Airbnb模擬・部品1:step移動ごとに自動で下書き保存（農家フロー中のみ・home(0)と完了(12)は除外）
   useEffect(() => {
@@ -7818,14 +7832,52 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
                   </div>
 
-                  {/* 農家プロフィールカード（詳細ページと同じ中央寄せカード） */}
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-                    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
-                      <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, marginBottom:8 }}>🧑‍🌾</div>
-                      <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
-                      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
+                  {/* 農家プロフィールカード（詳細ページと同一構造：アバター・自己紹介・待遇。
+                      データは employer_profiles の本人行。未作成なら最小カードにフォールバック） */}
+                  {(confEmployer && confEmployer.nickname) ? (() => {
+                    const perkRows = [
+                      { label:"送迎",     on: confEmployer.has_transport,        value: confEmployer.has_transport ? `あり${confEmployer.transport_area ? "（" + confEmployer.transport_area + "）" : ""}` : EMPTY_MARK },
+                      { label:"駐車場",   on: confEmployer.has_parking,          value: confEmployer.has_parking ? `あり${confEmployer.parking_capacity ? "（" + confEmployer.parking_capacity + "台）" : ""}` : EMPTY_MARK },
+                      { label:"通勤手当", on: confEmployer.has_commute_allowance, value: confEmployer.has_commute_allowance ? `あり${confEmployer.commute_allowance_detail ? "（" + confEmployer.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
+                      { label:"賞与",     on: confEmployer.has_bonus,            value: confEmployer.has_bonus ? "あり" : EMPTY_MARK },
+                      { label:"持ち物",   on: confEmployer.employer_pays_supplies, value: confEmployer.employer_pays_supplies ? "農家負担" : EMPTY_MARK },
+                      { label:"アクセサリー", on: confEmployer.accessory_ok,          value: confEmployer.accessory_ok ? "OK" : EMPTY_MARK },
+                    ];
+                    return (
+                      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
+                          <div style={{ marginBottom:8 }}>
+                            <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={44} />
+                          </div>
+                          <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{confEmployer.nickname}</p>
+                          {confEmployer.pr && (
+                            <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.pr}</p>
+                          )}
+                        </div>
+                        <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em" }}>待遇</p>
+                        <div style={{ width:"fit-content", position:"relative", left:"50%", transform:"translateX(-78px)" }}>
+                          {perkRows.map((row, i) => (
+                            <div key={row.label} style={{
+                              display:"flex", alignItems:"center", gap:12, padding:"8px 0",
+                              borderBottom: i < perkRows.length - 1 ? "1px solid #F7F7F7" : "none",
+                            }}>
+                              <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:72, flexShrink:0 }}>{row.label}</span>
+                              <span className="f-sans" style={{ fontSize:15, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400, lineHeight:1.6 }}>{row.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })() : (
+                    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
+                        <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, marginBottom:8 }}>🧑‍🌾</div>
+                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
+                        <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* 作業内容カード（詳細ページと同じ） */}
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
@@ -7952,6 +8004,42 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   </div>
                 </div>
               </a>
+
+              {/* ═══ 農園紹介（詳細ページと同一構造：地図の下・記入済みのお題のみ表示・代表より） ═══ */}
+              {confEmployer && (() => {
+                const topics = [
+                  { label:"就農するまで", body: confEmployer.intro_path },
+                  { label:"いま楽しいこと", body: confEmployer.intro_joy },
+                  { label:"どんな作物を、どんな想いで", body: confEmployer.intro_crops },
+                  { label:"職場の雰囲気", body: confEmployer.intro_atmosphere },
+                  { label:"初めての人へのメッセージ", body: confEmployer.intro_message },
+                ].filter(t => t.body && t.body.trim());
+                const comment = confEmployer.owner_comment && confEmployer.owner_comment.trim();
+                if (topics.length === 0 && !comment) return null;
+                return (
+                  <div style={{ maxWidth:870, margin:"0 auto 28px" }}>
+                    <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
+                      {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
+                    </h3>
+                    {topics.length > 0 && (
+                      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
+                        {topics.map((t, i) => (
+                          <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
+                            <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {comment && (
+                      <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px" }}>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* ═══ 掲載モーダル（下部ナビ「掲載する」から展開。チェックリスト・同意・掲載・注意文を右パネルから移植） ═══ */}
               {publishModal && (
