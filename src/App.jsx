@@ -9408,6 +9408,10 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [addingDest, setAddingDest]   = useState(false);
   const [appErrors, setAppErrors] = useState([]);
   const [pendingJobs, setPendingJobs] = useState([]);
+  const [pendingPrs, setPendingPrs] = useState([]); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
+  const [reports, setReports] = useState([]); // 通報（job_reports）
+  const [disputes, setDisputes] = useState([]); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
+  const [prPublishing, setPrPublishing] = useState(null);
   const [publishing, setPublishing] = useState(null);
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
   const [revisionTarget, setRevisionTarget] = useState(null); // job_number（差し戻しモーダルの対象）
@@ -9435,20 +9439,49 @@ function AdminTab({ onJump, onShowAccountForm }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re, ae, pj] = await Promise.all([
+    const [fr, de, re, ae, pj, wp, jr, av] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
       supabase.from("app_errors").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("jobs").select("*").eq("status","pending").order("created_at",{ascending:false}),
+      supabase.from("worker_profiles").select("auth_id,nickname,pr_pending,pr_qa_pending,pr_submitted_at"),
+      supabase.from("job_reports").select("*").order("created_at",{ascending:false}),
+      supabase.from("attendance_events").select("*").eq("kind","dispute_no_show").order("created_at",{ascending:false}),
     ]);
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
     if (!re.error) setRecords(re.data || []);
     if (!ae.error) setAppErrors(ae.data || []);
     if (!pj.error) setPendingJobs(pj.data || []);
+    if (!wp.error) setPendingPrs((wp.data || []).filter(w => w.pr_pending || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0)));
+    if (!jr.error) setReports(jr.data || []);
+    if (!av.error) setDisputes(av.data || []);
     setLoading(false);
   }, []);
+
+  // ── 審査タブ集約アクション（2026-07-14・DB側は app_admins 基準の審査ポリシーで担保） ──
+  const approveFarmerAccount = async (f) => {
+    const { error } = await supabase.from("farmers").update({ status: "approved" }).eq("id", f.id);
+    if (error) { alert("承認に失敗しました：" + error.message); return; }
+    setFarmers(prev => prev.map(x => x.id === f.id ? { ...x, status: "approved" } : x));
+  };
+  const publishPendingPr = async (w) => {
+    if (prPublishing) return;
+    setPrPublishing(w.auth_id);
+    const payload = { pr_pending: null, pr_qa_pending: null };
+    if (w.pr_pending) payload.pr = w.pr_pending;
+    if (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0) payload.pr_qa = w.pr_qa_pending;
+    const { error } = await supabase.from("worker_profiles").update(payload).eq("auth_id", w.auth_id);
+    setPrPublishing(null);
+    if (error) { alert("公開に失敗しました：" + error.message); return; }
+    setPendingPrs(prev => prev.filter(x => x.auth_id !== w.auth_id));
+  };
+  const resolveReport = async (r) => {
+    const { error } = await supabase.from("job_reports").update({ status: "resolved" }).eq("id", r.id);
+    if (error) { alert("更新に失敗しました：" + error.message); return; }
+    setReports(prev => prev.map(x => x.id === r.id ? { ...x, status: "resolved" } : x));
+  };
 
   const publishJob = async (jobNumber) => {
     if (publishing) return;
@@ -9579,9 +9612,13 @@ CREATE INDEX idx_notifications_farmer
   const VARIETY_SQL = `ALTER TABLE records ADD COLUMN IF NOT EXISTS variety text DEFAULT '';
 ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
+  // 審査タブに全ての審査待ちを集約（2026-07-14）：求人＋アカウント承認＋自由記述＋通報＋異議
+  const pendingFarmerAccounts = farmers.filter(f => f.status === "pending");
+  const openReports = reports.filter(r => r.status !== "resolved");
+  const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + openReports.length + disputes.length;
   const TOP_TABS = [
-    { k:"jobs",    l:"求人審査",   icon:"🔍", n: pendingJobs.length },
-    { k:"account", l:"アカウント", icon:"👤", n: farmers.filter(f=>f.status==="pending").length },
+    { k:"jobs",    l:"審査",       icon:"🔍", n: reviewTotal },
+    { k:"account", l:"アカウント", icon:"👤", n: null },
     { k:"other",   l:"その他",     icon:"🧰", n: null },
   ];
   const topTab = sub==="jobs" ? "jobs" : sub==="account" ? "account" : "other";
@@ -9924,11 +9961,16 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── 求人審査 ── */}
+      {/* ── 審査（全ての審査待ちをここに集約・2026-07-14） ── */}
       {sub==="jobs" && (
+        <div style={{ display:"grid", gap:28 }}>
+
+        {/* ① 求人 */}
+        <div>
+        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>求人{pendingJobs.length > 0 ? `（${pendingJobs.length}）` : ""}</p>
         <div style={{ display:"grid", gap:12 }}>
           {pendingJobs.length === 0 ? (
-            <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>公開待ちの求人はありません</p>
+            <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>公開待ちの求人はありません</p>
           ) : pendingJobs.map(j => {
             const hoursElapsed = (Date.now() - new Date(j.created_at).getTime()) / 3600000;
             const elapsedBadge = hoursElapsed >= 48
@@ -9953,6 +9995,96 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             </div>
             );
           })}
+        </div>
+        </div>
+
+        {/* ② アカウント承認（農家の審査待ち） */}
+        <div>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>アカウント承認{pendingFarmerAccounts.length > 0 ? `（${pendingFarmerAccounts.length}）` : ""}</p>
+          <div style={{ display:"grid", gap:12 }}>
+            {pendingFarmerAccounts.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>承認待ちのアカウントはありません</p>
+            ) : pendingFarmerAccounts.map(f => (
+              <div key={f.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff", display:"flex", justifyContent:"space-between", alignItems:"center", gap:16 }}>
+                <div style={{ minWidth:0 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{f.name || "名前未設定"}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{[f.prefecture, f.municipality].filter(Boolean).join("")}　{f.email || ""}</p>
+                </div>
+                <button onClick={()=>approveFarmerAccount(f)} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>承認する</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ③ プロフィール自由記述（働き手の確認待ち。公開で pr_pending→pr に反映） */}
+        <div>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>プロフィール自由記述{pendingPrs.length > 0 ? `（${pendingPrs.length}）` : ""}</p>
+          <div style={{ display:"grid", gap:12 }}>
+            {pendingPrs.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>確認待ちの自由記述はありません</p>
+            ) : pendingPrs.map(w => (
+              <div key={w.auth_id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:10 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{w.nickname || "名前未設定"}</p>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{w.pr_submitted_at ? new Date(w.pr_submitted_at).toLocaleString("ja-JP") : ""}</span>
+                </div>
+                {w.pr_pending && (
+                  <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:"0 0 10px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#F7F7F7", borderRadius:10, padding:"10px 12px" }}>{w.pr_pending}</p>
+                )}
+                {Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.map(({ q, a }) => (
+                  <div key={q} style={{ background:"#F7FBF9", borderRadius:10, padding:"8px 12px", marginBottom:8 }}>
+                    <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 2px" }}>{q}</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                  </div>
+                ))}
+                <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                  <button onClick={()=>publishPendingPr(w)} disabled={prPublishing===w.auth_id} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{prPublishing===w.auth_id ? "公開中..." : "公開する"}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ④ 通報（job_reports。対応済みで一覧から消える） */}
+        <div>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>通報{openReports.length > 0 ? `（${openReports.length}）` : ""}</p>
+          <div style={{ display:"grid", gap:12 }}>
+            {openReports.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>未対応の通報はありません</p>
+            ) : openReports.map(r => (
+              <div key={r.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>求人 #{r.job_number}　<span style={{ color:"#E24B4A" }}>{r.issue_type}</span></p>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{r.created_at ? new Date(r.created_at).toLocaleString("ja-JP") : ""}</span>
+                </div>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>対象：{r.target_field}{r.detail ? `　${r.detail}` : ""}</p>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>setPreviewJobNumber(r.job_number)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>求人を見る</button>
+                  <button onClick={()=>resolveReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ⑤ 欠勤記録への異議（attendance_events・表示のみ。対応は当事者チャット等で） */}
+        <div>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>欠勤記録への異議{disputes.length > 0 ? `（${disputes.length}）` : ""}</p>
+          <div style={{ display:"grid", gap:12 }}>
+            {disputes.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>異議申立はありません</p>
+            ) : disputes.map(d => (
+              <div key={d.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>応募ID：{String(d.application_id || "").slice(0, 8)}…</p>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{d.created_at ? new Date(d.created_at).toLocaleString("ja-JP") : ""}</span>
+                </div>
+                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{d.reason || ""}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         </div>
       )}
 
