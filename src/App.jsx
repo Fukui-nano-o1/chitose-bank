@@ -4994,9 +4994,10 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         const { data } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         if (data) {
           setNickname(data.nickname || "");
-          setPr(data.pr || "");
+          // 自由記述は確認待ち(pending)があればそちらを編集継続、無ければ公開版を初期値に
+          setPr(data.pr_pending ?? data.pr ?? "");
           setAvatarUrl(data.avatar_url || "");
-          setPrQa(Array.isArray(data.pr_qa) ? data.pr_qa : []);
+          setPrQa(Array.isArray(data.pr_qa_pending) ? data.pr_qa_pending : (Array.isArray(data.pr_qa) ? data.pr_qa : []));
           setResidenceCity(data.residence_city || "");
           setTransport(data.transport || "");
           setFarmExperience(data.farm_experience || "");
@@ -5107,8 +5108,11 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
+      // 自由記述(pr/pr_qa)は運営確認後に公開。pr_pending/pr_qa_pendingに保存し、
+      // 公開版のpr/pr_qaは書かない(承認RPC/48時間cronだけが書く)。選択式項目は従来どおり即時保存
       const { error } = await supabase.from("worker_profiles").upsert({
-        auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(), pr_qa: prQa,
+        auth_id: session.user.id, nickname: nickname.trim(),
+        pr_pending: pr.trim(), pr_qa_pending: prQa, pr_submitted_at: new Date().toISOString(),
         residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
         interests, languages, updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
@@ -5116,7 +5120,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       if (!error) {
         setSaved(true);
         if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
-        setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
+        setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
       }
       else alert("保存に失敗しました：" + error.message);
     } catch { setSaving(false); alert("保存に失敗しました。"); }
@@ -5277,6 +5281,9 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </div>
 
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
+      {saved && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>自己紹介は運営の確認後に公開されます（最大2日）</p>
+      )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:12, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>キャンセル</button>
       )}
@@ -5306,6 +5313,8 @@ function WorkerProfilePreview({ me, onEdit }) {
   }, []);
   if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
   const prQa = Array.isArray(profile?.pr_qa) ? profile.pr_qa : [];
+  const pendingPrQa = Array.isArray(profile?.pr_qa_pending) ? profile.pr_qa_pending : [];
+  const hasPending = !!(profile?.pr_pending || pendingPrQa.length > 0);
   const isEmpty = !profile || (!profile.nickname && !profile.pr && !profile.avatar_url && prQa.length === 0);
   return (
     <div>
@@ -5330,6 +5339,26 @@ function WorkerProfilePreview({ me, onEdit }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+      {/* 確認待ち（自由記述は運営確認後に公開。書いたものが消えて見える事故の防止） */}
+      {!isEmpty && hasPending && (
+        <div style={{ border:"1px solid #F5D98B", background:"#FFF8E7", borderRadius:16, padding:"20px", marginTop:16 }}>
+          <span className="f-sans" style={{ display:"inline-block", fontSize:11, fontWeight:700, color:"#8A6D1D", background:"#fff", padding:"3px 10px", borderRadius:20, marginBottom:12 }}>確認待ち</span>
+          {profile.pr_pending && (
+            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:"0 0 12px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{profile.pr_pending}</p>
+          )}
+          {pendingPrQa.length > 0 && (
+            <div style={{ display:"grid", gap:10 }}>
+              {pendingPrQa.map(({ q, a }) => (
+                <div key={q}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#8A6D1D", margin:"0 0 2px" }}>{q}</p>
+                  <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="f-sans" style={{ fontSize:11, color:"#8A6D1D", margin:"12px 0 0" }}>運営の確認後、農家に表示される内容として公開されます（最大2日）</p>
         </div>
       )}
       {/* 実績・評価（Part3・席の確保） */}
