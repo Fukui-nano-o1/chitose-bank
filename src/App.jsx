@@ -5307,7 +5307,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   }, []);
   const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"応募中", approved:"承認済み", wcalendar:"カレンダー" };
   return (
-    <div style={{maxWidth:1024,margin:"0 auto",padding:"32px 24px"}}>
+    <div style={{maxWidth:1024,margin:"0 auto",padding: pTab === "employer" ? "32px 4px" : "32px 24px"}}>{/* 農家プロ(雇い手空間)は左右4pxまで詰める(2026-07-14) */}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ) */}
       <button onClick={()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; }} className="profile-employer-fab f-sans">
         {pTab === "employer"
