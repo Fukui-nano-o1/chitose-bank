@@ -6847,6 +6847,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     }
   };
 
+  // devJumpは1回のマウントで消費したら破棄する（残り続けると、後日の通常フロー起動時に
+  // _devJumpが読まれて古いstep/roleへ勝手にジャンプする。読み込み済みの_devJump変数には影響しない）
+  useEffect(() => { try { localStorage.removeItem('devJump'); } catch {} }, []);
+
   // 確認ページ用：本人の雇い手プロフィールを取得（詳細ページと同構造のプロフィールカード・農園紹介に使用。
   // 未ログイン・未作成なら null のまま＝最小カードにフォールバック）
   useEffect(() => {
@@ -11806,7 +11810,16 @@ const subDest=useCallback(async d=>{
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
-          onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}
+          onJump={(t, dj) => {
+            if (dj) {
+              // LandingFlowジャンプは通常フローと同じレール(#/work/new/{step}+showJobPost)に乗せる。
+              // 旧実装のsetTab("labor")+showDevJumpはlaborが部屋番号(TAB_URL_KEYS)に無いため、
+              // リロード時にreadHashTabが迷子扱い→searchへ落ちていた（2026-07-14修正）
+              localStorage.setItem('devJump', JSON.stringify(dj));
+              setShowJobPost(true);
+              window.location.hash = (dj.step >= 1 && dj.step <= 11) ? "/work/new/" + dj.step : "/work/new";
+            } else { setTab(t); }
+          }}
           onShowAccountForm={() => setNeedsAccountHolder(true)}/>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
