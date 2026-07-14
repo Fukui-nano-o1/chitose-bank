@@ -596,6 +596,12 @@ input:focus { outline: none; }
   .profile-employer-edge { margin-left: -6px !important; margin-right: -6px !important; }
 }
 
+/* ── 使い方ガイド(ヘルプセンター)：モバイルで画面端から4pxに詰める
+   （main左右12px − 負マージン12px ＋ ラッパーpadding4px ＝ 4px。作法は上と同じ） ── */
+@media (max-width: 640px) {
+  .help-edge { margin-left: -12px !important; margin-right: -12px !important; }
+}
+
 /* ── プロフィール画面：雇い手空間への浮遊ボタン（モバイル専用・下部バーの真上に固定） ── */
 .profile-employer-fab { display: none; }
 @media (max-width: 768px) {
@@ -12365,7 +12371,7 @@ function HelpCenter({ me, onReportClick }) {
     } catch { alert("削除に失敗しました。"); }
   };
   return (
-    <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 左右4px(2026-07-14) */}
+    <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（モバイル・CSS側の負マージン併用） */}
       <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>使い方ガイド</h1>
       <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>chitose-bankの使い方をまとめています</p>
       <div style={{ display:"grid", gap:16 }}>
