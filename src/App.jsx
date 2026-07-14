@@ -5876,15 +5876,8 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   }, []);
   return (
     <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
-      {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
-          表示は両面の入口(カードメニュー)のみ＝編集・サブページでは非表示（2026-07-14） */}
-      {(pTab === "employer" ? eHome : wTab === "home") && (
-        <button onClick={()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; }} className="profile-employer-fab f-sans">
-          {pTab === "employer"
-            ? "🤝 働く（あなたの応募）"
-            : (hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う")}
-        </button>
-      )}
+      {/* 旧・雇う/働く浮遊トグルは廃止（2026-07-14）：入口カード格子内の「雇う」「働く」カードに置き換え
+          （カレンダーカードへの被り解消。.profile-employer-fabのCSSとeHome判定は温存） */}
       {pTab === "worker" ? (
         wTab === "home" ? (
           <>
@@ -5901,13 +5894,14 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                 { e:"📨", l:"応募中",     n:wAppCounts.applying, h:"/profile/worker/applying" },
                 { e:"✅", l:"承認済み",   n:wAppCounts.approved, h:"/profile/worker/approved" },
                 { e:"📅", l:"カレンダー", n:0,                   h:"/profile/worker/calendar" },
+                { e:"🌱", l: hasEmployerSide ? "雇う（あなたの求人）" : "雇う", n:0, h:"/profile/employer", small:true }, // 旧・浮遊トグルのカード化（2026-07-14・2/3サイズ）
               ].map(c => (
-                <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding: c.small ? "16px 8px 13px" : "26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap: c.small ? 8 : 12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
                   {c.n > 0 && (
                     <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
                   )}
-                  <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
-                  <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+                  <span style={{ fontSize: c.small ? 30 : 44, lineHeight:1 }}>{c.e}</span>
+                  <span style={{ fontSize: c.small ? 13 : 15, fontWeight:700, color:"#222" }}>{c.l}</span>
                 </button>
               ))}
             </div>
@@ -11160,13 +11154,14 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               { e:"📣", l:"公開中",     n:dbActive.length,     h:"/profile/employer/active" },
               { e:"🤝", l:"応募者",     n:dbApplicants.length, h:"/profile/employer/applicants" },
               { e:"📅", l:"カレンダー", n:0,                   h:"/profile/employer/calendar" },
+              { e:"🤝", l:"働く（あなたの応募）", n:0, h:"/profile/worker", small:true }, // 旧・浮遊トグルのカード化（2026-07-14・2/3サイズ・働き手側と対称）
             ].map(c => (
-              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding: c.small ? "16px 8px 13px" : "26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap: c.small ? 8 : 12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
                 {c.n > 0 && (
                   <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
                 )}
-                <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
-                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+                <span style={{ fontSize: c.small ? 30 : 44, lineHeight:1 }}>{c.e}</span>
+                <span style={{ fontSize: c.small ? 13 : 15, fontWeight:700, color:"#222" }}>{c.l}</span>
               </button>
             ))}
           </div>
