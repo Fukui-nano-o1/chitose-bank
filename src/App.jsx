@@ -550,12 +550,16 @@ input:focus { outline: none; }
 }
 .app-header-mobile-float-btn .icon { font-size: 19px; line-height: 1; }
 .app-header-mobile-float-btn.active { color: #00A86B; }
-/* 浮遊☰から開くメニューはボタンの真上に開く（2026-07-14: ボタンが左下配置になったため上開きに戻した） */
+/* 浮遊☰から開くメニューはボタンの真上に開く（2026-07-14: ボタンが左下配置になったため上開きに戻した）。
+   下限=ボタンの直上で固定（bottom:100%）なので下部バーとは構造上重ならない。
+   低い画面用にmax-heightで上方向のはみ出しも防止 */
 .app-header-mobile-float .app-header-mobile-menu {
   bottom: 100%; top: auto;
   margin-bottom: 8px; margin-top: 0;
   left: 0; right: auto;
   min-width: 220px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.12);
 }
 /* ☰の中身（求人を出す・管理・運営憲章・利用規約・プライバシー・ログアウト）。バーの真上に開く */
