@@ -5279,21 +5279,16 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     if (h === "profile/worker/applying") return "applying";
     if (h === "profile/worker/approved") return "approved";
     if (h === "profile/worker/calendar") return "wcalendar";
-    return "wprofile";
+    return "home"; // 入口はAirbnb型カードメニュー（2026-07-14・農家プロと同構造）
   };
-  const [wTab, setWTab] = useState(() => { try { return hashToWTab(); } catch { return "wprofile"; } });
+  const [wTab, setWTab] = useState(() => { try { return hashToWTab(); } catch { return "home"; } });
   const [wProfileMode, setWProfileMode] = useState("preview");
   useEffect(() => {
     const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-  const WORKER_TABS = [
-    { k:"wprofile",  l:"プロフィール" },
-    { k:"applying",  l:"応募中" },
-    { k:"approved",  l:"承認済み" },
-    { k:"wcalendar", l:"カレンダー" },
-  ];
+  // WORKER_TABS(サイドタブ列)は廃止（2026-07-14）：入口カードメニューに一本化
   const [hasEmployerSide, setHasEmployerSide] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -5313,6 +5308,26 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     return () => { cancelled = true; };
   }, []);
   const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"応募中", approved:"承認済み", wcalendar:"カレンダー" };
+  // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
+  const [wMini, setWMini] = useState(null);
+  const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || cancelled) return;
+        const { data: wp } = await supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
+        if (!cancelled && wp) setWMini(wp);
+        const { data: apps } = await supabase.from("applications").select("status").eq("worker_id", session.user.id);
+        if (!cancelled && apps) setWAppCounts({
+          applying: apps.filter(a => a.status === "applied").length,
+          approved: apps.filter(a => ["approved","meeting","interview","contracted","working","completed"].includes(a.status)).length,
+        });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
   return (
     <div className={pTab === "employer" ? "profile-employer-edge" : undefined} style={{maxWidth:1024,margin:"0 auto",padding: pTab === "employer" ? "32px 4px" : "32px 24px"}}>{/* 農家プロは画面端から10px（モバイル・CSS側の負マージン併用） */}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ) */}
@@ -5322,13 +5337,35 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
           : (hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う")}
       </button>
       {pTab === "worker" ? (
-        <div className="profile-grid">
-          <div className="profile-tabs">
-            {WORKER_TABS.map(t => (
-              <button key={t.k} onClick={()=>{ const _map={wprofile:"/profile/worker/profile",applying:"/profile/worker/applying",approved:"/profile/worker/approved",wcalendar:"/profile/worker/calendar"}; window.location.hash=(_map[t.k]||"/profile/worker"); }} className={"profile-tab-btn f-sans" + (wTab===t.k ? " active" : "")}>{t.l}</button>
-            ))}
-          </div>
-          <div className="profile-content">
+        wTab === "home" ? (
+          <>
+            {/* ═══ Airbnb型入口メニュー（働き手側・2026-07-14）：農家プロ入口と同構造。旧サイドタブ列は廃止 ═══ */}
+            <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} />
+              <span>
+                <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
+                <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>働き手</span>
+              </span>
+            </button>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
+              {[
+                { e:"📨", l:"応募中",     n:wAppCounts.applying, h:"/profile/worker/applying" },
+                { e:"✅", l:"承認済み",   n:wAppCounts.approved, h:"/profile/worker/approved" },
+                { e:"📅", l:"カレンダー", n:0,                   h:"/profile/worker/calendar" },
+              ].map(c => (
+                <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                  {c.n > 0 && (
+                    <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
+                  )}
+                  <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
+                  <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+        <div className="profile-content">
+            <button onClick={()=>{ window.location.hash="/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:12 }}>← プロフィール</button>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
               {wTab === "wprofile" && wProfileMode === "preview" && (
@@ -5355,8 +5392,8 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                 <button onClick={()=>{ window.location.hash = "/calendar"; }} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12 }}>カレンダーへ →</button>
               </div>
             )}
-          </div>
         </div>
+        )
       ) : (
         <>
           {/* 「← プロフィールへ」ボタンは削除（2026-07-14）。働き手側への行き来は浮遊「🤝 働く」トグルが担う */}
