@@ -529,7 +529,8 @@ input:focus { outline: none; }
   .app-header-mobile-float {
     display: block;
     position: fixed;
-    top: calc(12px + env(safe-area-inset-top, 0px));
+    /* 2026-07-14: 左上→左下へ移動。下限=下部バー(64px)+12pxで重ならない */
+    bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
     left: 12px;
     z-index: 60;
   }
@@ -549,10 +550,10 @@ input:focus { outline: none; }
 }
 .app-header-mobile-float-btn .icon { font-size: 19px; line-height: 1; }
 .app-header-mobile-float-btn.active { color: #00A86B; }
-/* 浮遊☰から開くメニューはボタンの真下に開く（下部バー時代のbottom:100%上開きを上書き） */
+/* 浮遊☰から開くメニューはボタンの真上に開く（2026-07-14: ボタンが左下配置になったため上開きに戻した） */
 .app-header-mobile-float .app-header-mobile-menu {
-  bottom: auto; top: 100%;
-  margin-bottom: 0; margin-top: 8px;
+  bottom: 100%; top: auto;
+  margin-bottom: 8px; margin-top: 0;
   left: 0; right: auto;
   min-width: 220px;
   box-shadow: 0 4px 16px rgba(0,0,0,.12);
