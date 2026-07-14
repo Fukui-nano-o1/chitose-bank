@@ -602,10 +602,7 @@ input:focus { outline: none; }
   .help-edge { margin-left: -12px !important; margin-right: -12px !important; }
 }
 
-/* ── 働き手プロフィール：モバイルで画面端から4pxに詰める（作法は上と同じ） ── */
-@media (max-width: 640px) {
-  .profile-worker-edge { margin-left: -12px !important; margin-right: -12px !important; }
-}
+/* 働き手プロフィールも農家プロと同じ.profile-employer-edge(画面端から10px)に統一（2026-07-14） */
 
 /* ── プロフィール画面：雇い手空間への浮遊ボタン（モバイル専用・下部バーの真上に固定） ── */
 .profile-employer-fab { display: none; }
@@ -5875,7 +5872,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     return () => { cancelled = true; };
   }, []);
   return (
-    <div className={pTab === "employer" ? "profile-employer-edge" : "profile-worker-edge"} style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* 農家プロ=画面端から10px／働き手=4px（モバイル・CSS側の負マージン併用） */}
+    <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ) */}
       <button onClick={()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; }} className="profile-employer-fab f-sans">
         {pTab === "employer"
