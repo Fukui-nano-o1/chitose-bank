@@ -8284,11 +8284,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       )}
 
-      {/* 開催期間カレンダー📅：確認ページ下部ナビ右上の浮遊ボタン＋モーダル（求人詳細ページと同構造） */}
-      {isFarmer && step === 11 && jobDateStart && !publishModal && (
+      {/* 開催期間カレンダー📅：確認ページ下部ナビ右上の浮遊ボタン＋モーダル（求人詳細ページと同構造）。
+          詳細ページと違い日程未設定でも常に表示（農家の編集の場のため。モーダル内に日程入力への導線） */}
+      {isFarmer && step === 11 && !publishModal && (
         <button className="calendar-fab calendar-fab-confirm" aria-label="作業日程カレンダーを見る" onClick={() => setConfCalOpen(true)}>📅</button>
       )}
-      {confCalOpen && jobDateStart && (
+      {confCalOpen && (
         <div onClick={() => setConfCalOpen(false)} style={{
           position:"fixed", inset:0, zIndex:10000,
           background:"rgba(0,0,0,0.5)",
@@ -8305,7 +8306,16 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               width:36, height:36, borderRadius:"50%",
               background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
             }}>✕</button>
-            <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} />
+            {jobDateStart ? (
+              <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} />
+            ) : (
+              <div style={{ textAlign:"center", padding:"32px 8px 12px" }}>
+                <div style={{ fontSize:36, marginBottom:12 }}>📅</div>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 6px" }}>作業日程が未設定です</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 16px" }}>日程を入力すると、ここにカレンダーが表示されます。</p>
+                <button onClick={() => { setConfCalOpen(false); setReturnToConfirm(true); setStep(4); }} className="btn-primary f-sans" style={{ padding:"12px 24px", fontSize:14, borderRadius:12 }}>日程を入力する</button>
+              </div>
+            )}
           </div>
         </div>
       )}
