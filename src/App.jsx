@@ -4455,6 +4455,19 @@ function stationLabel(station, commute) {
   return `${withEki}から${commute || ""}`.trim();
 }
 
+// 承認され当事者間のやり取りが可能になった段階以降のapplications.status一覧（completed含む）
+const APPROVED_PLUS_STATUSES = ["approved","meeting","interview","contracted","working","completed"];
+
+// 今日がdateStart〜dateEnd（dateEndなければdateStart単日）の範囲内か。日付のみで比較（時刻無視）
+function isWorkDayToday(dateStart, dateEnd) {
+  if (!dateStart) return false;
+  const fmt = d => { const dt = new Date(d); return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0"); };
+  const todayStr = fmt(new Date());
+  const startStr = fmt(dateStart);
+  const endStr = dateEnd ? fmt(dateEnd) : startStr;
+  return todayStr >= startStr && todayStr <= endStr;
+}
+
 // jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
 // さがす一覧・求人詳細・管理者プレビューで共通利用
 function mapJobPublicRow(j) {
@@ -4483,6 +4496,7 @@ function mapJobPublicRow(j) {
     dateEnd: j.date_end ? new Date(j.date_end) : null,
     dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
     dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
+    fullPayGuarantee: !!j.full_pay_guarantee,
   };
 }
 
@@ -4503,6 +4517,14 @@ function ChatView({ applicationId, onBack }) {
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState(null);
   const [partner, setPartner] = useState(null); // { nickname, avatar_url }
+  // はじめる前の確認カード（⑦）
+  const [confirmJob, setConfirmJob] = useState(null); // mapJobPublicRowで整形した求人情報
+  const [confirmMeetingPlace, setConfirmMeetingPlace] = useState(null);
+  const [workerConfirmed, setWorkerConfirmed] = useState(false);
+  const [farmerConfirmed, setFarmerConfirmed] = useState(false);
+  const [insurancePreparedAt, setInsurancePreparedAt] = useState(null);
+  const [isWorkerSide, setIsWorkerSide] = useState(false);
+  const [confirmingTerms, setConfirmingTerms] = useState(false);
   const load = async () => {
     try {
       const { data } = await supabase.from("messages").select("*").eq("application_id", applicationId).order("created_at",{ascending:true});
@@ -4515,18 +4537,42 @@ function ChatView({ applicationId, onBack }) {
         const { data:{ session } } = await supabase.auth.getSession();
         if (!session) { load(); return; }
         setMyId(session.user.id);
-        const { data: app } = await supabase.from("applications").select("farmer_id,worker_id").eq("id", applicationId).maybeSingle();
+        const { data: app } = await supabase.from("applications")
+          .select("farmer_id,worker_id,job_number,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at")
+          .eq("id", applicationId).maybeSingle();
         if (app) {
           const iAmWorker = session.user.id === app.worker_id;
           const table = iAmWorker ? "employer_profiles" : "worker_profiles";
           const partnerId = iAmWorker ? app.farmer_id : app.worker_id;
           const { data: pData } = await supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle();
           if (pData) setPartner(pData);
+          setIsWorkerSide(iAmWorker);
+          setWorkerConfirmed(!!app.terms_confirmed_worker_at);
+          setFarmerConfirmed(!!app.terms_confirmed_farmer_at);
+          setInsurancePreparedAt(app.insurance_prepared_at);
+          if (app.job_number) {
+            const { data: jobRow } = await supabase.from("jobs_public").select("*").eq("job_number", app.job_number).maybeSingle();
+            if (jobRow) setConfirmJob(mapJobPublicRow(jobRow));
+            const { data: mp } = await supabase.rpc('job_meeting_place', { p_job_number: app.job_number });
+            if (mp && mp.ok) setConfirmMeetingPlace(mp);
+          }
         }
       } catch {}
       load();
     })();
   }, [applicationId]);
+  const confirmTerms = async () => {
+    if (confirmingTerms) return;
+    setConfirmingTerms(true);
+    try {
+      const { data, error } = await supabase.rpc('confirm_terms', { p_application_id: applicationId });
+      if (!error && data && data.ok) {
+        setWorkerConfirmed(!!data.worker_confirmed);
+        setFarmerConfirmed(!!data.farmer_confirmed);
+      }
+    } catch {}
+    setConfirmingTerms(false);
+  };
   const send = async () => {
     if (!text.trim() || sending) return;
     setSending(true);
@@ -4547,6 +4593,44 @@ function ChatView({ applicationId, onBack }) {
           <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
         </div>
       )}
+
+      {/* はじめる前の確認カード（⑦）：双方確認済みなら小さく畳む */}
+      {confirmJob && (
+        (workerConfirmed && farmerConfirmed) ? (
+          <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 0", fontSize:12, color:"#00A86B", fontWeight:700 }}>
+            ✓ はじめる前の確認・双方確認済み
+          </div>
+        ) : (
+          <div style={{ background:"#F7F7F7", borderRadius:14, padding:"14px 16px", margin:"10px 0" }}>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 10px" }}>はじめる前の確認</p>
+            <div style={{ display:"grid", gap:8, marginBottom:12 }}>
+              {[
+                { label:"日程",     value: disp(confirmJob.dateLabel) },
+                { label:"時間",     value: disp(confirmJob.workTime) },
+                { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中..." },
+                { label:"持ち物",   value: disp(confirmJob.items) },
+                { label:"服装",     value: disp(confirmJob.cautions) },
+                { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
+                { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
+                { label:"保険",     value: insurancePreparedAt ? "✓ 農家が準備済み" : "未準備" },
+              ].map(row => (
+                <div key={row.label} style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
+                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>{row.label}</span>
+                  <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+            {(isWorkerSide ? workerConfirmed : farmerConfirmed) ? (
+              <p className="f-sans" style={{ fontSize:12, color:"#00A86B", fontWeight:700, margin:0, textAlign:"center" }}>あなたは確認済みです。相手の確認をお待ちください</p>
+            ) : (
+              <button onClick={confirmTerms} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
+                {confirmingTerms ? "..." : "内容に相違ありません"}
+              </button>
+            )}
+          </div>
+        )
+      )}
+
       <div style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
         {msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>打ち合わせや面接の連絡は、ここで行えます。</p>
@@ -5010,18 +5094,42 @@ function WorkerProfilePreview({ me, onEdit }) {
 
 function WorkerApplications({ filter, me }) {
   const [allApps, setAllApps] = useState([]);
+  const [jobDates, setJobDates] = useState({}); // { [job_number]: {date_start, date_end} }
   const [loading, setLoading] = useState(true);
+  const [punchingId, setPunchingId] = useState(null);
   useEffect(() => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         const { data, error } = await supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false});
-        if (!error && data) setAllApps(data);
+        if (!error && data) {
+          setAllApps(data);
+          const jobNumbers = [...new Set(data.map(a => a.job_number).filter(Boolean))];
+          if (jobNumbers.length > 0) {
+            const { data: jobRows } = await supabase.from("jobs_public").select("job_number,date_start,date_end").in("job_number", jobNumbers);
+            const map = {};
+            (jobRows || []).forEach(j => { map[j.job_number] = j; });
+            setJobDates(map);
+          }
+        }
       } catch {}
       setLoading(false);
     })();
   }, []);
+  const punchStart = async (a) => {
+    if (punchingId) return;
+    setPunchingId(a.id);
+    try {
+      const { data, error } = await supabase.rpc('punch_start', { p_application_id: a.id });
+      if (!error && data && data.ok) {
+        setAllApps(prev => prev.map(x => x.id===a.id ? { ...x, started_at: data.started_at, status: data.already ? x.status : 'working' } : x));
+      } else if (data && !data.ok) {
+        alert('開始できませんでした：' + (data.reason || '不明'));
+      }
+    } catch { alert('開始の記録に失敗しました。'); }
+    setPunchingId(null);
+  };
   // filter: "applying"=応募中(applied), "approved"=承認済み(approved以降), 見送り(rejected)はどちらにも出さない(通知で知らせる)
   const apps = allApps.filter(a => {
     if (filter === "applying") return a.status === "applied";
@@ -5051,6 +5159,18 @@ function WorkerApplications({ filter, me }) {
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+                {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
+                {CHAT_ELIGIBLE_STATUSES.includes(a.status) && isWorkDayToday(jobDates[a.job_number]?.date_start, jobDates[a.job_number]?.date_end) && (
+                  a.started_at ? (
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>
+                      開始済み（{new Date(a.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
+                    </p>
+                  ) : (
+                    <button onClick={()=>punchStart(a)} disabled={punchingId===a.id} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>
+                      {punchingId===a.id ? "..." : "▶ 作業を開始する"}
+                    </button>
+                  )
+                )}
                 {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
                 {(a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
                   <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
@@ -5448,13 +5568,43 @@ function JobSearchMapView({ onRegister, me }) {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.from('applications').select('id,status')
+        const { data } = await supabase.from('applications').select('id,status,started_at')
           .eq('job_number', selectedJob.id).maybeSingle();
         if (!cancelled) setMyApplication(data || null);
       } catch { if (!cancelled) setMyApplication(null); }
     })();
     return () => { cancelled = true; };
   }, [selectedJob?.id, me]);
+
+  // 集合場所（⑥）：承認済み以降の働き手が求人詳細を開いた時だけRPCで取得。番地は他では非公開
+  const [meetingPlace, setMeetingPlace] = useState(null);
+  useEffect(() => {
+    if (!selectedJob || !APPROVED_PLUS_STATUSES.includes(myApplication?.status)) { setMeetingPlace(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.rpc('job_meeting_place', { p_job_number: selectedJob.id });
+        if (!cancelled) setMeetingPlace((data && data.ok) ? data : null);
+      } catch { if (!cancelled) setMeetingPlace(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedJob?.id, myApplication?.status]);
+
+  // 開始打刻（①）：承認済み以降・作業日当日のみ
+  const [punching, setPunching] = useState(false);
+  const punchStart = async () => {
+    if (punching || !myApplication) return;
+    setPunching(true);
+    try {
+      const { data, error } = await supabase.rpc('punch_start', { p_application_id: myApplication.id });
+      if (!error && data && data.ok) {
+        setMyApplication(prev => prev ? { ...prev, started_at: data.started_at, status: data.already ? prev.status : 'working' } : prev);
+      } else if (data && !data.ok) {
+        alert('開始できませんでした：' + (data.reason || '不明'));
+      }
+    } catch { alert('開始の記録に失敗しました。'); }
+    setPunching(false);
+  };
   const [applying, setApplying] = useState(false);
   // プロフィールゲートのモーダル状態。null=非表示 / {mode:"soft"}=クライアント側の空チェック（両方選べる）
   // / {mode:"hard", hasNickname, qaAnswered, qaRequired}=サーバー側の必須ゲート（プロフィールを書く、のみ）
@@ -5689,6 +5839,29 @@ function JobSearchMapView({ onRegister, me }) {
                 </div>
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
               </div>
+
+              {/* 集合場所（⑥・承認済み以降のみ表示） */}
+              {APPROVED_PLUS_STATUSES.includes(myApplication?.status) && meetingPlace && (
+                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>📍 集合場所</p>
+                  <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{meetingPlace.full_address}</p>
+                </div>
+              )}
+
+              {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
+              {CHAT_ELIGIBLE_STATUSES.includes(myApplication?.status) && isWorkDayToday(selectedJob.dateStart, selectedJob.dateEnd) && (
+                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                  {myApplication.started_at ? (
+                    <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#00A86B", margin:0 }}>
+                      開始済み（{new Date(myApplication.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
+                    </p>
+                  ) : (
+                    <button onClick={punchStart} disabled={punching} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, borderRadius:14 }}>
+                      {punching ? "..." : "▶ 作業を開始する"}
+                    </button>
+                  )}
+                </div>
+              )}
 
               {empEmployer && empEmployer.nickname && (() => {
                 const perkRows = [
@@ -10169,6 +10342,18 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                     setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
                   }} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
                 </div>
+              )}
+              {/* 保険準備ボタン（承認済み以降） */}
+              {APPROVED_PLUS_STATUSES.includes(a.status) && (
+                a.insurance_prepared_at ? (
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 保険準備済み・働き手に通知しました</p>
+                ) : (
+                  <button onClick={async ()=>{
+                    const { data, error } = await supabase.rpc('confirm_insurance', { p_application_id: a.id });
+                    if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                    setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, insurance_prepared_at: new Date().toISOString()} : x));
+                  }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer", marginBottom:8 }}>☑ 保険を準備した</button>
+                )
               )}
               {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
               <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
