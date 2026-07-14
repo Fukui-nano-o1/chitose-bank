@@ -9387,6 +9387,11 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 function AdminTab({ onJump, onShowAccountForm }) {
   const [sub, setSub] = useState("jobs"); // "jobs" | "account" | "other"（審査をデフォルトタブに）
   const [reviewSec, setReviewSec] = useState(null); // 審査タブ内の選択: null=ボックス格子 | jobs|accounts|prs|reports|disputes
+  const [accounts, setAccounts] = useState([]); // 新アカウントタブ：admin_list_accounts()の全ユーザー台帳
+  const [expandedAccount, setExpandedAccount] = useState(null); // 展開中のauth_id
+  const [revTarget, setRevTarget] = useState(null); // 差し戻し理由入力中のauth_id
+  const [revReason, setRevReason] = useState("");
+  const [revSending, setRevSending] = useState(false);
   const [otherOpen, setOtherOpen] = useState({ dev:false, legacy:false, system:false }); // その他タブのアコーディオン開閉
   const [legacySub, setLegacySub] = useState("dests"); // 旧事業データ内の選択: dests|records|stats|datadef
   const [systemSub, setSystemSub] = useState("sql"); // システム内の選択: sql|errors
@@ -9440,7 +9445,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re, ae, pj, wp, jr, av] = await Promise.all([
+    const [fr, de, re, ae, pj, wp, jr, av, la] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
@@ -9449,6 +9454,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
       supabase.from("worker_profiles").select("auth_id,nickname,pr_pending,pr_qa_pending,pr_submitted_at"),
       supabase.from("job_reports").select("*").order("created_at",{ascending:false}),
       supabase.from("attendance_events").select("*").eq("kind","dispute_no_show").order("created_at",{ascending:false}),
+      supabase.rpc("admin_list_accounts"),
     ]);
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
@@ -9458,8 +9464,29 @@ function AdminTab({ onJump, onShowAccountForm }) {
     if (!wp.error) setPendingPrs((wp.data || []).filter(w => w.pr_pending || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0)));
     if (!jr.error) setReports(jr.data || []);
     if (!av.error) setDisputes(av.data || []);
+    if (!la.error && Array.isArray(la.data)) setAccounts(la.data); // {ok:false,reason:'not_admin'}時は配列でないため無視
     setLoading(false);
   }, []);
+
+  // ── 新アカウントタブ：自由記述の承認・差し戻し（RPC・実行後に台帳を再取得） ──
+  const reloadAccounts = async () => {
+    const { data } = await supabase.rpc("admin_list_accounts");
+    if (Array.isArray(data)) setAccounts(data);
+  };
+  const approveProfileText = async (authId) => {
+    const { data, error } = await supabase.rpc("approve_profile_text", { p_auth_id: authId });
+    if (error || data?.ok === false) { alert("承認に失敗しました：" + (error?.message || data?.reason || "不明")); return; }
+    await reloadAccounts();
+  };
+  const sendProfileRevision = async () => {
+    if (!revTarget || !revReason.trim() || revSending) return;
+    setRevSending(true);
+    const { data, error } = await supabase.rpc("request_profile_revision", { p_auth_id: revTarget, p_reason: revReason.trim() });
+    setRevSending(false);
+    if (error || data?.ok === false) { alert("差し戻しに失敗しました：" + (error?.message || data?.reason || "不明")); return; }
+    setRevTarget(null); setRevReason("");
+    await reloadAccounts();
+  };
 
   // ── 審査タブ集約アクション（2026-07-14・DB側は app_admins 基準の審査ポリシーで担保） ──
   const approveFarmerAccount = async (f) => {
@@ -9655,7 +9682,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       <div style={{ marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
         <div>
           <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
-          <p className="f-sans" style={{ fontSize:12,color:"#717171" }}>農家・出荷先・記録データの管理</p>
+          <p className="f-sans" style={{ fontSize:12,color:"#717171" }}>審査・アカウント・運営ツール</p>
         </div>
         <button onClick={() => { setLoading(true); load(); }} style={{
           padding:"8px 16px", borderRadius:10, border:"1px solid #EBEBEB",
@@ -9778,6 +9805,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               <div style={{ border:"1px solid #EBEBEB", borderTop:"none", borderRadius:"0 0 12px 12px", padding:16, background:"#fff" }}>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                   {[
+                    { k:"farmers", l:"農家台帳",   n: null }, // 旧アカウントタブ(farmers基準)の移設先（2026-07-14・温存）
                     { k:"dests",   l:"出荷先",     n: dests.filter(d=>d.status==="pending").length },
                     { k:"records", l:"記録データ", n: records.length },
                     { k:"stats",   l:"統計",       n: null },
@@ -9834,8 +9862,82 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
       {loading && <div style={{ textAlign:"center",padding:48,color:"#B0B0B0",fontSize:13 }}>読み込み中...</div>}
 
-      {/* ── アカウント管理（旧・農家タブ。一覧は最小表示、詳細は展開時のみ） ── */}
+      {/* ── アカウント（2026-07-14刷新）：admin_list_accounts()による全ユーザー台帳＋自由記述の承認作業台。
+           要対応(📝)はRPCがソート済みで最上部。旧farmersのCRUD(作物/tier/削除)は持ち込まない ── */}
       {!loading && sub==="account" && (
+        <div className="fade-in" style={{ display:"grid", gap:8 }}>
+          {accounts.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>アカウントを取得できませんでした。「更新」を押してください</p>}
+          {accounts.map(u => {
+            const isOpen = expandedAccount === u.auth_id;
+            const badgeSt = (bg, fg) => ({ padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700, background:bg, color:fg, whiteSpace:"nowrap" });
+            return (
+              <div key={u.auth_id} style={{ borderRadius:12, border:"1px solid #EBEBEB", background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden" }}>
+                <div onClick={()=>setExpandedAccount(isOpen ? null : u.auth_id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", cursor:"pointer", userSelect:"none" }}>
+                  <Avatar url={u.avatar_url} name={u.nickname || u.email} size={34} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.nickname || u.email || "—"}</p>
+                    <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                      {u.has_id_check && <span style={badgeSt("#E6F7EF","#00A86B")}>✓ 本人確認</span>}
+                      {u.pending_text && <span style={badgeSt("#FFF4E0","#C77700")}>📝 確認待ち{u.pending_since ? ` ${u.pending_since}` : ""}</span>}
+                      {u.never_signed_in && <span style={badgeSt("#F5F5F5","#717171")}>✉️ 未ログイン</span>}
+                      {u.reported > 0 && <span style={badgeSt("#FDECEC","#E24B4A")}>⚠️ 通報×{u.reported}</span>}
+                    </div>
+                  </div>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{u.never_signed_in ? "" : (u.last_sign_in_jst || "")}</span>
+                  <span style={{ color:"#B0B0B0", fontSize:11, flexShrink:0 }}>{isOpen ? "▲" : "▼"}</span>
+                </div>
+                {isOpen && (
+                  <div style={{ padding:"2px 14px 14px", borderTop:"1px solid #F7F7F7" }}>
+                    {[
+                      { label:"メール",   value: u.email || "—" },
+                      { label:"登録日",   value: u.created_jst || "—" },
+                      { label:"本人確認", value: u.has_id_check ? (u.id_check_month || "済") : "未" },
+                      { label:"活動",     value: `応募${u.apps_applied ?? 0}・完了${u.apps_completed ?? 0}・求人${u.jobs_posted ?? 0}・🌟${u.want_again ?? 0}` },
+                    ].map(({ label, value }) => (
+                      <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"6px 0", borderBottom:"1px solid #F7F7F7" }}>
+                        <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:64, flexShrink:0 }}>{label}</span>
+                        <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
+                      </div>
+                    ))}
+                    {u.pending_text && (
+                      <div style={{ marginTop:12, background:"#FFFBF2", border:"1px solid #F5D98F", borderRadius:12, padding:"12px 14px" }}>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#C77700", margin:"0 0 8px" }}>📝 自由記述の確認待ち{u.pending_since ? `（${u.pending_since}提出）` : ""}</p>
+                        {u.pr_pending && (
+                          <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:"0 0 8px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#fff", borderRadius:8, padding:"8px 10px" }}>{u.pr_pending}</p>
+                        )}
+                        {Array.isArray(u.pr_qa_pending) && u.pr_qa_pending.map(({ q, a }) => (
+                          <div key={q} style={{ background:"#fff", borderRadius:8, padding:"8px 10px", marginBottom:6 }}>
+                            <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 2px" }}>{q}</p>
+                            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                          </div>
+                        ))}
+                        {revTarget === u.auth_id ? (
+                          <div style={{ marginTop:8 }}>
+                            <textarea value={revReason} onChange={e=>setRevReason(e.target.value)} placeholder="差し戻しの理由（本人に届きます）" rows={3}
+                              style={{ width:"100%", borderRadius:10, border:"1px solid #E5E5E5", fontSize:13, padding:"8px 10px", outline:"none", boxSizing:"border-box", fontFamily:"inherit", resize:"vertical" }} />
+                            <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:8 }}>
+                              <button onClick={()=>{ setRevTarget(null); setRevReason(""); }} className="f-sans" style={{ padding:"9px 16px", fontSize:12, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                              <button onClick={sendProfileRevision} disabled={revSending || !revReason.trim()} className="f-sans" style={{ padding:"9px 16px", fontSize:12, fontWeight:700, background:"#EA580C", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (!revReason.trim() || revSending) ? 0.5 : 1 }}>{revSending ? "送信中..." : "差し戻しを送る"}</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:8 }}>
+                            <button onClick={()=>{ setRevTarget(u.auth_id); setRevReason(""); }} className="f-sans" style={{ padding:"10px 18px", fontSize:13, fontWeight:700, background:"#fff", color:"#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer" }}>差し戻す</button>
+                            <button onClick={()=>approveProfileText(u.auth_id)} className="f-sans" style={{ padding:"10px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✓ 承認して公開</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── 農家台帳（旧・アカウントタブのfarmers基準台帳を移設・温存。CRUDもここに残す） ── */}
+      {!loading && sub==="other" && otherOpen.legacy && legacySub==="farmers" && (
         <div className="fade-in" style={{ display:"grid", gap:8 }}>
           {farmers.length===0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>農家がいません</p>}
           {farmers.map(f => {
