@@ -8404,12 +8404,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       {/* 下部ナビ（ホーム・完了画面以外。掲載モーダル展開中も非表示） */}
       {step > 0 && step < TOTAL && step !== 12 && !publishModal && (
         <div style={embedded ? {
-          background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 20px",
+          background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 8px",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         } : {
           position:"fixed", bottom:0, left:0, right:0, background:"#fff",
           borderTop:"1px solid #EBEBEB",
-          padding:"16px 20px calc(16px + env(safe-area-inset-bottom, 0px))",
+          padding:"16px 8px calc(16px + env(safe-area-inset-bottom, 0px))",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         }}>
           <button onClick={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
