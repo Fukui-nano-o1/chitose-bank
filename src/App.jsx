@@ -8385,16 +8385,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               width:36, height:36, borderRadius:"50%",
               background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
             }}>✕</button>
-            {jobDateStart ? (
-              <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} />
-            ) : (
-              <div style={{ textAlign:"center", padding:"32px 8px 12px" }}>
-                <div style={{ fontSize:36, marginBottom:12 }}>📅</div>
-                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 6px" }}>作業日程が未設定です</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 16px" }}>日程を入力すると、ここにカレンダーが表示されます。</p>
-                <button onClick={() => { setConfCalOpen(false); setReturnToConfirm(true); setStep(4); }} className="btn-primary f-sans" style={{ padding:"12px 24px", fontSize:14, borderRadius:12 }}>日程を入力する</button>
-              </div>
-            )}
+            {/* 編集可能カレンダー（step4と同じ選択ロジック：1タップ目=開始日・2タップ目=終了日） */}
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 4px", paddingRight:40 }}>作業日程</h3>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 4px" }}>日付をタップすると選び直せます（1回目＝開始日・2回目＝終了日）</p>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color: jobDateStart ? "#00A86B" : "#B0B0B0", margin:"0 0 12px" }}>{jobDateLabel}</p>
+            <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={false} onSelect={(dt) => {
+              if (!jobDateStart || jobDateEnd) { setJobDateStart(dt); setJobDateEnd(null); }
+              else if (dt >= jobDateStart) { setJobDateEnd(dt); }
+              else { setJobDateStart(dt); setJobDateEnd(null); }
+            }} />
           </div>
         </div>
       )}
