@@ -12365,7 +12365,7 @@ function HelpCenter({ me, onReportClick }) {
     } catch { alert("削除に失敗しました。"); }
   };
   return (
-    <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+    <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 左右4px(2026-07-14) */}
       <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>使い方ガイド</h1>
       <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>chitose-bankの使い方をまとめています</p>
       <div style={{ display:"grid", gap:16 }}>
