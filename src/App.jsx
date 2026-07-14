@@ -5772,8 +5772,9 @@ function JobSearchMapView({ onRegister, me }) {
                         <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={44} />
                       </div>
                       <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
-                      {empEmployer.pr && (
-                        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
+                      {/* 名前の下は短い挨拶(owner_comment)。長文の自己紹介(pr)は農園紹介「代表より」へ（2026-07-14入れ替え） */}
+                      {empEmployer.owner_comment && (
+                        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.owner_comment}</p>
                       )}
                     </div>
                     <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
@@ -5960,7 +5961,8 @@ function JobSearchMapView({ onRegister, me }) {
               { label:"職場の雰囲気", body: empEmployer.intro_atmosphere },
               { label:"初めての人へのメッセージ", body: empEmployer.intro_message },
             ].filter(t => t.body && t.body.trim());
-            const comment = empEmployer.owner_comment && empEmployer.owner_comment.trim();
+            // 「代表より」枠には長文の自己紹介(pr)を表示。短い挨拶(owner_comment)は名前の下へ（2026-07-14入れ替え）
+            const comment = empEmployer.pr && empEmployer.pr.trim();
             if (topics.length === 0 && !comment) return null;
             return (
               <div style={{ marginBottom:100 }}>
@@ -7890,8 +7892,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                             <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={44} />
                           </div>
                           <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{confEmployer.nickname}</p>
-                          {confEmployer.pr && (
-                            <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.pr}</p>
+                          {/* 名前の下は短い挨拶(owner_comment)。長文の自己紹介(pr)は農園紹介「代表より」へ（2026-07-14入れ替え・詳細ページと同じ） */}
+                          {confEmployer.owner_comment && (
+                            <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.owner_comment}</p>
                           )}
                         </div>
                         <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
@@ -8028,7 +8031,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   { label:"職場の雰囲気", body: confEmployer.intro_atmosphere },
                   { label:"初めての人へのメッセージ", body: confEmployer.intro_message },
                 ].filter(t => t.body && t.body.trim());
-                const comment = confEmployer.owner_comment && confEmployer.owner_comment.trim();
+                // 「代表より」枠には長文の自己紹介(pr)を表示。短い挨拶(owner_comment)は名前の下へ（2026-07-14入れ替え・詳細ページと同じ）
+                const comment = confEmployer.pr && confEmployer.pr.trim();
                 if (topics.length === 0 && !comment) return null;
                 return (
                   <div style={{ maxWidth:870, margin:"0 auto 28px" }}>
