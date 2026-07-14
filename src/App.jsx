@@ -10329,16 +10329,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         <button onClick={()=>{ window.location.hash="/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0" }}>← 農家プロ</button>
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
-      <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
-        {JOB_TABS.map(t => (
-          <button key={t.k} onClick={()=>{ const _map={profile:"/profile/employer/profile",draft:"/profile/employer/drafts",active:"/profile/employer/active",applicants:"/profile/employer/applicants",expired:"/profile/employer/expired",calendar:"/profile/employer/calendar"}; window.location.hash=(_map[t.k]||"/profile/employer"); }} className="f-sans" style={{
-            padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
-            fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
-            color: jobTab===t.k ? "#222" : "#999",
-            borderBottom: jobTab===t.k ? "2px solid var(--mode-accent, #00A86B)" : "2px solid transparent",
-          }}>{t.l}</button>
-        ))}
-      </div>
+      {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
+      <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap:20 }}>
       {jobTab==="profile" ? (
         profileMode === "edit" ? (
