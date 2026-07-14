@@ -9385,7 +9385,8 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
 // ── AdminTab ─────────────────────────────────────────────────
 function AdminTab({ onJump, onShowAccountForm }) {
-  const [sub, setSub] = useState("jobs"); // "jobs" | "account" | "other"（求人審査をデフォルトタブに）
+  const [sub, setSub] = useState("jobs"); // "jobs" | "account" | "other"（審査をデフォルトタブに）
+  const [reviewSec, setReviewSec] = useState(null); // 審査タブ内の選択: null=ボックス格子 | jobs|accounts|prs|reports|disputes
   const [otherOpen, setOtherOpen] = useState({ dev:false, legacy:false, system:false }); // その他タブのアコーディオン開閉
   const [legacySub, setLegacySub] = useState("dests"); // 旧事業データ内の選択: dests|records|stats|datadef
   const [systemSub, setSystemSub] = useState("sql"); // システム内の選択: sql|errors
@@ -9961,11 +9962,33 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── 審査（全ての審査待ちをここに集約・2026-07-14） ── */}
-      {sub==="jobs" && (
-        <div style={{ display:"grid", gap:28 }}>
+      {/* ── 審査（全ての審査待ちをここに集約・2026-07-14）：入口はプロフィール型のボックス格子。
+           タップで各審査の一覧へ(reviewSec)。未完了数はボックス右上の赤バッジ ── */}
+      {sub==="jobs" && !reviewSec && !loading && (
+        <div className="fade-in" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          {[
+            { k:"jobs",     e:"🔍", l:"求人",           n:pendingJobs.length },
+            { k:"accounts", e:"👤", l:"アカウント承認", n:pendingFarmerAccounts.length },
+            { k:"prs",      e:"📝", l:"自由記述",       n:pendingPrs.length },
+            { k:"reports",  e:"🚨", l:"通報",           n:openReports.length },
+            { k:"disputes", e:"⚖️", l:"欠勤異議",       n:disputes.length },
+          ].map(c => (
+            <button key={c.k} onClick={()=>setReviewSec(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              {c.n > 0 && (
+                <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
+              )}
+              <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
+              <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {sub==="jobs" && reviewSec && (
+        <div className="fade-in" style={{ display:"grid", gap:16 }}>
+        <button onClick={()=>setReviewSec(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
 
         {/* ① 求人 */}
+        {reviewSec==="jobs" && (
         <div>
         <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>求人{pendingJobs.length > 0 ? `（${pendingJobs.length}）` : ""}</p>
         <div style={{ display:"grid", gap:12 }}>
@@ -9997,8 +10020,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           })}
         </div>
         </div>
+        )}
 
         {/* ② アカウント承認（農家の審査待ち） */}
+        {reviewSec==="accounts" && (
         <div>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>アカウント承認{pendingFarmerAccounts.length > 0 ? `（${pendingFarmerAccounts.length}）` : ""}</p>
           <div style={{ display:"grid", gap:12 }}>
@@ -10015,8 +10040,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             ))}
           </div>
         </div>
+        )}
 
         {/* ③ プロフィール自由記述（働き手の確認待ち。公開で pr_pending→pr に反映） */}
+        {reviewSec==="prs" && (
         <div>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>プロフィール自由記述{pendingPrs.length > 0 ? `（${pendingPrs.length}）` : ""}</p>
           <div style={{ display:"grid", gap:12 }}>
@@ -10044,8 +10071,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             ))}
           </div>
         </div>
+        )}
 
         {/* ④ 通報（job_reports。対応済みで一覧から消える） */}
+        {reviewSec==="reports" && (
         <div>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>通報{openReports.length > 0 ? `（${openReports.length}）` : ""}</p>
           <div style={{ display:"grid", gap:12 }}>
@@ -10066,8 +10095,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             ))}
           </div>
         </div>
+        )}
 
         {/* ⑤ 欠勤記録への異議（attendance_events・表示のみ。対応は当事者チャット等で） */}
+        {reviewSec==="disputes" && (
         <div>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>欠勤記録への異議{disputes.length > 0 ? `（${disputes.length}）` : ""}</p>
           <div style={{ display:"grid", gap:12 }}>
@@ -10084,6 +10115,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             ))}
           </div>
         </div>
+        )}
 
         </div>
       )}
