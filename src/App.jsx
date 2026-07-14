@@ -85,6 +85,7 @@ const MENU_ITEMS = [
   { key:"admin",   label:"管理",         hash:"/admin",   auth:true, adminOnly:true },
   { key:"chats",   label:"チャット",     hash:"/chats",   auth:true  },
   { key:"profile", label:"プロフィール", hash:"/profile", auth:true  },
+  { key:"help",    label:"📖 使い方",    hash:"/help",    auth:false },
   { key:"charter", label:"運営憲章",     hash:"/charter", auth:false },
   { key:"terms",   label:"利用規約",     hash:"/terms",   auth:false },
   { key:"privacy", label:"プライバシー", hash:"/privacy", auth:false },
@@ -92,7 +93,7 @@ const MENU_ITEMS = [
 ];
 
 // モバイル下部バー：☰(左端・アイコンのみ)＋5機能タブ。カレンダーが中央に来る並び。
-// ☰の中身はMOBILE_MENU_ITEMS（求人を出す・管理・運営憲章・利用規約・プライバシー・ログアウト）。
+// ☰の中身はMOBILE_MENU_ITEMS（求人を出す・使い方・管理・運営憲章・利用規約・プライバシー・ログアウト）。
 const MOBILE_TABS = [
   { k:"search",   icon:"🔍", label:"さがす" },
   { k:"saved",    icon:"♡",  label:"いいね" },
@@ -103,6 +104,7 @@ const MOBILE_TABS = [
 // モバイル☰メニューの静的リンク項目（求人を出す・ログアウトは動作が固有なので別途JSXで扱う）
 const MOBILE_MENU_ITEMS = [
   { key:"admin",   label:"管理",           hash:"/admin",   auth:false, adminOnly:true },
+  { key:"help",    label:"📖 使い方",      hash:"/help" },
   { key:"charter", label:"運営憲章",       hash:"/charter" },
   { key:"terms",   label:"利用規約",       hash:"/terms" },
   { key:"privacy", label:"プライバシー",   hash:"/privacy" },
@@ -12086,11 +12088,166 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
   );
 }
 
+// ── ヘルプセンター（#/help・#/help/{chapter}） ──────────────────
+// HELP_CONTENT: 章キー→{num,title,items:[{label,body,imageSlot:null}]}。
+// imageSlotは常にnull（スクショは未撮影）。将来URL文字列を入れれば画像表示に切替可能な設計
+const HELP_CHAPTER_KEYS = ["about","farmer","worker","mails","info","faq"];
+const HELP_CONTENT = {
+  about: {
+    num: "第1章", title: "chitose-bankとは",
+    items: [
+      { label: null, body: "chitose-bankは、農家と働き手が直接つながる場です。", imageSlot: null },
+      { label: "3つの原則", body: "① 連絡手段は縛らない\n② 成功報酬は永久に受け取らない\n③ 採否に関与しない", imageSlot: null },
+      { label: null, body: "運営は、場の提供と安全の確認だけを行います。", imageSlot: null },
+    ],
+  },
+  farmer: {
+    num: "第2章", title: "農家の流れ",
+    items: [
+      { label: "① 求人を書く", body: "途中保存ができるので、時間があるときに少しずつ書き進められます。", imageSlot: null },
+      { label: "② 掲載前の4つの確認", body: "掲載前に、内容に不備がないか4つの項目を確認します。", imageSlot: null },
+      { label: "③ 運営の審査", body: "運営が内容を確認します。", imageSlot: null },
+      { label: "④ 公開", body: "審査を通過すると、求人が公開されます。", imageSlot: null },
+      { label: "⑤ 応募メールが届く", body: "働き手から応募があると、メールで知らされます。", imageSlot: null },
+      { label: "⑥ 承認", body: "応募者のプロフィールを見て、承認するか決めます。", imageSlot: null },
+      { label: "⑦ チャットと確認カードで打合せ", body: "承認後、チャットと確認カードで日程や集合場所などを打ち合わせます。", imageSlot: null },
+      { label: "⑧ 保険の準備", body: "作業当日に備えて、保険を準備します。", imageSlot: null },
+      { label: "⑨ 当日「開始を確認」", body: "働き手が作業を開始したら、「開始を確認」を押します。", imageSlot: null },
+      { label: "⑩ 作業後「完了して評価する」", body: "働き手が来たか確認し、2タップで評価します。", imageSlot: null },
+      { label: "満額保証型とは", body: "満額保証型（デフォルト）では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。", imageSlot: null },
+    ],
+  },
+  worker: {
+    num: "第3章", title: "働き手の流れ",
+    items: [
+      { label: "① 登録", body: "メールアドレスで登録します。", imageSlot: null },
+      { label: "② 本人確認", body: "本人確認情報を入力します。", imageSlot: null },
+      { label: "③ プロフィール", body: "書いた分だけ農家に伝わります。自己紹介（自由記述）は運営の確認後に公開されます（最大2日）。", imageSlot: null },
+      { label: "④ 応募", body: "気になる求人に応募します。", imageSlot: null },
+      { label: "⑤ 承認メール", body: "農家が承認すると、メールで知らされます。", imageSlot: null },
+      { label: "⑥ チャット・確認カード", body: "チャットと確認カードで、日程や集合場所などを打ち合わせます。", imageSlot: null },
+      { label: "⑦ 当日「▶ 作業を開始する」", body: "作業を始めるときに押します。", imageSlot: null },
+      { label: "⑧ 終了後「✓ 終了を確認」", body: "作業が終わったら押し、3タップで評価します。", imageSlot: null },
+    ],
+  },
+  mails: {
+    num: "第4章", title: "届くメール一覧",
+    items: [
+      { label: "応募あり", body: "いつ：働き手が応募した時／誰に：農家／内容：応募者カードつきの通知", imageSlot: null },
+      { label: "承認のお知らせ", body: "いつ：農家が承認した時／誰に：働き手", imageSlot: null },
+      { label: "新着メッセージ", body: "いつ：チャットにメッセージが届いた時（30分に1通まで）／誰に：受信した側", imageSlot: null },
+      { label: "求人修正のお願い", body: "いつ：審査で差し戻しになった時／誰に：農家", imageSlot: null },
+      { label: "保険のご準備を", body: "いつ：承認後・作業日の3日前・前日17時／誰に：農家", imageSlot: null },
+      { label: "保険準備完了", body: "いつ：農家が保険準備を確認した時／誰に：働き手", imageSlot: null },
+      { label: "まもなく作業開始", body: "いつ：作業開始の1時間前／誰に：農家・働き手の双方／内容：緊急連絡ボタンつき", imageSlot: null },
+      { label: "作業は終わりましたか", body: "いつ：作業日翌朝9時（最大2回）／誰に：農家", imageSlot: null },
+      { label: "評価のお願い", body: "いつ：作業が完了した時／誰に：働き手", imageSlot: null },
+      { label: "欠勤の記録", body: "いつ：農家が欠勤を記録した時／誰に：働き手／内容：72時間以内に異議申立ができます", imageSlot: null },
+      { label: "緊急連絡", body: "いつ：遅刻・欠勤・中止・延期の連絡があった時／誰に：相手方（即時）", imageSlot: null },
+    ],
+  },
+  info: {
+    num: "第5章", title: "あなたの情報の扱い",
+    items: [
+      { label: "氏名・住所・生年月日・電話", body: "運営のみが保管します。画面には「✓ 本人確認済み」バッジだけが表示されます。", imageSlot: null },
+      { label: "ニックネーム・写真・自己紹介・Q&A・タグ", body: "応募先の農家に表示されます。自由記述は運営が確認してから公開されます。", imageSlot: null },
+      { label: "集合場所の番地", body: "承認された働き手にだけ表示されます。", imageSlot: null },
+      { label: "チャット", body: "当事者だけが読めます。", imageSlot: null },
+      { label: "評価", body: "良い評価のみ公開されます。お互いの評価が揃うか、3日たつまでは相手に見えません。メモは自分だけが見られます。", imageSlot: null },
+      { label: "通報", body: "通報した人が誰かは、相手に伝わりません。", imageSlot: null },
+    ],
+  },
+  faq: {
+    num: "第6章", title: "困ったとき",
+    items: [
+      { label: "応募を取り消したい", body: "現在、アプリ内で応募を取り消す機能はありません。お問い合わせ窓口までご連絡ください。", imageSlot: null },
+      { label: "承認されたのに連絡がない", body: "承認後の連絡はチャットで届きます。チャットを確認しても連絡がない場合は、お問い合わせ窓口までご連絡ください。", imageSlot: null },
+      { label: "当日行けなくなった", body: "チャット画面の「⚠️ 緊急連絡」ボタンから、遅れる・欠勤の連絡ができます。相手にすぐに通知されます。", imageSlot: null },
+      { label: "農家が来ない・話が違う", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。通報した人が誰かは相手に伝わりません。", imageSlot: null },
+      { label: "報酬はいつ誰からもらえますか", body: "報酬は農家から直接受け取ります。運営は報酬のやり取りに関与しません。", imageSlot: null },
+      { label: "早く終わったら給与は減りますか", body: "満額保証型（デフォルト）の求人では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。", imageSlot: null },
+      { label: "評価を間違えた", body: "お問い合わせ窓口までご連絡ください。", imageSlot: null },
+      { label: "自己紹介が表示されない", body: "自由記述の自己紹介は、運営の確認後に公開されます（最大2日）。確認中は、あなたのプレビューに「確認待ち」と表示されます。", imageSlot: null },
+      { label: "退会したい", body: "お問い合わせ窓口までご連絡ください。", imageSlot: null },
+      { label: "保険は誰が掛けますか", body: "農家が保険を準備します。準備が完了すると、働き手に通知が届きます。", imageSlot: null },
+      { label: "通報のしかた", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。", imageSlot: null },
+      { label: "異議申立のしかた", body: "欠勤記録の通知から72時間以内に、アプリから異議申立ができます。", imageSlot: null },
+      { label: "お問い合わせ", body: "t5fki6643qty@gmail.com までご連絡ください。苦情には遅滞なく対応します。", imageSlot: null },
+    ],
+  },
+};
+
+function HelpImageSlot() {
+  return (
+    <div className="f-sans" style={{ marginTop:10, height:110, border:"1px dashed #D0D0D0", borderRadius:10, background:"#FAFAFA", display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0", fontSize:12 }}>
+      📷 スクショ準備中
+    </div>
+  );
+}
+
+function HelpCenter() {
+  const chapterFromHash = () => {
+    const h = window.location.hash.replace(/^#\/?/, "");
+    const m = h.match(/^help\/(\w+)$/);
+    return (m && HELP_CHAPTER_KEYS.includes(m[1])) ? m[1] : null;
+  };
+  const [openChapter, setOpenChapter] = useState(chapterFromHash());
+  useEffect(() => {
+    const onHash = () => setOpenChapter(chapterFromHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  useEffect(() => {
+    if (!openChapter) return;
+    const el = document.getElementById("help-" + openChapter);
+    if (el) setTimeout(() => el.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
+  }, [openChapter]);
+  const toggle = (key) => {
+    const next = openChapter === key ? null : key;
+    setOpenChapter(next);
+    window.location.hash = next ? "/help/" + next : "/help";
+  };
+  return (
+    <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+      <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>使い方ガイド</h1>
+      <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>chitose-bankの使い方をまとめています</p>
+      <div style={{ display:"grid", gap:16 }}>
+        {HELP_CHAPTER_KEYS.map(key => {
+          const ch = HELP_CONTENT[key];
+          const isOpen = openChapter === key;
+          return (
+            <section key={key} id={"help-" + key} style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", overflow:"hidden" }}>
+              <button onClick={() => toggle(key)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"20px 24px", background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <span>
+                  <span style={{ display:"block", fontSize:12, color:"#B0B0B0", marginBottom:2 }}>{ch.num}</span>
+                  <span style={{ fontSize:19, fontWeight:700, color:"#222" }}>{ch.title}</span>
+                </span>
+                <span style={{ fontSize:22, color:"#B0B0B0", flexShrink:0 }}>{isOpen ? "－" : "＋"}</span>
+              </button>
+              {isOpen && (
+                <div style={{ padding:"0 24px 24px", display:"grid", gap:20 }}>
+                  {ch.items.map((it, i) => (
+                    <div key={i}>
+                      {it.label && <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{it.label}</p>}
+                      <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{it.body}</p>
+                      {it.imageSlot ? <img src={it.imageSlot} alt="" style={{ marginTop:10, width:"100%", borderRadius:10 }} /> : <HelpImageSlot />}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats","saved","calendar"];
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help"];
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
@@ -12104,7 +12261,9 @@ export default function App(){
     const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/worker/profile" || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
     // 審査メールの深いリンク(#/admin/review/{job_number})を、tab同期で#/adminに巻き戻さないよう保持
     const _subTabOfAdmin = (tab === "admin") && _curHash.startsWith("admin/review/");
-    if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && !_subTabOfAdmin && window.location.hash !== target) window.location.hash = "/" + tab;
+    // ヘルプの章アンカー(#/help/{chapter})を、tab同期で#/helpに巻き戻さないよう保持
+    const _subTabOfHelp = (tab === "help") && _curHash.startsWith("help/");
+    if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && !_subTabOfAdmin && !_subTabOfHelp && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
   useEffect(() => {
@@ -12802,6 +12961,7 @@ const subDest=useCallback(async d=>{
             </div>
           </div>
         )}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
