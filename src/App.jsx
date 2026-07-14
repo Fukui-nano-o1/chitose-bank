@@ -12230,17 +12230,17 @@ const FEEDBACK_CATEGORIES = [
   { v:"other",       l:"その他" },
 ];
 
-// トリガー(button)＋モーダルを1組にしたコンポーネント。☰(PC/モバイル)・ヘルプ第6章冒頭など複数箇所に設置
-function FeedbackButton({ label, className, style, onBeforeOpen }) {
-  const [open, setOpen] = useState(false);
+// この画面を報告（Part B）のモーダル本体。☰の開閉やヘルプの章開閉と無関係な階層（App直下）に
+// 1個だけ常駐させ、open/onCloseで外部から制御する。過去バージョンはトリガーボタンと同居させていたため、
+// ☰を閉じるとトリガーごとアンマウントされモーダルが開かないバグがあった（2026-07-14修正）
+function FeedbackModal({ open, onClose }) {
   const [category, setCategory] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
-  const openModal = () => {
-    if (typeof onBeforeOpen === "function") onBeforeOpen();
-    setCategory(""); setBody(""); setSent(false); setOpen(true);
-  };
+  useEffect(() => {
+    if (open) { setCategory(""); setBody(""); setSent(false); }
+  }, [open]);
   const submit = async () => {
     if (!category || submitting) return;
     setSubmitting(true);
@@ -12258,42 +12258,38 @@ function FeedbackButton({ label, className, style, onBeforeOpen }) {
     } catch { alert('送信に失敗しました。'); }
     setSubmitting(false);
   };
+  if (!open) return null;
   return (
-    <>
-      <button onClick={openModal} className={className} style={style}>{label}</button>
-      {open && (
-        <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
-            {sent ? (
-              <>
-                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>ありがとうございます。改善に使わせていただきます</p>
-                <button onClick={() => setOpen(false)} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
-              </>
-            ) : (
-              <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>この画面を報告</p>
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
-                  {FEEDBACK_CATEGORIES.map(c => (
-                    <button key={c.v} type="button" onClick={() => setCategory(c.v)} className="f-sans" style={{
-                      padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer", border:"2px solid",
-                      borderColor: category===c.v ? "#00A86B" : "#EBEBEB",
-                      background: category===c.v ? "#E6F7EF" : "#fff", color: category===c.v ? "#00A86B" : "#222",
-                    }}>{c.l}</button>
-                  ))}
-                </div>
-                <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="どの部分が、どうでしたか？" rows={4}
-                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>操作の記録としてページ名が運営に送られます</p>
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={() => setOpen(false)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-                  <button onClick={submit} disabled={submitting || !category} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: category ? "#00A86B" : "#EBEBEB", color: category ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{submitting ? "送信中..." : "送信する"}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+        {sent ? (
+          <>
+            <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>ありがとうございます。改善に使わせていただきます</p>
+            <button onClick={onClose} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
+          </>
+        ) : (
+          <>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>この画面を報告</p>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
+              {FEEDBACK_CATEGORIES.map(c => (
+                <button key={c.v} type="button" onClick={() => setCategory(c.v)} className="f-sans" style={{
+                  padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer", border:"2px solid",
+                  borderColor: category===c.v ? "#00A86B" : "#EBEBEB",
+                  background: category===c.v ? "#E6F7EF" : "#fff", color: category===c.v ? "#00A86B" : "#222",
+                }}>{c.l}</button>
+              ))}
+            </div>
+            <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="どの部分が、どうでしたか？" rows={4}
+              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>操作の記録としてページ名が運営に送られます</p>
+            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+              <button onClick={onClose} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+              <button onClick={submit} disabled={submitting || !category} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: category ? "#00A86B" : "#EBEBEB", color: category ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{submitting ? "送信中..." : "送信する"}</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -12306,7 +12302,7 @@ function helpImagePathFromUrl(url) {
   return url.slice(idx + marker.length).split("?")[0];
 }
 
-function HelpCenter({ me }) {
+function HelpCenter({ me, onReportClick }) {
   const chapterFromHash = () => {
     const h = window.location.hash.replace(/^#\/?/, "");
     const m = h.match(/^help\/(\w+)$/);
@@ -12387,11 +12383,11 @@ function HelpCenter({ me }) {
               </button>
               {isOpen && (
                 <div style={{ padding:"0 24px 24px", display:"grid", gap:20 }}>
-                  {key === "faq" && (
-                    <FeedbackButton label="💬 この画面を報告" className="f-sans" style={{
+                  {key === "faq" && me && (
+                    <button onClick={onReportClick} className="f-sans" style={{
                       justifySelf:"start", padding:"9px 18px", fontSize:13, fontWeight:600, color:"#00A86B",
                       background:"#E6F7EF", border:"none", borderRadius:20, cursor:"pointer",
-                    }} />
+                    }}>💬 この画面を報告</button>
                   )}
                   {ch.items.map((it, i) => {
                     const slotKey = it.key;
@@ -12516,6 +12512,8 @@ export default function App(){
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // モバイル下部バー左端☰（PCのmenuOpenとは別系統）
+  // この画面を報告：☰の開閉やヘルプの章開閉と無関係な階層で開閉させる（2026-07-14・アンマウントバグ修正）
+  const [showFeedback, setShowFeedback] = useState(false);
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
   const [showPrivacy,setShowPrivacy]=useState(false);
@@ -12901,11 +12899,13 @@ const subDest=useCallback(async d=>{
                 📖 使い方
               </button>
               {me && (
-                <FeedbackButton label="💬 この画面を報告" onBeforeOpen={() => setMenuOpen(false)}
+                <button onClick={() => { setMenuOpen(false); setShowFeedback(true); }}
                   className="f-sans"
                   style={{ display:"block", width:"100%", textAlign:"left", background:"none",
                            border:"none", cursor:"pointer", fontFamily:"inherit",
-                           fontSize:14, color:"#222", padding:"10px 16px" }} />
+                           fontSize:14, color:"#222", padding:"10px 16px" }}>
+                  💬 この画面を報告
+                </button>
               )}
               {MENU_ITEMS
                 .filter(item =>
@@ -12951,7 +12951,7 @@ const subDest=useCallback(async d=>{
             <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">🌱 求人を出す</button>
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item">📖 使い方</button>
             {me && (
-              <FeedbackButton label="💬 この画面を報告" onBeforeOpen={()=>setMobileMenuOpen(false)} className="f-sans app-header-mobile-menu-item" />
+              <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item">💬 この画面を報告</button>
             )}
             {MOBILE_MENU_ITEMS
               .filter(item => !item.adminOnly || isAdmin(me))
@@ -13162,7 +13162,7 @@ const subDest=useCallback(async d=>{
             </div>
           </div>
         )}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter me={me} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
@@ -13259,6 +13259,10 @@ const subDest=useCallback(async d=>{
           </p>
         </div>
       </footer>
+
+      {/* この画面を報告：☰やヘルプの章開閉と無関係な階層に常駐（2026-07-14アンマウントバグ修正） */}
+      <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
+
       {!me&&showLanding&&(
         <LandingFlow
           onComplete={()=>setShowLanding(false)}
