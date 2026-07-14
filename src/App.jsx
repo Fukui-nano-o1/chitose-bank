@@ -519,7 +519,7 @@ input:focus { outline: none; }
   font-family: 'Noto Sans JP', sans-serif;
   padding: 0;
 }
-.app-header-mobile-tab .icon { font-size: 20px; line-height: 1; }
+.app-header-mobile-tab .icon { font-size: 26px; line-height: 1; } /* 2026-07-14: 20px→26px(1.3倍)。バー高さ64pxは不変 */
 .app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
 .app-header-mobile-tab.active { color: #00A86B; font-weight: 600; }
 /* ── モバイル☰の上部浮遊ボタン（2026-07-13 下部バーから移設。fixed＝スクロール追従。
@@ -11824,7 +11824,7 @@ const subDest=useCallback(async d=>{
               onClick={() => { setMobileMenuOpen(false); setTab(t.k); window.location.hash = "/" + t.k; }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
               <span className="icon">
-                {t.k === "profile" && me ? <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={20} /> : t.icon}
+                {t.k === "profile" && me ? <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={26} /> : t.icon}
               </span>
               <span className="label">{t.label}</span>
             </button>
