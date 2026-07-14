@@ -9392,6 +9392,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [revTarget, setRevTarget] = useState(null); // 差し戻し理由入力中のauth_id
   const [revReason, setRevReason] = useState("");
   const [revSending, setRevSending] = useState(false);
+  const [emailShown, setEmailShown] = useState(null); // 「メールを表示」で全文表示中のauth_id（既定はemail_masked）
   const [otherOpen, setOtherOpen] = useState({ dev:false, legacy:false, system:false }); // その他タブのアコーディオン開閉
   const [legacySub, setLegacySub] = useState("dests"); // 旧事業データ内の選択: dests|records|stats|datadef
   const [systemSub, setSystemSub] = useState("sql"); // システム内の選択: sql|errors
@@ -9873,9 +9874,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             return (
               <div key={u.auth_id} style={{ borderRadius:12, border:"1px solid #EBEBEB", background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden" }}>
                 <div onClick={()=>setExpandedAccount(isOpen ? null : u.auth_id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", cursor:"pointer", userSelect:"none" }}>
-                  <Avatar url={u.avatar_url} name={u.nickname || u.email} size={34} />
+                  <Avatar url={u.avatar_url} name={u.nickname || u.email_masked} size={34} />
                   <div style={{ flex:1, minWidth:0 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.nickname || u.email || "—"}</p>
+                    {/* 一覧に生メールは出さない：ニックネーム→無ければemail_masked（表示規則2026-07-14） */}
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.nickname || u.email_masked || "—"}</p>
                     <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
                       {u.has_id_check && <span style={badgeSt("#E6F7EF","#00A86B")}>✓ 本人確認</span>}
                       {u.pending_text && <span style={badgeSt("#FFF4E0","#C77700")}>📝 確認待ち{u.pending_since ? ` ${u.pending_since}` : ""}</span>}
@@ -9888,8 +9890,17 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 </div>
                 {isOpen && (
                   <div style={{ padding:"2px 14px 14px", borderTop:"1px solid #F7F7F7" }}>
+                    {/* メール行：既定はマスク表示。「メールを表示」タップで全文（コピー用） */}
+                    <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"6px 0", borderBottom:"1px solid #F7F7F7" }}>
+                      <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:64, flexShrink:0 }}>メール</span>
+                      <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-all", userSelect:"text" }}>
+                        {emailShown === u.auth_id ? (u.email || "—") : (u.email_masked || "—")}
+                        {emailShown !== u.auth_id && u.email && (
+                          <button onClick={(e)=>{ e.stopPropagation(); setEmailShown(u.auth_id); }} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0, marginLeft:8 }}>メールを表示</button>
+                        )}
+                      </span>
+                    </div>
                     {[
-                      { label:"メール",   value: u.email || "—" },
                       { label:"登録日",   value: u.created_jst || "—" },
                       { label:"本人確認", value: u.has_id_check ? (u.id_check_month || "済") : "未" },
                       { label:"活動",     value: `応募${u.apps_applied ?? 0}・完了${u.apps_completed ?? 0}・求人${u.jobs_posted ?? 0}・🌟${u.want_again ?? 0}` },
