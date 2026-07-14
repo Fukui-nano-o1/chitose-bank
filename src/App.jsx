@@ -965,12 +965,19 @@ input:focus { outline: none; }
   text-align: center;
 }
 @media (max-width: 640px) {
+  /* 2026-07-14: 縦1列(1行1リンク)は長すぎるため、各セクション内のリンクを横並び(中央寄せ・折り返し)に */
   .footer-columns {
     grid-template-columns: 1fr;
-    gap: 22px;
+    gap: 18px;
     text-align: center;
   }
+  .footer-col-title {
+    margin-bottom: 6px;
+  }
   .footer-col-link {
+    display: inline-block;
+    width: auto;
+    padding: 4px 9px;
     text-align: center;
   }
 }
