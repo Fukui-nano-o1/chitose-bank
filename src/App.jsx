@@ -6523,7 +6523,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   // ── ログイン後復帰: postLoginReturnTo を確認して draft を読み込む ──
   const _draftInit = (() => {
     try {
-      if (localStorage.getItem('postLoginReturnTo') === 'landingFlowFarmerConfirm') {
+      // 復元条件：①ログイン往復フラグ ②URLが求人フロー(#/work/new*)のままのリロード（2026-07-14追加）
+      // ②が無いと、確認ページ等でリロードした際に入力が全て白紙に戻る（stateは復元されずURLだけ残る）
+      const _h = window.location.hash.replace(/^#\/?/, "");
+      const _inNewJobFlow = _h === "work/new" || _h.startsWith("work/new/");
+      if (localStorage.getItem('postLoginReturnTo') === 'landingFlowFarmerConfirm' || _inNewJobFlow) {
         const d = JSON.parse(localStorage.getItem('landingFlowDraft_v1') || '{}');
         if (d.role === 'farmer') return d;
       }
