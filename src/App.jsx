@@ -924,6 +924,57 @@ input:focus { outline: none; }
   color: #B0B0B0;
   line-height: 1.6;
 }
+/* ── Airbnb型3列フッター ── */
+.footer-columns {
+  max-width: 1120px;
+  margin: 0 auto 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  text-align: left;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #EBEBEB;
+}
+.footer-col-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #222;
+  margin: 0 0 12px;
+  letter-spacing: .04em;
+}
+.footer-col-link {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  color: #717171;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 0;
+  text-align: left;
+  text-decoration: none;
+  font-family: inherit;
+}
+.footer-col-link:hover {
+  color: #222;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.footer-bottom {
+  max-width: 1120px;
+  margin: 0 auto;
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .footer-columns {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    text-align: center;
+  }
+  .footer-col-link {
+    text-align: center;
+  }
+}
 @media (min-width: 641px) {
   main {
     padding-top: 72px !important;
@@ -13022,28 +13073,39 @@ const subDest=useCallback(async d=>{
         )}
       </main>
 
-      {/* ── FOOTER（固定） ── */}
+      {/* ── FOOTER（Airbnb型3列） ── */}
       <footer className="site-footer-fixed">
-        <div className="footer-inner">
-          <span className="f-sans footer-copy">
-            © {THIS_YEAR} chitose-bank · 吉野川農家 記録プロジェクト
-          </span>
-          <div className="footer-links">
-            <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans" style={{
-              fontSize:11, color:"#717171", background:"none", border:"none",
-              cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
-            }}>利用規約</button>
-            <button onClick={()=>{ window.location.hash="/charter"; }} className="f-sans" style={{
-              fontSize:11, color:"#717171", background:"none", border:"none",
-              cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
-            }}>運営憲章</button>
-            <button onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans" style={{
-              fontSize:11, color:"#717171", background:"none", border:"none",
-              cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, padding:0,
-            }}>プライバシーポリシー</button>
+        <div className="footer-columns">
+          <div>
+            <p className="f-sans footer-col-title">サポート</p>
+            <button onClick={()=>{ window.location.hash="/help"; }} className="f-sans footer-col-link">使い方ガイド</button>
+            <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">よくある質問</button>
+            <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">通報のしかた</button>
+            <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">異議申立</button>
+            <a href="mailto:t5fki6643qty@gmail.com" className="f-sans footer-col-link">お問い合わせ</a>
           </div>
+          <div>
+            <p className="f-sans footer-col-title">雇う・働く</p>
+            <button onClick={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans footer-col-link">求人を出す</button>
+            <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">審査のしくみ</button>
+            <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">満額保証型とは</button>
+            <button onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans footer-col-link">保険の準備</button>
+            <button onClick={()=>{ window.location.hash="/help/worker"; }} className="f-sans footer-col-link">評価のしくみ</button>
+          </div>
+          <div>
+            <p className="f-sans footer-col-title">chitose-bank</p>
+            <button onClick={()=>{ window.location.hash="/charter"; }} className="f-sans footer-col-link">運営憲章</button>
+            <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">利用規約</button>
+            <button onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans footer-col-link">プライバシー</button>
+            <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">届出について</button>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <span className="f-sans footer-copy">
+            © {THIS_YEAR} chitose-bank（屋号 千歳）・徳島県吉野川市
+          </span>
           <p className="f-sans footer-note">
-            chitose-bankは銀行ではありません。表示データは参考情報です。
+            chitose-bankは銀行ではありません。
           </p>
         </div>
       </footer>
