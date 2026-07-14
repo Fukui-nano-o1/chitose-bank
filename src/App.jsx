@@ -491,7 +491,8 @@ input:focus { outline: none; }
     border-bottom: none;
     border-top: 1px solid #EBEBEB;
     z-index: 49;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* 左右4px：5タブを画面端ギリギリまで広げる（headerの0 16px !importantをクラス詳細度で上書き） */
+    padding: 0 4px env(safe-area-inset-bottom, 0px) !important;
     transition: transform .25s ease;
   }
   /* スクロール連動の自動格納（Part C）。求人詳細では上のdisplay:noneガードが優先される */
