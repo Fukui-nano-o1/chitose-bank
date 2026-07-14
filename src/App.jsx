@@ -70,6 +70,15 @@ async function geocodeTown(prefecture, city, town) {
   }
 }
 
+// 農園紹介のお題一覧（求人詳細・確認ページ共通。記入済みのお題のみ返す）
+const farmIntroTopics = (e) => [
+  { label:"就農するまで", body: e.intro_path },
+  { label:"いま楽しいこと", body: e.intro_joy },
+  { label:"どんな作物を、どんな想いで", body: e.intro_crops },
+  { label:"職場の雰囲気", body: e.intro_atmosphere },
+  { label:"初めての人へのメッセージ", body: e.intro_message },
+].filter(t => t.body && t.body.trim());
+
 // ハンバーガーメニュー（PC）。項目の追加・削除はこの配列を編集するだけでよい。
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
 const MENU_ITEMS = [
@@ -5409,6 +5418,7 @@ function JobSearchMapView({ onRegister, me }) {
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [farmIntroOpen, setFarmIntroOpen] = useState(false); // 農園紹介モーダル（ページには代表よりのみ・タップで全文展開）
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTargetField, setReportTargetField] = useState("");
   const [reportIssueType, setReportIssueType] = useState("");
@@ -5952,16 +5962,9 @@ function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
 
-          {/* 農園紹介（地図の下・全幅・記入済みのお題のみ表示。写真は次段階） */}
+          {/* 農園紹介（地図の下）：ページには自己PR(代表より)のみ表示。タップでモーダルに全文（お題＋代表より）を展開 */}
           {empEmployer && (() => {
-            const topics = [
-              { label:"就農するまで", body: empEmployer.intro_path },
-              { label:"いま楽しいこと", body: empEmployer.intro_joy },
-              { label:"どんな作物を、どんな想いで", body: empEmployer.intro_crops },
-              { label:"職場の雰囲気", body: empEmployer.intro_atmosphere },
-              { label:"初めての人へのメッセージ", body: empEmployer.intro_message },
-            ].filter(t => t.body && t.body.trim());
-            // 「代表より」枠には長文の自己紹介(pr)を表示。短い挨拶(owner_comment)は名前の下へ（2026-07-14入れ替え）
+            const topics = farmIntroTopics(empEmployer);
             const comment = empEmployer.pr && empEmployer.pr.trim();
             if (topics.length === 0 && !comment) return null;
             return (
@@ -5969,22 +5972,15 @@ function JobSearchMapView({ onRegister, me }) {
                 <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
                   {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
                 </h3>
-                {topics.length > 0 && (
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
-                    {topics.map((t, i) => (
-                      <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
-                        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {comment && (
-                  <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px" }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                <div onClick={() => setFarmIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer" }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                  {comment && (
                     <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
-                  </div>
-                )}
+                  )}
+                  {topics.length > 0 && (
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"12px 0 0" }}>農園紹介をすべて見る →</p>
+                  )}
+                </div>
               </div>
             );
           })()}
@@ -6183,6 +6179,48 @@ function JobSearchMapView({ onRegister, me }) {
           </div>
         </div>
       )}
+
+      {/* 農園紹介モーダル（代表よりカードのタップで展開。お題＋代表よりの全文） */}
+      {farmIntroOpen && empEmployer && (() => {
+        const topics = farmIntroTopics(empEmployer);
+        return (
+          <div onClick={() => setFarmIntroOpen(false)} style={{
+            position:"fixed", inset:0, zIndex:10000,
+            background:"rgba(0,0,0,0.5)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            padding:16, animation:"fadeIn .2s ease",
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              background:"#fff", borderRadius:16, padding:20,
+              maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
+              position:"relative",
+            }}>
+              <button onClick={() => setFarmIntroOpen(false)} style={{
+                position:"absolute", top:12, right:12,
+                width:36, height:36, borderRadius:"50%",
+                background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
+              }}>✕</button>
+              <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>
+                {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
+              </h3>
+              {empEmployer.pr && empEmployer.pr.trim() && (
+                <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", marginBottom:16 }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                  <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
+                </div>
+              )}
+              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                {topics.map((t, i) => (
+                  <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
+                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 通報モーダル：差し戻しモーダル(759e54c)と同じ視覚文法・語彙 */}
       {showReportModal && (
@@ -6689,6 +6727,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
   const [confCalOpen, setConfCalOpen] = useState(false); // 確認ページ用：📅浮遊ボタン→作業日程カレンダーモーダル（詳細ページと同構造）
   const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
+  const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
@@ -8022,16 +8061,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion} />
               </div>
 
-              {/* ═══ 農園紹介（詳細ページと同一構造：地図の下・記入済みのお題のみ表示・代表より） ═══ */}
+              {/* ═══ 農園紹介（詳細ページと同一構造）：ページには自己PR(代表より)のみ表示。タップでモーダルに全文展開 ═══ */}
               {confEmployer && (() => {
-                const topics = [
-                  { label:"就農するまで", body: confEmployer.intro_path },
-                  { label:"いま楽しいこと", body: confEmployer.intro_joy },
-                  { label:"どんな作物を、どんな想いで", body: confEmployer.intro_crops },
-                  { label:"職場の雰囲気", body: confEmployer.intro_atmosphere },
-                  { label:"初めての人へのメッセージ", body: confEmployer.intro_message },
-                ].filter(t => t.body && t.body.trim());
-                // 「代表より」枠には長文の自己紹介(pr)を表示。短い挨拶(owner_comment)は名前の下へ（2026-07-14入れ替え・詳細ページと同じ）
+                const topics = farmIntroTopics(confEmployer);
                 const comment = confEmployer.pr && confEmployer.pr.trim();
                 if (topics.length === 0 && !comment) return null;
                 return (
@@ -8039,8 +8071,49 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
                       {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
                     </h3>
-                    {topics.length > 0 && (
-                      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
+                    <div onClick={() => setConfIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer" }}>
+                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                      {comment && (
+                        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
+                      )}
+                      {topics.length > 0 && (
+                        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"12px 0 0" }}>農園紹介をすべて見る →</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ═══ 農園紹介モーダル（詳細ページと同構造。お題＋代表よりの全文） ═══ */}
+              {confIntroOpen && confEmployer && (() => {
+                const topics = farmIntroTopics(confEmployer);
+                return (
+                  <div onClick={() => setConfIntroOpen(false)} style={{
+                    position:"fixed", inset:0, zIndex:10000,
+                    background:"rgba(0,0,0,0.5)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    padding:16, animation:"fadeIn .2s ease",
+                  }}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                      background:"#fff", borderRadius:16, padding:20,
+                      maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
+                      position:"relative",
+                    }}>
+                      <button onClick={() => setConfIntroOpen(false)} style={{
+                        position:"absolute", top:12, right:12,
+                        width:36, height:36, borderRadius:"50%",
+                        background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
+                      }}>✕</button>
+                      <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>
+                        {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
+                      </h3>
+                      {confEmployer.pr && confEmployer.pr.trim() && (
+                        <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", marginBottom:16 }}>
+                          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                          <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.pr}</p>
+                        </div>
+                      )}
+                      <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                         {topics.map((t, i) => (
                           <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
                             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
@@ -8048,13 +8121,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                           </div>
                         ))}
                       </div>
-                    )}
-                    {comment && (
-                      <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px" }}>
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-                        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 );
               })()}
