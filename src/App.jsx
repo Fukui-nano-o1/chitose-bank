@@ -4556,6 +4556,28 @@ function isWorkDayToday(dateStart, dateEnd) {
   return todayStr >= startStr && todayStr <= endStr;
 }
 
+// 評価モーダルの「はい/いいえ」2択ピル。reviews.want_again等のbool列と1対1で対応
+function YesNoPill({ label, value, onChange }) {
+  return (
+    <div style={{ marginBottom:12 }}>
+      <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", marginBottom:6 }}>{label}</p>
+      <div style={{ display:"flex", gap:8 }}>
+        {[["はい",true],["いいえ",false]].map(([l,v]) => (
+          <button key={l} type="button" onClick={()=>onChange(v)} className="f-sans" style={{
+            flex:1, padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
+            borderColor: value===v ? "#00A86B" : "#EBEBEB",
+            background: value===v ? "#E6F7EF" : "#fff", color: value===v ? "#00A86B" : "#222",
+          }}>{l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 緊急連絡の種別選択肢（当事者ごとに異なる）。attendance_events.kindのCHECK制約と対応
+const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }];
+const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }];
+
 // jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
 // さがす一覧・求人詳細・管理者プレビューで共通利用
 function mapJobPublicRow(j) {
@@ -5218,6 +5240,76 @@ function WorkerApplications({ filter, me }) {
     } catch { alert('開始の記録に失敗しました。'); }
     setPunchingId(null);
   };
+
+  // 終了確認・評価（Part2）
+  const [reviewModalApp, setReviewModalApp] = useState(null);
+  const [reviewWantAgain, setReviewWantAgain] = useState(null);
+  const [reviewAsDescribed, setReviewAsDescribed] = useState(null);
+  const [reviewSafetyCare, setReviewSafetyCare] = useState(null);
+  const [reviewPublicComment, setReviewPublicComment] = useState("");
+  const [reviewPrivateMemo, setReviewPrivateMemo] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const openReviewModal = (a) => {
+    setReviewModalApp(a);
+    setReviewWantAgain(null); setReviewAsDescribed(null); setReviewSafetyCare(null);
+    setReviewPublicComment(""); setReviewPrivateMemo("");
+  };
+  const submitWorkerReview = async () => {
+    if (!reviewModalApp || reviewWantAgain===null || reviewAsDescribed===null || reviewSafetyCare===null || reviewSubmitting) return;
+    setReviewSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('confirm_end', { p_application_id: reviewModalApp.id });
+      if (error || !data?.ok) { alert('確認に失敗しました：' + (data?.reason || error?.message || '不明')); setReviewSubmitting(false); return; }
+      const { error: revErr } = await supabase.from('reviews').insert({
+        application_id: reviewModalApp.id, reviewer_id: me.id, reviewee_id: reviewModalApp.farmer_id,
+        direction: 'worker_to_farmer', want_again: reviewWantAgain, as_described: reviewAsDescribed, safety_care: reviewSafetyCare,
+        public_comment: reviewPublicComment.trim() || null, private_memo: reviewPrivateMemo.trim() || null,
+      });
+      if (revErr) { alert('評価の保存に失敗しました：' + revErr.message); setReviewSubmitting(false); return; }
+      setAllApps(prev => prev.map(x => x.id===reviewModalApp.id ? { ...x, worker_confirmed_end_at: new Date().toISOString() } : x));
+      setReviewModalApp(null);
+    } catch { alert('処理に失敗しました。'); }
+    setReviewSubmitting(false);
+  };
+
+  // 欠勤記録への異議申立（Part2・attended=falseの代替導線）
+  const [disputeModalApp, setDisputeModalApp] = useState(null);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const submitDispute = async () => {
+    if (!disputeModalApp || !disputeReason.trim() || disputeSubmitting) return;
+    setDisputeSubmitting(true);
+    try {
+      const { error } = await supabase.from('attendance_events').insert({
+        application_id: disputeModalApp.id, actor_id: me.id, kind: 'dispute_no_show', reason: disputeReason.trim(),
+      });
+      if (error) { alert('送信に失敗しました：' + error.message); setDisputeSubmitting(false); return; }
+      setAllApps(prev => prev.map(x => x.id===disputeModalApp.id ? { ...x, _disputed: true } : x));
+      setDisputeModalApp(null); setDisputeReason("");
+    } catch { alert('送信に失敗しました。'); }
+    setDisputeSubmitting(false);
+  };
+
+  // 緊急連絡（Part3・働き手側）
+  const [emergencyModalApp, setEmergencyModalApp] = useState(null);
+  const [emergencyKind, setEmergencyKind] = useState("");
+  const [emergencyReason, setEmergencyReason] = useState("");
+  const [emergencySubmitting, setEmergencySubmitting] = useState(false);
+  const [emergencySent, setEmergencySent] = useState(false);
+  const openEmergencyModal = (a) => { setEmergencyModalApp(a); setEmergencyKind(""); setEmergencyReason(""); setEmergencySent(false); };
+  const submitEmergency = async () => {
+    if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
+    setEmergencySubmitting(true);
+    try {
+      const { error } = await supabase.from('attendance_events').insert({
+        application_id: emergencyModalApp.id, actor_id: me.id, kind: emergencyKind, reason: emergencyReason.trim(),
+      });
+      if (error) { alert('送信に失敗しました：' + error.message); setEmergencySubmitting(false); return; }
+      setEmergencySent(true);
+    } catch { alert('送信に失敗しました。'); }
+    setEmergencySubmitting(false);
+  };
+
   // filter: "applying"=応募中(applied), "approved"=承認済み(approved以降), 見送り(rejected)はどちらにも出さない(通知で知らせる)
   const apps = allApps.filter(a => {
     if (filter === "applying") return a.status === "applied";
@@ -5259,6 +5351,24 @@ function WorkerApplications({ filter, me }) {
                     </button>
                   )
                 )}
+                {/* 終了確認・評価（Part2・completed後） */}
+                {a.status === "completed" && (
+                  a.attended === false ? (
+                    a._disputed ? (
+                      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 8px", textAlign:"center" }}>異議申立を送信しました</p>
+                    ) : (
+                      <button onClick={()=>{ setDisputeModalApp(a); setDisputeReason(""); }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer", marginBottom:8 }}>異議申立</button>
+                    )
+                  ) : a.worker_confirmed_end_at ? (
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 完了・評価済み</p>
+                  ) : (
+                    <button onClick={()=>openReviewModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>✓ 終了を確認して評価する</button>
+                  )
+                )}
+                {/* 緊急連絡（Part3） */}
+                {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
+                  <button onClick={()=>openEmergencyModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer", marginBottom:8 }}>⚠️ 緊急連絡</button>
+                )}
                 {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
                 {(a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
                   <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
@@ -5266,6 +5376,78 @@ function WorkerApplications({ filter, me }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* 終了確認・評価モーダル（Part2） */}
+      {reviewModalApp && (
+        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>終了の確認・評価</p>
+            <YesNoPill label="また働きたい" value={reviewWantAgain} onChange={setReviewWantAgain} />
+            <YesNoPill label="説明のとおりだった" value={reviewAsDescribed} onChange={setReviewAsDescribed} />
+            <YesNoPill label="安全に配慮されていた" value={reviewSafetyCare} onChange={setReviewSafetyCare} />
+            <textarea value={reviewPublicComment} onChange={e=>setReviewPublicComment(e.target.value)} placeholder="農園について良かった点を一言（公開されます）" rows={3}
+              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
+            <textarea value={reviewPrivateMemo} onChange={e=>setReviewPrivateMemo(e.target.value)} placeholder="自分だけが見えるメモ（任意）" rows={3}
+              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
+            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+              <button onClick={()=>setReviewModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+              <button onClick={submitWorkerReview} disabled={reviewSubmitting || reviewWantAgain===null || reviewAsDescribed===null || reviewSafetyCare===null}
+                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{reviewSubmitting ? "送信中..." : "送信する"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 異議申立モーダル（Part2・欠勤記録への異議） */}
+      {disputeModalApp && (
+        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>欠勤記録への異議申立</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.6, marginBottom:12 }}>心当たりがない場合、理由を書いて送信してください。運営が確認します。</p>
+            <textarea value={disputeReason} onChange={e=>setDisputeReason(e.target.value)} placeholder="異議の理由" rows={4}
+              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
+            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+              <button onClick={()=>setDisputeModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+              <button onClick={submitDispute} disabled={disputeSubmitting || !disputeReason.trim()}
+                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{disputeSubmitting ? "送信中..." : "送信する"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 緊急連絡モーダル（Part3・働き手側） */}
+      {emergencyModalApp && (
+        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+            {emergencySent ? (
+              <>
+                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>相手に通知しました</p>
+                <button onClick={()=>setEmergencyModalApp(null)} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
+              </>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>緊急連絡</p>
+                <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                  {WORKER_EMERGENCY_KINDS.map(k => (
+                    <button key={k.v} type="button" onClick={()=>setEmergencyKind(k.v)} className="f-sans" style={{
+                      flex:1, padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
+                      borderColor: emergencyKind===k.v ? "#00A86B" : "#EBEBEB",
+                      background: emergencyKind===k.v ? "#E6F7EF" : "#fff", color: emergencyKind===k.v ? "#00A86B" : "#222",
+                    }}>{k.l}</button>
+                  ))}
+                </div>
+                <textarea value={emergencyReason} onChange={e=>setEmergencyReason(e.target.value)} placeholder="理由・詳細" rows={4}
+                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>setEmergencyModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                  <button onClick={submitEmergency} disabled={emergencySubmitting || !emergencyKind || !emergencyReason.trim()}
+                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? "送信中..." : "送信する"}</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -10500,6 +10682,86 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   ];
   // ダミー撤去（憲法3条:表示にダミー禁止）。Phase2aでjobsテーブルから自分の求人を読む
   const jobList = [];
+
+  // 開始の握手（Part4）
+  const [startConfirmingId, setStartConfirmingId] = useState(null);
+  const confirmStart = async (a) => {
+    if (startConfirmingId) return;
+    setStartConfirmingId(a.id);
+    try {
+      const { data, error } = await supabase.rpc('confirm_start', { p_application_id: a.id });
+      if (!error && data && data.ok) {
+        setDbApplicants(prev => prev.map(x => x.id===a.id ? { ...x, farmer_confirmed_start_at: new Date().toISOString() } : x));
+      } else if (data && !data.ok) {
+        alert('確認できませんでした：' + (data.reason || '不明'));
+      }
+    } catch { alert('確認に失敗しました。'); }
+    setStartConfirmingId(null);
+  };
+
+  // 完了・評価モーダル（Part1）
+  const [completeModalApp, setCompleteModalApp] = useState(null);
+  const [completeStep, setCompleteStep] = useState('attend'); // 'attend' | 'review'
+  const [completeWantAgain, setCompleteWantAgain] = useState(null);
+  const [completeEntrust, setCompleteEntrust] = useState(null);
+  const [completePublicComment, setCompletePublicComment] = useState("");
+  const [completePrivateMemo, setCompletePrivateMemo] = useState("");
+  const [completeSubmitting, setCompleteSubmitting] = useState(false);
+  const openCompleteModal = (a) => {
+    setCompleteModalApp(a); setCompleteStep('attend');
+    setCompleteWantAgain(null); setCompleteEntrust(null);
+    setCompletePublicComment(""); setCompletePrivateMemo("");
+  };
+  const markNoShow = async () => {
+    if (!completeModalApp || completeSubmitting) return;
+    if (!confirm('欠勤として記録します。働き手に通知され、72時間の異議申立ができます')) return;
+    setCompleteSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('complete_work', { p_application_id: completeModalApp.id, p_attended: false });
+      if (error || !data?.ok) { alert('記録に失敗しました：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
+      setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:false } : x));
+      setCompleteModalApp(null);
+    } catch { alert('記録に失敗しました。'); }
+    setCompleteSubmitting(false);
+  };
+  const submitFarmerReview = async () => {
+    if (!completeModalApp || completeWantAgain===null || completeEntrust===null || completeSubmitting) return;
+    setCompleteSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('complete_work', { p_application_id: completeModalApp.id, p_attended: true });
+      if (error || !data?.ok) { alert('完了処理に失敗しました：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
+      const { error: revErr } = await supabase.from('reviews').insert({
+        application_id: completeModalApp.id, reviewer_id: me.id, reviewee_id: completeModalApp.worker_id,
+        direction: 'farmer_to_worker', want_again: completeWantAgain, entrust: completeEntrust,
+        public_comment: completePublicComment.trim() || null, private_memo: completePrivateMemo.trim() || null,
+      });
+      if (revErr) { alert('評価の保存に失敗しました：' + revErr.message); setCompleteSubmitting(false); return; }
+      setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
+      setCompleteModalApp(null);
+    } catch { alert('処理に失敗しました。'); }
+    setCompleteSubmitting(false);
+  };
+
+  // 緊急連絡（Part3・農家側）
+  const [emergencyModalApp, setEmergencyModalApp] = useState(null);
+  const [emergencyKind, setEmergencyKind] = useState("");
+  const [emergencyReason, setEmergencyReason] = useState("");
+  const [emergencySubmitting, setEmergencySubmitting] = useState(false);
+  const [emergencySent, setEmergencySent] = useState(false);
+  const openEmergencyModal = (a) => { setEmergencyModalApp(a); setEmergencyKind(""); setEmergencyReason(""); setEmergencySent(false); };
+  const submitEmergency = async () => {
+    if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
+    setEmergencySubmitting(true);
+    try {
+      const { error } = await supabase.from('attendance_events').insert({
+        application_id: emergencyModalApp.id, actor_id: me.id, kind: emergencyKind, reason: emergencyReason.trim(),
+      });
+      if (error) { alert('送信に失敗しました：' + error.message); setEmergencySubmitting(false); return; }
+      setEmergencySent(true);
+    } catch { alert('送信に失敗しました。'); }
+    setEmergencySubmitting(false);
+  };
+
   return (
     <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 0 80px" }}>
       {jobTab === "home" ? (
@@ -10661,6 +10923,25 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer", marginBottom:8 }}>☑ 保険を準備した</button>
                 )
               )}
+              {/* 開始の握手（Part4） */}
+              {a.started_at && !a.farmer_confirmed_start_at && (
+                <button onClick={()=>confirmStart(a)} disabled={startConfirmingId===a.id} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer", marginBottom:8 }}>{startConfirmingId===a.id ? "..." : "✓ 開始を確認"}</button>
+              )}
+              {a.farmer_confirmed_start_at && (
+                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>
+                  開始確認済み（{new Date(a.farmer_confirmed_start_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
+                </p>
+              )}
+              {/* 完了・評価（Part1） */}
+              {a.status === "completed" ? (
+                <p className="f-sans" style={{ fontSize:13, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px", textAlign:"center" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
+              ) : CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
+                <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>完了して評価する</button>
+              )}
+              {/* 緊急連絡（Part3・農家側） */}
+              {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
+                <button onClick={()=>openEmergencyModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer", marginBottom:8 }}>⚠️ 緊急連絡</button>
+              )}
               {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
               <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
             </div>
@@ -10691,6 +10972,73 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       ))}
       </div>
       </>
+      )}
+
+      {/* 完了・評価モーダル（Part1） */}
+      {completeModalApp && (
+        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
+            {completeStep === "attend" ? (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>働き手は来ましたか？</p>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>来なかった</button>
+                  <button onClick={()=>setCompleteStep("review")} disabled={completeSubmitting} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>はい</button>
+                </div>
+                <button onClick={()=>setCompleteModalApp(null)} className="f-sans" style={{ display:"block", margin:"16px auto 0", background:"none", border:"none", color:"#717171", fontSize:12, cursor:"pointer" }}>キャンセル</button>
+              </>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>作業の評価</p>
+                <YesNoPill label="また呼びたい" value={completeWantAgain} onChange={setCompleteWantAgain} />
+                <YesNoPill label="安心して任せられた" value={completeEntrust} onChange={setCompleteEntrust} />
+                <textarea value={completePublicComment} onChange={e=>setCompletePublicComment(e.target.value)} placeholder="働きぶりで良かった点を一言（働き手のプロフィールに表示されます）" rows={3}
+                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
+                <textarea value={completePrivateMemo} onChange={e=>setCompletePrivateMemo(e.target.value)} placeholder="自分だけが見えるメモ（任意）" rows={3}
+                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>setCompleteModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                  <button onClick={submitFarmerReview} disabled={completeSubmitting || completeWantAgain===null || completeEntrust===null}
+                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{completeSubmitting ? "送信中..." : "送信する"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 緊急連絡モーダル（Part3・農家側） */}
+      {emergencyModalApp && (
+        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+            {emergencySent ? (
+              <>
+                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>相手に通知しました</p>
+                <button onClick={()=>setEmergencyModalApp(null)} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
+              </>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>緊急連絡</p>
+                <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                  {FARMER_EMERGENCY_KINDS.map(k => (
+                    <button key={k.v} type="button" onClick={()=>setEmergencyKind(k.v)} className="f-sans" style={{
+                      flex:1, padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
+                      borderColor: emergencyKind===k.v ? "#00A86B" : "#EBEBEB",
+                      background: emergencyKind===k.v ? "#E6F7EF" : "#fff", color: emergencyKind===k.v ? "#00A86B" : "#222",
+                    }}>{k.l}</button>
+                  ))}
+                </div>
+                <textarea value={emergencyReason} onChange={e=>setEmergencyReason(e.target.value)} placeholder="理由・詳細" rows={4}
+                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>setEmergencyModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                  <button onClick={submitEmergency} disabled={emergencySubmitting || !emergencyKind || !emergencyReason.trim()}
+                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? "送信中..." : "送信する"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
