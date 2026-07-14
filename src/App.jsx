@@ -10227,12 +10227,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     if (h === "profile/employer/applicants") return "applicants";
     if (h === "profile/employer/expired") return "expired";
     if (h === "profile/employer/calendar") return "calendar";
-    if (h === "profile/employer") return "profile";
+    if (h === "profile/employer") return "home"; // 入口はAirbnb型カードメニュー（2026-07-14）
     return null;
   };
   const [jobTab, setJobTab] = useState(() => {
     try { const j = hashToJobTab(); if (j) return j; } catch {}
-    return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "profile";
+    return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "home";
   });
   useEffect(() => {
     const onHash = () => { const j = hashToJobTab(); if (j) setJobTab(j); };
@@ -10245,11 +10245,14 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [workerProfiles, setWorkerProfiles] = useState({});
   const [draftsLoading, setDraftsLoading] = useState(true);
   const [profileMode, setProfileMode] = useState("preview");
+  const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（nickname/avatar_url）
   useEffect(() => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setDraftsLoading(false); return; }
+        const { data: epMini } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
+        if (epMini) setEmpMini(epMini);
         const { data, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).eq("status","draft").order("job_number",{ascending:false});
         if (!error && data) setDbDrafts(data);
         const { data: adata, error: aerror } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).in("status",["pending","open"]).order("job_number",{ascending:false});
@@ -10283,9 +10286,47 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   // ダミー撤去（憲法3条:表示にダミー禁止）。Phase2aでjobsテーブルから自分の求人を読む
   const jobList = [];
   return (
-    <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 20px 80px" }}>
+    <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 0 80px" }}>
+      {jobTab === "home" ? (
+        <>
+          {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
+               文字タブの羅列を廃止し、タップで各サブページへ ═══ */}
+          <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
+            <span>
+              <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>農家</span>
+            </span>
+          </button>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
+            {[
+              { e:"🌱", l:"作成中",     n:dbDrafts.length,     h:"/profile/employer/drafts" },
+              { e:"📣", l:"公開中",     n:dbActive.length,     h:"/profile/employer/active" },
+              { e:"🤝", l:"応募者",     n:dbApplicants.length, h:"/profile/employer/applicants" },
+              { e:"📅", l:"カレンダー", n:0,                   h:"/profile/employer/calendar" },
+            ].map(c => (
+              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                {c.n > 0 && (
+                  <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
+                )}
+                <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
+                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
+            <span>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく求人を出す</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
+            </span>
+          </button>
+          <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
+        </>
+      ) : (
+      <>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>雇う｜あなたの求人</h2>
+        <button onClick={()=>{ window.location.hash="/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0" }}>← 農家プロ</button>
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
@@ -10430,6 +10471,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       ))}
       </div>
+      </>
+      )}
     </div>
   );
 }
