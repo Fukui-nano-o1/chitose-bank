@@ -81,19 +81,16 @@ const farmIntroTopics = (e) => [
 
 // ハンバーガーメニュー（PC）。項目の追加・削除はこの配列を編集するだけでよい。
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
+// 運営憲章・利用規約・プライバシーはフッター3列に常設のため☰からは削除（二重掲載の解消・2026-07-14）
 const MENU_ITEMS = [
-  { key:"admin",   label:"管理",         hash:"/admin",   auth:true, adminOnly:true },
+  { key:"admin",   label:"⚙️ 管理",      hash:"/admin",   auth:true, adminOnly:true },
   { key:"chats",   label:"チャット",     hash:"/chats",   auth:true  },
   { key:"profile", label:"プロフィール", hash:"/profile", auth:true  },
-  { key:"help",    label:"📖 使い方",    hash:"/help",    auth:false },
-  { key:"charter", label:"運営憲章",     hash:"/charter", auth:false },
-  { key:"terms",   label:"利用規約",     hash:"/terms",   auth:false },
-  { key:"privacy", label:"プライバシー", hash:"/privacy", auth:false },
   { key:"login",   label:"ログイン",     hash:"/login",   auth:false, guestOnly:true },
 ];
 
 // モバイル下部バー：☰(左端・アイコンのみ)＋5機能タブ。カレンダーが中央に来る並び。
-// ☰の中身はMOBILE_MENU_ITEMS（求人を出す・使い方・管理・運営憲章・利用規約・プライバシー・ログアウト）。
+// ☰の中身：求人を出す・使い方・この画面を報告・管理・ログアウト（2026-07-14最終形）。
 const MOBILE_TABS = [
   { k:"search",   icon:"🔍", label:"さがす" },
   { k:"saved",    icon:"♡",  label:"いいね" },
@@ -101,13 +98,9 @@ const MOBILE_TABS = [
   { k:"chats",    icon:"💬", label:"チャット" },
   { k:"profile",  icon:"👤", label:"プロフィール" },
 ];
-// モバイル☰メニューの静的リンク項目（求人を出す・ログアウトは動作が固有なので別途JSXで扱う）
+// モバイル☰メニューの静的リンク項目（求人を出す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
 const MOBILE_MENU_ITEMS = [
-  { key:"admin",   label:"管理",           hash:"/admin",   auth:false, adminOnly:true },
-  { key:"help",    label:"📖 使い方",      hash:"/help" },
-  { key:"charter", label:"運営憲章",       hash:"/charter" },
-  { key:"terms",   label:"利用規約",       hash:"/terms" },
-  { key:"privacy", label:"プライバシー",   hash:"/privacy" },
+  { key:"admin",   label:"⚙️ 管理",       hash:"/admin",   auth:false, adminOnly:true },
 ];
 
 // ══════════════════════════════════════════════════════════
@@ -12228,6 +12221,82 @@ const HELP_CONTENT = {
   },
 };
 
+// 💬この画面を報告（Part B）。feedbackテーブルのcategory CHECK制約と対応
+const FEEDBACK_CATEGORIES = [
+  { v:"confusing",   l:"分かりにくい" },
+  { v:"broken",      l:"動かない" },
+  { v:"typo",        l:"誤字・表示" },
+  { v:"suggestion",  l:"提案" },
+  { v:"other",       l:"その他" },
+];
+
+// トリガー(button)＋モーダルを1組にしたコンポーネント。☰(PC/モバイル)・ヘルプ第6章冒頭など複数箇所に設置
+function FeedbackButton({ label, className, style, onBeforeOpen }) {
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState("");
+  const [body, setBody] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+  const openModal = () => {
+    if (typeof onBeforeOpen === "function") onBeforeOpen();
+    setCategory(""); setBody(""); setSent(false); setOpen(true);
+  };
+  const submit = async () => {
+    if (!category || submitting) return;
+    setSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSubmitting(false); return; }
+      const { error } = await supabase.from('feedback').insert({
+        reporter_id: session.user.id,
+        page_hash: window.location.hash || '#/',
+        category, body: body.trim() || null,
+        viewport: window.innerWidth,
+      });
+      if (error) { alert('送信に失敗しました：' + error.message); setSubmitting(false); return; }
+      setSent(true);
+    } catch { alert('送信に失敗しました。'); }
+    setSubmitting(false);
+  };
+  return (
+    <>
+      <button onClick={openModal} className={className} style={style}>{label}</button>
+      {open && (
+        <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+            {sent ? (
+              <>
+                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>ありがとうございます。改善に使わせていただきます</p>
+                <button onClick={() => setOpen(false)} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
+              </>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>この画面を報告</p>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
+                  {FEEDBACK_CATEGORIES.map(c => (
+                    <button key={c.v} type="button" onClick={() => setCategory(c.v)} className="f-sans" style={{
+                      padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer", border:"2px solid",
+                      borderColor: category===c.v ? "#00A86B" : "#EBEBEB",
+                      background: category===c.v ? "#E6F7EF" : "#fff", color: category===c.v ? "#00A86B" : "#222",
+                    }}>{c.l}</button>
+                  ))}
+                </div>
+                <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="どの部分が、どうでしたか？" rows={4}
+                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>操作の記録としてページ名が運営に送られます</p>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={() => setOpen(false)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                  <button onClick={submit} disabled={submitting || !category} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: category ? "#00A86B" : "#EBEBEB", color: category ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{submitting ? "送信中..." : "送信する"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function HelpImageSlot() {
   return (
     <div className="f-sans" style={{ marginTop:10, height:110, border:"1px dashed #D0D0D0", borderRadius:10, background:"#FAFAFA", display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0", fontSize:12 }}>
@@ -12277,6 +12346,12 @@ function HelpCenter() {
               </button>
               {isOpen && (
                 <div style={{ padding:"0 24px 24px", display:"grid", gap:20 }}>
+                  {key === "faq" && (
+                    <FeedbackButton label="💬 この画面を報告" className="f-sans" style={{
+                      justifySelf:"start", padding:"9px 18px", fontSize:13, fontWeight:600, color:"#00A86B",
+                      background:"#E6F7EF", border:"none", borderRadius:20, cursor:"pointer",
+                    }} />
+                  )}
                   {ch.items.map((it, i) => (
                     <div key={i}>
                       {it.label && <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{it.label}</p>}
@@ -12761,6 +12836,20 @@ const subDest=useCallback(async d=>{
             <div style={{ position:"absolute", top:52, right:0, minWidth:200, background:"#fff",
                           border:"1px solid #EBEBEB", borderRadius:12,
                           boxShadow:"0 4px 16px rgba(0,0,0,.08)", padding:"8px 0", zIndex:30 }}>
+              <button onClick={() => { setMenuOpen(false); window.location.hash = "/help"; }}
+                className="f-sans"
+                style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                         border:"none", cursor:"pointer", fontFamily:"inherit",
+                         fontSize:14, color:"#222", padding:"10px 16px" }}>
+                📖 使い方
+              </button>
+              {me && (
+                <FeedbackButton label="💬 この画面を報告" onBeforeOpen={() => setMenuOpen(false)}
+                  className="f-sans"
+                  style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                           border:"none", cursor:"pointer", fontFamily:"inherit",
+                           fontSize:14, color:"#222", padding:"10px 16px" }} />
+              )}
               {MENU_ITEMS
                 .filter(item =>
                   (item.auth ? !!me : true) &&
@@ -12802,7 +12891,11 @@ const subDest=useCallback(async d=>{
         </button>
         {mobileMenuOpen && (
           <div className="app-header-mobile-menu" onClick={(e)=>e.stopPropagation()}>
-            <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">求人を出す</button>
+            <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">🌱 求人を出す</button>
+            <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item">📖 使い方</button>
+            {me && (
+              <FeedbackButton label="💬 この画面を報告" onBeforeOpen={()=>setMobileMenuOpen(false)} className="f-sans app-header-mobile-menu-item" />
+            )}
             {MOBILE_MENU_ITEMS
               .filter(item => !item.adminOnly || isAdmin(me))
               .map(item => (
