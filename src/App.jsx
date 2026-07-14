@@ -70,6 +70,15 @@ async function geocodeTown(prefecture, city, town) {
   }
 }
 
+// 農園紹介のお題一覧（求人詳細・確認ページ共通。記入済みのお題のみ返す）
+const farmIntroTopics = (e) => [
+  { label:"就農するまで", body: e.intro_path },
+  { label:"いま楽しいこと", body: e.intro_joy },
+  { label:"どんな作物を、どんな想いで", body: e.intro_crops },
+  { label:"職場の雰囲気", body: e.intro_atmosphere },
+  { label:"初めての人へのメッセージ", body: e.intro_message },
+].filter(t => t.body && t.body.trim());
+
 // ハンバーガーメニュー（PC）。項目の追加・削除はこの配列を編集するだけでよい。
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
 const MENU_ITEMS = [
@@ -482,7 +491,8 @@ input:focus { outline: none; }
     border-bottom: none;
     border-top: 1px solid #EBEBEB;
     z-index: 49;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* 左右4px：5タブを画面端ギリギリまで広げる（headerの0 16px !importantをクラス詳細度で上書き） */
+    padding: 0 4px env(safe-area-inset-bottom, 0px) !important;
     transition: transform .25s ease;
   }
   /* スクロール連動の自動格納（Part C）。求人詳細では上のdisplay:noneガードが優先される */
@@ -509,12 +519,49 @@ input:focus { outline: none; }
   font-family: 'Noto Sans JP', sans-serif;
   padding: 0;
 }
-.app-header-mobile-tab .icon { font-size: 20px; line-height: 1; }
+.app-header-mobile-tab .icon { font-size: 26px; line-height: 1; } /* 2026-07-14: 20px→26px(1.3倍)。バー高さ64pxは不変 */
 .app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
 .app-header-mobile-tab.active { color: #00A86B; font-weight: 600; }
-/* ☰はラベルなし・幅を抑えたコンパクト版（タブ5本と横並びで折り返さないため） */
-.app-header-mobile-hamburger { flex: 0 0 44px; }
-.app-header-mobile-hamburger .icon { font-size: 19px; }
+/* ── モバイル☰の上部浮遊ボタン（2026-07-13 下部バーから移設。fixed＝スクロール追従。
+   下部バーのcb-scroll-hide格納の影響を受けず常時表示） ── */
+.app-header-mobile-float { display: none; }
+@media (max-width: 768px) {
+  .app-header-mobile-float {
+    display: block;
+    position: fixed;
+    /* 2026-07-14: 左上→左下へ移動。下限=下部バー(64px)+12pxで重ならない */
+    bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    z-index: 60;
+  }
+  /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
+  body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
+}
+.app-header-mobile-float-btn {
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff;
+  border: 1px solid #EBEBEB;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  cursor: pointer;
+  color: #222;
+  padding: 0;
+}
+.app-header-mobile-float-btn .icon { font-size: 19px; line-height: 1; }
+.app-header-mobile-float-btn.active { color: #00A86B; }
+/* 浮遊☰から開くメニューはボタンの真上に開く（2026-07-14: ボタンが左下配置になったため上開きに戻した）。
+   下限=ボタンの直上で固定（bottom:100%）なので下部バーとは構造上重ならない。
+   低い画面用にmax-heightで上方向のはみ出しも防止 */
+.app-header-mobile-float .app-header-mobile-menu {
+  bottom: 100%; top: auto;
+  margin-bottom: 8px; margin-top: 0;
+  left: 0; right: auto;
+  min-width: 220px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+}
 /* ☰の中身（求人を出す・管理・運営憲章・利用規約・プライバシー・ログアウト）。バーの真上に開く */
 .app-header-mobile-menu {
   position: absolute;
@@ -547,14 +594,21 @@ input:focus { outline: none; }
   .app-header-post-btn .post-label-short { display: inline; }
 }
 
+/* ── 農家プロ(雇い手空間)：モバイルで画面端から10pxに詰める
+   （main左右12px − 負マージン6px ＋ ラッパーpadding4px ＝ 10px。
+   inlineのmargin:0 autoに勝つため!important。PCは中央寄せ維持のため対象外） ── */
+@media (max-width: 640px) {
+  .profile-employer-edge { margin-left: -6px !important; margin-right: -6px !important; }
+}
+
 /* ── プロフィール画面：雇い手空間への浮遊ボタン（モバイル専用・下部バーの真上に固定） ── */
 .profile-employer-fab { display: none; }
 @media (max-width: 768px) {
   .profile-employer-fab {
     display: block;
     position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
+    /* 2026-07-14: 中央寄せ→右寄せ。左下の浮遊☰と同列（左=☰／右=トグル・同じ高さ） */
+    right: 12px;
     bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
     z-index: 60;
     background: #00A86B;
@@ -570,8 +624,18 @@ input:focus { outline: none; }
     white-space: nowrap;
     transition: transform .25s ease;
   }
-  /* スクロール連動の自動格納（Part C）。下部バーと同時に沈む */
-  body.cb-scroll-hide .profile-employer-fab { transform: translateX(-50%) translateY(150%); }
+  /* スクロール連動の自動格納（Part C）。下部バーと同時に沈む。
+     沈む量=浮遊位置(バー64px+隙間12px+セーフエリア)+自身の高さ(100%)。
+     旧150%では下がりきらず画面内に残りフッターを覆っていた */
+  body.cb-scroll-hide .profile-employer-fab { transform: translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
+  /* フッタードック：フッターが画面に入っている間(cb-fab-dock)は沈み込みを打ち消し、
+     フッター上端の12px上に追従して止まる（消えない）。--fab-dockはJS側でスクロール毎に
+     フッターの見えている高さ(px)を設定。max()で通常の浮遊位置より下には行かせない。
+     このルールは直前のcb-scroll-hide沈み込みより後に書くこと（同スペシフィシティ・後勝ち） */
+  body.cb-fab-dock .profile-employer-fab {
+    transform: none;
+    bottom: max(calc(64px + 12px + env(safe-area-inset-bottom, 0px)), calc(var(--fab-dock, 0px) + 12px));
+  }
 }
 
 /* ── Job search layout ── */
@@ -717,6 +781,30 @@ input:focus { outline: none; }
      このdisplay:noneはスクロール連動の格納機構(下記cb-scroll-hide)より優先される。 */
   body:has(.mobile-apply-bar) .app-header-mobile { display: none; }
 }
+
+/* ── 開催期間カレンダー📅の浮遊ボタン（詳細=応募フッター右上／確認ページ=下部ナビ右上。両ページ同構造） ── */
+.calendar-fab {
+  position: fixed;
+  right: 16px;
+  z-index: 600;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #EBEBEB;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+/* 詳細ページ用：応募フッター(スマホのみ)の右上に浮遊。PCは地図下カレンダーがあるので非表示 */
+.calendar-fab-detail { display: none; bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 759px) { .calendar-fab-detail { display: flex; } }
+/* 確認ページ用：下部ナビ(戻る/保存/掲載する)の右上に浮遊 */
+.calendar-fab-confirm { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
 @media (max-width: 759px) {
@@ -5316,21 +5404,16 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     if (h === "profile/worker/applying") return "applying";
     if (h === "profile/worker/approved") return "approved";
     if (h === "profile/worker/calendar") return "wcalendar";
-    return "wprofile";
+    return "home"; // 入口はAirbnb型カードメニュー（2026-07-14・農家プロと同構造）
   };
-  const [wTab, setWTab] = useState(() => { try { return hashToWTab(); } catch { return "wprofile"; } });
+  const [wTab, setWTab] = useState(() => { try { return hashToWTab(); } catch { return "home"; } });
   const [wProfileMode, setWProfileMode] = useState("preview");
   useEffect(() => {
     const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-  const WORKER_TABS = [
-    { k:"wprofile",  l:"プロフィール" },
-    { k:"applying",  l:"応募中" },
-    { k:"approved",  l:"承認済み" },
-    { k:"wcalendar", l:"カレンダー" },
-  ];
+  // WORKER_TABS(サイドタブ列)は廃止（2026-07-14）：入口カードメニューに一本化
   const [hasEmployerSide, setHasEmployerSide] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -5350,19 +5433,64 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     return () => { cancelled = true; };
   }, []);
   const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"応募中", approved:"承認済み", wcalendar:"カレンダー" };
+  // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
+  const [wMini, setWMini] = useState(null);
+  const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || cancelled) return;
+        const { data: wp } = await supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
+        if (!cancelled && wp) setWMini(wp);
+        const { data: apps } = await supabase.from("applications").select("status").eq("worker_id", session.user.id);
+        if (!cancelled && apps) setWAppCounts({
+          applying: apps.filter(a => a.status === "applied").length,
+          approved: apps.filter(a => ["approved","meeting","interview","contracted","working","completed"].includes(a.status)).length,
+        });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
   return (
-    <div style={{maxWidth:1024,margin:"0 auto",padding:"32px 24px"}}>
-      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="profile-employer-fab f-sans">
-        {hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う"}
+    <div className={pTab === "employer" ? "profile-employer-edge" : undefined} style={{maxWidth:1024,margin:"0 auto",padding: pTab === "employer" ? "32px 4px" : "32px 24px"}}>{/* 農家プロは画面端から10px（モバイル・CSS側の負マージン併用） */}
+      {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ) */}
+      <button onClick={()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; }} className="profile-employer-fab f-sans">
+        {pTab === "employer"
+          ? "🤝 働く（あなたの応募）"
+          : (hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う")}
       </button>
       {pTab === "worker" ? (
-        <div className="profile-grid">
-          <div className="profile-tabs">
-            {WORKER_TABS.map(t => (
-              <button key={t.k} onClick={()=>{ const _map={wprofile:"/profile/worker/profile",applying:"/profile/worker/applying",approved:"/profile/worker/approved",wcalendar:"/profile/worker/calendar"}; window.location.hash=(_map[t.k]||"/profile/worker"); }} className={"profile-tab-btn f-sans" + (wTab===t.k ? " active" : "")}>{t.l}</button>
-            ))}
-          </div>
-          <div className="profile-content">
+        wTab === "home" ? (
+          <>
+            {/* ═══ Airbnb型入口メニュー（働き手側・2026-07-14）：農家プロ入口と同構造。旧サイドタブ列は廃止 ═══ */}
+            <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} />
+              <span>
+                <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
+                <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>働き手</span>
+              </span>
+            </button>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
+              {[
+                { e:"📨", l:"応募中",     n:wAppCounts.applying, h:"/profile/worker/applying" },
+                { e:"✅", l:"承認済み",   n:wAppCounts.approved, h:"/profile/worker/approved" },
+                { e:"📅", l:"カレンダー", n:0,                   h:"/profile/worker/calendar" },
+              ].map(c => (
+                <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                  {c.n > 0 && (
+                    <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
+                  )}
+                  <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
+                  <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+        <div className="profile-content">
+            <button onClick={()=>{ window.location.hash="/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:12 }}>← プロフィール</button>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
               {wTab === "wprofile" && wProfileMode === "preview" && (
@@ -5389,11 +5517,11 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                 <button onClick={()=>{ window.location.hash = "/calendar"; }} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12 }}>カレンダーへ →</button>
               </div>
             )}
-          </div>
         </div>
+        )
       ) : (
         <>
-          <button onClick={()=>{ window.location.hash = "/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:16 }}>← プロフィールへ</button>
+          {/* 「← プロフィールへ」ボタンは削除（2026-07-14）。働き手側への行き来は浮遊「🤝 働く」トグルが担う */}
           {me&&!me.isWorker&&me.status==="pending"&&(
             <div className="f-sans" style={{margin:"0 auto 16px",padding:"14px 18px",background:"#FFF8E7",border:"1px solid #F5D98F",borderRadius:12,fontSize:13,color:"#8A6D1D",lineHeight:1.7}}>
               🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
@@ -5463,6 +5591,7 @@ function JobSearchMapView({ onRegister, me }) {
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [farmIntroOpen, setFarmIntroOpen] = useState(false); // 農園紹介モーダル（ページには代表よりのみ・タップで全文展開）
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTargetField, setReportTargetField] = useState("");
   const [reportIssueType, setReportIssueType] = useState("");
@@ -5879,8 +6008,9 @@ function JobSearchMapView({ onRegister, me }) {
                         <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={44} />
                       </div>
                       <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
-                      {empEmployer.pr && (
-                        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
+                      {/* 名前の下は短い挨拶(owner_comment)。長文の自己紹介(pr)は農園紹介「代表より」へ（2026-07-14入れ替え） */}
+                      {empEmployer.owner_comment && (
+                        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.owner_comment}</p>
                       )}
                     </div>
                     <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
@@ -6058,38 +6188,29 @@ function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
 
-          {/* 農園紹介（地図の下・全幅・記入済みのお題のみ表示。写真は次段階） */}
+          {/* 農園紹介（地図の下）：ページには自己PR(代表より)のみ表示。タップでモーダルに全文（お題＋代表より）を展開 */}
           {empEmployer && (() => {
-            const topics = [
-              { label:"就農するまで", body: empEmployer.intro_path },
-              { label:"いま楽しいこと", body: empEmployer.intro_joy },
-              { label:"どんな作物を、どんな想いで", body: empEmployer.intro_crops },
-              { label:"職場の雰囲気", body: empEmployer.intro_atmosphere },
-              { label:"初めての人へのメッセージ", body: empEmployer.intro_message },
-            ].filter(t => t.body && t.body.trim());
-            const comment = empEmployer.owner_comment && empEmployer.owner_comment.trim();
+            const topics = farmIntroTopics(empEmployer);
+            const comment = empEmployer.pr && empEmployer.pr.trim();
             if (topics.length === 0 && !comment) return null;
             return (
               <div style={{ marginBottom:100 }}>
                 <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
                   {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
                 </h3>
-                {topics.length > 0 && (
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
-                    {topics.map((t, i) => (
-                      <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
-                        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {comment && (
-                  <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px" }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
-                  </div>
-                )}
+                <div onClick={() => setFarmIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer" }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                  {comment ? (
+                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>
+                      {comment.length > 100 ? comment.slice(0, 100) + "…" : comment}
+                      {(comment.length > 100 || topics.length > 0) && (
+                        <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", marginLeft:6 }}>見る</span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>農園紹介を見る →</p>
+                  )}
+                </div>
               </div>
             );
           })()}
@@ -6231,17 +6352,6 @@ function JobSearchMapView({ onRegister, me }) {
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
             <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              {selectedJob.dateStart && (
-                <button
-                  onClick={() => setShowCalendarModal(true)}
-                  aria-label="開催期間カレンダーを見る"
-                  style={{
-                    width:44, height:44, borderRadius:12, border:"1px solid #EBEBEB",
-                    background:"#F7F7F7", fontSize:18, cursor:"pointer", flexShrink:0,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                  }}
-                >📅</button>
-              )}
               <button
                 onClick={applyBtnOnClick}
                 disabled={applying || applyBtnDisabled}
@@ -6251,6 +6361,11 @@ function JobSearchMapView({ onRegister, me }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 開催期間カレンダー📅：応募フッター右上の浮遊ボタン（旧:フッター内。確認ページと同構造） */}
+      {selectedJob && selectedJob.dateStart && (
+        <button className="calendar-fab calendar-fab-detail" aria-label="開催期間カレンダーを見る" onClick={() => setShowCalendarModal(true)}>📅</button>
       )}
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
@@ -6294,6 +6409,48 @@ function JobSearchMapView({ onRegister, me }) {
           </div>
         </div>
       )}
+
+      {/* 農園紹介モーダル（代表よりカードのタップで展開。お題＋代表よりの全文） */}
+      {farmIntroOpen && empEmployer && (() => {
+        const topics = farmIntroTopics(empEmployer);
+        return (
+          <div onClick={() => setFarmIntroOpen(false)} style={{
+            position:"fixed", inset:0, zIndex:10000,
+            background:"rgba(0,0,0,0.5)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            padding:16, animation:"fadeIn .2s ease",
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              background:"#fff", borderRadius:16, padding:20,
+              maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
+              position:"relative",
+            }}>
+              <button onClick={() => setFarmIntroOpen(false)} style={{
+                position:"absolute", top:12, right:12,
+                width:36, height:36, borderRadius:"50%",
+                background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
+              }}>✕</button>
+              <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>
+                {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
+              </h3>
+              {empEmployer.pr && empEmployer.pr.trim() && (
+                <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", marginBottom:16 }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                  <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
+                </div>
+              )}
+              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                {topics.map((t, i) => (
+                  <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
+                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 通報モーダル：差し戻しモーダル(759e54c)と同じ視覚文法・語彙 */}
       {showReportModal && (
@@ -6654,7 +6811,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   // ── ログイン後復帰: postLoginReturnTo を確認して draft を読み込む ──
   const _draftInit = (() => {
     try {
-      if (localStorage.getItem('postLoginReturnTo') === 'landingFlowFarmerConfirm') {
+      // 復元条件：①ログイン往復フラグ ②URLが求人フロー(#/work/new*)のままのリロード（2026-07-14追加）
+      // ②が無いと、確認ページ等でリロードした際に入力が全て白紙に戻る（stateは復元されずURLだけ残る）
+      const _h = window.location.hash.replace(/^#\/?/, "");
+      const _inNewJobFlow = _h === "work/new" || _h.startsWith("work/new/");
+      if (localStorage.getItem('postLoginReturnTo') === 'landingFlowFarmerConfirm' || _inNewJobFlow) {
         const d = JSON.parse(localStorage.getItem('landingFlowDraft_v1') || '{}');
         if (d.role === 'farmer') return d;
       }
@@ -6792,6 +6953,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
   const [jobSaving, setJobSaving] = useState(false);
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
+  const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
+  const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
+  const [confCalOpen, setConfCalOpen] = useState(false); // 確認ページ用：📅浮遊ボタン→作業日程カレンダーモーダル（詳細ページと同構造）
+  const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
+  const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
@@ -6971,6 +7137,35 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       alert("保存に失敗しました：" + res.reason);
     }
   };
+
+  // devJumpは1回のマウントで消費したら破棄する（残り続けると、後日の通常フロー起動時に
+  // _devJumpが読まれて古いstep/roleへ勝手にジャンプする。読み込み済みの_devJump変数には影響しない）
+  useEffect(() => { try { localStorage.removeItem('devJump'); } catch {} }, []);
+
+  // 確認ページ到達時：住所からおおよその座標を取得（保存時のgeocodeTownと同じ手順。
+  // 取得失敗・住所未入力ならnullのまま＝JobLocationMapが「地図は準備中です」を表示）
+  useEffect(() => {
+    if (step !== 11 || role !== "farmer") return;
+    let cancelled = false;
+    (async () => {
+      const geo = await geocodeTown(farmerPref, farmerCity, farmerTown);
+      if (!cancelled) setConfGeo(geo);
+    })();
+    return () => { cancelled = true; };
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 確認ページ用：本人の雇い手プロフィールを取得（詳細ページと同構造のプロフィールカード・農園紹介に使用。
+  // 未ログイン・未作成なら null のまま＝最小カードにフォールバック）
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        if (data) setConfEmployer(data);
+      } catch {}
+    })();
+  }, []);
 
   // Airbnb模擬・部品1:step移動ごとに自動で下書き保存（農家フロー中のみ・home(0)と完了(12)は除外）
   useEffect(() => {
@@ -7750,12 +7945,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               "草刈り":   { body:"圃場周辺の草刈り、片付け、運搬補助をお願いします。", items:["長袖","長ズボン","飲み物","タオル"], notes:"機械を使う作業は経験者のみを想定しています。" },
             };
             const tmpl = JT_MAP[jobTemplate] || JT_MAP["収穫補助"];
-            const titleRequired = `${farmerCrop || "作物"}${farmerTask || "作業"}スタッフ ${jobCount ? jobCount + "人募集" : ""}`.trim();
-            const titleOptional = [
-              stationLabel(nearestStation, commuteTime),
-            ].filter(Boolean).join("・");
-            const listingTitle = titleOptional ? `${titleRequired}｜${titleOptional}` : titleRequired;
-            const subInfo = [farmerRegion || "地域未入力", jobDateLabel !== "日程を選択してください" ? jobDateLabel : "日程未設定", workTimeLabel].join("・");
             const rewardLabel = hourlyWage > 0 ? `¥${hourlyWage.toLocaleString()} / 時` : dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定";
             const wageType = hourlyWage > 0 ? "時給" : "日給";
             const wageNum  = hourlyWage > 0 ? hourlyWage : dailyWage;
@@ -7859,6 +8048,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 if (error) { alert("掲載エラー: " + error.message); return; }
                 try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                 setDraftJobNumber(null);
+                setPublishModal(false);
                 setStep(12);
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
@@ -7867,26 +8057,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               }
             };
 
-            const handleSaveDraft = async () => {
-              if (draftSaving) return;
-              setDraftSaving(true); setDraftMsg("");
-              const res = await saveDraftToSupabase();
-              setDraftSaving(false);
-              if (res.ok) {
-                setDraftBarFull(true);
-                try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
-                setDraftMsg("作成中に保存しました（求人番号 " + res.jobNumber + "）");
-                setDraftOverlay(true);
-                setTimeout(() => { setDraftOverlay(false); window.location.hash = "/work"; if (typeof onComplete === "function") onComplete(); }, 1100);
-              } else if (res.reason === "no_session") {
-                saveDraft(); onLogin();
-              } else {
-                setDraftMsg("保存に失敗しました：" + res.reason);
-              }
-            };
-
-            const tagStyle = { padding:"6px 14px", borderRadius:20, background:"#F7F7F7", color:"#717171", fontSize:13 };
-            const inputSt = { width:"100%", height:48, borderRadius:14, border:"1px solid #E5E5E5", fontSize:15, padding:"0 14px", outline:"none", boxSizing:"border-box" };
+            // 一時保存は下部ナビの「保存」ボタン（トップレベルのhandleTopSaveExitを再利用）に移設（2026-07-13）
 
             return (<>
               {/* タイトル */}
@@ -7895,16 +8066,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </h2>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手には、以下のように表示されます。</p>
 
-              {/* 公開イメージ：タイトル＋住所（公開求人と同一構造） */}
-              <div style={{ marginBottom:20 }}>
-                <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}</h2>
-                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2, display:"flex", alignItems:"center", gap:8 }}>
-                  {farmerRegion || "地域未設定"}
-                  <button onClick={() => { setReturnToConfirm(true); setStep(3); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                </p>
-              </div>
-
-              {/* 公開イメージ・セクション②：写真ギャラリー（公開求人と同サイズ・ダミー） */}
+              {/* 公開イメージ・セクション①：写真ギャラリー（求人詳細ページと同じく写真が先頭） */}
               {(() => {
                 const cropIcon = farmerCrop && farmerCrop.includes("ブロッコリー") ? "🥦" : farmerCrop && farmerCrop.includes("なす") ? "🍆" : farmerCrop && farmerCrop.includes("トマト") ? "🍅" : farmerCrop && farmerCrop.includes("ねぎ") ? "🌿" : "🌱";
                 const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
@@ -7942,93 +8104,270 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 );
               })()}
 
-              {/* ═══ 2カラムグリッド ═══ */}
-              <div className="lf-preview-grid">
+              {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
+              <div style={{ marginBottom:20 }}>
+                <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}` : ""}</h2>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", margin:0, marginTop:4, display:"flex", alignItems:"center", gap:10 }}>
+                  編集：
+                  <button onClick={() => { setReturnToConfirm(true); setStep(1); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作物</button>
+                  <button onClick={() => { setReturnToConfirm(true); setStep(2); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作業</button>
+                  <button onClick={() => { setReturnToConfirm(true); setStep(3); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>場所</button>
+                </p>
+              </div>
 
-                {/* ── 左: 掲載プレビュー ── */}
+              {/* ═══ 掲載プレビュー本体（右パネル削除により1カラム・中央寄せ） ═══ */}
+              <div style={{ maxWidth:870, margin:"0 auto" }}>
+
+                {/* ── 左: 掲載プレビュー（求人詳細ページの左カラムと同一構造） ── */}
                 <div>
-                  <h3 className="f-sans" style={{ fontSize:"clamp(20px,2.5vw,26px)", fontWeight:800, color:"#222", marginBottom:6, lineHeight:1.3 }}>{listingTitle}</h3>
-                  <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:18 }}>{subInfo}</p>
-                  <div style={{ borderBottom:"1px solid #EBEBEB", marginBottom:20 }} />
+                  {/* 主要情報カード（詳細ページと同じ・各行に編集リンク・未入力は「未設定」表示） */}
+                  <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div className="job-detail-info-grid">
+                      {[
+                        { label:"日程",     value: jobDateLabel !== "日程を選択してください" ? jobDateLabel : "", editStep:4 },
+                        { label:"勤務時間", value: workTimeLabel, editStep:5 },
+                        { label:"休憩時間", value: breakTime, editStep:5 },
+                        { label:"採用人数", value: jobCount ? `${jobCount}人` : "", editStep:4 },
+                        { label:"移動時間", value: stationLabel(nearestStation, commuteTime), editStep:3 },
+                        { label:"報酬",     value: rewardLabel !== "未設定" ? `${rewardLabel}${(payTiming || payMethod) ? "　" + [payTiming, payMethod].filter(Boolean).join("・") : ""}` : "", editStep:5 },
+                      ].map(row => (
+                        <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                          <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"flex", alignItems:"center", gap:6 }}>
+                            {row.label}
+                            <button onClick={() => { setReturnToConfirm(true); setStep(row.editStep); }} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                          </span>
+                          <span className="f-sans" style={{ fontSize:15, color: row.value ? "#222" : "#B0B0B0", fontWeight: row.value ? 600 : 400, lineHeight:1.6 }}>{row.value || "未設定"}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
+                  </div>
 
-                  {/* 募集概要カード */}
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:20 }}>
-                    {[
-                      { label:"作物",   value:farmerCrop || "未設定", editStep:1 },
-                      { label:"作業",   value:farmerTask || "未設定", editStep:2 },
-                      { label:"人数",   value:jobCount ? `${jobCount}人募集` : "未設定", editStep:4 },
-                      { label:"経験",   value:jobExp || "未設定" },
-                    ].map(item => (
-                      <div key={item.label} style={{ padding:"14px 16px", background:"#F7F7F7", borderRadius:16 }}>
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:0 }}>{item.label}</p>
-                          {item.editStep && (
-                            <button onClick={() => { setReturnToConfirm(true); setStep(item.editStep); }} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                  {/* 農家プロフィールカード（詳細ページと同一構造：アバター・自己紹介・待遇。
+                      データは employer_profiles の本人行。未作成なら最小カードにフォールバック） */}
+                  {(confEmployer && confEmployer.nickname) ? (() => {
+                    const perkRows = [
+                      { label:"送迎",     on: confEmployer.has_transport,        value: confEmployer.has_transport ? `あり${confEmployer.transport_area ? "（" + confEmployer.transport_area + "）" : ""}` : EMPTY_MARK },
+                      { label:"駐車場",   on: confEmployer.has_parking,          value: confEmployer.has_parking ? `あり${confEmployer.parking_capacity ? "（" + confEmployer.parking_capacity + "台）" : ""}` : EMPTY_MARK },
+                      { label:"通勤手当", on: confEmployer.has_commute_allowance, value: confEmployer.has_commute_allowance ? `あり${confEmployer.commute_allowance_detail ? "（" + confEmployer.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
+                      { label:"賞与",     on: confEmployer.has_bonus,            value: confEmployer.has_bonus ? "あり" : EMPTY_MARK },
+                      { label:"持ち物",   on: confEmployer.employer_pays_supplies, value: confEmployer.employer_pays_supplies ? "農家負担" : EMPTY_MARK },
+                      { label:"アクセサリー", on: confEmployer.accessory_ok,          value: confEmployer.accessory_ok ? "OK" : EMPTY_MARK },
+                    ];
+                    return (
+                      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
+                          <div style={{ marginBottom:8 }}>
+                            <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={44} />
+                          </div>
+                          <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{confEmployer.nickname}</p>
+                          {/* 名前の下は短い挨拶(owner_comment)。長文の自己紹介(pr)は農園紹介「代表より」へ（2026-07-14入れ替え・詳細ページと同じ） */}
+                          {confEmployer.owner_comment && (
+                            <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.owner_comment}</p>
                           )}
                         </div>
-                        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{item.value}</p>
+                        <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em" }}>待遇</p>
+                        <div style={{ width:"fit-content", position:"relative", left:"50%", transform:"translateX(-78px)" }}>
+                          {perkRows.map((row, i) => (
+                            <div key={row.label} style={{
+                              display:"flex", alignItems:"center", gap:12, padding:"8px 0",
+                              borderBottom: i < perkRows.length - 1 ? "1px solid #F7F7F7" : "none",
+                            }}>
+                              <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:72, flexShrink:0 }}>{row.label}</span>
+                              <span className="f-sans" style={{ fontSize:15, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400, lineHeight:1.6 }}>{row.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })() : (
+                    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
+                        <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, marginBottom:8 }}>🧑‍🌾</div>
+                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
+                        <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 作業内容カード（詳細ページと同じ） */}
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:0 }}>作業内容</p>
+                      <button onClick={() => { setReturnToConfirm(true); setStep(8); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                    </div>
+                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{jobDescription || tmpl.body}</p>
+                  </div>
+
+                  {/* 経験・持ち物・備考カード（詳細ページと同じ配列駆動・未入力は「未設定」） */}
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                      <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                    </div>
+                    {[
+                      { label:"必要経験",       value: jobExp },
+                      { label:"希望する働き手", value: farmerWanted },
+                      { label:"持ち物",         value: jobNotes },
+                      { label:"備考・注意",     value: jobCautions },
+                    ].map(row => (
+                      <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                        <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
+                        <span className="f-sans" style={{ fontSize:15, color: (row.value && String(row.value).trim()) ? "#222" : "#B0B0B0", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{(row.value && String(row.value).trim()) ? row.value : "未設定"}</span>
                       </div>
                     ))}
                   </div>
 
-                  {/* 農家プロフィール（公開イメージ・確認ページにある変数のみ使用） */}
-                  <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 0", borderBottom:"1px solid #F7F7F7", marginBottom:16 }}>
-                    <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🧑‍🌾</div>
-                    <div>
-                      <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
-                      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
-                    </div>
-                  </div>
+                  {/* 注記（詳細ページと同じ） */}
+                  <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:14 }}>
+                    本名・詳細住所は公開しません。
+                  </p>
 
-                  {/* 募集本文 */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>募集内容</p>
-                    <button onClick={() => { setReturnToConfirm(true); setStep(8); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                  </div>
-                  <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:16, whiteSpace:"pre-wrap" }}>{jobDescription || tmpl.body}</p>
-
-                  {/* 持ち物・注意事項 */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>持ち物・注意事項</p>
-                    <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                  </div>
-                  {jobNotes && jobNotes.trim() ? (
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
-                      {jobNotes.split(/[、,，\n]/).map(n => n.trim()).filter(Boolean).map((n,i) => (
-                        <span key={i} style={{ ...tagStyle, background:"#FEF3E2", color:"#F5A623" }}>📌 {n}</span>
-                      ))}
+                  {/* 危険区域カード（詳細ページと同一構造：場所→作業・縦積み・全幅写真） */}
+                  {(jobDangerPlaces.some(p => p.label) || jobDangerTasks.some(t => t.label)) && (
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <span style={{ fontSize:18 }}>⚠️</span>
+                        <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
+                      </div>
+                      <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
-                  ) : (
-                    <p className="f-sans" style={{ fontSize:14, color:"#B0B0B0", marginBottom:8 }}>未設定</p>
+                    {jobDangerPlaces.some(p => p.label) && (
+                      <>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
+                          {jobDangerPlaces.filter(p => p.label).map((place, i) => (
+                            <div key={i} style={{ width:"100%" }}>
+                              {(place.photos && place.photos.length > 0) ? (
+                                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                  {place.photos.map((ph, k) => (
+                                    <img key={k} src={ph.url} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ width:"100%", height:130, borderRadius:8, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>{place.icon}</div>
+                              )}
+                              <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
+                              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {jobDangerTasks.some(t => t.label) && (
+                      <>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                          {jobDangerTasks.filter(t => t.label).map((task, i) => (
+                            <div key={i} style={{ width:"100%" }}>
+                              {(task.photos && task.photos.length > 0) ? (
+                                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                  {task.photos.map((ph, k) => (
+                                    <img key={k} src={ph.url} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ width:"100%", height:130, borderRadius:8, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>{task.icon}</div>
+                              )}
+                              <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
+                              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                   )}
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:10, marginTop:16 }}>注意事項</p>
-                  <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.85, marginBottom:8, whiteSpace:"pre-wrap" }}>{jobCautions && jobCautions.trim() ? jobCautions : "未設定"}</p>
-                  {/* 必要経験・希望する働き手（公開イメージ） */}
-                  <div style={{ borderTop:"1px solid #F7F7F7", paddingTop:16 }}>
-                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>必要経験</p>
-                    <p className="f-sans" style={{ fontSize:14, color:"#222", marginBottom:14 }}>{jobExp || "未設定"}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:4 }}>希望する働き手</p>
-                    <p className="f-sans" style={{ fontSize:14, color:"#222", margin:0 }}>{farmerWanted || "未設定"}</p>
-                  </div>
                 </div>
 
-                {/* ── 右: 編集パネル ── */}
-                <div style={{ position:"sticky", top:88, border:"1px solid #EBEBEB", borderRadius:28, padding:24, background:"#fff", boxShadow:"0 16px 40px rgba(0,0,0,0.10)" }}>
-                  {/* 報酬・最高額・期間 */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                    <p className="f-mono" style={{ fontSize:26, fontWeight:800, color:"#222", margin:0 }}>{rewardLabel}</p>
-                    <button onClick={() => { setReturnToConfirm(true); setStep(5); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                {/* 右パネル（報酬・期間・カレンダー・一時保存）は削除（2026-07-13）。
+                    報酬・日程は左の主要情報カードに編集リンク付きで表示済み。
+                    一時保存は下部ナビ「保存」・保存中オーバーレイはLandingFlowトップレベルへ移設 */}
+              </div>
+              {/* ═══ 地図（集合場所のおおよその範囲・円のみ。求人詳細ページのJobLocationMapと同一構造。
+                   旧Googleマップ風ダミーは廃止(2026-07-14)。座標は住所からgeocodeTownで取得(保存時と同じ手順) ═══ */}
+              <div style={{ maxWidth:870, margin:"0 auto 28px" }}>
+                <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion} />
+              </div>
+
+              {/* ═══ 農園紹介（詳細ページと同一構造）：ページには自己PR(代表より)のみ表示。タップでモーダルに全文展開 ═══ */}
+              {confEmployer && (() => {
+                const topics = farmIntroTopics(confEmployer);
+                const comment = confEmployer.pr && confEmployer.pr.trim();
+                if (topics.length === 0 && !comment) return null;
+                return (
+                  <div style={{ maxWidth:870, margin:"0 auto 28px" }}>
+                    <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
+                      {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
+                    </h3>
+                    <div onClick={() => setConfIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer" }}>
+                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                      {comment ? (
+                        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>
+                          {comment.length > 100 ? comment.slice(0, 100) + "…" : comment}
+                          {(comment.length > 100 || topics.length > 0) && (
+                            <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", marginLeft:6 }}>見る</span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>農園紹介を見る →</p>
+                      )}
+                    </div>
                   </div>
-                  {maxPay > 0 && (
-                    <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:16 }}>期間内に全て勤務した場合の最高額：<span className="f-mono" style={{ fontWeight:700, color:"#00A86B" }}>¥{maxPay.toLocaleString()}</span></p>
-                  )}
-                  <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 0", borderTop:"1px solid #F0F0F0", borderBottom:"1px solid #F0F0F0", marginBottom:16 }}>
-                    <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>期間</span>
-                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{periodLabel}</span>
+                );
+              })()}
+
+              {/* ═══ 農園紹介モーダル（詳細ページと同構造。お題＋代表よりの全文） ═══ */}
+              {confIntroOpen && confEmployer && (() => {
+                const topics = farmIntroTopics(confEmployer);
+                return (
+                  <div onClick={() => setConfIntroOpen(false)} style={{
+                    position:"fixed", inset:0, zIndex:10000,
+                    background:"rgba(0,0,0,0.5)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    padding:16, animation:"fadeIn .2s ease",
+                  }}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                      background:"#fff", borderRadius:16, padding:20,
+                      maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
+                      position:"relative",
+                    }}>
+                      <button onClick={() => setConfIntroOpen(false)} style={{
+                        position:"absolute", top:12, right:12,
+                        width:36, height:36, borderRadius:"50%",
+                        background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
+                      }}>✕</button>
+                      <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>
+                        {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
+                      </h3>
+                      {confEmployer.pr && confEmployer.pr.trim() && (
+                        <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", marginBottom:16 }}>
+                          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                          <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.pr}</p>
+                        </div>
+                      )}
+                      <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                        {topics.map((t, i) => (
+                          <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
+                            <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <ConfCalendar />
-                  {/* 掲載前チェックリスト（「読ませたい塊」単位・4項目） */}
-                  <div style={{ marginBottom:6 }}>
+                );
+              })()}
+
+              {/* ═══ 掲載モーダル（下部ナビ「掲載する」から展開。チェックリスト・同意・掲載・注意文を右パネルから移植） ═══ */}
+              {publishModal && (
+                <div onClick={() => setPublishModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+                  <div onClick={(e) => e.stopPropagation()} style={{ width:"100%", maxWidth:520, maxHeight:"85vh", overflowY:"auto", background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 20px calc(20px + env(safe-area-inset-bottom, 0px))", boxSizing:"border-box" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                      <h3 className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:0 }}>掲載前の確認</h3>
+                      <button onClick={() => setPublishModal(false)} aria-label="閉じる" style={{ background:"none", border:"none", fontSize:22, color:"#717171", cursor:"pointer", padding:"0 4px", lineHeight:1 }}>×</button>
+                    </div>
                     <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
                     {[
                       "報酬・勤務時間・休憩の内容に間違いはありません",
@@ -8048,139 +8387,22 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         </span>
                       </label>
                     ))}
-                  </div>
-                  {/* 保存ボタン */}
-                  <button
-                    onClick={handleSaveJob}
-                    disabled={jobSaving || !publishChecks.every(Boolean)}
-                    className="btn-primary"
-                    style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginBottom:10, ...(!publishChecks.every(Boolean) ? { background:"#EBEBEB", color:"#717171" } : {}) }}
-                  >
-                    {jobSaving ? "保存中..." : "掲載する"}
-                  </button>
-                  {!publishChecks.every(Boolean) && (
-                    <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
-                  )}
-                  <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
-                  <button
-                    onClick={handleSaveDraft}
-                    disabled={draftSaving}
-                    className="f-sans"
-                    style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:14, marginBottom:8, background:"#F7F7F7", border:"1px solid #DDD", color:"#222", cursor:"pointer" }}
-                  >
-                  {draftSaving ? "保存中..." : "一時保存（作成中に残す）"}
-                  </button>
-                  {draftMsg && <p className="f-sans" style={{ fontSize:13, color:draftMsg.startsWith("保存に失敗") ? "#E24B4A" : "#00A86B", textAlign:"center", marginBottom:8 }}>{draftMsg}</p>}
-                  <p className="f-sans" style={{ fontSize:13, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", marginBottom:8 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
-                  {draftOverlay && (
-                    <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.92)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
-                      <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
-                      <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>保存しています…</p>
-                      <style>{`@keyframes cbspin { to { transform: rotate(360deg); } }`}</style>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* ═══ 大きな地図（2カラムの後・移動先） ═══ */}
-              <a href={buildGoogleMapsUrl(farmerRegion)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", color:"inherit", marginBottom:28, maxWidth:1000, margin:"0 auto 28px" }}>
-                <div className="lf-map-hero" style={{ width:"100%", maxWidth:870, height:479, margin:"0 auto", borderRadius:28, overflow:"hidden", position:"relative", border:"1px solid #EBEBEB", background:"linear-gradient(145deg,#D8EFE0 0%,#E8F4F0 35%,#F0EBD8 65%,#D8EFE0 100%)", boxShadow:"0 12px 36px rgba(0,0,0,0.08)", cursor:"pointer" }}>
-                  {/* 道路ダミー */}
-                  <div style={{ position:"absolute", top:"40%", left:0, right:0, height:4, background:"rgba(255,255,255,0.6)", transform:"rotate(-1.5deg)" }} />
-                  <div style={{ position:"absolute", top:"22%", left:"8%", right:"6%", height:3, background:"rgba(255,255,255,0.45)", transform:"rotate(6deg)" }} />
-                  <div style={{ position:"absolute", top:0, bottom:0, left:"36%", width:3, background:"rgba(255,255,255,0.4)" }} />
-                  <div style={{ position:"absolute", top:"58%", left:"55%", right:0, height:2, background:"rgba(255,255,255,0.35)", transform:"rotate(-4deg)" }} />
-                  {/* ラベル */}
-                  <div style={{ position:"absolute", top:14, left:14, padding:"4px 12px", background:"rgba(255,255,255,0.92)", borderRadius:12, backdropFilter:"blur(4px)" }}>
-                    <span className="f-sans" style={{ fontSize:10, color:"#555", fontWeight:600 }}>勤務地エリア</span>
-                  </div>
-                  {/* Google Maps バッジ */}
-                  <div style={{ position:"absolute", top:14, right:14, padding:"5px 12px", background:"rgba(255,255,255,0.95)", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>
-                    <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#00A86B" }}>Google Mapsで開く ↗</span>
-                  </div>
-                  {/* ピン */}
-                  <div style={{ position:"absolute", top:"46%", left:"50%", transform:"translate(-50%,-130%)", display:"flex", flexDirection:"column", alignItems:"center" }}>
-                    <div style={{ width:48, height:48, borderRadius:"50%", background:"#1a1a1a", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, boxShadow:"0 6px 20px rgba(0,0,0,0.3)" }}>📍</div>
-                    <div style={{ width:0, height:0, borderLeft:"7px solid transparent", borderRight:"7px solid transparent", borderTop:"10px solid #1a1a1a", marginTop:-1 }} />
-                  </div>
-                  {/* 地域ラベル */}
-                  <div style={{ position:"absolute", bottom:"26%", left:"50%", transform:"translateX(-50%)", padding:"8px 20px", background:"rgba(255,255,255,0.96)", borderRadius:16, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", whiteSpace:"nowrap", backdropFilter:"blur(6px)" }}>
-                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{farmerRegion ? `${farmerRegion} 周辺` : "地域未入力"}</p>
-                  </div>
-                  {/* 補助文 */}
-                  <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", padding:"3px 12px", background:"rgba(255,255,255,0.88)", borderRadius:10, whiteSpace:"nowrap" }}>
-                    <span className="f-sans" style={{ fontSize:9, color:"#B0B0B0" }}>タップするとGoogle Mapsで開きます　詳細住所は公開されません。</span>
+                    <button
+                      onClick={handleSaveJob}
+                      disabled={jobSaving || !publishChecks.every(Boolean)}
+                      className="btn-primary"
+                      style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginTop:12, marginBottom:10, ...(!publishChecks.every(Boolean) ? { background:"#EBEBEB", color:"#717171" } : {}) }}
+                    >
+                      {jobSaving ? "保存中..." : "同意して掲載する"}
+                    </button>
+                    {!publishChecks.every(Boolean) && (
+                      <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
+                    )}
+                    <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:0 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
                   </div>
                 </div>
-              </a>
-
-              {/* ═══ 詳細確認ミニ表（下部格下げ） ═══ */}
-              <div style={{ maxWidth:1120, margin:"24px auto 0" }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>危険情報</p>
-                  <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                </div>
-                {jobDangerTasks.some(t => t.label) && (
-                  <div style={{ marginTop:16 }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な作業</p>
-                    <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
-                      {jobDangerTasks.filter(t => t.label).map((task, i) => (
-                        <div key={i} style={{ flexShrink:0, width:200 }}>
-                          {task.photos && task.photos.length > 0 && (
-                            <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                              {task.photos.map((ph, k) => (
-                                <img key={k} src={ph.url} alt="" style={{ flex:1, width:0, height:110, objectFit:"cover", borderRadius:12, border:"1px solid #EEE" }} />
-                              ))}
-                            </div>
-                          )}
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
-                          <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{task.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {jobDangerPlaces.some(p => p.label) && (
-                  <div style={{ marginTop:16 }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>危険な場所</p>
-                    <div style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
-                      {jobDangerPlaces.filter(p => p.label).map((place, i) => (
-                        <div key={i} style={{ flexShrink:0, width:200 }}>
-                          {place.photos && place.photos.length > 0 && (
-                            <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                              {place.photos.map((ph, k) => (
-                                <img key={k} src={ph.url} alt="" style={{ flex:1, width:0, height:110, objectFit:"cover", borderRadius:12, border:"1px solid #EEE" }} />
-                              ))}
-                            </div>
-                          )}
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
-                          <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0, marginTop:2 }}>{place.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* レビュー（表示ダミーのみ・取引実績ベース・④⑤回答後に実装） */}
-                <div style={{ marginTop:24 }}>
-                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:10 }}>レビュー（公開時の表示イメージ）</p>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-                    <span className="f-mono" style={{ fontSize:32, fontWeight:800, color:"#222" }}>4.8</span>
-                    <span style={{ fontSize:16, color:"#00A86B", letterSpacing:1 }}>★★★★★</span>
-                    <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>24件のレビュー</span>
-                  </div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-                    {[
-                      { stars:5, text:"初めての収穫作業でしたが、ていねいに教えてもらえたので安心して取り組めました。" },
-                      { stars:4, text:"時間通りに終わり、当日中に報酬を支払ってもらえてとても助かりました。" },
-                    ].map((review, i) => (
-                      <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px" }}>
-                        <p style={{ margin:0, marginBottom:6, fontSize:13, color:"#00A86B", letterSpacing:1 }}>{"★".repeat(review.stars)}{"☆".repeat(5 - review.stars)}</p>
-                        <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0 }}>{review.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:10 }}>※ レビューは実際に働いた方のみ投稿できます。現在は表示イメージです。</p>
-                </div>
-              </div>
+              )}
             </>);
           })()}
 
@@ -8358,15 +8580,59 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       </div>
 
-      {/* 下部ナビ（ホーム・完了画面以外） */}
-      {step > 0 && step < TOTAL && step !== 12 && (
+      {/* 保存中オーバーレイ（下部ナビ「保存」・保存して終了 共通。どのstepでも表示。旧:確認ページ右パネル内） */}
+      {draftOverlay && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.92)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+          <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
+          <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>保存しています…</p>
+          <style>{`@keyframes cbspin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {/* 開催期間カレンダー📅：確認ページ下部ナビ右上の浮遊ボタン＋モーダル（求人詳細ページと同構造）。
+          詳細ページと違い日程未設定でも常に表示（農家の編集の場のため。モーダル内に日程入力への導線） */}
+      {isFarmer && step === 11 && !publishModal && (
+        <button className="calendar-fab calendar-fab-confirm" aria-label="作業日程カレンダーを見る" onClick={() => setConfCalOpen(true)}>📅</button>
+      )}
+      {confCalOpen && (
+        <div onClick={() => setConfCalOpen(false)} style={{
+          position:"fixed", inset:0, zIndex:10000,
+          background:"rgba(0,0,0,0.5)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          padding:16, animation:"fadeIn .2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:"#fff", borderRadius:16, padding:20,
+            maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
+            position:"relative",
+          }}>
+            <button onClick={() => setConfCalOpen(false)} style={{
+              position:"absolute", top:12, right:12,
+              width:36, height:36, borderRadius:"50%",
+              background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
+            }}>✕</button>
+            {/* 編集可能カレンダー（step4と同じ選択ロジック：1タップ目=開始日・2タップ目=終了日） */}
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 4px", paddingRight:40 }}>作業日程</h3>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 4px" }}>日付をタップすると選び直せます（1回目＝開始日・2回目＝終了日）</p>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color: jobDateStart ? "#00A86B" : "#B0B0B0", margin:"0 0 12px" }}>{jobDateLabel}</p>
+            <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={false} onSelect={(dt) => {
+              if (!jobDateStart || jobDateEnd) { setJobDateStart(dt); setJobDateEnd(null); }
+              else if (dt >= jobDateStart) { setJobDateEnd(dt); }
+              else { setJobDateStart(dt); setJobDateEnd(null); }
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* 下部ナビ（ホーム・完了画面以外。掲載モーダル展開中も非表示） */}
+      {step > 0 && step < TOTAL && step !== 12 && !publishModal && (
         <div style={embedded ? {
-          background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 20px",
+          background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 8px",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         } : {
           position:"fixed", bottom:0, left:0, right:0, background:"#fff",
           borderTop:"1px solid #EBEBEB",
-          padding:"16px 20px calc(16px + env(safe-area-inset-bottom, 0px))",
+          padding:"16px 8px calc(16px + env(safe-area-inset-bottom, 0px))",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         }}>
           <button onClick={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
@@ -8379,6 +8645,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               {!returnToConfirm && step >= 7 && step <= 10 && (
                 <button onClick={() => setStep(11)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0 }}>残りをスキップして確認へ →</button>
               )}
+            </div>
+          )}
+          {/* 確認ページ(step11)：下部ナビ右に「保存」＋「掲載する」（求人詳細の応募フッターと同型） */}
+          {isFarmer && step === 11 && (
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => setPublishModal(true)} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
             </div>
           )}
         </div>
@@ -10169,12 +10442,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     if (h === "profile/employer/applicants") return "applicants";
     if (h === "profile/employer/expired") return "expired";
     if (h === "profile/employer/calendar") return "calendar";
-    if (h === "profile/employer") return "profile";
+    if (h === "profile/employer") return "home"; // 入口はAirbnb型カードメニュー（2026-07-14）
     return null;
   };
   const [jobTab, setJobTab] = useState(() => {
     try { const j = hashToJobTab(); if (j) return j; } catch {}
-    return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "profile";
+    return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "home";
   });
   useEffect(() => {
     const onHash = () => { const j = hashToJobTab(); if (j) setJobTab(j); };
@@ -10187,11 +10460,14 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [workerProfiles, setWorkerProfiles] = useState({});
   const [draftsLoading, setDraftsLoading] = useState(true);
   const [profileMode, setProfileMode] = useState("preview");
+  const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（nickname/avatar_url）
   useEffect(() => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setDraftsLoading(false); return; }
+        const { data: epMini } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
+        if (epMini) setEmpMini(epMini);
         const { data, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).eq("status","draft").order("job_number",{ascending:false});
         if (!error && data) setDbDrafts(data);
         const { data: adata, error: aerror } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).in("status",["pending","open"]).order("job_number",{ascending:false});
@@ -10225,21 +10501,51 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   // ダミー撤去（憲法3条:表示にダミー禁止）。Phase2aでjobsテーブルから自分の求人を読む
   const jobList = [];
   return (
-    <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 20px 80px" }}>
+    <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 0 80px" }}>
+      {jobTab === "home" ? (
+        <>
+          {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
+               文字タブの羅列を廃止し、タップで各サブページへ ═══ */}
+          <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
+            <span>
+              <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>農家</span>
+            </span>
+          </button>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
+            {[
+              { e:"🌱", l:"作成中",     n:dbDrafts.length,     h:"/profile/employer/drafts" },
+              { e:"📣", l:"公開中",     n:dbActive.length,     h:"/profile/employer/active" },
+              { e:"🤝", l:"応募者",     n:dbApplicants.length, h:"/profile/employer/applicants" },
+              { e:"📅", l:"カレンダー", n:0,                   h:"/profile/employer/calendar" },
+            ].map(c => (
+              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                {c.n > 0 && (
+                  <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
+                )}
+                <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
+                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
+            <span>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく求人を出す</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
+            </span>
+          </button>
+          <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
+        </>
+      ) : (
+      <>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0 }}>雇う｜あなたの求人</h2>
+        <button onClick={()=>{ window.location.hash="/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0" }}>← 農家プロ</button>
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
-      <div style={{ display:"flex", gap:8, marginBottom:16, borderBottom:"1px solid #EEE", overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
-        {JOB_TABS.map(t => (
-          <button key={t.k} onClick={()=>{ const _map={profile:"/profile/employer/profile",draft:"/profile/employer/drafts",active:"/profile/employer/active",applicants:"/profile/employer/applicants",expired:"/profile/employer/expired",calendar:"/profile/employer/calendar"}; window.location.hash=(_map[t.k]||"/profile/employer"); }} className="f-sans" style={{
-            padding:"8px 4px", marginBottom:-1, background:"none", border:"none", cursor:"pointer",
-            fontSize:13, fontWeight: jobTab===t.k ? 700 : 400,
-            color: jobTab===t.k ? "#222" : "#999",
-            borderBottom: jobTab===t.k ? "2px solid var(--mode-accent, #00A86B)" : "2px solid transparent",
-          }}>{t.l}</button>
-        ))}
-      </div>
+      {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
+      <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap:20 }}>
       {jobTab==="profile" ? (
         profileMode === "edit" ? (
@@ -10384,6 +10690,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       ))}
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -11403,6 +11711,8 @@ export default function App(){
 
   // モバイル専用：下部バー＋浮遊ボタン「🌱 雇う」のスクロール連動格納。
   // 下方向に30px超スクロールで格納、上方向スクロール or 最上部付近で復帰。
+  // 最下部付近（残り64px以内）では方向に関係なく常に格納＝フッターがバーに隠れない。
+  // iOSのバウンスが上スクロール扱いになりバーが復帰してフッターを覆う問題への対処。
   // チャット画面(chatAppId)は入力欄との干渉を避けるため対象外。求人詳細の応募フッター
   // (.mobile-apply-bar)はこのクラスの対象外＝CSS側で触れていないので常時表示のまま。
   useEffect(() => {
@@ -11411,14 +11721,34 @@ export default function App(){
     const onScroll = () => {
       const y = window.scrollY;
       const diff = y - lastY;
+      // 🌱雇うFABのフッタードック：フッターが画面に見えている間はcb-fab-dockを立て、
+      // 見えている高さを--fab-dockに書く（CSS側でフッター上端+12pxに追従＝消えずに止まる）
+      const foot = document.querySelector('.site-footer-fixed');
+      if (foot) {
+        const overlap = window.innerHeight - foot.getBoundingClientRect().top;
+        if (overlap > 0) {
+          document.documentElement.style.setProperty('--fab-dock', overlap + 'px');
+          document.body.classList.add('cb-fab-dock');
+        } else {
+          document.body.classList.remove('cb-fab-dock');
+        }
+      }
       if (y < 40) { document.body.classList.remove('cb-scroll-hide'); lastY = y; return; }
+      // 最下部からの残り距離。64px以内=常に格納。180px以内=バウンス吸収帯（強フリックの
+      // 跳ね返りやSafariツールバー伸縮で一瞬上向き判定になっても復帰させず状態維持）。
+      // 180pxを超えて上に戻したときだけ通常の方向判定に戻る。
+      const fromBottom = document.documentElement.scrollHeight - window.innerHeight - y;
+      if (fromBottom <= 64) { document.body.classList.add('cb-scroll-hide'); lastY = y; return; }
+      if (fromBottom <= 180) { lastY = y; return; }
       if (diff > 30) { document.body.classList.add('cb-scroll-hide'); lastY = y; }
       else if (diff < -10) { document.body.classList.remove('cb-scroll-hide'); lastY = y; }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll(); // 初期位置（リロード直後に最下部にいる場合等）でもドック判定を反映
     return () => {
       window.removeEventListener('scroll', onScroll);
       document.body.classList.remove('cb-scroll-hide');
+      document.body.classList.remove('cb-fab-dock');
     };
   }, [chatAppId]);
 
@@ -11732,8 +12062,14 @@ const subDest=useCallback(async d=>{
         </div>
       </header>
 
-      {/* ── MOBILE BOTTOM NAV（最終形：☰＋5機能タブ。カレンダーが中央） ── */}
-      <header className="app-header app-header-mobile">
+      {/* ── MOBILE ☰浮遊ボタン（2026-07-13 下部バーから上部左へ移設。fixed＝スクロール追従） ── */}
+      <div className="app-header-mobile-float">
+        <button
+          onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); }}
+          aria-label="メニュー"
+          className={"app-header-mobile-float-btn" + (mobileMenuOpen ? " active" : "")}>
+          <span className="icon">☰</span>
+        </button>
         {mobileMenuOpen && (
           <div className="app-header-mobile-menu" onClick={(e)=>e.stopPropagation()}>
             <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">求人を出す</button>
@@ -11747,19 +12083,17 @@ const subDest=useCallback(async d=>{
             )}
           </div>
         )}
+      </div>
+
+      {/* ── MOBILE BOTTOM NAV（5機能タブ。カレンダーが中央。☰は上部浮遊へ移設済み） ── */}
+      <header className="app-header app-header-mobile">
         <div className="app-header-mobile-tabs">
-          <button
-            onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); }}
-            aria-label="メニュー"
-            className={"app-header-mobile-tab app-header-mobile-hamburger" + (mobileMenuOpen ? " active" : "")}>
-            <span className="icon">☰</span>
-          </button>
           {MOBILE_TABS.map(t => (
             <button key={t.k}
               onClick={() => { setMobileMenuOpen(false); setTab(t.k); window.location.hash = "/" + t.k; }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
               <span className="icon">
-                {t.k === "profile" && me ? <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={20} /> : t.icon}
+                {t.k === "profile" && me ? <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={26} /> : t.icon}
               </span>
               <span className="label">{t.label}</span>
             </button>
@@ -11869,7 +12203,16 @@ const subDest=useCallback(async d=>{
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
           onApproveFarmer={appFarmer} onRejectFarmer={rejFarmer}
-          onJump={(t, dj) => { if (dj) { localStorage.setItem('devJump', JSON.stringify(dj)); setShowDevJump(true); } setTab(t); }}
+          onJump={(t, dj) => {
+            if (dj) {
+              // LandingFlowジャンプは通常フローと同じレール(#/work/new/{step}+showJobPost)に乗せる。
+              // 旧実装のsetTab("labor")+showDevJumpはlaborが部屋番号(TAB_URL_KEYS)に無いため、
+              // リロード時にreadHashTabが迷子扱い→searchへ落ちていた（2026-07-14修正）
+              localStorage.setItem('devJump', JSON.stringify(dj));
+              setShowJobPost(true);
+              window.location.hash = (dj.step >= 1 && dj.step <= 11) ? "/work/new/" + dj.step : "/work/new";
+            } else { setTab(t); }
+          }}
           onShowAccountForm={() => setNeedsAccountHolder(true)}/>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
