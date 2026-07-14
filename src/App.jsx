@@ -4888,6 +4888,86 @@ const WORKER_QA_QUESTIONS = [
     "このバイトで得たいことは？",
   ]},
 ];
+
+// 15秒カード用プリセット（2026-07-14たきと判断でCLAUDE.md許可リストに追加。詳細はCLAUDE.md参照）
+const WORK_INTENSITY_OPTIONS = ["軽めの作業希望", "どちらでも", "力仕事もOK"];
+const INTEREST_OPTIONS = ["釣り","料理","ランニング","筋トレ","読書","音楽","映画","ゲーム","旅行","キャンプ","園芸","DIY","動物","写真","スポーツ観戦"];
+const LANGUAGE_OPTIONS = ["日本語","英語","中国語","ベトナム語","インドネシア語","タガログ語","ポルトガル語","その他"];
+
+// 「chitose-bank利用〇年〇ヶ月」用。開始日からの経過を年月で返す
+function tenureLabel(dateStr) {
+  const start = new Date(dateStr);
+  const now = new Date();
+  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  if (now.getDate() < start.getDate()) months--;
+  if (months < 0) months = 0;
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (years === 0 && rem === 0) return "今月から";
+  if (years === 0) return `${rem}ヶ月`;
+  if (rem === 0) return `${years}年`;
+  return `${years}年${rem}ヶ月`;
+}
+
+// 「✓ 本人確認済み（YYYY年M月）」用
+function yearMonthLabel(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月`;
+}
+
+// 15秒カード（プレビュー最上部・農家側応募者カードで共通利用）。値が無い項目は非表示
+function WorkerTrustCard({ profile, trust }) {
+  if (!profile) return null;
+  const badges = [
+    profile.transport && { icon:"🚗", text: profile.transport },
+    profile.farm_experience && { icon:"🌾", text: profile.farm_experience },
+    profile.physical_level && { icon:"💪", text: profile.physical_level },
+  ].filter(Boolean);
+  const tags = [...(profile.interests || []), ...(profile.languages || [])];
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+        <div style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
+        </div>
+        <div style={{ minWidth:0 }}>
+          <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{profile.nickname || "名前未設定"}</p>
+          {profile.residence_city && (
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>📍{profile.residence_city}</p>
+          )}
+        </div>
+      </div>
+      {(trust?.joined_at || trust?.verified_at) && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:10 }}>
+          {trust.joined_at && (
+            <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{tenureLabel(trust.joined_at)}</span>
+          )}
+          {trust.verified_at && (
+            <span className="f-sans" style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
+          )}
+        </div>
+      )}
+      {badges.length > 0 && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
+          {badges.map((b,i) => (
+            <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>{b.icon} {b.text}</span>
+          ))}
+        </div>
+      )}
+      {tags.length > 0 && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
+          {tags.map((t,i) => (
+            <span key={i} className="f-sans" style={{ fontSize:11, color:"#717171", background:"#F0F7F4", borderRadius:20, padding:"3px 10px" }}>#{t}</span>
+          ))}
+        </div>
+      )}
+      {profile.pr && (
+        <p className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{profile.pr}</p>
+      )}
+    </div>
+  );
+}
+
 function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
@@ -4896,6 +4976,12 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [activeQ, setActiveQ] = useState(null); // 現在テキストエリアを開いている問い
   const [qaDraft, setQaDraft] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [residenceCity, setResidenceCity] = useState("");
+  const [transport, setTransport] = useState("");
+  const [farmExperience, setFarmExperience] = useState("");
+  const [physicalLevel, setPhysicalLevel] = useState("");
+  const [interests, setInterests] = useState([]);
+  const [languages, setLanguages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -4911,11 +4997,23 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           setPr(data.pr || "");
           setAvatarUrl(data.avatar_url || "");
           setPrQa(Array.isArray(data.pr_qa) ? data.pr_qa : []);
+          setResidenceCity(data.residence_city || "");
+          setTransport(data.transport || "");
+          setFarmExperience(data.farm_experience || "");
+          setPhysicalLevel(data.physical_level || "");
+          setInterests(Array.isArray(data.interests) ? data.interests : []);
+          setLanguages(Array.isArray(data.languages) ? data.languages : []);
         }
       } catch {}
       setLoading(false);
     })();
   }, []);
+  const toggleInterest = (v) => setInterests(prev => {
+    if (prev.includes(v)) return prev.filter(x => x !== v);
+    if (prev.length >= 3) return prev;
+    return [...prev, v];
+  });
+  const toggleLanguage = (v) => setLanguages(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const qaAnswerFor = (q) => prQa.find(x => x.q === q)?.a || "";
   const openQuestion = (q) => { setActiveQ(q); setQaDraft(qaAnswerFor(q)); };
   const saveQaAnswer = () => {
@@ -5009,7 +5107,11 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
-      const { error } = await supabase.from("worker_profiles").upsert({ auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(), pr_qa: prQa, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      const { error } = await supabase.from("worker_profiles").upsert({
+        auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(), pr_qa: prQa,
+        residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
+        interests, languages, updated_at: new Date().toISOString(),
+      }, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) {
         setSaved(true);
@@ -5041,6 +5143,47 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </div>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ニックネーム</label>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：たき" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>居住地</label>
+      <input value={residenceCity} onChange={e=>setResidenceCity(e.target.value)} placeholder="例：吉野川市（市町村まで）" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>移動手段</label>
+      <LFPillSelect options={["車","バイク","自転車","公共交通"]} value={transport} onSelect={setTransport} />
+
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>農業就労の経験</label>
+      <LFPillSelect options={["未経験","経験あり"]} value={farmExperience} onSelect={setFarmExperience} />
+
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>希望する作業の強さ</label>
+      <LFPillSelect options={WORK_INTENSITY_OPTIONS} value={physicalLevel} onSelect={setPhysicalLevel} />
+
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:16 }}>趣味（最大3つ）</label>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
+        {INTEREST_OPTIONS.map(v => {
+          const selected = interests.includes(v);
+          const disabled = !selected && interests.length >= 3;
+          return (
+            <button key={v} type="button" onClick={()=>toggleInterest(v)} disabled={disabled} className="f-sans" style={{
+              padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor: disabled ? "default" : "pointer",
+              border:"1px solid " + (selected ? "#00A86B" : "#EBEBEB"),
+              background: selected ? "#E6F7EF" : "#F7F7F7",
+              color: selected ? "#00A86B" : (disabled ? "#D0D0D0" : "#717171"),
+            }}>{v}</button>
+          );
+        })}
+      </div>
+
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>やり取りできる言語</label>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
+        {LANGUAGE_OPTIONS.map(v => (
+          <button key={v} type="button" onClick={()=>toggleLanguage(v)} className="f-sans" style={{
+            padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+            border:"1px solid " + (languages.includes(v) ? "#00A86B" : "#EBEBEB"),
+            background: languages.includes(v) ? "#E6F7EF" : "#F7F7F7",
+            color: languages.includes(v) ? "#00A86B" : "#717171",
+          }}>{v}</button>
+        ))}
+      </div>
+
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>自己紹介・PR</label>
       <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
         {PR_PROMPTS.map((p, i) => (
@@ -5142,10 +5285,9 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 }
 
 function WorkerProfilePreview({ me, onEdit }) {
-  const [nickname, setNickname] = useState("");
-  const [pr, setPr] = useState("");
-  const [prQa, setPrQa] = useState([]);
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [profile, setProfile] = useState(null);
+  const [trust, setTrust] = useState(null);
+  const [wantAgainCount, setWantAgainCount] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     (async () => {
@@ -5153,18 +5295,18 @@ function WorkerProfilePreview({ me, onEdit }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         const { data } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (data) {
-          setNickname(data.nickname || "");
-          setPr(data.pr || "");
-          setAvatarUrl(data.avatar_url || "");
-          setPrQa(Array.isArray(data.pr_qa) ? data.pr_qa : []);
-        }
+        if (data) setProfile(data);
+        const { data: ah } = await supabase.from("account_holders").select("created_at").eq("auth_id", session.user.id).maybeSingle();
+        setTrust({ joined_at: session.user.created_at, verified_at: ah?.created_at || null });
+        const { data: wac } = await supabase.rpc('worker_want_again_count', { p_worker_id: session.user.id });
+        if (wac && wac.ok) setWantAgainCount(wac.want_again_count);
       } catch {}
       setLoading(false);
     })();
   }, []);
   if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
-  const isEmpty = !nickname && !pr && !avatarUrl && prQa.length === 0;
+  const prQa = Array.isArray(profile?.pr_qa) ? profile.pr_qa : [];
+  const isEmpty = !profile || (!profile.nickname && !profile.pr && !profile.avatar_url && prQa.length === 0);
   return (
     <div>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>応募したとき、農家にこのように表示されます。</p>
@@ -5177,17 +5319,9 @@ function WorkerProfilePreview({ me, onEdit }) {
         </div>
       ) : (
         <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom: (pr || prQa.length > 0) ? 16 : 0 }}>
-            <div style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
-              <Avatar url={avatarUrl} name={nickname} size={56} />
-            </div>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{nickname || "名前未設定"}</p>
-          </div>
-          {pr && (
-            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", marginBottom: prQa.length > 0 ? 16 : 0 }}>{pr}</p>
-          )}
+          <WorkerTrustCard profile={profile} trust={trust} />
           {prQa.length > 0 && (
-            <div style={{ display:"grid", gap:10 }}>
+            <div style={{ display:"grid", gap:10, marginTop:16 }}>
               {prQa.map(({ q, a }) => (
                 <div key={q}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
@@ -5195,6 +5329,18 @@ function WorkerProfilePreview({ me, onEdit }) {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+      {/* 実績・評価（Part3・席の確保） */}
+      {!isEmpty && (
+        <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", marginTop:16 }}>
+          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:10, letterSpacing:".06em" }}>実績・評価</p>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>
+            まだ勤務実績はありません。初回勤務後から、労働時間・作業・出勤状況が記録されます。
+          </p>
+          {wantAgainCount > 0 && (
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"10px 0 0" }}>🌟また呼びたい ×{wantAgainCount}</p>
           )}
         </div>
       )}
@@ -10640,6 +10786,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [dbActive, setDbActive] = useState([]);
   const [dbApplicants, setDbApplicants] = useState([]);
   const [workerProfiles, setWorkerProfiles] = useState({});
+  const [workerTrust, setWorkerTrust] = useState({}); // { [worker_id]: {joined_at, verified_at} }
   const [draftsLoading, setDraftsLoading] = useState(true);
   const [profileMode, setProfileMode] = useState("preview");
   const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（nickname/avatar_url）
@@ -10659,12 +10806,16 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           setDbApplicants(appData);
           const workerIds = [...new Set(appData.map(a => a.worker_id).filter(Boolean))];
           if (workerIds.length > 0) {
-            const { data: wpData, error: wpErr } = await supabase.from("worker_profiles").select("auth_id,nickname,pr,pr_qa,avatar_url").in("auth_id", workerIds);
+            const { data: wpData, error: wpErr } = await supabase.from("worker_profiles").select("*").in("auth_id", workerIds);
             if (!wpErr && wpData) {
               const map = {};
               wpData.forEach(wp => { map[wp.auth_id] = wp; });
               setWorkerProfiles(map);
             }
+            const trustResults = await Promise.all(workerIds.map(id => supabase.rpc('worker_trust_info', { p_worker_id: id })));
+            const trustMap = {};
+            trustResults.forEach((r, i) => { if (r.data && r.data.ok) trustMap[workerIds[i]] = r.data; });
+            setWorkerTrust(trustMap);
           }
         }
       } catch {}
@@ -10873,16 +11024,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:badgeColor.bg, color:badgeColor.fg }}>
                 {a.status==="applied" ? "承認待ち" : a.status==="approved" ? "承認済み" : a.status==="rejected" ? "見送り" : a.status}
               </div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                <div style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
-                  <Avatar url={wp?.avatar_url} name={wp?.nickname} size={36} />
-                </div>
-                <div style={{ minWidth:0 }}>
-                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>{wp?.nickname || "名前未設定"}</p>
-                  {wp?.pr && (
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{wp.pr}</p>
-                  )}
-                </div>
+              <div style={{ marginBottom:10 }}>
+                <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
               </div>
               {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (
                 <div style={{ display:"grid", gap:6, marginBottom:10 }}>
