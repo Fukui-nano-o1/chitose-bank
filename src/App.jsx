@@ -5825,9 +5825,12 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     return "home"; // 入口はAirbnb型カードメニュー（2026-07-14・農家プロと同構造）
   };
   const [wTab, setWTab] = useState(() => { try { return hashToWTab(); } catch { return "home"; } });
+  // 雇う/働くトグルは両面の入口(カードメニュー)だけ表示。編集・サブページでは邪魔なので非表示（2026-07-14）
+  const isEmployerHome = () => window.location.hash.replace(/^#\/?/,"") === "profile/employer";
+  const [eHome, setEHome] = useState(() => { try { return isEmployerHome(); } catch { return false; } });
   const [wProfileMode, setWProfileMode] = useState("preview");
   useEffect(() => {
-    const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); };
+    const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); setEHome(isEmployerHome()); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -5873,12 +5876,15 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   }, []);
   return (
     <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
-      {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ) */}
-      <button onClick={()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; }} className="profile-employer-fab f-sans">
-        {pTab === "employer"
-          ? "🤝 働く（あなたの応募）"
-          : (hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う")}
-      </button>
+      {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
+          表示は両面の入口(カードメニュー)のみ＝編集・サブページでは非表示（2026-07-14） */}
+      {(pTab === "employer" ? eHome : wTab === "home") && (
+        <button onClick={()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; }} className="profile-employer-fab f-sans">
+          {pTab === "employer"
+            ? "🤝 働く（あなたの応募）"
+            : (hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う")}
+        </button>
+      )}
       {pTab === "worker" ? (
         wTab === "home" ? (
           <>
