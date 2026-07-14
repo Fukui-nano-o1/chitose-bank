@@ -603,8 +603,8 @@ input:focus { outline: none; }
   .profile-employer-fab {
     display: block;
     position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
+    /* 2026-07-14: 中央寄せ→右寄せ。左下の浮遊☰と同列（左=☰／右=トグル・同じ高さ） */
+    right: 12px;
     bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
     z-index: 60;
     background: #00A86B;
@@ -623,13 +623,13 @@ input:focus { outline: none; }
   /* スクロール連動の自動格納（Part C）。下部バーと同時に沈む。
      沈む量=浮遊位置(バー64px+隙間12px+セーフエリア)+自身の高さ(100%)。
      旧150%では下がりきらず画面内に残りフッターを覆っていた */
-  body.cb-scroll-hide .profile-employer-fab { transform: translateX(-50%) translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
+  body.cb-scroll-hide .profile-employer-fab { transform: translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
   /* フッタードック：フッターが画面に入っている間(cb-fab-dock)は沈み込みを打ち消し、
      フッター上端の12px上に追従して止まる（消えない）。--fab-dockはJS側でスクロール毎に
      フッターの見えている高さ(px)を設定。max()で通常の浮遊位置より下には行かせない。
      このルールは直前のcb-scroll-hide沈み込みより後に書くこと（同スペシフィシティ・後勝ち） */
   body.cb-fab-dock .profile-employer-fab {
-    transform: translateX(-50%);
+    transform: none;
     bottom: max(calc(64px + 12px + env(safe-area-inset-bottom, 0px)), calc(var(--fab-dock, 0px) + 12px));
   }
 }
