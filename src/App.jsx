@@ -12469,6 +12469,7 @@ export default function App(){
   useEffect(() => {
     const onHash = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, "");
+      setEmpCtx(rawHash.startsWith("profile/employer")); // ヘッダーアイコンの働き手/雇い手切替
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
       if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
       setShowApplyDone(rawHash === "apply/done");
@@ -12507,20 +12508,24 @@ export default function App(){
   const [loaded,setLoaded]=useState(false);
   const [badgeCnt,setBadgeCnt]=useState(0);
   const [me,setMe]=useState(null);
-  // ヘッダー（PC・モバイル下部バー）共通のアバター表示規則：worker_profilesのavatar_url＋nicknameに一本化。
-  // ログイン状態(me.id)が変わるたびに1回取得。編集画面での変更はonAvatarChangeで即時反映（再取得を待たない）。
-  const [meAvatar,setMeAvatar]=useState({ url:"", name:"" });
+  // ヘッダー（PC・モバイル下部バー）共通のアバター表示規則（2026-07-14改）：
+  // 働き手=worker_profiles／雇い手空間(#/profile/employer*)の表示中=employer_profiles でアイコンを分ける。
+  // 取得はme.id変化と雇い手空間の出入り(empCtx)ごと。編集画面での変更はonAvatarChangeで即時反映（マージ更新）。
+  const [meAvatar,setMeAvatar]=useState({ url:"", name:"", empUrl:"", empName:"" });
+  const isEmpCtxHash = () => window.location.hash.replace(/^#\/?/, "").startsWith("profile/employer");
+  const [empCtx, setEmpCtx] = useState(() => { try { return isEmpCtxHash(); } catch { return false; } });
   useEffect(() => {
-    if (!me?.id) { setMeAvatar({ url:"", name:"" }); return; }
+    if (!me?.id) { setMeAvatar({ url:"", name:"", empUrl:"", empName:"" }); return; }
     let cancelled = false;
     (async () => {
       try {
         const { data } = await supabase.from("worker_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle();
-        if (!cancelled) setMeAvatar({ url: data?.avatar_url || "", name: data?.nickname || me.name || "" });
+        const { data: ep } = await supabase.from("employer_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle();
+        if (!cancelled) setMeAvatar({ url: data?.avatar_url || "", name: data?.nickname || me.name || "", empUrl: ep?.avatar_url || "", empName: ep?.nickname || me.name || "" });
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [me?.id]);
+  }, [me?.id, empCtx]);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
   const [authV,setAuthV]=useState("login");
@@ -12904,7 +12909,7 @@ const subDest=useCallback(async d=>{
                      padding:"6px 8px 6px 12px", fontFamily:"inherit" }}>
             <span style={{ fontSize:14, lineHeight:1 }}>☰</span>
             <span style={{ width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-              <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={28} />
+              <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={28} />
             </span>
           </button>
 
@@ -12994,7 +12999,7 @@ const subDest=useCallback(async d=>{
               onClick={() => { setMobileMenuOpen(false); setTab(t.k); window.location.hash = "/" + t.k; }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
               <span className="icon">
-                {t.k === "profile" && me ? <Avatar url={meAvatar.url} name={meAvatar.name || me?.name} size={26} /> : t.icon}
+                {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} /> : t.icon}
               </span>
               <span className="label">{t.label}</span>
             </button>
@@ -13056,7 +13061,7 @@ const subDest=useCallback(async d=>{
           ? <ProfileHub me={me}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
-              onAvatarChange={(a)=>setMeAvatar(a)} />
+              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="chats"&&(me
           ? <ChatList />
