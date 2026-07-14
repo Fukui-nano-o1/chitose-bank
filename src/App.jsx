@@ -760,6 +760,30 @@ input:focus { outline: none; }
   body:has(.mobile-apply-bar) .app-header-mobile { display: none; }
 }
 
+/* ── 開催期間カレンダー📅の浮遊ボタン（詳細=応募フッター右上／確認ページ=下部ナビ右上。両ページ同構造） ── */
+.calendar-fab {
+  position: fixed;
+  right: 16px;
+  z-index: 600;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #EBEBEB;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+/* 詳細ページ用：応募フッター(スマホのみ)の右上に浮遊。PCは地図下カレンダーがあるので非表示 */
+.calendar-fab-detail { display: none; bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 759px) { .calendar-fab-detail { display: flex; } }
+/* 確認ページ用：下部ナビ(戻る/保存/掲載する)の右上に浮遊 */
+.calendar-fab-confirm { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+
 /* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
 @media (max-width: 759px) {
   .job-detail-back-btn { margin-bottom: 8px !important; }
@@ -6100,17 +6124,6 @@ function JobSearchMapView({ onRegister, me }) {
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
             <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              {selectedJob.dateStart && (
-                <button
-                  onClick={() => setShowCalendarModal(true)}
-                  aria-label="開催期間カレンダーを見る"
-                  style={{
-                    width:44, height:44, borderRadius:12, border:"1px solid #EBEBEB",
-                    background:"#F7F7F7", fontSize:18, cursor:"pointer", flexShrink:0,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                  }}
-                >📅</button>
-              )}
               <button
                 onClick={applyBtnOnClick}
                 disabled={applying || applyBtnDisabled}
@@ -6120,6 +6133,11 @@ function JobSearchMapView({ onRegister, me }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 開催期間カレンダー📅：応募フッター右上の浮遊ボタン（旧:フッター内。確認ページと同構造） */}
+      {selectedJob && selectedJob.dateStart && (
+        <button className="calendar-fab calendar-fab-detail" aria-label="開催期間カレンダーを見る" onClick={() => setShowCalendarModal(true)}>📅</button>
       )}
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
@@ -6667,6 +6685,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
   const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
   const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
+  const [confCalOpen, setConfCalOpen] = useState(false); // 確認ページ用：📅浮遊ボタン→作業日程カレンダーモーダル（詳細ページと同構造）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
@@ -8275,6 +8294,32 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
           <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>保存しています…</p>
           <style>{`@keyframes cbspin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {/* 開催期間カレンダー📅：確認ページ下部ナビ右上の浮遊ボタン＋モーダル（求人詳細ページと同構造） */}
+      {isFarmer && step === 11 && jobDateStart && !publishModal && (
+        <button className="calendar-fab calendar-fab-confirm" aria-label="作業日程カレンダーを見る" onClick={() => setConfCalOpen(true)}>📅</button>
+      )}
+      {confCalOpen && jobDateStart && (
+        <div onClick={() => setConfCalOpen(false)} style={{
+          position:"fixed", inset:0, zIndex:10000,
+          background:"rgba(0,0,0,0.5)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          padding:16, animation:"fadeIn .2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:"#fff", borderRadius:16, padding:20,
+            maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
+            position:"relative",
+          }}>
+            <button onClick={() => setConfCalOpen(false)} style={{
+              position:"absolute", top:12, right:12,
+              width:36, height:36, borderRadius:"50%",
+              background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
+            }}>✕</button>
+            <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} />
+          </div>
         </div>
       )}
 
