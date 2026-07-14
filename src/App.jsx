@@ -11995,6 +11995,7 @@ const PRIVACY_SECTIONS = [
       "求職情報として、経歴および希望を取得する。",
       "労働実績情報として、本サービスを通じた出退勤の記録、労働の件数、労働の時間、作物別および作業別の割合、再指名の状況を取得する。",
       "利用状況として、端末に保存する識別情報および操作の記録を取得する。",
+      "サービスの改善のため、ページの閲覧履歴（どのページをいつ表示したか）を記録します。入力の途中の内容やチャットの本文を、この記録に含めることはありません。",
     ]},
     { id:"privacy-3", title:"3. 利用目的", body:[
       "当社は、取得した個人情報を、次の目的のために利用する。",
@@ -12803,6 +12804,20 @@ export default function App(){
     })();
     return () => { cancelled = true; };
   }, [me?.id, empCtx]);
+  // 行動計測：ページ遷移ロガー（ログイン済みのみ・page_eventsへfire-and-forget）。入力内容・キー操作は一切収集しない
+  const lastLoggedHashRef = useRef(null);
+  useEffect(() => {
+    if (!me?.id) return;
+    const logPageEvent = () => {
+      const h = window.location.hash || "#/";
+      if (h === lastLoggedHashRef.current) return; // 連続同一hashはskip
+      lastLoggedHashRef.current = h;
+      supabase.from("page_events").insert({ auth_id: me.id, page_hash: h }).then(() => {}, () => {});
+    };
+    logPageEvent();
+    window.addEventListener("hashchange", logPageEvent);
+    return () => window.removeEventListener("hashchange", logPageEvent);
+  }, [me?.id]);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
   const [authV,setAuthV]=useState("login");
