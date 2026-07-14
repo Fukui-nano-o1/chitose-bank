@@ -12133,90 +12133,90 @@ function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEditProfi
 }
 
 // ── ヘルプセンター（#/help・#/help/{chapter}） ──────────────────
-// HELP_CONTENT: 章キー→{num,title,items:[{label,body,imageSlot:null}]}。
-// imageSlotは常にnull（スクショは未撮影）。将来URL文字列を入れれば画像表示に切替可能な設計
+// HELP_CONTENT: 章キー→{num,title,items:[{label,body}]}。
+// 画像はここに持たず、help_imagesテーブルからslot_key(章キー+配列index)で引く（管理者アップロード・スロット制）
 const HELP_CHAPTER_KEYS = ["about","farmer","worker","mails","info","faq"];
 const HELP_CONTENT = {
   about: {
     num: "第1章", title: "chitose-bankとは",
     items: [
-      { label: null, body: "chitose-bankは、農家と働き手が直接つながる場です。", imageSlot: null },
-      { label: "3つの原則", body: "① 連絡手段は縛らない\n② 成功報酬は永久に受け取らない\n③ 採否に関与しない", imageSlot: null },
-      { label: null, body: "運営は、場の提供と安全の確認だけを行います。", imageSlot: null },
+      { label: null, body: "chitose-bankは、農家と働き手が直接つながる場です。" },
+      { label: "3つの原則", body: "① 連絡手段は縛らない\n② 成功報酬は永久に受け取らない\n③ 採否に関与しない" },
+      { label: null, body: "運営は、場の提供と安全の確認だけを行います。" },
     ],
   },
   farmer: {
     num: "第2章", title: "農家の流れ",
     items: [
-      { label: "① 求人を書く", body: "途中保存ができるので、時間があるときに少しずつ書き進められます。", imageSlot: null },
-      { label: "② 掲載前の4つの確認", body: "掲載前に、内容に不備がないか4つの項目を確認します。", imageSlot: null },
-      { label: "③ 運営の審査", body: "運営が内容を確認します。", imageSlot: null },
-      { label: "④ 公開", body: "審査を通過すると、求人が公開されます。", imageSlot: null },
-      { label: "⑤ 応募メールが届く", body: "働き手から応募があると、メールで知らされます。", imageSlot: null },
-      { label: "⑥ 承認", body: "応募者のプロフィールを見て、承認するか決めます。", imageSlot: null },
-      { label: "⑦ チャットと確認カードで打合せ", body: "承認後、チャットと確認カードで日程や集合場所などを打ち合わせます。", imageSlot: null },
-      { label: "⑧ 保険の準備", body: "作業当日に備えて、保険を準備します。", imageSlot: null },
-      { label: "⑨ 当日「開始を確認」", body: "働き手が作業を開始したら、「開始を確認」を押します。", imageSlot: null },
-      { label: "⑩ 作業後「完了して評価する」", body: "働き手が来たか確認し、2タップで評価します。", imageSlot: null },
-      { label: "満額保証型とは", body: "満額保証型（デフォルト）では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。", imageSlot: null },
+      { label: "① 求人を書く", body: "途中保存ができるので、時間があるときに少しずつ書き進められます。" },
+      { label: "② 掲載前の4つの確認", body: "掲載前に、内容に不備がないか4つの項目を確認します。" },
+      { label: "③ 運営の審査", body: "運営が内容を確認します。" },
+      { label: "④ 公開", body: "審査を通過すると、求人が公開されます。" },
+      { label: "⑤ 応募メールが届く", body: "働き手から応募があると、メールで知らされます。" },
+      { label: "⑥ 承認", body: "応募者のプロフィールを見て、承認するか決めます。" },
+      { label: "⑦ チャットと確認カードで打合せ", body: "承認後、チャットと確認カードで日程や集合場所などを打ち合わせます。" },
+      { label: "⑧ 保険の準備", body: "作業当日に備えて、保険を準備します。" },
+      { label: "⑨ 当日「開始を確認」", body: "働き手が作業を開始したら、「開始を確認」を押します。" },
+      { label: "⑩ 作業後「完了して評価する」", body: "働き手が来たか確認し、2タップで評価します。" },
+      { label: "満額保証型とは", body: "満額保証型（デフォルト）では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。" },
     ],
   },
   worker: {
     num: "第3章", title: "働き手の流れ",
     items: [
-      { label: "① 登録", body: "メールアドレスで登録します。", imageSlot: null },
-      { label: "② 本人確認", body: "本人確認情報を入力します。", imageSlot: null },
-      { label: "③ プロフィール", body: "書いた分だけ農家に伝わります。自己紹介（自由記述）は運営の確認後に公開されます（最大2日）。", imageSlot: null },
-      { label: "④ 応募", body: "気になる求人に応募します。", imageSlot: null },
-      { label: "⑤ 承認メール", body: "農家が承認すると、メールで知らされます。", imageSlot: null },
-      { label: "⑥ チャット・確認カード", body: "チャットと確認カードで、日程や集合場所などを打ち合わせます。", imageSlot: null },
-      { label: "⑦ 当日「▶ 作業を開始する」", body: "作業を始めるときに押します。", imageSlot: null },
-      { label: "⑧ 終了後「✓ 終了を確認」", body: "作業が終わったら押し、3タップで評価します。", imageSlot: null },
+      { label: "① 登録", body: "メールアドレスで登録します。" },
+      { label: "② 本人確認", body: "本人確認情報を入力します。" },
+      { label: "③ プロフィール", body: "書いた分だけ農家に伝わります。自己紹介（自由記述）は運営の確認後に公開されます（最大2日）。" },
+      { label: "④ 応募", body: "気になる求人に応募します。" },
+      { label: "⑤ 承認メール", body: "農家が承認すると、メールで知らされます。" },
+      { label: "⑥ チャット・確認カード", body: "チャットと確認カードで、日程や集合場所などを打ち合わせます。" },
+      { label: "⑦ 当日「▶ 作業を開始する」", body: "作業を始めるときに押します。" },
+      { label: "⑧ 終了後「✓ 終了を確認」", body: "作業が終わったら押し、3タップで評価します。" },
     ],
   },
   mails: {
     num: "第4章", title: "届くメール一覧",
     items: [
-      { label: "応募あり", body: "いつ：働き手が応募した時／誰に：農家／内容：応募者カードつきの通知", imageSlot: null },
-      { label: "承認のお知らせ", body: "いつ：農家が承認した時／誰に：働き手", imageSlot: null },
-      { label: "新着メッセージ", body: "いつ：チャットにメッセージが届いた時（30分に1通まで）／誰に：受信した側", imageSlot: null },
-      { label: "求人修正のお願い", body: "いつ：審査で差し戻しになった時／誰に：農家", imageSlot: null },
-      { label: "保険のご準備を", body: "いつ：承認後・作業日の3日前・前日17時／誰に：農家", imageSlot: null },
-      { label: "保険準備完了", body: "いつ：農家が保険準備を確認した時／誰に：働き手", imageSlot: null },
-      { label: "まもなく作業開始", body: "いつ：作業開始の1時間前／誰に：農家・働き手の双方／内容：緊急連絡ボタンつき", imageSlot: null },
-      { label: "作業は終わりましたか", body: "いつ：作業日翌朝9時（最大2回）／誰に：農家", imageSlot: null },
-      { label: "評価のお願い", body: "いつ：作業が完了した時／誰に：働き手", imageSlot: null },
-      { label: "欠勤の記録", body: "いつ：農家が欠勤を記録した時／誰に：働き手／内容：72時間以内に異議申立ができます", imageSlot: null },
-      { label: "緊急連絡", body: "いつ：遅刻・欠勤・中止・延期の連絡があった時／誰に：相手方（即時）", imageSlot: null },
+      { label: "応募あり", body: "いつ：働き手が応募した時／誰に：農家／内容：応募者カードつきの通知" },
+      { label: "承認のお知らせ", body: "いつ：農家が承認した時／誰に：働き手" },
+      { label: "新着メッセージ", body: "いつ：チャットにメッセージが届いた時（30分に1通まで）／誰に：受信した側" },
+      { label: "求人修正のお願い", body: "いつ：審査で差し戻しになった時／誰に：農家" },
+      { label: "保険のご準備を", body: "いつ：承認後・作業日の3日前・前日17時／誰に：農家" },
+      { label: "保険準備完了", body: "いつ：農家が保険準備を確認した時／誰に：働き手" },
+      { label: "まもなく作業開始", body: "いつ：作業開始の1時間前／誰に：農家・働き手の双方／内容：緊急連絡ボタンつき" },
+      { label: "作業は終わりましたか", body: "いつ：作業日翌朝9時（最大2回）／誰に：農家" },
+      { label: "評価のお願い", body: "いつ：作業が完了した時／誰に：働き手" },
+      { label: "欠勤の記録", body: "いつ：農家が欠勤を記録した時／誰に：働き手／内容：72時間以内に異議申立ができます" },
+      { label: "緊急連絡", body: "いつ：遅刻・欠勤・中止・延期の連絡があった時／誰に：相手方（即時）" },
     ],
   },
   info: {
     num: "第5章", title: "あなたの情報の扱い",
     items: [
-      { label: "氏名・住所・生年月日・電話", body: "運営のみが保管します。画面には「✓ 本人確認済み」バッジだけが表示されます。", imageSlot: null },
-      { label: "ニックネーム・写真・自己紹介・Q&A・タグ", body: "応募先の農家に表示されます。自由記述は運営が確認してから公開されます。", imageSlot: null },
-      { label: "集合場所の番地", body: "承認された働き手にだけ表示されます。", imageSlot: null },
-      { label: "チャット", body: "当事者だけが読めます。", imageSlot: null },
-      { label: "評価", body: "良い評価のみ公開されます。お互いの評価が揃うか、3日たつまでは相手に見えません。メモは自分だけが見られます。", imageSlot: null },
-      { label: "通報", body: "通報した人が誰かは、相手に伝わりません。", imageSlot: null },
+      { label: "氏名・住所・生年月日・電話", body: "運営のみが保管します。画面には「✓ 本人確認済み」バッジだけが表示されます。" },
+      { label: "ニックネーム・写真・自己紹介・Q&A・タグ", body: "応募先の農家に表示されます。自由記述は運営が確認してから公開されます。" },
+      { label: "集合場所の番地", body: "承認された働き手にだけ表示されます。" },
+      { label: "チャット", body: "当事者だけが読めます。" },
+      { label: "評価", body: "良い評価のみ公開されます。お互いの評価が揃うか、3日たつまでは相手に見えません。メモは自分だけが見られます。" },
+      { label: "通報", body: "通報した人が誰かは、相手に伝わりません。" },
     ],
   },
   faq: {
     num: "第6章", title: "困ったとき",
     items: [
-      { label: "応募を取り消したい", body: "現在、アプリ内で応募を取り消す機能はありません。お問い合わせ窓口までご連絡ください。", imageSlot: null },
-      { label: "承認されたのに連絡がない", body: "承認後の連絡はチャットで届きます。チャットを確認しても連絡がない場合は、お問い合わせ窓口までご連絡ください。", imageSlot: null },
-      { label: "当日行けなくなった", body: "チャット画面の「⚠️ 緊急連絡」ボタンから、遅れる・欠勤の連絡ができます。相手にすぐに通知されます。", imageSlot: null },
-      { label: "農家が来ない・話が違う", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。通報した人が誰かは相手に伝わりません。", imageSlot: null },
-      { label: "報酬はいつ誰からもらえますか", body: "報酬は農家から直接受け取ります。運営は報酬のやり取りに関与しません。", imageSlot: null },
-      { label: "早く終わったら給与は減りますか", body: "満額保証型（デフォルト）の求人では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。", imageSlot: null },
-      { label: "評価を間違えた", body: "お問い合わせ窓口までご連絡ください。", imageSlot: null },
-      { label: "自己紹介が表示されない", body: "自由記述の自己紹介は、運営の確認後に公開されます（最大2日）。確認中は、あなたのプレビューに「確認待ち」と表示されます。", imageSlot: null },
-      { label: "退会したい", body: "お問い合わせ窓口までご連絡ください。", imageSlot: null },
-      { label: "保険は誰が掛けますか", body: "農家が保険を準備します。準備が完了すると、働き手に通知が届きます。", imageSlot: null },
-      { label: "通報のしかた", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。", imageSlot: null },
-      { label: "異議申立のしかた", body: "欠勤記録の通知から72時間以内に、アプリから異議申立ができます。", imageSlot: null },
-      { label: "お問い合わせ", body: "t5fki6643qty@gmail.com までご連絡ください。苦情には遅滞なく対応します。", imageSlot: null },
+      { label: "応募を取り消したい", body: "現在、アプリ内で応募を取り消す機能はありません。お問い合わせ窓口までご連絡ください。" },
+      { label: "承認されたのに連絡がない", body: "承認後の連絡はチャットで届きます。チャットを確認しても連絡がない場合は、お問い合わせ窓口までご連絡ください。" },
+      { label: "当日行けなくなった", body: "チャット画面の「⚠️ 緊急連絡」ボタンから、遅れる・欠勤の連絡ができます。相手にすぐに通知されます。" },
+      { label: "農家が来ない・話が違う", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。通報した人が誰かは相手に伝わりません。" },
+      { label: "報酬はいつ誰からもらえますか", body: "報酬は農家から直接受け取ります。運営は報酬のやり取りに関与しません。" },
+      { label: "早く終わったら給与は減りますか", body: "満額保証型（デフォルト）の求人では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。" },
+      { label: "評価を間違えた", body: "お問い合わせ窓口までご連絡ください。" },
+      { label: "自己紹介が表示されない", body: "自由記述の自己紹介は、運営の確認後に公開されます（最大2日）。確認中は、あなたのプレビューに「確認待ち」と表示されます。" },
+      { label: "退会したい", body: "お問い合わせ窓口までご連絡ください。" },
+      { label: "保険は誰が掛けますか", body: "農家が保険を準備します。準備が完了すると、働き手に通知が届きます。" },
+      { label: "通報のしかた", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。" },
+      { label: "異議申立のしかた", body: "欠勤記録の通知から72時間以内に、アプリから異議申立ができます。" },
+      { label: "お問い合わせ", body: "t5fki6643qty@gmail.com までご連絡ください。苦情には遅滞なく対応します。" },
     ],
   },
 };
@@ -12297,21 +12297,24 @@ function FeedbackButton({ label, className, style, onBeforeOpen }) {
   );
 }
 
-function HelpImageSlot() {
-  return (
-    <div className="f-sans" style={{ marginTop:10, height:110, border:"1px dashed #D0D0D0", borderRadius:10, background:"#FAFAFA", display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0", fontSize:12 }}>
-      📷 スクショ準備中
-    </div>
-  );
+// help-imagesバケットの公開URLから、削除に必要なストレージパスだけを取り出す
+function helpImagePathFromUrl(url) {
+  if (!url) return null;
+  const marker = "/help-images/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return url.slice(idx + marker.length).split("?")[0];
 }
 
-function HelpCenter() {
+function HelpCenter({ me }) {
   const chapterFromHash = () => {
     const h = window.location.hash.replace(/^#\/?/, "");
     const m = h.match(/^help\/(\w+)$/);
     return (m && HELP_CHAPTER_KEYS.includes(m[1])) ? m[1] : null;
   };
   const [openChapter, setOpenChapter] = useState(chapterFromHash());
+  const [images, setImages] = useState({}); // { [slot_key]: url }
+  const [uploadingSlot, setUploadingSlot] = useState(null);
   useEffect(() => {
     const onHash = () => setOpenChapter(chapterFromHash());
     window.addEventListener("hashchange", onHash);
@@ -12322,10 +12325,48 @@ function HelpCenter() {
     const el = document.getElementById("help-" + openChapter);
     if (el) setTimeout(() => el.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
   }, [openChapter]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from("help_images").select("slot_key,url");
+        if (data) {
+          const map = {};
+          data.forEach(row => { map[row.slot_key] = row.url; });
+          setImages(map);
+        }
+      } catch {}
+    })();
+  }, []);
   const toggle = (key) => {
     const next = openChapter === key ? null : key;
     setOpenChapter(next);
     window.location.hash = next ? "/help/" + next : "/help";
+  };
+  const uploadSlotImage = async (slotKey, file) => {
+    if (uploadingSlot) return;
+    setUploadingSlot(slotKey);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = slotKey + "." + ext;
+      const { error: upErr } = await supabase.storage.from("help-images").upload(path, file, { upsert: true });
+      if (upErr) { alert("アップロードに失敗しました：" + upErr.message); setUploadingSlot(null); return; }
+      const { data: urlData } = supabase.storage.from("help-images").getPublicUrl(path);
+      const url = (urlData?.publicUrl || "") + "?t=" + Date.now();
+      const { error: dbErr } = await supabase.from("help_images").upsert({ slot_key: slotKey, url, updated_at: new Date().toISOString() });
+      if (dbErr) { alert("保存に失敗しました：" + dbErr.message); setUploadingSlot(null); return; }
+      setImages(prev => ({ ...prev, [slotKey]: url }));
+    } catch { alert("アップロードに失敗しました。"); }
+    setUploadingSlot(null);
+  };
+  const deleteSlotImage = async (slotKey) => {
+    if (!confirm("この画像を削除しますか？")) return;
+    try {
+      const path = helpImagePathFromUrl(images[slotKey]);
+      if (path) await supabase.storage.from("help-images").remove([path]);
+      const { error } = await supabase.from("help_images").delete().eq("slot_key", slotKey);
+      if (error) { alert("削除に失敗しました：" + error.message); return; }
+      setImages(prev => { const next = { ...prev }; delete next[slotKey]; return next; });
+    } catch { alert("削除に失敗しました。"); }
   };
   return (
     <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
@@ -12352,13 +12393,29 @@ function HelpCenter() {
                       background:"#E6F7EF", border:"none", borderRadius:20, cursor:"pointer",
                     }} />
                   )}
-                  {ch.items.map((it, i) => (
-                    <div key={i}>
-                      {it.label && <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{it.label}</p>}
-                      <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{it.body}</p>
-                      {it.imageSlot ? <img src={it.imageSlot} alt="" style={{ marginTop:10, width:"100%", borderRadius:10 }} /> : <HelpImageSlot />}
-                    </div>
-                  ))}
+                  {ch.items.map((it, i) => {
+                    const slotKey = key + "-" + i;
+                    const imgUrl = images[slotKey];
+                    return (
+                      <div key={i}>
+                        {it.label && <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{it.label}</p>}
+                        <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{it.body}</p>
+                        {imgUrl && <img src={imgUrl} alt="" style={{ marginTop:10, width:"100%", borderRadius:8 }} />}
+                        {isAdmin(me) && (
+                          <div style={{ marginTop:8 }}>
+                            {imgUrl ? (
+                              <button onClick={() => deleteSlotImage(slotKey)} className="f-sans" style={{ fontSize:11, color:"#E24B4A", background:"none", border:"1px solid #E24B4A44", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>🗑 削除</button>
+                            ) : (
+                              <label className="f-sans" style={{ display:"inline-block", fontSize:11, color:"#717171", background:"#F7F7F7", border:"1px dashed #D0D0D0", borderRadius:8, padding:"4px 10px", cursor: uploadingSlot ? "default" : "pointer" }}>
+                                {uploadingSlot === slotKey ? "アップロード中..." : "＋ スクショを追加"}
+                                <input type="file" accept="image/*" disabled={!!uploadingSlot} onChange={e => { const f = e.target.files?.[0]; if (f) uploadSlotImage(slotKey, f); e.target.value = ""; }} style={{ display:"none" }} />
+                              </label>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -13105,7 +13162,7 @@ const subDest=useCallback(async d=>{
             </div>
           </div>
         )}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
