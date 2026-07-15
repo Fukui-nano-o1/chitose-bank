@@ -79,6 +79,21 @@ const farmIntroTopics = (e) => [
   { label:"初めての人へのメッセージ", body: e.intro_message },
 ].filter(t => t.body && t.body.trim());
 
+// 雇い手ホスト3問（FarmerTrustCard・求人詳細・雇い手プレビュー共通。記入済みの問いのみ返す）
+const farmHostQa = (e) => [
+  { q:"うちの畑・農園のユニークなところ", a: e.unique_point },
+  { q:"働きに来た人に、いつもしていること", a: e.always_do },
+  { q:"休憩とお茶はどうしてる？", a: e.break_style },
+].filter(x => x.a && x.a.trim());
+
+// 作業中の関わり方（EmployerProfileEdit・FarmerTrustCard共通）
+const INTERACTION_STYLE_OPTIONS = [
+  { value:"together", label:"一緒に作業する" },
+  { value:"explain_then_leave", label:"最初に説明して任せる" },
+  { value:"on_call", label:"必要な時だけ声かけ" },
+];
+const interactionStyleLabel = v => INTERACTION_STYLE_OPTIONS.find(o => o.value === v)?.label || "";
+
 // ハンバーガーメニュー（PC）。項目の追加・削除はこの配列を編集するだけでよい。
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
 // 運営憲章・利用規約・プライバシーはフッター3列に常設のため☰からは削除（二重掲載の解消・2026-07-14）
@@ -5029,6 +5044,60 @@ function WorkerTrustCard({ profile, trust }) {
   );
 }
 
+// 農家版15秒カード（WorkerTrustCardの鏡写し）。trustはemployer_trust_info/job_employer_trust_infoの返り値
+function FarmerTrustCard({ profile, trust }) {
+  if (!profile) return null;
+  const qa = farmHostQa(profile);
+  const styleLabel = interactionStyleLabel(profile.interaction_style);
+  const okTrust = !!(trust && trust.ok);
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+        <div style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
+        </div>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, minWidth:0 }}>{profile.nickname || "農園名未設定"}</p>
+      </div>
+      {okTrust && trust.want_again_workers > 0 && (
+        <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>🌟また働きたい×{trust.want_again_workers}</p>
+      )}
+      {okTrust && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>
+          受入実績：{trust.completed_hires > 0 ? `完了${trust.completed_hires}件` : "受け入れ実績はこれからです"}
+        </p>
+      )}
+      {okTrust && (trust.member_since || trust.id_checked) && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:6 }}>
+          {trust.member_since && (
+            <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{trust.member_since}から</span>
+          )}
+          {trust.id_checked && (
+            <span className="f-sans" style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み</span>
+          )}
+        </div>
+      )}
+      {okTrust && trust.avg_response_hours != null && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>応募への返答：平均{trust.avg_response_hours}時間</p>
+      )}
+      {styleLabel && (
+        <div style={{ marginBottom:10 }}>
+          <span className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>🤝 {styleLabel}</span>
+        </div>
+      )}
+      {qa.length > 0 && (
+        <div style={{ display:"grid", gap:10, marginTop:4 }}>
+          {qa.map(({ q, a }) => (
+            <div key={q}>
+              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState("");
@@ -6104,14 +6173,19 @@ function JobSearchMapView({ onRegister, me }) {
   const applyPanelRef = useRef(null);
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
   const [empEmployer, setEmpEmployer] = useState(null);
+  const [empTrust, setEmpTrust] = useState(null);
   useEffect(() => {
-    if (!selectedJob) { setEmpEmployer(null); return; }
+    if (!selectedJob) { setEmpEmployer(null); setEmpTrust(null); return; }
     let cancelled = false;
     (async () => {
       try {
         const { data } = await supabase.rpc('job_employer_profile', { p_job_number: selectedJob.id });
         if (!cancelled) setEmpEmployer((data && data[0]) || null);
       } catch { if (!cancelled) setEmpEmployer(null); }
+      try {
+        const { data: trust } = await supabase.rpc('job_employer_trust_info', { p_job_number: selectedJob.id });
+        if (!cancelled) setEmpTrust(trust || null);
+      } catch { if (!cancelled) setEmpTrust(null); }
     })();
     return () => { cancelled = true; };
   }, [selectedJob?.id]);
@@ -6616,25 +6690,34 @@ function JobSearchMapView({ onRegister, me }) {
           {empEmployer && (() => {
             const topics = farmIntroTopics(empEmployer);
             const comment = empEmployer.pr && empEmployer.pr.trim();
-            if (topics.length === 0 && !comment) return null;
+            const qa = farmHostQa(empEmployer);
+            const hasTrustCard = qa.length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok);
+            if (topics.length === 0 && !comment && !hasTrustCard) return null;
             return (
               <div style={{ marginBottom:100 }}>
                 <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
                   {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
                 </h3>
-                <div onClick={() => setFarmIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer" }}>
-                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-                  {comment ? (
-                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>
-                      {comment.length > 100 ? comment.slice(0, 100) + "…" : comment}
-                      {(comment.length > 100 || topics.length > 0) && (
-                        <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", marginLeft:6 }}>見る</span>
-                      )}
-                    </p>
-                  ) : (
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>農園紹介を見る →</p>
-                  )}
-                </div>
+                {hasTrustCard && (
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom: (topics.length > 0 || comment) ? 16 : 0 }}>
+                    <FarmerTrustCard profile={empEmployer} trust={empTrust} />
+                  </div>
+                )}
+                {(topics.length > 0 || comment) && (
+                  <div onClick={() => setFarmIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer" }}>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
+                    {comment ? (
+                      <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>
+                        {comment.length > 100 ? comment.slice(0, 100) + "…" : comment}
+                        {(comment.length > 100 || topics.length > 0) && (
+                          <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", marginLeft:6 }}>見る</span>
+                        )}
+                      </p>
+                    ) : (
+                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>農園紹介を見る →</p>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -10786,6 +10869,10 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [introMessage, setIntroMessage] = useState("");
   const [ownerComment, setOwnerComment] = useState("");
   const [staffCount, setStaffCount] = useState("");
+  const [uniquePoint, setUniquePoint] = useState("");
+  const [alwaysDo, setAlwaysDo] = useState("");
+  const [breakStyle, setBreakStyle] = useState("");
+  const [interactionStyle, setInteractionStyle] = useState("");
   const [introOpen, setIntroOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -10815,8 +10902,12 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           setIntroMessage(data.intro_message ?? "");
           setOwnerComment(data.owner_comment ?? "");
           setStaffCount(data.staff_count != null ? String(data.staff_count) : "");
+          setUniquePoint(data.unique_point ?? "");
+          setAlwaysDo(data.always_do ?? "");
+          setBreakStyle(data.break_style ?? "");
+          setInteractionStyle(data.interaction_style ?? "");
           // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
-          const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || (data.staff_count != null && data.staff_count !== ""));
+          const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || (data.staff_count != null && data.staff_count !== "") || data.unique_point || data.always_do || data.break_style || data.interaction_style);
           if (hasIntroContent) setIntroOpen(true);
         }
       } catch {}
@@ -10916,6 +11007,10 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         intro_message: introMessage || null,
         owner_comment: ownerComment || null,
         staff_count: staffCount === "" ? null : Number(staffCount),
+        unique_point: uniquePoint || null,
+        always_do: alwaysDo || null,
+        break_style: breakStyle || null,
+        interaction_style: interactionStyle || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
@@ -11034,6 +11129,45 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
               style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
             />
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{ownerComment.length} / 1000</p>
+
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>働き手への問いかけ</label>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたい問いだけ、記入してください（任意）</p>
+            <div className="employer-intro-grid" style={{ marginBottom:16 }}>
+              {[
+                { label:"うちの畑・農園のユニークなところ", placeholder:"例：吉野川の川霧が育てるナスです", value:uniquePoint, set:setUniquePoint },
+                { label:"働きに来た人に、いつもしていること", placeholder:"例：最初に全体をひと回り案内します", value:alwaysDo, set:setAlwaysDo },
+                { label:"休憩とお茶はどうしてる？", placeholder:"例：10時と15時に冷たいお茶を出します", value:breakStyle, set:setBreakStyle },
+              ].map((topic, i) => (
+                <div key={i}>
+                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>{topic.label}（任意）</label>
+                  <textarea
+                    value={topic.value}
+                    onChange={e => topic.set(e.target.value)}
+                    placeholder={topic.placeholder}
+                    maxLength={1000}
+                    style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
+                  />
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4, textAlign:"right" }}>{topic.value.length} / 1000</p>
+                </div>
+              ))}
+            </div>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>作業中の関わり方（任意）</label>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+              {INTERACTION_STYLE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setInteractionStyle(cur => cur === opt.value ? "" : opt.value)}
+                  className="f-sans"
+                  style={{
+                    padding:"8px 16px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
+                    border: interactionStyle === opt.value ? "1.5px solid #00A86B" : "1px solid #EBEBEB",
+                    background: interactionStyle === opt.value ? "#E6F7EF" : "#fff",
+                    color: interactionStyle === opt.value ? "#00A86B" : "#222",
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -11047,6 +11181,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
 
 function FarmerProfilePreview({ me, onEdit }) {
   const [data, setData] = useState(null);
+  const [trust, setTrust] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     (async () => {
@@ -11055,6 +11190,8 @@ function FarmerProfilePreview({ me, onEdit }) {
         if (!session) { setLoading(false); return; }
         const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         if (ep) setData(ep);
+        const { data: t } = await supabase.rpc('employer_trust_info', { p_farmer_id: session.user.id });
+        setTrust(t || null);
       } catch {}
       setLoading(false);
     })();
@@ -11077,6 +11214,8 @@ function FarmerProfilePreview({ me, onEdit }) {
     { label:"初めての人へのメッセージ", body: data.intro_message },
   ].filter(t => t.body && t.body.trim()) : [];
   const comment = data?.owner_comment && data.owner_comment.trim();
+  const qa = data ? farmHostQa(data) : [];
+  const hasTrustCard = data ? (qa.length > 0 || !!data.interaction_style || !!(trust && trust.ok)) : false;
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>雇い手プロフィール</p>
@@ -11106,11 +11245,16 @@ function FarmerProfilePreview({ me, onEdit }) {
           )}
         </div>
       )}
-      {(topics.length > 0 || comment) && (
+      {(topics.length > 0 || comment || hasTrustCard) && (
         <div style={{ marginBottom:20 }}>
           <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
             {data.nickname ? `${data.nickname}の農園紹介` : "農園紹介"}
           </h3>
+          {hasTrustCard && (
+            <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom: (topics.length > 0 || comment) ? 16 : 0 }}>
+              <FarmerTrustCard profile={data} trust={trust} />
+            </div>
+          )}
           {topics.length > 0 && (
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
               {topics.map((t, i) => (
