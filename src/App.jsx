@@ -12897,6 +12897,7 @@ const HELP_CONTENT = {
       { key:"about-intro",      label: null, body: "chitose-bankは、農家と働き手が直接つながる場です。" },
       { key:"about-principles", label: "3つの原則", body: "① 連絡手段は縛らない\n② 成功報酬は永久に受け取らない\n③ 採否に関与しない" },
       { key:"about-role",       label: null, body: "運営は、場の提供と安全の確認だけを行います。" },
+      { key:"about-installapp", label: "アプリとして使う", body: "iPhone（Safari）\n① 共有ボタン（□に↑）をタップ\n② 「ホーム画面に追加」を選ぶ\n③ 右上の「追加」をタップ\n\nAndroid（Chrome）\n① メニュー（⋮）をタップ\n② 「ホーム画面に追加」または「アプリをインストール」を選ぶ\n③ 「インストール」をタップ" },
     ],
   },
   farmer: {
