@@ -5932,14 +5932,12 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const isEmployerHome = () => window.location.hash.replace(/^#\/?/,"") === "profile/employer";
   const [eHome, setEHome] = useState(() => { try { return isEmployerHome(); } catch { return false; } });
   const [pAnim, setPAnim] = useState(""); // 両面切替フェード: pfade-out(退場)|pfade-in(入場)。完了後は空に戻す
-  // 下部バー「プロフィール」タップ(農家プロ表示中)からの切替要求：トグルと同じ2段階フェードで働き手側へ
+  // 下部バー「プロフィール」タップ＝今いる側のトップへ（2026-07-14変更）。
+  // 働き手側：wTabをhomeへ（同hash時＝hashchangeが出ない場合の保険）
   useEffect(() => {
-    const onSwitchToWorker = () => {
-      setPAnim("pfade-out");
-      setTimeout(() => { window.location.hash = "/profile/worker"; setPAnim("pfade-in"); }, 160);
-    };
-    window.addEventListener("cb:profileToWorker", onSwitchToWorker);
-    return () => window.removeEventListener("cb:profileToWorker", onSwitchToWorker);
+    const onWorkerHome = () => { setWTab("home"); };
+    window.addEventListener("cb:workerHome", onWorkerHome);
+    return () => window.removeEventListener("cb:workerHome", onWorkerHome);
   }, []);
   const [wProfileMode, setWProfileMode] = useState("preview");
   useEffect(() => {
@@ -11386,6 +11384,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+  // 下部バー「プロフィール」タップ＝農家プロのトップへ（同hash時＝hashchangeが出ない場合の保険）
+  useEffect(() => {
+    const onEmployerHome = () => setJobTab("home");
+    window.addEventListener("cb:employerHome", onEmployerHome);
+    return () => window.removeEventListener("cb:employerHome", onEmployerHome);
+  }, []);
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
   const [dbApplicants, setDbApplicants] = useState([]);
@@ -13522,8 +13526,20 @@ const subDest=useCallback(async d=>{
             <button key={t.k}
               onClick={() => {
                 setMobileMenuOpen(false);
-                // 農家プロ表示中にプロフィールをタップ→働き手側へフェード切替（Profile側のリスナーが2段階フェードを実行）
-                if (t.k === "profile" && window.location.hash.replace(/^#\/?/, "").startsWith("profile/employer")) { window.dispatchEvent(new Event("cb:profileToWorker")); return; }
+                // プロフィールタップ＝今いる側のトップ(入口カードメニュー)へ戻る（2026-07-14変更・面は切り替えない）
+                // 農家プロ系の画面→農家プロ入口／それ以外→働き手入口。同hash時はhashchangeが出ないためイベントで状態も直接home化
+                if (t.k === "profile") {
+                  const _h = window.location.hash.replace(/^#\/?/, "");
+                  if (_h.startsWith("profile/employer")) {
+                    window.location.hash = "/profile/employer";
+                    window.dispatchEvent(new Event("cb:employerHome"));
+                  } else {
+                    setTab("profile");
+                    window.location.hash = "/profile/worker";
+                    window.dispatchEvent(new Event("cb:workerHome"));
+                  }
+                  return;
+                }
                 setTab(t.k); window.location.hash = "/" + t.k;
               }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
