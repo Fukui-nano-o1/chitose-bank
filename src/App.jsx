@@ -5615,6 +5615,20 @@ function WorkerApplications({ filter, me }) {
     setEmergencySubmitting(false);
   };
 
+  // 応募の取消（承認前のみ・本人）
+  const [cancelingId, setCancelingId] = useState(null);
+  const cancelApplication = async (a) => {
+    if (cancelingId) return;
+    if (!window.confirm("この応募を取り消しますか？農家にお知らせが届きます")) return;
+    setCancelingId(a.id);
+    try {
+      const { data, error } = await supabase.rpc('cancel_application', { p_application_id: a.id });
+      if (!error && data && data.ok) setAllApps(prev => prev.filter(x => x.id !== a.id));
+      else alert('取り消しに失敗しました：' + (data?.reason || error?.message || '不明'));
+    } catch { alert('取り消しに失敗しました。'); }
+    setCancelingId(null);
+  };
+
   // filter: "applying"=応募中(applied), "approved"=承認済み(approved以降), 見送り(rejected)はどちらにも出さない(通知で知らせる)
   const apps = allApps.filter(a => {
     if (filter === "applying") return a.status === "applied";
@@ -5677,6 +5691,12 @@ function WorkerApplications({ filter, me }) {
                 {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
                 {(a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
                   <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
+                )}
+                {/* 応募の取消（承認前のみ・テキストリンクで控えめに） */}
+                {a.status === "applied" && (
+                  <button onClick={()=>cancelApplication(a)} disabled={cancelingId===a.id} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:8, background:"none", border:"none", cursor:"pointer", fontSize:12, color:"#717171", textDecoration:"underline" }}>
+                    {cancelingId===a.id ? "取り消し中..." : "応募を取り消す"}
+                  </button>
                 )}
               </div>
             );
@@ -6294,6 +6314,19 @@ function JobSearchMapView({ onRegister, me }) {
     } catch { setApplying(false); alert("応募に失敗しました。"); }
   };
 
+  // 応募の取消（承認前のみ・本人）
+  const cancelMyApplication = async () => {
+    if (applying || !myApplication) return;
+    if (!window.confirm("この応募を取り消しますか？農家にお知らせが届きます")) return;
+    setApplying(true);
+    try {
+      const { data, error } = await supabase.rpc("cancel_application", { p_application_id: myApplication.id });
+      setApplying(false);
+      if (!error && data && data.ok) setMyApplication(null);
+      else alert("取り消しに失敗しました：" + (data?.reason || error?.message || "不明"));
+    } catch { setApplying(false); alert("取り消しに失敗しました。"); }
+  };
+
   // PC専用の下固定応募バー：応募パネル(sticky)が画面より上に通過したら表示（758px以下はCSSで非表示）
   useEffect(() => {
     const el = applyPanelRef.current;
@@ -6312,15 +6345,19 @@ function JobSearchMapView({ onRegister, me }) {
 
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
   const myAppStatus = myApplication?.status;
-  const applyBtnDisabled = myAppStatus === "applied" || myAppStatus === "rejected";
-  const applyBtnLabel = applying ? "送信中..."
+  const applyBtnDisabled = myAppStatus === "rejected";
+  const applyBtnLabel = applying ? (myAppStatus === "applied" ? "取り消し中..." : "送信中...")
     : myAppStatus === "approved" ? "承認されました — チャットを開く"
     : myAppStatus === "rejected" ? "今回は見送りとなりました"
-    : myAppStatus === "applied" ? "応募済み（承認待ち）"
+    : myAppStatus === "applied" ? "応募済み — 取り消す"
     : "応募";
-  const applyBtnStyle = applyBtnDisabled ? { background:"#EBEBEB", color:"#717171" } : {};
+  const applyBtnStyle = myAppStatus === "rejected" ? { background:"#EBEBEB", color:"#717171" }
+    : myAppStatus === "applied" ? { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }
+    : {};
   // 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照）
-  const applyBtnOnClick = myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; }) : handleApply;
+  const applyBtnOnClick = myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
+    : myAppStatus === "applied" ? cancelMyApplication
+    : handleApply;
 
   if (!me) {
     return (
@@ -12647,7 +12684,7 @@ const HELP_CONTENT = {
   faq: {
     num: "第6章", title: "困ったとき",
     items: [
-      { key:"faq-cancelApply",     label: "応募を取り消したい", body: "現在、アプリ内で応募を取り消す機能はありません。お問い合わせ窓口までご連絡ください。" },
+      { key:"faq-cancelApply",     label: "応募を取り消したい", body: "応募中タブから取り消せます。承認された後は、緊急連絡からご相談ください。" },
       { key:"faq-noContact",       label: "承認されたのに連絡がない", body: "承認後の連絡はチャットで届きます。チャットを確認しても連絡がない場合は、お問い合わせ窓口までご連絡ください。" },
       { key:"faq-cantGo",          label: "当日行けなくなった", body: "チャット画面の「⚠️ 緊急連絡」ボタンから、遅れる・欠勤の連絡ができます。相手にすぐに通知されます。" },
       { key:"faq-noShowOrDiffer",  label: "農家が来ない・話が違う", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。通報した人が誰かは相手に伝わりません。" },
