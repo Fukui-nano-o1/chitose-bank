@@ -5246,7 +5246,8 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     } catch { alert("削除に失敗しました。"); }
     setUploading(false);
   };
-  const save = async () => {
+  const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|residence|transport|exp|intensity|interests|languages|pr|qa
+  const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
     try {
@@ -5264,7 +5265,8 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       if (!error) {
         setSaved(true);
         if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
-        setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
+        if (stay === true) { setEditBox(null); setTimeout(() => setSaved(false), 2200); } // モーダルからの保存：格子に留まる
+        else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
       }
       else alert("保存に失敗しました：" + error.message);
     } catch { setSaving(false); alert("保存に失敗しました。"); }
@@ -5273,7 +5275,43 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>働き手プロフィール</p>
-      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に応募したとき、農家に伝わる自己紹介です。任意で入力できます。</p>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に応募したとき、農家に伝わる自己紹介です。タップして入力できます。</p>
+
+      {/* ═══ ボックス格子（入口カードと同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        {[
+          { k:"avatar",    e:"🖼️", l:"アイコン",     v: avatarUrl ? "設定済み" : "" },
+          { k:"nickname",  e:"✏️", l:"ニックネーム", v: nickname },
+          { k:"residence", e:"📍", l:"居住地",       v: residenceCity },
+          { k:"transport", e:"🚗", l:"移動手段",     v: transport },
+          { k:"exp",       e:"🌾", l:"農業経験",     v: farmExperience },
+          { k:"intensity", e:"💪", l:"作業の強さ",   v: physicalLevel },
+          { k:"interests", e:"🎨", l:"趣味",         v: interests.join("・") },
+          { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
+          { k:"pr",        e:"📝", l:"自己紹介",     v: pr },
+          { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
+        ].map(b => (
+          <button key={b.k} onClick={()=>setEditBox(b.k)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+            {b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>}
+            <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
+            <span style={{ fontSize:11, color: b.v ? "#00A86B" : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
+          </button>
+        ))}
+      </div>
+      {saved && (
+        <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>保存しました ✓　自己紹介は運営の確認後に公開されます（最大2日）</p>
+      )}
+      {onCancel && (
+        <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
+      )}
+
+      {/* ═══ 編集モーダル（各ボックスの中身。保存はモーダル内の「保存する」＝全項目upsert） ═══ */}
+      {editBox && (
+      <div onClick={()=>setEditBox(null)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
+      <button onClick={()=>setEditBox(null)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
+
+      {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>アイコン</label>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
         <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
@@ -5289,21 +5327,34 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           )}
         </div>
       </div>
+      </>)}
+
+      {editBox==="nickname" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ニックネーム</label>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：たき" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+      </>)}
 
+      {editBox==="residence" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>居住地</label>
       <input value={residenceCity} onChange={e=>setResidenceCity(e.target.value)} placeholder="例：吉野川市（市町村まで）" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+      </>)}
 
+      {editBox==="transport" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>移動手段</label>
       <LFPillSelect options={["車","バイク","自転車","公共交通"]} value={transport} onSelect={setTransport} />
+      </>)}
 
+      {editBox==="exp" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>農業就労の経験</label>
       <LFPillSelect options={["未経験","経験あり"]} value={farmExperience} onSelect={setFarmExperience} />
+      </>)}
 
+      {editBox==="intensity" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>希望する作業の強さ</label>
       <LFPillSelect options={WORK_INTENSITY_OPTIONS} value={physicalLevel} onSelect={setPhysicalLevel} />
+      </>)}
 
+      {editBox==="interests" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:16 }}>趣味（最大3つ）</label>
       <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
         {INTEREST_OPTIONS.map(v => {
@@ -5319,7 +5370,9 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           );
         })}
       </div>
+      </>)}
 
+      {editBox==="languages" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>やり取りできる言語</label>
       <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
         {LANGUAGE_OPTIONS.map(v => (
@@ -5331,7 +5384,9 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           }}>{v}</button>
         ))}
       </div>
+      </>)}
 
+      {editBox==="pr" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>自己紹介・PR</label>
       <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
         {PR_PROMPTS.map((p, i) => (
@@ -5359,9 +5414,11 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         className="field f-sans"
         style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }}
       />
+      </>)}
 
-      <div style={{ marginTop:8, marginBottom:16, paddingTop:24, borderTop:"1px solid #F0F0F0" }}>
-        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:12 }}>質問に答えて、あなたを伝える（好きな質問だけでOK）</p>
+      {editBox==="qa" && (
+      <div style={{ marginTop:8, marginBottom:16 }}>
+        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:12, paddingRight:36 }}>質問に答えて、あなたを伝える（好きな質問だけでOK）</p>
         {prQa.length > 0 && (
           <div style={{ display:"grid", gap:8, marginBottom:16 }}>
             {prQa.map(({ q, a }) => (
@@ -5423,13 +5480,15 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           </div>
         )}
       </div>
-
-      <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
-      {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>自己紹介は運営の確認後に公開されます（最大2日）</p>
       )}
-      {onCancel && (
-        <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:12, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>キャンセル</button>
+
+      {/* モーダルフッター：保存する（全項目upsert）＋自由記述の注記 */}
+      <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      {(editBox === "pr" || editBox === "qa") && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>自由記述は運営の確認後に公開されます（最大2日）</p>
+      )}
+      </div>
+      </div>
       )}
     </div>
   );
