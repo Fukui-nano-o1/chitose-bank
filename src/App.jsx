@@ -392,6 +392,10 @@ input:focus { outline: none; }
 .step-in-right  { animation: stepInRight  .22s ease both; }
 .step-out-right { animation: stepOutRight .16s ease both; }
 .step-in-left   { animation: stepInLeft   .22s ease both; }
+/* プロフィール両面(働き手⇄農家プロ)の切替フェード（2026-07-14・opacityのみ=fixed子要素に安全） */
+@keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
+.pfade-out { animation: fadeOut .16s ease both; }
+.pfade-in  { animation: fadeIn  .22s ease both; }
 .pulse-slow  { animation: pulse 2s ease infinite; }
 .shake       { animation: shake .4s ease; }
 
@@ -5927,6 +5931,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   // 雇う/働くトグルは両面の入口(カードメニュー)だけ表示。編集・サブページでは邪魔なので非表示（2026-07-14）
   const isEmployerHome = () => window.location.hash.replace(/^#\/?/,"") === "profile/employer";
   const [eHome, setEHome] = useState(() => { try { return isEmployerHome(); } catch { return false; } });
+  const [pAnim, setPAnim] = useState(""); // 両面切替フェード: pfade-out(退場)|pfade-in(入場)。完了後は空に戻す
   const [wProfileMode, setWProfileMode] = useState("preview");
   useEffect(() => {
     const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); setEHome(isEmployerHome()); };
@@ -5976,14 +5981,21 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   return (
     <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
-          表示は両面の入口(カードメニュー)のみ＝編集・サブページでは非表示（2026-07-14） */}
+          表示は両面の入口(カードメニュー)のみ＝編集・サブページでは非表示（2026-07-14）。
+          切替はフェードアウト(0.16s)→面切替→フェードイン(0.22s)の2段階 */}
       {(pTab === "employer" ? eHome : wTab === "home") && (
-        <button onClick={()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; }} className="profile-employer-fab f-sans">
+        <button onClick={()=>{
+          if (pAnim === "pfade-out") return; // 連打ガード
+          setPAnim("pfade-out");
+          setTimeout(()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; setPAnim("pfade-in"); }, 160);
+        }} className="profile-employer-fab f-sans">
           {pTab === "employer"
             ? "🤝 働く（あなたの応募）"
             : (hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う")}
         </button>
       )}
+      {/* 面の中身をkey={pTab}で包む：切替時に再マウント→pfade-in/fade-inが再生される */}
+      <div key={pTab} className={pAnim || "fade-in"} onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && pAnim === "pfade-in") setPAnim(""); }}>
       {pTab === "worker" ? (
         wTab === "home" ? (
           <>
@@ -6053,6 +6065,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
           <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} />
         </>
       )}
+      </div>
     </div>
   );
 }
