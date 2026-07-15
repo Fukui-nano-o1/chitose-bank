@@ -5932,6 +5932,15 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const isEmployerHome = () => window.location.hash.replace(/^#\/?/,"") === "profile/employer";
   const [eHome, setEHome] = useState(() => { try { return isEmployerHome(); } catch { return false; } });
   const [pAnim, setPAnim] = useState(""); // 両面切替フェード: pfade-out(退場)|pfade-in(入場)。完了後は空に戻す
+  // 下部バー「プロフィール」タップ(農家プロ表示中)からの切替要求：トグルと同じ2段階フェードで働き手側へ
+  useEffect(() => {
+    const onSwitchToWorker = () => {
+      setPAnim("pfade-out");
+      setTimeout(() => { window.location.hash = "/profile/worker"; setPAnim("pfade-in"); }, 160);
+    };
+    window.addEventListener("cb:profileToWorker", onSwitchToWorker);
+    return () => window.removeEventListener("cb:profileToWorker", onSwitchToWorker);
+  }, []);
   const [wProfileMode, setWProfileMode] = useState("preview");
   useEffect(() => {
     const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); setEHome(isEmployerHome()); };
@@ -13511,7 +13520,12 @@ const subDest=useCallback(async d=>{
         <div className="app-header-mobile-tabs">
           {MOBILE_TABS.map(t => (
             <button key={t.k}
-              onClick={() => { setMobileMenuOpen(false); setTab(t.k); window.location.hash = "/" + t.k; }}
+              onClick={() => {
+                setMobileMenuOpen(false);
+                // 農家プロ表示中にプロフィールをタップ→働き手側へフェード切替（Profile側のリスナーが2段階フェードを実行）
+                if (t.k === "profile" && window.location.hash.replace(/^#\/?/, "").startsWith("profile/employer")) { window.dispatchEvent(new Event("cb:profileToWorker")); return; }
+                setTab(t.k); window.location.hash = "/" + t.k;
+              }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
               <span className="icon">
                 {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} /> : t.icon}
