@@ -98,10 +98,10 @@ const interactionStyleLabel = v => INTERACTION_STYLE_OPTIONS.find(o => o.value =
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
 // 運営憲章・利用規約・プライバシーはフッター3列に常設のため☰からは削除（二重掲載の解消・2026-07-14）
 const MENU_ITEMS = [
-  { key:"admin",   label:"⚙️ 管理",      hash:"/admin",   auth:true, adminOnly:true },
-  { key:"chats",   label:"チャット",     hash:"/chats",   auth:true  },
-  { key:"profile", label:"プロフィール", hash:"/profile", auth:true  },
-  { key:"login",   label:"ログイン",     hash:"/login",   auth:false, guestOnly:true },
+  { key:"chats",    label:"💬 チャット",   hash:"/chats",    auth:true  },
+  { key:"calendar", label:"📅 カレンダー", hash:"/calendar", auth:true  },
+  { key:"profile",  label:"プロフィール",  hash:"/profile",  auth:true  },
+  { key:"login",    label:"ログイン",      hash:"/login",    auth:false, guestOnly:true },
 ];
 
 // モバイル下部バー：☰(左端・アイコンのみ)＋5機能タブ。カレンダーが中央に来る並び。
@@ -13176,10 +13176,21 @@ function HelpCenter({ me, onReportClick }) {
   );
 }
 
+function PresentationCreateCanvasPage() {
+  return (
+    <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+      <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>作成キャンバス</h1>
+      <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, margin:0 }}>
+        写真・数字・文章から始める場所
+      </p>
+    </div>
+  );
+}
+
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help"];
+  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","page-presentation-create-canvas"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -13664,6 +13675,20 @@ const subDest=useCallback(async d=>{
             <div style={{ position:"absolute", top:52, right:0, minWidth:200, background:"#fff",
                           border:"1px solid #EBEBEB", borderRadius:12,
                           boxShadow:"0 4px 16px rgba(0,0,0,.08)", padding:"8px 0", zIndex:30 }}>
+              {MENU_ITEMS
+                .filter(item =>
+                  (item.auth ? !!me : true) &&
+                  (item.guestOnly ? !me : true))
+                .map(item => (
+                  <button key={item.key}
+                    onClick={() => { setMenuOpen(false); window.location.hash = item.hash; }}
+                    className="f-sans"
+                    style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                             border:"none", cursor:"pointer", fontFamily:"inherit",
+                             fontSize:14, color:"#222", padding:"10px 16px" }}>
+                    {item.label}
+                  </button>
+                ))}
               <button onClick={() => { setMenuOpen(false); window.location.hash = "/help"; }}
                 className="f-sans"
                 style={{ display:"block", width:"100%", textAlign:"left", background:"none",
@@ -13680,21 +13705,15 @@ const subDest=useCallback(async d=>{
                   💬 この画面を報告
                 </button>
               )}
-              {MENU_ITEMS
-                .filter(item =>
-                  (item.auth ? !!me : true) &&
-                  (item.guestOnly ? !me : true) &&
-                  (item.adminOnly ? isAdmin(me) : true))
-                .map(item => (
-                  <button key={item.key}
-                    onClick={() => { setMenuOpen(false); window.location.hash = item.hash; }}
-                    className="f-sans"
-                    style={{ display:"block", width:"100%", textAlign:"left", background:"none",
-                             border:"none", cursor:"pointer", fontFamily:"inherit",
-                             fontSize:14, color:"#222", padding:"10px 16px" }}>
-                    {item.label}
-                  </button>
-                ))}
+              {isAdmin(me) && (
+                <button onClick={() => { setMenuOpen(false); window.location.hash = "/admin"; }}
+                  className="f-sans"
+                  style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                           border:"none", cursor:"pointer", fontFamily:"inherit",
+                           fontSize:14, color:"#222", padding:"10px 16px" }}>
+                  ⚙️ 管理
+                </button>
+              )}
               {me && (
                 <button onClick={() => { setMenuOpen(false); handleLogout(); }}
                   className="f-sans"
@@ -13953,6 +13972,7 @@ const subDest=useCallback(async d=>{
           </div>
         )}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="page-presentation-create-canvas"&&<PresentationCreateCanvasPage />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
           <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
