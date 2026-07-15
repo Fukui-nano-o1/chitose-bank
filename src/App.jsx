@@ -6018,6 +6018,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
               {[
                 { e:"📨", l:"応募中",     n:wAppCounts.applying, h:"/profile/worker/applying" },
                 { e:"✅", l:"承認済み",   n:wAppCounts.approved, h:"/profile/worker/approved" },
+                { e:"💚", l:"いいね",     n:0,                   h:"/saved" }, // 2×2に揃える4枠目（農家プロ入口と同構造・2026-07-14）
                 { e:"📅", l:"カレンダー", n:0,                   h:"/profile/worker/calendar" },
               ].map(c => (
                 <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
@@ -11522,7 +11523,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   };
 
   return (
-    <div style={{ maxWidth:1200, margin:"0 auto", padding:"24px 0 80px" }}>
+    // 入口(home)は余白を持たない＝働き手入口と開始位置・下端が完全一致（外側のプロフィールwrapperが32px/4pxを提供）
+    <div style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : "24px 0 80px" }}>
       {jobTab === "home" ? (
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
