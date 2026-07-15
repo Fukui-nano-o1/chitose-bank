@@ -13356,6 +13356,44 @@ export default function App(){
     return () => document.removeEventListener("click", onDoc);
   }, [mobileMenuOpen]);
 
+  // PWA(ホーム画面アプリ)専用：ページ最上部で下に引っ張ると強制リロード（pull-to-refresh・2026-07-14）。
+  // Safari表示には標準のリロード手段があるため対象外。モーダル・フロー等の内部スクロール要素上では発動しない
+  useEffect(() => {
+    const standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+    if (!standalone) return;
+    let startY = null, fired = false;
+    const inScrollableOrFixed = (el) => {
+      for (let n = el; n && n !== document.body; n = n.parentElement) {
+        try {
+          const st = getComputedStyle(n);
+          if ((st.overflowY === "auto" || st.overflowY === "scroll") && n.scrollHeight > n.clientHeight + 1) return true;
+          if (st.position === "fixed") return true; // モーダル・オーバーレイ内では発動させない
+        } catch { return true; }
+      }
+      return false;
+    };
+    const onStart = (e) => {
+      fired = false;
+      if (window.scrollY > 0 || inScrollableOrFixed(e.target)) { startY = null; return; }
+      startY = e.touches[0].clientY;
+    };
+    const onMove = (e) => {
+      if (startY == null || fired) return;
+      if (window.scrollY > 0) { startY = null; return; }
+      if (e.touches[0].clientY - startY > 90) {
+        fired = true;
+        const ov = document.createElement("div");
+        ov.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(255,255,255,.88);display:flex;align-items:center;justify-content:center;font-size:14px;color:#00A86B;font-weight:700;font-family:'Noto Sans JP',sans-serif";
+        ov.textContent = "↻ 更新しています…";
+        document.body.appendChild(ov);
+        setTimeout(() => window.location.reload(), 150);
+      }
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    return () => { window.removeEventListener("touchstart", onStart); window.removeEventListener("touchmove", onMove); };
+  }, []);
+
   // モバイル専用：下部バー＋浮遊ボタン「🌱 雇う」のスクロール連動格納。
   // 下方向に30px超スクロールで格納、上方向スクロール or 最上部付近で復帰。
   // 最下部付近（残り64px以内）では方向に関係なく常に格納＝フッターがバーに隠れない。
