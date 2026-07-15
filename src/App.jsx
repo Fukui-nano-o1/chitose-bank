@@ -5871,19 +5871,27 @@ function WorkerApplications({ filter, me }) {
   );
 }
 
-// 予定に載せる応募ステータス（見送り・応募中は除く。completedは「終わった予定」として残す）
-const CALENDAR_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","working","completed"];
+const CALENDAR_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
+const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includes(s) ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="completed" ? {bg:"#F3F3F3",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"});
+const CALENDAR_WD = ["日","月","火","水","木","金","土"];
+const calAddDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+const calFmtDate = (ymd) => { const [y,m,d] = ymd.split("-").map(Number); return `${m}/${d}(${CALENDAR_WD[new Date(y, m-1, d).getDay()]})`; };
 
 // #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
-// 紐づく求人の作業日程を月表示に緑ドットで示す。日付タップでその日の仕事リストを表示。
-// jobs_publicはstatus='open'のみのビューなので使わない（承認後にjobが非公開へ移っても
-// 自分の予定は見えるべき）。jobsテーブルを直接読む＝本人(farmer_id)またはadminのRLSに乗る。
+// 紐づく求人の作業日程を予定表（アジェンダ）として表示。日付タップで該当日へスクロール＆ハイライト。
+// jobsテーブルを直接読むとRLS(owner select=farmer_idのみ)で相手方の求人が読めないため、
+// get_my_calendar_jobs（SECURITY DEFINER）経由で自分の当事者applicationsに紐づく行だけ取得する。
 function MyCalendar() {
   const [loading, setLoading] = useState(true);
-  const [jobs, setJobs] = useState([]); // [{job_number,crop,task,work_time,date_start,date_end}]
+  const [entries, setEntries] = useState([]); // [{job_number,crop,task,work_time,town,date_start,date_end,application_id,application_status,partner_name}]
   const [cvYear, setCvYear] = useState(new Date().getFullYear());
   const [cvMonth, setCvMonth] = useState(new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState(null);
+  const [showEnded, setShowEnded] = useState(false);
+  const [highlightIds, setHighlightIds] = useState(() => new Set());
+  const [flashNoPlan, setFlashNoPlan] = useState(false);
+  const rowRefs = useRef({});
+  const flashTimer = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -5891,69 +5899,127 @@ function MyCalendar() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        const uid = session.user.id;
-        const [{ data: asWorker }, { data: asFarmer }] = await Promise.all([
-          supabase.from("applications").select("job_number").eq("worker_id", uid).in("status", CALENDAR_ELIGIBLE_STATUSES),
-          supabase.from("applications").select("job_number").eq("farmer_id", uid).in("status", CALENDAR_ELIGIBLE_STATUSES),
-        ]);
-        const jobNumbers = [...new Set([...(asWorker || []), ...(asFarmer || [])].map(a => a.job_number).filter(Boolean))];
-        if (cancelled) return;
-        if (jobNumbers.length === 0) { setJobs([]); setLoading(false); return; }
-        const { data } = await supabase.from("jobs").select("job_number,crop,task,work_time,date_start,date_end").in("job_number", jobNumbers);
-        if (!cancelled) setJobs(data || []);
+        const { data, error } = await supabase.rpc("get_my_calendar_jobs");
+        if (!cancelled) setEntries(error ? [] : (data || []));
       } catch {}
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, []);
 
-  const WD = ["日","月","火","水","木","金","土"];
   const todayYmd = ymdLocal(new Date());
-  const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
-  const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
-  const jobsOnDay = (dt) => {
+  const tomorrowYmd = ymdLocal(calAddDays(1));
+  const day2Ymd = ymdLocal(calAddDays(2));
+  const weekEndYmd = ymdLocal(calAddDays(6));
+  const bucketOf = (e) => {
+    const s = e.date_start, en = e.date_end || e.date_start;
+    if (!s) return null;
+    if (en < todayYmd) return "ended";
+    if (s <= todayYmd && todayYmd <= en) return "today";
+    if (s <= tomorrowYmd && tomorrowYmd <= en) return "tomorrow";
+    if (s <= weekEndYmd && en >= day2Ymd) return "thisWeek";
+    return "later";
+  };
+  const entriesOnDay = (dt) => {
     const ymd = ymdLocal(dt);
-    return jobs.filter(j => j.date_start && ymd >= j.date_start && ymd <= (j.date_end || j.date_start));
+    return entries.filter(e => e.date_start && ymd >= e.date_start && ymd <= (e.date_end || e.date_start));
   };
 
+  const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
+  const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
   const firstDay = new Date(cvYear, cvMonth, 1).getDay();
   const daysInMonth = new Date(cvYear, cvMonth + 1, 0).getDate();
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
-  const selJobs = selectedDay ? jobsOnDay(selectedDay) : [];
+
+  const onDayTap = (dt) => {
+    setSelectedDay(dt);
+    const matches = entriesOnDay(dt);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    if (matches.length === 0) {
+      setFlashNoPlan(true);
+      flashTimer.current = setTimeout(() => setFlashNoPlan(false), 1800);
+      return;
+    }
+    setFlashNoPlan(false);
+    setHighlightIds(new Set(matches.map(m => m.application_id)));
+    flashTimer.current = setTimeout(() => setHighlightIds(new Set()), 1800);
+    const needsEndedOpen = matches.every(m => bucketOf(m) === "ended") && !showEnded;
+    if (needsEndedOpen) setShowEnded(true);
+    setTimeout(() => {
+      const el = rowRefs.current[matches[0].application_id];
+      if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
+    }, needsEndedOpen ? 60 : 0);
+  };
+
+  const grouped = { today:[], tomorrow:[], thisWeek:[], later:[], ended:[] };
+  entries.forEach(e => { const b = bucketOf(e); if (b) grouped[b].push(e); });
+  const byDateAsc = (a, b) => (a.date_start||"").localeCompare(b.date_start||"") || (a.work_time||"").localeCompare(b.work_time||"");
+  grouped.today.sort(byDateAsc); grouped.tomorrow.sort(byDateAsc); grouped.thisWeek.sort(byDateAsc); grouped.later.sort(byDateAsc);
+  grouped.ended.sort((a, b) => (b.date_start||"").localeCompare(a.date_start||""));
+
+  const AgendaRow = ({ e }) => {
+    const c = CALENDAR_STATUS_COLOR(e.application_status);
+    const dateLabel = e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start);
+    const highlighted = highlightIds.has(e.application_id);
+    return (
+      <button
+        ref={el => { rowRefs.current[e.application_id] = el; }}
+        onClick={() => { window.location.hash = "/work/job/" + e.job_number; }}
+        className="f-sans"
+        style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", cursor:"pointer", transition:"background .5s" }}
+      >
+        <p style={{ fontSize:12, color:"#717171", margin:"0 0 4px" }}>📅 {dateLabel}{e.work_time ? "　" + e.work_time : ""}</p>
+        <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[e.crop, e.task].filter(Boolean).join(" ") || ("求人 #" + e.job_number)}</p>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span style={{ fontSize:12, color:"#717171" }}>{e.partner_name || "相手"}さん</span>
+          <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:c.bg, color:c.fg }}>{CALENDAR_STATUS_LABEL[e.application_status] || e.application_status}</span>
+        </div>
+      </button>
+    );
+  };
+
+  const AgendaGroup = ({ title, list }) => list.length === 0 ? null : (
+    <div style={{ marginBottom:20 }}>
+      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>{title}</p>
+      <div style={{ display:"grid", gap:8 }}>
+        {list.map(e => <AgendaRow key={e.application_id} e={e} />)}
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>カレンダー</h2>
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
-      ) : jobs.length === 0 ? (
+      ) : entries.length === 0 ? (
         <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
           <div style={{ fontSize:40, marginBottom:12 }}>📅</div>
           <p style={{ fontSize:14, margin:0 }}>予定はまだありません。<br/>応募が承認されると、ここに表示されます。</p>
         </div>
       ) : (
         <>
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14 }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-              <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"‹"}</button>
-              <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{cvYear}年{cvMonth+1}月</span>
-              <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"›"}</button>
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:10 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+              <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"‹"}</button>
+              <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{cvYear}年{cvMonth+1}月</span>
+              <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"›"}</button>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:4 }}>
-              {WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2 }}>
+              {CALENDAR_WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:9, color:"#B0B0B0", padding:"2px 0" }}>{wd}</div>)}
               {cells.map((dd, i) => {
                 if (!dd) return <div key={`e${i}`} />;
                 const dt = new Date(cvYear, cvMonth, dd);
                 const ymd = ymdLocal(dt);
-                const hasJob = jobsOnDay(dt).length > 0;
+                const hasJob = entriesOnDay(dt).length > 0;
                 const isToday = ymd === todayYmd;
                 const isSelected = selectedDay && ymdLocal(selectedDay) === ymd;
                 return (
-                  <button key={dd} onClick={() => setSelectedDay(dt)} style={{
-                    display:"flex", flexDirection:"column", alignItems:"center", gap:2,
-                    padding:"7px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:13,
+                  <button key={dd} onClick={() => onDayTap(dt)} style={{
+                    display:"flex", flexDirection:"column", alignItems:"center", gap:1,
+                    padding:"4px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12,
                     background: isSelected ? "#E6F7EF" : "transparent",
                     color:"#222", fontWeight: isToday ? 700 : 400,
                     boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
@@ -5965,24 +6031,27 @@ function MyCalendar() {
               })}
             </div>
           </div>
-          {selectedDay && (
-            <div style={{ marginTop:16 }}>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>{ymdLocal(selectedDay).replace(/-/g,"/")}の予定</p>
-              {selJobs.length === 0 ? (
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>この日の予定はありません。</p>
-              ) : (
-                <div style={{ display:"grid", gap:8 }}>
-                  {selJobs.map(j => (
-                    <button key={j.job_number} onClick={() => { window.location.hash = "/work/job/" + j.job_number; }}
-                      className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
-                      <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>
-                      <p style={{ fontSize:12, color:"#717171", margin:0 }}>{j.work_time ? j.work_time + "　" : ""}求人番号 {j.job_number}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          {flashNoPlan && (
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
           )}
+          <div style={{ marginTop:20 }}>
+            <AgendaGroup title="今日" list={grouped.today} />
+            <AgendaGroup title="明日" list={grouped.tomorrow} />
+            <AgendaGroup title="今週" list={grouped.thisWeek} />
+            <AgendaGroup title="それ以降" list={grouped.later} />
+            {grouped.ended.length > 0 && (
+              <div>
+                <button onClick={() => setShowEnded(v => !v)} className="f-sans" style={{ background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:700, color:"#717171", padding:"4px 0", marginBottom:8 }}>
+                  {showEnded ? "▾" : "▸"} 過去{grouped.ended.length}件
+                </button>
+                {showEnded && (
+                  <div style={{ display:"grid", gap:8 }}>
+                    {grouped.ended.map(e => <AgendaRow key={e.application_id} e={e} />)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
