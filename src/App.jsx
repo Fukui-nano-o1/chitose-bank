@@ -382,6 +382,16 @@ input:focus { outline: none; }
 
 .appear      { animation: appear .5s cubic-bezier(.22,.8,.36,1) both; }
 .fade-in     { animation: fadeIn .35s ease both; }
+/* 求人フローのstep遷移（2026-07-14）：次へ=左へフェードアウト→右からフェードイン／戻る=その逆。
+   transformはfixedな子(モーダル等)の基準を壊すため、入場完了後にonAnimationEndでクラスを外す */
+@keyframes stepOutLeft  { from { opacity:1; transform:translateX(0); }     to { opacity:0; transform:translateX(-36px); } }
+@keyframes stepInRight  { from { opacity:0; transform:translateX(36px); }  to { opacity:1; transform:translateX(0); } }
+@keyframes stepOutRight { from { opacity:1; transform:translateX(0); }     to { opacity:0; transform:translateX(36px); } }
+@keyframes stepInLeft   { from { opacity:0; transform:translateX(-36px); } to { opacity:1; transform:translateX(0); } }
+.step-out-left  { animation: stepOutLeft  .16s ease both; }
+.step-in-right  { animation: stepInRight  .22s ease both; }
+.step-out-right { animation: stepOutRight .16s ease both; }
+.step-in-left   { animation: stepInLeft   .22s ease both; }
 .pulse-slow  { animation: pulse 2s ease infinite; }
 .shake       { animation: shake .4s ease; }
 
@@ -7530,8 +7540,21 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const isWorker = role === "worker";
   const TOTAL = isFarmer ? 14 : 8;
 
-  const goNext = () => setStep(s => s + 1);
-  const goBack = () => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); };
+  // step遷移アニメ：退場(0.16s)→step切替→入場(0.22s)。連打はbusyガードで無視
+  const [stepAnim, setStepAnim] = useState("");
+  const stepAnimBusy = useRef(false);
+  const animateStepChange = (applyChange, dir) => {
+    if (stepAnimBusy.current) return;
+    stepAnimBusy.current = true;
+    setStepAnim(dir === "fwd" ? "step-out-left" : "step-out-right");
+    setTimeout(() => {
+      applyChange();
+      setStepAnim(dir === "fwd" ? "step-in-right" : "step-in-left");
+      stepAnimBusy.current = false;
+    }, 160);
+  };
+  const goNext = () => animateStepChange(() => setStep(s => s + 1), "fwd");
+  const goBack = () => animateStepChange(() => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); }, "back");
 
   // 確認ページ(step11)からの編集ジャンプ中フラグ。trueの間、共通フッターの「次へ／戻る」は
   // 通常の順送りでなく確認ページへ直帰する（Airbnb出品確認の「編集→保存して確認へ戻る」と同型）。
@@ -7866,7 +7889,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       <div ref={flowScrollRef} style={embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center" }
         : { height:"100%", overflowY:"auto" })}>
-        <div key={step} className="fade-in" style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
+        <div key={step} className={stepAnim || "fade-in"}
+          onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && stepAnim.startsWith("step-in")) setStepAnim(""); }}
+          style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
 
           {/* ── HOME ── */}
           {step === 0 && (
