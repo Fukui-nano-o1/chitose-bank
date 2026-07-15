@@ -6028,12 +6028,13 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const [wMini, setWMini] = useState(null);
   const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
   useEffect(() => {
+    if (wTab !== "home") return; // 入口に戻るたびに再取得（編集後のバッジ・スニペット鮮度を担保）
     let cancelled = false;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session || cancelled) return;
-        const { data: wp } = await supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
+        const { data: wp } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         if (!cancelled && wp) setWMini(wp);
         const { data: apps } = await supabase.from("applications").select("status").eq("worker_id", session.user.id);
         if (!cancelled && apps) setWAppCounts({
@@ -6043,7 +6044,20 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [wTab]);
+  // 働き手プロフィールの未設定項目数（編集ページの10ボックスに対応。トップボックス右上のバッジに表示）
+  const wUnsetCount = wMini ? [
+    !!wMini.avatar_url,
+    !!(wMini.nickname || "").trim(),
+    !!(wMini.residence_city || "").trim(),
+    !!wMini.transport,
+    !!wMini.farm_experience,
+    !!wMini.physical_level,
+    Array.isArray(wMini.interests) && wMini.interests.length > 0,
+    Array.isArray(wMini.languages) && wMini.languages.length > 0,
+    !!((wMini.pr_pending ?? wMini.pr) || "").trim(),
+    (Array.isArray(wMini.pr_qa_pending) ? wMini.pr_qa_pending.length : (Array.isArray(wMini.pr_qa) ? wMini.pr_qa.length : 0)) > 0,
+  ].filter(x => !x).length : 10;
   return (
     <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
@@ -6066,7 +6080,11 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         wTab === "home" ? (
           <>
             {/* ═══ Airbnb型入口メニュー（働き手側・2026-07-14）：農家プロ入口と同構造。旧サイドタブ列は廃止 ═══ */}
-            <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              {/* 未設定の項目数（編集ページの10ボックス基準）。全て設定済みなら非表示 */}
+              {wUnsetCount > 0 && (
+                <span style={{ position:"absolute", top:12, right:12, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{wUnsetCount}</span>
+              )}
               <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} />
               <span>
                 <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
