@@ -7126,6 +7126,7 @@ function LFPillSelect({ options, value, onSelect }) {
 
 // 作物リスト（カードを増やすときはここに1行足すだけ）
 const CROP_OPTIONS = [
+  { name:"ブロッコリー", icon:"🥦" },
   { name:"トマト",   icon:"🍅" },
   { name:"キュウリ", icon:"🥒" },
   { name:"ナス",     icon:"🍆" },
