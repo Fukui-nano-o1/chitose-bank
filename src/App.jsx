@@ -5247,6 +5247,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     setUploading(false);
   };
   const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|residence|transport|exp|intensity|interests|languages|pr|qa
+  const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→WorkerProfilePreviewをモーダル展開
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
@@ -5274,7 +5275,14 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>働き手プロフィール</p>
+      {/* 右上に保存・プレビュー（2026-07-14）。プレビューはモーダル展開（保存済みの内容を表示） */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:4 }}>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>働き手プロフィール</p>
+        <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+          <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
+          <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, borderRadius:10 }}>{saving ? "保存中..." : "保存"}</button>
+        </div>
+      </div>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に応募したとき、農家に伝わる自己紹介です。タップして入力できます。</p>
 
       {/* ═══ ボックス格子（入口カードと同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
@@ -5489,6 +5497,17 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       )}
       </div>
       </div>
+      )}
+
+      {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
+      {showPreview && (
+        <div onClick={()=>setShowPreview(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:560, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
+            <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容を表示しています）</p>
+            <WorkerProfilePreview me={me} onEdit={()=>setShowPreview(false)} />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -6113,20 +6132,13 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             <button onClick={()=>{ setWTab("home"); window.location.hash="/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:12 }}>← プロフィール</button>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
-              {wTab === "wprofile" && wProfileMode === "preview" && (
-                <button onClick={()=>setWProfileMode("edit")} className="f-sans" style={{ background:"#F7F7F7", border:"none", borderRadius:16, padding:"6px 14px", fontSize:13, fontWeight:600, color:"#222", cursor:"pointer" }}>編集</button>
-              )}
             </div>
+            {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
             {wTab === "wprofile" ? (
-              wProfileMode === "edit" ? (
-                <WorkerProfileEdit me={me} onAvatarChange={onAvatarChange} onDone={()=>{
-                  setWProfileMode("preview");
-                  const ret = peekApplyReturn();
-                  if (ret) { clearApplyReturn(); window.location.hash = "/work/job/" + ret; }
-                }} onCancel={()=>setWProfileMode("preview")} />
-              ) : (
-                <WorkerProfilePreview me={me} onEdit={()=>setWProfileMode("edit")} />
-              )
+              <WorkerProfileEdit me={me} onAvatarChange={onAvatarChange} onDone={()=>{
+                const ret = peekApplyReturn();
+                if (ret) { clearApplyReturn(); window.location.hash = "/work/job/" + ret; }
+              }} />
             ) : wTab === "applying" ? (
               <WorkerApplications filter="applying" me={me} />
             ) : wTab === "approved" ? (
@@ -11151,6 +11163,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     setUploading(false);
   };
   const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|pr|perks|staff|intro|ask|style
+  const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→FarmerProfilePreviewをモーダル展開
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
@@ -11192,7 +11205,14 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>雇い手プロフィール</p>
+      {/* 右上に保存・プレビュー（2026-07-14・働き手編集ページと同一構造）。プレビューはモーダル展開 */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:4 }}>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>雇い手プロフィール</p>
+        <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+          <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
+          <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, borderRadius:10 }}>{saving ? "保存中..." : "保存"}</button>
+        </div>
+      </div>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に掲載したとき、働き手に伝わる紹介です。タップして入力できます。</p>
 
       {/* ═══ ボックス格子（働き手編集ページと全く同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
@@ -11380,6 +11400,17 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
       </div>
       </div>
+      )}
+
+      {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
+      {showPreview && (
+        <div onClick={()=>setShowPreview(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:560, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
+            <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容を表示しています）</p>
+            <FarmerProfilePreview me={me} onEdit={()=>setShowPreview(false)} />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -11691,12 +11722,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
       <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap:20 }}>
+      {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
-        profileMode === "edit" ? (
-          <EmployerProfileEdit me={me} onDone={()=>setProfileMode("preview")} onCancel={()=>setProfileMode("preview")} />
-        ) : (
-          <FarmerProfilePreview me={me} onEdit={()=>setProfileMode("edit")} />
-        )
+        <EmployerProfileEdit me={me} />
       ) : jobTab==="draft" ? (
         draftsLoading ? (
           <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
