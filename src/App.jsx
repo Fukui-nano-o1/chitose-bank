@@ -5914,7 +5914,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
           </>
         ) : (
         <div className="profile-content">
-            <button onClick={()=>{ window.location.hash="/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:12 }}>← プロフィール</button>
+            <button onClick={()=>{ setWTab("home"); window.location.hash="/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:12 }}>← プロフィール</button>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
               {wTab === "wprofile" && wProfileMode === "preview" && (
@@ -11327,7 +11327,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       ) : (
       <>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-        <button onClick={()=>{ window.location.hash="/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0" }}>← 農家プロ</button>
+        {/* hashが既に/profile/employerの場合(保存後遷移等)はhashchangeが発火しないため、stateも直接homeへ */}
+        <button onClick={()=>{ setJobTab("home"); window.location.hash="/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0" }}>← 農家プロ</button>
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
