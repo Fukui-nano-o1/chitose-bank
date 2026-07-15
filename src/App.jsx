@@ -11150,7 +11150,8 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     } catch { alert("削除に失敗しました。"); }
     setUploading(false);
   };
-  const save = async () => {
+  const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|pr|perks|staff|intro|ask|style
+  const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
     try {
@@ -11179,16 +11180,54 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       setSaving(false);
       if (!error) {
         setSaved(true);
-        setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
+        if (stay === true) { setEditBox(null); setTimeout(() => setSaved(false), 2200); } // モーダルからの保存：格子に留まる
+        else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
       }
       else alert("保存に失敗しました：" + error.message);
     } catch { setSaving(false); alert("保存に失敗しました。"); }
   };
   if (loading) return <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
+  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
+  const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
+  const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>雇い手プロフィール</p>
-      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に掲載したとき、働き手に伝わる紹介です。任意で入力できます。</p>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に掲載したとき、働き手に伝わる紹介です。タップして入力できます。</p>
+
+      {/* ═══ ボックス格子（働き手編集ページと全く同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        {[
+          { k:"avatar",   e:"🖼️", l:"ロゴ・アイコン", v: avatarUrl ? "設定済み" : "" },
+          { k:"nickname", e:"✏️", l:"農園名",         v: nickname },
+          { k:"pr",       e:"📝", l:"紹介・PR",       v: pr },
+          { k:"perks",    e:"🎁", l:"共通条件",       v: perksOn.join("・") },
+          { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
+          { k:"intro",    e:"🏡", l:"農園紹介",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
+          { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
+          { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
+        ].map(b => (
+          <button key={b.k} onClick={()=>setEditBox(b.k)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+            {b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>}
+            <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
+            <span style={{ fontSize:11, color: b.v ? "#00A86B" : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
+          </button>
+        ))}
+      </div>
+      {saved && (
+        <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>保存しました ✓</p>
+      )}
+      {onCancel && (
+        <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
+      )}
+
+      {/* ═══ 編集モーダル（各ボックスの中身。保存はモーダル内の「保存する」＝全項目upsert） ═══ */}
+      {editBox && (
+      <div onClick={()=>setEditBox(null)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
+      <button onClick={()=>setEditBox(null)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
+
+      {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
         <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
@@ -11204,10 +11243,19 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           )}
         </div>
       </div>
+      </>)}
+
+      {editBox==="nickname" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>農園名・屋号・社名</label>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：山川ファーム / 千歳農園" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+      </>)}
+
+      {editBox==="pr" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>紹介・PR</label>
       <textarea value={pr} onChange={e=>setPr(e.target.value)} placeholder="家族でブロッコリーを育てています。丁寧に教えます。" rows={4} className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }} />
+      </>)}
+
+      {editBox==="perks" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>求人に共通する条件</label>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>ここで設定した内容は、あなたが出す全ての求人に共通して表示されます。</p>
       <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
@@ -11240,28 +11288,18 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
         <div><ToggleSwitch label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
-      <div style={{ marginBottom:16 }}>
-        <button type="button" onClick={()=>setIntroOpen(o=>!o)} className="f-sans" style={{
-          width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
-          padding:"16px", background:"#F7FBF9",
-          border:"1px solid #D8EEE3", borderRadius: introOpen ? "12px 12px 0 0" : 12,
-          boxShadow:"0 2px 8px rgba(0,0,0,.06)",
-          cursor:"pointer", fontFamily:"inherit", textAlign:"left",
-          marginTop:20,
-        }}>
-          <span>
-            <span style={{ fontSize:15, fontWeight:700, color:"#00A86B" }}>📝 農園の紹介を書く</span>
-            <span style={{ fontSize:11, color:"#717171", display:"block", marginTop:2 }}>任意・あとからでも書けます</span>
-          </span>
-          <span style={{ fontSize:14, color:"#00A86B" }}>{introOpen ? "▲" : "▼"}</span>
-        </button>
-        {introOpen && (
-          <div style={{ border:"1px solid #D8EEE3", borderTop:"none", borderRadius:"0 0 12px 12px", padding:"16px", background:"#fff" }}>
+      </>)}
+
+      {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を従業員数/農園紹介/問いかけ/関わり方の各ボックスに分割 */}
+      {editBox==="staff" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>従業員数（任意）</label>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
               <input type="number" value={staffCount} onChange={e=>setStaffCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
               <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>人</span>
             </div>
+      </>)}
+
+      {editBox==="intro" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>農園紹介</label>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたいお題だけ、記入してください（任意）</p>
             <div className="employer-intro-grid" style={{ marginBottom:16 }}>
@@ -11292,7 +11330,9 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
               style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
             />
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{ownerComment.length} / 1000</p>
+      </>)}
 
+      {editBox==="ask" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>働き手への問いかけ</label>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたい問いだけ、記入してください（任意）</p>
             <div className="employer-intro-grid" style={{ marginBottom:16 }}>
@@ -11314,6 +11354,9 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
                 </div>
               ))}
             </div>
+      </>)}
+
+      {editBox==="style" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>作業中の関わり方（任意）</label>
             <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
               {INTERACTION_STYLE_OPTIONS.map(opt => (
@@ -11331,12 +11374,12 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
                 >{opt.label}</button>
               ))}
             </div>
-          </div>
-        )}
+      </>)}
+
+      {/* モーダルフッター：保存する（全項目upsert）→格子に戻る */}
+      <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
       </div>
-      <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : saved ? "保存しました ✓" : "保存する"}</button>
-      {onCancel && (
-        <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:12, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>キャンセル</button>
+      </div>
       )}
     </div>
   );
