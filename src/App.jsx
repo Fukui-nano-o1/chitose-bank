@@ -11621,6 +11621,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [draftsLoading, setDraftsLoading] = useState(true);
   const [profileMode, setProfileMode] = useState("preview");
   const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（nickname/avatar_url）
+  const [rosterRows, setRosterRows] = useState([]); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
   useEffect(() => {
     (async () => {
       try {
@@ -11628,6 +11629,13 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         if (!session) { setDraftsLoading(false); return; }
         const { data: epMini } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
         if (epMini) setEmpMini(epMini);
+        const { data: rosterData } = await supabase.from("repeat_roster").select("worker_id,created_at").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
+        if (rosterData && rosterData.length > 0) {
+          const { data: rosterWp } = await supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", rosterData.map(r => r.worker_id));
+          const wpMap = {};
+          (rosterWp || []).forEach(wp => { wpMap[wp.auth_id] = wp; });
+          setRosterRows(rosterData.map(r => ({ worker_id: r.worker_id, nickname: wpMap[r.worker_id]?.nickname || "働き手", avatar_url: wpMap[r.worker_id]?.avatar_url || null })));
+        }
         const { data, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).eq("status","draft").order("job_number",{ascending:false});
         if (!error && data) setDbDrafts(data);
         const { data: adata, error: aerror } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).in("status",["pending","open"]).order("job_number",{ascending:false});
@@ -11689,10 +11697,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [completePublicComment, setCompletePublicComment] = useState("");
   const [completePrivateMemo, setCompletePrivateMemo] = useState("");
   const [completeSubmitting, setCompleteSubmitting] = useState(false);
+  const [completeNotifyNext, setCompleteNotifyNext] = useState(true); // また呼びたい=はい時のみ表示。ON=repeat_rosterへupsert
   const openCompleteModal = (a) => {
     setCompleteModalApp(a); setCompleteStep('attend');
     setCompleteWantAgain(null); setCompleteEntrust(null);
     setCompletePublicComment(""); setCompletePrivateMemo("");
+    setCompleteNotifyNext(true);
   };
   const markNoShow = async () => {
     if (!completeModalApp || completeSubmitting) return;
@@ -11718,10 +11728,31 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         public_comment: completePublicComment.trim() || null, private_memo: completePrivateMemo.trim() || null,
       });
       if (revErr) { alert('評価の保存に失敗しました：' + revErr.message); setCompleteSubmitting(false); return; }
+      if (completeWantAgain === true && completeNotifyNext) {
+        // また呼びたいリスト登録（失敗しても評価自体は成立済みso止めない）
+        const { error: rosErr } = await supabase.from('repeat_roster').upsert(
+          { farmer_id: me.id, worker_id: completeModalApp.worker_id, source_application_id: completeModalApp.id, notify: true },
+          { onConflict: 'farmer_id,worker_id' }
+        );
+        if (!rosErr) {
+          const wp = workerProfiles[completeModalApp.worker_id];
+          setRosterRows(prev => prev.some(r => r.worker_id === completeModalApp.worker_id) ? prev
+            : [{ worker_id: completeModalApp.worker_id, nickname: wp?.nickname || "働き手", avatar_url: wp?.avatar_url || null }, ...prev]);
+        }
+      }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
       setCompleteModalApp(null);
     } catch { alert('処理に失敗しました。'); }
     setCompleteSubmitting(false);
+  };
+  // また呼びたいリストの行削除（通知を止める）
+  const stopRosterNotify = async (workerId) => {
+    if (!confirm('この方への新求人のお知らせを止めますか？（次回の評価で再登録できます）')) return;
+    try {
+      const { error } = await supabase.from('repeat_roster').delete().eq('farmer_id', me.id).eq('worker_id', workerId);
+      if (error) { alert('解除に失敗しました：' + error.message); return; }
+      setRosterRows(prev => prev.filter(r => r.worker_id !== workerId));
+    } catch { alert('解除に失敗しました。'); }
   };
 
   // 緊急連絡（Part3・農家側）
@@ -11781,6 +11812,19 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
             </span>
           </button>
+          {rosterRows.length > 0 && (
+            <div className="f-sans" style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px" }}>💚 また呼びたいリスト</p>
+              <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>新しい求人を出すと、この方たちにお知らせが届きます。</p>
+              {rosterRows.map(r => (
+                <div key={r.worker_id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderTop:"1px solid #F5F5F5" }}>
+                  <Avatar url={r.avatar_url} name={r.nickname} size={36} />
+                  <span style={{ flex:1, fontSize:14, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.nickname}</span>
+                  <button onClick={()=>stopRosterNotify(r.worker_id)} className="f-sans" style={{ flexShrink:0, background:"none", border:"1px solid #EBEBEB", borderRadius:8, padding:"6px 10px", fontSize:12, color:"#717171", cursor:"pointer" }}>通知を止める</button>
+                </div>
+              ))}
+            </div>
+          )}
           <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
         </>
       ) : (
@@ -11969,6 +12013,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
                 <textarea value={completePrivateMemo} onChange={e=>setCompletePrivateMemo(e.target.value)} placeholder="自分だけが見えるメモ（任意）" rows={3}
                   className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
+                {completeWantAgain === true && (
+                  <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", marginBottom:16 }}>
+                    <input type="checkbox" checked={completeNotifyNext} onChange={e=>setCompleteNotifyNext(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
+                    この方に、次の求人をお知らせする
+                  </label>
+                )}
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>setCompleteModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
                   <button onClick={submitFarmerReview} disabled={completeSubmitting || completeWantAgain===null || completeEntrust===null}
