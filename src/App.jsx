@@ -625,7 +625,7 @@ input:focus { outline: none; }
   .profile-employer-edge { margin-left: -6px !important; margin-right: -6px !important; }
 }
 
-/* ── 使い方ガイド(ヘルプセンター)：モバイルで画面端から4pxに詰める
+/* ── 使い方ガイド・利用規約・プライバシー・運営憲章：モバイルで画面端から4pxに詰める
    （main左右12px − 負マージン12px ＋ ラッパーpadding4px ＝ 4px。作法は上と同じ） ── */
 @media (max-width: 640px) {
   .help-edge { margin-left: -12px !important; margin-right: -12px !important; }
@@ -13907,7 +13907,7 @@ const subDest=useCallback(async d=>{
           }}
           onShowAccountForm={() => setNeedsAccountHolder(true)}/>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
-          <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+          <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定日：2026年7月5日</p>
@@ -13977,7 +13977,7 @@ const subDest=useCallback(async d=>{
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="page-presentation-create-canvas"&&<PresentationCreateCanvasPage />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
-          <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+          <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定日：2026年7月5日 · 最終改定日：2026年7月13日</p>
@@ -14006,7 +14006,7 @@ const subDest=useCallback(async d=>{
           </div>
         )}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="terms"&&(
-          <div style={{ maxWidth:760, margin:"0 auto", padding:"40px 24px 48px" }}>
+          <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>利用規約</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定日：2026年7月5日 · 最終改定日：2026年7月13日</p>
