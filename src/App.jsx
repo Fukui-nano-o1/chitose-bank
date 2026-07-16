@@ -6281,10 +6281,15 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         if (!session || cancelled) return;
         const { data: wp } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         if (!cancelled && wp) setWMini(wp);
-        const { data: apps } = await supabase.from("applications").select("status").eq("worker_id", session.user.id);
+        const { data: apps } = await supabase.from("applications").select("status,attended,worker_confirmed_end_at").eq("worker_id", session.user.id);
+        // 承認済みバッジは未対応（手続きが残っている応募）のみ計上。完了・評価済みまで数えると
+        // バッジが常時点灯し、新しい要対応があっても気づけなくなるため（2026-07-16）
         if (!cancelled && apps) setWAppCounts({
           applying: apps.filter(a => a.status === "applied").length,
-          approved: apps.filter(a => ["approved","meeting","interview","contracted","working","completed"].includes(a.status)).length,
+          approved: apps.filter(a =>
+            ["approved","meeting","interview","contracted","working","completed"].includes(a.status)
+            && !(a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at))
+          ).length,
         });
       } catch {}
     })();
