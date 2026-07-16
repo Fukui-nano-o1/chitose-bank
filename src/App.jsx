@@ -853,6 +853,18 @@ input:focus { outline: none; }
 /* 確認ページ用：下部ナビ(戻る/保存/掲載する)の右上に浮遊 */
 .calendar-fab-confirm { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 
+/* ── 求人詳細：←戻る／♡いいねの浮遊固定（同じ高さ・スクロール追従・2026-07-16） ── */
+.job-float-back, .job-float-like {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  z-index: 550;
+}
+.job-float-back { left: 12px; }
+.job-float-like { right: 12px; }
+@media (min-width: 769px) {
+  .job-float-back, .job-float-like { top: 76px; } /* PCは上部ヘッダーの下 */
+}
+
 /* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
 @media (max-width: 759px) {
   .job-detail-back-btn { margin-bottom: 8px !important; }
@@ -6876,36 +6888,35 @@ function JobSearchMapView({ onRegister, me }) {
       {/* ── 詳細ページ ── */}
       {selectedJob && (
         <div className="appear job-detail-body-mobile">
-          <div className="job-detail-back-btn" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-            <button onClick={() => {
-              // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
-              if (jobBackStack.length > 0) {
-                const prev = jobBackStack[jobBackStack.length - 1];
-                setJobBackStack(st => st.slice(0, -1));
-                setSelectedJob(prev);
-                try { window.history.pushState(null, "", "#/work/job/" + prev.id); } catch {}
-                try { window.scrollTo(0, 0); } catch {}
-                return;
-              }
-              setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
-            }} className="f-sans" style={{
-              display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
-              fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0",
-            }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : "← 一覧に戻る"}</button>
-            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-              {/* 通報リンク（ページ最下部と同じ・いいねの上にも配置・2026-07-16） */}
-              {me && (
-                <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
-                  background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
-                  fontSize:11, color:"#717171", textDecoration:"underline", padding:"2px 4px",
-                }}>⚑ この求人を報告する</button>
-              )}
-              <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans" style={{
-                display:"flex", alignItems:"center", gap:6, background:"none", border:"1px solid #EBEBEB", borderRadius:20,
-                fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"6px 14px",
-              }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+          {/* ←戻る／♡いいね：同じ高さの浮遊固定ボックス（スクロール追従・2026-07-16） */}
+          <button onClick={() => {
+            // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
+            if (jobBackStack.length > 0) {
+              const prev = jobBackStack[jobBackStack.length - 1];
+              setJobBackStack(st => st.slice(0, -1));
+              setSelectedJob(prev);
+              try { window.history.pushState(null, "", "#/work/job/" + prev.id); } catch {}
+              try { window.scrollTo(0, 0); } catch {}
+              return;
+            }
+            setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
+          }} className="f-sans job-float-back" style={{
+            display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+            fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+          }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : "← 一覧に戻る"}</button>
+          <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
+            display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+            fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+          }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+          {/* 通報リンク（いいねの上=ページ先頭右） */}
+          {me && (
+            <div className="job-detail-back-btn" style={{ textAlign:"right", marginBottom:8 }}>
+              <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
+                background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
+                fontSize:11, color:"#717171", textDecoration:"underline", padding:"2px 4px",
+              }}>⚑ この求人を報告する</button>
             </div>
-          </div>
+          )}
 
           {/* 写真ギャラリー（ダミー3枚／将来 selectedJob.photos 配列を受け取る想定・最大10枚） */}
           {(() => {
