@@ -9972,6 +9972,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [appErrors, setAppErrors] = useState([]);
   const [pendingJobs, setPendingJobs] = useState([]);
   const [pendingPrs, setPendingPrs] = useState([]); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
+  const [sheetPrId, setSheetPrId] = useState(null); // 自由記述審査：タップした働き手のボトムシート（auth_id）
   const [reports, setReports] = useState([]); // 通報（job_reports）
   const [disputes, setDisputes] = useState([]); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
   const [prPublishing, setPrPublishing] = useState(null);
@@ -10008,7 +10009,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
       supabase.from("records").select("*").order("year,month"),
       supabase.from("app_errors").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("jobs").select("*").eq("status","pending").order("created_at",{ascending:false}),
-      supabase.from("worker_profiles").select("auth_id,nickname,pr_pending,pr_qa_pending,pr_submitted_at"),
+      supabase.from("worker_profiles").select("auth_id,nickname,avatar_url,pr_pending,pr_qa_pending,pr_submitted_at"),
       supabase.from("job_reports").select("*").order("created_at",{ascending:false}),
       supabase.from("attendance_events").select("*").eq("kind","dispute_no_show").order("created_at",{ascending:false}),
       supabase.rpc("admin_list_accounts"),
@@ -10709,30 +10710,58 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         {reviewSec==="prs" && (
         <div>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>プロフィール自由記述{pendingPrs.length > 0 ? `（${pendingPrs.length}）` : ""}</p>
-          <div style={{ display:"grid", gap:12 }}>
-            {pendingPrs.length === 0 ? (
-              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>確認待ちの自由記述はありません</p>
-            ) : pendingPrs.map(w => (
-              <div key={w.auth_id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:10 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{w.nickname || "名前未設定"}</p>
-                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{w.pr_submitted_at ? new Date(w.pr_submitted_at).toLocaleString("ja-JP") : ""}</span>
+          {/* 求人審査と同設計（2026-07-16）：3列グリッド・アイコン＋ニックネームのみ・未審査は赤影アニメ。タップでボトムシート */}
+          {pendingPrs.length === 0 ? (
+            <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>確認待ちの自由記述はありません</p>
+          ) : (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+            {pendingPrs.map(w => (
+              <button key={w.auth_id} onClick={()=>setSheetPrId(w.auth_id)}
+                className="f-sans cb-urgent-card"
+                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                  {w.avatar_url
+                    ? <img src={w.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    : <Avatar url={null} name={w.nickname || "？"} size={64} />}
+                  <StatusRibbon label="審査待ち" color="#C77700" />
                 </div>
-                {w.pr_pending && (
-                  <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:"0 0 10px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#F7F7F7", borderRadius:10, padding:"10px 12px" }}>{w.pr_pending}</p>
-                )}
-                {Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.map(({ q, a }) => (
-                  <div key={q} style={{ background:"#F7FBF9", borderRadius:10, padding:"8px 12px", marginBottom:8 }}>
-                    <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 2px" }}>{q}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
-                  </div>
-                ))}
-                <div style={{ display:"flex", justifyContent:"flex-end" }}>
-                  <button onClick={()=>publishPendingPr(w)} disabled={prPublishing===w.auth_id} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{prPublishing===w.auth_id ? "公開中..." : "公開する"}</button>
-                </div>
-              </div>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: w.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{w.nickname || "（名前未設定）"}</p>
+              </button>
             ))}
           </div>
+          )}
+          {/* 自由記述のボトムシート（本文・Q&A・公開ボタン。公開後は一覧から消えて自動で閉じる） */}
+          {(() => {
+            const w = pendingPrs.find(x => x.auth_id === sheetPrId);
+            if (!w) return null;
+            return (
+              <div onClick={()=>setSheetPrId(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+                <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                  <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+                    <button onClick={()=>setSheetPrId(null)} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  </div>
+                  <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:10 }}>
+                      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{w.nickname || "名前未設定"}</p>
+                      <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{w.pr_submitted_at ? new Date(w.pr_submitted_at).toLocaleString("ja-JP") : ""}</span>
+                    </div>
+                    {w.pr_pending && (
+                      <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:"0 0 10px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#F7F7F7", borderRadius:10, padding:"10px 12px" }}>{w.pr_pending}</p>
+                    )}
+                    {Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.map(({ q, a }) => (
+                      <div key={q} style={{ background:"#F7FBF9", borderRadius:10, padding:"8px 12px", marginBottom:8 }}>
+                        <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 2px" }}>{q}</p>
+                        <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                      </div>
+                    ))}
+                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                      <button onClick={()=>publishPendingPr(w)} disabled={prPublishing===w.auth_id} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{prPublishing===w.auth_id ? "公開中..." : "公開する"}</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
         )}
 
