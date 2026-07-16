@@ -12022,6 +12022,17 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
   const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
+  // 未設定の項目数（編集ページの8ボックス基準）。トップボックスの通知バッジに表示（2026-07-16・働き手側と同構造）
+  const empUnsetCount = empMini ? [
+    !!empMini.avatar_url,
+    !!(empMini.nickname || "").trim(),
+    !!(empMini.pr || "").trim(),
+    !!(empMini.has_transport || empMini.has_parking || empMini.has_commute_allowance || empMini.has_bonus || empMini.employer_pays_supplies || empMini.accessory_ok),
+    empMini.staff_count !== null && empMini.staff_count !== undefined && empMini.staff_count !== "",
+    [empMini.intro_path, empMini.intro_joy, empMini.intro_crops, empMini.intro_atmosphere, empMini.intro_message, empMini.owner_comment].some(t => t && String(t).trim()),
+    [empMini.unique_point, empMini.always_do, empMini.break_style].some(t => t && String(t).trim()),
+    !!empMini.interaction_style,
+  ].filter(x => !x).length : 8;
   const [rosterRows, setRosterRows] = useState([]); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
   useEffect(() => {
     (async () => {
@@ -12375,6 +12386,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
               {!empTopBack ? (
                 <>
+                  {/* 未設定の項目数（全て設定済みなら非表示）。右上は⇄マークなので左隣に */}
+                  {empUnsetCount > 0 && (
+                    <span style={{ position:"absolute", top:12, right:52, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{empUnsetCount}</span>
+                  )}
                   <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
                   <span>
                     <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
