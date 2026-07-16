@@ -5092,18 +5092,22 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
 }
 
 // 農家版15秒カード（WorkerTrustCardの鏡写し）。trustはemployer_trust_info/job_employer_trust_infoの返り値
-function FarmerTrustCard({ profile, trust }) {
+// onEditItem（任意）: 本人プレビュー用。渡すと各項目がタップ可能になり、対応する編集ボックスのキー
+// (avatar/nickname/style/ask)を返す。働き手側（求人詳細等）は渡さない＝従来どおり表示専用
+function FarmerTrustCard({ profile, trust, onEditItem }) {
   if (!profile) return null;
+  const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
+  const cur = onEditItem ? { cursor:"pointer" } : {};
   const qa = farmHostQa(profile);
   const styleLabel = interactionStyleLabel(profile.interaction_style);
   const okTrust = !!(trust && trust.ok);
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <div style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...cur }}>
           <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
         </div>
-        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, minWidth:0 }}>{profile.nickname || "農園名未設定"}</p>
+        <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, minWidth:0, ...cur }}>{profile.nickname || "農園名未設定"}</p>
       </div>
       {okTrust && trust.want_again_workers > 0 && (
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>🌟また働きたい×{trust.want_again_workers}</p>
@@ -5128,11 +5132,11 @@ function FarmerTrustCard({ profile, trust }) {
       )}
       {styleLabel && (
         <div style={{ marginBottom:10 }}>
-          <span className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>🤝 {styleLabel}</span>
+          <span {...tap("style")} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...cur }}>🤝 {styleLabel}</span>
         </div>
       )}
       {qa.length > 0 && (
-        <div style={{ display:"grid", gap:10, marginTop:4 }}>
+        <div {...tap("ask")} style={{ display:"grid", gap:10, marginTop:4, ...cur }}>
           {qa.map(({ q, a }) => (
             <div key={q}>
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
@@ -11396,6 +11400,11 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
   };
   const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|pr|perks|staff|intro|ask|style
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→FarmerProfilePreviewをモーダル展開
+  const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復・働き手側と同構造）
+  const closeEditBox = () => {
+    setEditBox(null);
+    if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
+  };
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
@@ -11425,7 +11434,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       setSaving(false);
       if (!error) {
         setSaved(true);
-        if (stay === true) { setEditBox(null); setTimeout(() => setSaved(false), 2200); } // モーダルからの保存：格子に留まる
+        if (stay === true) { closeEditBox(); setTimeout(() => setSaved(false), 2200); } // モーダルからの保存：格子に留まる
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
       }
       else alert("保存に失敗しました：" + error.message);
@@ -11475,9 +11484,9 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
 
       {/* ═══ 編集モーダル（各ボックスの中身。保存はモーダル内の「保存する」＝全項目upsert） ═══ */}
       {editBox && (
-      <div onClick={()=>setEditBox(null)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+      <div onClick={closeEditBox} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
       <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
-      <button onClick={()=>setEditBox(null)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
+      <button onClick={closeEditBox} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
 
       {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>
@@ -11641,8 +11650,9 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           {/* touchAction/overscrollBehavior: iOSでスクロールが背面ページに奪われるのを防ぐ（2026-07-14） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
             <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
-            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容を表示しています）</p>
-            <FarmerProfilePreview me={me} onEdit={()=>setShowPreview(false)} />
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容）・項目をタップで編集できます</p>
+            <FarmerProfilePreview me={me} onEdit={()=>setShowPreview(false)}
+              onEditItem={(key)=>{ setShowPreview(false); setEditFromPreview(true); setEditBox(key); }} />
           </div>
         </div>
       )}
@@ -11650,7 +11660,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
   );
 }
 
-function FarmerProfilePreview({ me, onEdit }) {
+function FarmerProfilePreview({ me, onEdit, onEditItem }) {
   const [data, setData] = useState(null);
   const [trust, setTrust] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11699,18 +11709,18 @@ function FarmerProfilePreview({ me, onEdit }) {
       ) : (
         <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", marginBottom:20 }}>
           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", marginBottom: perks.length ? 14 : 0 }}>
-            <div style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", marginBottom:8 }}>
+            <div onClick={onEditItem ? ()=>onEditItem("avatar") : undefined} role={onEditItem ? "button" : undefined} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", marginBottom:8, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
               <Avatar url={data.avatar_url} name={data.nickname} size={56} />
             </div>
-            <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{data.nickname || "農園名未設定"}</p>
+            <p onClick={onEditItem ? ()=>onEditItem("nickname") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{data.nickname || "農園名未設定"}</p>
             {data.pr && (
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{data.pr}</p>
+              <p onClick={onEditItem ? ()=>onEditItem("pr") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{data.pr.length > 100 ? data.pr.slice(0, 100) + "…" : data.pr}</p>
             )}
           </div>
           {perks.length > 0 && (
             <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
               {perks.map((p, i) => (
-                <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#00A86B", background:"#E6F7EF", padding:"5px 12px", borderRadius:20 }}>{p.label}</span>
+                <span key={i} onClick={onEditItem ? ()=>onEditItem("perks") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#00A86B", background:"#E6F7EF", padding:"5px 12px", borderRadius:20, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{p.label}</span>
               ))}
             </div>
           )}
@@ -11723,13 +11733,13 @@ function FarmerProfilePreview({ me, onEdit }) {
           </h3>
           {hasTrustCard && (
             <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom: (topics.length > 0 || comment) ? 16 : 0 }}>
-              <FarmerTrustCard profile={data} trust={trust} />
+              <FarmerTrustCard profile={data} trust={trust} onEditItem={onEditItem} />
             </div>
           )}
           {topics.length > 0 && (
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
               {topics.map((t, i) => (
-                <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                <div key={i} onClick={onEditItem ? ()=>onEditItem("intro") : undefined} role={onEditItem ? "button" : undefined} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>
                   <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
                   <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
                 </div>
@@ -11737,7 +11747,7 @@ function FarmerProfilePreview({ me, onEdit }) {
             </div>
           )}
           {comment && (
-            <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px" }}>
+            <div onClick={onEditItem ? ()=>onEditItem("intro") : undefined} role={onEditItem ? "button" : undefined} style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>
               <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
               <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
             </div>
