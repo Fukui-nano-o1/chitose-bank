@@ -797,14 +797,9 @@ input:focus { outline: none; }
   }
 }
 
-/* ── 開催期間カレンダー（地図の下）：PCのみ表示・スマホはフッター📅のモーダルで見せる ── */
+/* ── 開催期間カレンダー（地図の下）：全デバイスで表示（2026-07-16・スマホ非表示を解除） ── */
 .calendar-below-map {
   display: block;
-}
-@media (max-width: 759px) {
-  .calendar-below-map {
-    display: none;
-  }
 }
 
 /* ── 求人詳細（スマホ専用）：下部応募フッター。応募ボタンは常時見せる（格納対象外） ── */
@@ -7139,51 +7134,7 @@ function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
 
-          {/* 農園紹介（地図の下）：ページには自己PR(代表より)のみ表示。タップでモーダルに全文（お題＋代表より）を展開 */}
-          {empEmployer && (() => {
-            const topics = farmIntroTopics(empEmployer);
-            const comment = empEmployer.pr && empEmployer.pr.trim();
-            const qa = farmHostQa(empEmployer);
-            const hasTrustCard = qa.length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok);
-            if (topics.length === 0 && !comment && !hasTrustCard) return null;
-            return (
-              <div style={{ marginBottom:100 }}>
-                <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
-                  {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
-                </h3>
-                {/* 上下差し替え（2026-07-16）：代表よりカードを上・信頼カードを下に */}
-                {(topics.length > 0 || comment) && (
-                  <div onClick={() => setFarmIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer", marginBottom: hasTrustCard ? 16 : 0 }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-                    {comment ? (
-                      <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>
-                        {comment.length > 100 ? comment.slice(0, 100) + "…" : comment}
-                        {(comment.length > 100 || topics.length > 0) && (
-                          <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", marginLeft:6 }}>見る</span>
-                        )}
-                      </p>
-                    ) : (
-                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>農園紹介を見る →</p>
-                    )}
-                  </div>
-                )}
-                {hasTrustCard && (
-                  <div onClick={()=>setFarmTrustOpen(true)} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", cursor:"pointer" }}>
-                    <FarmerTrustCard profile={empEmployer} trust={empTrust} />
-                  </div>
-                )}
-                {/* 信頼カードのボックス展開（タップで同内容を大きく表示） */}
-                {farmTrustOpen && (
-                  <div onClick={()=>setFarmTrustOpen(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
-                    <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
-                      <button onClick={()=>setFarmTrustOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                      <FarmerTrustCard profile={empEmployer} trust={empTrust} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          {/* 農園紹介セクションはページから削除（2026-07-16）。内容は農家カードのアイコン・名前タップのボックスに集約 */}
 
           {/* 農家へのレビュー（段階2-a・ガワのみ・取引実績ベース・匿名・日付なし） */}
           {(() => {
@@ -9312,51 +9263,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion} />
               </div>
 
-              {/* ═══ 農園紹介（詳細ページと同一構造）：ページには自己PR(代表より)のみ表示。タップでモーダルに全文展開 ═══ */}
-              {confEmployer && (() => {
-                const topics = farmIntroTopics(confEmployer);
-                const comment = confEmployer.pr && confEmployer.pr.trim();
-                const qa = farmHostQa(confEmployer);
-                const hasTrustCard = qa.length > 0 || !!confEmployer.interaction_style || !!confTrust;
-                if (topics.length === 0 && !comment && !hasTrustCard) return null;
-                return (
-                  <div style={{ maxWidth:870, margin:"0 auto 28px" }}>
-                    <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
-                      {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
-                    </h3>
-                    {/* 詳細ページと同構造（2026-07-16差し替え後）：代表よりカードが上・信頼カードが下 */}
-                    {(topics.length > 0 || comment) && (
-                    <div onClick={() => setConfIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer", marginBottom: hasTrustCard ? 16 : 0 }}>
-                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-                      {comment ? (
-                        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>
-                          {comment.length > 100 ? comment.slice(0, 100) + "…" : comment}
-                          {(comment.length > 100 || topics.length > 0) && (
-                            <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", marginLeft:6 }}>見る</span>
-                          )}
-                        </p>
-                      ) : (
-                        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>農園紹介を見る →</p>
-                      )}
-                    </div>
-                    )}
-                    {hasTrustCard && (
-                      <div onClick={()=>setConfTrustOpen(true)} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", cursor:"pointer" }}>
-                        <FarmerTrustCard profile={confEmployer} trust={confTrust} />
-                      </div>
-                    )}
-                    {/* 信頼カードのボックス展開（詳細ページと同構造） */}
-                    {confTrustOpen && (
-                      <div onClick={()=>setConfTrustOpen(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
-                        <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
-                          <button onClick={()=>setConfTrustOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                          <FarmerTrustCard profile={confEmployer} trust={confTrust} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              {/* 開催期間カレンダー（地図の下・2026-07-16・詳細ページと同じ） */}
+              {jobDateStart && (
+                <div className="calendar-below-map" style={{ maxWidth:870, margin:"0 auto 28px" }}>
+                  <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} />
+                </div>
+              )}
+
+              {/* 農園紹介セクションはページから削除（2026-07-16）。内容は農家カードのアイコン・名前タップのボックスに集約 */}
 
               {/* ═══ 農園紹介モーダル（詳細ページと同構造。お題＋代表よりの全文） ═══ */}
               {confIntroOpen && confEmployer && (() => {
