@@ -5846,7 +5846,7 @@ function WorkerApplications({ filter, me }) {
     return (
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
-                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人 <span style={{ color:"#999", fontWeight:700 }}>#{a.job_number}</span></p>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[jobDates[a.job_number]?.crop, jobDates[a.job_number]?.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
                 {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
                 {CHAT_ELIGIBLE_STATUSES.includes(a.status) && isWorkDayToday(jobDates[a.job_number]?.date_start, jobDates[a.job_number]?.date_end) && (
@@ -12132,7 +12132,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   ))}
                 </div>
               )}
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人 <span style={{ color:"#999", fontWeight:700 }}>#{a.job_number}</span></p>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{(() => { const jr = dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number); return jr ? [jr.crop, jr.task].filter(Boolean).join(" ") : "求人"; })()} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
               {a.status === "applied" && (
                 <div style={{ display:"flex", gap:8, marginBottom:8 }}>
