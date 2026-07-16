@@ -12296,15 +12296,16 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                     const styleLabel = interactionStyleLabel(empMini?.interaction_style);
                     const hasAny = pr || perks.length || styleLabel;
                     if (!hasAny) return <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>;
+                    {/* 並び：タブ（待遇・関わり方のチップ）が上部→下に自己紹介（2026-07-16） */}
                     return (
                       <>
-                        {pr && <p style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:"0 0 8px", overflowWrap:"break-word", wordBreak:"break-word" }}>{pr.length > 100 ? pr.slice(0, 100) + "…" : pr}</p>}
-                        {styleLabel && <p style={{ margin:"0 0 8px" }}><span style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>🤝 {styleLabel}</span></p>}
-                        {perks.length > 0 && (
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                        {(perks.length > 0 || styleLabel) && (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
                             {perks.map((p,i) => <span key={i} style={{ fontSize:12, fontWeight:600, color:"#00A86B", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>{p.label}</span>)}
+                            {styleLabel && <span style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>🤝 {styleLabel}</span>}
                           </div>
                         )}
+                        {pr && <p style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{pr.length > 100 ? pr.slice(0, 100) + "…" : pr}</p>}
                       </>
                     );
                   })()}
