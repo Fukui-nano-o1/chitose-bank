@@ -12080,18 +12080,44 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     window.addEventListener("cb:employerHome", onEmployerHome);
     return () => window.removeEventListener("cb:employerHome", onEmployerHome);
   }, []);
-  // 作成中⇄公開中は横スワイプでも切替できる（2026-07-16）。縦スクロールと誤爆しないよう横成分が明確に大きい時だけ
-  const listSwipeRef = useRef(null);
-  const onListTouchStart = (e) => { listSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
-  const onListTouchEnd = (e) => {
-    const s = listSwipeRef.current;
-    listSwipeRef.current = null;
-    if (!s || (jobTab !== "draft" && jobTab !== "active")) return;
-    const dx = e.changedTouches[0].clientX - s.x;
-    const dy = e.changedTouches[0].clientY - s.y;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    if (dx < 0 && jobTab === "draft") { setJobTab("active"); window.location.hash = "/profile/employer/active"; }
-    else if (dx > 0 && jobTab === "active") { setJobTab("draft"); window.location.hash = "/profile/employer/drafts"; }
+  // 作成中⇄公開中ページャー（2026-07-16）：2枚のパネルを横並びにし、指に追従して実際に横移動させる。
+  // 横ロック判定後はtrackのtransformを直接書く（state経由だと1フレーム遅れてカクつくため）。
+  // 端（作成中で右・公開中で左）は1/3の抵抗。離した時に幅の1/4（最大80px）を超えていたらタブ確定
+  const pagerTrackRef = useRef(null);
+  const pagerDrag = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
+  const pagerBasePct = () => (jobTab === "draft" ? 0 : -50);
+  const onPagerStart = (e) => {
+    pagerDrag.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
+  };
+  const onPagerMove = (e) => {
+    const s = pagerDrag.current, el = pagerTrackRef.current;
+    if (!s || !el) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // 方向が定まるまで様子見
+      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+    if (s.lock !== "h") return; // 縦スクロール中は関与しない
+    const atEdge = (jobTab === "draft" && dx > 0) || (jobTab === "active" && dx < 0);
+    s.dx = atEdge ? dx / 3 : dx;
+    el.style.transition = "none";
+    el.style.transform = `translateX(calc(${pagerBasePct()}% + ${s.dx}px))`;
+  };
+  const onPagerEnd = () => {
+    const s = pagerDrag.current, el = pagerTrackRef.current;
+    pagerDrag.current = null;
+    if (!s || !el || s.lock !== "h") return;
+    el.style.transition = "transform .3s ease"; // dragで消したtransitionはReactが復元しないので手で戻す
+    const threshold = Math.min(80, s.w / 4);
+    if (jobTab === "draft" && s.dx < -threshold) {
+      el.style.transform = "translateX(-50%)";
+      setJobTab("active"); window.location.hash = "/profile/employer/active";
+    } else if (jobTab === "active" && s.dx > threshold) {
+      el.style.transform = "translateX(0%)";
+      setJobTab("draft"); window.location.hash = "/profile/employer/drafts";
+    } else {
+      el.style.transform = `translateX(${pagerBasePct()}%)`; // 届かなければ元の位置へスナップバック
+    }
   };
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
@@ -12590,12 +12616,13 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       ) : (
         <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       )}
-      <div onTouchStart={onListTouchStart} onTouchEnd={onListTouchEnd} style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ。作成中⇄公開中は横スワイプでも切替 */}
-      {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
-      {jobTab==="profile" ? (
-        <EmployerProfileEdit me={me} />
-      ) : jobTab==="draft" ? (
-        draftsLoading ? (
+      {/* 作成中⇄公開中はページャー（2026-07-16）：文字・絵文字・ボタン・カードが指に追従して実際に横移動する */}
+      {(jobTab==="draft" || jobTab==="active") ? (
+      <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
+        <div ref={pagerTrackRef} style={{ display:"flex", width:"200%", transform: jobTab==="draft" ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
+          <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 作成中パネル（メルカリ風・横3列） */}
+      {draftsLoading ? (
           <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
         ) : dbDrafts.length === 0 ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
@@ -12617,9 +12644,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             </button>
             );
           })
-        )
-      ) : jobTab==="active" ? (
-        dbActive.length === 0 ? (
+        )}
+            </div>
+          </div>
+          <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 公開中パネル（メルカリ風・横3列） */}
+      {dbActive.length === 0 ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>{/* 空状態は作成中ページと全く同じ配置（2026-07-16） */}
             <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
             <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>公開中の求人はありません</p>
@@ -12651,7 +12681,16 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               </>
             );
           })()
-        )
+        )}
+            </div>
+          </div>
+        </div>
+      </div>
+      ) : (
+      <div style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
+      {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
+      {jobTab==="profile" ? (
+        <EmployerProfileEdit me={me} />
       ) : jobTab==="applicants" ? (
         dbApplicants.length === 0 ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
@@ -12722,6 +12761,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       ))}
       </div>
+      )}
       </>
       )}
 
