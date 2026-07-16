@@ -6492,7 +6492,14 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
           </>
         ) : (
         <div className="profile-content">
-            <button onClick={()=>{ setWTab("home"); window.location.hash="/profile/worker"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", marginBottom:12 }}>← プロフィール</button>
+            {/* 戻るは浮遊固定ボックス（求人詳細の←戻ると同じ意匠・スクロール追従・2026-07-16）。
+                fadeInはopacityのみ＝fixedの基準を壊さない（壊すのは祖先のtransform） */}
+            <button onClick={()=>{ setWTab("home"); window.location.hash="/profile/worker"; }} className="f-sans job-float-back" style={{
+              display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+              fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+            }}>← プロフィール</button>
+            {/* 浮遊ボックスと見出しが重ならないためのスペーサー（ノッチ端末はsafe-area分も確保） */}
+            <div aria-hidden="true" style={{ height:"calc(48px + env(safe-area-inset-top, 0px))" }} />
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
             </div>
