@@ -388,9 +388,10 @@ input:focus { outline: none; }
 @keyframes stepInRight  { from { opacity:0; transform:translateX(36px); }  to { opacity:1; transform:translateX(0); } }
 @keyframes stepOutRight { from { opacity:1; transform:translateX(0); }     to { opacity:0; transform:translateX(36px); } }
 @keyframes stepInLeft   { from { opacity:0; transform:translateX(-36px); } to { opacity:1; transform:translateX(0); } }
-/* ボトムシート（下からフェードイン）。fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
-@keyframes cbSheetUp { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: translateY(0); } }
-.cb-sheet-up { animation: cbSheetUp 1s ease-out; }
+/* 求人プレビューのポップアップ（縮小→等倍・軽いオーバーシュートで弾む）。フェード(opacity)なし。
+   fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
+@keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
+.cb-sheet-up { animation: cbPop .8s cubic-bezier(.2, 1.3, .3, 1); transform-origin: center center; }
 .step-out-left  { animation: stepOutLeft  .16s ease both; }
 .step-in-right  { animation: stepInRight  .22s ease both; }
 .step-out-right { animation: stepOutRight .16s ease both; }
