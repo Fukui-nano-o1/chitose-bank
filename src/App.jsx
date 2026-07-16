@@ -6500,9 +6500,12 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             }}>← プロフィール</button>
             {/* 浮遊ボックスと見出しが重ならないためのスペーサー（ノッチ端末はsafe-area分も確保） */}
             <div aria-hidden="true" style={{ height:"calc(48px + env(safe-area-inset-top, 0px))" }} />
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-              <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
-            </div>
+            {/* カレンダーはMyCalendar自身が見出しを持つため、ここでは出さない（文字重複防止・2026-07-16） */}
+            {wTab !== "wcalendar" && (
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
+              </div>
+            )}
             {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
             {wTab === "wprofile" ? (
               <WorkerProfileEdit me={me} onAvatarChange={onAvatarChange} onDone={()=>{
