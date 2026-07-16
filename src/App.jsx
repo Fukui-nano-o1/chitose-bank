@@ -11920,6 +11920,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   }, []);
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
+  const [dbExpired, setDbExpired] = useState([]); // 作業日程が過ぎた自分の求人（statusは持たず日付から導出・2026-07-16）
   const [dbApplicants, setDbApplicants] = useState([]);
   const [workerProfiles, setWorkerProfiles] = useState({});
   const [workerTrust, setWorkerTrust] = useState({}); // { [worker_id]: {joined_at, verified_at} }
@@ -11943,10 +11944,16 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           (rosterWp || []).forEach(wp => { wpMap[wp.auth_id] = wp; });
           setRosterRows(rosterData.map(r => ({ worker_id: r.worker_id, nickname: wpMap[r.worker_id]?.nickname || null, avatar_url: wpMap[r.worker_id]?.avatar_url || null })));
         }
-        const { data, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).eq("status","draft").order("job_number",{ascending:false});
-        if (!error && data) setDbDrafts(data);
-        const { data: adata, error: aerror } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).in("status",["pending","open"]).order("job_number",{ascending:false});
-        if (!aerror && adata) setDbActive(adata);
+        // 自分の求人を一括取得し、日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
+        // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い
+        const { data: allJobs, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end").eq("farmer_id", session.user.id).order("job_number",{ascending:false});
+        if (!error && allJobs) {
+          const todayYmd = ymdLocal(new Date());
+          const isPast = (j) => { const end = j.date_end || j.date_start; return !!end && end < todayYmd; };
+          setDbDrafts(allJobs.filter(j => j.status === "draft" && !isPast(j)));
+          setDbActive(allJobs.filter(j => (j.status === "pending" || j.status === "open") && !isPast(j)));
+          setDbExpired(allJobs.filter(isPast));
+        }
         const { data: appData, error: appErr } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
         if (!appErr && appData) {
           setDbApplicants(appData);
@@ -12368,7 +12375,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       </div>
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
       <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
-      <div style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
+      <div style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
@@ -12438,6 +12445,28 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: wp?.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "（名前未設定）"}</p>
               </button>
+            );
+          })
+        )
+      ) : jobTab==="expired" ? (
+        dbExpired.length === 0 ? (
+          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+            <div style={{ fontSize:40, marginBottom:12 }}>🍂</div>
+            <p style={{ fontSize:14, margin:0 }}>期限切れの求人はありません</p>
+            <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>作業日程が過ぎた求人がここに入ります。</p>
+          </div>
+        ) : (
+          dbExpired.map(d => {
+            const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+            return (
+            <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft" })}
+              className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
+                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"grayscale(40%)" }} /> : "🍂"}
+                <StatusRibbon label="期限切れ" color="#9E9E9E" />
+              </div>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
+            </button>
             );
           })
         )
