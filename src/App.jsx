@@ -6272,7 +6272,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
   const [wMini, setWMini] = useState(null);
   const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
-  const [wTopBack, setWTopBack] = useState(false); // トップボックスの裏面（プレビュー）表示中か
+  const [wTopBack, setWTopBack] = useState(() => { try { return localStorage.getItem("cb_wTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   useEffect(() => {
     if (wTab !== "home") return; // 入口に戻るたびに再取得（編集後のバッジ・スニペット鮮度を担保）
@@ -6386,7 +6386,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                 e.stopPropagation();
                 if (wTopAnim === "pflip-out") return; // 連打ガード
                 setWTopAnim("pflip-out");
-                setTimeout(()=>{ setWTopBack(v=>!v); setWTopAnim("pflip-in"); }, 400);
+                setTimeout(()=>{ setWTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_wTopBack", nv ? "1" : "0"); } catch {} return nv; }); setWTopAnim("pflip-in"); }, 400);
               }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
@@ -11927,7 +11927,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [draftsLoading, setDraftsLoading] = useState(true);
   const [profileMode, setProfileMode] = useState("preview");
   const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
-  const [empTopBack, setEmpTopBack] = useState(false); // トップボックスの裏面（プレビュー）表示中か
+  const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   const [rosterRows, setRosterRows] = useState([]); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
   useEffect(() => {
@@ -12323,7 +12323,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               e.stopPropagation();
               if (empTopAnim === "pflip-out") return; // 連打ガード
               setEmpTopAnim("pflip-out");
-              setTimeout(()=>{ setEmpTopBack(v=>!v); setEmpTopAnim("pflip-in"); }, 400);
+              setTimeout(()=>{ setEmpTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_empTopBack", nv ? "1" : "0"); } catch {} return nv; }); setEmpTopAnim("pflip-in"); }, 400);
             }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
