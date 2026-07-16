@@ -848,7 +848,7 @@ input:focus { outline: none; }
   padding: 0;
 }
 /* 詳細ページ用：応募フッター(スマホのみ)の右上に浮遊。PCは地図下カレンダーがあるので非表示 */
-.calendar-fab-detail { display: none; bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+.calendar-fab-detail { display: none; bottom: calc(96px + 20px + env(safe-area-inset-bottom, 0px)); } /* 応募フッター上端+20px・固定（2026-07-16） */
 @media (max-width: 759px) { .calendar-fab-detail { display: flex; } }
 /* 確認ページ用：下部ナビ(戻る/保存/掲載する)の右上に浮遊 */
 .calendar-fab-confirm { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
@@ -7296,9 +7296,7 @@ function JobSearchMapView({ onRegister, me }) {
       {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS) */}
       {selectedJob && (
         <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
-          <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-            応募しても即採用ではなく、面接後に決まります
-          </p>
+          {/* 並び入れ替え（2026-07-16）：日給＋応募ボタンが上・注記が下 */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
             <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -7310,6 +7308,9 @@ function JobSearchMapView({ onRegister, me }) {
               >{applyBtnLabel}</button>
             </div>
           </div>
+          <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+            応募しても即採用ではなく、面接後に決まります
+          </p>
         </div>
       )}
 
