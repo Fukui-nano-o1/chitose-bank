@@ -10253,7 +10253,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
     const { data } = await supabase.from("admin_box_registry").select("*").order("sort").order("created_at");
     setBoxRows(data || []);
   };
-  useEffect(() => { if (otherBox === "boxlist") loadBoxRows(); }, [otherBox]);
+  useEffect(() => { if (otherBox === "boxlist") { setBoxEdit(null); loadBoxRows(); } }, [otherBox]); // 開くたびに一覧から（編集途中の残骸を持ち越さない）
   const saveBoxRow = async () => {
     const name = (boxEdit?.name || "").trim();
     if (!name) return;
@@ -10713,46 +10713,44 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 </div>
               )}
 
-              {otherBox==="boxlist" && (<>
-                {/* 台帳はDB（admin_box_registry・管理者RLS）。行タップで編集、下の＋で追加＝サイト上で編集できる（2026-07-16） */}
-                {boxRows.length === 0 && !boxEdit && (
-                  <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>台帳は空です。下の「＋ ボックスを追加」から登録できます。</p>
-                )}
-                {boxRows.map(r => (
-                  boxEdit?.id === r.id ? (
-                    <div key={r.id} style={{ padding:"10px 2px", borderBottom:"1px solid #F7F7F7" }}>
-                      <input className="field f-sans" value={boxEdit.name} autoFocus onChange={e=>setBoxEdit(b=>({ ...b, name:e.target.value }))} placeholder="ボックス名" style={{ fontSize:13, marginBottom:6 }} />
-                      <input className="field f-sans" value={boxEdit.where_from} onChange={e=>setBoxEdit(b=>({ ...b, where_from:e.target.value }))} placeholder="どこから開くか" style={{ fontSize:12, marginBottom:8 }} />
-                      <div style={{ display:"flex", gap:8 }}>
-                        <button onClick={saveBoxRow} disabled={!boxEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"7px 16px", fontSize:12 }}>保存</button>
-                        <button onClick={()=>setBoxEdit(null)} className="f-sans" style={{ padding:"7px 12px", fontSize:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:8, cursor:"pointer", color:"#717171" }}>キャンセル</button>
-                        <button onClick={()=>deleteBoxRow(r.id)} className="f-sans" style={{ marginLeft:"auto", padding:"7px 12px", fontSize:12, background:"none", border:"1px solid #E24B4A44", borderRadius:8, color:"#E24B4A", cursor:"pointer" }}>削除</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button key={r.id} onClick={()=>setBoxEdit({ id:r.id, name:r.name, where_from:r.where_from || "" })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"10px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
-                      <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
-                      <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6 }}>{r.where_from}</span>
-                      <span style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>✎</span>
-                    </button>
-                  )
-                ))}
-                {boxEdit && !boxEdit.id ? (
-                  <div style={{ padding:"12px 2px" }}>
-                    <input className="field f-sans" value={boxEdit.name} autoFocus onChange={e=>setBoxEdit(b=>({ ...b, name:e.target.value }))} placeholder="ボックス名" style={{ fontSize:13, marginBottom:6 }} />
-                    <input className="field f-sans" value={boxEdit.where_from} onChange={e=>setBoxEdit(b=>({ ...b, where_from:e.target.value }))} placeholder="どこから開くか" style={{ fontSize:12, marginBottom:8 }} />
+              {otherBox==="boxlist" && (
+                /* 台帳はDB（admin_box_registry・管理者RLS）。一覧⇄展開の2画面：行タップで展開、「← 戻す」で一覧へ。
+                   展開ページは常時編集可能（名前・説明のみ・2026-07-16） */
+                boxEdit ? (
+                  /* ── 展開ページ（＝いつでも編集できる詳細）── */
+                  <div className="fade-in">
+                    <button onClick={()=>setBoxEdit(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻す</button>
+                    <label className="lbl f-sans">ボックス名</label>
+                    <input className="field f-sans" value={boxEdit.name} onChange={e=>setBoxEdit(b=>({ ...b, name:e.target.value }))} placeholder="ボックス名" style={{ fontSize:14, fontWeight:700, marginBottom:12 }} />
+                    <label className="lbl f-sans">説明（どこから開くか）</label>
+                    <textarea className="field f-sans" value={boxEdit.where_from} onChange={e=>setBoxEdit(b=>({ ...b, where_from:e.target.value }))} placeholder="どこから開くか・メモ" rows={4} style={{ fontSize:13, lineHeight:1.7, marginBottom:14, resize:"vertical" }} />
                     <div style={{ display:"flex", gap:8 }}>
-                      <button onClick={saveBoxRow} disabled={!boxEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"7px 16px", fontSize:12 }}>追加</button>
-                      <button onClick={()=>setBoxEdit(null)} className="f-sans" style={{ padding:"7px 12px", fontSize:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:8, cursor:"pointer", color:"#717171" }}>キャンセル</button>
+                      <button onClick={saveBoxRow} disabled={!boxEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"10px 24px", fontSize:13, fontWeight:700 }}>{boxEdit.id ? "保存" : "追加"}</button>
+                      {boxEdit.id && (
+                        <button onClick={()=>deleteBoxRow(boxEdit.id)} className="f-sans" style={{ marginLeft:"auto", padding:"10px 16px", fontSize:12, background:"none", border:"1px solid #E24B4A44", borderRadius:8, color:"#E24B4A", cursor:"pointer" }}>削除</button>
+                      )}
                     </div>
                   </div>
-                ) : !boxEdit && (
-                  <button onClick={()=>setBoxEdit({ id:null, name:"", where_from:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ ボックスを追加</button>
-                )}
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
-                  サイト内でポップアップ展開するボックスの台帳です。行をタップすると編集できます（管理者のみ・DB保存）。
-                </p>
-              </>)}
+                ) : (
+                  /* ── 一覧ページ ── */
+                  <div className="fade-in">
+                    {boxRows.length === 0 && (
+                      <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>台帳は空です。下の「＋ ボックスを追加」から登録できます。</p>
+                    )}
+                    {boxRows.map(r => (
+                      <button key={r.id} onClick={()=>setBoxEdit({ id:r.id, name:r.name, where_from:r.where_from || "" })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
+                        <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
+                        <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.where_from}</span>
+                        <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
+                      </button>
+                    ))}
+                    <button onClick={()=>setBoxEdit({ id:null, name:"", where_from:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ ボックスを追加</button>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
+                      行をタップすると展開して、いつでも名前・説明を編集できます（管理者のみ・DB保存）。
+                    </p>
+                  </div>
+                )
+              )}
 
             </div>
           </div>
