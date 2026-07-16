@@ -6651,19 +6651,7 @@ function JobSearchMapView({ onRegister, me }) {
     return () => { cancelled = true; };
   }, [selectedJob?.id, me]);
 
-  // 集合場所（⑥）：承認済み以降の働き手が求人詳細を開いた時だけRPCで取得。番地は他では非公開
-  const [meetingPlace, setMeetingPlace] = useState(null);
-  useEffect(() => {
-    if (!selectedJob || !APPROVED_PLUS_STATUSES.includes(myApplication?.status)) { setMeetingPlace(null); return; }
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await supabase.rpc('job_meeting_place', { p_job_number: selectedJob.id });
-        if (!cancelled) setMeetingPlace((data && data.ok) ? data : null);
-      } catch { if (!cancelled) setMeetingPlace(null); }
-    })();
-    return () => { cancelled = true; };
-  }, [selectedJob?.id, myApplication?.status]);
+  // 集合場所の詳細ページ表示は削除（2026-07-16）。承認後の共有はチャットの「はじめる前の確認」カード（job_meeting_place RPC）に一本化
 
   // 開始打刻（①）：承認済み以降・作業日当日のみ
   const [punching, setPunching] = useState(false);
@@ -6932,13 +6920,7 @@ function JobSearchMapView({ onRegister, me }) {
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
               </div>
 
-              {/* 集合場所（⑥・承認済み以降のみ表示） */}
-              {APPROVED_PLUS_STATUSES.includes(myApplication?.status) && meetingPlace && (
-                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>📍 集合場所</p>
-                  <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{meetingPlace.full_address}</p>
-                </div>
-              )}
+              {/* 集合場所の表示は詳細ページから削除（2026-07-16）。承認後の共有はチャットの「はじめる前の確認」カードに一本化 */}
 
               {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
               {CHAT_ELIGIBLE_STATUSES.includes(myApplication?.status) && isWorkDayToday(selectedJob.dateStart, selectedJob.dateEnd) && (
