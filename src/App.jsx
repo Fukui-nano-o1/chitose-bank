@@ -7145,13 +7145,9 @@ function JobSearchMapView({ onRegister, me }) {
                 <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
                   {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
                 </h3>
-                {hasTrustCard && (
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom: (topics.length > 0 || comment) ? 16 : 0 }}>
-                    <FarmerTrustCard profile={empEmployer} trust={empTrust} />
-                  </div>
-                )}
+                {/* 上下差し替え（2026-07-16）：代表よりカードを上・信頼カードを下に */}
                 {(topics.length > 0 || comment) && (
-                  <div onClick={() => setFarmIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer" }}>
+                  <div onClick={() => setFarmIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer", marginBottom: hasTrustCard ? 16 : 0 }}>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
                     {comment ? (
                       <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>
@@ -7163,6 +7159,11 @@ function JobSearchMapView({ onRegister, me }) {
                     ) : (
                       <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>農園紹介を見る →</p>
                     )}
+                  </div>
+                )}
+                {hasTrustCard && (
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                    <FarmerTrustCard profile={empEmployer} trust={empTrust} />
                   </div>
                 )}
               </div>
@@ -9288,13 +9289,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               {confEmployer && (() => {
                 const topics = farmIntroTopics(confEmployer);
                 const comment = confEmployer.pr && confEmployer.pr.trim();
-                if (topics.length === 0 && !comment) return null;
+                const qa = farmHostQa(confEmployer);
+                const hasTrustCard = qa.length > 0 || !!confEmployer.interaction_style || !!confTrust;
+                if (topics.length === 0 && !comment && !hasTrustCard) return null;
                 return (
                   <div style={{ maxWidth:870, margin:"0 auto 28px" }}>
                     <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:16 }}>
                       {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
                     </h3>
-                    <div onClick={() => setConfIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer" }}>
+                    {/* 詳細ページと同構造（2026-07-16差し替え後）：代表よりカードが上・信頼カードが下 */}
+                    {(topics.length > 0 || comment) && (
+                    <div onClick={() => setConfIntroOpen(true)} role="button" style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", cursor:"pointer", marginBottom: hasTrustCard ? 16 : 0 }}>
                       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
                       {comment ? (
                         <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>
@@ -9307,6 +9312,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:0 }}>農園紹介を見る →</p>
                       )}
                     </div>
+                    )}
+                    {hasTrustCard && (
+                      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                        <FarmerTrustCard profile={confEmployer} trust={confTrust} />
+                      </div>
+                    )}
                   </div>
                 );
               })()}
