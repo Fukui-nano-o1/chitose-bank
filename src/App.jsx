@@ -6272,6 +6272,8 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
   const [wMini, setWMini] = useState(null);
   const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
+  const [wTopBack, setWTopBack] = useState(false); // トップボックスの裏面（プレビュー）表示中か
+  const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   useEffect(() => {
     if (wTab !== "home") return; // 入口に戻るたびに再取得（編集後のバッジ・スニペット鮮度を担保）
     let cancelled = false;
@@ -6330,17 +6332,63 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         wTab === "home" ? (
           <>
             {/* ═══ Airbnb型入口メニュー（働き手側・2026-07-14）：農家プロ入口と同構造。旧サイドタブ列は廃止 ═══ */}
-            <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              {/* 未設定の項目数（編集ページの10ボックス基準）。全て設定済みなら非表示 */}
-              {wUnsetCount > 0 && (
-                <span style={{ position:"absolute", top:12, right:12, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{wUnsetCount}</span>
-              )}
-              <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} />
-              <span>
-                <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
-                <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>働き手</span>
-              </span>
-            </button>
+            {/* トップボックスは反転式（2026-07-16）：表=アイコン＋ニックネーム／裏=アイコン・ニックネーム抜きのプレビュー。右上⇄で反転0.8秒 */}
+            <div style={{ position:"relative" }}>
+              <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }}
+                className={"f-sans" + (wTopAnim ? " " + wTopAnim : "")}
+                onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && wTopAnim === "pflip-in") setWTopAnim(""); }}
+                style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+                {!wTopBack ? (
+                  <>
+                    {/* 未設定の項目数（編集ページの10ボックス基準）。全て設定済みなら非表示。右上は⇄マークなので左隣に */}
+                    {wUnsetCount > 0 && (
+                      <span style={{ position:"absolute", top:12, right:52, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{wUnsetCount}</span>
+                    )}
+                    <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} />
+                    <span>
+                      <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>働き手</span>
+                    </span>
+                  </>
+                ) : (
+                  <div className="f-sans" style={{ width:"100%", textAlign:"left" }}>
+                    {(() => {
+                      const badges = [
+                        wMini?.transport && "🚗 " + wMini.transport,
+                        wMini?.farm_experience && "🌾 " + wMini.farm_experience,
+                        wMini?.physical_level && "💪 " + wMini.physical_level,
+                      ].filter(Boolean);
+                      const tags = [...(wMini?.interests || []), ...(wMini?.languages || [])];
+                      const pr = (wMini?.pr || "").trim();
+                      const hasAny = wMini && (wMini.residence_city || badges.length || tags.length || pr);
+                      if (!hasAny) return <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>;
+                      return (
+                        <>
+                          {wMini.residence_city && <p style={{ fontSize:12, color:"#717171", margin:"0 0 8px" }}>📍{wMini.residence_city}</p>}
+                          {badges.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
+                              {badges.map((b,i) => <span key={i} style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>{b}</span>)}
+                            </div>
+                          )}
+                          {tags.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
+                              {tags.map((t,i) => <span key={i} style={{ fontSize:11, color:"#717171", background:"#F0F7F4", borderRadius:20, padding:"3px 10px" }}>#{t}</span>)}
+                            </div>
+                          )}
+                          {pr && <p style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{pr.length > 100 ? pr.slice(0, 100) + "…" : pr}</p>}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </button>
+              <button onClick={(e)=>{
+                e.stopPropagation();
+                if (wTopAnim === "pflip-out") return; // 連打ガード
+                setWTopAnim("pflip-out");
+                setTimeout(()=>{ setWTopBack(v=>!v); setWTopAnim("pflip-in"); }, 400);
+              }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
+            </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
               {[
                 { e:"📨", l:"応募中",     n:wAppCounts.applying, h:"/profile/worker/applying" },
