@@ -5359,18 +5359,19 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {/* ═══ ボックス格子（入口カードと同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         {[
-          { k:"avatar",    e:"🖼️", l:"アイコン",     v: avatarUrl ? "設定済み" : "" },
-          { k:"nickname",  e:"✏️", l:"ニックネーム", v: nickname },
+          // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16・農家プロと同じ規則）
+          { k:"avatar",    e:"🖼️", l:"アイコン",     req:true, v: avatarUrl ? "設定済み" : "" },
+          { k:"nickname",  e:"✏️", l:"ニックネーム", req:true, v: nickname },
           { k:"residence", e:"📍", l:"居住地",       v: residenceCity },
           { k:"transport", e:"🚗", l:"移動手段",     v: transport },
           { k:"exp",       e:"🌾", l:"農業経験",     v: farmExperience },
           { k:"intensity", e:"💪", l:"作業の強さ",   v: physicalLevel },
           { k:"interests", e:"🎨", l:"趣味",         v: interests.join("・") },
           { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
-          { k:"pr",        e:"📝", l:"自己紹介",     v: pr },
+          { k:"pr",        e:"📝", l:"自己紹介",     req:true, v: pr },
           { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
         ].map(b => (
-          <button key={b.k} onClick={()=>setEditBox(b.k)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
             {b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>}
             <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
             <span style={{ fontSize:11, color: b.v ? "#00A86B" : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
