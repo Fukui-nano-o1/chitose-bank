@@ -6537,10 +6537,13 @@ function JobSearchMapView({ onRegister, me }) {
     setPastJobsOpen(true); setPastJobs(null);
     try {
       const { data } = await supabase.rpc("employer_public_jobs", { p_job_number: selectedJob.id });
-      setPastJobs((data || []).filter(r => r.job_number !== selectedJob.id));
+      // 今見ている求人も含めて全公開求人を出す（2026-07-16）。審査中(pending)・下書きは
+      // 運営承認ゲート（憲法5条）前のため含めない——承認されれば自動でここに並ぶ
+      setPastJobs(data || []);
     } catch { setPastJobs([]); }
   };
   const openPastJob = (row) => {
+    if (row.job_number === selectedJob.id) { setPastJobsOpen(false); setFarmIntroOpen(false); return; } // 今の求人ならボックスを閉じるだけ
     const job = mapJobPublicRow(row);
     setJobBackStack(prev => [...prev, selectedJob]);
     setPastJobsOpen(false); setFarmIntroOpen(false);
