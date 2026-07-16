@@ -388,6 +388,9 @@ input:focus { outline: none; }
 @keyframes stepInRight  { from { opacity:0; transform:translateX(36px); }  to { opacity:1; transform:translateX(0); } }
 @keyframes stepOutRight { from { opacity:1; transform:translateX(0); }     to { opacity:0; transform:translateX(36px); } }
 @keyframes stepInLeft   { from { opacity:0; transform:translateX(-36px); } to { opacity:1; transform:translateX(0); } }
+/* ボトムシート（下からフェードイン）。fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
+@keyframes cbSheetUp { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: translateY(0); } }
+.cb-sheet-up { animation: cbSheetUp .28s ease; }
 .step-out-left  { animation: stepOutLeft  .16s ease both; }
 .step-in-right  { animation: stepInRight  .22s ease both; }
 .step-out-right { animation: stepOutRight .16s ease both; }
@@ -9558,7 +9561,7 @@ function SavedJobsView({ me }) {
 // JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
 // 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
 // mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
-function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onResumeJob }) {
+function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onResumeJob, onDeleteJob }) {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -9594,20 +9597,26 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
   };
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:9000, background:"#fff", overflowY:"auto" }}>
-      {/* 上部バー（固定）：管理者=審査バー／農家本人=プレビューバー */}
+    <div onClick={ownerView ? onClose : undefined} style={ownerView
+      ? { position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }
+      : { position:"fixed", inset:0, zIndex:9000, background:"#fff", overflowY:"auto" }}>
+    <div onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
+      ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
+      : undefined}>
+      {/* 上部バー：管理者=審査バー／農家本人=✕(戻る)＋再開・削除（ボトムシートのヘッダー） */}
       {ownerView ? (
-        <div style={{
-          position:"sticky", top:0, zIndex:10, background:"#fff", borderBottom:"1px solid #EBEBEB",
-          padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap",
-        }}>
-          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>👀 プレビュー — 働き手にはこのように表示されます</p>
-          <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-            <button onClick={onClose} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-            {onResumeJob && (
-              <button onClick={onResumeJob} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✏️ 編集を再開</button>
-            )}
-          </div>
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+          <button onClick={onClose} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+          {(onResumeJob || onDeleteJob) && (
+            <div style={{ display:"flex", gap:8, marginTop:10 }}>
+              {onResumeJob && (
+                <button onClick={onResumeJob} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✏️ 再開</button>
+              )}
+              {onDeleteJob && (
+                <button onClick={onDeleteJob} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>🗑 削除</button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
       <div style={{
@@ -9623,6 +9632,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
       </div>
       )}
 
+      <div style={ownerView ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" } : undefined}>
       <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading && (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>読み込み中...</p>
@@ -9815,6 +9825,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           )}
         </>)}
       </div>
+      </div>
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
       {dangerLightbox && (
@@ -9834,6 +9845,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
         </div>
       )}
+    </div>
     </div>
   );
 }
@@ -12258,11 +12270,18 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       )}
 
-      {/* 求人カードタップ→確認ページと同型の全画面プレビュー（作成中=編集を再開ボタン付き） */}
+      {/* 求人カードタップ→確認ページと同型のボトムシート（作成中=再開・削除ボタン付き） */}
       {previewJob && (
         <AdminJobPreview jobNumber={previewJob.num} ownerView
           onClose={()=>setPreviewJob(null)}
-          onResumeJob={previewJob.draft ? ()=>{ const n = previewJob.num; setPreviewJob(null); onResume(n); } : undefined} />
+          onResumeJob={previewJob.draft ? ()=>{ const n = previewJob.num; setPreviewJob(null); onResume(n); } : undefined}
+          onDeleteJob={previewJob.draft ? async ()=>{
+            if (!confirm("この求人（下書き）を削除しますか？元に戻せません")) return;
+            const { error } = await supabase.from("jobs").delete().eq("job_number", previewJob.num).eq("farmer_id", me.id);
+            if (error) { alert("削除に失敗しました：" + error.message); return; }
+            setDbDrafts(prev => prev.filter(d => d.job_number !== previewJob.num));
+            setPreviewJob(null);
+          } : undefined} />
       )}
 
       {/* また呼びたいリスト：働き手詳細モーダル（アイコンタップで展開・応募者カードと同じ表示部品） */}
