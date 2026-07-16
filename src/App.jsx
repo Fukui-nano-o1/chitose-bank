@@ -6514,11 +6514,8 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             ) : wTab === "approved" ? (
               <WorkerApplications filter="approved" me={me} />
             ) : (
-              <div style={{ maxWidth:720, textAlign:"center", padding:"32px 0" }}>
-                <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16, lineHeight:1.7 }}>承認された求人の日程は、カレンダーでまとめて確認できます。</p>
-                <button onClick={()=>{ window.location.hash = "/calendar"; }} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12 }}>カレンダーへ →</button>
-              </div>
-            )}
+              <MyCalendar />
+            )}{/* カレンダーはページ内に直接展開（旧：カレンダーへ→の案内ページ・2026-07-16） */}
         </div>
         )
       ) : (
