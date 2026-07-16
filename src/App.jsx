@@ -13286,7 +13286,7 @@ function HelpCenter({ me, onReportClick }) {
                       <div key={slotKey}>
                         {it.label && <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{it.label}</p>}
                         <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{it.body}</p>
-                        {imgUrl && <img src={imgUrl} alt="" style={{ marginTop:10, width:"100%", borderRadius:8 }} />}
+                        {imgUrl && <img src={imgUrl} alt="" style={{ display:"block", marginTop:12, width:"100%", borderRadius:12, border:"1px solid #EBEBEB", boxShadow:"0 4px 16px rgba(0,0,0,0.12)", boxSizing:"border-box" }} />}
                         {isAdmin(me) && (
                           <div style={{ marginTop:8 }}>
                             {imgUrl ? (
