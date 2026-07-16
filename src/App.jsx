@@ -9558,7 +9558,7 @@ function SavedJobsView({ me }) {
 // JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
 // 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
 // mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
-function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision }) {
+function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onResumeJob }) {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -9569,6 +9569,16 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
     setLoading(true);
     setJob(null);
     (async () => {
+      if (ownerView) {
+        // 農家本人の求人プレビュー：RLS(owner select)で自分の行のみ読める。審査RPCは使わない
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { if (!cancelled) setLoading(false); return; }
+        const { data: row, error } = await supabase.from("jobs").select("*").eq("job_number", jobNumber).eq("farmer_id", session.user.id).maybeSingle();
+        if (cancelled) return;
+        if (!error && row) setJob(mapJobPublicRow(row));
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase.rpc('admin_preview_job', { p_job_number: jobNumber });
       if (cancelled) return;
       const row = Array.isArray(data) ? data[0] : data;
@@ -9576,7 +9586,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [jobNumber]);
+  }, [jobNumber, ownerView]);
 
   const handlePhotoScroll = e => {
     const el = e.target;
@@ -9585,7 +9595,21 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:9000, background:"#fff", overflowY:"auto" }}>
-      {/* 審査バー（固定） */}
+      {/* 上部バー（固定）：管理者=審査バー／農家本人=プレビューバー */}
+      {ownerView ? (
+        <div style={{
+          position:"sticky", top:0, zIndex:10, background:"#fff", borderBottom:"1px solid #EBEBEB",
+          padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap",
+        }}>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>👀 プレビュー — 働き手にはこのように表示されます</p>
+          <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+            <button onClick={onClose} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
+            {onResumeJob && (
+              <button onClick={onResumeJob} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✏️ 編集を再開</button>
+            )}
+          </div>
+        </div>
+      ) : (
       <div style={{
         position:"sticky", top:0, zIndex:10, background:"#FFF8E7", borderBottom:"1px solid #F5D98F",
         padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap",
@@ -9597,6 +9621,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
         </div>
       </div>
+      )}
 
       <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading && (
@@ -11899,6 +11924,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       setCompleteDone(prev => prev ? { ...prev, favorited: checked } : prev);
     } catch { alert('処理に失敗しました。'); }
   };
+  // 求人カードタップ→確認ページと同型の全画面プレビュー（AdminJobPreviewのownerViewモード流用）
+  const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
+
   // また呼びたいリストのアイコンタップ→働き手詳細モーダル（応募者カードと同じWorkerTrustCard表示）
   const [rosterDetail, setRosterDetail] = useState(null); // {worker_id, loading, profile, trust}
   const openRosterDetail = (workerId) => {
@@ -12048,7 +12076,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           dbDrafts.map(d => {
             const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
             return (
-            <button key={d.job_number} onClick={()=>onResume(d.job_number)}
+            <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: true })}
               className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                 {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
@@ -12069,7 +12097,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           dbActive.map(d => {
             const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
             return (
-            <div key={d.job_number} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff" }}>
+            <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: false })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                 {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
                 <StatusRibbon label={d.status==="open" ? "公開中" : "審査中"} color={d.status==="open" ? "#00A86B" : "#C77700"} />
@@ -12228,6 +12256,13 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             )}
           </div>
         </div>
+      )}
+
+      {/* 求人カードタップ→確認ページと同型の全画面プレビュー（作成中=編集を再開ボタン付き） */}
+      {previewJob && (
+        <AdminJobPreview jobNumber={previewJob.num} ownerView
+          onClose={()=>setPreviewJob(null)}
+          onResumeJob={previewJob.draft ? ()=>{ const n = previewJob.num; setPreviewJob(null); onResume(n); } : undefined} />
       )}
 
       {/* また呼びたいリスト：働き手詳細モーダル（アイコンタップで展開・応募者カードと同じ表示部品） */}
