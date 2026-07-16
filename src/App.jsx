@@ -6358,17 +6358,20 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     })();
     return () => { cancelled = true; };
   }, [wTab]);
-  // 働き手プロフィールの未設定項目数（編集ページの10ボックスに対応。トップボックス右上のバッジに表示）
-  const wUnsetCount = wMini ? [
+  // 働き手プロフィールの未設定項目数（編集ページの10ボックスに対応。トップボックス右上のバッジ＋赤影に使用）
+  // 核（アイコン・ニックネーム・自己紹介）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（2026-07-16）
+  const wUnsetReq = wMini ? [
     !!wMini.avatar_url,
     !!(wMini.nickname || "").trim(),
+    !!((wMini.pr_pending ?? wMini.pr) || "").trim(),
+  ].filter(x => !x).length : 3;
+  const wUnsetCount = wMini ? wUnsetReq + [
     !!(wMini.residence_city || "").trim(),
     !!wMini.transport,
     !!wMini.farm_experience,
     !!wMini.physical_level,
     Array.isArray(wMini.interests) && wMini.interests.length > 0,
     Array.isArray(wMini.languages) && wMini.languages.length > 0,
-    !!((wMini.pr_pending ?? wMini.pr) || "").trim(),
     (Array.isArray(wMini.pr_qa_pending) ? wMini.pr_qa_pending.length : (Array.isArray(wMini.pr_qa) ? wMini.pr_qa.length : 0)) > 0,
   ].filter(x => !x).length : 10;
   return (
@@ -6396,7 +6399,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             {/* トップボックスは反転式（2026-07-16）：表=アイコン＋ニックネーム／裏=アイコン・ニックネーム抜きのプレビュー。右上⇄で反転0.8秒 */}
             <div style={{ position:"relative" }}>
               <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }}
-                className={"f-sans" + (wTopAnim ? " " + wTopAnim : "")}
+                className={"f-sans" + (wTopAnim ? " " + wTopAnim : (wUnsetReq > 0 ? " cb-urgent-card" : wUnsetCount > 0 ? " cb-urgent-still" : ""))}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && wTopAnim === "pflip-in") setWTopAnim(""); }}
                 style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
                 {!wTopBack ? (
@@ -12064,11 +12067,14 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
   const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
-  // 未設定の項目数（編集ページの8ボックス基準）。トップボックスの通知バッジに表示（2026-07-16・働き手側と同構造）
-  const empUnsetCount = empMini ? [
+  // 未設定の項目数（編集ページの8ボックス基準）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
+  // 核（アイコン・農園名・自己紹介）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ
+  const empUnsetReq = empMini ? [
     !!empMini.avatar_url,
     !!(empMini.nickname || "").trim(),
     !!(empMini.pr || "").trim(),
+  ].filter(x => !x).length : 3;
+  const empUnsetCount = empMini ? empUnsetReq + [
     !!(empMini.has_transport || empMini.has_parking || empMini.has_commute_allowance || empMini.has_bonus || empMini.employer_pays_supplies || empMini.accessory_ok),
     empMini.staff_count !== null && empMini.staff_count !== undefined && empMini.staff_count !== "",
     [empMini.intro_path, empMini.intro_joy, empMini.intro_crops, empMini.intro_atmosphere, empMini.intro_message, empMini.owner_comment].some(t => t && String(t).trim()),
@@ -12423,7 +12429,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           {/* トップボックスは反転式（2026-07-16・働き手側と同構造）：表=アイコン＋農園名／裏=アイコン・名前抜きのプレビュー。右上⇄で反転0.8秒 */}
           <div style={{ position:"relative" }}>
             <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }}
-              className={"f-sans" + (empTopAnim ? " " + empTopAnim : "")}
+              className={"f-sans" + (empTopAnim ? " " + empTopAnim : (empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : ""))}
               onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && empTopAnim === "pflip-in") setEmpTopAnim(""); }}
               style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
               {!empTopBack ? (
