@@ -7309,7 +7309,7 @@ function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
         </div>
-      )}
+      </>)}
 
       {/* PC専用：下固定の応募バー（応募パネルが画面外に出たら表示。スマホはCSSでdisplay:none） */}
       {selectedJob && showApplyBar && (
@@ -7327,7 +7327,7 @@ function JobSearchMapView({ onRegister, me }) {
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
           >{applyBtnLabel}</button>
         </div>
-      </>)}
+      )}
 
       {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS) */}
       {selectedJob && (
