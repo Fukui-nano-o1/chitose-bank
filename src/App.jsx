@@ -5118,7 +5118,7 @@ function FarmerTrustCard({ profile, trust, onEditItem }) {
         <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...cur }}>
           <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
         </div>
-        <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, minWidth:0, ...cur }}>{profile.nickname || "農園名未設定"}</p>
+        <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, minWidth:0, ...cur }}>{profile.nickname ? profile.nickname + "さん" : "農園名未設定"}</p>
       </div>
       {okTrust && trust.want_again_workers > 0 && (
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>🌟また働きたい×{trust.want_again_workers}</p>
@@ -6533,6 +6533,7 @@ function JobSearchMapView({ onRegister, me }) {
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [farmIntroOpen, setFarmIntroOpen] = useState(false); // 農園紹介モーダル（ページには代表よりのみ・タップで全文展開）
+  const [farmTrustOpen, setFarmTrustOpen] = useState(false); // 信頼カードのボックス展開（2026-07-16）
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTargetField, setReportTargetField] = useState("");
   const [reportIssueType, setReportIssueType] = useState("");
@@ -7157,8 +7158,17 @@ function JobSearchMapView({ onRegister, me }) {
                   </div>
                 )}
                 {hasTrustCard && (
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                  <div onClick={()=>setFarmTrustOpen(true)} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", cursor:"pointer" }}>
                     <FarmerTrustCard profile={empEmployer} trust={empTrust} />
+                  </div>
+                )}
+                {/* 信頼カードのボックス展開（タップで同内容を大きく表示） */}
+                {farmTrustOpen && (
+                  <div onClick={()=>setFarmTrustOpen(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
+                    <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
+                      <button onClick={()=>setFarmTrustOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                      <FarmerTrustCard profile={empEmployer} trust={empTrust} />
+                    </div>
                   </div>
                 )}
               </div>
@@ -7918,6 +7928,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [confCalOpen, setConfCalOpen] = useState(false); // 確認ページ用：📅浮遊ボタン→作業日程カレンダーモーダル（詳細ページと同構造）
   const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
   const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
+  const [confTrustOpen, setConfTrustOpen] = useState(false); // 確認ページ用：信頼カードのボックス展開（2026-07-16）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
@@ -9308,8 +9319,17 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     </div>
                     )}
                     {hasTrustCard && (
-                      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
+                      <div onClick={()=>setConfTrustOpen(true)} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", cursor:"pointer" }}>
                         <FarmerTrustCard profile={confEmployer} trust={confTrust} />
+                      </div>
+                    )}
+                    {/* 信頼カードのボックス展開（詳細ページと同構造） */}
+                    {confTrustOpen && (
+                      <div onClick={()=>setConfTrustOpen(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
+                        <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
+                          <button onClick={()=>setConfTrustOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                          <FarmerTrustCard profile={confEmployer} trust={confTrust} />
+                        </div>
                       </div>
                     )}
                   </div>
