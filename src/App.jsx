@@ -390,7 +390,7 @@ input:focus { outline: none; }
 @keyframes stepInLeft   { from { opacity:0; transform:translateX(-36px); } to { opacity:1; transform:translateX(0); } }
 /* ボトムシート（下からフェードイン）。fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
 @keyframes cbSheetUp { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: translateY(0); } }
-.cb-sheet-up { animation: cbSheetUp .28s ease; }
+.cb-sheet-up { animation: cbSheetUp 1s ease-out; }
 .step-out-left  { animation: stepOutLeft  .16s ease both; }
 .step-in-right  { animation: stepInRight  .22s ease both; }
 .step-out-right { animation: stepOutRight .16s ease both; }
@@ -9601,7 +9601,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
       ? { position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }
       : { position:"fixed", inset:0, zIndex:9000, background:"#fff", overflowY:"auto" }}>
     <div onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
-      ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
+      ? { position:"absolute", left:0, right:0, bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", top:"6vh", background:"#fff", borderRadius:20, display:"flex", flexDirection:"column", overflow:"hidden" }
       : undefined}>
       {/* 上部バー：管理者=審査バー／農家本人=✕(戻る)＋再開・削除（ボトムシートのヘッダー） */}
       {ownerView ? (
