@@ -6959,7 +6959,8 @@ function JobSearchMapView({ onRegister, me }) {
                 return (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                     {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16） */}
-                    <div style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left" }}>
+                    {/* アイコン・名前タップ→農園紹介をボックス展開（2026-07-16） */}
+                    <div onClick={()=>setFarmIntroOpen(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor:"pointer" }}>
                       <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={70} />
                       <div style={{ minWidth:0 }}>
                         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{empEmployer.nickname}さん</p>
@@ -7385,14 +7386,12 @@ function JobSearchMapView({ onRegister, me }) {
         return (
           <div onClick={() => setFarmIntroOpen(false)} style={{
             position:"fixed", inset:0, zIndex:10000,
-            background:"rgba(0,0,0,0.5)",
-            display:"flex", alignItems:"center", justifyContent:"center",
-            padding:16, animation:"fadeIn .2s ease",
+            background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none",
           }}>
-            <div onClick={e => e.stopPropagation()} style={{
-              background:"#fff", borderRadius:16, padding:20,
-              maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
-              position:"relative",
+            <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{
+              position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))",
+              maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, padding:20,
+              overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y",
             }}>
               <button onClick={() => setFarmIntroOpen(false)} style={{
                 position:"absolute", top:12, right:12,
@@ -9170,7 +9169,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     return (
                       <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                         {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16・詳細ページと同じ） */}
-                        <div style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left" }}>
+                        {/* アイコン・名前タップ→農園紹介をボックス展開（2026-07-16・詳細ページと同じ） */}
+                        <div onClick={()=>setConfIntroOpen(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor:"pointer" }}>
                           <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={70} />
                           <div style={{ minWidth:0 }}>
                             <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{confEmployer.nickname}さん</p>
@@ -9351,14 +9351,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 return (
                   <div onClick={() => setConfIntroOpen(false)} style={{
                     position:"fixed", inset:0, zIndex:10000,
-                    background:"rgba(0,0,0,0.5)",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    padding:16, animation:"fadeIn .2s ease",
+                    background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none",
                   }}>
-                    <div onClick={e => e.stopPropagation()} style={{
-                      background:"#fff", borderRadius:16, padding:20,
-                      maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
-                      position:"relative",
+                    <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{
+                      position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))",
+                      maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, padding:20,
+                      overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y",
                     }}>
                       <button onClick={() => setConfIntroOpen(false)} style={{
                         position:"absolute", top:12, right:12,
