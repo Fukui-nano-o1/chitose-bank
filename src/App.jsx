@@ -2321,7 +2321,7 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
 }
 
 // ── Carousel ─────────────────────────────────────────────────
-function Carousel({ children, style, className, wrapperStyle, onScroll }) {
+function Carousel({ children, style, className, wrapperStyle, onScroll, scrollerRef }) {
   const ref = useRef(null);
   const [atLeft, setAtLeft] = useState(true);
   const [atRight, setAtRight] = useState(true);
@@ -2361,7 +2361,7 @@ function Carousel({ children, style, className, wrapperStyle, onScroll }) {
         <button onClick={() => scroll(-1)} className="f-sans"
           style={{ ...btnStyle, left:-16 }}>‹</button>
       )}
-      <div ref={ref} className={className} style={style} onScroll={handleScroll}>
+      <div ref={(el)=>{ ref.current = el; if (scrollerRef) scrollerRef.current = el; }} className={className} style={style} onScroll={handleScroll}>
         {children}
       </div>
       {!atRight && (
@@ -6768,10 +6768,28 @@ function JobSearchMapView({ onRegister, me }) {
     return () => observer.disconnect();
   }, [selectedJob]);
 
+  // トップ写真のループ（2026-07-16）：両端にクローンを置き、端に着地した瞬間に本物へ瞬間ジャンプ。
+  // 1枚目で左へ→最後の写真／最後の写真で右へ→1枚目
+  const photoScrollerRef = useRef(null);
+  const photoCount = selectedJob?.photos?.length || 0;
+  const photosLooped = photoCount > 1;
   const handlePhotoScroll = e => {
     const el = e.target;
-    setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
+    const w = el.clientWidth;
+    if (!w) return;
+    const idx = Math.round(el.scrollLeft / w);
+    if (!photosLooped) { setActiveSlide(idx); return; }
+    const settled = Math.abs(el.scrollLeft - idx * w) < 2;
+    if (settled && idx === 0) { el.scrollLeft = photoCount * w; setActiveSlide(photoCount - 1); return; }
+    if (settled && idx === photoCount + 1) { el.scrollLeft = w; setActiveSlide(0); return; }
+    setActiveSlide(((idx - 1) % photoCount + photoCount) % photoCount);
   };
+  useEffect(() => {
+    if (!photosLooped) return;
+    const el = photoScrollerRef.current;
+    if (el) requestAnimationFrame(() => { el.scrollLeft = el.clientWidth; });
+    setActiveSlide(0);
+  }, [selectedJob?.id, photosLooped]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
   const myAppStatus = myApplication?.status;
@@ -6890,6 +6908,8 @@ function JobSearchMapView({ onRegister, me }) {
           {(() => {
             const photos = selectedJob.photos || [selectedJob.icon, selectedJob.icon, selectedJob.icon];
             const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
+            // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側
+            const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
             return (
               <>
                 <Carousel
@@ -6897,8 +6917,9 @@ function JobSearchMapView({ onRegister, me }) {
                   style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
                   wrapperStyle={{ marginBottom:8 }}
                   onScroll={handlePhotoScroll}
+                  scrollerRef={photoScrollerRef}
                 >
-                  {photos.map((photo, i) => {
+                  {slides.map((photo, i) => {
                     const src = typeof photo === "string" ? photo : photo?.url;
                     const cap = typeof photo === "string" ? "" : photo?.caption;
                     return (
