@@ -6950,7 +6950,7 @@ function JobSearchMapView({ onRegister, me }) {
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                     {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16） */}
                     <div style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left" }}>
-                      <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={88} />
+                      <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={70} />
                       <div style={{ minWidth:0 }}>
                         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{empEmployer.nickname}さん</p>
                         {empTrust?.ok && empTrust.member_since && (
@@ -9151,7 +9151,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                         {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16・詳細ページと同じ） */}
                         <div style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left" }}>
-                          <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={88} />
+                          <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={70} />
                           <div style={{ minWidth:0 }}>
                             <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{confEmployer.nickname}さん</p>
                             {confTrust?.member_since && (
