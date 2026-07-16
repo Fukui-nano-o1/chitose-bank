@@ -7000,11 +7000,6 @@ function JobSearchMapView({ onRegister, me }) {
                 ))}
               </div>
 
-              {/* 注記 */}
-              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:100 }}>
-                本名・詳細住所は公開しません。
-              </p>
-
               {/* 危険区域セクション（両方空なら見出しごと非表示＝ブロック化） */}
               {((selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) || (selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0)) && (
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:100 }}>
@@ -7750,7 +7745,11 @@ function JobLocationMap({ lat, lng, radius, label }) {
     <div>
       {/* position:relative+zIndex:0でLeaflet内部のz-index(400〜1000)をこのボックス内に閉じ込める。
           無いと掲載前確認モーダル等(z-index:200)を地図が突き抜けて覆う（2026-07-14修正） */}
-      <div ref={ref} style={{ width:"100%", height:"clamp(240px, 42vw, 420px)", borderRadius:12, overflow:"hidden", border:"1px solid #EBEBEB", position:"relative", zIndex:0 }} />
+      <div style={{ position:"relative" }}>
+        <div ref={ref} style={{ width:"100%", height:"clamp(240px, 42vw, 420px)", borderRadius:12, overflow:"hidden", border:"1px solid #EBEBEB", position:"relative", zIndex:0 }} />
+        {/* 注記は地図の高さの中央にオーバーレイ（2026-07-16） */}
+        <span className="f-sans" style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%, -50%)", zIndex:1, pointerEvents:"none", background:"rgba(255,255,255,0.92)", borderRadius:20, padding:"6px 14px", fontSize:11, fontWeight:600, color:"#717171", whiteSpace:"nowrap", boxShadow:"0 1px 4px rgba(0,0,0,0.12)" }}>本名・詳細住所は公開しません。</span>
+      </div>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
         {label ? label + "のおおよその範囲です。" : "おおよその範囲です。"}
         正確な集合場所は、応募を承認した方にのみお伝えします
@@ -9212,11 +9211,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     ))}
                   </div>
 
-                  {/* 注記（詳細ページと同じ） */}
-                  <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:14 }}>
-                    本名・詳細住所は公開しません。
-                  </p>
-
                   {/* 危険区域カード（詳細ページと同一構造：場所→作業・縦積み・全幅写真） */}
                   {(jobDangerPlaces.some(p => p.label) || jobDangerTasks.some(t => t.label)) && (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
@@ -9890,11 +9884,6 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
               </div>
             ))}
           </div>
-
-          {/* 注記 */}
-          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", marginBottom:20 }}>
-            本名・詳細住所は公開しません。
-          </p>
 
           {/* 危険区域セクション（両方空なら見出しごと非表示） */}
           {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
