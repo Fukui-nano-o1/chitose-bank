@@ -11925,14 +11925,16 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [workerTrust, setWorkerTrust] = useState({}); // { [worker_id]: {joined_at, verified_at} }
   const [draftsLoading, setDraftsLoading] = useState(true);
   const [profileMode, setProfileMode] = useState("preview");
-  const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（nickname/avatar_url）
+  const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
+  const [empTopBack, setEmpTopBack] = useState(false); // トップボックスの裏面（プレビュー）表示中か
+  const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   const [rosterRows, setRosterRows] = useState([]); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
   useEffect(() => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setDraftsLoading(false); return; }
-        const { data: epMini } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
+        const { data: epMini } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(); // トップボックス裏面プレビュー用に全列（2026-07-16）
         if (epMini) setEmpMini(epMini);
         const { data: rosterData } = await supabase.from("repeat_roster").select("worker_id,created_at").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
         if (rosterData && rosterData.length > 0) {
@@ -12265,13 +12267,57 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
                文字タブの羅列を廃止し、タップで各サブページへ ═══ */}
-          <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-            <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
-            <span>
-              <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
-              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>農家</span>
-            </span>
-          </button>
+          {/* トップボックスは反転式（2026-07-16・働き手側と同構造）：表=アイコン＋農園名／裏=アイコン・名前抜きのプレビュー。右上⇄で反転0.8秒 */}
+          <div style={{ position:"relative" }}>
+            <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }}
+              className={"f-sans" + (empTopAnim ? " " + empTopAnim : "")}
+              onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && empTopAnim === "pflip-in") setEmpTopAnim(""); }}
+              style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+              {!empTopBack ? (
+                <>
+                  <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
+                  <span>
+                    <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
+                    <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>農家</span>
+                  </span>
+                </>
+              ) : (
+                <div className="f-sans" style={{ width:"100%", textAlign:"left" }}>
+                  {(() => {
+                    const perks = empMini ? [
+                      { on: empMini.has_transport, label: "🚗送迎あり" },
+                      { on: empMini.has_parking, label: "🅿️駐車場あり" },
+                      { on: empMini.has_commute_allowance, label: "💰通勤手当あり" },
+                      { on: empMini.has_bonus, label: "🎁賞与あり" },
+                      { on: empMini.employer_pays_supplies, label: "🎒持ち物は農家負担" },
+                      { on: empMini.accessory_ok, label: "💍アクセサリーOK" },
+                    ].filter(p => p.on) : [];
+                    const pr = (empMini?.pr || "").trim();
+                    const styleLabel = interactionStyleLabel(empMini?.interaction_style);
+                    const hasAny = pr || perks.length || styleLabel;
+                    if (!hasAny) return <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>;
+                    return (
+                      <>
+                        {pr && <p style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:"0 0 8px", overflowWrap:"break-word", wordBreak:"break-word" }}>{pr.length > 100 ? pr.slice(0, 100) + "…" : pr}</p>}
+                        {styleLabel && <p style={{ margin:"0 0 8px" }}><span style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>🤝 {styleLabel}</span></p>}
+                        {perks.length > 0 && (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                            {perks.map((p,i) => <span key={i} style={{ fontSize:12, fontWeight:600, color:"#00A86B", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>{p.label}</span>)}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </button>
+            <button onClick={(e)=>{
+              e.stopPropagation();
+              if (empTopAnim === "pflip-out") return; // 連打ガード
+              setEmpTopAnim("pflip-out");
+              setTimeout(()=>{ setEmpTopBack(v=>!v); setEmpTopAnim("pflip-in"); }, 400);
+            }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
+          </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
             {[
               { e:"🌱", l:"作成中",     n:dbDrafts.length,     h:"/profile/employer/drafts" },
