@@ -10267,8 +10267,17 @@ function AdminTab({ onJump, onShowAccountForm }) {
     setBoxEdit(null); loadBoxRows();
   };
   // お知らせ一覧の台帳（admin_notice_registryテーブル・ボックス一覧と同じ構造設計・2026-07-16）
+  // 配信対応（同日）：対象audience・期間starts_at/ends_at・公開publishedをここで設定できる
   const [noticeRows, setNoticeRows] = useState([]);
-  const [noticeEdit, setNoticeEdit] = useState(null); // {id|null, name, body}
+  const [noticeEdit, setNoticeEdit] = useState(null); // {id|null, name, body, audience, startDate, endDate, published}
+  const toDateInput = (ts) => { if (!ts) return ""; const d = new Date(ts); const p = (x)=>String(x).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
+  const noticeStatus = (r) => {
+    if (!r.published) return { l:"下書き", bg:"#F5F5F5", fg:"#717171" };
+    const now = new Date();
+    if (r.starts_at && now < new Date(r.starts_at)) return { l:"公開予定", bg:"#FFF4E0", fg:"#C77700" };
+    if (r.ends_at && now > new Date(r.ends_at)) return { l:"終了", bg:"#F5F5F5", fg:"#999" };
+    return { l:"公開中", bg:"#E6F7EF", fg:"#00A86B" };
+  };
   const loadNoticeRows = async () => {
     const { data } = await supabase.from("admin_notice_registry").select("*").order("sort").order("created_at");
     setNoticeRows(data || []);
@@ -10277,9 +10286,16 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const saveNoticeRow = async () => {
     const name = (noticeEdit?.name || "").trim();
     if (!name) return;
-    const body = (noticeEdit.body || "").trim();
-    if (noticeEdit.id) await supabase.from("admin_notice_registry").update({ name, body }).eq("id", noticeEdit.id);
-    else await supabase.from("admin_notice_registry").insert({ name, body, sort: (noticeRows[noticeRows.length - 1]?.sort ?? 0) + 1 });
+    const payload = {
+      name,
+      body: (noticeEdit.body || "").trim(),
+      audience: noticeEdit.audience || "all",
+      starts_at: noticeEdit.startDate ? noticeEdit.startDate + "T00:00:00+09:00" : null,
+      ends_at: noticeEdit.endDate ? noticeEdit.endDate + "T23:59:59+09:00" : null,
+      published: !!noticeEdit.published,
+    };
+    if (noticeEdit.id) await supabase.from("admin_notice_registry").update(payload).eq("id", noticeEdit.id);
+    else await supabase.from("admin_notice_registry").insert({ ...payload, sort: (noticeRows[noticeRows.length - 1]?.sort ?? 0) + 1 });
     setNoticeEdit(null); loadNoticeRows();
   };
   const deleteNoticeRow = async (id) => {
@@ -10782,7 +10798,27 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                     <label className="lbl f-sans">タイトル</label>
                     <input className="field f-sans" value={noticeEdit.name} onChange={e=>setNoticeEdit(b=>({ ...b, name:e.target.value }))} placeholder="お知らせのタイトル" style={{ fontSize:14, fontWeight:700, marginBottom:12 }} />
                     <label className="lbl f-sans">本文</label>
-                    <textarea className="field f-sans" value={noticeEdit.body} onChange={e=>setNoticeEdit(b=>({ ...b, body:e.target.value }))} placeholder="お知らせの本文" rows={6} style={{ fontSize:13, lineHeight:1.7, marginBottom:14, resize:"vertical" }} />
+                    <textarea className="field f-sans" value={noticeEdit.body} onChange={e=>setNoticeEdit(b=>({ ...b, body:e.target.value }))} placeholder="お知らせの本文" rows={6} style={{ fontSize:13, lineHeight:1.7, marginBottom:12, resize:"vertical" }} />
+                    <label className="lbl f-sans">対象</label>
+                    <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+                      {[{ k:"all", l:"全員" },{ k:"farmer", l:"農家" },{ k:"worker", l:"働き手" }].map(o => (
+                        <button key={o.k} onClick={()=>setNoticeEdit(b=>({ ...b, audience:o.k }))} className="f-sans" style={{ flex:1, padding:"8px 0", borderRadius:8, border: noticeEdit.audience===o.k ? "2px solid #00A86B" : "1px solid #EBEBEB", background: noticeEdit.audience===o.k ? "#E6F7EF" : "#fff", fontSize:12, fontWeight:700, color: noticeEdit.audience===o.k ? "#00A86B" : "#717171", cursor:"pointer" }}>{o.l}</button>
+                      ))}
+                    </div>
+                    <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                      <div style={{ flex:1 }}>
+                        <label className="lbl f-sans">表示開始</label>
+                        <input className="field f-sans" type="date" value={noticeEdit.startDate} onChange={e=>setNoticeEdit(b=>({ ...b, startDate:e.target.value }))} style={{ fontSize:13 }} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <label className="lbl f-sans">表示終了</label>
+                        <input className="field f-sans" type="date" value={noticeEdit.endDate} onChange={e=>setNoticeEdit(b=>({ ...b, endDate:e.target.value }))} style={{ fontSize:13 }} />
+                      </div>
+                    </div>
+                    <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, cursor:"pointer" }}>
+                      <input type="checkbox" checked={!!noticeEdit.published} onChange={e=>setNoticeEdit(b=>({ ...b, published:e.target.checked }))} style={{ width:18, height:18 }} />
+                      <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>公開する（期間内・対象のユーザーに表示）</span>
+                    </label>
                     <div style={{ display:"flex", gap:8 }}>
                       <button onClick={saveNoticeRow} disabled={!noticeEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"10px 24px", fontSize:13, fontWeight:700 }}>{noticeEdit.id ? "保存" : "追加"}</button>
                       {noticeEdit.id && (
@@ -10795,16 +10831,21 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                     {noticeRows.length === 0 && (
                       <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>お知らせはありません。下の「＋ お知らせを追加」から登録できます。</p>
                     )}
-                    {noticeRows.map(r => (
-                      <button key={r.id} onClick={()=>setNoticeEdit({ id:r.id, name:r.name, body:r.body || "" })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
-                        <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
+                    {noticeRows.map(r => {
+                      const st = noticeStatus(r);
+                      return (
+                      <button key={r.id} onClick={()=>setNoticeEdit({ id:r.id, name:r.name, body:r.body || "", audience:r.audience || "all", startDate:toDateInput(r.starts_at), endDate:toDateInput(r.ends_at), published:!!r.published })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
+                        <span style={{ flexShrink:0, padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700, background:st.bg, color:st.fg, marginTop:1 }}>{st.l}</span>
+                        <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:110, flexShrink:0 }}>{r.name}</span>
                         <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.body}</span>
                         <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
                       </button>
-                    ))}
-                    <button onClick={()=>setNoticeEdit({ id:null, name:"", body:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ お知らせを追加</button>
+                      );
+                    })}
+                    <button onClick={()=>setNoticeEdit({ id:null, name:"", body:"", audience:"all", startDate:"", endDate:"", published:false })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ お知らせを追加</button>
                     <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
-                      お知らせの下書き台帳です。行をタップすると展開して、いつでもタイトル・本文を編集できます（管理者のみ・DB保存）。ユーザーへの配信機能は未実装です。
+                      行をタップすると展開して、タイトル・本文・対象・期間・公開をいつでも設定できます（管理者のみ・DB保存）。
+                      「公開する」がONで期間内のお知らせが、対象ユーザーの起動時にポップアップ表示されます。
                     </p>
                   </div>
                 )
@@ -14688,6 +14729,33 @@ const loadNotifs=useCallback(async(farmerId)=>{
   // approve_profile_text が notifications(type='profile_approved') を挿入する。
   // 起動時の未読チェック＋Realtime購読（承認された瞬間にも展開）。
   // 既読化＝確認操作（✕・ボックス外タップ・リンク遷移）の時だけ。それ以外では非表示・既読化しない
+  // 運営お知らせ（admin_notice_registry・2026-07-16）：起動時に公開中を取得し未読分をポップアップ。
+  // RLSが「published＋期間内」だけを返すので、フロントは対象(audience)と既読だけ判定する
+  const [activeNotices, setActiveNotices] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience").order("sort");
+        if (!data || data.length === 0) return;
+        let read = [];
+        try { read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]"); } catch {}
+        const roleAud = !me ? ["all"] : me.isWorker ? ["all", "worker"] : ["all", "farmer"];
+        const fresh = data.filter(n => !read.includes(n.id) && roleAud.includes(n.audience));
+        if (fresh.length > 0) setActiveNotices(fresh);
+      } catch {}
+    })();
+  }, [me?.id]); // ログインで農家/働き手向けの未読が増えることがあるため再判定
+  const dismissNotices = () => {
+    setActiveNotices(prev => {
+      if (prev?.length) {
+        try {
+          const read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]");
+          localStorage.setItem("cb_readNotices", JSON.stringify([...new Set([...read, ...prev.map(n => n.id)])]));
+        } catch {}
+      }
+      return null;
+    });
+  };
   const [welcomeApproved, setWelcomeApproved] = useState(null); // { name, ids: [notification.id] }
   const showWelcomeApproved = useCallback(async (uid, noteIds) => {
     let name = "";
@@ -14912,6 +14980,23 @@ const subDest=useCallback(async d=>{
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 18px" }}>さっそく確認してみましょう！</p>
             <button onClick={()=>confirmWelcomeApproved(()=>{ try { sessionStorage.setItem("cb_openWorkerPreview", "1"); } catch {} window.location.hash = "/profile/worker/profile"; })}
               className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>プレビューを見る 🔗</button>
+          </div>
+        </div>
+      )}
+
+      {/* 運営お知らせポップアップ（2026-07-16）：公開中＋期間内（RLSが返す）＋対象一致＋未読のみ。
+          既読はlocalStorage(cb_readNotices)。承認ポップアップ表示中は譲る（両方出さない） */}
+      {activeNotices && !welcomeApproved && (
+        <div onClick={dismissNotices} style={{ position:"fixed", inset:0, zIndex:10900, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"relative", width:"100%", maxWidth:420, maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)" }}>
+            <button onClick={dismissNotices} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 14px" }}>📢 お知らせ</p>
+            {activeNotices.map((n, i) => (
+              <div key={n.id} style={{ paddingTop: i===0 ? 0 : 14, marginTop: i===0 ? 0 : 14, borderTop: i===0 ? "none" : "1px solid #F0F0F0" }}>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{n.name}</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap" }}>{n.body}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
