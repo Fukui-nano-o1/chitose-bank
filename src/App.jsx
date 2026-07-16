@@ -6428,14 +6428,17 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
               {[
                 { e:"📨", l:"応募中",     n:wAppCounts.applying, h:"/profile/worker/applying" },
-                { e:"✅", l:"承認済み",   n:wAppCounts.approved, h:"/profile/worker/approved" },
+                // 承認済み：未対応が残っていれば赤バッジ＋赤影アニメ、全て対応済みなら✓チェック（2026-07-16）
+                { e:"✅", l:"承認済み",   n:wAppCounts.approved, h:"/profile/worker/approved", urgent:true, doneCheck:true },
                 { e:"💚", l:"いいね",     n:0,                   h:"/saved" }, // 2×2に揃える4枠目（農家プロ入口と同構造・2026-07-14）
                 { e:"📅", l:"カレンダー", n:0,                   h:"/profile/worker/calendar" },
               ].map(c => (
-                <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                  {c.n > 0 && (
-                    <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
-                  )}
+                <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className={"f-sans" + (c.urgent && c.n > 0 ? " cb-urgent-card" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                  {c.n > 0 ? (
+                    <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
+                  ) : (c.doneCheck && (
+                    <span style={{ position:"absolute", top:10, right:10, width:22, height:22, borderRadius:11, background:"#E6F7EF", color:"#00A86B", fontSize:13, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</span>
+                  ))}
                   <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
                   <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
                 </button>
