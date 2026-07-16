@@ -7421,8 +7421,11 @@ function JobSearchMapView({ onRegister, me }) {
                     {pastJobs === null ? (
                       <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
                     ) : pastJobs.length === 0 ? (
-                      <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>他の求人はありません</p>
+                      <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>
+                        {(empTrust?.ok && empTrust.completed_hires > 0) ? "過去に受け入れた求人は、掲載を終了しています" : "初めての求人です"}
+                      </p>
                     ) : (
+                      <>
                       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
                         {pastJobs.map(r => {
                           const photo = r.photos && r.photos[0] ? (typeof r.photos[0] === "string" ? r.photos[0] : r.photos[0]?.url) : null;
@@ -7439,6 +7442,13 @@ function JobSearchMapView({ onRegister, me }) {
                           );
                         })}
                       </div>
+                      {/* 一覧が今の求人だけの時の正直な注記（実績数と食い違って見えないように・2026-07-16） */}
+                      {pastJobs.length === 1 && pastJobs[0].job_number === selectedJob.id && (
+                        <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"14px 0 0" }}>
+                          {(empTrust?.ok && empTrust.completed_hires > 0) ? "過去に受け入れた求人は、掲載を終了しています" : "初めての求人です"}
+                        </p>
+                      )}
+                      </>
                     )}
                   </div>
                 </div>
