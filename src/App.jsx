@@ -6944,15 +6944,15 @@ function JobSearchMapView({ onRegister, me }) {
                 ];
                 return (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-                    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
-                      <div style={{ marginBottom:8 }}>
-                        <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={44} />
+                    {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16） */}
+                    <div style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left" }}>
+                      <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={88} />
+                      <div style={{ minWidth:0 }}>
+                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{empEmployer.nickname}さん</p>
+                        {empTrust?.ok && empTrust.member_since && (
+                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>chitose-bank利用 {empTrust.member_since}から</p>
+                        )}
                       </div>
-                      <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{empEmployer.nickname}</p>
-                      {/* 名前の下は短い挨拶(owner_comment)。長文の自己紹介(pr)は農園紹介「代表より」へ（2026-07-14入れ替え） */}
-                      {empEmployer.owner_comment && (
-                        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.owner_comment}</p>
-                      )}
                     </div>
                     <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em" }}>待遇</p>
@@ -7910,6 +7910,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
   const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
   const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
+  const [confTrust, setConfTrust] = useState(null); // 確認ページ用：登録してからの月日など（employer_trust_info）
   const [confCalOpen, setConfCalOpen] = useState(false); // 確認ページ用：📅浮遊ボタン→作業日程カレンダーモーダル（詳細ページと同構造）
   const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
   const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
@@ -8135,6 +8136,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         if (!session) return;
         const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         if (data) setConfEmployer(data);
+        const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: session.user.id });
+        if (t && t.ok) setConfTrust(t);
       } catch {}
     })();
   }, []);
@@ -9142,15 +9145,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     ];
                     return (
                       <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-                        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
-                          <div style={{ marginBottom:8 }}>
-                            <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={44} />
+                        {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16・詳細ページと同じ） */}
+                        <div style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left" }}>
+                          <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={88} />
+                          <div style={{ minWidth:0 }}>
+                            <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{confEmployer.nickname}さん</p>
+                            {confTrust?.member_since && (
+                              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>chitose-bank利用 {confTrust.member_since}から</p>
+                            )}
                           </div>
-                          <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{confEmployer.nickname}</p>
-                          {/* 名前の下は短い挨拶(owner_comment)。長文の自己紹介(pr)は農園紹介「代表より」へ（2026-07-14入れ替え・詳細ページと同じ） */}
-                          {confEmployer.owner_comment && (
-                            <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.owner_comment}</p>
-                          )}
                         </div>
                         <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
                         <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em" }}>待遇</p>
