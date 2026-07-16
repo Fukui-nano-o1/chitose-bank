@@ -12034,6 +12034,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 求人カードタップ→確認ページと同型の全画面プレビュー（AdminJobPreviewのownerViewモード流用）
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
+  // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
+  const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
+  const appRibbonLabel = (st) => st==="applied" ? "承認待ち" : st==="approved" ? "承認済み" : st==="rejected" ? "見送り" : st==="meeting" ? "打ち合わせ" : st==="interview" ? "面接" : st==="contracted" ? "契約" : st==="working" ? "作業中" : st==="completed" ? "完了" : st;
+  const appRibbonColor = (st) => (st==="completed"||st==="rejected") ? "#9E9E9E" : (st==="applied"||st==="working") ? "#C77700" : "#00A86B";
+  // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
+  const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
 
   // また呼びたいリストのアイコンタップ→働き手詳細モーダル（応募者カードと同じWorkerTrustCard表示）
   const [rosterDetail, setRosterDetail] = useState(null); // {worker_id, loading, profile, trust}
@@ -12104,130 +12110,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     setEmergencySubmitting(false);
   };
 
-  return (
-    // 入口(home)は余白を持たない＝働き手入口と開始位置・下端が完全一致（外側のプロフィールwrapperが32px/4pxを提供）
-    <div style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : "24px 0 80px" }}>
-      {jobTab === "home" ? (
-        <>
-          {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
-               文字タブの羅列を廃止し、タップで各サブページへ ═══ */}
-          <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-            <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
-            <span>
-              <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
-              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>農家</span>
-            </span>
-          </button>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
-            {[
-              { e:"🌱", l:"作成中",     n:dbDrafts.length,     h:"/profile/employer/drafts" },
-              { e:"📣", l:"公開中",     n:dbActive.length,     h:"/profile/employer/active" },
-              { e:"🤝", l:"応募者",     n:dbApplicants.length, h:"/profile/employer/applicants" },
-              { e:"📅", l:"カレンダー", n:0,                   h:"/profile/employer/calendar" },
-            ].map(c => (
-              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                {c.n > 0 && (
-                  <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
-                )}
-                <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
-                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
-              </button>
-            ))}
-          </div>
-          <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-            <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
-            <span>
-              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく求人を出す</span>
-              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
-            </span>
-          </button>
-          {rosterRows.length > 0 && (
-            <div className="f-sans" style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px" }}>💚 また呼びたいリスト</p>
-              <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>新しい求人を出すと、この方たちにお知らせが届きます。</p>
-              {rosterRows.map(r => (
-                <div key={r.worker_id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderTop:"1px solid #F5F5F5" }}>
-                  <button onClick={()=>openRosterDetail(r.worker_id)} className="f-sans" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:12, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left" }}>
-                    <Avatar url={r.avatar_url} name={r.nickname || "？"} size={44} />
-                    <span style={{ flex:1, fontSize:14, fontWeight: r.nickname ? 600 : 400, color: r.nickname ? "#222" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.nickname || "（名前未設定）"}</span>
-                  </button>
-                  <button onClick={()=>stopRosterNotify(r.worker_id)} className="f-sans" style={{ flexShrink:0, background:"none", border:"1px solid #EBEBEB", borderRadius:8, padding:"6px 10px", fontSize:12, color:"#717171", cursor:"pointer" }}>通知を止める</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
-        </>
-      ) : (
-      <>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-        {/* hashが既に/profile/employerの場合(保存後遷移等)はhashchangeが発火しないため、stateも直接homeへ */}
-        <button onClick={()=>{ setJobTab("home"); window.location.hash="/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0" }}>← 農家プロ</button>
-        <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
-      </div>
-      {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
-      <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
-      <div style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
-      {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
-      {jobTab==="profile" ? (
-        <EmployerProfileEdit me={me} />
-      ) : jobTab==="draft" ? (
-        draftsLoading ? (
-          <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
-        ) : dbDrafts.length === 0 ? (
-          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
-            <div style={{ fontSize:40, marginBottom:12 }}>🌱</div>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>作成中の求人はありません</p>
-            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
-          </div>
-        ) : (
-          dbDrafts.map(d => {
-            const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
-            return (
-            <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: true })}
-              className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
-                <StatusRibbon label="作成中" color="#8A6D1D" />
-              </div>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
-            </button>
-            );
-          })
-        )
-      ) : jobTab==="active" ? (
-        dbActive.length === 0 ? (
-          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-            <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
-            <p style={{ fontSize:14, margin:0 }}>公開中の求人はまだありません</p>
-          </div>
-        ) : (
-          dbActive.map(d => {
-            const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
-            return (
-            <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: false })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
-              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                <StatusRibbon label={d.status==="open" ? "公開中" : "審査中"} color={d.status==="open" ? "#00A86B" : "#C77700"} />
-              </div>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
-            </div>
-            );
-          })
-        )
-      ) : jobTab==="applicants" ? (
-        dbApplicants.length === 0 ? (
-          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-            <div style={{ fontSize:40, marginBottom:12 }}>📩</div>
-            <p style={{ fontSize:14, margin:0 }}>まだ応募はありません</p>
-            <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
-          </div>
-        ) : (
-          dbApplicants.map(a => {
-            const badgeColor = a.status==="approved" ? {bg:"#E6F7EF",fg:"#00A86B"} : a.status==="rejected" ? {bg:"#F5F5F5",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"};
-            const wp = workerProfiles[a.worker_id];
-            return (
-            <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+  // 応募者カード本体（ボトムシートで表示。承認/見送り・保険・開始確認・完了評価・緊急連絡・チャットの操作込み）
+  const renderApplicantCard = (a) => {
+    const badgeColor = a.status==="approved" ? {bg:"#E6F7EF",fg:"#00A86B"} : a.status==="rejected" ? {bg:"#F5F5F5",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"};
+    const wp = workerProfiles[a.worker_id];
+    return (
+      <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
               <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:badgeColor.bg, color:badgeColor.fg }}>
                 {a.status==="applied" ? "承認待ち" : a.status==="approved" ? "承認済み" : a.status==="rejected" ? "見送り" : a.status}
               </div>
@@ -12297,7 +12185,142 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               )}
               {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
               <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
+      </div>
+    );
+  };
+  return (
+    // 入口(home)は余白を持たない＝働き手入口と開始位置・下端が完全一致（外側のプロフィールwrapperが32px/4pxを提供）
+    <div style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : "24px 0 80px" }}>
+      {jobTab === "home" ? (
+        <>
+          {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
+               文字タブの羅列を廃止し、タップで各サブページへ ═══ */}
+          <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
+            <span>
+              <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>農家</span>
+            </span>
+          </button>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
+            {[
+              { e:"🌱", l:"作成中",     n:dbDrafts.length,     h:"/profile/employer/drafts" },
+              { e:"📣", l:"公開中",     n:dbActive.length,     h:"/profile/employer/active" },
+              { e:"🤝", l:"応募者",     n:dbApplicants.length, h:"/profile/employer/applicants" },
+              { e:"📅", l:"カレンダー", n:0,                   h:"/profile/employer/calendar" },
+            ].map(c => (
+              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                {c.n > 0 && (
+                  <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
+                )}
+                <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
+                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
+            <span>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく求人を出す</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
+            </span>
+          </button>
+          {rosterRows.length > 0 && (
+            <div className="f-sans" style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px" }}>💚 また呼びたいリスト</p>
+              <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>新しい求人を出すと、この方たちにお知らせが届きます。</p>
+              {rosterRows.map(r => (
+                <div key={r.worker_id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderTop:"1px solid #F5F5F5" }}>
+                  <button onClick={()=>openRosterDetail(r.worker_id)} className="f-sans" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:12, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left" }}>
+                    <Avatar url={r.avatar_url} name={r.nickname || "？"} size={44} />
+                    <span style={{ flex:1, fontSize:14, fontWeight: r.nickname ? 600 : 400, color: r.nickname ? "#222" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.nickname || "（名前未設定）"}</span>
+                  </button>
+                  <button onClick={()=>stopRosterNotify(r.worker_id)} className="f-sans" style={{ flexShrink:0, background:"none", border:"1px solid #EBEBEB", borderRadius:8, padding:"6px 10px", fontSize:12, color:"#717171", cursor:"pointer" }}>通知を止める</button>
+                </div>
+              ))}
             </div>
+          )}
+          <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
+        </>
+      ) : (
+      <>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+        {/* hashが既に/profile/employerの場合(保存後遷移等)はhashchangeが発火しないため、stateも直接homeへ */}
+        <button onClick={()=>{ setJobTab("home"); window.location.hash="/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0" }}>← 農家プロ</button>
+        <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
+      </div>
+      {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
+      <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
+      <div style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
+      {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
+      {jobTab==="profile" ? (
+        <EmployerProfileEdit me={me} />
+      ) : jobTab==="draft" ? (
+        draftsLoading ? (
+          <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+        ) : dbDrafts.length === 0 ? (
+          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>🌱</div>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>作成中の求人はありません</p>
+            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
+          </div>
+        ) : (
+          dbDrafts.map(d => {
+            const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+            return (
+            <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: true })}
+              className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
+                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
+                <StatusRibbon label="作成中" color="#8A6D1D" />
+              </div>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
+            </button>
+            );
+          })
+        )
+      ) : jobTab==="active" ? (
+        dbActive.length === 0 ? (
+          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+            <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
+            <p style={{ fontSize:14, margin:0 }}>公開中の求人はまだありません</p>
+          </div>
+        ) : (
+          dbActive.map(d => {
+            const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+            return (
+            <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: false })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
+              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
+                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                <StatusRibbon label={d.status==="open" ? "公開中" : "審査中"} color={d.status==="open" ? "#00A86B" : "#C77700"} />
+              </div>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
+            </div>
+            );
+          })
+        )
+      ) : jobTab==="applicants" ? (
+        dbApplicants.length === 0 ? (
+          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+            <div style={{ fontSize:40, marginBottom:12 }}>📩</div>
+            <p style={{ fontSize:14, margin:0 }}>まだ応募はありません</p>
+            <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
+          </div>
+        ) : (
+          dbApplicants.map(a => {
+            const wp = workerProfiles[a.worker_id];
+            return (
+              <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
+                className={"f-sans" + (isApplicantDone(a) ? "" : " cb-urgent-card")}
+                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                  {wp?.avatar_url
+                    ? <img src={wp.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    : <Avatar url={null} name={wp?.nickname || "？"} size={64} />}
+                  <StatusRibbon label={appRibbonLabel(a.status)} color={appRibbonColor(a.status)} />
+                </div>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: wp?.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "（名前未設定）"}</p>
+              </button>
             );
           })
         )
@@ -12326,6 +12349,24 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       </div>
       </>
       )}
+
+      {/* 応募者カードのボトムシート（タップで展開・中身は従来の応募者カード＝操作ボタン込み） */}
+      {(() => {
+        const live = dbApplicants.find(x => x.id === sheetApplicantId);
+        if (!live) return null;
+        return (
+          <div onClick={()=>setSheetApplicantId(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+                <button onClick={()=>setSheetApplicantId(null)} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              </div>
+              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
+                {renderApplicantCard(live)}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 完了・評価モーダル（Part1） */}
       {completeModalApp && (
