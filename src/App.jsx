@@ -13956,23 +13956,48 @@ const loadNotifs=useCallback(async(farmerId)=>{
   },[]);
 
   // プロフィール承認の「お帰りなさい」ポップアップ（2026-07-16）
-  // approve_profile_text が notifications(type='profile_approved') を挿入する。未読があればサイト起動時に1回だけ表示し、既読化する
-  const [welcomeApproved, setWelcomeApproved] = useState(null); // { name }
+  // approve_profile_text が notifications(type='profile_approved') を挿入する。
+  // 起動時の未読チェック＋Realtime購読（承認された瞬間にも展開）。
+  // 既読化＝確認操作（✕・ボックス外タップ・リンク遷移）の時だけ。それ以外では非表示・既読化しない
+  const [welcomeApproved, setWelcomeApproved] = useState(null); // { name, ids: [notification.id] }
+  const showWelcomeApproved = useCallback(async (uid, noteIds) => {
+    let name = "";
+    try {
+      const { data: wp } = await supabase.from("worker_profiles").select("nickname").eq("auth_id", uid).maybeSingle();
+      name = (wp?.nickname || "").trim();
+    } catch {}
+    setWelcomeApproved(prev => ({ name, ids: [...new Set([...(prev?.ids || []), ...noteIds])] }));
+  }, []);
+  const confirmWelcomeApproved = useCallback((thenNavigate) => {
+    setWelcomeApproved(prev => {
+      const ids = prev?.ids || [];
+      if (ids.length) supabase.from("notifications").update({ read: true }).in("id", ids).then(() => {}, () => {});
+      return null;
+    });
+    if (typeof thenNavigate === "function") thenNavigate();
+  }, []);
   useEffect(() => {
+    let channel = null;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
+        const uid = session.user.id;
+        // 起動時：未読のprofile_approvedがあれば展開（既読化はしない）
         const { data: notes } = await supabase.from("notifications").select("id")
-          .eq("farmer_id", session.user.id).eq("type", "profile_approved")
+          .eq("farmer_id", uid).eq("type", "profile_approved")
           .or("read.is.null,read.eq.false").limit(5);
-        if (!notes || notes.length === 0) return;
-        const { data: wp } = await supabase.from("worker_profiles").select("nickname").eq("auth_id", session.user.id).maybeSingle();
-        setWelcomeApproved({ name: (wp?.nickname || "").trim() });
-        await supabase.from("notifications").update({ read: true }).in("id", notes.map(n => n.id));
+        if (notes && notes.length > 0) showWelcomeApproved(uid, notes.map(n => n.id));
+        // リアルタイム：サイトを開いている最中に承認されたら即展開
+        channel = supabase.channel("cb-profile-approved")
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: "farmer_id=eq." + uid }, (payload) => {
+            if (payload.new?.type === "profile_approved") showWelcomeApproved(uid, [payload.new.id]);
+          })
+          .subscribe();
       } catch {}
     })();
-  }, []);
+    return () => { if (channel) { try { supabase.removeChannel(channel); } catch {} } };
+  }, [showWelcomeApproved]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -14149,14 +14174,14 @@ const subDest=useCallback(async d=>{
 
       {/* ── プロフィール承認の「お帰りなさい」ポップアップ（起動時1回・ボックス展開） ── */}
       {welcomeApproved && (
-        <div onClick={()=>setWelcomeApproved(null)} style={{ position:"fixed", inset:0, zIndex:11000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+        <div onClick={()=>confirmWelcomeApproved()} style={{ position:"fixed", inset:0, zIndex:11000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
-            <button onClick={()=>setWelcomeApproved(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <button onClick={()=>confirmWelcomeApproved()} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <div style={{ fontSize:44, lineHeight:1, marginBottom:12 }}>🎉</div>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 6px" }}>お帰りなさい{welcomeApproved.name ? "、" + welcomeApproved.name + "さん" : ""}</p>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"0 0 4px" }}>プロフィールが承認されました！</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 18px" }}>さっそく確認してみましょう！</p>
-            <button onClick={()=>{ try { sessionStorage.setItem("cb_openWorkerPreview", "1"); } catch {} setWelcomeApproved(null); window.location.hash = "/profile/worker/profile"; }}
+            <button onClick={()=>confirmWelcomeApproved(()=>{ try { sessionStorage.setItem("cb_openWorkerPreview", "1"); } catch {} window.location.hash = "/profile/worker/profile"; })}
               className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>プレビューを見る 🔗</button>
           </div>
         </div>
