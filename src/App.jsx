@@ -11890,6 +11890,26 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       setCompleteDone(prev => prev ? { ...prev, favorited: checked } : prev);
     } catch { alert('処理に失敗しました。'); }
   };
+  // また呼びたいリストのアイコンタップ→働き手詳細モーダル（応募者カードと同じWorkerTrustCard表示）
+  const [rosterDetail, setRosterDetail] = useState(null); // {worker_id, loading, profile, trust}
+  const openRosterDetail = (workerId) => {
+    setRosterDetail({ worker_id: workerId, loading: true, profile: null, trust: null });
+    (async () => {
+      try {
+        const [wpRes, trustRes] = await Promise.all([
+          supabase.from("worker_profiles").select("*").eq("auth_id", workerId).maybeSingle(),
+          supabase.rpc("worker_trust_info", { p_worker_id: workerId }),
+        ]);
+        setRosterDetail(prev => prev && prev.worker_id === workerId ? {
+          worker_id: workerId, loading: false,
+          profile: wpRes.data || null,
+          trust: (trustRes.data && trustRes.data.ok) ? trustRes.data : null,
+        } : prev);
+      } catch {
+        setRosterDetail(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false } : prev);
+      }
+    })();
+  };
   // また呼びたいリストの行削除（通知を止める）
   const stopRosterNotify = async (workerId) => {
     if (!confirm('この方への新求人のお知らせを止めますか？（次回の評価で再登録できます）')) return;
@@ -11982,8 +12002,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>新しい求人を出すと、この方たちにお知らせが届きます。</p>
               {rosterRows.map(r => (
                 <div key={r.worker_id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderTop:"1px solid #F5F5F5" }}>
-                  <Avatar url={r.avatar_url} name={r.nickname || "？"} size={44} />
-                  <span style={{ flex:1, fontSize:14, fontWeight: r.nickname ? 600 : 400, color: r.nickname ? "#222" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.nickname || "（名前未設定）"}</span>
+                  <button onClick={()=>openRosterDetail(r.worker_id)} className="f-sans" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:12, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left" }}>
+                    <Avatar url={r.avatar_url} name={r.nickname || "？"} size={44} />
+                    <span style={{ flex:1, fontSize:14, fontWeight: r.nickname ? 600 : 400, color: r.nickname ? "#222" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.nickname || "（名前未設定）"}</span>
+                  </button>
                   <button onClick={()=>stopRosterNotify(r.worker_id)} className="f-sans" style={{ flexShrink:0, background:"none", border:"1px solid #EBEBEB", borderRadius:8, padding:"6px 10px", fontSize:12, color:"#717171", cursor:"pointer" }}>通知を止める</button>
                 </div>
               ))}
@@ -12198,6 +12220,35 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                     className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{completeSubmitting ? "送信中..." : "送信する"}</button>
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* また呼びたいリスト：働き手詳細モーダル（アイコンタップで展開・応募者カードと同じ表示部品） */}
+      {rosterDetail && (
+        <div onClick={()=>setRosterDetail(null)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>setRosterDetail(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>働き手の詳細</p>
+            {rosterDetail.loading ? (
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+            ) : rosterDetail.profile ? (
+              <>
+                <WorkerTrustCard profile={rosterDetail.profile} trust={rosterDetail.trust} />
+                {Array.isArray(rosterDetail.profile.pr_qa) && rosterDetail.profile.pr_qa.length > 0 && (
+                  <div style={{ display:"grid", gap:10, marginTop:16 }}>
+                    {rosterDetail.profile.pr_qa.map(({ q, a }) => (
+                      <div key={q}>
+                        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+                        <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この方のプロフィールは未設定です</p>
             )}
           </div>
         </div>
