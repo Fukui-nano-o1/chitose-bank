@@ -8195,15 +8195,22 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
   // ── カレンダーヘルパー ──────────────────────────────────────
   const WD = ["日","月","火","水","木","金","土"];
-  const fmtD = (d) => {
+  const fmtD = (d, opts = {}) => {
     if (!d) return "";
-    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}（${WD[d.getDay()]}）`;
+    const w = WD[d.getDay()];
+    if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
+    if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}（${w}）`;
   };
+  // 日程ラベル（2026-07-16）：年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
   const jobDateLabel = (() => {
     if (!jobDateStart) return "日程を選択してください";
     const end = jobDateEnd || jobDateStart;
-    if (fmtD(jobDateStart) === fmtD(end)) return fmtD(jobDateStart);
-    return `${fmtD(jobDateStart)} 〜 ${fmtD(end)}`;
+    const thisYear = new Date().getFullYear();
+    const inYear = jobDateStart.getFullYear() === thisYear && end.getFullYear() === thisYear;
+    if (jobDateStart.toDateString() === end.toDateString()) return fmtD(jobDateStart, { omitYear: inYear });
+    const sameMonth = inYear && jobDateStart.getMonth() === end.getMonth();
+    return `${fmtD(jobDateStart, { omitYear: inYear })} 〜 ${fmtD(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
   })();
   const handleCalDay = (d) => {
     const clicked = new Date(calYear, calMonth, d);
