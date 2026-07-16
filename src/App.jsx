@@ -4633,8 +4633,8 @@ function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleSt
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
 function StatusRibbon({ label, color }) {
   return (
-    <div style={{ position:"absolute", top:0, right:0, width:92, height:92, overflow:"hidden", pointerEvents:"none" }}>
-      <span className="f-sans" style={{ position:"absolute", top:18, right:-36, transform:"rotate(45deg)", width:140, textAlign:"center", background:color, color:"#fff", fontSize:12, fontWeight:800, padding:"5px 0", boxShadow:"0 1px 4px rgba(0,0,0,0.25)" }}>{label}</span>
+    <div style={{ position:"absolute", top:0, right:0, width:64, height:64, overflow:"hidden", pointerEvents:"none" }}>
+      <span className="f-sans" style={{ position:"absolute", top:12, right:-30, transform:"rotate(45deg)", width:110, textAlign:"center", background:color, color:"#fff", fontSize:10, fontWeight:800, padding:"3px 0", boxShadow:"0 1px 4px rgba(0,0,0,0.25)" }}>{label}</span>
     </div>
   );
 }
@@ -12031,7 +12031,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       </div>
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
       <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap:20 }}>
+      <div style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
@@ -12047,25 +12047,14 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         ) : (
           dbDrafts.map(d => {
             const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
-            const pay = d.pay_type === "日給" ? Number(d.daily_wage) || 0 : Number(d.hourly_wage) || 0;
             return (
             <button key={d.job_number} onClick={()=>onResume(d.job_number)}
-              className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:0, overflow:"hidden", cursor:"pointer" }}>
-              <div style={{ position:"relative", height:220, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:56, overflow:"hidden" }}>
+              className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                 {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
                 <StatusRibbon label="作成中" color="#8A6D1D" />
               </div>
-              <div style={{ padding:"12px 16px 16px" }}>
-                <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
-                  <p className="f-sans" style={{ fontSize:17, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
-                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{[d.prefecture, d.city].filter(Boolean).join("")}</span>
-                  <span className="f-sans" style={{ fontSize:10, color:"#C8C8C8", flexShrink:0, whiteSpace:"nowrap" }}>#{d.job_number}</span>
-                </div>
-                {pay > 0 && (
-                  <p className="f-mono" style={{ fontSize:16, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel({ payType: d.pay_type === "日給" ? "daily" : "hourly", pay })}</p>
-                )}
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>{d.date_label || "日程未定"}　タップして再開</p>
-              </div>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
             </button>
             );
           })
@@ -12079,24 +12068,13 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         ) : (
           dbActive.map(d => {
             const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
-            const pay = d.pay_type === "日給" ? Number(d.daily_wage) || 0 : Number(d.hourly_wage) || 0;
             return (
-            <div key={d.job_number} style={{ border:"1px solid #EBEBEB", borderRadius:16, overflow:"hidden", background:"#fff" }}>
-              <div style={{ position:"relative", height:220, background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:56, overflow:"hidden" }}>
+            <div key={d.job_number} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff" }}>
+              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                 {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
                 <StatusRibbon label={d.status==="open" ? "公開中" : "審査中"} color={d.status==="open" ? "#00A86B" : "#C77700"} />
               </div>
-              <div style={{ padding:"12px 16px 16px" }}>
-                <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
-                  <p className="f-sans" style={{ fontSize:17, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
-                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{[d.prefecture, d.city].filter(Boolean).join("")}</span>
-                  <span className="f-sans" style={{ fontSize:10, color:"#C8C8C8", flexShrink:0, whiteSpace:"nowrap" }}>#{d.job_number}</span>
-                </div>
-                {pay > 0 && (
-                  <p className="f-mono" style={{ fontSize:16, fontWeight:700, color:"#00A86B", margin:0 }}>{payLabel({ payType: d.pay_type === "日給" ? "daily" : "hourly", pay })}</p>
-                )}
-                {d.date_label && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>{d.date_label}</p>}
-              </div>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
             </div>
             );
           })
