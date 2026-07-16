@@ -1631,10 +1631,10 @@ const verifyCode = async () => {
   return (
     <div className="fade-in" style={{ minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:28 }}>
       <div style={{ width:"100%",maxWidth:360 }}>
+        {/* 旧ブランド「吉野川 農家/YOSHINOGAWA FARMERS」は削除（2026-07-16・前身アプリの遺物） */}
         <div style={{ textAlign:"center",marginBottom:40 }}>
           <div style={{ fontSize:44,marginBottom:14,lineHeight:1 }}>🥦</div>
-          <div className="f-sans" style={{ fontSize:22,fontWeight:700,color:C.ink,letterSpacing:".06em" }}>吉野川 農家</div>
-          <div className="f-sans" style={{ fontSize:9,color:C.dim,marginTop:7,letterSpacing:".18em",textTransform:"uppercase" }}>Yoshinogawa Farmers</div>
+          <div className="f-sans" style={{ fontSize:22,fontWeight:800,color:"#00A86B",letterSpacing:".02em" }}>chitose-bank</div>
         </div>
 
         <div className="ledger-card" style={{ padding:32 }}>
