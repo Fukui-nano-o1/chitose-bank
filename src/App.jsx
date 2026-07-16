@@ -6329,7 +6329,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     })();
     return () => { cancelled = true; };
   }, []);
-  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"応募中", approved:"承認済み", wcalendar:"カレンダー" };
+  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"応募中", approved:"チェック", wcalendar:"カレンダー" };
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
   const [wMini, setWMini] = useState(null);
   const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
@@ -6453,8 +6453,8 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
               {[
                 { e:"📨", l:"応募中",     n:wAppCounts.applying, h:"/profile/worker/applying" },
-                // 承認済み：未対応が残っていれば赤バッジ＋赤影アニメ、全て対応済みなら✓チェック（2026-07-16）
-                { e:"✅", l:"承認済み",   n:wAppCounts.approved, h:"/profile/worker/approved", urgent:true, doneCheck:true },
+                // チェック（旧・承認済み）：未対応が残っていれば赤バッジ＋赤影アニメ、全て対応済みなら✓チェック（2026-07-16）
+                { e:"✅", l:"チェック",   n:wAppCounts.approved, h:"/profile/worker/approved", urgent:true, doneCheck:true },
                 { e:"💚", l:"いいね",     n:0,                   h:"/saved" }, // 2×2に揃える4枠目（農家プロ入口と同構造・2026-07-14）
                 { e:"📅", l:"カレンダー", n:0,                   h:"/profile/worker/calendar" },
               ].map(c => (
