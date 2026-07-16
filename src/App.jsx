@@ -6886,28 +6886,29 @@ function JobSearchMapView({ onRegister, me }) {
       </>)}
 
       {/* ── 詳細ページ ── */}
-      {selectedJob && (
-        <div className="appear job-detail-body-mobile">
+      {selectedJob && (<>
+        {/* .appear(transform保持)の外に置く＝fixedの基準を画面に保つ（2026-07-16スクロール追従修理） */}
           {/* ←戻る／♡いいね：同じ高さの浮遊固定ボックス（スクロール追従・2026-07-16） */}
-          <button onClick={() => {
-            // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
-            if (jobBackStack.length > 0) {
-              const prev = jobBackStack[jobBackStack.length - 1];
-              setJobBackStack(st => st.slice(0, -1));
-              setSelectedJob(prev);
-              try { window.history.pushState(null, "", "#/work/job/" + prev.id); } catch {}
-              try { window.scrollTo(0, 0); } catch {}
-              return;
-            }
-            setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
-          }} className="f-sans job-float-back" style={{
-            display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
-            fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-          }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : "← 一覧に戻る"}</button>
-          <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
-            display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
-            fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-          }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+        <button onClick={() => {
+          // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
+          if (jobBackStack.length > 0) {
+            const prev = jobBackStack[jobBackStack.length - 1];
+            setJobBackStack(st => st.slice(0, -1));
+            setSelectedJob(prev);
+            try { window.history.pushState(null, "", "#/work/job/" + prev.id); } catch {}
+            try { window.scrollTo(0, 0); } catch {}
+            return;
+          }
+          setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
+        }} className="f-sans job-float-back" style={{
+          display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+          fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+        }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : "← 一覧に戻る"}</button>
+        <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
+          display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+          fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+        }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+        <div className="appear job-detail-body-mobile">
           {/* 通報リンク（いいねの上=ページ先頭右） */}
           {me && (
             <div className="job-detail-back-btn" style={{ textAlign:"right", marginBottom:8 }}>
@@ -7326,7 +7327,7 @@ function JobSearchMapView({ onRegister, me }) {
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
           >{applyBtnLabel}</button>
         </div>
-      )}
+      </>)}
 
       {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS) */}
       {selectedJob && (
