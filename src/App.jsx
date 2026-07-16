@@ -10246,6 +10246,26 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [revSending, setRevSending] = useState(false);
   const [emailShown, setEmailShown] = useState(null); // 「メールを表示」で全文表示中のauth_id（既定はemail_masked）
   const [otherBox, setOtherBox] = useState(null); // その他タブのポップアップ: pages|flow|legacy|system|boxlist|null（旧アコーディオンotherOpenを置換・2026-07-16）
+  // ボックス一覧の台帳（admin_box_registryテーブル・サイト上で追加/編集/削除できる。RLSで管理者限定・2026-07-16）
+  const [boxRows, setBoxRows] = useState([]);
+  const [boxEdit, setBoxEdit] = useState(null); // 編集中の行 {id|null, name, where_from}。id=nullは新規追加
+  const loadBoxRows = async () => {
+    const { data } = await supabase.from("admin_box_registry").select("*").order("sort").order("created_at");
+    setBoxRows(data || []);
+  };
+  useEffect(() => { if (otherBox === "boxlist") loadBoxRows(); }, [otherBox]);
+  const saveBoxRow = async () => {
+    const name = (boxEdit?.name || "").trim();
+    if (!name) return;
+    const where_from = (boxEdit.where_from || "").trim();
+    if (boxEdit.id) await supabase.from("admin_box_registry").update({ name, where_from }).eq("id", boxEdit.id);
+    else await supabase.from("admin_box_registry").insert({ name, where_from, sort: (boxRows[boxRows.length - 1]?.sort ?? 0) + 1 });
+    setBoxEdit(null); loadBoxRows();
+  };
+  const deleteBoxRow = async (id) => {
+    await supabase.from("admin_box_registry").delete().eq("id", id);
+    setBoxEdit(null); loadBoxRows();
+  };
   const [legacyView, setLegacyView] = useState(null); // 旧事業データの表示中コンテンツ: farmers|dests|records|stats|datadef|null
   const [systemView, setSystemView] = useState(null); // システムの表示中コンテンツ: sql|errors|null
   const [farmers, setFarmers] = useState([]);
@@ -10694,29 +10714,43 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               )}
 
               {otherBox==="boxlist" && (<>
-                {/* サイト内のポップアップボックスの台帳。新しいポップアップを作ったらここに1行追加していく（2026-07-16） */}
-                {[
-                  { n:"求人プレビュー",     w:"農家プロ｜作成中・公開中・期限切れのカードをタップ" },
-                  { n:"応募カード",         w:"働き手プロ｜チェックのカードをタップ" },
-                  { n:"応募者詳細",         w:"農家プロ｜応募者のカードをタップ" },
-                  { n:"また呼びたい詳細",   w:"農家プロ入口｜リストのアイコンをタップ" },
-                  { n:"農園紹介",           w:"求人詳細・確認ページ｜農家プロフィールをタップ" },
-                  { n:"過去の求人",         w:"農園紹介内｜受入実績をタップ" },
-                  { n:"掲載チェックリスト", w:"確認ページ｜掲載するをタップ" },
-                  { n:"評価登録完了",       w:"評価送信の直後" },
-                  { n:"おかえりなさい",     w:"プロフィール承認時（リアルタイム）" },
-                  { n:"働き手プレビュー",   w:"働き手プロ編集｜プレビューをタップ" },
-                  { n:"農家プレビュー",     w:"農家プロ編集｜プレビューをタップ" },
-                  { n:"カレンダー（詳細）", w:"求人詳細｜浮遊📅をタップ" },
-                  { n:"管理・その他5種",    w:"この画面｜主要ページ／求人フロー／旧事業データ／システム／ボックス一覧" },
-                ].map(({ n, w }) => (
-                  <div key={n} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"10px 2px", borderBottom:"1px solid #F7F7F7" }}>
-                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{n}</span>
-                    <span className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.6 }}>{w}</span>
-                  </div>
+                {/* 台帳はDB（admin_box_registry・管理者RLS）。行タップで編集、下の＋で追加＝サイト上で編集できる（2026-07-16） */}
+                {boxRows.length === 0 && !boxEdit && (
+                  <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>台帳は空です。下の「＋ ボックスを追加」から登録できます。</p>
+                )}
+                {boxRows.map(r => (
+                  boxEdit?.id === r.id ? (
+                    <div key={r.id} style={{ padding:"10px 2px", borderBottom:"1px solid #F7F7F7" }}>
+                      <input className="field f-sans" value={boxEdit.name} autoFocus onChange={e=>setBoxEdit(b=>({ ...b, name:e.target.value }))} placeholder="ボックス名" style={{ fontSize:13, marginBottom:6 }} />
+                      <input className="field f-sans" value={boxEdit.where_from} onChange={e=>setBoxEdit(b=>({ ...b, where_from:e.target.value }))} placeholder="どこから開くか" style={{ fontSize:12, marginBottom:8 }} />
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={saveBoxRow} disabled={!boxEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"7px 16px", fontSize:12 }}>保存</button>
+                        <button onClick={()=>setBoxEdit(null)} className="f-sans" style={{ padding:"7px 12px", fontSize:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:8, cursor:"pointer", color:"#717171" }}>キャンセル</button>
+                        <button onClick={()=>deleteBoxRow(r.id)} className="f-sans" style={{ marginLeft:"auto", padding:"7px 12px", fontSize:12, background:"none", border:"1px solid #E24B4A44", borderRadius:8, color:"#E24B4A", cursor:"pointer" }}>削除</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button key={r.id} onClick={()=>setBoxEdit({ id:r.id, name:r.name, where_from:r.where_from || "" })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"10px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
+                      <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
+                      <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6 }}>{r.where_from}</span>
+                      <span style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>✎</span>
+                    </button>
+                  )
                 ))}
+                {boxEdit && !boxEdit.id ? (
+                  <div style={{ padding:"12px 2px" }}>
+                    <input className="field f-sans" value={boxEdit.name} autoFocus onChange={e=>setBoxEdit(b=>({ ...b, name:e.target.value }))} placeholder="ボックス名" style={{ fontSize:13, marginBottom:6 }} />
+                    <input className="field f-sans" value={boxEdit.where_from} onChange={e=>setBoxEdit(b=>({ ...b, where_from:e.target.value }))} placeholder="どこから開くか" style={{ fontSize:12, marginBottom:8 }} />
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={saveBoxRow} disabled={!boxEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"7px 16px", fontSize:12 }}>追加</button>
+                      <button onClick={()=>setBoxEdit(null)} className="f-sans" style={{ padding:"7px 12px", fontSize:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:8, cursor:"pointer", color:"#717171" }}>キャンセル</button>
+                    </div>
+                  </div>
+                ) : !boxEdit && (
+                  <button onClick={()=>setBoxEdit({ id:null, name:"", where_from:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ ボックスを追加</button>
+                )}
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
-                  サイト内でポップアップ展開するボックスの台帳です。新しく作ったらここに追加していきます。実物は各画面から開いて確認してください。
+                  サイト内でポップアップ展開するボックスの台帳です。行をタップすると編集できます（管理者のみ・DB保存）。
                 </p>
               </>)}
 
