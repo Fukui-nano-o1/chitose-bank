@@ -6700,7 +6700,6 @@ function JobCard({ job, variant, saved, onToggleSave }) {
 }
 
 function JobSearchMapView({ onRegister, me }) {
-  const [activeFilter, setActiveFilter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
@@ -7013,7 +7012,6 @@ function JobSearchMapView({ onRegister, me }) {
       {/* ヘッダー */}
       <div style={{ marginBottom:5 }}>
         <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>近くの仕事を探す</h2>
-        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6 }}>地域・作物・日程・報酬で、通いやすい仕事を探せます。</p>
       </div>
 
       {/* 個人情報保護注記 */}
@@ -7023,17 +7021,7 @@ function JobSearchMapView({ onRegister, me }) {
         </p>
       </div>
 
-      {/* 検索・絞込ピル */}
-      <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", marginBottom:5, paddingBottom:2 }}>
-        {["未経験可","経験者歓迎","〜3人","4〜人","午前のみ","終日"].map(f => (
-          <button key={f} onClick={() => setActiveFilter(activeFilter===f ? null : f)} className="f-sans" style={{
-            flexShrink:0, padding:"7px 14px", borderRadius:20, fontSize:12, cursor:"pointer", fontWeight:600, border:"2px solid",
-            borderColor: activeFilter===f ? "#00A86B" : "#EBEBEB",
-            background: activeFilter===f ? "#E6F7EF" : "#fff",
-            color: activeFilter===f ? "#00A86B" : "#717171",
-          }}>{f}</button>
-        ))}
-      </div>
+      {/* 絞込ピルは削除（2026-07-16）：実フィルタ未接続の飾りだった。検索機能は市場の厚みに応じて段階解禁（骨格②） */}
 
       {/* 仕事リスト */}
       <div className="job-search-layout">
