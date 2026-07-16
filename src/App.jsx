@@ -384,10 +384,10 @@ input:focus { outline: none; }
 .fade-in     { animation: fadeIn .35s ease both; }
 /* 求人フローのstep遷移（2026-07-14）：次へ=左へフェードアウト→右からフェードイン／戻る=その逆。
    transformはfixedな子(モーダル等)の基準を壊すため、入場完了後にonAnimationEndでクラスを外す */
-@keyframes stepOutLeft  { from { opacity:1; transform:translateX(0); }     to { opacity:0; transform:translateX(-36px); } }
-@keyframes stepInRight  { from { opacity:0; transform:translateX(36px); }  to { opacity:1; transform:translateX(0); } }
-@keyframes stepOutRight { from { opacity:1; transform:translateX(0); }     to { opacity:0; transform:translateX(36px); } }
-@keyframes stepInLeft   { from { opacity:0; transform:translateX(-36px); } to { opacity:1; transform:translateX(0); } }
+@keyframes stepOutLeft  { from { opacity:1; transform:translateX(0); }      to { opacity:0; transform:translateX(-120px); } }
+@keyframes stepInRight  { from { opacity:0; transform:translateX(120px); }  to { opacity:1; transform:translateX(0); } }
+@keyframes stepOutRight { from { opacity:1; transform:translateX(0); }      to { opacity:0; transform:translateX(120px); } }
+@keyframes stepInLeft   { from { opacity:0; transform:translateX(-120px); } to { opacity:1; transform:translateX(0); } }
 /* 求人プレビューのポップアップ（縮小→等倍・軽いオーバーシュートで弾む）。フェード(opacity)なし。
    fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
@@ -404,10 +404,11 @@ input:focus { outline: none; }
 .cb-urgent-card { animation: cbUrgent 3.5s ease-in-out infinite; }
 /* 任意項目の未入力：赤影のみ（浮遊アニメなし・2026-07-16） */
 .cb-urgent-still { box-shadow: 0 2px 6px rgba(226,75,74,.45) !important; }
-.step-out-left  { animation: stepOutLeft  .16s ease both; }
-.step-in-right  { animation: stepInRight  .22s ease both; }
-.step-out-right { animation: stepOutRight .16s ease both; }
-.step-in-left   { animation: stepInLeft   .22s ease both; }
+/* 体感0.8秒（退場0.4s＋入場0.4s）・スワイプ風の横滑り（2026-07-16） */
+.step-out-left  { animation: stepOutLeft  .4s ease both; }
+.step-in-right  { animation: stepInRight  .4s ease both; }
+.step-out-right { animation: stepOutRight .4s ease both; }
+.step-in-left   { animation: stepInLeft   .4s ease both; }
 /* プロフィール両面(働き手⇄農家プロ)の切替フェード（2026-07-14・opacityのみ=fixed子要素に安全） */
 @keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
 .pfade-out { animation: fadeOut .16s ease both; }
@@ -8094,7 +8095,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const isWorker = role === "worker";
   const TOTAL = isFarmer ? 14 : 8;
 
-  // step遷移アニメ：退場(0.16s)→step切替→入場(0.22s)。連打はbusyガードで無視
+  // step遷移アニメ：退場(0.4s)→step切替→入場(0.4s)＝体感0.8秒（2026-07-16）。連打はbusyガードで無視
   const [stepAnim, setStepAnim] = useState("");
   const stepAnimBusy = useRef(false);
   const animateStepChange = (applyChange, dir) => {
@@ -8105,10 +8106,31 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       applyChange();
       setStepAnim(dir === "fwd" ? "step-in-right" : "step-in-left");
       stepAnimBusy.current = false;
-    }, 160);
+    }, 400);
   };
   const goNext = () => animateStepChange(() => setStep(s => s + 1), "fwd");
   const goBack = () => animateStepChange(() => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); }, "back");
+  // 全stepスワイプ移動（2026-07-16）：左スワイプ=次へ（バリデーション尊重）／右スワイプ=戻る。
+  // 掲載(step11→)と完了(step12)からは進めない。step1の戻りはスワイプでも不可（戻るボタン削除と整合）
+  const flowSwipe = useRef(null);
+  const onFlowTouchStart = (e) => { flowSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onFlowTouchEnd = (e) => {
+    const s = flowSwipe.current;
+    flowSwipe.current = null;
+    if (!s || publishModal || showExitModal) return;
+    const dx = e.changedTouches[0].clientX - s.x;
+    const dy = e.changedTouches[0].clientY - s.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // 縦スクロール優先
+    if (dx < 0) {
+      if (step === 11 || step === 12 || step >= TOTAL || !canGoNext) return;
+      if (returnToConfirm) { setStep(11); setReturnToConfirm(false); return; }
+      goNext();
+    } else {
+      if (step <= 1 || step === 12 || step >= TOTAL) return;
+      if (returnToConfirm) { setStep(11); setReturnToConfirm(false); return; }
+      goBack();
+    }
+  };
 
   // 確認ページ(step11)からの編集ジャンプ中フラグ。trueの間、共通フッターの「次へ／戻る」は
   // 通常の順送りでなく確認ページへ直帰する（Airbnb出品確認の「編集→保存して確認へ戻る」と同型）。
@@ -8452,8 +8474,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       )}
 
-      {/* スクロール領域 */}
-      <div ref={flowScrollRef} style={embedded ? {} : ((step === 0 || step === 6)
+      {/* スクロール領域（全stepスワイプで次へ/戻る・2026-07-16） */}
+      <div ref={flowScrollRef} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center" }
         : { height:"100%", overflowY:"auto" })}>
         <div key={step} className={stepAnim || "fade-in"}
@@ -9759,7 +9781,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           padding:"16px 8px calc(16px + env(safe-area-inset-bottom, 0px))",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         }}>
-          <button onClick={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>
+          {/* step1は戻る先が説明ページしかないため戻るボタンなし（2026-07-16）。spanはspace-betweenの左詰め維持用 */}
+          {step === 1
+            ? <span aria-hidden="true" />
+            : <button onClick={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>}
           {!isAutoStep && step !== 11 && (
             <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
               <button onClick={canGoNext ? (returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
