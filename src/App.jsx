@@ -4721,6 +4721,7 @@ function ChatView({ applicationId, onBack }) {
   const [partner, setPartner] = useState(null); // { nickname, avatar_url }
   // はじめる前の確認カード（⑦）
   const [confirmJob, setConfirmJob] = useState(null); // mapJobPublicRowで整形した求人情報
+  const [chatJobNumber, setChatJobNumber] = useState(null); // ヘッダー・確認カードの#N表示用（jobs_publicから消えた求人でも出す）
   const [confirmMeetingPlace, setConfirmMeetingPlace] = useState(null);
   const [workerConfirmed, setWorkerConfirmed] = useState(false);
   const [farmerConfirmed, setFarmerConfirmed] = useState(false);
@@ -4752,6 +4753,7 @@ function ChatView({ applicationId, onBack }) {
           setWorkerConfirmed(!!app.terms_confirmed_worker_at);
           setFarmerConfirmed(!!app.terms_confirmed_farmer_at);
           setInsurancePreparedAt(app.insurance_prepared_at);
+          setChatJobNumber(app.job_number ?? null);
           if (app.job_number) {
             const { data: jobRow } = await supabase.from("jobs_public").select("*").eq("job_number", app.job_number).maybeSingle();
             if (jobRow) setConfirmJob(mapJobPublicRow(jobRow));
@@ -4792,7 +4794,12 @@ function ChatView({ applicationId, onBack }) {
       {partner && (
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0 12px", borderBottom:"1px solid #EEE" }}>
           <Avatar url={partner.avatar_url} name={partner.nickname} size={36} />
-          <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
+          <div>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
+            {chatJobNumber != null && (
+              <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0", userSelect:"text" }}>求人 #{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "・" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") : ""}</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -4804,7 +4811,7 @@ function ChatView({ applicationId, onBack }) {
           </div>
         ) : (
           <div style={{ background:"#F7F7F7", borderRadius:14, padding:"14px 16px", margin:"10px 0" }}>
-            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 10px" }}>はじめる前の確認</p>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 10px" }}>はじめる前の確認{chatJobNumber != null && <span style={{ fontSize:11, fontWeight:400, color:"#999" }}>　求人 #{chatJobNumber}</span>}</p>
             <div style={{ display:"grid", gap:8, marginBottom:12 }}>
               {[
                 { label:"日程",     value: disp(confirmJob.dateLabel) },
@@ -5785,7 +5792,7 @@ function WorkerApplications({ filter, me }) {
             return (
               <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
-                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人 <span style={{ color:"#999", fontWeight:700 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
                 {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
                 {CHAT_ELIGIBLE_STATUSES.includes(a.status) && isWorkDayToday(jobDates[a.job_number]?.date_start, jobDates[a.job_number]?.date_end) && (
@@ -6021,7 +6028,7 @@ function MyCalendar() {
         style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", cursor:"pointer", transition:"background .5s" }}
       >
         <p style={{ fontSize:12, color:"#717171", margin:"0 0 4px" }}>📅 {dateLabel}{e.work_time ? "　" + e.work_time : ""}</p>
-        <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[e.crop, e.task].filter(Boolean).join(" ") || ("求人 #" + e.job_number)}</p>
+        <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"}<span className="f-sans" style={{ fontSize:11, fontWeight:400, color:"#999" }}>　#{e.job_number}</span></p>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <span style={{ fontSize:12, color:"#717171" }}>{e.partner_name || "相手"}さん</span>
           <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:c.bg, color:c.fg }}>{CALENDAR_STATUS_LABEL[e.application_status] || e.application_status}</span>
@@ -6328,6 +6335,7 @@ function JobCard({ job, variant, saved, onToggleSave }) {
         <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom: isList?4:0 }}>
           <p className="f-sans" style={{ fontSize: isList?17:13, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
           <span className="f-sans" style={{ fontSize: isList?12:9, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
+          <span className="f-sans" style={{ fontSize:10, color:"#C8C8C8", flexShrink:0, whiteSpace:"nowrap" }}>#{job.id}</span>
         </div>
         <p className="f-mono" style={{ fontSize: isList?16:12, fontWeight:700, color:"#00A86B", margin:0 }}>
           {payLabel(job)}
@@ -9628,6 +9636,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{job.crop} {job.task}{job.region ? `｜${job.region}` : ""}</h2>
+            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"4px 0 0", userSelect:"text" }}>#{job.id}</p>
             {(job.beginnerOk || job.instantApproveRepeat) && (
               <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
                 {job.beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
@@ -12005,7 +12014,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", maxWidth:360, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:0, overflow:"hidden", cursor:"pointer", marginBottom:16 }}>
               <div style={{ height:160, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:56 }}>{d.photos && d.photos[0] ? <img src={d.photos[0]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : "📝"}</div>
               <div style={{ padding:"14px 16px" }}>
-                <span style={{ display:"inline-block", fontSize:11, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"3px 10px", borderRadius:20, marginBottom:8 }}>作成中</span>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                  <span style={{ display:"inline-block", fontSize:11, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"3px 10px", borderRadius:20 }}>作成中</span>
+                  <span className="f-sans" style={{ fontSize:11, color:"#999" }}>#{d.job_number}</span>
+                </div>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{d.date_label || "日程未定"}　タップして再開</p>
               </div>
@@ -12025,7 +12037,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                 {d.photos && d.photos[0] ? <img src={d.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:40 }}>🌾</span>}
               </div>
               <div style={{ padding:"14px 16px" }}>
-                <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background: d.status==="open" ? "#E6F7EE" : "#FFF4E0", color: d.status==="open" ? "#00A86B" : "#C77700" }}>{d.status==="open" ? "公開中" : "審査中"}</div>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                  <span style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: d.status==="open" ? "#E6F7EE" : "#FFF4E0", color: d.status==="open" ? "#00A86B" : "#C77700" }}>{d.status==="open" ? "公開中" : "審査中"}</span>
+                  <span className="f-sans" style={{ fontSize:11, color:"#999" }}>#{d.job_number}</span>
+                </div>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{(d.crop||"")+" "+(d.task||"") || "無題"}</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{d.date_label||""}</p>
               </div>
@@ -12061,7 +12076,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   ))}
                 </div>
               )}
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人番号 {a.job_number}</p>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人 <span style={{ color:"#999", fontWeight:700 }}>#{a.job_number}</span></p>
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
               {a.status === "applied" && (
                 <div style={{ display:"flex", gap:8, marginBottom:8 }}>
