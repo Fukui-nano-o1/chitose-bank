@@ -12073,6 +12073,19 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     window.addEventListener("cb:employerHome", onEmployerHome);
     return () => window.removeEventListener("cb:employerHome", onEmployerHome);
   }, []);
+  // 作成中⇄公開中は横スワイプでも切替できる（2026-07-16）。縦スクロールと誤爆しないよう横成分が明確に大きい時だけ
+  const listSwipeRef = useRef(null);
+  const onListTouchStart = (e) => { listSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onListTouchEnd = (e) => {
+    const s = listSwipeRef.current;
+    listSwipeRef.current = null;
+    if (!s || (jobTab !== "draft" && jobTab !== "active")) return;
+    const dx = e.changedTouches[0].clientX - s.x;
+    const dy = e.changedTouches[0].clientY - s.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0 && jobTab === "draft") { setJobTab("active"); window.location.hash = "/profile/employer/active"; }
+    else if (dx > 0 && jobTab === "active") { setJobTab("draft"); window.location.hash = "/profile/employer/drafts"; }
+  };
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
   const [dbExpired, setDbExpired] = useState([]); // 作業日程が過ぎた自分の求人（statusは持たず日付から導出・2026-07-16）
@@ -12563,7 +12576,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       ) : (
         <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       )}
-      <div style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
+      <div onTouchStart={onListTouchStart} onTouchEnd={onListTouchEnd} style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ。作成中⇄公開中は横スワイプでも切替 */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
@@ -12593,9 +12606,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         )
       ) : jobTab==="active" ? (
         dbActive.length === 0 ? (
-          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>{/* 空状態は作成中ページと全く同じ配置（2026-07-16） */}
             <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
-            <p style={{ fontSize:14, margin:0 }}>公開中の求人はまだありません</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>公開中の求人はありません</p>
+            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
           </div>
         ) : (
           (() => {
