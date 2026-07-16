@@ -5319,6 +5319,22 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     setEditBox(null);
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
+  // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16）
+  const BOX_ORDER = ["pr","nickname","residence","transport","exp","intensity","interests","languages","avatar","qa"];
+  const boxFilled = (k) => (
+    k === "pr" ? !!pr.trim() : k === "nickname" ? !!nickname.trim() : k === "residence" ? !!residenceCity.trim()
+    : k === "transport" ? !!transport : k === "exp" ? !!farmExperience : k === "intensity" ? !!physicalLevel
+    : k === "interests" ? interests.length > 0 : k === "languages" ? languages.length > 0
+    : k === "avatar" ? !!avatarUrl : prQa.length > 0
+  );
+  const nextUnfilledBox = (afterKey) => {
+    const start = Math.max(0, BOX_ORDER.indexOf(afterKey));
+    for (let i = 1; i <= BOX_ORDER.length; i++) {
+      const k = BOX_ORDER[(start + i) % BOX_ORDER.length];
+      if (!boxFilled(k)) return k;
+    }
+    return null;
+  };
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
@@ -5337,7 +5353,12 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       if (!error) {
         setSaved(true);
         if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
-        if (stay === true) { closeEditBox(); setTimeout(() => setSaved(false), 2200); } // モーダルからの保存：格子に留まる
+        if (stay === true) {
+          // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）
+          const nxt = nextUnfilledBox(editBox);
+          if (nxt) setEditBox(nxt); else closeEditBox();
+          setTimeout(() => setSaved(false), 2200);
+        }
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
       }
       else alert("保存に失敗しました：" + error.message);
@@ -11629,6 +11650,21 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     setEditBox(null);
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
+  // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
+  const BOX_ORDER = ["avatar","nickname","pr","perks","staff","intro","ask","style"];
+  const boxFilled = (k) => (
+    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!nickname.trim() : k === "pr" ? !!pr.trim()
+    : k === "perks" ? perksOn.length > 0 : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
+    : k === "ask" ? askFilled > 0 : !!interactionStyle
+  );
+  const nextUnfilledBox = (afterKey) => {
+    const start = Math.max(0, BOX_ORDER.indexOf(afterKey));
+    for (let i = 1; i <= BOX_ORDER.length; i++) {
+      const k = BOX_ORDER[(start + i) % BOX_ORDER.length];
+      if (!boxFilled(k)) return k;
+    }
+    return null;
+  };
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
@@ -11658,7 +11694,12 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       setSaving(false);
       if (!error) {
         setSaved(true);
-        if (stay === true) { closeEditBox(); setTimeout(() => setSaved(false), 2200); } // モーダルからの保存：格子に留まる
+        if (stay === true) {
+          // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）
+          const nxt = nextUnfilledBox(editBox);
+          if (nxt) setEditBox(nxt); else closeEditBox();
+          setTimeout(() => setSaved(false), 2200);
+        }
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
       }
       else alert("保存に失敗しました：" + error.message);
