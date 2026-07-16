@@ -11698,6 +11698,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [completePrivateMemo, setCompletePrivateMemo] = useState("");
   const [completeSubmitting, setCompleteSubmitting] = useState(false);
   const [completeNotifyNext, setCompleteNotifyNext] = useState(true); // また呼びたい=はい時のみ表示。ON=repeat_rosterへupsert
+  const [completeDone, setCompleteDone] = useState(null); // 評価登録完了モーダル {jobLabel,jobNumber,workerId,workerName,at,wantAgain,entrust,publicComment,privateMemo,favorited}
   const openCompleteModal = (a) => {
     setCompleteModalApp(a); setCompleteStep('attend');
     setCompleteWantAgain(null); setCompleteEntrust(null);
@@ -11728,6 +11729,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         public_comment: completePublicComment.trim() || null, private_memo: completePrivateMemo.trim() || null,
       });
       if (revErr) { alert('評価の保存に失敗しました：' + revErr.message); setCompleteSubmitting(false); return; }
+      let favorited = false;
       if (completeWantAgain === true && completeNotifyNext) {
         // また呼びたいリスト登録（失敗しても評価自体は成立済みso止めない）
         const { error: rosErr } = await supabase.from('repeat_roster').upsert(
@@ -11735,15 +11737,56 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           { onConflict: 'farmer_id,worker_id' }
         );
         if (!rosErr) {
+          favorited = true;
           const wp = workerProfiles[completeModalApp.worker_id];
           setRosterRows(prev => prev.some(r => r.worker_id === completeModalApp.worker_id) ? prev
             : [{ worker_id: completeModalApp.worker_id, nickname: wp?.nickname || "働き手", avatar_url: wp?.avatar_url || null }, ...prev]);
         }
       }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
+      // 評価登録完了モーダル用の控えを組み立てる（求人タイトルはdbActive→jobsの順で解決）
+      let jobLabel = "";
+      const cached = dbActive.find(d => d.job_number === completeModalApp.job_number) || dbDrafts.find(d => d.job_number === completeModalApp.job_number);
+      if (cached) jobLabel = [cached.crop, cached.task].filter(Boolean).join(" ");
+      else {
+        try {
+          const { data: jr } = await supabase.from("jobs").select("crop,task").eq("job_number", completeModalApp.job_number).eq("farmer_id", me.id).maybeSingle();
+          if (jr) jobLabel = [jr.crop, jr.task].filter(Boolean).join(" ");
+        } catch {}
+      }
+      setCompleteDone({
+        jobLabel, jobNumber: completeModalApp.job_number,
+        workerId: completeModalApp.worker_id,
+        workerName: workerProfiles[completeModalApp.worker_id]?.nickname || "働き手",
+        at: new Date().toLocaleString("ja-JP", { year:"numeric", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit" }),
+        wantAgain: completeWantAgain, entrust: completeEntrust,
+        publicComment: completePublicComment.trim(), privateMemo: completePrivateMemo.trim(),
+        favorited,
+      });
       setCompleteModalApp(null);
     } catch { alert('処理に失敗しました。'); }
     setCompleteSubmitting(false);
+  };
+  // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
+  const toggleDoneFavorite = async (checked) => {
+    if (!completeDone) return;
+    try {
+      if (checked) {
+        const { error } = await supabase.from('repeat_roster').upsert(
+          { farmer_id: me.id, worker_id: completeDone.workerId, notify: true },
+          { onConflict: 'farmer_id,worker_id' }
+        );
+        if (error) { alert('登録に失敗しました：' + error.message); return; }
+        const wp = workerProfiles[completeDone.workerId];
+        setRosterRows(prev => prev.some(r => r.worker_id === completeDone.workerId) ? prev
+          : [{ worker_id: completeDone.workerId, nickname: wp?.nickname || completeDone.workerName, avatar_url: wp?.avatar_url || null }, ...prev]);
+      } else {
+        const { error } = await supabase.from('repeat_roster').delete().eq('farmer_id', me.id).eq('worker_id', completeDone.workerId);
+        if (error) { alert('解除に失敗しました：' + error.message); return; }
+        setRosterRows(prev => prev.filter(r => r.worker_id !== completeDone.workerId));
+      }
+      setCompleteDone(prev => prev ? { ...prev, favorited: checked } : prev);
+    } catch { alert('処理に失敗しました。'); }
   };
   // また呼びたいリストの行削除（通知を止める）
   const stopRosterNotify = async (workerId) => {
@@ -12026,6 +12069,46 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 評価登録完了モーダル（評価送信後の控え） */}
+      {completeDone && (
+        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>setCompleteDone(null)} aria-label="戻る" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 16px" }}>☑️ 評価登録完了</p>
+            <div className="f-sans" style={{ display:"grid", gap:8, fontSize:13, marginBottom:14 }}>
+              <div style={{ display:"flex", gap:8 }}>
+                <span style={{ flexShrink:0, width:72, color:"#717171" }}>求人</span>
+                <span style={{ fontWeight:700, color:"#222" }}>{completeDone.jobLabel || ("求人 #" + completeDone.jobNumber)}</span>
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <span style={{ flexShrink:0, width:72, color:"#717171" }}>求職者</span>
+                <span style={{ fontWeight:700, color:"#222" }}>{completeDone.workerName}</span>
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <span style={{ flexShrink:0, width:72, color:"#717171" }}>登録日時</span>
+                <span style={{ color:"#222" }}>{completeDone.at}</span>
+              </div>
+            </div>
+            <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", fontSize:13, marginBottom:14 }}>
+              <p style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 8px" }}>評価内容</p>
+              <p style={{ margin:"0 0 4px", color:"#222" }}>また呼びたい：<strong>{completeDone.wantAgain ? "はい" : "いいえ"}</strong></p>
+              <p style={{ margin:0, color:"#222" }}>安心して任せられた：<strong>{completeDone.entrust ? "はい" : "いいえ"}</strong></p>
+              {completeDone.publicComment && (
+                <p style={{ margin:"8px 0 0", color:"#222", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{completeDone.publicComment}</p>
+              )}
+              {completeDone.privateMemo && (
+                <p style={{ margin:"8px 0 0", color:"#717171", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>🔒 {completeDone.privateMemo}</p>
+              )}
+            </div>
+            <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", marginBottom:16 }}>
+              <input type="checkbox" checked={completeDone.favorited} onChange={e=>toggleDoneFavorite(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
+              お気に入り登録（また呼びたいリストに登録し、次の求人をお知らせする）
+            </label>
+            <button onClick={()=>setCompleteDone(null)} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>閉じる</button>
           </div>
         </div>
       )}
