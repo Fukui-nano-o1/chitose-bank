@@ -7401,6 +7401,12 @@ function JobSearchMapView({ onRegister, me }) {
               <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>
                 {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
               </h3>
+              {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16） */}
+              {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
+                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
+                  <FarmerTrustCard profile={empEmployer} trust={empTrust} />
+                </div>
+              )}
               {empEmployer.pr && empEmployer.pr.trim() && (
                 <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", marginBottom:16 }}>
                   <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
@@ -9373,6 +9379,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>
                         {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
                       </h3>
+                      {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16・詳細ページと同じ） */}
+                      {(farmHostQa(confEmployer).length > 0 || !!confEmployer.interaction_style || !!confTrust) && (
+                        <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
+                          <FarmerTrustCard profile={confEmployer} trust={confTrust} />
+                        </div>
+                      )}
                       {confEmployer.pr && confEmployer.pr.trim() && (
                         <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", marginBottom:16 }}>
                           <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
