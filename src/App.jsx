@@ -14746,11 +14746,13 @@ const loadNotifs=useCallback(async(farmerId)=>{
     })();
   }, [me?.id]); // ログインで農家/働き手向けの未読が増えることがあるため再判定
   const dismissNotices = () => {
+    // 既読にするのは表示した1件だけ。残りは次回サイトを開いたときに1件ずつ＝詰め込まない（2026-07-16たきと方針）
     setActiveNotices(prev => {
-      if (prev?.length) {
+      const n = prev?.[0];
+      if (n) {
         try {
           const read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]");
-          localStorage.setItem("cb_readNotices", JSON.stringify([...new Set([...read, ...prev.map(n => n.id)])]));
+          localStorage.setItem("cb_readNotices", JSON.stringify([...new Set([...read, n.id])]));
         } catch {}
       }
       return null;
@@ -14984,19 +14986,16 @@ const subDest=useCallback(async d=>{
         </div>
       )}
 
-      {/* 運営お知らせポップアップ（2026-07-16）：公開中＋期間内（RLSが返す）＋対象一致＋未読のみ。
-          既読はlocalStorage(cb_readNotices)。承認ポップアップ表示中は譲る（両方出さない） */}
+      {/* 運営お知らせポップアップ（2026-07-16）：公開中＋期間内（RLSが返す）＋対象一致＋未読のうち、
+          優先度が最も高い1件だけを表示。詰め込むと誰も読まない＝1回の起動で1件、残りは次回（たきと方針）。
+          文字は従来の2倍を基準（本文26/タイトル28）。ボックス下限は下部フッターの10px上 */}
       {activeNotices && !welcomeApproved && (
-        <div onClick={dismissNotices} style={{ position:"fixed", inset:0, zIndex:10900, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"relative", width:"100%", maxWidth:420, maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)" }}>
+        <div onClick={dismissNotices} style={{ position:"fixed", inset:0, zIndex:10900, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", maxHeight:"calc(100vh - 6vh - 64px - 10px - env(safe-area-inset-bottom, 0px))", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)" }}>
             <button onClick={dismissNotices} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 14px" }}>📢 お知らせ</p>
-            {activeNotices.map((n, i) => (
-              <div key={n.id} style={{ paddingTop: i===0 ? 0 : 14, marginTop: i===0 ? 0 : 14, borderTop: i===0 ? "none" : "1px solid #F0F0F0" }}>
-                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{n.name}</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap" }}>{n.body}</p>
-              </div>
-            ))}
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
+            <p className="f-sans" style={{ fontSize:28, fontWeight:800, color:"#222", lineHeight:1.4, margin:"0 0 14px" }}>{activeNotices[0].name}</p>
+            <p className="f-sans" style={{ fontSize:26, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{activeNotices[0].body}</p>
           </div>
         </div>
       )}
