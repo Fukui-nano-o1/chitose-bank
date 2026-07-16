@@ -5033,24 +5033,30 @@ function yearMonthLabel(dateStr) {
 }
 
 // 15秒カード（プレビュー最上部・農家側応募者カードで共通利用）。値が無い項目は非表示
-function WorkerTrustCard({ profile, trust }) {
+// onEditItem（任意）: 本人プレビュー用。渡すと各項目がタップ可能になり、対応する編集ボックスのキーを返す。
+// 農家側（応募者カード等）は渡さない＝従来どおり表示専用
+function WorkerTrustCard({ profile, trust, onEditItem }) {
   if (!profile) return null;
+  const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
   const badges = [
-    profile.transport && { icon:"🚗", text: profile.transport },
-    profile.farm_experience && { icon:"🌾", text: profile.farm_experience },
-    profile.physical_level && { icon:"💪", text: profile.physical_level },
+    profile.transport && { icon:"🚗", text: profile.transport, k:"transport" },
+    profile.farm_experience && { icon:"🌾", text: profile.farm_experience, k:"exp" },
+    profile.physical_level && { icon:"💪", text: profile.physical_level, k:"intensity" },
   ].filter(Boolean);
-  const tags = [...(profile.interests || []), ...(profile.languages || [])];
+  const tags = [
+    ...(profile.interests || []).map(t => ({ t, k:"interests" })),
+    ...(profile.languages || []).map(t => ({ t, k:"languages" })),
+  ];
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <div style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
           <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
         </div>
         <div style={{ minWidth:0 }}>
-          <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{profile.nickname || "名前未設定"}</p>
+          <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{profile.nickname || "名前未設定"}</p>
           {profile.residence_city && (
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>📍{profile.residence_city}</p>
+            <p {...tap("residence")} className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", ...(onEditItem ? { cursor:"pointer" } : {}) }}>📍{profile.residence_city}</p>
           )}
         </div>
       </div>
@@ -5067,19 +5073,19 @@ function WorkerTrustCard({ profile, trust }) {
       {badges.length > 0 && (
         <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
           {badges.map((b,i) => (
-            <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>{b.icon} {b.text}</span>
+            <span key={i} {...tap(b.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{b.icon} {b.text}</span>
           ))}
         </div>
       )}
       {tags.length > 0 && (
         <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
-          {tags.map((t,i) => (
-            <span key={i} className="f-sans" style={{ fontSize:11, color:"#717171", background:"#F0F7F4", borderRadius:20, padding:"3px 10px" }}>#{t}</span>
+          {tags.map((x,i) => (
+            <span key={i} {...tap(x.k)} className="f-sans" style={{ fontSize:11, color:"#717171", background:"#F0F7F4", borderRadius:20, padding:"3px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>#{x.t}</span>
           ))}
         </div>
       )}
       {profile.pr && (
-        <p className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{profile.pr}</p>
+        <p {...tap("pr")} className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{profile.pr}</p>
       )}
     </div>
   );
@@ -5533,8 +5539,9 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           {/* touchAction/overscrollBehavior: iOSでスクロールが背面ページに奪われるのを防ぐ（2026-07-14） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
             <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
-            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容を表示しています）</p>
-            <WorkerProfilePreview me={me} onEdit={()=>setShowPreview(false)} />
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容）・項目をタップで編集できます</p>
+            <WorkerProfilePreview me={me} onEdit={()=>setShowPreview(false)}
+              onEditItem={(key)=>{ setShowPreview(false); setEditBox(key); }} />
           </div>
         </div>
       )}
@@ -5542,7 +5549,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   );
 }
 
-function WorkerProfilePreview({ me, onEdit }) {
+function WorkerProfilePreview({ me, onEdit, onEditItem }) {
   const [profile, setProfile] = useState(null);
   const [trust, setTrust] = useState(null);
   const [wantAgainCount, setWantAgainCount] = useState(null);
@@ -5579,11 +5586,11 @@ function WorkerProfilePreview({ me, onEdit }) {
         </div>
       ) : (
         <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px" }}>
-          <WorkerTrustCard profile={profile} trust={trust} />
+          <WorkerTrustCard profile={profile} trust={trust} onEditItem={onEditItem} />
           {prQa.length > 0 && (
-            <div style={{ display:"grid", gap:10, marginTop:16 }}>
+            <div style={{ display:"grid", gap:10, marginTop:16 }} onClick={onEditItem ? ()=>onEditItem("qa") : undefined} role={onEditItem ? "button" : undefined}>
               {prQa.map(({ q, a }) => (
-                <div key={q}>
+                <div key={q} style={onEditItem ? { cursor:"pointer" } : undefined}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
                   <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
                 </div>
