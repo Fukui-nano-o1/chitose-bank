@@ -12561,11 +12561,18 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         </>
       ) : (
       <>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-        {/* hashが既に/profile/employerの場合(保存後遷移等)はhashchangeが発火しないため、stateも直接homeへ */}
-        <button onClick={()=>{ setJobTab("home"); window.location.hash="/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0" }}>← 農家プロ</button>
-        <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
-      </div>
+      {/* 戻る／求人を出す：同じ高さの浮遊固定ボックス（スクロール追従・2026-07-16・働き手側の戻ると同じ意匠）。
+          hashが既に/profile/employerの場合(保存後遷移等)はhashchangeが発火しないため、stateも直接homeへ */}
+      <button onClick={()=>{ setJobTab("home"); window.location.hash="/profile/employer"; }} className="f-sans job-float-back" style={{
+        display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+        fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+      }}>← 農家プロ</button>
+      <button onClick={onNewJob} className="f-sans job-float-like" style={{
+        display:"flex", alignItems:"center", gap:6, background:"#00A86B", border:"none", borderRadius:20,
+        fontSize:13, fontWeight:700, color:"#fff", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+      }}>＋ 求人を出す</button>
+      {/* 浮遊ボックスとタブ・見出しが重ならないためのスペーサー（ノッチ端末はsafe-area分も確保） */}
+      <div aria-hidden="true" style={{ height:"calc(48px + env(safe-area-inset-top, 0px))" }} />
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
       {/* 作成中⇄公開中は上部タブで行き来できる（2026-07-16）。入口ボックスはそれぞれ自分のページ（hash）を開く */}
       {(jobTab==="draft" || jobTab==="active") ? (
