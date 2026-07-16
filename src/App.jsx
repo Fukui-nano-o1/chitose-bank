@@ -1581,14 +1581,54 @@ function GhostCard({ index }) {
 
 // ── LoginScreen — メールOTP認証 ───────────────────────────────
 function LoginScreen({ farmers, onLogin, onGoRegister }) {
+  // 認証の2経路（2026-07-16）：
+  // ・既存の方＝メールアドレス＋パスワード（view "login"・デフォルト）
+  // ・新規登録＝6桁コード認証→パスワード設定（view "otp"→"code"→"setpw"）
+  //   パスワード未設定・忘れた既存の方も同じOTP経路で再設定できる（経路を増やさない）
+  const [view,    setView]    = useState("login"); // login | otp | code | setpw
   const [email,   setEmail]   = useState("");
+  const [pw,      setPw]      = useState("");
+  const [pw2,     setPw2]     = useState("");
   const [code,    setCode]    = useState("");
-  const [pending, setPending] = useState(null); // {code, expiresAt}
+  const [authedUser, setAuthedUser] = useState(null); // OTP認証済みユーザー（パスワード設定待ち）
   const [sending, setSending] = useState(false);
   const [err,     setErr]     = useState("");
   const [shk,     setShk]     = useState(false);
 
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
+
+  // 認証成功後の共通処理。既存プロフィールを確認するだけ。作らない・書き換えない（登録は#/roleの役割選択経由のみ・骨格⑥）
+  const completeLogin = async (user) => {
+    const normalizedEmail = (user?.email || email).trim().toLowerCase();
+    const { data: farmer } = await supabase
+      .from("farmers")
+      .select("*")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+    if (farmer) {
+      onLogin({
+        ...farmer,
+        id: farmer.auth_id || user.id,
+        joinedYear: farmer.joined_year,
+        planned_crops: farmer.planned_crops || [],
+        sales_channels: farmer.sales_channels || [],
+      });
+      return;
+    }
+    // farmers行なし＝働き手または初回。役割は聞かない（アクションベース設計）。
+    // 最小形の me でログインさせる。account_holders 未登録なら
+    // 既存の needsAccountHolder ゲートが①フォームを自動表示する。
+    onLogin({ id: user.id, email: normalizedEmail, name: "", isWorker: true });
+  };
+
+  // 既存の方：メールアドレス＋パスワード
+  const passwordLogin = async () => {
+    setSending(true); setErr("");
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
+    setSending(false);
+    if (error) { setErr("メールアドレスまたはパスワードが違います"); bounce(); return; }
+    await completeLogin(data.user);
+  };
 
   const requestCode = async () => {
     setSending(true); setErr("");
@@ -1601,12 +1641,11 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
         : "メール送信に失敗しました。しばらく経ってから再度お試しください");
       return;
     }
-    setPending({ email: email.trim().toLowerCase() });
     setCode("");
+    setView("code");
   };
 
-const verifyCode = async () => {
-    if (!pending) return;
+  const verifyCode = async () => {
     setSending(true); setErr("");
     const { data, error } = await supabase.auth.verifyOtp({
       email: email.trim(),
@@ -1615,28 +1654,22 @@ const verifyCode = async () => {
     });
     setSending(false);
     if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
-    const normalizedEmail = email.trim().toLowerCase();
-    // 既存プロフィールを確認するだけ。作らない・書き換えない（登録は#/roleの役割選択経由のみ・骨格⑥）
-    const { data: farmer } = await supabase
-      .from("farmers")
-      .select("*")
-      .eq("email", normalizedEmail)
-      .maybeSingle();
-    if (farmer) {
-      onLogin({
-        ...farmer,
-        id: farmer.auth_id || data.user.id,
-        joinedYear: farmer.joined_year,
-        planned_crops: farmer.planned_crops || [],
-        sales_channels: farmer.sales_channels || [],
-      });
-      return;
-    }
-    // farmers行なし＝働き手または初回。役割は聞かない（アクションベース設計）。
-    // 最小形の me でログインさせる。account_holders 未登録なら
-    // 既存の needsAccountHolder ゲートが①フォームを自動表示する。
-    onLogin({ id: data.user.id, email: normalizedEmail, name: "", isWorker: true });
-};
+    // 認証成功→そのままは通さず、パスワード設定へ（次回からメール＋パスワードでログインできるように）
+    setAuthedUser(data.user);
+    setPw(""); setPw2(""); setErr("");
+    setView("setpw");
+  };
+
+  // 新規登録（＋パスワード再設定）：OTP認証済みユーザーにパスワードを設定
+  const submitPassword = async () => {
+    if (pw.length < 8) { setErr("パスワードは8文字以上で設定してください"); return; }
+    if (pw !== pw2) { setErr("確認用パスワードが一致しません"); bounce(); return; }
+    setSending(true); setErr("");
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setSending(false);
+    if (error) { setErr("パスワードの設定に失敗しました。時間をおいてもう一度お試しください"); return; }
+    await completeLogin(authedUser);
+  };
 
   return (
     <div className="fade-in" style={{ minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:28 }}>
@@ -1648,11 +1681,45 @@ const verifyCode = async () => {
         </div>
 
         <div className="ledger-card" style={{ padding:32 }}>
-          <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:8,letterSpacing:".04em" }}>メールではじめる</div>
+          <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:8,letterSpacing:".04em" }}>
+            {view === "login" ? "ログイン" : view === "setpw" ? "パスワードの設定" : "新規登録"}
+          </div>
           <p className="f-sans" style={{ fontSize:11,color:C.dim,lineHeight:1.7,marginBottom:24 }}>招待制で運営しています</p>
 
-          {!pending ? (
-            /* ── STEP 1: メールアドレス入力 ── */
+          {view === "login" ? (
+            /* ── 既存の方：メールアドレス＋パスワード ── */
+            <div className="fade-in">
+              <div style={{ marginBottom:16 }}>
+                <label className="lbl f-sans">メールアドレス</label>
+                <input className="field f-sans" type="email" placeholder="your@email.com"
+                  value={email} autoFocus
+                  onChange={e=>{setEmail(e.target.value);setErr("");}}/>
+              </div>
+              <div style={{ marginBottom:20 }}>
+                <label className="lbl f-sans">パスワード</label>
+                <input className={`field f-sans ${shk?"shake":""}`} type="password" placeholder="パスワード" autoComplete="current-password"
+                  value={pw}
+                  onChange={e=>{setPw(e.target.value);setErr("");}}
+                  onKeyDown={e=>e.key==="Enter"&&email.trim()&&pw&&!sending&&passwordLogin()}/>
+                {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
+              </div>
+              <button className="btn-primary" style={{ width:"100%" }}
+                disabled={!email.trim()||!pw||sending} onClick={passwordLogin}>
+                {sending ? "確認中…" : "ログイン"}
+              </button>
+              <div style={{ textAlign:"center", marginTop:18, display:"flex", flexDirection:"column", gap:8 }}>
+                <button onClick={()=>{setView("otp");setErr("");setPw("");}} className="f-sans"
+                  style={{ background:"none",border:"none",fontSize:12,fontWeight:700,color:"#00A86B",textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
+                  はじめての方はこちら（新規登録）
+                </button>
+                <button onClick={()=>{setView("otp");setErr("");setPw("");}} className="f-sans"
+                  style={{ background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
+                  パスワードを忘れた方・未設定の方（6桁コードで再設定）
+                </button>
+              </div>
+            </div>
+          ) : view === "otp" ? (
+            /* ── 新規登録①：メールアドレス→6桁コード送信 ── */
             <div className="fade-in">
               <div style={{ marginBottom:20 }}>
                 <label className="lbl f-sans">メールアドレス</label>
@@ -1672,9 +1739,15 @@ const verifyCode = async () => {
                   : "認証コードを送信する →"}
               </button>
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+              <div style={{ textAlign:"center", marginTop:18 }}>
+                <button onClick={()=>{setView("login");setErr("");}} className="f-sans"
+                  style={{ background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
+                  ← 登録済みの方はこちら（メールアドレスとパスワード）
+                </button>
+              </div>
             </div>
-          ) : (
-            /* ── STEP 2: コード入力 ── */
+          ) : view === "code" ? (
+            /* ── 新規登録②：6桁コード入力 ── */
             <div className="fade-in">
               <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
                 <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
@@ -1698,21 +1771,51 @@ const verifyCode = async () => {
                 {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
               </div>
               <button className="btn-primary" style={{ width:"100%",marginBottom:10 }}
-                disabled={code.length!==6} onClick={verifyCode}>
-                ログイン
+                disabled={code.length!==6||sending} onClick={verifyCode}>
+                認証する
               </button>
-              <button onClick={()=>{setPending(null);setCode("");setErr("");}} className="f-sans"
+              <button onClick={()=>{setView("otp");setCode("");setErr("");}} className="f-sans"
                 style={{ width:"100%",background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3 }}>
                 ← メールアドレスを変更する
               </button>
             </div>
+          ) : (
+            /* ── 新規登録③：パスワード設定（次回からメール＋パスワードでログイン） ── */
+            <div className="fade-in">
+              <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
+                <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
+                  メールの確認ができました。<br/>
+                  次回からのログインに使うパスワードを設定してください。
+                </p>
+              </div>
+              <div style={{ marginBottom:16 }}>
+                <label className="lbl f-sans">パスワード（8文字以上）</label>
+                <input className="field f-sans" type="password" autoComplete="new-password" placeholder="8文字以上"
+                  value={pw} autoFocus
+                  onChange={e=>{setPw(e.target.value);setErr("");}}/>
+              </div>
+              <div style={{ marginBottom:20 }}>
+                <label className="lbl f-sans">パスワード（確認用）</label>
+                <input className={`field f-sans ${shk?"shake":""}`} type="password" autoComplete="new-password" placeholder="もう一度入力"
+                  value={pw2}
+                  onChange={e=>{setPw2(e.target.value);setErr("");}}
+                  onKeyDown={e=>e.key==="Enter"&&pw&&pw2&&!sending&&submitPassword()}/>
+                {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
+              </div>
+              <button className="btn-primary" style={{ width:"100%" }}
+                disabled={!pw||!pw2||sending} onClick={submitPassword}>
+                {sending ? "設定中…" : "設定してはじめる"}
+              </button>
+            </div>
           )}
 
-          <div style={{ textAlign:"center", marginTop:22 }}>
-            <p className="f-sans" style={{ fontSize:11, color:C.dim, lineHeight:1.8 }}>
-              招待を受けた方のメールアドレスを入力して、認証コードを送信してください。
-            </p>
-          </div>
+          {(view === "otp" || view === "code") && (
+            <div style={{ textAlign:"center", marginTop:22 }}>
+              <p className="f-sans" style={{ fontSize:11, color:C.dim, lineHeight:1.8 }}>
+                招待を受けた方のメールアドレスを入力して、認証コードを送信してください。
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
