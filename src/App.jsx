@@ -5281,6 +5281,11 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   };
   const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|residence|transport|exp|intensity|interests|languages|pr|qa
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→WorkerProfilePreviewをモーダル展開
+  const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復）
+  const closeEditBox = () => {
+    setEditBox(null);
+    if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
+  };
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
@@ -5299,7 +5304,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       if (!error) {
         setSaved(true);
         if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
-        if (stay === true) { setEditBox(null); setTimeout(() => setSaved(false), 2200); } // モーダルからの保存：格子に留まる
+        if (stay === true) { closeEditBox(); setTimeout(() => setSaved(false), 2200); } // モーダルからの保存：格子に留まる
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
       }
       else alert("保存に失敗しました：" + error.message);
@@ -5348,9 +5353,9 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {/* ═══ 編集モーダル（各ボックスの中身。保存はモーダル内の「保存する」＝全項目upsert） ═══ */}
       {editBox && (
-      <div onClick={()=>setEditBox(null)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+      <div onClick={closeEditBox} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
       <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
-      <button onClick={()=>setEditBox(null)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
+      <button onClick={closeEditBox} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
 
       {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>アイコン</label>
@@ -5541,7 +5546,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
             <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容）・項目をタップで編集できます</p>
             <WorkerProfilePreview me={me} onEdit={()=>setShowPreview(false)}
-              onEditItem={(key)=>{ setShowPreview(false); setEditBox(key); }} />
+              onEditItem={(key)=>{ setShowPreview(false); setEditFromPreview(true); setEditBox(key); }} />
           </div>
         </div>
       )}
