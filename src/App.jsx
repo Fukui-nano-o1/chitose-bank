@@ -5360,7 +5360,8 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         {[
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16・農家プロと同じ規則）
-          { k:"avatar",    e:"🖼️", l:"アイコン",     req:true, v: avatarUrl ? "設定済み" : "" },
+          // 自己紹介を左上へ（アイコンと入れ替え・2026-07-16）
+          { k:"pr",        e:"📝", l:"自己紹介",     req:true, v: pr },
           { k:"nickname",  e:"✏️", l:"ニックネーム", req:true, v: nickname },
           { k:"residence", e:"📍", l:"居住地",       v: residenceCity },
           { k:"transport", e:"🚗", l:"移動手段",     v: transport },
@@ -5368,7 +5369,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"intensity", e:"💪", l:"作業の強さ",   v: physicalLevel },
           { k:"interests", e:"🎨", l:"趣味",         v: interests.join("・") },
           { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
-          { k:"pr",        e:"📝", l:"自己紹介",     req:true, v: pr },
+          { k:"avatar",    e:"🖼️", l:"アイコン",     req:true, v: avatarUrl ? "設定済み" : "" },
           { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
         ].map(b => (
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
