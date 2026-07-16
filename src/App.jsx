@@ -6137,7 +6137,7 @@ function MyCalendar() {
           {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
           <StatusRibbon label={CALENDAR_STATUS_LABEL[e.application_status] || e.application_status} color={c.fg === "#00A86B" ? "#00A86B" : e.application_status === "completed" ? "#9E9E9E" : "#C77700"} />
           {likedIds.has(e.job_number) && (
-            <span style={{ position:"absolute", top:40, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>❤️</span>
+            <span style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, boxShadow:"0 1px 4px rgba(0,0,0,0.15)", zIndex:1 }}>❤️</span>
           )}
         </div>
         <div style={{ padding:"8px 10px 10px" }}>
@@ -12424,18 +12424,31 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             <p style={{ fontSize:14, margin:0 }}>公開中の求人はまだありません</p>
           </div>
         ) : (
-          dbActive.map(d => {
-            const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
-            return (
-            <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: false })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
-              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                <StatusRibbon label={d.status==="open" ? "公開中" : "審査中"} color={d.status==="open" ? "#00A86B" : "#C77700"} />
+          (() => {
+            // 審査中(pending)と公開中(open)をセクションで分離（2026-07-16）
+            const renderActiveJobCard = (d) => {
+              const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+              return (
+              <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: false })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
+                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
+                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                  <StatusRibbon label={d.status==="open" ? "公開中" : "審査中"} color={d.status==="open" ? "#00A86B" : "#C77700"} />
+                </div>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
               </div>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
-            </div>
+              );
+            };
+            const pending = dbActive.filter(d => d.status !== "open");
+            const open = dbActive.filter(d => d.status === "open");
+            return (
+              <>
+                {pending.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#C77700", margin:"0 0 -2px" }}>審査中（{pending.length}）</p>}
+                {pending.map(renderActiveJobCard)}
+                {open.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#00A86B", margin:"8px 0 -2px" }}>公開中（{open.length}）</p>}
+                {open.map(renderActiveJobCard)}
+              </>
             );
-          })
+          })()
         )
       ) : jobTab==="applicants" ? (
         dbApplicants.length === 0 ? (
