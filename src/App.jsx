@@ -392,6 +392,16 @@ input:focus { outline: none; }
    fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
 .cb-sheet-up { animation: cbPop .8s cubic-bezier(.2, 1.3, .3, 1); transform-origin: center center; }
+/* 未完了カードの注意アニメ（働き手・承認済みタブ）：赤い影＋最初の0.5秒で2度浮遊→3秒かけて沈む（計3.5秒・無限ループ） */
+@keyframes cbUrgent {
+  0%    { transform: translateY(0);    box-shadow: 0 2px 6px rgba(226,75,74,.45); }
+  3.6%  { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(226,75,74,.55); }
+  7.1%  { transform: translateY(0);    box-shadow: 0 3px 8px rgba(226,75,74,.5); }
+  10.7% { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(226,75,74,.55); }
+  14.3% { transform: translateY(-2px); box-shadow: 0 7px 14px rgba(226,75,74,.5); }
+  100%  { transform: translateY(0);    box-shadow: 0 1px 4px rgba(226,75,74,.4); }
+}
+.cb-urgent-card { animation: cbUrgent 3.5s ease-in-out infinite; }
 .step-out-left  { animation: stepOutLeft  .16s ease both; }
 .step-in-right  { animation: stepInRight  .22s ease both; }
 .step-out-right { animation: stepOutRight .16s ease both; }
@@ -5675,7 +5685,7 @@ function WorkerApplications({ filter, me }) {
           setAllApps(data);
           const jobNumbers = [...new Set(data.map(a => a.job_number).filter(Boolean))];
           if (jobNumbers.length > 0) {
-            const { data: jobRows } = await supabase.from("jobs_public").select("job_number,date_start,date_end").in("job_number", jobNumbers);
+            const { data: jobRows } = await supabase.from("jobs_public").select("job_number,date_start,date_end,crop,task,photos").in("job_number", jobNumbers);
             const map = {};
             (jobRows || []).forEach(j => { map[j.job_number] = j; });
             setJobDates(map);
@@ -5824,24 +5834,17 @@ function WorkerApplications({ filter, me }) {
   });
   const label = (s) => s==="applied" ? "応募中" : s==="approved" ? "承認されました" : s==="rejected" ? "見送り" : s==="meeting" ? "打ち合わせ" : s==="interview" ? "面接" : s==="contracted" ? "契約" : s==="working" ? "作業中" : s==="completed" ? "完了" : s;
   const color = (s) => s==="approved"||s==="contracted"||s==="working" ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="rejected" ? {bg:"#F3F3F3",fg:"#999"} : {bg:"#FFF4E0",fg:"#C77700"};
-  return (
-    <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
-      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
-      {loading ? (
-        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 0" }}>読み込み中...</p>
-      ) : apps.length === 0 ? (
-        <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
-          <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
-          <p style={{ fontSize:14, margin:0 }}>{filter === "approved" ? "承認された求人はまだありません" : "応募中の求人はありません"}</p>
-          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>{filter === "approved" ? "農家が承認すると、ここに表示されます。" : "「さがす」から求人に応募できます。"}</p>
-        </div>
-      ) : (
-        <div style={{ display:"grid", gap:12 }}>
-          {apps.map(a => {
-            const c = color(a.status);
-            return (
-              <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+  // 承認済みタブのグリッド用（農家の作成中ページと同設計・2026-07-16）
+  const [sheetAppId, setSheetAppId] = useState(null); // タップした応募のボトムシート
+  const ribbonLabel = (s) => s === "approved" ? "承認済み" : label(s);
+  const ribbonColor = (s) => s === "completed" ? "#9E9E9E" : s === "working" ? "#C77700" : "#00A86B";
+  // 未完了＝働き手側の手続きが残っている応募（完了して評価済み/欠勤記録済みになるまで）
+  const isAppDone = (a) => a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at);
+  // 応募カード本体（応募中タブのリスト表示と、承認済みタブのボトムシートで共用）
+  const renderAppCard = (a) => {
+    const c = color(a.status);
+    return (
+      <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>求人 <span style={{ color:"#999", fontWeight:700 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
@@ -5888,11 +5891,63 @@ function WorkerApplications({ filter, me }) {
                     {cancelingId===a.id ? "取り消し中..." : "応募を取り消す"}
                   </button>
                 )}
-              </div>
+      </div>
+    );
+  };
+  return (
+    <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
+      {loading ? (
+        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 0" }}>読み込み中...</p>
+      ) : apps.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
+          <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
+          <p style={{ fontSize:14, margin:0 }}>{filter === "approved" ? "承認された求人はまだありません" : "応募中の求人はありません"}</p>
+          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>{filter === "approved" ? "農家が承認すると、ここに表示されます。" : "「さがす」から求人に応募できます。"}</p>
+        </div>
+      ) : filter === "approved" ? (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+          {/* 農家の作成中ページと同設計：正方形写真＋状態リボン＋タイトルのみ。タップでボトムシート展開 */}
+          {apps.map(a => {
+            const job = jobDates[a.job_number] || {};
+            const photo = job.photos && job.photos[0] ? (typeof job.photos[0] === "string" ? job.photos[0] : job.photos[0]?.url) : null;
+            return (
+              <button key={a.id} onClick={()=>setSheetAppId(a.id)}
+                className={"f-sans" + (isAppDone(a) ? "" : " cb-urgent-card")}
+                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
+                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                  <StatusRibbon label={ribbonLabel(a.status)} color={ribbonColor(a.status)} />
+                </div>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</p>
+              </button>
             );
           })}
         </div>
+      ) : (
+        <div style={{ display:"grid", gap:12 }}>
+          {apps.map(a => renderAppCard(a))}
+        </div>
       )}
+
+      {/* 承認済みカードのボトムシート（タップで展開・中身は従来の応募カード＝操作ボタン込み） */}
+      {filter === "approved" && (() => {
+        const live = apps.find(x => x.id === sheetAppId);
+        if (!live) return null;
+        return (
+          <div onClick={()=>setSheetAppId(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+                <button onClick={()=>setSheetAppId(null)} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              </div>
+              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
+                {renderAppCard(live)}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 終了確認・評価モーダル（Part2） */}
       {reviewModalApp && (
