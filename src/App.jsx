@@ -10266,6 +10266,26 @@ function AdminTab({ onJump, onShowAccountForm }) {
     await supabase.from("admin_box_registry").delete().eq("id", id);
     setBoxEdit(null); loadBoxRows();
   };
+  // お知らせ一覧の台帳（admin_notice_registryテーブル・ボックス一覧と同じ構造設計・2026-07-16）
+  const [noticeRows, setNoticeRows] = useState([]);
+  const [noticeEdit, setNoticeEdit] = useState(null); // {id|null, name, body}
+  const loadNoticeRows = async () => {
+    const { data } = await supabase.from("admin_notice_registry").select("*").order("sort").order("created_at");
+    setNoticeRows(data || []);
+  };
+  useEffect(() => { if (otherBox === "notices") { setNoticeEdit(null); loadNoticeRows(); } }, [otherBox]);
+  const saveNoticeRow = async () => {
+    const name = (noticeEdit?.name || "").trim();
+    if (!name) return;
+    const body = (noticeEdit.body || "").trim();
+    if (noticeEdit.id) await supabase.from("admin_notice_registry").update({ name, body }).eq("id", noticeEdit.id);
+    else await supabase.from("admin_notice_registry").insert({ name, body, sort: (noticeRows[noticeRows.length - 1]?.sort ?? 0) + 1 });
+    setNoticeEdit(null); loadNoticeRows();
+  };
+  const deleteNoticeRow = async (id) => {
+    await supabase.from("admin_notice_registry").delete().eq("id", id);
+    setNoticeEdit(null); loadNoticeRows();
+  };
   const [legacyView, setLegacyView] = useState(null); // 旧事業データの表示中コンテンツ: farmers|dests|records|stats|datadef|null
   const [systemView, setSystemView] = useState(null); // システムの表示中コンテンツ: sql|errors|null
   const [farmers, setFarmers] = useState([]);
@@ -10595,6 +10615,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"legacy",  e:"📦", l:"旧事業データ" },
             { k:"system",  e:"⚙️", l:"システム" },
             { k:"boxlist", e:"🗂", l:"ボックス一覧" },
+            { k:"notices", e:"📢", l:"お知らせ一覧" },
           ].map(c => (
             <button key={c.k} onClick={()=>setOtherBox(c.k)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <span style={{ fontSize:36, lineHeight:1 }}>{c.e}</span>
@@ -10611,7 +10632,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               <button onClick={()=>setOtherBox(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
               <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>
-                {otherBox==="pages" ? "📄 主要ページ" : otherBox==="flow" ? "🧭 求人フロー" : otherBox==="legacy" ? "📦 旧事業データ" : otherBox==="system" ? "⚙️ システム" : "🗂 ボックス一覧"}
+                {otherBox==="pages" ? "📄 主要ページ" : otherBox==="flow" ? "🧭 求人フロー" : otherBox==="legacy" ? "📦 旧事業データ" : otherBox==="system" ? "⚙️ システム" : otherBox==="notices" ? "📢 お知らせ一覧" : "🗂 ボックス一覧"}
               </p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
@@ -10747,6 +10768,43 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                     <button onClick={()=>setBoxEdit({ id:null, name:"", where_from:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ ボックスを追加</button>
                     <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
                       行をタップすると展開して、いつでも名前・説明を編集できます（管理者のみ・DB保存）。
+                    </p>
+                  </div>
+                )
+              )}
+
+              {otherBox==="notices" && (
+                /* お知らせ一覧（admin_notice_registry）：ボックス一覧と同じ一覧⇄展開の構造設計（2026-07-16）。
+                   現時点は管理者専用の下書き台帳。ユーザーへの配信（期間・対象指定）は別途実装 */
+                noticeEdit ? (
+                  <div className="fade-in">
+                    <button onClick={()=>setNoticeEdit(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻す</button>
+                    <label className="lbl f-sans">タイトル</label>
+                    <input className="field f-sans" value={noticeEdit.name} onChange={e=>setNoticeEdit(b=>({ ...b, name:e.target.value }))} placeholder="お知らせのタイトル" style={{ fontSize:14, fontWeight:700, marginBottom:12 }} />
+                    <label className="lbl f-sans">本文</label>
+                    <textarea className="field f-sans" value={noticeEdit.body} onChange={e=>setNoticeEdit(b=>({ ...b, body:e.target.value }))} placeholder="お知らせの本文" rows={6} style={{ fontSize:13, lineHeight:1.7, marginBottom:14, resize:"vertical" }} />
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={saveNoticeRow} disabled={!noticeEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"10px 24px", fontSize:13, fontWeight:700 }}>{noticeEdit.id ? "保存" : "追加"}</button>
+                      {noticeEdit.id && (
+                        <button onClick={()=>deleteNoticeRow(noticeEdit.id)} className="f-sans" style={{ marginLeft:"auto", padding:"10px 16px", fontSize:12, background:"none", border:"1px solid #E24B4A44", borderRadius:8, color:"#E24B4A", cursor:"pointer" }}>削除</button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="fade-in">
+                    {noticeRows.length === 0 && (
+                      <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>お知らせはありません。下の「＋ お知らせを追加」から登録できます。</p>
+                    )}
+                    {noticeRows.map(r => (
+                      <button key={r.id} onClick={()=>setNoticeEdit({ id:r.id, name:r.name, body:r.body || "" })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
+                        <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
+                        <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.body}</span>
+                        <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
+                      </button>
+                    ))}
+                    <button onClick={()=>setNoticeEdit({ id:null, name:"", body:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ お知らせを追加</button>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
+                      お知らせの下書き台帳です。行をタップすると展開して、いつでもタイトル・本文を編集できます（管理者のみ・DB保存）。ユーザーへの配信機能は未実装です。
                     </p>
                   </div>
                 )
