@@ -685,7 +685,7 @@ input:focus { outline: none; }
   /* スクロール連動の自動格納（Part C）。下部バーと同時に沈む。
      沈む量=浮遊位置(バー64px+隙間12px+セーフエリア)+自身の高さ(100%)。
      旧150%では下がりきらず画面内に残りフッターを覆っていた */
-  body.cb-scroll-hide .profile-employer-fab { transform: translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
+  body.cb-dir-down .profile-employer-fab { transform: translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
   /* フッタードック機構は廃止（2026-07-16）：トグルは下部バーと同じスクロール格納のみ。
      表示中の高さは常に☰と同じ（バー64px+12px+セーフエリア） */
 }
@@ -13976,12 +13976,15 @@ export default function App(){
   // チャット画面(chatAppId)は入力欄との干渉を避けるため対象外。求人詳細の応募フッター
   // (.mobile-apply-bar)はこのクラスの対象外＝CSS側で触れていないので常時表示のまま。
   useEffect(() => {
-    if (chatAppId) { document.body.classList.remove('cb-scroll-hide'); return; }
+    if (chatAppId) { document.body.classList.remove('cb-scroll-hide'); document.body.classList.remove('cb-dir-down'); return; }
     let lastY = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
       const diff = y - lastY;
-      if (y < 40) { document.body.classList.remove('cb-scroll-hide'); lastY = y; return; }
+      // トグル用の方向クラス：最下部の強制格納(下限)は適用しない（2026-07-16撤廃）。純粋に方向だけで出入り
+      if (diff > 30) document.body.classList.add('cb-dir-down');
+      else if (diff < -10) document.body.classList.remove('cb-dir-down');
+      if (y < 40) { document.body.classList.remove('cb-scroll-hide'); document.body.classList.remove('cb-dir-down'); lastY = y; return; }
       // 最下部からの残り距離。64px以内=常に格納。180px以内=バウンス吸収帯（強フリックの
       // 跳ね返りやSafariツールバー伸縮で一瞬上向き判定になっても復帰させず状態維持）。
       // 180pxを超えて上に戻したときだけ通常の方向判定に戻る。
@@ -13996,6 +13999,7 @@ export default function App(){
     return () => {
       window.removeEventListener('scroll', onScroll);
       document.body.classList.remove('cb-scroll-hide');
+      document.body.classList.remove('cb-dir-down');
     };
   }, [chatAppId]);
 
