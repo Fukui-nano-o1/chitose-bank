@@ -5620,6 +5620,15 @@ function WorkerApplications({ filter, me }) {
             (jobRows || []).forEach(j => { map[j.job_number] = j; });
             setJobDates(map);
           }
+          // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
+          try {
+            const pend = sessionStorage.getItem("cb_emergencyAppId");
+            if (pend) {
+              sessionStorage.removeItem("cb_emergencyAppId");
+              const target = data.find(x => x.id === pend);
+              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
+            }
+          } catch {}
         }
       } catch {}
       setLoading(false);
@@ -5841,7 +5850,7 @@ function WorkerApplications({ filter, me }) {
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
             {emergencySent ? (
               <>
-                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>相手に通知しました</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>農家さんに通知しました</p>
                 <button onClick={()=>setEmergencyModalApp(null)} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
               </>
             ) : (
@@ -11656,6 +11665,15 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             trustResults.forEach((r, i) => { if (r.data && r.data.ok) trustMap[workerIds[i]] = r.data; });
             setWorkerTrust(trustMap);
           }
+          // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
+          try {
+            const pend = sessionStorage.getItem("cb_emergencyAppId");
+            if (pend) {
+              sessionStorage.removeItem("cb_emergencyAppId");
+              const target = appData.find(x => x.id === pend);
+              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
+            }
+          } catch {}
         }
       } catch {}
       setDraftsLoading(false);
@@ -12119,7 +12137,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
             {emergencySent ? (
               <>
-                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>相手に通知しました</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>働き手さんに通知しました</p>
                 <button onClick={()=>setEmergencyModalApp(null)} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
               </>
             ) : (
@@ -13334,8 +13352,8 @@ export default function App(){
   useEffect(() => {
     const target = "#/" + tab;
     const _curHash = window.location.hash.replace(/^#\/?/, "");
-    // フロー系(求人作成・編集・詳細・チャット)は正当にhashを保持
-    const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/");
+    // フロー系(求人作成・編集・詳細・チャット・緊急連絡リンク)は正当にhashを保持
+    const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/") || _curHash.startsWith("emergency/");
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
     const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/worker/profile" || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
@@ -13345,10 +13363,38 @@ export default function App(){
     const _subTabOfHelp = (tab === "help") && _curHash.startsWith("help/");
     if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && !_subTabOfAdmin && !_subTabOfHelp && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
+  // 緊急連絡ディープリンク #/emergency/{application_id}（開始1時間前メールから直行・2026-07-16）
+  // ログイン済み当事者→該当タブへ移動しモーダル自動展開（cb_emergencyAppId経由）。未ログイン→ログインへ（復帰用にcb_emergencyLink保存）
+  const resolveEmergencyLink = async (appId) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        try { sessionStorage.setItem("cb_emergencyLink", appId); } catch {}
+        window.location.hash = "/login";
+        return;
+      }
+      // RLSにより当事者(worker_id/farmer_id=本人)以外は0行しか返らない
+      const { data: app } = await supabase.from("applications").select("id,worker_id,farmer_id").eq("id", appId).maybeSingle();
+      if (!app) {
+        alert("このページは応募の当事者のみ開けます。メールを受け取ったアカウントでログインし直してください。");
+        window.location.hash = "/search";
+        return;
+      }
+      try { sessionStorage.setItem("cb_emergencyAppId", app.id); } catch {}
+      window.location.hash = (app.worker_id === session.user.id) ? "/profile/worker/approved" : "/profile/employer/applicants";
+    } catch { window.location.hash = "/search"; }
+  };
+  // 初回ロード（hashchangeは発火しない）用
+  useEffect(() => {
+    const m = window.location.hash.replace(/^#\/?/, "").match(/^emergency\/([0-9a-fA-F-]+)$/);
+    if (m) resolveEmergencyLink(m[1]);
+  }, []);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
   useEffect(() => {
     const onHash = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, "");
+      const _em = rawHash.match(/^emergency\/([0-9a-fA-F-]+)$/);
+      if (_em) { resolveEmergencyLink(_em[1]); return; }
       setEmpCtx(rawHash.startsWith("profile/employer")); // ヘッダーアイコンの働き手/雇い手切替
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
       if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
@@ -14032,7 +14078,13 @@ const subDest=useCallback(async d=>{
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
-              setMe(f);setAuthV("login");loadNotifs(f.id);setTab("profile");
+              setMe(f);setAuthV("login");loadNotifs(f.id);
+              // 緊急連絡ディープリンクからの復帰（最優先・時間に敏感）
+              try {
+                const em = sessionStorage.getItem("cb_emergencyLink");
+                if (em) { sessionStorage.removeItem("cb_emergencyLink"); window.location.hash = "/emergency/" + em; return; }
+              } catch {}
+              setTab("profile");
               const ret = peekApplyReturn();
               if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
             }}/>)}
