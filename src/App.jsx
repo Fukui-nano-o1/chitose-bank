@@ -5282,6 +5282,15 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|residence|transport|exp|intensity|interests|languages|pr|qa
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→WorkerProfilePreviewをモーダル展開
   const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復）
+  // 承認ポップアップ「プレビューを見る🔗」からの着地：編集ページを開いた直後にプレビューを自動展開
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("cb_openWorkerPreview") === "1") {
+        sessionStorage.removeItem("cb_openWorkerPreview");
+        setShowPreview(true);
+      }
+    } catch {}
+  }, []);
   const closeEditBox = () => {
     setEditBox(null);
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
@@ -13946,6 +13955,25 @@ const loadNotifs=useCallback(async(farmerId)=>{
     if(data)setNotifs(prev=>[data,...prev].slice(0,10));
   },[]);
 
+  // プロフィール承認の「お帰りなさい」ポップアップ（2026-07-16）
+  // approve_profile_text が notifications(type='profile_approved') を挿入する。未読があればサイト起動時に1回だけ表示し、既読化する
+  const [welcomeApproved, setWelcomeApproved] = useState(null); // { name }
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data: notes } = await supabase.from("notifications").select("id")
+          .eq("farmer_id", session.user.id).eq("type", "profile_approved")
+          .or("read.is.null,read.eq.false").limit(5);
+        if (!notes || notes.length === 0) return;
+        const { data: wp } = await supabase.from("worker_profiles").select("nickname").eq("auth_id", session.user.id).maybeSingle();
+        setWelcomeApproved({ name: (wp?.nickname || "").trim() });
+        await supabase.from("notifications").update({ read: true }).in("id", notes.map(n => n.id));
+      } catch {}
+    })();
+  }, []);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setMe(null);
@@ -14118,6 +14146,21 @@ const subDest=useCallback(async d=>{
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
       <style>{CSS}</style>
+
+      {/* ── プロフィール承認の「お帰りなさい」ポップアップ（起動時1回・ボックス展開） ── */}
+      {welcomeApproved && (
+        <div onClick={()=>setWelcomeApproved(null)} style={{ position:"fixed", inset:0, zIndex:11000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
+            <button onClick={()=>setWelcomeApproved(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <div style={{ fontSize:44, lineHeight:1, marginBottom:12 }}>🎉</div>
+            <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 6px" }}>お帰りなさい{welcomeApproved.name ? "、" + welcomeApproved.name + "さん" : ""}</p>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"0 0 4px" }}>プロフィールが承認されました！</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 18px" }}>さっそく確認してみましょう！</p>
+            <button onClick={()=>{ try { sessionStorage.setItem("cb_openWorkerPreview", "1"); } catch {} setWelcomeApproved(null); window.location.hash = "/profile/worker/profile"; }}
+              className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>プレビューを見る 🔗</button>
+          </div>
+        </div>
+      )}
 
       {/* ── PC HEADER（無変更） ── */}
       <header className="app-header app-header-desktop">
