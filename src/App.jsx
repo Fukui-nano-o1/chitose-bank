@@ -6147,7 +6147,7 @@ function MyCalendar() {
     return (
       <button
         ref={el => { rowRefs.current[e.application_id] = el; }}
-        onClick={() => { window.location.hash = "/work/job/" + e.job_number; }}
+        onClick={() => { try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }}
         className="f-sans"
         style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer", transition:"background .5s" }}
       >
@@ -6631,7 +6631,7 @@ function JobSearchMapView({ onRegister, me }) {
   useEffect(() => {
     const onHash = () => {
       const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
-      if (!m) { setSelectedJob(null); return; }
+      if (!m) { setSelectedJob(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
       const jn = parseInt(m[1],10);
       const found = jobList.find(j => j.id === jn);
       if (found) setSelectedJob(found);
@@ -6899,11 +6899,14 @@ function JobSearchMapView({ onRegister, me }) {
             try { window.scrollTo(0, 0); } catch {}
             return;
           }
+          // カレンダー等の出どころから来た場合はそこへ戻る（2026-07-16）
+          let backTo = null; try { backTo = sessionStorage.getItem("cb_jobBackTo"); sessionStorage.removeItem("cb_jobBackTo"); } catch {}
+          if (backTo) { setSelectedJob(null); window.location.hash = backTo; return; }
           setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
         }} className="f-sans job-float-back" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : "← 一覧に戻る"}</button>
+        }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : ((()=>{ try { return sessionStorage.getItem("cb_jobBackTo") === "/calendar"; } catch { return false; } })() ? "← カレンダーに戻る" : "← 一覧に戻る")}</button>
         <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
