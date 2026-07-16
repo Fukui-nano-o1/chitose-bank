@@ -6845,7 +6845,7 @@ function JobSearchMapView({ onRegister, me }) {
     <div>
       {!selectedJob && (<>
       {/* ヘッダー */}
-      <div style={{ marginBottom:14 }}>
+      <div style={{ marginBottom:5 }}>
         <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>近くの仕事を探す</h2>
         <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.6 }}>地域・作物・日程・報酬で、通いやすい仕事を探せます。</p>
       </div>
@@ -6858,7 +6858,7 @@ function JobSearchMapView({ onRegister, me }) {
       </div>
 
       {/* 検索・絞込ピル */}
-      <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", marginBottom:14, paddingBottom:2 }}>
+      <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", marginBottom:5, paddingBottom:2 }}>
         {["未経験可","経験者歓迎","〜3人","4〜人","午前のみ","終日"].map(f => (
           <button key={f} onClick={() => setActiveFilter(activeFilter===f ? null : f)} className="f-sans" style={{
             flexShrink:0, padding:"7px 14px", borderRadius:20, fontSize:12, cursor:"pointer", fontWeight:600, border:"2px solid",
@@ -6971,7 +6971,7 @@ function JobSearchMapView({ onRegister, me }) {
             {/* 左カラム */}
             <div>
               {/* 主要情報 */}
-              <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+              <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                 <div className="job-detail-info-grid">
                   {[
                     { label:"日程",     value: selectedJob.dateLabel },
@@ -6994,7 +6994,7 @@ function JobSearchMapView({ onRegister, me }) {
 
               {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
               {CHAT_ELIGIBLE_STATUSES.includes(myApplication?.status) && isWorkDayToday(selectedJob.dateStart, selectedJob.dateEnd) && (
-                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                   {myApplication.started_at ? (
                     <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#00A86B", margin:0 }}>
                       開始済み（{new Date(myApplication.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
@@ -7017,7 +7017,7 @@ function JobSearchMapView({ onRegister, me }) {
                   { label:"アクセサリー", on: empEmployer.accessory_ok,          value: empEmployer.accessory_ok ? "OK" : EMPTY_MARK },
                 ];
                 return (
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                     {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16） */}
                     {/* アイコン・名前タップ→農園紹介をボックス展開（2026-07-16） */}
                     <div onClick={()=>setFarmIntroOpen(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor:"pointer" }}>
@@ -7050,14 +7050,14 @@ function JobSearchMapView({ onRegister, me }) {
 
               {/* 作業説明 */}
               {selectedJob.jobBody && selectedJob.jobBody.trim() && (
-              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                 <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
                 <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{selectedJob.jobBody}</p>
               </div>
               )}
 
               {/* 経験・持ち物・備考（配列駆動・未入力は「ー」） */}
-              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                 {[
                   { label:"必要経験",       value: disp(selectedJob.experience) },
                   { label:"希望する働き手", value: disp(selectedJob.wanted) },
@@ -7073,7 +7073,7 @@ function JobSearchMapView({ onRegister, me }) {
 
               {/* 危険区域セクション（両方空なら見出しごと非表示＝ブロック化） */}
               {((selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) || (selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0)) && (
-              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:100 }}>
+              <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
                   <span style={{ fontSize:18 }}>⚠️</span>
                   <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
@@ -7150,7 +7150,7 @@ function JobSearchMapView({ onRegister, me }) {
             <div>
             <div ref={applyPanelRef} className="job-apply-panel" style={{
               position:"sticky", background:"#fff", border:"1px solid #EBEBEB",
-              borderRadius:16, padding:"20px", marginBottom:100,
+              borderRadius:16, padding:"20px", marginBottom:5,
             }}>
               {/* 給与 */}
               <p className="f-mono" style={{ fontSize:22, fontWeight:800, color:"#222", margin:0, marginBottom:6 }}>
@@ -7183,7 +7183,7 @@ function JobSearchMapView({ onRegister, me }) {
           </div>
 
           {/* 地図（集合場所のおおよその範囲・円のみ） */}
-          <div style={{ width:"100%", marginBottom:100 }}>
+          <div style={{ width:"100%", marginBottom:5 }}>
             <JobLocationMap
               lat={selectedJob.lat}
               lng={selectedJob.lng}
@@ -7194,7 +7194,7 @@ function JobSearchMapView({ onRegister, me }) {
 
           {/* 開催期間カレンダー（地図の下・全幅・PCのみ表示。スマホはフッター📅からモーダル） */}
           {selectedJob.dateStart && (
-            <div className="calendar-below-map" style={{ marginBottom:100 }}>
+            <div className="calendar-below-map" style={{ marginBottom:5 }}>
               <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
             </div>
           )}
@@ -7212,7 +7212,7 @@ function JobSearchMapView({ onRegister, me }) {
             const hasMore = sortedReviews.length > 8;
 
             return (
-              <div style={{ marginBottom:100 }}>
+              <div style={{ marginBottom:5 }}>
                 {/* ヘッダー: 左=農家プロフィール(控えめ) / 中央=星評価(主役) */}
                 <div className="review-header-row" style={{ marginBottom:24 }}>
                   {/* 左: 農家プロフィール（控えめ・既存プロフィール行を縮小） */}
@@ -9154,7 +9154,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 const cropIcon = farmerCrop && farmerCrop.includes("ブロッコリー") ? "🥦" : farmerCrop && farmerCrop.includes("なす") ? "🍆" : farmerCrop && farmerCrop.includes("トマト") ? "🍅" : farmerCrop && farmerCrop.includes("ねぎ") ? "🌿" : "🌱";
                 const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
                 return (
-                  <div style={{ marginBottom:28, maxWidth:1000, margin:"0 auto 28px" }}>
+                  <div style={{ marginBottom:28, maxWidth:1000, margin:"0 auto 5px" }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", maxWidth:870, margin:"0 auto 8px" }}>
                       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>写真</p>
                       <button onClick={() => { setReturnToConfirm(true); setStep(7); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
@@ -9366,13 +9366,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               </div>
               {/* ═══ 地図（集合場所のおおよその範囲・円のみ。求人詳細ページのJobLocationMapと同一構造。
                    旧Googleマップ風ダミーは廃止(2026-07-14)。座標は住所からgeocodeTownで取得(保存時と同じ手順) ═══ */}
-              <div style={{ maxWidth:870, margin:"0 auto 28px" }}>
+              <div style={{ maxWidth:870, margin:"0 auto 5px" }}>
                 <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion} />
               </div>
 
               {/* 開催期間カレンダー（地図の下・2026-07-16・詳細ページと同じ） */}
               {jobDateStart && (
-                <div className="calendar-below-map" style={{ maxWidth:870, margin:"0 auto 28px" }}>
+                <div className="calendar-below-map" style={{ maxWidth:870, margin:"0 auto 5px" }}>
                   <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} />
                 </div>
               )}
