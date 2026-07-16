@@ -6847,10 +6847,19 @@ function JobSearchMapView({ onRegister, me }) {
               display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
               fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0",
             }}>← 一覧に戻る</button>
-            <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans" style={{
-              display:"flex", alignItems:"center", gap:6, background:"none", border:"1px solid #EBEBEB", borderRadius:20,
-              fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"6px 14px",
-            }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+              {/* 通報リンク（ページ最下部と同じ・いいねの上にも配置・2026-07-16） */}
+              {me && (
+                <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
+                  background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
+                  fontSize:11, color:"#717171", textDecoration:"underline", padding:"2px 4px",
+                }}>⚑ この求人を報告する</button>
+              )}
+              <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans" style={{
+                display:"flex", alignItems:"center", gap:6, background:"none", border:"1px solid #EBEBEB", borderRadius:20,
+                fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"6px 14px",
+              }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+            </div>
           </div>
 
           {/* 写真ギャラリー（ダミー3枚／将来 selectedJob.photos 配列を受け取る想定・最大10枚） */}
