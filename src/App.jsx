@@ -7792,7 +7792,7 @@ function JobLocationMap({ lat, lng, radius, label }) {
         attributionControl: true,
       });
       mapRef.current = map;
-      map.setView([lat, lng], 14);
+      map.setView([lat, lng], 14, { animate: false });
 
       L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
         attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">国土地理院</a>',
@@ -7807,7 +7807,8 @@ function JobLocationMap({ lat, lng, radius, label }) {
         fillOpacity: 0.15,
       }).addTo(map);
 
-      map.fitBounds(L.latLng(lat, lng).toBounds(r * 2), { padding: [16, 16] });
+      // animate:false＝ズームアニメ中に地図が破棄されると _leaflet_pos クラッシュ（2026-07-16真っ暗事故）が起きるため必須
+      map.fitBounds(L.latLng(lat, lng).toBounds(r * 2), { padding: [16, 16], animate: false });
     } catch (e) {
       console.error("JobLocationMap:", e);
     }
