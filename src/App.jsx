@@ -10245,9 +10245,9 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [revReason, setRevReason] = useState("");
   const [revSending, setRevSending] = useState(false);
   const [emailShown, setEmailShown] = useState(null); // 「メールを表示」で全文表示中のauth_id（既定はemail_masked）
-  const [otherOpen, setOtherOpen] = useState({ dev:false, legacy:false, system:false }); // その他タブのアコーディオン開閉
-  const [legacySub, setLegacySub] = useState("dests"); // 旧事業データ内の選択: dests|records|stats|datadef
-  const [systemSub, setSystemSub] = useState("sql"); // システム内の選択: sql|errors
+  const [otherBox, setOtherBox] = useState(null); // その他タブのポップアップ: pages|flow|legacy|system|boxlist|null（旧アコーディオンotherOpenを置換・2026-07-16）
+  const [legacyView, setLegacyView] = useState(null); // 旧事業データの表示中コンテンツ: farmers|dests|records|stats|datadef|null
+  const [systemView, setSystemView] = useState(null); // システムの表示中コンテンツ: sql|errors|null
   const [farmers, setFarmers] = useState([]);
   const [dests, setDests] = useState([]);
   const [records, setRecords] = useState([]);
@@ -10565,98 +10565,96 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         ))}
       </div>
 
-      {/* ── その他（アコーディオン格納：開発ツール／旧事業データ／システム） ── */}
+      {/* ── その他（ボックス化・2026-07-16）：絵文字カード格子。タップでポップアップ展開（他画面と同じ意匠）。
+           旧アコーディオン（開発ツール／旧事業データ／システム）は、開発ツールを主要ページ・求人フローに分解し、ボックス一覧を追加した5ボックスに再編 ── */}
       {sub==="other" && (
-        <div style={{ display:"grid", gap:12, marginBottom:24 }}>
-
-          {/* 開発ツール */}
-          <div>
-            <button type="button" onClick={()=>setOtherOpen(o=>({ ...o, dev:!o.dev }))} className="f-sans" style={{
-              width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
-              padding:"14px 16px", background:"#F7F7F7",
-              border:"1px solid #EBEBEB", borderRadius: otherOpen.dev ? "12px 12px 0 0" : 12,
-              cursor:"pointer", fontFamily:"inherit", textAlign:"left",
-            }}>
-              <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>🛠 開発ツール</span>
-              <span style={{ fontSize:12, color:"#717171" }}>{otherOpen.dev ? "▲" : "▼"}</span>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12, marginBottom:24 }}>
+          {[
+            { k:"pages",   e:"📄", l:"主要ページ" },
+            { k:"flow",    e:"🧭", l:"求人フロー" },
+            { k:"legacy",  e:"📦", l:"旧事業データ" },
+            { k:"system",  e:"⚙️", l:"システム" },
+            { k:"boxlist", e:"🗂", l:"ボックス一覧" },
+          ].map(c => (
+            <button key={c.k} onClick={()=>setOtherBox(c.k)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <span style={{ fontSize:36, lineHeight:1 }}>{c.e}</span>
+              <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>
-            {otherOpen.dev && (
-              <div style={{ border:"1px solid #EBEBEB", borderTop:"none", borderRadius:"0 0 12px 12px", padding:16, background:"#fff" }}>
-                <div style={{ marginBottom:16 }}>
-                  <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ</p>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                    {[
-                      { k:"jobs",  l:"募集中の仕事" },
-                      { k:"board", l:"公開ボード" },
-                      { k:"input", l:"データ入力" },
-                      { k:"plan",  l:"五年計画" },
-                      { k:"labor", l:"お仕事" },
-                      { k:"search",  l:"さがす" },
-                      { k:"profile", l:"プロフィール" },
-                      { k:"login",   l:"ログイン" },
-                      { k:"charter", l:"運営憲章" },
-                    ].map(({ k, l }) => (
-                      <button key={k} onClick={() => onJump(k)} className="f-sans" style={{
-                        padding:"6px 12px", borderRadius:8, border:"1px solid #EBEBEB",
-                        background:"#F7F7F7", color:"#717171", fontSize:11, fontWeight:600,
-                        cursor:"pointer",
-                      }}>{l}</button>
-                    ))}
-                  </div>
-                </div>
+          ))}
+        </div>
+      )}
 
-                <div style={{ marginBottom:16 }}>
-                  <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:6 }}>開発: 画面ジャンプ(LandingFlow)</p>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                    {[
-                      { l:"LFトップ",      dj:{ role:"",       step:0 } },
-                      { l:"農1作物",       dj:{ role:"farmer", step:1 } },
-                      { l:"農2作業",       dj:{ role:"farmer", step:2 } },
-                      { l:"農3場所",       dj:{ role:"farmer", step:3 } },
-                      { l:"農4日程人数",   dj:{ role:"farmer", step:4 } },
-                      { l:"農5報酬",       dj:{ role:"farmer", step:5 } },
-                      { l:"農6G2説明",     dj:{ role:"farmer", step:6 } },
-                      { l:"農7写真",       dj:{ role:"farmer", step:7 } },
-                      { l:"農8作業説明",   dj:{ role:"farmer", step:8 } },
-                      { l:"農9危険",       dj:{ role:"farmer", step:9 } },
-                      { l:"農10持ち物",    dj:{ role:"farmer", step:10 } },
-                      { l:"農確認",        dj:{ role:"farmer", step:11 } },
-                      { l:"農完了",        dj:{ role:"farmer", step:12 } },
-                      { l:"ページX",       dj:{ role:"farmer", step:90 } },
-                      { l:"働3",           dj:{ role:"worker", step:3 } },
-                      { l:"働6求人",       dj:{ role:"worker", step:6, workerPurpose:"search" } },
-                    ].map(({ l, dj }) => (
-                      <button key={l} onClick={() => onJump("labor", dj)} className="f-sans" style={{
-                        padding:"6px 12px", borderRadius:8, border:"1px solid #D0E8FF",
-                        background:"#EBF5FF", color:"#1a73e8", fontSize:11, fontWeight:600,
-                        cursor:"pointer",
-                      }}>{l}</button>
-                    ))}
-                  </div>
-                </div>
+      {/* その他のポップアップ（ポップアップ0.8秒・下限=下部フッター+10px・✕/背景タップで閉じる） */}
+      {sub==="other" && otherBox && (
+        <div onClick={()=>setOtherBox(null)} style={{ position:"fixed", inset:0, zIndex:600, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setOtherBox(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>
+                {otherBox==="pages" ? "📄 主要ページ" : otherBox==="flow" ? "🧭 求人フロー" : otherBox==="legacy" ? "📦 旧事業データ" : otherBox==="system" ? "⚙️ システム" : "🗂 ボックス一覧"}
+              </p>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
 
+              {otherBox==="pages" && (<>
+                <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>開発: 画面ジャンプ</p>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:16 }}>
+                  {[
+                    { k:"jobs",  l:"募集中の仕事" },
+                    { k:"board", l:"公開ボード" },
+                    { k:"input", l:"データ入力" },
+                    { k:"plan",  l:"五年計画" },
+                    { k:"labor", l:"お仕事" },
+                    { k:"search",  l:"さがす" },
+                    { k:"profile", l:"プロフィール" },
+                    { k:"login",   l:"ログイン" },
+                    { k:"charter", l:"運営憲章" },
+                  ].map(({ k, l }) => (
+                    <button key={k} onClick={() => onJump(k)} className="f-sans" style={{
+                      padding:"6px 12px", borderRadius:8, border:"1px solid #EBEBEB",
+                      background:"#F7F7F7", color:"#717171", fontSize:11, fontWeight:600,
+                      cursor:"pointer",
+                    }}>{l}</button>
+                  ))}
+                </div>
                 <button onClick={onShowAccountForm} className="f-sans" style={{
                   padding:"8px 14px", borderRadius:8, border:"1px solid #EBEBEB",
                   background:"#fff", color:"#717171", fontSize:11, fontWeight:600,
                   cursor:"pointer",
                 }}>①登録画面を再表示(開発用)</button>
-              </div>
-            )}
-          </div>
+              </>)}
 
-          {/* 旧事業データ */}
-          <div>
-            <button type="button" onClick={()=>setOtherOpen(o=>({ ...o, legacy:!o.legacy }))} className="f-sans" style={{
-              width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
-              padding:"14px 16px", background:"#F7F7F7",
-              border:"1px solid #EBEBEB", borderRadius: otherOpen.legacy ? "12px 12px 0 0" : 12,
-              cursor:"pointer", fontFamily:"inherit", textAlign:"left",
-            }}>
-              <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>📦 旧事業データ</span>
-              <span style={{ fontSize:12, color:"#717171" }}>{otherOpen.legacy ? "▲" : "▼"}</span>
-            </button>
-            {otherOpen.legacy && (
-              <div style={{ border:"1px solid #EBEBEB", borderTop:"none", borderRadius:"0 0 12px 12px", padding:16, background:"#fff" }}>
+              {otherBox==="flow" && (<>
+                <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>開発: 画面ジャンプ(LandingFlow)</p>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {[
+                    { l:"LFトップ",      dj:{ role:"",       step:0 } },
+                    { l:"農1作物",       dj:{ role:"farmer", step:1 } },
+                    { l:"農2作業",       dj:{ role:"farmer", step:2 } },
+                    { l:"農3場所",       dj:{ role:"farmer", step:3 } },
+                    { l:"農4日程人数",   dj:{ role:"farmer", step:4 } },
+                    { l:"農5報酬",       dj:{ role:"farmer", step:5 } },
+                    { l:"農6G2説明",     dj:{ role:"farmer", step:6 } },
+                    { l:"農7写真",       dj:{ role:"farmer", step:7 } },
+                    { l:"農8作業説明",   dj:{ role:"farmer", step:8 } },
+                    { l:"農9危険",       dj:{ role:"farmer", step:9 } },
+                    { l:"農10持ち物",    dj:{ role:"farmer", step:10 } },
+                    { l:"農確認",        dj:{ role:"farmer", step:11 } },
+                    { l:"農完了",        dj:{ role:"farmer", step:12 } },
+                    { l:"ページX",       dj:{ role:"farmer", step:90 } },
+                    { l:"働3",           dj:{ role:"worker", step:3 } },
+                    { l:"働6求人",       dj:{ role:"worker", step:6, workerPurpose:"search" } },
+                  ].map(({ l, dj }) => (
+                    <button key={l} onClick={() => onJump("labor", dj)} className="f-sans" style={{
+                      padding:"6px 12px", borderRadius:8, border:"1px solid #D0E8FF",
+                      background:"#EBF5FF", color:"#1a73e8", fontSize:11, fontWeight:600,
+                      cursor:"pointer",
+                    }}>{l}</button>
+                  ))}
+                </div>
+              </>)}
+
+              {otherBox==="legacy" && (
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                   {[
                     { k:"farmers", l:"農家台帳",   n: null }, // 旧アカウントタブ(farmers基準)の移設先（2026-07-14・温存）
@@ -10665,52 +10663,65 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                     { k:"stats",   l:"統計",       n: null },
                     { k:"datadef", l:"データ定義", n: null },
                   ].map(({ k, l, n }) => (
-                    <button key={k} onClick={() => setLegacySub(k)} className="f-sans" style={{
+                    <button key={k} onClick={() => { setLegacyView(k); setSystemView(null); setOtherBox(null); }} className="f-sans" style={{
                       padding:"7px 14px", borderRadius:8, border:"1px solid #EBEBEB",
-                      background:legacySub===k?"#222":"#F7F7F7",
-                      color:legacySub===k?"#fff":"#717171",
+                      background:legacyView===k?"#222":"#F7F7F7",
+                      color:legacyView===k?"#fff":"#717171",
                       fontSize:11, fontWeight:600, cursor:"pointer",
                       display:"flex", alignItems:"center", gap:5,
                     }}>
                       {l}
-                      {n!=null&&n>0&&<span style={{ padding:"1px 6px",borderRadius:8,fontSize:9,fontWeight:700,background:legacySub===k?"#00A86B":"#EBEBEB",color:legacySub===k?"#fff":"#717171" }}>{n}</span>}
+                      {n!=null&&n>0&&<span style={{ padding:"1px 6px",borderRadius:8,fontSize:9,fontWeight:700,background:legacyView===k?"#00A86B":"#EBEBEB",color:legacyView===k?"#fff":"#717171" }}>{n}</span>}
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* システム */}
-          <div>
-            <button type="button" onClick={()=>setOtherOpen(o=>({ ...o, system:!o.system }))} className="f-sans" style={{
-              width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center",
-              padding:"14px 16px", background:"#F7F7F7",
-              border:"1px solid #EBEBEB", borderRadius: otherOpen.system ? "12px 12px 0 0" : 12,
-              cursor:"pointer", fontFamily:"inherit", textAlign:"left",
-            }}>
-              <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>⚙️ システム</span>
-              <span style={{ fontSize:12, color:"#717171" }}>{otherOpen.system ? "▲" : "▼"}</span>
-            </button>
-            {otherOpen.system && (
-              <div style={{ border:"1px solid #EBEBEB", borderTop:"none", borderRadius:"0 0 12px 12px", padding:16, background:"#fff" }}>
+              {otherBox==="system" && (
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                   {[
                     { k:"sql",    l:"SQL" },
                     { k:"errors", l:"エラー" },
                   ].map(({ k, l }) => (
-                    <button key={k} onClick={() => setSystemSub(k)} className="f-sans" style={{
+                    <button key={k} onClick={() => { setSystemView(k); setLegacyView(null); setOtherBox(null); }} className="f-sans" style={{
                       padding:"7px 14px", borderRadius:8, border:"1px solid #EBEBEB",
-                      background:systemSub===k?"#222":"#F7F7F7",
-                      color:systemSub===k?"#fff":"#717171",
+                      background:systemView===k?"#222":"#F7F7F7",
+                      color:systemView===k?"#fff":"#717171",
                       fontSize:11, fontWeight:600, cursor:"pointer",
                     }}>{l}</button>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
+              {otherBox==="boxlist" && (<>
+                {/* サイト内のポップアップボックスの台帳。新しいポップアップを作ったらここに1行追加していく（2026-07-16） */}
+                {[
+                  { n:"求人プレビュー",     w:"農家プロ｜作成中・公開中・期限切れのカードをタップ" },
+                  { n:"応募カード",         w:"働き手プロ｜チェックのカードをタップ" },
+                  { n:"応募者詳細",         w:"農家プロ｜応募者のカードをタップ" },
+                  { n:"また呼びたい詳細",   w:"農家プロ入口｜リストのアイコンをタップ" },
+                  { n:"農園紹介",           w:"求人詳細・確認ページ｜農家プロフィールをタップ" },
+                  { n:"過去の求人",         w:"農園紹介内｜受入実績をタップ" },
+                  { n:"掲載チェックリスト", w:"確認ページ｜掲載するをタップ" },
+                  { n:"評価登録完了",       w:"評価送信の直後" },
+                  { n:"おかえりなさい",     w:"プロフィール承認時（リアルタイム）" },
+                  { n:"働き手プレビュー",   w:"働き手プロ編集｜プレビューをタップ" },
+                  { n:"農家プレビュー",     w:"農家プロ編集｜プレビューをタップ" },
+                  { n:"カレンダー（詳細）", w:"求人詳細｜浮遊📅をタップ" },
+                  { n:"管理・その他5種",    w:"この画面｜主要ページ／求人フロー／旧事業データ／システム／ボックス一覧" },
+                ].map(({ n, w }) => (
+                  <div key={n} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"10px 2px", borderBottom:"1px solid #F7F7F7" }}>
+                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{n}</span>
+                    <span className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.6 }}>{w}</span>
+                  </div>
+                ))}
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
+                  サイト内でポップアップ展開するボックスの台帳です。新しく作ったらここに追加していきます。実物は各画面から開いて確認してください。
+                </p>
+              </>)}
+
+            </div>
+          </div>
         </div>
       )}
 
@@ -10801,7 +10812,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
 
       {/* ── 農家台帳（旧・アカウントタブのfarmers基準台帳を移設・温存。CRUDもここに残す） ── */}
-      {!loading && sub==="other" && otherOpen.legacy && legacySub==="farmers" && (
+      {!loading && sub==="other" && legacyView==="farmers" && (
         <div className="fade-in" style={{ display:"grid", gap:8 }}>
           {farmers.length===0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>農家がいません</p>}
           {farmers.map(f => {
@@ -10880,7 +10891,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
 
       {/* ── 出荷先管理（その他＞旧事業データ） ── */}
-      {!loading && sub==="other" && otherOpen.legacy && legacySub==="dests" && (
+      {!loading && sub==="other" && legacyView==="dests" && (
         <div className="fade-in">
           <div style={{ display:"grid",gap:12,marginBottom:20 }}>
             {dests.map(d => (
@@ -11178,7 +11189,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
 
       {/* ── 記録データ管理（その他＞旧事業データ） ── */}
-      {!loading && sub==="other" && otherOpen.legacy && legacySub==="records" && (
+      {!loading && sub==="other" && legacyView==="records" && (
         <div className="fade-in">
           {/* フィルター */}
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:16 }}>
@@ -11235,7 +11246,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
 
       {/* ── 統計（その他＞旧事業データ） ── */}
-      {!loading && sub==="other" && otherOpen.legacy && legacySub==="stats" && (
+      {!loading && sub==="other" && legacyView==="stats" && (
         <div className="fade-in" style={{ display:"grid",gap:16 }}>
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12 }}>
             {[
@@ -11278,7 +11289,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
 
       {/* ── SQL（その他＞システム） ── */}
-      {!loading && sub==="other" && otherOpen.system && systemSub==="sql" && (
+      {!loading && sub==="other" && systemView==="sql" && (
         <div className="fade-in" style={{ display:"grid",gap:16 }}>
           <Card>
             <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>records 列追加SQL（品種・ブランド）</p>
@@ -11310,7 +11321,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
 
       {/* ── データ定義（その他＞旧事業データ） ── */}
-      {!loading && sub==="other" && otherOpen.legacy && legacySub==="datadef" && (
+      {!loading && sub==="other" && legacyView==="datadef" && (
         <div className="fade-in" id="data-definition-print">
           <div className="no-print" style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
             <button onClick={() => window.print()} className="btn-primary" style={{ padding:"10px 24px", fontSize:13 }}>
@@ -11553,7 +11564,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
 
       {/* ── エラー（その他＞システム） ── */}
-      {!loading && sub==="other" && otherOpen.system && systemSub==="errors" && (
+      {!loading && sub==="other" && systemView==="errors" && (
         <div className="fade-in">
           {appErrors.length === 0 ? (
             <div style={{ textAlign:"center", padding:"48px 0", color:"#B0B0B0" }}>
