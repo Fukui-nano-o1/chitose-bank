@@ -6046,6 +6046,7 @@ function MyCalendar() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [showEnded, setShowEnded] = useState(false);
   const [highlightIds, setHighlightIds] = useState(() => new Set());
+  const [likedIds, setLikedIds] = useState(() => new Set()); // いいね済みjob_number（❤️表示）
   const [flashNoPlan, setFlashNoPlan] = useState(false);
   const rowRefs = useRef({});
   const flashTimer = useRef(null);
@@ -6058,6 +6059,9 @@ function MyCalendar() {
         if (!session) { setLoading(false); return; }
         const { data, error } = await supabase.rpc("get_my_calendar_jobs");
         if (!cancelled) setEntries(error ? [] : (data || []));
+        // いいね済み求人（❤️バッジ用・自分のsaved_jobsのみ）
+        const { data: saved } = await supabase.from("saved_jobs").select("job_number").eq("worker_id", session.user.id);
+        if (!cancelled && saved) setLikedIds(new Set(saved.map(r => r.job_number)));
       } catch {}
       setLoading(false);
     })();
@@ -6116,22 +6120,29 @@ function MyCalendar() {
   grouped.today.sort(byDateAsc); grouped.tomorrow.sort(byDateAsc); grouped.thisWeek.sort(byDateAsc); grouped.later.sort(byDateAsc);
   grouped.ended.sort((a, b) => (b.date_start||"").localeCompare(a.date_start||""));
 
+  // 他の一覧と同設計のボックス（2026-07-16）：正方形写真＋状態リボン＋タイトル。いいね済みは右上に❤️
   const AgendaRow = ({ e }) => {
     const c = CALENDAR_STATUS_COLOR(e.application_status);
     const dateLabel = e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start);
     const highlighted = highlightIds.has(e.application_id);
+    const photo = e.photos && e.photos[0] ? (typeof e.photos[0] === "string" ? e.photos[0] : e.photos[0]?.url) : null;
     return (
       <button
         ref={el => { rowRefs.current[e.application_id] = el; }}
         onClick={() => { window.location.hash = "/work/job/" + e.job_number; }}
         className="f-sans"
-        style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", cursor:"pointer", transition:"background .5s" }}
+        style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer", transition:"background .5s" }}
       >
-        <p style={{ fontSize:12, color:"#717171", margin:"0 0 4px" }}>📅 {dateLabel}{e.work_time ? "　" + e.work_time : ""}</p>
-        <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"}<span className="f-sans" style={{ fontSize:11, fontWeight:400, color:"#999" }}>　#{e.job_number}</span></p>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-          <span style={{ fontSize:12, color:"#717171" }}>{e.partner_name || "相手"}さん</span>
-          <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:c.bg, color:c.fg }}>{CALENDAR_STATUS_LABEL[e.application_status] || e.application_status}</span>
+        <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
+          {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+          <StatusRibbon label={CALENDAR_STATUS_LABEL[e.application_status] || e.application_status} color={c.fg === "#00A86B" ? "#00A86B" : e.application_status === "completed" ? "#9E9E9E" : "#C77700"} />
+          {likedIds.has(e.job_number) && (
+            <span style={{ position:"absolute", top:40, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>❤️</span>
+          )}
+        </div>
+        <div style={{ padding:"8px 10px 10px" }}>
+          <p style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"}</p>
+          <p style={{ fontSize:11, color:"#999", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📅 {dateLabel}{e.work_time ? "　" + e.work_time : ""}</p>
         </div>
       </button>
     );
@@ -6140,7 +6151,7 @@ function MyCalendar() {
   const AgendaGroup = ({ title, list }) => list.length === 0 ? null : (
     <div style={{ marginBottom:20 }}>
       <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>{title}</p>
-      <div style={{ display:"grid", gap:8 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
         {list.map(e => <AgendaRow key={e.application_id} e={e} />)}
       </div>
     </div>
