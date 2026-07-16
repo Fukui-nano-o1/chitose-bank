@@ -10660,34 +10660,28 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         {reviewSec==="jobs" && (
         <div>
         <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>求人{pendingJobs.length > 0 ? `（${pendingJobs.length}）` : ""}</p>
-        <div style={{ display:"grid", gap:12 }}>
-          {pendingJobs.length === 0 ? (
-            <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>公開待ちの求人はありません</p>
-          ) : pendingJobs.map(j => {
-            const hoursElapsed = (Date.now() - new Date(j.created_at).getTime()) / 3600000;
-            const elapsedBadge = hoursElapsed >= 48
-              ? { label:"期限超過", bg:"#FDECEC", fg:"#E24B4A" }
-              : hoursElapsed >= 24
-                ? { label:`${Math.floor(hoursElapsed)}時間前・本日中に審査`, bg:"#FFF4E0", fg:"#C77700" }
-                : { label:`${Math.floor(hoursElapsed)}時間前`, bg:"#F5F5F5", fg:"#717171" };
+        {/* 農家・働き手の一覧と同設計（2026-07-16）：3列グリッド・画像＋タイトルのみ・未審査は赤影アニメ。
+            タップ→審査プレビュー（公開する/修正を依頼はプレビュー上部バーに集約済み） */}
+        {pendingJobs.length === 0 ? (
+          <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>公開待ちの求人はありません</p>
+        ) : (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+          {pendingJobs.map(j => {
+            const photo = j.photos && j.photos[0] ? (typeof j.photos[0] === "string" ? j.photos[0] : j.photos[0]?.url) : null;
             return (
-            <div key={j.job_number} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff", display:"flex", justifyContent:"space-between", alignItems:"center", gap:16 }}>
-              <div>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>#{j.job_number} {j.crop} {j.task}</p>
-                  <span className="f-sans" style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20, background:elapsedBadge.bg, color:elapsedBadge.fg, whiteSpace:"nowrap" }}>{elapsedBadge.label}</span>
+              <button key={j.job_number} onClick={()=>setPreviewJobNumber(j.job_number)}
+                className="f-sans cb-urgent-card"
+                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
+                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                  <StatusRibbon label="審査待ち" color="#C77700" />
                 </div>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{[j.prefecture,j.city].filter(Boolean).join("")} ・ {j.date_label||""} ・ {j.headcount||"?"}名</p>
-              </div>
-              <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-                <button onClick={()=>setPreviewJobNumber(j.job_number)} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>プレビュー</button>
-                <button onClick={()=>setRevisionTarget(j.job_number)} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#fff", color:"#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>修正を依頼</button>
-                <button onClick={()=>publishJob(j.job_number)} disabled={publishing===j.job_number} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{publishing===j.job_number ? "公開中..." : "公開する"}</button>
-              </div>
-            </div>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>
+              </button>
             );
           })}
         </div>
+        )}
         </div>
         )}
 
