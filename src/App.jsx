@@ -4697,6 +4697,8 @@ function mapJobPublicRow(j) {
     dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
     dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
     fullPayGuarantee: !!j.full_pay_guarantee,
+    beginnerOk: !!j.beginner_ok,
+    instantApproveRepeat: !!j.instant_approve_repeat,
   };
 }
 
@@ -6330,6 +6332,12 @@ function JobCard({ job, variant, saved, onToggleSave }) {
         <p className="f-mono" style={{ fontSize: isList?16:12, fontWeight:700, color:"#00A86B", margin:0 }}>
           {payLabel(job)}
         </p>
+        {(job.beginnerOk || job.instantApproveRepeat) && (
+          <div style={{ display:"flex", gap:4, marginTop:4, flexWrap:"wrap" }}>
+            {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}>🌱 はじめてOK</span>}
+            {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"2px 8px", borderRadius:20 }}>🌟 リピート即決</span>}
+          </div>
+        )}
       </div>
     </a>
   );
@@ -7735,6 +7743,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     return hourlyWage > 0 ? Math.round(hourlyWage * netH * days) : dailyWage > 0 ? dailyWage * days : 0;
   };
   const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
+  const [beginnerOk,        setBeginnerOk]        = useState(d.beginnerOk ?? false); // 🌱はじめての人も歓迎 → jobs.beginner_ok
+  const [instantApproveRepeat, setInstantApproveRepeat] = useState(d.instantApproveRepeat ?? false); // 🌟また呼びたい即決 → jobs.instant_approve_repeat（効果は自分の求人×自分が評価した相手のみ・労働局確認済み）
   const [jobSaving, setJobSaving] = useState(false);
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
   const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
@@ -7823,6 +7833,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setNearestStation(data.nearest_station ?? "");
         setCommuteTime(data.commute_time ?? "");
         setJobExp(data.job_exp ?? "");
+        setBeginnerOk(!!data.beginner_ok);
+        setInstantApproveRepeat(!!data.instant_approve_repeat);
         setJobDescription(data.notes ?? "");
         setJobNotes(data.belongings ?? "");
         setJobCautions(data.cautions ?? "");
@@ -7850,7 +7862,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         farmerWanted, farmerPayType, payTiming, payMethod,
         startHour, startMinute, endHour, endMinute,
         jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
-        jobExp, jobTemplate, jobNotes, jobCautions, jobDescription,
+        jobExp, jobTemplate, jobNotes, jobCautions, jobDescription, beginnerOk, instantApproveRepeat,
         jobDateStart: jobDateStart?.toISOString() ?? null,
         jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
       };
@@ -7884,6 +7896,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       nearest_station: nearestStation,
       commute_time:    commuteTime,
       job_exp:         jobExp,
+      beginner_ok:     beginnerOk,
+      instant_approve_repeat: instantApproveRepeat,
       notes:           jobDescription,
       belongings:      jobNotes,
       cautions:        jobCautions,
@@ -8717,6 +8731,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>必要経験（任意）</label>
                 <LFPillSelect options={["未経験可","1回以上","3回以上","農家経験者"]} value={jobExp} onSelect={setJobExp} />
+              </div>
+              <div style={{ marginBottom:10 }}>
+                <button type="button" onClick={()=>setBeginnerOk(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: beginnerOk ? "#00A86B" : "#EBEBEB", background: beginnerOk ? "#E6F7EF" : "#fff", cursor:"pointer" }}>
+                  <span style={{ display:"block", fontSize:14, fontWeight:700, color: beginnerOk ? "#00A86B" : "#222" }}>🌱 はじめての人も歓迎{beginnerOk ? "　✓" : ""}</span>
+                  <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>求人カードに「🌱はじめてOK」バッジが表示されます</span>
+                </button>
+              </div>
+              <div>
+                <button type="button" onClick={()=>setInstantApproveRepeat(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: instantApproveRepeat ? "#00A86B" : "#EBEBEB", background: instantApproveRepeat ? "#E6F7EF" : "#fff", cursor:"pointer" }}>
+                  <span style={{ display:"block", fontSize:14, fontWeight:700, color: instantApproveRepeat ? "#00A86B" : "#222" }}>🌟 また呼びたい即決{instantApproveRepeat ? "　✓" : ""}</span>
+                  <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>あなたが以前「また呼びたい」と評価した方の応募は、選考なしで自動承認されます</span>
+                </button>
               </div>
             </LFWizCard>
           </>)}
@@ -9602,6 +9628,12 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{job.crop} {job.task}{job.region ? `｜${job.region}` : ""}</h2>
+            {(job.beginnerOk || job.instantApproveRepeat) && (
+              <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
+                {job.beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
+                {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"4px 12px", borderRadius:20 }}>🌟 リピート即決</span>}
+              </div>
+            )}
           </div>
 
           {/* 主要情報 */}
