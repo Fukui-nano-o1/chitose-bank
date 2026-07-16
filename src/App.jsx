@@ -11754,7 +11754,7 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
           )}
         </div>
       )}
-      <button onClick={onEdit} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>編集する</button>
+      {/* 「編集する」ボタンは削除（2026-07-16）：項目タップ編集に一本化 */}
     </div>
   );
 }
