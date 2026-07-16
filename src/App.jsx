@@ -5100,7 +5100,7 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
 // 農家版15秒カード（WorkerTrustCardの鏡写し）。trustはemployer_trust_info/job_employer_trust_infoの返り値
 // onEditItem（任意）: 本人プレビュー用。渡すと各項目がタップ可能になり、対応する編集ボックスのキー
 // (avatar/nickname/style/ask)を返す。働き手側（求人詳細等）は渡さない＝従来どおり表示専用
-function FarmerTrustCard({ profile, trust, onEditItem }) {
+function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience }) {
   if (!profile) return null;
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
   const cur = onEditItem ? { cursor:"pointer" } : {};
@@ -5119,8 +5119,8 @@ function FarmerTrustCard({ profile, trust, onEditItem }) {
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>🌟また働きたい×{trust.want_again_workers}</p>
       )}
       {okTrust && (
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>
-          受入実績：{trust.completed_hires > 0 ? `完了${trust.completed_hires}件` : "受け入れ実績はこれからです"}
+        <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
+          受入実績：{trust.completed_hires > 0 ? `完了${trust.completed_hires}件` : "受け入れ実績はこれからです"}{onTapExperience ? " →" : ""}
         </p>
       )}
       {okTrust && (trust.member_since || trust.id_checked) && (
@@ -6529,6 +6529,24 @@ function JobSearchMapView({ onRegister, me }) {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [farmIntroOpen, setFarmIntroOpen] = useState(false); // 農園紹介モーダル（ページには代表よりのみ・タップで全文展開）
   const [farmTrustOpen, setFarmTrustOpen] = useState(false); // 信頼カードのボックス展開（2026-07-16）
+  // 受け入れ実績タップ→この農家の過去の求人ボックス（2026-07-16）
+  const [pastJobsOpen, setPastJobsOpen] = useState(false);
+  const [pastJobs, setPastJobs] = useState(null); // null=読み込み中
+  const [jobBackStack, setJobBackStack] = useState([]); // 過去求人から遷移した時の「前の求人」スタック
+  const openPastJobs = async () => {
+    setPastJobsOpen(true); setPastJobs(null);
+    try {
+      const { data } = await supabase.rpc("employer_public_jobs", { p_job_number: selectedJob.id });
+      setPastJobs((data || []).filter(r => r.job_number !== selectedJob.id));
+    } catch { setPastJobs([]); }
+  };
+  const openPastJob = (row) => {
+    const job = mapJobPublicRow(row);
+    setJobBackStack(prev => [...prev, selectedJob]);
+    setPastJobsOpen(false); setFarmIntroOpen(false);
+    openJob(job);
+    try { window.scrollTo(0, 0); } catch {}
+  };
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTargetField, setReportTargetField] = useState("");
   const [reportIssueType, setReportIssueType] = useState("");
@@ -6838,10 +6856,21 @@ function JobSearchMapView({ onRegister, me }) {
       {selectedJob && (
         <div className="appear job-detail-body-mobile">
           <div className="job-detail-back-btn" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-            <button onClick={() => { setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{} }} className="f-sans" style={{
+            <button onClick={() => {
+              // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
+              if (jobBackStack.length > 0) {
+                const prev = jobBackStack[jobBackStack.length - 1];
+                setJobBackStack(st => st.slice(0, -1));
+                setSelectedJob(prev);
+                try { window.history.pushState(null, "", "#/work/job/" + prev.id); } catch {}
+                try { window.scrollTo(0, 0); } catch {}
+                return;
+              }
+              setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
+            }} className="f-sans" style={{
               display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
               fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"4px 0",
-            }}>← 一覧に戻る</button>
+            }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : "← 一覧に戻る"}</button>
             <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
               {/* 通報リンク（ページ最下部と同じ・いいねの上にも配置・2026-07-16） */}
               {me && (
@@ -7355,7 +7384,38 @@ function JobSearchMapView({ onRegister, me }) {
               {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16） */}
               {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
-                  <FarmerTrustCard profile={empEmployer} trust={empTrust} />
+                  <FarmerTrustCard profile={empEmployer} trust={empTrust} onTapExperience={openPastJobs} />
+                </div>
+              )}
+              {/* 過去の求人ボックス（受け入れ実績タップで展開・公開中/終了の帯・タップで詳細へ） */}
+              {pastJobsOpen && (
+                <div onClick={()=>setPastJobsOpen(false)} style={{ position:"fixed", inset:0, zIndex:10001, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
+                  <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:20, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
+                    <button onClick={()=>setPastJobsOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                    <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>{empEmployer.nickname ? `${empEmployer.nickname}さんの求人` : "この農家の求人"}</h3>
+                    {pastJobs === null ? (
+                      <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+                    ) : pastJobs.length === 0 ? (
+                      <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>他の求人はありません</p>
+                    ) : (
+                      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+                        {pastJobs.map(r => {
+                          const photo = r.photos && r.photos[0] ? (typeof r.photos[0] === "string" ? r.photos[0] : r.photos[0]?.url) : null;
+                          const endYmd = r.date_end || r.date_start;
+                          const ended = !!endYmd && endYmd < ymdLocal(new Date());
+                          return (
+                            <button key={r.job_number} onClick={()=>openPastJob(r)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
+                                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
+                                <StatusRibbon label={ended ? "終了" : "公開中"} color={ended ? "#9E9E9E" : "#00A86B"} />
+                              </div>
+                              <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", margin:0, padding:"8px 8px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[r.crop, r.task].filter(Boolean).join(" ") || ("求人 #" + r.job_number)}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {empEmployer.pr && empEmployer.pr.trim() && (
