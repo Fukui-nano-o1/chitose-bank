@@ -12530,7 +12530,22 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         <button onClick={onNewJob} className="btn-primary" style={{ padding:"10px 18px", fontSize:13 }}>＋ 新しく求人を出す</button>
       </div>
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
-      <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
+      {/* 作成中⇄公開中は上部タブで行き来できる（2026-07-16）。入口ボックスはそれぞれ自分のページ（hash）を開く */}
+      {(jobTab==="draft" || jobTab==="active") ? (
+        <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
+          {[
+            { k:"draft",  l:"作成中", h:"/profile/employer/drafts", n:dbDrafts.length },
+            { k:"active", l:"公開中", h:"/profile/employer/active", n:dbActive.length },
+          ].map(t => (
+            <button key={t.k} onClick={()=>{ if (jobTab !== t.k) { setJobTab(t.k); window.location.hash = t.h; } }} className="f-sans"
+              style={{ flex:1, padding:"11px 0", borderRadius:12, border: jobTab===t.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:14, fontWeight: jobTab===t.k ? 800 : 600, color: jobTab===t.k ? "#222" : "#999", cursor:"pointer" }}>
+              {t.l}{t.n > 0 ? `（${t.n}）` : ""}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
+      )}
       <div style={{ display:"grid", gridTemplateColumns: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="draft"||jobTab==="active"||jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
