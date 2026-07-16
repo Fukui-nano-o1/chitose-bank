@@ -557,6 +557,11 @@ input:focus { outline: none; }
     bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
     left: 12px;
     z-index: 60;
+    /* 2026-07-16: iOS WebKitでスクロール中(下部バーのtransform格納中)に☰の再描画が
+       置き去りになり画面に固定されない事象への対処。自前の合成レイヤーに昇格させる。
+       transformは自要素なのでfixedの基準は壊れない（壊すのは祖先のtransform） */
+    transform: translateZ(0);
+    will-change: transform;
   }
   /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
   body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
