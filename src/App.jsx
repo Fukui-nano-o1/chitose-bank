@@ -6335,6 +6335,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
   const [wTopBack, setWTopBack] = useState(() => { try { return localStorage.getItem("cb_wTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
+  const [wTrust, setWTrust] = useState(null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
   useEffect(() => {
     if (wTab !== "home") return; // 入口に戻るたびに再取得（編集後のバッジ・スニペット鮮度を担保）
     let cancelled = false;
@@ -6354,6 +6355,8 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             && !(a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at))
           ).length,
         });
+        const { data: ts } = await supabase.rpc("my_worker_trust_stats");
+        if (!cancelled && ts?.ok) setWTrust(ts);
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -6416,6 +6419,20 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                   </>
                 ) : (
                   <div className="f-sans" style={{ width:"100%", textAlign:"left" }}>
+                    {/* 信頼スタッツ（登録日・本人確認・リピート率）。本人限定RPC由来＝自分にだけ見える（2026-07-16） */}
+                    {wTrust && (
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 12px", marginBottom:10, paddingBottom:10, borderBottom:"1px solid #F5F5F5" }}>
+                        {wTrust.joined_at && (
+                          <span style={{ fontSize:11, color:"#717171" }}>📅 登録 {yearMonthLabel(wTrust.joined_at)}</span>
+                        )}
+                        {wTrust.verified_at
+                          ? <span style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(wTrust.verified_at)}）</span>
+                          : <span style={{ fontSize:11, color:"#999" }}>本人確認 未</span>}
+                        {wTrust.reviewed_count > 0
+                          ? <span style={{ fontSize:11, color:"#222", fontWeight:600 }}>🔁 リピート率 {Math.round(wTrust.want_again_count / wTrust.reviewed_count * 100)}%（また呼びたい {wTrust.want_again_count}/{wTrust.reviewed_count}件）</span>
+                          : <span style={{ fontSize:11, color:"#999" }}>🔁 リピート率 —（評価はまだありません）</span>}
+                      </div>
+                    )}
                     {(() => {
                       const badges = [
                         wMini?.transport && "🚗 " + wMini.transport,
