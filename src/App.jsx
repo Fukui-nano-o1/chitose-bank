@@ -5830,8 +5830,19 @@ function WorkerApplications({ filter, me }) {
   const color = (s) => s==="approved"||s==="contracted"||s==="working" ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="rejected" ? {bg:"#F3F3F3",fg:"#999"} : {bg:"#FFF4E0",fg:"#C77700"};
   // 承認済みタブのグリッド用（農家の作成中ページと同設計・2026-07-16）
   const [sheetAppId, setSheetAppId] = useState(null); // タップした応募のボトムシート
-  const ribbonLabel = (s) => s === "approved" ? "承認済み" : label(s);
-  const ribbonColor = (s) => s === "completed" ? "#9E9E9E" : s === "working" ? "#C77700" : "#00A86B";
+  // 帯は「働き手側の実態」を出す：農家が完了記録済みでも、こちらの終了確認・評価が残っていれば「評価待ち」
+  const ribbonLabel = (a) => {
+    if (a.status === "completed") {
+      if (a.attended === false) return "欠勤記録";
+      if (!a.worker_confirmed_end_at) return "評価待ち";
+      return "完了";
+    }
+    return a.status === "approved" ? "承認済み" : label(a.status);
+  };
+  const ribbonColor = (a) => {
+    if (a.status === "completed") return (a.attended === false || a.worker_confirmed_end_at) ? "#9E9E9E" : "#E24B4A";
+    return a.status === "working" ? "#C77700" : "#00A86B";
+  };
   // 未完了＝働き手側の手続きが残っている応募（完了して評価済み/欠勤記録済みになるまで）
   const isAppDone = (a) => a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at);
   // 応募カード本体（応募中タブのリスト表示と、承認済みタブのボトムシートで共用）
@@ -5912,7 +5923,7 @@ function WorkerApplications({ filter, me }) {
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                  <StatusRibbon label={ribbonLabel(a.status)} color={ribbonColor(a.status)} />
+                  <StatusRibbon label={ribbonLabel(a)} color={ribbonColor(a)} />
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</p>
               </button>
