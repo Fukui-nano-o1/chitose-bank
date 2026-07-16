@@ -6153,7 +6153,14 @@ function MyCalendar() {
       >
         <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
           {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-          <StatusRibbon label={CALENDAR_STATUS_LABEL[e.application_status] || e.application_status} color={c.fg === "#00A86B" ? "#00A86B" : e.application_status === "completed" ? "#9E9E9E" : "#C77700"} />
+          {/* 求人本体が下書き/審査中に戻っている場合はそちらを優先表示（完了帯との勘違い防止・2026-07-16） */}
+          {e.status === "draft" ? (
+            <StatusRibbon label="下書き" color="#8A6D1D" />
+          ) : e.status === "pending" ? (
+            <StatusRibbon label="審査中" color="#C77700" />
+          ) : (
+            <StatusRibbon label={CALENDAR_STATUS_LABEL[e.application_status] || e.application_status} color={c.fg === "#00A86B" ? "#00A86B" : e.application_status === "completed" ? "#9E9E9E" : "#C77700"} />
+          )}
           {likedIds.has(e.job_number) && (
             <span style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, boxShadow:"0 1px 4px rgba(0,0,0,0.15)", zIndex:1 }}>❤️</span>
           )}
