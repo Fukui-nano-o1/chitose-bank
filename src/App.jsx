@@ -848,7 +848,7 @@ input:focus { outline: none; }
   padding: 0;
 }
 /* 詳細ページ用：応募フッター(スマホのみ)の右上に浮遊。PCは地図下カレンダーがあるので非表示 */
-.calendar-fab-detail { display: none; bottom: calc(96px + 20px + env(safe-area-inset-bottom, 0px)); } /* 応募フッター上端+20px・固定（2026-07-16） */
+.calendar-fab-detail { display: none; bottom: calc(96px + 10px + env(safe-area-inset-bottom, 0px)); } /* 応募フッター上端+10px・固定（2026-07-16） */
 @media (max-width: 759px) { .calendar-fab-detail { display: flex; } }
 /* 確認ページ用：下部ナビ(戻る/保存/掲載する)の右上に浮遊 */
 .calendar-fab-confirm { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
