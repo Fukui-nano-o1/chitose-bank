@@ -11727,7 +11727,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           const { data: rosterWp } = await supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", rosterData.map(r => r.worker_id));
           const wpMap = {};
           (rosterWp || []).forEach(wp => { wpMap[wp.auth_id] = wp; });
-          setRosterRows(rosterData.map(r => ({ worker_id: r.worker_id, nickname: wpMap[r.worker_id]?.nickname || "働き手", avatar_url: wpMap[r.worker_id]?.avatar_url || null })));
+          setRosterRows(rosterData.map(r => ({ worker_id: r.worker_id, nickname: wpMap[r.worker_id]?.nickname || null, avatar_url: wpMap[r.worker_id]?.avatar_url || null })));
         }
         const { data, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status").eq("farmer_id", session.user.id).eq("status","draft").order("job_number",{ascending:false});
         if (!error && data) setDbDrafts(data);
@@ -11842,7 +11842,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           favorited = true;
           const wp = workerProfiles[completeModalApp.worker_id];
           setRosterRows(prev => prev.some(r => r.worker_id === completeModalApp.worker_id) ? prev
-            : [{ worker_id: completeModalApp.worker_id, nickname: wp?.nickname || "働き手", avatar_url: wp?.avatar_url || null }, ...prev]);
+            : [{ worker_id: completeModalApp.worker_id, nickname: wp?.nickname || null, avatar_url: wp?.avatar_url || null }, ...prev]);
         }
       }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
@@ -11881,7 +11881,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         if (error) { alert('登録に失敗しました：' + error.message); return; }
         const wp = workerProfiles[completeDone.workerId];
         setRosterRows(prev => prev.some(r => r.worker_id === completeDone.workerId) ? prev
-          : [{ worker_id: completeDone.workerId, nickname: wp?.nickname || completeDone.workerName, avatar_url: wp?.avatar_url || null }, ...prev]);
+          : [{ worker_id: completeDone.workerId, nickname: wp?.nickname || null, avatar_url: wp?.avatar_url || null }, ...prev]);
       } else {
         const { error } = await supabase.from('repeat_roster').delete().eq('farmer_id', me.id).eq('worker_id', completeDone.workerId);
         if (error) { alert('解除に失敗しました：' + error.message); return; }
@@ -11981,9 +11981,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px" }}>💚 また呼びたいリスト</p>
               <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>新しい求人を出すと、この方たちにお知らせが届きます。</p>
               {rosterRows.map(r => (
-                <div key={r.worker_id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderTop:"1px solid #F5F5F5" }}>
-                  <Avatar url={r.avatar_url} name={r.nickname} size={36} />
-                  <span style={{ flex:1, fontSize:14, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.nickname}</span>
+                <div key={r.worker_id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderTop:"1px solid #F5F5F5" }}>
+                  <Avatar url={r.avatar_url} name={r.nickname || "？"} size={44} />
+                  <span style={{ flex:1, fontSize:14, fontWeight: r.nickname ? 600 : 400, color: r.nickname ? "#222" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.nickname || "（名前未設定）"}</span>
                   <button onClick={()=>stopRosterNotify(r.worker_id)} className="f-sans" style={{ flexShrink:0, background:"none", border:"1px solid #EBEBEB", borderRadius:8, padding:"6px 10px", fontSize:12, color:"#717171", cursor:"pointer" }}>通知を止める</button>
                 </div>
               ))}
