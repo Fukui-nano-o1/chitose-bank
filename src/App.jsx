@@ -8474,14 +8474,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 </p>
               </div>
               </div>
-              <div style={{ background:"#fff", border:"1px solid #EEE", borderRadius:16, overflow:"hidden", boxShadow:"0 4px 16px rgba(0,0,0,0.06)" }}>
-                <div style={{ height:200, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:80 }}>🥦</div>
-                <div style={{ padding:"20px 24px 24px" }}>
-                  <p className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", margin:"0 0 6px" }}>ブロッコリー 収穫補助</p>
-                  <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 12px" }}>吉野川市周辺</p>
-                  <p className="f-mono" style={{ fontSize:20, fontWeight:700, color:"#00A86B", margin:0 }}>時給1,200円</p>
-                </div>
-              </div>
+              {/* 見本求人カード（🥦ブロッコリー）は削除（2026-07-16）：既に求人が作られていると誤認されたため。憲法3条（表示にダミー禁止）とも整合 */}
               </div>
               <div style={{ position:"absolute", bottom:24, right:20, zIndex:2 }}>
                 <button onClick={() => setStep(1)} className="btn-primary" style={{ padding:"14px 40px", fontSize:15, fontWeight:700 }}>次へ</button>
