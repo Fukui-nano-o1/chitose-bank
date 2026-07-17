@@ -4767,6 +4767,15 @@ function StatusRibbon({ label, color }) {
   );
 }
 
+// 左上帯（新着用・2026-07-16）：StatusRibbonの左右反転版。白文字・赤帯で使用
+function StatusRibbonLeft({ label, color }) {
+  return (
+    <div style={{ position:"absolute", top:0, left:0, width:64, height:64, overflow:"hidden", pointerEvents:"none", zIndex:2 }}>
+      <span className="f-sans" style={{ position:"absolute", top:12, left:-30, transform:"rotate(-45deg)", width:110, textAlign:"center", background:color, color:"#fff", fontSize:10, fontWeight:800, padding:"3px 0", boxShadow:"0 1px 4px rgba(0,0,0,0.25)" }}>{label}</span>
+    </div>
+  );
+}
+
 // 最寄り駅からの移動時間ラベル。「駅」の有無を正規化して「○○駅から◯分」に統一（求人詳細・農家プレビュー共通）
 function stationLabel(station, commute) {
   const s = (station || "").trim();
@@ -4883,6 +4892,8 @@ function mapJobPublicRow(j) {
     task: j.task || "",
     // date_start/date_endから確認ページと同じ仕様で組み立て。日付列が無い旧データは保存済みラベルへフォールバック
     dateLabel: dateRangeLabel(j.date_start, j.date_end) || (j.date_label || ""),
+    // 新着＝掲載（status→open遷移）から3日間（2026-07-16・jobs.opened_atはDBトリガーが刻む）
+    isNew: !!j.opened_at && (Date.now() - new Date(j.opened_at).getTime()) < 3 * 24 * 60 * 60 * 1000,
     payType: j.pay_type === "日給" ? "daily" : "hourly",
     pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
     town: j.town || "",
@@ -6737,6 +6748,8 @@ function JobCard({ job, variant, saved, onToggleSave }) {
           {saved ? "♥" : "♡"}
         </button>
       )}
+      {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16） */}
+      {job.isNew && <StatusRibbonLeft label="新着" color="#E24B4A" />}
       {topSrc ? (
         <img src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius }} />
       ) : (
