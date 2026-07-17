@@ -4865,6 +4865,13 @@ function normalizePhotos(arr) {
     .filter(p => p && typeof p.url === "string" && p.url.trim());
 }
 
+// 危険項目の2つ目に中身（タイトル・説明・写真）があるか（2026-07-16）。
+// 復元時にshowPlace2/showTask2を立てないと、2つ目がstep9で見えないまま確認ページに残り続ける
+function dangerHasSecond(arr) {
+  const x = Array.isArray(arr) ? arr[1] : null;
+  return !!(x && (((x.label || "").trim()) || ((x.desc || "").trim()) || ((x.photos || []).length > 0)));
+}
+
 // 日程ラベル（確認ページのjobDateLabelと同一仕様・2026-07-16）：
 // 年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
 function dateRangeLabel(startStr, endStr) {
@@ -8217,8 +8224,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [photoUploading, setPhotoUploading] = useState(false);
   const [jobDangerPlaces, setJobDangerPlaces] = useState((d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]).map(p => ({ photos:[], ...p })));
   const [jobDangerTasks, setJobDangerTasks] = useState((d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]).map(t => ({ photos:[], ...t })));
-  const [showPlace2, setShowPlace2] = useState(false);
-  const [showTask2, setShowTask2] = useState(false);
+  // 2つ目に中身があれば最初から展開（2026-07-16）：閉じたままだと編集も削除もできない見えない項目になる
+  const [showPlace2, setShowPlace2] = useState(() => dangerHasSecond(d.jobDangerPlaces));
+  const [showTask2, setShowTask2] = useState(() => dangerHasSecond(d.jobDangerTasks));
   const [confActiveSlide, setConfActiveSlide] = useState(0);
   const confScrollRef = useRef(null);
   // 確認ページ写真のループ（2026-07-16・詳細ページと同方式）：[最後,...実写真,最初]のクローンを並べ、端に静止したら実体位置へ瞬間ジャンプ
@@ -8454,8 +8462,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setJobDescription(data.notes ?? "");
         setJobNotes(data.belongings ?? "");
         setJobCautions(data.cautions ?? "");
-        setJobDangerPlaces(data.danger_places ?? []);
-        setJobDangerTasks(data.danger_tasks ?? []);
+        // photos未所持の旧データを補完しつつ復元。2つ目に中身があれば展開フラグも立てる（2026-07-16）
+        const dp = (data.danger_places ?? []).map(x => ({ photos: [], ...x }));
+        const dt = (data.danger_tasks ?? []).map(x => ({ photos: [], ...x }));
+        setJobDangerPlaces(dp.length ? dp : [{ icon:"⚠️", label:"", desc:"", photos:[] }, { icon:"⚠️", label:"", desc:"", photos:[] }]);
+        setJobDangerTasks(dt.length ? dt : [{ icon:"⚠️", label:"", desc:"", photos:[] }, { icon:"⚠️", label:"", desc:"", photos:[] }]);
+        setShowPlace2(dangerHasSecond(dp));
+        setShowTask2(dangerHasSecond(dt));
         setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
         setStep(data.draft_step != null ? data.draft_step : 11);
       } catch {}
@@ -9332,7 +9345,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     {!showPlace2 ? (
                       <button onClick={() => setShowPlace2(true)} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"10px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600 }}>＋ 危険な場所をもう1つ追加</button>
                     ) : (
-                      <button onClick={() => { setShowPlace2(false); setJobDangerPlaces(prev => prev.map((p, j) => j === 1 ? { ...p, label:"", desc:"" } : p)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
+                      <button onClick={() => { setShowPlace2(false); setJobDangerPlaces(prev => prev.map((p, j) => j === 1 ? { ...p, label:"", desc:"", photos:[] } : p)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
                     )}
               </div>
               <div style={{ marginBottom:14 }}>
@@ -9384,7 +9397,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     {!showTask2 ? (
                       <button onClick={() => setShowTask2(true)} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"10px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600 }}>＋ 危険な作業をもう1つ追加</button>
                     ) : (
-                      <button onClick={() => { setShowTask2(false); setJobDangerTasks(prev => prev.map((t, j) => j === 1 ? { ...t, label:"", desc:"" } : t)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
+                      <button onClick={() => { setShowTask2(false); setJobDangerTasks(prev => prev.map((t, j) => j === 1 ? { ...t, label:"", desc:"", photos:[] } : t)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
                     )}
               </div>
             </LFWizCard>
