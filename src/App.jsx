@@ -9466,9 +9466,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <div style={{ display:"flex", justifyContent:"flex-end" }}>
                       <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
+                    {/* 希望する働き手は確認ページから削除（2026-07-16）。変数farmerWantedは保存・詳細表示で継続使用のため温存 */}
                     {[
                       { label:"必要経験",       value: jobExp },
-                      { label:"希望する働き手", value: farmerWanted },
                       { label:"持ち物",         value: jobNotes },
                       { label:"備考・注意",     value: jobCautions },
                     ].map(row => (
