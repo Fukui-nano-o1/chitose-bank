@@ -12630,6 +12630,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const appRibbonColor = (st) => (st==="completed"||st==="rejected") ? "#9E9E9E" : (st==="applied"||st==="working") ? "#C77700" : "#00A86B";
   // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
   const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
+  // 応募者の注意表示（2026-07-16）：未承認（承認待ち）＝赤影＋浮遊アニメ／保険未チェック＝赤影のみ（静止）
+  const needsInsurance = (a) => APPROVED_PLUS_STATUSES.includes(a.status) && a.status !== "completed" && !a.insurance_prepared_at;
+  const hasUnapprovedApplicant = dbApplicants.some(a => a.status === "applied");
+  const hasInsurancePending = dbApplicants.some(needsInsurance);
 
   // また呼びたいリストのアイコンタップ→働き手詳細モーダル（応募者カードと同じWorkerTrustCard表示）
   const [rosterDetail, setRosterDetail] = useState(null); // {worker_id, loading, profile, trust}
@@ -12845,12 +12849,13 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             {[
               { e:"🌱", l:"作成中",     n:dbDrafts.length,     h:"/profile/employer/drafts" },
               { e:"📣", l:"公開中",     n:dbActive.length,     h:"/profile/employer/active" },
-              { e:"🤝", l:"応募者",     n:dbApplicants.length, h:"/profile/employer/applicants" },
+              // 応募者：未承認あり＝赤バッジ＋浮遊アニメ／保険未チェックのみ＝赤影のみ（2026-07-16）
+              { e:"🤝", l:"応募者",     n:dbApplicants.length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending },
               { e:"📅", l:"カレンダー", n:0,                   h:"/profile/employer/calendar" },
             ].map(c => (
-              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className={"f-sans" + (c.urgent ? " cb-urgent-card" : c.still ? " cb-urgent-still" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
                 {c.n > 0 && (
-                  <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
+                  <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
                 )}
                 <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
                 <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
@@ -12999,7 +13004,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             const wp = workerProfiles[a.worker_id];
             return (
               <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
-                className={"f-sans" + (isApplicantDone(a) ? "" : " cb-urgent-card")}
+                className={"f-sans" + (a.status === "applied" ? " cb-urgent-card" : needsInsurance(a) ? " cb-urgent-still" : "")}
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                   {wp?.avatar_url
