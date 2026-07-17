@@ -10843,7 +10843,7 @@ function AdminBoxRegistryPage() {
                 <span style={{ padding:"2px 8px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg, marginRight:8 }}>{st.l}</span>
                 対象：{audienceLabel(nPreview.audience)}
                 {(nPreview.starts_at || nPreview.ends_at) ? `　期間：${fmtDate(nPreview.starts_at) || "指定なし"}〜${fmtDate(nPreview.ends_at) || "指定なし"}` : "　期間：指定なし"}
-                <br />対象ユーザーの起動時に1回だけポップアップ表示されます（1起動1件・✕で既読）。上の表示が本番そのままの見え方です。
+                <br />{(nPreview.trigger_on || "startup") === "login" ? "ログイン画面を開いたときに1回だけポップアップ表示されます（✕で既読）。" : "対象ユーザーの起動時に1回だけポップアップ表示されます（1起動1件・✕で既読）。"}上の表示が本番そのままの見え方です。
               </p>
             </div>
           </div>
@@ -15453,22 +15453,23 @@ const loadNotifs=useCallback(async(farmerId)=>{
   // approve_profile_text が notifications(type='profile_approved') を挿入する。
   // 起動時の未読チェック＋Realtime購読（承認された瞬間にも展開）。
   // 既読化＝確認操作（✕・ボックス外タップ・リンク遷移）の時だけ。それ以外では非表示・既読化しない
-  // 運営お知らせ（admin_notice_registry・2026-07-16）：起動時に公開中を取得し未読分をポップアップ。
-  // RLSが「published＋期間内」だけを返すので、フロントは対象(audience)と既読だけ判定する
+  // 運営お知らせ（admin_notice_registry・2026-07-16）：公開中を取得し未読分をポップアップ。
+  // RLSが「published＋期間内」だけを返すので、フロントは対象(audience)・展開機会(trigger_on)・既読だけ判定する。
+  // 展開機会（2026-07-17）：startup=起動時（従来通り）／login=ログイン画面を開いたとき
   const [activeNotices, setActiveNotices] = useState(null);
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash").order("sort");
-        if (!data || data.length === 0) return;
-        let read = [];
-        try { read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]"); } catch {}
-        const roleAud = !me ? ["all"] : me.isWorker ? ["all", "worker"] : ["all", "farmer"];
-        const fresh = data.filter(n => !read.includes(n.id) && roleAud.includes(n.audience));
-        if (fresh.length > 0) setActiveNotices(fresh);
-      } catch {}
-    })();
-  }, [me?.id]); // ログインで農家/働き手向けの未読が増えることがあるため再判定
+  const showNoticesFor = async (trigger) => {
+    try {
+      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on").order("sort");
+      if (!data || data.length === 0) return;
+      let read = [];
+      try { read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]"); } catch {}
+      const roleAud = !me ? ["all"] : me.isWorker ? ["all", "worker"] : ["all", "farmer"];
+      const fresh = data.filter(n => (n.trigger_on || "startup") === trigger && !read.includes(n.id) && roleAud.includes(n.audience));
+      if (fresh.length > 0) setActiveNotices(fresh);
+    } catch {}
+  };
+  useEffect(() => { showNoticesFor("startup"); }, [me?.id]); // ログインで農家/働き手向けの未読が増えることがあるため再判定
+  useEffect(() => { if (tab === "login") showNoticesFor("login"); }, [tab]); // ログインをタップ＝ログイン画面を開いた瞬間に展開
   const dismissNotices = () => {
     // 既読にするのは表示した1件だけ。残りは次回サイトを開いたときに1件ずつ＝詰め込まない（2026-07-16たきと方針）
     setActiveNotices(prev => {
