@@ -8164,9 +8164,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         const r = data.results[0];
         setFarmerPref(r.address1);
         setFarmerCity(r.address2);
-        setFarmerRegion(r.address1 + r.address2);
+        // 町域（address3）まで自動入力（2026-07-16）。町域・番地は個別に手直しできる
+        setFarmerTown(r.address3 || "");
+        setFarmerRegion(r.address1 + r.address2 + (r.address3 || ""));
         setZipError("");
-        setTimeout(() => { townRef.current?.focus(); }, 0);
+        // 町域が取れたら番地欄へ、取れなければ町域欄へフォーカス
+        setTimeout(() => { (r.address3 ? addrRef : townRef).current?.focus(); }, 0);
       } else {
         setZipError("郵便番号が見つかりませんでした");
       }
