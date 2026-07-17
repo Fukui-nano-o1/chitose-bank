@@ -8355,6 +8355,28 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [draftJobNumber, setDraftJobNumber] = useState(_editJobNumber ?? _draftInit?.job_number ?? null);
+  // 前回の求人の集合場所（step3の復元ボタン用・2026-07-16）。初めての求人ならnull=ボタン非表示
+  const [prevAddress, setPrevAddress] = useState(null);
+  useEffect(() => {
+    if (!isFarmer || step !== 3 || prevAddress) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || cancelled) return;
+        const { data } = await supabase.from("jobs")
+          .select("job_number,zip,prefecture,city,town,address")
+          .eq("farmer_id", session.user.id)
+          .order("job_number", { ascending: false })
+          .limit(10);
+        if (cancelled || !data) return;
+        // 編集中の求人自身は除外。住所が入っている直近の1件を採用
+        const prev = data.find(j => j.job_number !== draftJobNumber && ((j.zip || "").trim() || (j.address || "").trim() || (j.city || "").trim()));
+        if (prev) setPrevAddress(prev);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [step, isFarmer]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!_editJobNumber) return;
     (async () => {
@@ -8756,7 +8778,19 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
 
             <LFWizCard>
-              <div>
+              <div style={{ position:"relative" }}>
+                {/* 前回の入力を復元（2026-07-16）：直近の求人に住所があれば右上に出す。初めての求人なら非表示 */}
+                {prevAddress && (
+                  <button onClick={() => {
+                    setFarmerZip(prevAddress.zip || "");
+                    setFarmerPref(prevAddress.prefecture || "");
+                    setFarmerCity(prevAddress.city || "");
+                    setFarmerTown(prevAddress.town || "");
+                    setFarmerAddr(prevAddress.address || "");
+                    setFarmerRegion((prevAddress.prefecture || "") + (prevAddress.city || "") + (prevAddress.town || ""));
+                    setZipError("");
+                  }} className="f-sans" style={{ position:"absolute", top:-4, right:0, zIndex:1, display:"flex", alignItems:"center", gap:5, padding:"7px 12px", borderRadius:20, border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>⎘ 前回の住所を復元</button>
+                )}
                 <label className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
                 <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:8 }}>
                   <input
