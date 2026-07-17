@@ -6391,18 +6391,23 @@ function MyCalendar() {
     const photo = e.photos && e.photos[0] ? (typeof e.photos[0] === "string" ? e.photos[0] : e.photos[0]?.url) : null;
     return (
       <button
-        ref={el => { rowRefs.current[e.application_id] = el; }}
+        ref={el => { rowRefs.current[e.application_id || `j${e.job_number}-${e.relation || ""}`] = el; }}
         onClick={() => { try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }}
         className="f-sans"
         style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer", transition:"background .5s" }}
       >
         <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
           {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-          {/* 求人本体が下書き/審査中に戻っている場合はそちらを優先表示（完了帯との勘違い防止・2026-07-16） */}
+          {/* 求人本体が下書き/審査中に戻っている場合はそちらを優先表示（完了帯との勘違い防止・2026-07-16）。
+              応募なしの行（relation=own/liked・2026-07-16追加）は由来で帯を出し分け */}
           {e.status === "draft" ? (
             <StatusRibbon label="下書き" color="#8A6D1D" />
           ) : e.status === "pending" ? (
             <StatusRibbon label="審査中" color="#C77700" />
+          ) : e.relation === "liked" ? (
+            <StatusRibbon label="いいね" color="#E24B4A" />
+          ) : !e.application_status ? (
+            <StatusRibbon label="公開中" color="#00A86B" />
           ) : (
             <StatusRibbon label={CALENDAR_STATUS_LABEL[e.application_status] || e.application_status} color={c.fg === "#00A86B" ? "#00A86B" : e.application_status === "completed" ? "#9E9E9E" : "#C77700"} />
           )}
@@ -6422,7 +6427,7 @@ function MyCalendar() {
     <div style={{ marginBottom:20 }}>
       <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>{title}</p>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-        {list.map(e => <AgendaRow key={e.application_id} e={e} />)}
+        {list.map(e => <AgendaRow key={e.application_id || `j${e.job_number}-${e.relation || ""}`} e={e} />)}
       </div>
     </div>
   );
