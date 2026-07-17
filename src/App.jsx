@@ -7121,6 +7121,13 @@ function JobSearchMapView({ onRegister, me }) {
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}</h2>
+            {/* はじめてOK・リピート即決はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
+            {(selectedJob.beginnerOk || selectedJob.instantApproveRepeat) && (
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
+                {selectedJob.beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
+                {selectedJob.instantApproveRepeat && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"4px 12px", borderRadius:20 }}>🌟 リピート即決</span>}
+              </div>
+            )}
           </div>
 
           {/* 2カラム: 左=情報 / 右=応募パネル */}
@@ -9369,6 +9376,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}` : ""}</h2>
+                {/* はじめてOK・リピート即決はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
+                {(beginnerOk || instantApproveRepeat) && (
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
+                    {beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
+                    {instantApproveRepeat && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"4px 12px", borderRadius:20 }}>🌟 リピート即決</span>}
+                  </div>
+                )}
                 <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", margin:0, marginTop:4, display:"flex", alignItems:"center", gap:10 }}>
                   編集：
                   <button onClick={() => { setReturnToConfirm(true); setStep(1); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作物</button>
