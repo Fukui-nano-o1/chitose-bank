@@ -4910,7 +4910,7 @@ function dateRangeLabel(startStr, endStr) {
     const w = WD[d.getDay()];
     if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
     if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
-    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}（${w}）`;
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${w}）`;
   };
   const start = parse(startStr);
   const end = endStr ? parse(endStr) : start;
@@ -8675,7 +8675,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     const w = WD[d.getDay()];
     if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
     if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
-    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}（${w}）`;
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${w}）`;
   };
   // 日程ラベル（2026-07-16）：年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
   const jobDateLabel = (() => {
