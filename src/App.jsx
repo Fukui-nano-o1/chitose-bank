@@ -12618,7 +12618,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         }
         // 自分の求人を一括取得し、日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
         // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い
-        const { data: allJobs, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end").eq("farmer_id", session.user.id).order("job_number",{ascending:false});
+        // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。固定列SELECTに入れ忘れると一時非公開が作成中へ落ちる
+        const { data: allJobs, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,opened_at").eq("farmer_id", session.user.id).order("job_number",{ascending:false});
         if (!error && allJobs) {
           const todayYmd = ymdLocal(new Date());
           const isPast = (j) => { const end = j.date_end || j.date_start; return !!end && end < todayYmd; };
