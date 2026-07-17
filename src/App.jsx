@@ -12622,8 +12622,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         if (!error && allJobs) {
           const todayYmd = ymdLocal(new Date());
           const isPast = (j) => { const end = j.date_end || j.date_start; return !!end && end < todayYmd; };
-          setDbDrafts(allJobs.filter(j => j.status === "draft" && !isPast(j)));
-          setDbActive(allJobs.filter(j => (j.status === "pending" || j.status === "open") && !isPast(j)));
+          // 一時非公開（status=draftだが掲載歴opened_atあり）は作成中でなく公開中タブに帯付きで残す（2026-07-16）
+          const isUnpublished = (j) => j.status === "draft" && !!j.opened_at;
+          setDbDrafts(allJobs.filter(j => j.status === "draft" && !j.opened_at && !isPast(j)));
+          setDbActive(allJobs.filter(j => (j.status === "pending" || j.status === "open" || isUnpublished(j)) && !isPast(j)));
           setDbExpired(allJobs.filter(isPast));
         }
         const { data: appData, error: appErr } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
@@ -13123,23 +13125,26 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             const renderActiveJobCard = (d) => {
               const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
               return (
-              <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: false, open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
+              <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                  <StatusRibbon label={d.status==="open" ? "公開中" : "審査中"} color={d.status==="open" ? "#00A86B" : "#C77700"} />
+                  <StatusRibbon label={d.status==="open" ? "公開中" : d.status==="draft" ? "一時非公開" : "審査中"} color={d.status==="open" ? "#00A86B" : d.status==="draft" ? "#757575" : "#C77700"} />
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
               </div>
               );
             };
-            const pending = dbActive.filter(d => d.status !== "open");
+            const pending = dbActive.filter(d => d.status === "pending");
             const open = dbActive.filter(d => d.status === "open");
+            const unpub = dbActive.filter(d => d.status === "draft"); // 一時非公開（掲載歴あり）
             return (
               <>
                 {pending.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#C77700", margin:"0 0 -2px" }}>審査中（{pending.length}）</p>}
                 {pending.map(renderActiveJobCard)}
                 {open.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#00A86B", margin:"8px 0 -2px" }}>公開中（{open.length}）</p>}
                 {open.map(renderActiveJobCard)}
+                {unpub.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#757575", margin:"8px 0 -2px" }}>一時非公開（{unpub.length}）</p>}
+                {unpub.map(renderActiveJobCard)}
               </>
             );
           })()
@@ -13294,15 +13299,15 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             const { error } = await supabase.from("jobs").delete().eq("job_number", previewJob.num).eq("farmer_id", me.id);
             if (error) { alert("削除に失敗しました：" + error.message); return; }
             setDbDrafts(prev => prev.filter(d => d.job_number !== previewJob.num));
+            setDbActive(prev => prev.filter(d => d.job_number !== previewJob.num)); // 一時非公開は公開中タブ側にいる
             setPreviewJob(null);
           } : undefined}
           onUnpublishJob={previewJob.open ? async ()=>{
             // 一時非公開（2026-07-16）：open→draftへ（unpublish_job RPC・本人限定）。編集は作成中→再開から。再掲載は審査を通る
             const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: previewJob.num });
             if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
-            const moved = dbActive.find(d => d.job_number === previewJob.num);
-            setDbActive(prev => prev.filter(d => d.job_number !== previewJob.num));
-            if (moved) setDbDrafts(prev => [{ ...moved, status: "draft" }, ...prev]);
+            // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
+            setDbActive(prev => prev.map(d => d.job_number === previewJob.num ? { ...d, status: "draft" } : d));
             setPreviewJob(null);
           } : undefined} />
       )}
