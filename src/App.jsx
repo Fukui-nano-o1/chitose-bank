@@ -10116,7 +10116,8 @@ function SavedJobsView({ me }) {
 // JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
 // 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
 // mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
-function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onResumeJob, onDeleteJob }) {
+function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onResumeJob, onDeleteJob, onUnpublishJob }) {
+  const [confirmUnpub, setConfirmUnpub] = useState(false); // 一時非公開の確認ボックス（2026-07-16）
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -10161,7 +10162,13 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
       {/* 上部バー：管理者=審査バー／農家本人=✕(戻る)＋再開・削除（ボトムシートのヘッダー） */}
       {ownerView ? (
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-          <button onClick={onClose} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <button onClick={onClose} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            {/* 公開中の求人のみ：右上に一時非公開（タップ→確認ボックス・2026-07-16） */}
+            {onUnpublishJob && (
+              <button onClick={()=>setConfirmUnpub(true)} className="f-sans" style={{ padding:"9px 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer" }}>⏸ 一時非公開</button>
+            )}
+          </div>
           {(onResumeJob || onDeleteJob) && (
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
               {onResumeJob && (
@@ -10401,6 +10408,22 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
             display:"flex", alignItems:"center", justifyContent:"center",
           }}>✕</button>
           <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
+        </div>
+      )}
+
+      {/* 一時非公開の確認ボックス（2026-07-16）：はい=非公開化・いいえ/背景タップ=閉じる */}
+      {confirmUnpub && (
+        <div onClick={e => { e.stopPropagation(); setConfirmUnpub(false); }} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"24px 20px", maxWidth:360, width:"100%", boxShadow:"0 12px 48px rgba(0,0,0,0.25)" }}>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 8px" }}>この求人を一時非公開にしますか？</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 0 18px" }}>
+              非公開にすると「作成中」に移動し、内容を編集できます。働き手からは見えなくなります。再掲載するときは、もう一度審査を通ります。
+            </p>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={() => { setConfirmUnpub(false); onUnpublishJob && onUnpublishJob(); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:14, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>はい、一時非公開にする</button>
+              <button onClick={() => setConfirmUnpub(false)} className="f-sans" style={{ flex:1, padding:"12px", fontSize:14, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>いいえ</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -13100,7 +13123,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             const renderActiveJobCard = (d) => {
               const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
               return (
-              <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: false })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
+              <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: false, open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
                   <StatusRibbon label={d.status==="open" ? "公開中" : "審査中"} color={d.status==="open" ? "#00A86B" : "#C77700"} />
@@ -13271,6 +13294,15 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             const { error } = await supabase.from("jobs").delete().eq("job_number", previewJob.num).eq("farmer_id", me.id);
             if (error) { alert("削除に失敗しました：" + error.message); return; }
             setDbDrafts(prev => prev.filter(d => d.job_number !== previewJob.num));
+            setPreviewJob(null);
+          } : undefined}
+          onUnpublishJob={previewJob.open ? async ()=>{
+            // 一時非公開（2026-07-16）：open→draftへ（unpublish_job RPC・本人限定）。編集は作成中→再開から。再掲載は審査を通る
+            const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: previewJob.num });
+            if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
+            const moved = dbActive.find(d => d.job_number === previewJob.num);
+            setDbActive(prev => prev.filter(d => d.job_number !== previewJob.num));
+            if (moved) setDbDrafts(prev => [{ ...moved, status: "draft" }, ...prev]);
             setPreviewJob(null);
           } : undefined} />
       )}
