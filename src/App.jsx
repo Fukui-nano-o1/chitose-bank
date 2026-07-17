@@ -8548,8 +8548,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       date_start:      jobDateStart ? ymdLocal(jobDateStart) : null,
       date_end:        jobDateEnd ? ymdLocal(jobDateEnd) : null,
       headcount:       Number(jobCount) || null,
-      pay_type:        hourlyWage > 0 ? "時給" : "日給",
-      hourly_wage:     hourlyWageInput,
+      pay_type:        "日給", // 時給入力は廃止（2026-07-16）。新規保存は常に日給
+      hourly_wage:     "", // 時給入力は廃止（2026-07-16）。レガシー下書きの隠れ値を保存しない
       daily_wage:      dailyWageInput,
       work_time:       workTimeLabel,
       break_time:      breakTime,
@@ -8730,7 +8730,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
   const prefNotAllowed = !!farmerPref.trim() && !isAllowedPrefecture(farmerPref);
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || ((!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation && breakTime !== ""), true, true, true, true, true, true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || (!!dailyWageInput && !dailyViolation && breakTime !== ""), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -8745,7 +8745,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       ["町域",                   !!farmerTown.trim()],
       ["作業日程（開始日）",       !!jobDateStart],
       ["採用人数",                Number(jobCount) > 0],
-      ["日給（最低賃金以上）", (!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation],
+      ["日給（最低賃金以上）", !!dailyWageInput && !dailyViolation],
       ["休憩時間",                breakTime !== ""],
     ];
     return checks.filter(([, ok]) => !ok).map(([label]) => label);
@@ -9489,9 +9489,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               "草刈り":   { body:"圃場周辺の草刈り、片付け、運搬補助をお願いします。", items:["長袖","長ズボン","飲み物","タオル"], notes:"機械を使う作業は経験者のみを想定しています。" },
             };
             const tmpl = JT_MAP[jobTemplate] || JT_MAP["収穫補助"];
-            const rewardLabel = hourlyWage > 0 ? `¥${hourlyWage.toLocaleString()} / 時` : dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定";
-            const wageType = hourlyWage > 0 ? "時給" : "日給";
-            const wageNum  = hourlyWage > 0 ? hourlyWage : dailyWage;
+            const rewardLabel = dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定"; // 時給は廃止（2026-07-16）
+            const wageType = "日給";
+            const wageNum  = dailyWage;
             const avgWage  = hourlyWage > 0 ? AVG_HOURLY : AVG_DAILY;
             const maxPay = calcFarmerMaxPay();
             const periodLabel = jobDateStart ? (jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定") : "未設定";
