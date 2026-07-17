@@ -8826,10 +8826,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
                   <option value="">選択してください</option>
                   <option value="なし">なし</option>
-                  <option value="30分">30分</option>
-                  <option value="60分">60分</option>
-                  <option value="90分">90分</option>
-                  <option value="120分">120分</option>
+                  {/* 5分刻み（2026-07-16）。値は従来と同じ「N分」形式＝既存データ（30分/60分等）とそのまま互換 */}
+                  {Array.from({ length: 24 }, (_, i) => (i + 1) * 5).map(m => (
+                    <option key={m} value={`${m}分`}>{m}分</option>
+                  ))}
                 </select>
               </div>
               {/* 6. 報酬 */}
