@@ -8369,6 +8369,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     const s = flowSwipe.current;
     flowSwipe.current = null;
     if (!s || publishModal || showExitModal || photoCaptionsOpen || placeBoxOpen) return;
+    if (step === 11) return; // 確認ページは横スワイプ遷移なし（2026-07-16たきと指定・写真カルーセル優先）
     const dx = e.changedTouches[0].clientX - s.x;
     const dy = e.changedTouches[0].clientY - s.y;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // 縦スクロール優先
