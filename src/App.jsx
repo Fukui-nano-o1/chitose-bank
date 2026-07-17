@@ -399,6 +399,14 @@ input:focus { outline: none; }
 @supports (height: 100dvh) {
   .cb-notice-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 30px - 64px - 20px - env(safe-area-inset-bottom, 0px)); }
 }
+/* お知らせ規定（2026-07-17追加）：タイトル・リンクの文字が頭から順に上へジャンプする波。
+   1文字の山は周期の先頭8%（周期はNoticeJumpTextが文字数から算出＝波の走破後に約2秒の休止を挟んでループ） */
+@keyframes cbCharJump {
+  0% { transform: translateY(0); }
+  4% { transform: translateY(-0.4em); }
+  8% { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
 /* 未完了カードの注意アニメ（働き手・承認済みタブ）：赤い影＋最初の0.5秒で2度浮遊→3秒かけて沈む（計3.5秒・無限ループ） */
 @keyframes cbUrgent {
   0%    { transform: translateY(0);    box-shadow: 0 2px 6px rgba(226,75,74,.45); }
@@ -10651,6 +10659,17 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 }
 
 // ── AdminTab ─────────────────────────────────────────────────
+// お知らせ規定（2026-07-17追加）：タイトルとリンクは頭文字から順に1文字ずつ上へジャンプし、
+// 尻の文字まで届いたら約2秒おいて先頭からループする。周期＝(文字数-1)×0.06s＋約2.5s（ジャンプ＋休止）
+const NOTICE_JUMP_STEP = 0.06;
+function NoticeJumpText({ text }) {
+  const chars = Array.from(String(text || ""));
+  const dur = (chars.length - 1) * NOTICE_JUMP_STEP + 2.5;
+  return chars.map((ch, i) => (
+    <span key={i} style={{ display:"inline-block", whiteSpace:"pre", animation:`cbCharJump ${dur}s ease-in-out ${i * NOTICE_JUMP_STEP}s infinite` }}>{ch}</span>
+  ));
+}
+
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（🗂ボックス台帳 ⇄ 📢お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
 //    （農家プロ作成中⇄公開中と同じページャー作法）。台帳はadmin_box_registry / admin_notice_registry（RLSで管理者限定）。
@@ -10808,12 +10827,12 @@ function AdminBoxRegistryPage() {
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
             <button onClick={()=>setNPreview(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
-            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{nPreview.name}</p>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={nPreview.name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{nPreview.body}</p>
             {nPreview.link_label && nPreview.link_hash && (
               <p style={{ margin:"22px 0 0" }}>
-                <button onClick={()=>{ const h = nPreview.link_hash; setNPreview(null); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:18, fontWeight:800, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>{nPreview.link_label} →</button>
+                <button onClick={()=>{ const h = nPreview.link_hash; setNPreview(null); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 1px", fontSize:18, fontWeight:800, color:"#00A86B", borderBottom:"2px solid #00A86B", cursor:"pointer" }}><NoticeJumpText text={nPreview.link_label + " →"} /></button>
               </p>
             )}
             <div style={{ marginTop:20, borderTop:"1px solid #F0F0F0", paddingTop:12 }}>
@@ -15697,12 +15716,12 @@ const subDest=useCallback(async d=>{
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
             <button onClick={dismissNotices} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
-            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{activeNotices[0].name}</p>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={activeNotices[0].name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{activeNotices[0].body}</p>
             {activeNotices[0].link_label && activeNotices[0].link_hash && (
               <p style={{ margin:"22px 0 0" }}>
-                <button onClick={()=>{ const h = activeNotices[0].link_hash; dismissNotices(); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:18, fontWeight:800, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>{activeNotices[0].link_label} →</button>
+                <button onClick={()=>{ const h = activeNotices[0].link_hash; dismissNotices(); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 1px", fontSize:18, fontWeight:800, color:"#00A86B", borderBottom:"2px solid #00A86B", cursor:"pointer" }}><NoticeJumpText text={activeNotices[0].link_label + " →"} /></button>
               </p>
             )}
           </div>
