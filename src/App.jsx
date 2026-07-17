@@ -4810,6 +4810,26 @@ function YesNoPill({ label, value, onChange }) {
 const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }];
 const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }];
 
+// アップロード前のクライアント圧縮（2026-07-16）：長辺1600px・JPEG品質0.8に縮小する。
+// 原寸4MB級の写真が確認ページ等で「白いまま読み込み待ち」になる問題と、転送量（egress）対策の両方。
+// 圧縮に失敗したら原本をそのまま返す（古いブラウザ等でも壊れない）
+async function compressImage(file, maxSide = 1600, quality = 0.8) {
+  try {
+    if (!file || !file.type || !file.type.startsWith("image/")) return file;
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1 && file.size < 600 * 1024) return file; // 十分小さい画像は無加工
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+    const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", quality));
+    if (!blob || blob.size >= file.size) return file; // 逆に大きくなったら原本
+    return new File([blob], (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch { return file; }
+}
+
 // 待遇バッジ（タイトル下用・2026-07-16）：employer_profilesのONの項目だけ短いラベルで返す。
 // 確認ページ・詳細ページで共通。OFFの項目は出さない（ダミー禁止）
 function perkBadges(ep) {
@@ -8968,7 +8988,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                           try {
                             const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
                             const path = 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                            const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                            const upFile = await compressImage(file); // アップロード前に圧縮（2026-07-16）
+                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
                             if (upErr) throw upErr;
                             const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
                             if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "" });
@@ -9003,7 +9024,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                           try {
                             const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
                             const path = 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                            const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                            const upFile = await compressImage(file); // アップロード前に圧縮（2026-07-16）
+                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
                             if (upErr) throw upErr;
                             const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
                             if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "" });
@@ -9136,7 +9158,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                                     try {
                                       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
                                       const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                                      const upFile = await compressImage(file); // アップロード前に圧縮（2026-07-16）
+                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
                                       if (upErr) throw upErr;
                                       const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
                                       if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl });
@@ -9187,7 +9210,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                                     try {
                                       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
                                       const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, file);
+                                      const upFile = await compressImage(file); // アップロード前に圧縮（2026-07-16）
+                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
                                       if (upErr) throw upErr;
                                       const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
                                       if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl });
