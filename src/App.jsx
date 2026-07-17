@@ -13099,8 +13099,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             {[
               { e:"🌱", l:"作成中",     n:dbDrafts.length,     h:"/profile/employer/drafts" },
               { e:"📣", l:"公開中",     n:dbActive.length,     h:"/profile/employer/active" },
-              // 応募者：未承認あり＝赤バッジ＋浮遊アニメ／保険未チェックのみ＝赤影のみ（2026-07-16）
-              { e:"🤝", l:"応募者",     n:dbApplicants.length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending },
+              // 応募者：バッジは未完了（完了・見送り以外）のみ計上（2026-07-16）。全件数だと常時点灯して新しい要対応に気づけない
+              // 未承認あり＝赤バッジ＋浮遊アニメ／保険未チェックのみ＝赤影のみ
+              { e:"🤝", l:"応募者",     n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending },
               { e:"📅", l:"カレンダー", n:0,                   h:"/profile/employer/calendar" },
             ].map(c => (
               <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className={"f-sans" + (c.urgent ? " cb-urgent-card" : c.still ? " cb-urgent-still" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
