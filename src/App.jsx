@@ -7277,7 +7277,7 @@ function JobSearchMapView({ onRegister, me }) {
                     { label:"休憩時間", value: selectedJob.breakTime },
                     { label:"採用人数", value: selectedJob.count },
                     { label:"移動時間", value: stationLabel(selectedJob.nearestStation, selectedJob.commuteTime) },
-                    { label:"報酬",     value: (selectedJob.payTiming || selectedJob.payMethod) ? `${payLabel(selectedJob)}　${[selectedJob.payTiming, selectedJob.payMethod].filter(Boolean).join("・")}` : payLabel(selectedJob) },
+                    { label:"報酬",     value: payLabel(selectedJob) },
                   ].filter(row => row.value && String(row.value).trim()).map(row => (
                     <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", textAlign:"center" }}>
                       <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
@@ -9607,16 +9607,16 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       <div ref={confScrollRef} onScroll={handleConfPhotoScroll} style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x pan-y", overscrollBehaviorX:"contain" }}>
                         {jobPhotos.length > 0
                           ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => (
-                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
+                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:392, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
                                 <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>
                                 <img src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
                                 {p.caption && (
-                                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:14, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
+                                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
                                 )}
                               </div>
                             ))
                           : [0, 1, 2].map(i => (
-                              <div key={i} style={{ flexShrink:0, width:"100%", height:391, borderRadius:12, background:bgColors[i % bgColors.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, scrollSnapAlign:"start" }}>{cropIcon}</div>
+                              <div key={i} style={{ flexShrink:0, width:"100%", height:392, borderRadius:12, background:bgColors[i % bgColors.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, scrollSnapAlign:"start" }}>{cropIcon}</div>
                             ))}
                       </div>
                       <button onClick={() => { const el = confScrollRef.current; if (el) el.scrollBy({ left: -el.offsetWidth, behavior:"smooth" }); }} style={{ position:"absolute", top:"50%", left:12, transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.9)", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer", fontSize:18, color:"#222", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
@@ -9659,7 +9659,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 {/* ── 左: 掲載プレビュー（求人詳細ページの左カラムと同一構造） ── */}
                 <div>
                   {/* 主要情報カード（詳細ページと同じ・各行に編集リンク・未入力は「未設定」表示） */}
-                  <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                  <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                     <div className="job-detail-info-grid">
                       {[
                         // 期間ものは「〜終了日」を下段に折り返す（2026-07-16・whiteSpace:pre-lineで改行）
@@ -9695,7 +9695,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       { label:"アクセサリー", on: confEmployer.accessory_ok,          value: confEmployer.accessory_ok ? "OK" : EMPTY_MARK },
                     ];
                     return (
-                      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                         {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16・詳細ページと同じ） */}
                         {/* アイコン・名前タップ→農園紹介をボックス展開（2026-07-16・詳細ページと同じ） */}
                         <div onClick={()=>setConfIntroOpen(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor:"pointer" }}>
@@ -9723,7 +9723,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       </div>
                     );
                   })() : (
-                    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
                         <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, marginBottom:8 }}>🧑‍🌾</div>
                         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
@@ -9733,7 +9733,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   )}
 
                   {/* 作業内容カード（詳細ページと同じ） */}
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
                       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:0 }}>作業内容</p>
                       <button onClick={() => { setReturnToConfirm(true); setStep(8); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
@@ -9744,7 +9744,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {/* 経験・持ち物・備考カード：詳細ページと同じ3行縦積み設計（2026-07-16・タブ式から戻した）。
                       必要経験・持ち物はバッジ・備考は文章・すべて中央配置。未入力は「未設定」。
                       希望する働き手は削除済み（変数farmerWantedは保存・詳細表示で継続使用のため温存） */}
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                     <div style={{ display:"flex", justifyContent:"flex-end" }}>
                       <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
@@ -9773,7 +9773,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
                   {/* 危険区域カード（詳細ページと同一構造：場所→作業・縦積み・全幅写真） */}
                   {(jobDangerPlaces.some(p => p.label) || jobDangerTasks.some(t => t.label)) && (
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                     <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
                       <span style={{ fontSize:18 }}>⚠️</span>
                       <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
@@ -10360,7 +10360,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
                           ? <img src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                           : photo}
                         {cap && (
-                          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:14, fontWeight:600, boxSizing:"border-box" }}>{cap}</div>
+                          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, boxSizing:"border-box" }}>{cap}</div>
                         )}
                       </div>
                     );
@@ -10388,7 +10388,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           </div>
 
           {/* 主要情報 */}
-          <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+          <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
             <div className="job-detail-info-grid">
               {[
                 // 日程は確認ページと同じ設計（2026-07-16）：「〜終了日」を下段に折り返し
@@ -10397,7 +10397,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
                 { label:"休憩時間", value: job.breakTime },
                 { label:"採用人数", value: job.count },
                 { label:"移動時間", value: stationLabel(job.nearestStation, job.commuteTime) },
-                { label:"報酬",     value: (job.payTiming || job.payMethod) ? `${payLabel(job)}　${[job.payTiming, job.payMethod].filter(Boolean).join("・")}` : payLabel(job) },
+                { label:"報酬",     value: payLabel(job) },
               ].filter(row => row.value && String(row.value).trim()).map(row => (
                 <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", textAlign:"center" }}>
                   <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
@@ -10410,14 +10410,14 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
           {/* 作業説明 */}
           {job.jobBody && job.jobBody.trim() && (
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
             <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
           </div>
           )}
 
           {/* 経験・持ち物・備考（配列駆動・未入力は「ー」）。希望する働き手は削除・必要経験と持ち物はバッジ表示（2026-07-16） */}
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
             {[
               { label:"必要経験",   value: disp(job.experience), chips:true },
               { label:"持ち物",     value: disp(job.items), chips:true, pin:true },
