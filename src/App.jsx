@@ -9064,13 +9064,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         <span className="f-sans" style={{ position:"absolute", top:10, left:10, padding:"4px 12px", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, fontWeight:700, borderRadius:8 }}>カバー</span>
                         <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== 0))} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:15, cursor:"pointer", lineHeight:1 }}>×</button>
                       </div>
+                      {/* 2枚目以降は2列の大サイズ（2026-07-16）。justifyContent:centerで奇数枚の最後の1枚＝空白が中央に来る */}
                       {jobPhotos.length > 1 && (
-                        <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center" }}>
                           {jobPhotos.slice(1).map((p, i) => {
                             const idx = i + 1;
                             return (
-                              <div key={idx} style={{ position:"relative" }}>
-                                <img src={p.url} alt={`写真${idx+1}`} style={{ width:100, height:100, objectFit:"cover", borderRadius:10, border:"1px solid #EEE" }} />
+                              <div key={idx} style={{ position:"relative", width:"calc(50% - 4px)" }}>
+                                <img src={p.url} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
                                 <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== idx))} style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:"50%", border:"none", background:"#222", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                               </div>
                             );
