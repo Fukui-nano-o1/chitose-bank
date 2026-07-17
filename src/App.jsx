@@ -12282,7 +12282,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           { k:"place",    e:"📍", l:"作業場所",       req:true, v: [placePref, placeCity, placeTown].filter(Boolean).join("") },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
-          { k:"intro",    e:"🏡", l:"農園紹介",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
+          { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
         ].map(b => (
@@ -12401,8 +12401,17 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       </>)}
 
       {editBox==="intro" && (<>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>農園紹介</label>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたいお題だけ、記入してください（任意）</p>
+            {/* 農園紹介→代表よりに改名・代表よりの入力を最上段へ（2026-07-16） */}
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>代表より</label>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>働き手への一言と、書きたいお題だけ記入してください（任意）</p>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>代表より（任意）</label>
+            <textarea
+              value={ownerComment}
+              onChange={e => setOwnerComment(e.target.value)}
+              maxLength={1000}
+              style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
+            />
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{ownerComment.length} / 1000</p>
             <div className="employer-intro-grid" style={{ marginBottom:16 }}>
               {[
                 { label:"就農するまで", value:introPath, set:setIntroPath },
@@ -12423,14 +12432,6 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
                 </div>
               ))}
             </div>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>代表からのメッセージ（任意）</label>
-            <textarea
-              value={ownerComment}
-              onChange={e => setOwnerComment(e.target.value)}
-              maxLength={1000}
-              style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
-            />
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{ownerComment.length} / 1000</p>
       </>)}
 
       {editBox==="ask" && (<>
