@@ -10648,7 +10648,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（🗂ボックス台帳 ⇄ 📢お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
 //    （農家プロ作成中⇄公開中と同じページャー作法）。台帳はadmin_box_registry / admin_notice_registry（RLSで管理者限定）。
-//    どちらも一覧⇄展開の2画面・行タップで常時編集・「← 戻す」で一覧へ（構造は旧ポップアップと同一）
+//    閲覧専用（2026-07-17変更）：編集UIは持たない。行タップで「本番に出る姿」をそのまま展開し、展開機会と説明を添える
 function AdminBoxRegistryPage() {
   const hashToTab = () => (window.location.hash.replace(/^#\/?/, "").startsWith("boxes/notices") ? "notices" : "boxes");
   const [pTab, setPTab] = useState(() => { try { return hashToTab(); } catch { return "boxes"; } });
@@ -10657,29 +10657,22 @@ function AdminBoxRegistryPage() {
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-  // ── ボックス台帳 ──
+  // ── 台帳の読み取り（編集はしない） ──
   const [rows, setRows] = useState([]);
-  const [edit, setEdit] = useState(null); // 編集中の行 {id|null, name, where_from}。id=nullは新規追加
+  const [nRows, setNRows] = useState([]);
   const load = async () => {
     const { data } = await supabase.from("admin_box_registry").select("*").order("sort").order("created_at");
     setRows(data || []);
   };
-  const saveRow = async () => {
-    const name = (edit?.name || "").trim();
-    if (!name) return;
-    const where_from = (edit.where_from || "").trim();
-    if (edit.id) await supabase.from("admin_box_registry").update({ name, where_from }).eq("id", edit.id);
-    else await supabase.from("admin_box_registry").insert({ name, where_from, sort: (rows[rows.length - 1]?.sort ?? 0) + 1 });
-    setEdit(null); load();
+  const nLoad = async () => {
+    const { data } = await supabase.from("admin_notice_registry").select("*").order("sort").order("created_at");
+    setNRows(data || []);
   };
-  const deleteRow = async (id) => {
-    await supabase.from("admin_box_registry").delete().eq("id", id);
-    setEdit(null); load();
-  };
-  // ── お知らせ台帳（管理タブ「その他」のポップアップから移設・2026-07-17。配信設定=対象/期間/公開もここで） ──
-  const [nRows, setNRows] = useState([]);
-  const [nEdit, setNEdit] = useState(null); // {id|null, name, body, audience, startDate, endDate, published}
-  const toDateInput = (ts) => { if (!ts) return ""; const d = new Date(ts); const p = (x)=>String(x).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
+  useEffect(() => { load(); nLoad(); }, []);
+  const [preview, setPreview] = useState(null);   // 展開中のボックス行
+  const [nPreview, setNPreview] = useState(null); // 展開中のお知らせ行
+  const fmtDate = (ts) => { if (!ts) return ""; const d = new Date(ts); return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`; };
+  const audienceLabel = (a) => (a === "farmer" ? "農家" : a === "worker" ? "働き手" : "全員");
   const noticeStatus = (r) => {
     if (!r.published) return { l:"下書き", bg:"#F5F5F5", fg:"#717171" };
     const now = new Date();
@@ -10687,38 +10680,13 @@ function AdminBoxRegistryPage() {
     if (r.ends_at && now > new Date(r.ends_at)) return { l:"終了", bg:"#F5F5F5", fg:"#999" };
     return { l:"公開中", bg:"#E6F7EF", fg:"#00A86B" };
   };
-  const nLoad = async () => {
-    const { data } = await supabase.from("admin_notice_registry").select("*").order("sort").order("created_at");
-    setNRows(data || []);
-  };
-  const nSave = async () => {
-    const name = (nEdit?.name || "").trim();
-    if (!name) return;
-    const payload = {
-      name,
-      body: (nEdit.body || "").trim(),
-      audience: nEdit.audience || "all",
-      starts_at: nEdit.startDate ? nEdit.startDate + "T00:00:00+09:00" : null,
-      ends_at: nEdit.endDate ? nEdit.endDate + "T23:59:59+09:00" : null,
-      published: !!nEdit.published,
-    };
-    if (nEdit.id) await supabase.from("admin_notice_registry").update(payload).eq("id", nEdit.id);
-    else await supabase.from("admin_notice_registry").insert({ ...payload, sort: (nRows[nRows.length - 1]?.sort ?? 0) + 1 });
-    setNEdit(null); nLoad();
-  };
-  const nDelete = async (id) => {
-    await supabase.from("admin_notice_registry").delete().eq("id", id);
-    setNEdit(null); nLoad();
-  };
-  useEffect(() => { load(); nLoad(); }, []);
-  // ── 指追従ページャー（農家プロ作成中⇄公開中と同じ作法）：横ロック後はtransformを直接書き、端は1/3の抵抗。
-  //    編集中はスワイプで切り替えない（入力途中の誤爆防止） ──
+  // ── 指追従ページャー（農家プロ作成中⇄公開中と同じ作法）：横ロック後はtransformを直接書き、端は1/3の抵抗 ──
   const trackRef = useRef(null);
   const dragRef = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
   const basePct = () => (pTab === "boxes" ? 0 : -50);
   const goTab = (k) => { setPTab(k); window.location.hash = k === "boxes" ? "/boxes" : "/boxes/notices"; };
   const onPagerStart = (e) => {
-    if (edit || nEdit) return;
+    if (preview || nPreview) return; // 展開中はスワイプで切り替えない
     dragRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
   };
   const onPagerMove = (e) => {
@@ -10767,103 +10735,87 @@ function AdminBoxRegistryPage() {
       </div>
       <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
         <div ref={trackRef} style={{ display:"flex", width:"200%", transform: pTab==="boxes" ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
-          {/* ── ボックス台帳パネル ── */}
+          {/* ── ボックス台帳パネル（閲覧のみ） ── */}
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
-            {edit ? (
-              <div className="fade-in">
-                <button onClick={()=>setEdit(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻す</button>
-                <label className="lbl f-sans">ボックス名</label>
-                <input className="field f-sans" value={edit.name} onChange={e=>setEdit(b=>({ ...b, name:e.target.value }))} placeholder="ボックス名" style={{ fontSize:14, fontWeight:700, marginBottom:12 }} />
-                <label className="lbl f-sans">説明（どこから開くか）</label>
-                <textarea className="field f-sans" value={edit.where_from} onChange={e=>setEdit(b=>({ ...b, where_from:e.target.value }))} placeholder="どこから開くか・メモ" rows={4} style={{ fontSize:13, lineHeight:1.7, marginBottom:14, resize:"vertical" }} />
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={saveRow} disabled={!edit.name.trim()} className="btn-primary f-sans" style={{ padding:"10px 24px", fontSize:13, fontWeight:700 }}>{edit.id ? "保存" : "追加"}</button>
-                  {edit.id && (
-                    <button onClick={()=>deleteRow(edit.id)} className="f-sans" style={{ marginLeft:"auto", padding:"10px 16px", fontSize:12, background:"none", border:"1px solid #E24B4A44", borderRadius:8, color:"#E24B4A", cursor:"pointer" }}>削除</button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="fade-in">
-                {rows.length === 0 && (
-                  <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>台帳は空です。下の「＋ ボックスを追加」から登録できます。</p>
-                )}
-                {rows.map(r => (
-                  <button key={r.id} onClick={()=>setEdit({ id:r.id, name:r.name, where_from:r.where_from || "" })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
-                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
-                    <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.where_from}</span>
-                    <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
-                  </button>
-                ))}
-                <button onClick={()=>setEdit({ id:null, name:"", where_from:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ ボックスを追加</button>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
-                  サイト内ポップアップ（ボックス）の台帳。行をタップすると展開して、いつでも名前・説明を編集できます（管理者のみ・DB保存）。
-                </p>
-              </div>
+            {rows.length === 0 && (
+              <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>台帳は空です。</p>
             )}
+            {rows.map(r => (
+              <button key={r.id} onClick={()=>setPreview(r)} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
+                <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
+                <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.where_from}</span>
+                <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
+              </button>
+            ))}
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
+              本番で展開されるボックス（ポップアップ）の台帳。行をタップすると、本番と同じボックスの形で展開機会と説明を確認できます（閲覧のみ）。
+            </p>
           </div>
-          {/* ── お知らせ台帳パネル ── */}
+          {/* ── お知らせ台帳パネル（閲覧のみ） ── */}
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
-            {nEdit ? (
-              <div className="fade-in">
-                <button onClick={()=>setNEdit(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻す</button>
-                <label className="lbl f-sans">タイトル</label>
-                <input className="field f-sans" value={nEdit.name} onChange={e=>setNEdit(b=>({ ...b, name:e.target.value }))} placeholder="お知らせのタイトル" style={{ fontSize:14, fontWeight:700, marginBottom:12 }} />
-                <label className="lbl f-sans">本文</label>
-                <textarea className="field f-sans" value={nEdit.body} onChange={e=>setNEdit(b=>({ ...b, body:e.target.value }))} placeholder="お知らせの本文" rows={6} style={{ fontSize:13, lineHeight:1.7, marginBottom:12, resize:"vertical" }} />
-                <label className="lbl f-sans">対象</label>
-                <div style={{ display:"flex", gap:6, marginBottom:12 }}>
-                  {[{ k:"all", l:"全員" },{ k:"farmer", l:"農家" },{ k:"worker", l:"働き手" }].map(o => (
-                    <button key={o.k} onClick={()=>setNEdit(b=>({ ...b, audience:o.k }))} className="f-sans" style={{ flex:1, padding:"8px 0", borderRadius:8, border: nEdit.audience===o.k ? "2px solid #00A86B" : "1px solid #EBEBEB", background: nEdit.audience===o.k ? "#E6F7EF" : "#fff", fontSize:12, fontWeight:700, color: nEdit.audience===o.k ? "#00A86B" : "#717171", cursor:"pointer" }}>{o.l}</button>
-                  ))}
-                </div>
-                <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-                  <div style={{ flex:1 }}>
-                    <label className="lbl f-sans">表示開始</label>
-                    <input className="field f-sans" type="date" value={nEdit.startDate} onChange={e=>setNEdit(b=>({ ...b, startDate:e.target.value }))} style={{ fontSize:13 }} />
-                  </div>
-                  <div style={{ flex:1 }}>
-                    <label className="lbl f-sans">表示終了</label>
-                    <input className="field f-sans" type="date" value={nEdit.endDate} onChange={e=>setNEdit(b=>({ ...b, endDate:e.target.value }))} style={{ fontSize:13 }} />
-                  </div>
-                </div>
-                <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, cursor:"pointer" }}>
-                  <input type="checkbox" checked={!!nEdit.published} onChange={e=>setNEdit(b=>({ ...b, published:e.target.checked }))} style={{ width:18, height:18 }} />
-                  <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>公開する（期間内・対象のユーザーに表示）</span>
-                </label>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={nSave} disabled={!nEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"10px 24px", fontSize:13, fontWeight:700 }}>{nEdit.id ? "保存" : "追加"}</button>
-                  {nEdit.id && (
-                    <button onClick={()=>nDelete(nEdit.id)} className="f-sans" style={{ marginLeft:"auto", padding:"10px 16px", fontSize:12, background:"none", border:"1px solid #E24B4A44", borderRadius:8, color:"#E24B4A", cursor:"pointer" }}>削除</button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="fade-in">
-                {nRows.length === 0 && (
-                  <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>お知らせはありません。下の「＋ お知らせを追加」から登録できます。</p>
-                )}
-                {nRows.map(r => {
-                  const st = noticeStatus(r);
-                  return (
-                  <button key={r.id} onClick={()=>setNEdit({ id:r.id, name:r.name, body:r.body || "", audience:r.audience || "all", startDate:toDateInput(r.starts_at), endDate:toDateInput(r.ends_at), published:!!r.published })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
-                    <span style={{ flexShrink:0, padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700, background:st.bg, color:st.fg, marginTop:1 }}>{st.l}</span>
-                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:110, flexShrink:0 }}>{r.name}</span>
-                    <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.body}</span>
-                    <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
-                  </button>
-                  );
-                })}
-                <button onClick={()=>setNEdit({ id:null, name:"", body:"", audience:"all", startDate:"", endDate:"", published:false })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ お知らせを追加</button>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
-                  行をタップすると展開して、タイトル・本文・対象・期間・公開をいつでも設定できます（管理者のみ・DB保存）。
-                  「公開する」がONで期間内のお知らせが、対象ユーザーの起動時にポップアップ表示されます。
-                </p>
-              </div>
+            {nRows.length === 0 && (
+              <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>お知らせはありません。</p>
             )}
+            {nRows.map(r => {
+              const st = noticeStatus(r);
+              return (
+              <button key={r.id} onClick={()=>setNPreview(r)} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
+                <span style={{ flexShrink:0, padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700, background:st.bg, color:st.fg, marginTop:1 }}>{st.l}</span>
+                <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:110, flexShrink:0 }}>{r.name}</span>
+                <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.body}</span>
+                <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
+              </button>
+              );
+            })}
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
+              行をタップすると、本番で利用者に表示されるお知らせポップアップをそのまま確認できます（閲覧のみ）。
+            </p>
           </div>
         </div>
       </div>
+
+      {/* ── ボックスの展開（本番と同じボックス意匠で、展開機会と説明を表示） ── */}
+      {preview && (
+        <div onClick={()=>setPreview(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setPreview(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>🗂 {preview.name}</p>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
+              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 6px" }}>展開機会・説明（どこから開くか）</p>
+              <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.9, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{preview.where_from || "（説明未登録）"}</p>
+              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:16, borderTop:"1px solid #F7F7F7", paddingTop:12 }}>
+                このボックスは本番のこの意匠（下からせり上がるシート）で展開されます。台帳は閲覧専用です。
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── お知らせの展開（本番の起動時ポップアップと同じ意匠＝タイトル28/本文26・下限フッター+10px）＋展開機会 ── */}
+      {nPreview && (() => {
+        const st = noticeStatus(nPreview);
+        return (
+        <div onClick={()=>setNPreview(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", maxHeight:"calc(100vh - 6vh - 64px - 10px - env(safe-area-inset-bottom, 0px))", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)" }}>
+            <button onClick={()=>setNPreview(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
+            <p className="f-sans" style={{ fontSize:28, fontWeight:800, color:"#222", lineHeight:1.4, margin:"0 0 14px" }}>{nPreview.name}</p>
+            <p className="f-sans" style={{ fontSize:26, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{nPreview.body}</p>
+            <div style={{ marginTop:20, borderTop:"1px solid #F0F0F0", paddingTop:12 }}>
+              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 6px" }}>展開機会</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:0 }}>
+                <span style={{ padding:"2px 8px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg, marginRight:8 }}>{st.l}</span>
+                対象：{audienceLabel(nPreview.audience)}
+                {(nPreview.starts_at || nPreview.ends_at) ? `　期間：${fmtDate(nPreview.starts_at) || "指定なし"}〜${fmtDate(nPreview.ends_at) || "指定なし"}` : "　期間：指定なし"}
+                <br />対象ユーザーの起動時に1回だけポップアップ表示されます（1起動1件・✕で既読）。上の表示が本番そのままの見え方です。
+              </p>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
     </div>
   );
 }
