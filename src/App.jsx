@@ -10650,21 +10650,38 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [pendingJobs, setPendingJobs] = useState([]);
   const [pendingPrs, setPendingPrs] = useState([]); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
   const [sheetPrId, setSheetPrId] = useState(null); // 自由記述審査：タップした働き手のボトムシート（auth_id）
-  // 全ての自由記述の展開一覧（2026-07-16）：農家プロフィールの自由記述は承認ゲートが無いため、審査タブで全件を目視できるようにする
+  // 全ての自由記述の審査（2026-07-16）：農家プロフィールの自由記述はtexts_pendingに溜まり、ここで承認して初めて公開される
   const [empTexts, setEmpTexts] = useState([]);
-  useEffect(() => {
-    if (sub !== "jobs") return;
-    (async () => {
-      try {
-        const { data } = await supabase.from("employer_profiles")
-          .select("auth_id,nickname,avatar_url,updated_at,owner_comment,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,transport_area,commute_allowance_detail,supplies_cap,pr")
-          .order("updated_at", { ascending: false });
-        if (!data) return;
-        const hasText = (r) => [r.owner_comment, r.intro_path, r.intro_joy, r.intro_crops, r.intro_atmosphere, r.intro_message, r.unique_point, r.always_do, r.break_style, r.transport_area, r.commute_allowance_detail, r.supplies_cap, r.pr].some(t => t && String(t).trim());
-        setEmpTexts(data.filter(hasText));
-      } catch {}
-    })();
-  }, [sub]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadEmpTexts = async () => {
+    try {
+      const { data } = await supabase.from("employer_profiles")
+        .select("auth_id,nickname,avatar_url,updated_at,texts_pending,texts_submitted_at,owner_comment,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,transport_area,commute_allowance_detail,supplies_cap,pr")
+        .order("updated_at", { ascending: false });
+      if (!data) return;
+      const hasText = (r) => (r.texts_pending && Object.keys(r.texts_pending).length > 0)
+        || [r.owner_comment, r.intro_path, r.intro_joy, r.intro_crops, r.intro_atmosphere, r.intro_message, r.unique_point, r.always_do, r.break_style, r.transport_area, r.commute_allowance_detail, r.supplies_cap, r.pr].some(t => t && String(t).trim());
+      setEmpTexts(data.filter(hasText));
+    } catch {}
+  };
+  useEffect(() => { if (sub === "jobs") loadEmpTexts(); }, [sub]); // eslint-disable-line react-hooks/exhaustive-deps
+  const empPendingCount = empTexts.filter(r => r.texts_pending && Object.keys(r.texts_pending).length > 0).length;
+  const EMP_TEXT_LABELS = {
+    owner_comment:"代表より", intro_path:"就農するまで", intro_joy:"いま楽しいこと", intro_crops:"どんな作物を、どんな想いで",
+    intro_atmosphere:"職場の雰囲気", intro_message:"初めての人へのメッセージ", unique_point:"畑・農園のユニークなところ",
+    always_do:"いつもしていること", break_style:"休憩とお茶", transport_area:"送迎エリア",
+    commute_allowance_detail:"通勤手当の内容", supplies_cap:"持ち物の上限設定",
+  };
+  const approveEmpTexts = async (authId) => {
+    const { data, error } = await supabase.rpc("approve_employer_texts", { p_auth_id: authId });
+    if (error || !data?.ok) { alert("承認に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    loadEmpTexts();
+  };
+  const rejectEmpTexts = async (authId) => {
+    if (!confirm("この審査待ちの自由記述を差し戻し（破棄）しますか？公開中の文はそのまま残ります")) return;
+    const { data, error } = await supabase.rpc("reject_employer_texts", { p_auth_id: authId });
+    if (error || !data?.ok) { alert("差し戻しに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    loadEmpTexts();
+  };
   const [reports, setReports] = useState([]); // 通報（job_reports）
   const [disputes, setDisputes] = useState([]); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
   const [prPublishing, setPrPublishing] = useState(null);
@@ -10893,7 +10910,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
   // 審査タブに全ての審査待ちを集約（2026-07-14）：求人＋アカウント承認＋自由記述＋通報＋異議
   const pendingFarmerAccounts = farmers.filter(f => f.status === "pending");
   const openReports = reports.filter(r => r.status !== "resolved");
-  const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + openReports.length + disputes.length;
+  const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + empPendingCount + openReports.length + disputes.length;
   const TOP_TABS = [
     { k:"jobs",    l:"審査",       icon:"🔍", n: reviewTotal },
     { k:"account", l:"アカウント", icon:"👤", n: null },
@@ -11417,7 +11434,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           {[
             { k:"jobs",     e:"🔍", l:"求人",           n:pendingJobs.length },
             { k:"accounts", e:"👤", l:"アカウント承認", n:pendingFarmerAccounts.length },
-            { k:"prs",      e:"📝", l:"自由記述",       n:pendingPrs.length },
+            { k:"prs",      e:"📝", l:"自由記述",       n:pendingPrs.length + empPendingCount },
             { k:"reports",  e:"🚨", l:"通報",           n:openReports.length },
             { k:"disputes", e:"⚖️", l:"欠勤異議",       n:disputes.length },
           ].map(c => (
@@ -11508,8 +11525,34 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             ))}
           </div>
           )}
-          {/* ── 農家プロフィールの自由記述（全件展開・2026-07-16）：承認ゲートが無い公開文のため、ここで全て目視できる ── */}
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 10px" }}>農家プロフィールの自由記述（全件・更新順）</p>
+          {/* ── 農家プロフィールの自由記述（2026-07-16）：texts_pendingの審査キュー＋公開中全件の目視一覧 ── */}
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#C77700", letterSpacing:".08em", margin:"24px 0 10px" }}>農家プロフィール：審査待ち{empPendingCount > 0 ? `（${empPendingCount}）` : ""}</p>
+          {empPendingCount === 0 ? (
+            <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>審査待ちの自由記述はありません</p>
+          ) : (
+            <div style={{ display:"grid", gap:10 }}>
+              {empTexts.filter(r => r.texts_pending && Object.keys(r.texts_pending).length > 0).map(r => (
+                <div key={"pend-" + r.auth_id} className="cb-urgent-card" style={{ background:"#fff", border:"1px solid #F5D98F", borderRadius:12, padding:"12px 14px" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                    <Avatar url={r.avatar_url} name={r.nickname || "？"} size={30} />
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, flex:1 }}>{r.nickname || "（名前未設定）"}</p>
+                    {r.texts_submitted_at && <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{String(r.texts_submitted_at).slice(0, 10)}提出</span>}
+                  </div>
+                  {Object.entries(r.texts_pending).map(([k, v]) => (
+                    <div key={k} style={{ padding:"6px 0", borderTop:"1px solid #F7F7F7" }}>
+                      <span className="f-sans" style={{ fontSize:11, color:"#C77700", fontWeight:700, display:"block", marginBottom:2 }}>{EMP_TEXT_LABELS[k] || k}</span>
+                      <span className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{String(v).trim() ? v : "（この項目を空にする）"}</span>
+                    </div>
+                  ))}
+                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                    <button onClick={()=>approveEmpTexts(r.auth_id)} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認して公開</button>
+                    <button onClick={()=>rejectEmpTexts(r.auth_id)} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>差し戻す</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 10px" }}>農家プロフィールの公開中の自由記述（全件・更新順）</p>
           {empTexts.length === 0 ? (
             <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>自由記述のある農家プロフィールはありません</p>
           ) : (
@@ -12175,6 +12218,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [placeAddr, setPlaceAddr] = useState("");
   const [placeZipBusy, setPlaceZipBusy] = useState(false);
   const [placeZipError, setPlaceZipError] = useState("");
+  const approvedTextsRef = useRef({}); // 自由記述の承認済み（本公開）値の控え。保存時の差分判定に使う（2026-07-16）
   const searchPlaceZip = async () => {
     const zip = placeZip.replace(/[^0-9]/g, "");
     if (zip.length !== 7) { setPlaceZipError("郵便番号は7桁で入力してください"); return; }
@@ -12232,19 +12276,27 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
           setAccessoryOk(data.accessory_ok ?? false);
           setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
-          setCommuteAllowanceDetail(data.commute_allowance_detail || "");
-          setSuppliesCap(data.supplies_cap || "");
-          setTransportArea(data.transport_area || "");
-          setIntroPath(data.intro_path ?? "");
-          setIntroJoy(data.intro_joy ?? "");
-          setIntroCrops(data.intro_crops ?? "");
-          setIntroAtmosphere(data.intro_atmosphere ?? "");
-          setIntroMessage(data.intro_message ?? "");
-          setOwnerComment(data.owner_comment ?? "");
+          // 自由記述は審査待ち（texts_pending）優先で編集欄へ＝自分が書いた最新が見える。承認済み値は差分判定用に控える（2026-07-16）
+          const tp = data.texts_pending || {};
+          approvedTextsRef.current = {
+            owner_comment: data.owner_comment ?? "", intro_path: data.intro_path ?? "", intro_joy: data.intro_joy ?? "",
+            intro_crops: data.intro_crops ?? "", intro_atmosphere: data.intro_atmosphere ?? "", intro_message: data.intro_message ?? "",
+            unique_point: data.unique_point ?? "", always_do: data.always_do ?? "", break_style: data.break_style ?? "",
+            transport_area: data.transport_area ?? "", commute_allowance_detail: data.commute_allowance_detail ?? "", supplies_cap: data.supplies_cap ?? "",
+          };
+          setCommuteAllowanceDetail(tp.commute_allowance_detail ?? (data.commute_allowance_detail || ""));
+          setSuppliesCap(tp.supplies_cap ?? (data.supplies_cap || ""));
+          setTransportArea(tp.transport_area ?? (data.transport_area || ""));
+          setIntroPath(tp.intro_path ?? data.intro_path ?? "");
+          setIntroJoy(tp.intro_joy ?? data.intro_joy ?? "");
+          setIntroCrops(tp.intro_crops ?? data.intro_crops ?? "");
+          setIntroAtmosphere(tp.intro_atmosphere ?? data.intro_atmosphere ?? "");
+          setIntroMessage(tp.intro_message ?? data.intro_message ?? "");
+          setOwnerComment(tp.owner_comment ?? data.owner_comment ?? "");
           setStaffCount(data.staff_count != null ? String(data.staff_count) : "");
-          setUniquePoint(data.unique_point ?? "");
-          setAlwaysDo(data.always_do ?? "");
-          setBreakStyle(data.break_style ?? "");
+          setUniquePoint(tp.unique_point ?? data.unique_point ?? "");
+          setAlwaysDo(tp.always_do ?? data.always_do ?? "");
+          setBreakStyle(tp.break_style ?? data.break_style ?? "");
           setInteractionStyle(data.interaction_style ?? "");
           // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
           const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || (data.staff_count != null && data.staff_count !== "") || data.unique_point || data.always_do || data.break_style || data.interaction_style);
@@ -12355,6 +12407,17 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
+      // 自由記述は直接公開しない（2026-07-16・憲法5条）：承認済み値と異なるキーだけをtexts_pendingに積み、運営承認で公開される
+      const desiredTexts = {
+        owner_comment: ownerComment || "", intro_path: introPath || "", intro_joy: introJoy || "",
+        intro_crops: introCrops || "", intro_atmosphere: introAtmosphere || "", intro_message: introMessage || "",
+        unique_point: uniquePoint || "", always_do: alwaysDo || "", break_style: breakStyle || "",
+        transport_area: hasTransport ? (transportArea || "") : "",
+        commute_allowance_detail: hasCommuteAllowance ? (commuteAllowanceDetail || "") : "",
+        supplies_cap: employerPaysSupplies ? (suppliesCap.trim() || "") : "",
+      };
+      const textsPending = {};
+      Object.keys(desiredTexts).forEach(k => { if (desiredTexts[k] !== (approvedTextsRef.current[k] ?? "")) textsPending[k] = desiredTexts[k]; });
       const { error } = await supabase.from("employer_profiles").upsert({
         auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(),
         place_zip: placeZip.trim(), place_prefecture: placePref.trim(), place_city: placeCity.trim(),
@@ -12362,20 +12425,10 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         has_transport: hasTransport, has_parking: hasParking, has_commute_allowance: hasCommuteAllowance,
         has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
-        commute_allowance_detail: hasCommuteAllowance ? (commuteAllowanceDetail || null) : null,
-        supplies_cap: employerPaysSupplies ? (suppliesCap.trim() || "") : "",
-        transport_area: hasTransport ? (transportArea || null) : null,
-        intro_path: introPath || null,
-        intro_joy: introJoy || null,
-        intro_crops: introCrops || null,
-        intro_atmosphere: introAtmosphere || null,
-        intro_message: introMessage || null,
-        owner_comment: ownerComment || null,
         staff_count: staffCount === "" ? null : Number(staffCount),
-        unique_point: uniquePoint || null,
-        always_do: alwaysDo || null,
-        break_style: breakStyle || null,
         interaction_style: interactionStyle || null,
+        texts_pending: textsPending,
+        texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
