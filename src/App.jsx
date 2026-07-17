@@ -116,6 +116,7 @@ const MOBILE_TABS = [
 // モバイル☰メニューの静的リンク項目（求人を出す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
 const MOBILE_MENU_ITEMS = [
   { key:"admin",   label:"⚙️ 管理",       hash:"/admin",   auth:false, adminOnly:true },
+  { key:"boxes",   label:"🗂 ボックス一覧", hash:"/boxes",   auth:false, adminOnly:true },
 ];
 
 // ══════════════════════════════════════════════════════════
@@ -10644,6 +10645,66 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 }
 
 // ── AdminTab ─────────────────────────────────────────────────
+// ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
+//    台帳はadmin_box_registry（RLSで管理者限定）。一覧⇄展開の2画面・行タップで常時編集・「← 戻す」で一覧へ（構造は旧ポップアップと同一）
+function AdminBoxRegistryPage() {
+  const [rows, setRows] = useState([]);
+  const [edit, setEdit] = useState(null); // 編集中の行 {id|null, name, where_from}。id=nullは新規追加
+  const load = async () => {
+    const { data } = await supabase.from("admin_box_registry").select("*").order("sort").order("created_at");
+    setRows(data || []);
+  };
+  useEffect(() => { load(); }, []);
+  const saveRow = async () => {
+    const name = (edit?.name || "").trim();
+    if (!name) return;
+    const where_from = (edit.where_from || "").trim();
+    if (edit.id) await supabase.from("admin_box_registry").update({ name, where_from }).eq("id", edit.id);
+    else await supabase.from("admin_box_registry").insert({ name, where_from, sort: (rows[rows.length - 1]?.sort ?? 0) + 1 });
+    setEdit(null); load();
+  };
+  const deleteRow = async (id) => {
+    await supabase.from("admin_box_registry").delete().eq("id", id);
+    setEdit(null); load();
+  };
+  return (
+    <div className="fade-in" style={{ maxWidth:560, margin:"0 auto", padding:"24px 16px 120px" }}>
+      <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 管理</button>
+      <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>🗂 ボックス一覧</p>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 20px" }}>サイト内ポップアップ（ボックス）の台帳。行をタップすると展開して、いつでも名前・説明を編集できます（管理者のみ・DB保存）</p>
+      {edit ? (
+        <div className="fade-in">
+          <button onClick={()=>setEdit(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻す</button>
+          <label className="lbl f-sans">ボックス名</label>
+          <input className="field f-sans" value={edit.name} onChange={e=>setEdit(b=>({ ...b, name:e.target.value }))} placeholder="ボックス名" style={{ fontSize:14, fontWeight:700, marginBottom:12 }} />
+          <label className="lbl f-sans">説明（どこから開くか）</label>
+          <textarea className="field f-sans" value={edit.where_from} onChange={e=>setEdit(b=>({ ...b, where_from:e.target.value }))} placeholder="どこから開くか・メモ" rows={4} style={{ fontSize:13, lineHeight:1.7, marginBottom:14, resize:"vertical" }} />
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={saveRow} disabled={!edit.name.trim()} className="btn-primary f-sans" style={{ padding:"10px 24px", fontSize:13, fontWeight:700 }}>{edit.id ? "保存" : "追加"}</button>
+            {edit.id && (
+              <button onClick={()=>deleteRow(edit.id)} className="f-sans" style={{ marginLeft:"auto", padding:"10px 16px", fontSize:12, background:"none", border:"1px solid #E24B4A44", borderRadius:8, color:"#E24B4A", cursor:"pointer" }}>削除</button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="fade-in">
+          {rows.length === 0 && (
+            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>台帳は空です。下の「＋ ボックスを追加」から登録できます。</p>
+          )}
+          {rows.map(r => (
+            <button key={r.id} onClick={()=>setEdit({ id:r.id, name:r.name, where_from:r.where_from || "" })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
+              <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
+              <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.where_from}</span>
+              <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
+            </button>
+          ))}
+          <button onClick={()=>setEdit({ id:null, name:"", where_from:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ ボックスを追加</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminTab({ onJump, onShowAccountForm }) {
   const [sub, setSub] = useState("jobs"); // "jobs" | "account" | "other"（審査をデフォルトタブに）
   const [reviewSec, setReviewSec] = useState(null); // 審査タブ内の選択: null=ボックス格子 | jobs|accounts|prs|reports|disputes
@@ -10677,27 +10738,8 @@ function AdminTab({ onJump, onShowAccountForm }) {
     }
     setDmBusy(false);
   };
-  const [otherBox, setOtherBox] = useState(null); // その他タブのポップアップ: pages|flow|legacy|system|boxlist|null（旧アコーディオンotherOpenを置換・2026-07-16）
-  // ボックス一覧の台帳（admin_box_registryテーブル・サイト上で追加/編集/削除できる。RLSで管理者限定・2026-07-16）
-  const [boxRows, setBoxRows] = useState([]);
-  const [boxEdit, setBoxEdit] = useState(null); // 編集中の行 {id|null, name, where_from}。id=nullは新規追加
-  const loadBoxRows = async () => {
-    const { data } = await supabase.from("admin_box_registry").select("*").order("sort").order("created_at");
-    setBoxRows(data || []);
-  };
-  useEffect(() => { if (otherBox === "boxlist") { setBoxEdit(null); loadBoxRows(); } }, [otherBox]); // 開くたびに一覧から（編集途中の残骸を持ち越さない）
-  const saveBoxRow = async () => {
-    const name = (boxEdit?.name || "").trim();
-    if (!name) return;
-    const where_from = (boxEdit.where_from || "").trim();
-    if (boxEdit.id) await supabase.from("admin_box_registry").update({ name, where_from }).eq("id", boxEdit.id);
-    else await supabase.from("admin_box_registry").insert({ name, where_from, sort: (boxRows[boxRows.length - 1]?.sort ?? 0) + 1 });
-    setBoxEdit(null); loadBoxRows();
-  };
-  const deleteBoxRow = async (id) => {
-    await supabase.from("admin_box_registry").delete().eq("id", id);
-    setBoxEdit(null); loadBoxRows();
-  };
+  const [otherBox, setOtherBox] = useState(null); // その他タブのポップアップ: pages|flow|legacy|system|notices|null（boxlistは#/boxes専用ページへ昇格・2026-07-17）
+  // ボックス一覧の台帳は専用ページ（#/boxes・AdminBoxRegistryPage）へ昇格（2026-07-17）
   // お知らせ一覧の台帳（admin_notice_registryテーブル・ボックス一覧と同じ構造設計・2026-07-16）
   // 配信対応（同日）：対象audience・期間starts_at/ends_at・公開publishedをここで設定できる
   const [noticeRows, setNoticeRows] = useState([]);
@@ -11125,7 +11167,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"boxlist", e:"🗂", l:"ボックス一覧" },
             { k:"notices", e:"📢", l:"お知らせ一覧" },
           ].map(c => (
-            <button key={c.k} onClick={()=>setOtherBox(c.k)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button key={c.k} onClick={()=>{ if (c.k === "boxlist") { onJump("boxes"); } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <span style={{ fontSize:36, lineHeight:1 }}>{c.e}</span>
               <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>
@@ -11140,7 +11182,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               <button onClick={()=>setOtherBox(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
               <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>
-                {otherBox==="pages" ? "📄 主要ページ" : otherBox==="flow" ? "🧭 求人フロー" : otherBox==="legacy" ? "📦 旧事業データ" : otherBox==="system" ? "⚙️ システム" : otherBox==="notices" ? "📢 お知らせ一覧" : "🗂 ボックス一覧"}
+                {otherBox==="pages" ? "📄 主要ページ" : otherBox==="flow" ? "🧭 求人フロー" : otherBox==="legacy" ? "📦 旧事業データ" : otherBox==="system" ? "⚙️ システム" : "📢 お知らせ一覧"}
               </p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
@@ -11240,45 +11282,6 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                     }}>{l}</button>
                   ))}
                 </div>
-              )}
-
-              {otherBox==="boxlist" && (
-                /* 台帳はDB（admin_box_registry・管理者RLS）。一覧⇄展開の2画面：行タップで展開、「← 戻す」で一覧へ。
-                   展開ページは常時編集可能（名前・説明のみ・2026-07-16） */
-                boxEdit ? (
-                  /* ── 展開ページ（＝いつでも編集できる詳細）── */
-                  <div className="fade-in">
-                    <button onClick={()=>setBoxEdit(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻す</button>
-                    <label className="lbl f-sans">ボックス名</label>
-                    <input className="field f-sans" value={boxEdit.name} onChange={e=>setBoxEdit(b=>({ ...b, name:e.target.value }))} placeholder="ボックス名" style={{ fontSize:14, fontWeight:700, marginBottom:12 }} />
-                    <label className="lbl f-sans">説明（どこから開くか）</label>
-                    <textarea className="field f-sans" value={boxEdit.where_from} onChange={e=>setBoxEdit(b=>({ ...b, where_from:e.target.value }))} placeholder="どこから開くか・メモ" rows={4} style={{ fontSize:13, lineHeight:1.7, marginBottom:14, resize:"vertical" }} />
-                    <div style={{ display:"flex", gap:8 }}>
-                      <button onClick={saveBoxRow} disabled={!boxEdit.name.trim()} className="btn-primary f-sans" style={{ padding:"10px 24px", fontSize:13, fontWeight:700 }}>{boxEdit.id ? "保存" : "追加"}</button>
-                      {boxEdit.id && (
-                        <button onClick={()=>deleteBoxRow(boxEdit.id)} className="f-sans" style={{ marginLeft:"auto", padding:"10px 16px", fontSize:12, background:"none", border:"1px solid #E24B4A44", borderRadius:8, color:"#E24B4A", cursor:"pointer" }}>削除</button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* ── 一覧ページ ── */
-                  <div className="fade-in">
-                    {boxRows.length === 0 && (
-                      <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"24px 0" }}>台帳は空です。下の「＋ ボックスを追加」から登録できます。</p>
-                    )}
-                    {boxRows.map(r => (
-                      <button key={r.id} onClick={()=>setBoxEdit({ id:r.id, name:r.name, where_from:r.where_from || "" })} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"flex-start", gap:10, padding:"12px 2px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
-                        <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:130, flexShrink:0 }}>{r.name}</span>
-                        <span className="f-sans" style={{ flex:1, fontSize:12, color:"#717171", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{r.where_from}</span>
-                        <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
-                      </button>
-                    ))}
-                    <button onClick={()=>setBoxEdit({ id:null, name:"", where_from:"" })} className="f-sans" style={{ width:"100%", marginTop:12, padding:"11px 0", borderRadius:12, border:"1px dashed #CCC", background:"#FAFAFA", fontSize:13, fontWeight:700, color:"#717171", cursor:"pointer" }}>＋ ボックスを追加</button>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:12 }}>
-                      行をタップすると展開して、いつでも名前・説明を編集できます（管理者のみ・DB保存）。
-                    </p>
-                  </div>
-                )
               )}
 
               {otherBox==="notices" && (
@@ -15056,7 +15059,7 @@ function PresentationCreateCanvasPage() {
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","page-presentation-create-canvas"];
+  const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","page-presentation-create-canvas"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -15631,7 +15634,7 @@ const subDest=useCallback(async d=>{
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
   // 部屋番号(TAB_URL_KEYS)にある部屋は全て到達可（避難部屋含む・骨格④）。資格の無い部屋と迷子はsearchへ
   const safeTab = TAB_URL_KEYS.includes(tab)
-    ? ((tab === "admin" && !isAdmin(me)) || (tab === "plan" && !me) ? "search" : tab)
+    ? (((tab === "admin" || tab === "boxes") && !isAdmin(me)) || (tab === "plan" && !me) ? "search" : tab)
     : "search";
 
   return(
@@ -15934,6 +15937,7 @@ const subDest=useCallback(async d=>{
             } else { setTab(t); }
           }}
           onShowAccountForm={() => setNeedsAccountHolder(true)}/>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="boxes"&&isAdmin(me)&&<AdminBoxRegistryPage/>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
