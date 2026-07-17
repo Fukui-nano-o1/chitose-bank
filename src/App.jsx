@@ -876,8 +876,8 @@ input:focus { outline: none; }
 
 /* ── 求人詳細（スマホ専用）：本文末尾に下部応募フッター分の余白を確保（隠れ防止） ── */
 @media (max-width: 759px) {
-  /* 2026-07-16: 末尾（この求人を報告する）と下部応募フッターの間を約10pxに詰める（旧120px固定） */
-  .job-detail-body-mobile { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+  /* 2026-07-16: 末尾（この求人を報告する）と下部応募フッターの間を約20pxに（応募フッター約90px+20px） */
+  .job-detail-body-mobile { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */
