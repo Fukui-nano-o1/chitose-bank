@@ -10401,7 +10401,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
               ].filter(row => row.value && String(row.value).trim()).map(row => (
                 <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", textAlign:"center" }}>
                   <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
-                  <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600, whiteSpace:"pre-line" }}>{row.value}</span>
+                  <span className="f-sans" style={{ fontSize:15, color:"#222", fontWeight:600, lineHeight:1.6, whiteSpace:"pre-line" }}>{row.value}</span>
                 </div>
               ))}
             </div>
@@ -10412,7 +10412,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           {job.jobBody && job.jobBody.trim() && (
           <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
-            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
+            <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
           </div>
           )}
 
@@ -10429,11 +10429,11 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
                   ? (
                     <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
                       {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                        <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"5px 12px" }}>{row.pin ? "📌 " : ""}{c}</span>
+                        <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin ? "📌 " : ""}{c}</span>
                       ))}
                     </div>
                   )
-                  : <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word", display:"block", textAlign:"center" }}>{row.value}</span>}
+                  : <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", display:"block", textAlign:"center" }}>{row.value}</span>}
               </div>
             ))}
           </div>
