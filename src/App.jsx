@@ -4779,6 +4779,34 @@ function StatusRibbonLeft({ label, color }) {
   );
 }
 
+// 危険項目の表示（詳細・確認・プレビュー共通・2026-07-16）：
+// タイトル=写真の上・説明=写真の内部（1枚目にグラデ帯）・全て中央配置。写真なしは⚠️色ボックス内に説明
+function DangerItem({ icon, label, desc, photos, onPhotoClick }) {
+  const list = (photos || []).map(p => (typeof p === "string" ? p : p?.url)).filter(Boolean);
+  return (
+    <div style={{ width:"100%" }}>
+      <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 8px", textAlign:"center", overflowWrap:"break-word" }}>{label}</p>
+      {list.length > 0 ? (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {list.map((src, k) => (
+            <div key={k} style={{ position:"relative", borderRadius:8, overflow:"hidden" }}>
+              <img src={src} alt="" onClick={onPhotoClick ? () => onPhotoClick(src) : undefined} style={{ width:"100%", height:190, objectFit:"cover", display:"block", cursor: onPhotoClick ? "pointer" : "default" }} />
+              {k === 0 && desc && String(desc).trim() && (
+                <div className="f-sans" style={{ position:"absolute", bottom:0, left:0, right:0, padding:"26px 16px 12px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:13, fontWeight:600, textAlign:"center", lineHeight:1.6, boxSizing:"border-box" }}>{desc}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ width:"100%", minHeight:130, borderRadius:8, background:"#FEF3E2", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:6, padding:"14px 16px", boxSizing:"border-box", textAlign:"center" }}>
+          <span style={{ fontSize:40, lineHeight:1 }}>{icon}</span>
+          {desc && String(desc).trim() && <p className="f-sans" style={{ fontSize:12, color:"#8A6D1D", margin:0, lineHeight:1.6, overflowWrap:"break-word" }}>{desc}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // 最寄り駅からの移動時間ラベル。「駅」の有無を正規化して「○○駅から◯分」に統一（求人詳細・農家プレビュー共通）
 function stationLabel(station, commute) {
   const s = (station || "").trim();
@@ -7335,7 +7363,7 @@ function JobSearchMapView({ onRegister, me }) {
               {/* 危険区域セクション（両方空なら見出しごと非表示＝ブロック化） */}
               {((selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) || (selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0)) && (
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
                   <span style={{ fontSize:18 }}>⚠️</span>
                   <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
                 </div>
@@ -7343,28 +7371,12 @@ function JobSearchMapView({ onRegister, me }) {
                 {/* 危険な場所 */}
                 {(selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) && (
                   <>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な場所</p>
                     <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
                       {selectedJob.dangerPlaces.map((place, i) => {
                         const placePhotos = place.photos || [];
                         return (
-                        <div key={i} style={{ width:"100%" }}>
-                          {placePhotos.length > 0 ? (
-                            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                              {placePhotos.map((p, k) => {
-                                const src = typeof p === "string" ? p : p?.url;
-                                return <img key={k} src={src} alt="" onClick={() => setDangerLightbox(src)} style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block", cursor:"pointer" }} />;
-                              })}
-                            </div>
-                          ) : (
-                            <div style={{
-                              width:"100%", height:130, borderRadius:8, background:"#FEF3E2",
-                              display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
-                            }}>{place.icon}</div>
-                          )}
-                          <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
-                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
-                        </div>
+                        <DangerItem key={i} icon={place.icon} label={place.label} desc={place.desc} photos={placePhotos} onPhotoClick={setDangerLightbox} />
                         );
                       })}
                     </div>
@@ -7374,28 +7386,12 @@ function JobSearchMapView({ onRegister, me }) {
                 {/* 危険な作業 */}
                 {(selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0) && (
                   <>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な作業</p>
                     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                       {selectedJob.dangerTasks.map((task, i) => {
                         const taskPhotos = task.photos || [];
                         return (
-                        <div key={i} style={{ width:"100%" }}>
-                          {taskPhotos.length > 0 ? (
-                            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                              {taskPhotos.map((p, k) => {
-                                const src = typeof p === "string" ? p : p?.url;
-                                return <img key={k} src={src} alt="" onClick={() => setDangerLightbox(src)} style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block", cursor:"pointer" }} />;
-                              })}
-                            </div>
-                          ) : (
-                            <div style={{
-                              width:"100%", height:130, borderRadius:8, background:"#FEF3E2",
-                              display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
-                            }}>{task.icon}</div>
-                          )}
-                          <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
-                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
-                        </div>
+                        <DangerItem key={i} icon={task.icon} label={task.label} desc={task.desc} photos={taskPhotos} onPhotoClick={setDangerLightbox} />
                         );
                       })}
                     </div>
@@ -9764,53 +9760,27 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {/* 危険区域カード（詳細ページと同一構造：場所→作業・縦積み・全幅写真） */}
                   {(jobDangerPlaces.some(p => p.label) || jobDangerTasks.some(t => t.label)) && (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <span style={{ fontSize:18 }}>⚠️</span>
-                        <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
-                      </div>
-                      <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                    <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
+                      <span style={{ fontSize:18 }}>⚠️</span>
+                      <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
+                      <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ position:"absolute", right:0, background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
                     {jobDangerPlaces.some(p => p.label) && (
                       <>
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な場所</p>
                         <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
                           {jobDangerPlaces.filter(p => p.label).map((place, i) => (
-                            <div key={i} style={{ width:"100%" }}>
-                              {(place.photos && place.photos.length > 0) ? (
-                                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                                  {place.photos.map((ph, k) => (
-                                    <img key={k} src={ph.url} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />
-                                  ))}
-                                </div>
-                              ) : (
-                                <div style={{ width:"100%", height:130, borderRadius:8, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>{place.icon}</div>
-                              )}
-                              <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
-                              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
-                            </div>
+                            <DangerItem key={i} icon={place.icon} label={place.label} desc={place.desc} photos={place.photos} />
                           ))}
                         </div>
                       </>
                     )}
                     {jobDangerTasks.some(t => t.label) && (
                       <>
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な作業</p>
                         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                           {jobDangerTasks.filter(t => t.label).map((task, i) => (
-                            <div key={i} style={{ width:"100%" }}>
-                              {(task.photos && task.photos.length > 0) ? (
-                                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                                  {task.photos.map((ph, k) => (
-                                    <img key={k} src={ph.url} alt="" style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block" }} />
-                                  ))}
-                                </div>
-                              ) : (
-                                <div style={{ width:"100%", height:130, borderRadius:8, background:"#FEF3E2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>{task.icon}</div>
-                              )}
-                              <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
-                              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
-                            </div>
+                            <DangerItem key={i} icon={task.icon} label={task.label} desc={task.desc} photos={task.photos} />
                           ))}
                         </div>
                       </>
@@ -10457,35 +10427,19 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           {/* 危険区域セクション（両方空なら見出しごと非表示） */}
           {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
           <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:20 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
               <span style={{ fontSize:18 }}>⚠️</span>
               <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
             </div>
 
             {(job.dangerPlaces && job.dangerPlaces.length > 0) && (
               <>
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な場所</p>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な場所</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
                   {job.dangerPlaces.map((place, i) => {
                     const placePhotos = place.photos || [];
                     return (
-                    <div key={i} style={{ width:"100%" }}>
-                      {placePhotos.length > 0 ? (
-                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                          {placePhotos.map((p, k) => {
-                            const src = typeof p === "string" ? p : p?.url;
-                            return <img key={k} src={src} alt="" onClick={() => setDangerLightbox(src)} style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block", cursor:"pointer" }} />;
-                          })}
-                        </div>
-                      ) : (
-                        <div style={{
-                          width:"100%", height:130, borderRadius:8, background:"#FEF3E2",
-                          display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
-                        }}>{place.icon}</div>
-                      )}
-                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{place.label}</p>
-                      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{place.desc}</p>
-                    </div>
+                    <DangerItem key={i} icon={place.icon} label={place.label} desc={place.desc} photos={placePhotos} onPhotoClick={setDangerLightbox} />
                     );
                   })}
                 </div>
@@ -10494,28 +10448,12 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
             {(job.dangerTasks && job.dangerTasks.length > 0) && (
               <>
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em" }}>危険な作業</p>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な作業</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                   {job.dangerTasks.map((task, i) => {
                     const taskPhotos = task.photos || [];
                     return (
-                    <div key={i} style={{ width:"100%" }}>
-                      {taskPhotos.length > 0 ? (
-                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                          {taskPhotos.map((p, k) => {
-                            const src = typeof p === "string" ? p : p?.url;
-                            return <img key={k} src={src} alt="" onClick={() => setDangerLightbox(src)} style={{ width:"100%", height:190, objectFit:"cover", borderRadius:8, display:"block", cursor:"pointer" }} />;
-                          })}
-                        </div>
-                      ) : (
-                        <div style={{
-                          width:"100%", height:130, borderRadius:8, background:"#FEF3E2",
-                          display:"flex", alignItems:"center", justifyContent:"center", fontSize:40,
-                        }}>{task.icon}</div>
-                      )}
-                      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, marginTop:8 }}>{task.label}</p>
-                      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginTop:2, overflowWrap:"break-word", wordBreak:"break-word" }}>{task.desc}</p>
-                    </div>
+                    <DangerItem key={i} icon={task.icon} label={task.label} desc={task.desc} photos={taskPhotos} onPhotoClick={setDangerLightbox} />
                     );
                   })}
                 </div>
