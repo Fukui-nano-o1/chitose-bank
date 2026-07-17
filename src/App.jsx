@@ -10799,7 +10799,7 @@ function AdminBoxRegistryPage() {
         </div>
       )}
 
-      {/* ── お知らせの展開（本番の規定と同じ意匠・2026-07-17設計＝左詰め・緑の太縁3px・タイトル28/本文26・
+      {/* ── お知らせの展開（本番の規定と同じ意匠・2026-07-17設計＝左詰め・緑の太縁3px・タイトル24/本文22・
            タイトルと説明の間に横線・上限=画面上から30px・下限=下部フッターの20px上・最終段に「〇〇する」リンク）＋展開機会 ── */}
       {nPreview && (() => {
         const st = noticeStatus(nPreview);
@@ -10808,12 +10808,12 @@ function AdminBoxRegistryPage() {
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
             <button onClick={()=>setNPreview(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
-            <p className="f-sans" style={{ fontSize:28, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{nPreview.name}</p>
+            <p className="f-sans" style={{ fontSize:24, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{nPreview.name}</p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
-            <p className="f-sans" style={{ fontSize:26, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{nPreview.body}</p>
+            <p className="f-sans" style={{ fontSize:22, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{nPreview.body}</p>
             {nPreview.link_label && nPreview.link_hash && (
               <p style={{ margin:"22px 0 0" }}>
-                <button onClick={()=>{ const h = nPreview.link_hash; setNPreview(null); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:24, fontWeight:800, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>{nPreview.link_label} →</button>
+                <button onClick={()=>{ const h = nPreview.link_hash; setNPreview(null); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:20, fontWeight:800, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>{nPreview.link_label} →</button>
               </p>
             )}
             <div style={{ marginTop:20, borderTop:"1px solid #F0F0F0", paddingTop:12 }}>
@@ -15691,18 +15691,18 @@ const subDest=useCallback(async d=>{
 
       {/* 運営お知らせポップアップの規定（2026-07-17設計）：左詰め・緑の太縁(3px)・タイトルと説明の間に横線・
           上限=画面上から30px・下限=下部フッターの20px上・最後の段に「〇〇する」形式のリンク（タップ=既読化して遷移）。
-          文字は従来の2倍を基準（本文26/タイトル28）。1回の起動で1件、残りは次回（たきと方針） */}
+          文字はタイトル24/本文22（2026-07-17縮小・説明文が5行を超えると読まれないため）。1回の起動で1件、残りは次回（たきと方針） */}
       {activeNotices && !welcomeApproved && (
         <div onClick={dismissNotices} style={{ position:"fixed", inset:0, zIndex:10900, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
             <button onClick={dismissNotices} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
-            <p className="f-sans" style={{ fontSize:28, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{activeNotices[0].name}</p>
+            <p className="f-sans" style={{ fontSize:24, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{activeNotices[0].name}</p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
-            <p className="f-sans" style={{ fontSize:26, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{activeNotices[0].body}</p>
+            <p className="f-sans" style={{ fontSize:22, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{activeNotices[0].body}</p>
             {activeNotices[0].link_label && activeNotices[0].link_hash && (
               <p style={{ margin:"22px 0 0" }}>
-                <button onClick={()=>{ const h = activeNotices[0].link_hash; dismissNotices(); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:24, fontWeight:800, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>{activeNotices[0].link_label} →</button>
+                <button onClick={()=>{ const h = activeNotices[0].link_hash; dismissNotices(); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:20, fontWeight:800, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>{activeNotices[0].link_label} →</button>
               </p>
             )}
           </div>
