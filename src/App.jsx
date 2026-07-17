@@ -876,7 +876,8 @@ input:focus { outline: none; }
 
 /* ── 求人詳細（スマホ専用）：本文末尾に下部応募フッター分の余白を確保（隠れ防止） ── */
 @media (max-width: 759px) {
-  .job-detail-body-mobile { padding-bottom: 120px; }
+  /* 2026-07-16: 末尾（この求人を報告する）と下部応募フッターの間を約10pxに詰める（旧120px固定） */
+  .job-detail-body-mobile { padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */
@@ -8711,7 +8712,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         : { height:"100%", overflowY:"auto" })}>
         <div key={step} className={stepAnim || "fade-in"}
           onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && stepAnim.startsWith("step-in")) setStepAnim(""); }}
-          style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px 140px" : "56px 20px 40px") }}>
+          style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px calc(76px + env(safe-area-inset-bottom, 0px))" : "56px 20px 40px") }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px） */}
 
           {/* ── HOME ── */}
           {step === 0 && (
