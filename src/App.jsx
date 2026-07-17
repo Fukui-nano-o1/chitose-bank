@@ -5125,6 +5125,38 @@ const CHAT_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", 
 function ChatList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  // 運営DM（2026-07-16）：チャット最上部の固定タブ。運営からのメッセージ閲覧＋返信（admin_messages・本人スレのみRLS）
+  const [dmOpen, setDmOpen] = useState(false);
+  const [dmMsgs, setDmMsgs] = useState([]);
+  const [dmUnread, setDmUnread] = useState(0);
+  const [dmText, setDmText] = useState("");
+  const [dmSending, setDmSending] = useState(false);
+  const dmUid = useRef(null);
+  const loadDm = async (markRead) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      dmUid.current = session.user.id;
+      const { data } = await supabase.from("admin_messages").select("*").eq("user_id", session.user.id).order("created_at", { ascending: true });
+      setDmMsgs(data || []);
+      const unread = (data || []).filter(m => m.from_admin && !m.read_at).length;
+      setDmUnread(unread);
+      if (markRead && unread > 0) {
+        await supabase.from("admin_messages").update({ read_at: new Date().toISOString() }).eq("user_id", session.user.id).eq("from_admin", true).is("read_at", null);
+        setDmUnread(0);
+      }
+    } catch {}
+  };
+  useEffect(() => { loadDm(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const sendDm = async () => {
+    const body = dmText.trim();
+    if (!body || dmSending || !dmUid.current) return;
+    setDmSending(true);
+    const { error } = await supabase.from("admin_messages").insert({ user_id: dmUid.current, from_admin: false, body });
+    if (error) alert("送信に失敗しました：" + error.message);
+    else { setDmText(""); await loadDm(false); }
+    setDmSending(false);
+  };
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -5181,6 +5213,41 @@ function ChatList() {
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0" }}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>チャット</h2>
+      {/* 運営DMタブ（2026-07-16）：常に最上部。未読は赤バッジ */}
+      <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer", marginBottom:10 }}>
+        <span style={{ width:40, height:40, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>🛡</span>
+        <div style={{ flex:1, minWidth:0 }}>
+          <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>chitose-bank運営</p>
+          <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{dmMsgs.length > 0 ? dmMsgs[dmMsgs.length - 1].body : "運営からのお知らせ・連絡はこちら"}</p>
+        </div>
+        {dmUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0 }}>{dmUnread}</span>}
+      </button>
+      {/* 運営DMスレッド（ポップアップ0.8秒・✕/背景で閉じる） */}
+      {dmOpen && (
+        <div onClick={()=>setDmOpen(false)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setDmOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+              <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>🛡 chitose-bank運営</p>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:16, display:"flex", flexDirection:"column", gap:10 }}>
+              {dmMsgs.length === 0 ? (
+                <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>まだメッセージはありません。運営への連絡もここから送れます。</p>
+              ) : dmMsgs.map(m => (
+                <div key={m.id} style={{ alignSelf: m.from_admin ? "flex-start" : "flex-end", maxWidth:"85%" }}>
+                  {m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>🛡 運営</p>}
+                  <div className="f-sans" style={{ background: m.from_admin ? "#F5F5F5" : "#00A86B", color: m.from_admin ? "#222" : "#fff", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{m.body}</div>
+                  <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "left" : "right" }}>{String(m.created_at).slice(5, 16).replace("T", " ")}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:8, padding:"10px 12px", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
+              <input value={dmText} onChange={e=>setDmText(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") sendDm(); }} placeholder="運営へのメッセージ" className="field f-sans" style={{ flex:1, marginBottom:0, fontSize:14 }} />
+              <button onClick={sendDm} disabled={dmSending || !dmText.trim()} className="btn-primary f-sans" style={{ padding:"0 18px", fontSize:14, fontWeight:700, opacity: (dmSending || !dmText.trim()) ? 0.5 : 1 }}>送信</button>
+            </div>
+          </div>
+        </div>
+      )}
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
       ) : rows.length === 0 ? (
@@ -10570,6 +10637,30 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [revReason, setRevReason] = useState("");
   const [revSending, setRevSending] = useState(false);
   const [emailShown, setEmailShown] = useState(null); // 「メールを表示」で全文表示中のauth_id（既定はemail_masked）
+  // 運営DM（2026-07-16）：アカウントから利用者へメッセージ送信（admin_messages・利用者側はチャットの運営タブで受信）
+  const [dmUser, setDmUser] = useState(null); // { auth_id, name, avatar }
+  const [dmThread, setDmThread] = useState([]);
+  const [dmBody, setDmBody] = useState("");
+  const [dmBusy, setDmBusy] = useState(false);
+  const openAccountDm = async (u) => {
+    setDmUser({ auth_id: u.auth_id, name: u.nickname || u.email_masked || "利用者", avatar: u.avatar_url || null });
+    setDmBody("");
+    const { data } = await supabase.from("admin_messages").select("*").eq("user_id", u.auth_id).order("created_at", { ascending: true });
+    setDmThread(data || []);
+  };
+  const sendAccountDm = async () => {
+    const body = dmBody.trim();
+    if (!body || dmBusy || !dmUser) return;
+    setDmBusy(true);
+    const { error } = await supabase.from("admin_messages").insert({ user_id: dmUser.auth_id, from_admin: true, body });
+    if (error) alert("送信に失敗しました：" + error.message);
+    else {
+      setDmBody("");
+      const { data } = await supabase.from("admin_messages").select("*").eq("user_id", dmUser.auth_id).order("created_at", { ascending: true });
+      setDmThread(data || []);
+    }
+    setDmBusy(false);
+  };
   const [otherBox, setOtherBox] = useState(null); // その他タブのポップアップ: pages|flow|legacy|system|boxlist|null（旧アコーディオンotherOpenを置換・2026-07-16）
   // ボックス一覧の台帳（admin_box_registryテーブル・サイト上で追加/編集/削除できる。RLSで管理者限定・2026-07-16）
   const [boxRows, setBoxRows] = useState([]);
@@ -10946,6 +11037,34 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
+      {/* 運営DMスレッド（アカウント→✉️で展開・2026-07-16） */}
+      {dmUser && (
+        <div onClick={()=>setDmUser(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setDmUser(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+              <Avatar url={dmUser.avatar} name={dmUser.name} size={28} />
+              <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>{dmUser.name} さんへのメッセージ</p>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:16, display:"flex", flexDirection:"column", gap:10 }}>
+              {dmThread.length === 0 ? (
+                <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>まだメッセージはありません</p>
+              ) : dmThread.map(m => (
+                <div key={m.id} style={{ alignSelf: m.from_admin ? "flex-end" : "flex-start", maxWidth:"85%" }}>
+                  {!m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>{dmUser.name}</p>}
+                  <div className="f-sans" style={{ background: m.from_admin ? "#00A86B" : "#F5F5F5", color: m.from_admin ? "#fff" : "#222", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{m.body}</div>
+                  <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "right" : "left" }}>{String(m.created_at).slice(5, 16).replace("T", " ")}{m.from_admin && m.read_at ? "・既読" : ""}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:8, padding:"10px 12px", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
+              <textarea value={dmBody} onChange={e=>setDmBody(e.target.value)} placeholder="メッセージを入力（運営として送信されます）" rows={2} className="field f-sans" style={{ flex:1, marginBottom:0, fontSize:14, resize:"none" }} />
+              <button onClick={sendAccountDm} disabled={dmBusy || !dmBody.trim()} className="btn-primary f-sans" style={{ padding:"0 18px", fontSize:14, fontWeight:700, opacity: (dmBusy || !dmBody.trim()) ? 0.5 : 1 }}>{dmBusy ? "..." : "送信"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
         <div>
           <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
@@ -11262,6 +11381,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                         <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
                       </div>
                     ))}
+                    <button onClick={(e)=>{ e.stopPropagation(); openAccountDm(u); }} className="f-sans" style={{ marginTop:10, width:"100%", padding:"10px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>✉️ 運営メッセージを送る</button>
                     {u.pending_text && (
                       <div style={{ marginTop:12, background:"#FFFBF2", border:"1px solid #F5D98F", borderRadius:12, padding:"12px 14px" }}>
                         <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#C77700", margin:"0 0 8px" }}>📝 自由記述の確認待ち{u.pending_since ? `（${u.pending_since}提出）` : ""}</p>
