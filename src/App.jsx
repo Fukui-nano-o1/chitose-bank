@@ -6310,6 +6310,7 @@ function MyCalendar() {
   const [showEnded, setShowEnded] = useState(false);
   const [highlightIds, setHighlightIds] = useState(() => new Set());
   const [likedIds, setLikedIds] = useState(() => new Set()); // いいね済みjob_number（❤️表示）
+  const [previewDraft, setPreviewDraft] = useState(null); // 下書きカードタップ→プレビューボックス（再開/削除・2026-07-16）
   const [flashNoPlan, setFlashNoPlan] = useState(false);
   const rowRefs = useRef({});
   const flashTimer = useRef(null);
@@ -6392,7 +6393,12 @@ function MyCalendar() {
     return (
       <button
         ref={el => { rowRefs.current[e.application_id || `j${e.job_number}-${e.relation || ""}`] = el; }}
-        onClick={() => { try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }}
+        onClick={() => {
+          // 下書きは詳細ページが無い（未公開）ため、プレビューボックスを展開して再開/削除（2026-07-16）
+          if (e.status === "draft") { setPreviewDraft(e.job_number); return; }
+          try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
+          window.location.hash = "/work/job/" + e.job_number;
+        }}
         className="f-sans"
         style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer", transition:"background .5s" }}
       >
@@ -6482,6 +6488,21 @@ function MyCalendar() {
             <AgendaGroup title="明日" list={grouped.tomorrow} />
             <AgendaGroup title="今週" list={grouped.thisWeek} />
             <AgendaGroup title="それ以降" list={grouped.later} />
+            {/* 下書きのプレビューボックス（農家プロの作成中カードと同じ・再開/削除付き・2026-07-16） */}
+            {previewDraft && (
+              <AdminJobPreview jobNumber={previewDraft} ownerView
+                onClose={() => setPreviewDraft(null)}
+                onResumeJob={() => { const n = previewDraft; setPreviewDraft(null); window.location.hash = "/work/edit/" + n; }}
+                onDeleteJob={async () => {
+                  if (!confirm("この求人（下書き）を削除しますか？元に戻せません")) return;
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session) return;
+                  const { error } = await supabase.from("jobs").delete().eq("job_number", previewDraft).eq("farmer_id", session.user.id);
+                  if (error) { alert("削除に失敗しました：" + error.message); return; }
+                  setEntries(prev => prev.filter(x => x.job_number !== previewDraft));
+                  setPreviewDraft(null);
+                }} />
+            )}
             {grouped.ended.length > 0 && (
               <div>
                 <button onClick={() => setShowEnded(v => !v)} className="f-sans" style={{ background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:700, color:"#717171", padding:"4px 0", marginBottom:8 }}>
