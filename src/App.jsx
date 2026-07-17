@@ -393,6 +393,12 @@ input:focus { outline: none; }
    fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
 .cb-sheet-up { animation: cbPop .8s cubic-bezier(.2, 1.3, .3, 1); transform-origin: center center; }
+/* お知らせボックスの高さ規定（2026-07-17）：上限=ステータスバーの30px下・下限=下部フッターの20px上。
+   100vhはiOSでツールバー裏まで含むため、対応ブラウザでは実表示高さ(100dvh)で上書きして上端の見切れを防ぐ */
+.cb-notice-sheet { max-height: calc(100vh - env(safe-area-inset-top, 0px) - 30px - 64px - 20px - env(safe-area-inset-bottom, 0px)); }
+@supports (height: 100dvh) {
+  .cb-notice-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 30px - 64px - 20px - env(safe-area-inset-bottom, 0px)); }
+}
 /* 未完了カードの注意アニメ（働き手・承認済みタブ）：赤い影＋最初の0.5秒で2度浮遊→3秒かけて沈む（計3.5秒・無限ループ） */
 @keyframes cbUrgent {
   0%    { transform: translateY(0);    box-shadow: 0 2px 6px rgba(226,75,74,.45); }
@@ -10799,7 +10805,7 @@ function AdminBoxRegistryPage() {
         const st = noticeStatus(nPreview);
         return (
         <div onClick={()=>setNPreview(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", maxHeight:"calc(100vh - 30px - 64px - 20px - env(safe-area-inset-bottom, 0px))", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
             <button onClick={()=>setNPreview(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:28, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{nPreview.name}</p>
@@ -15688,7 +15694,7 @@ const subDest=useCallback(async d=>{
           文字は従来の2倍を基準（本文26/タイトル28）。1回の起動で1件、残りは次回（たきと方針） */}
       {activeNotices && !welcomeApproved && (
         <div onClick={dismissNotices} style={{ position:"fixed", inset:0, zIndex:10900, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", maxHeight:"calc(100vh - 30px - 64px - 20px - env(safe-area-inset-bottom, 0px))", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
             <button onClick={dismissNotices} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:28, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{activeNotices[0].name}</p>
