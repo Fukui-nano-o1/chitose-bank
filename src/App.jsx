@@ -8355,7 +8355,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [draftJobNumber, setDraftJobNumber] = useState(_editJobNumber ?? _draftInit?.job_number ?? null);
-  // 前回の求人の集合場所（step3の復元ボタン用・2026-07-16）。初めての求人ならnull=ボタン非表示
+  // 集合場所の復元元＝農家プロフィールの「作業場所」（2026-07-16・直近jobsからの復元は撤回）。未設定ならnull=ボタン非表示
   const [prevAddress, setPrevAddress] = useState(null);
   useEffect(() => {
     if (!isFarmer || step !== 3 || prevAddress) return;
@@ -8364,15 +8364,13 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session || cancelled) return;
-        const { data } = await supabase.from("jobs")
-          .select("job_number,zip,prefecture,city,town,address")
-          .eq("farmer_id", session.user.id)
-          .order("job_number", { ascending: false })
-          .limit(10);
-        if (cancelled || !data) return;
-        // 編集中の求人自身は除外。住所が入っている直近の1件を採用
-        const prev = data.find(j => j.job_number !== draftJobNumber && ((j.zip || "").trim() || (j.address || "").trim() || (j.city || "").trim()));
-        if (prev) setPrevAddress(prev);
+        const { data: ep } = await supabase.from("employer_profiles")
+          .select("place_zip,place_prefecture,place_city,place_town,place_address")
+          .eq("auth_id", session.user.id).maybeSingle();
+        if (cancelled || !ep) return;
+        if ((ep.place_city || "").trim() || (ep.place_zip || "").trim() || (ep.place_address || "").trim()) {
+          setPrevAddress({ zip: ep.place_zip, prefecture: ep.place_prefecture, city: ep.place_city, town: ep.place_town, address: ep.place_address });
+        }
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -8779,7 +8777,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
             <LFWizCard>
               <div style={{ position:"relative" }}>
-                {/* 前回の入力を復元（2026-07-16）：直近の求人に住所があれば右上に出す。初めての求人なら非表示 */}
+                {/* 作業場所を復元（2026-07-16）：農家プロフィールの作業場所が設定済みなら右上に出す。未設定なら非表示 */}
                 {prevAddress && (
                   <button onClick={() => {
                     setFarmerZip(prevAddress.zip || "");
@@ -8789,7 +8787,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     setFarmerAddr(prevAddress.address || "");
                     setFarmerRegion((prevAddress.prefecture || "") + (prevAddress.city || "") + (prevAddress.town || ""));
                     setZipError("");
-                  }} className="f-sans" style={{ position:"absolute", top:-4, right:0, zIndex:1, display:"flex", alignItems:"center", gap:5, padding:"7px 12px", borderRadius:20, border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>⎘ 前回の住所を復元</button>
+                  }} className="f-sans" style={{ position:"absolute", top:-4, right:0, zIndex:1, display:"flex", alignItems:"center", gap:5, padding:"7px 12px", borderRadius:20, border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>⎘ 作業場所を復元</button>
                 )}
                 <label className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
                 <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:8 }}>
@@ -12032,8 +12030,30 @@ function ToggleSwitch({ checked, onChange, label }) {
 }
 function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [nickname, setNickname] = useState("");
-  const [pr, setPr] = useState("");
+  const [pr, setPr] = useState(""); // 紹介・PRボックスは廃止（2026-07-16）。既存データ保全のためstateと保存は温存
   const [avatarUrl, setAvatarUrl] = useState("");
+  // 作業場所（集合場所の既定値・紹介PRボックスの差し替え・2026-07-16）。求人フローstep3の復元ボタンがここを読む
+  const [placeZip, setPlaceZip] = useState("");
+  const [placePref, setPlacePref] = useState("");
+  const [placeCity, setPlaceCity] = useState("");
+  const [placeTown, setPlaceTown] = useState("");
+  const [placeAddr, setPlaceAddr] = useState("");
+  const [placeZipBusy, setPlaceZipBusy] = useState(false);
+  const [placeZipError, setPlaceZipError] = useState("");
+  const searchPlaceZip = async () => {
+    const zip = placeZip.replace(/[^0-9]/g, "");
+    if (zip.length !== 7) { setPlaceZipError("郵便番号は7桁で入力してください"); return; }
+    setPlaceZipBusy(true); setPlaceZipError("");
+    try {
+      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
+      const data = await res.json();
+      if (data.status === 200 && data.results) {
+        const r = data.results[0];
+        setPlacePref(r.address1); setPlaceCity(r.address2); setPlaceTown(r.address3 || "");
+      } else { setPlaceZipError("郵便番号が見つかりませんでした"); }
+    } catch { setPlaceZipError("検索に失敗しました。通信環境をご確認ください"); }
+    setPlaceZipBusy(false);
+  };
   const [hasTransport, setHasTransport] = useState(false);
   const [hasParking, setHasParking] = useState(false);
   const [hasCommuteAllowance, setHasCommuteAllowance] = useState(false);
@@ -12068,6 +12088,8 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         if (data) {
           setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || "");
+          setPlaceZip(data.place_zip || ""); setPlacePref(data.place_prefecture || ""); setPlaceCity(data.place_city || "");
+          setPlaceTown(data.place_town || ""); setPlaceAddr(data.place_address || "");
           setHasTransport(data.has_transport ?? false);
           setHasParking(data.has_parking ?? false);
           setHasCommuteAllowance(data.has_commute_allowance ?? false);
@@ -12178,9 +12200,9 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
-  const BOX_ORDER = ["avatar","nickname","pr","perks","staff","intro","ask","style"];
+  const BOX_ORDER = ["avatar","nickname","place","perks","staff","intro","ask","style"];
   const boxFilled = (k) => (
-    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!nickname.trim() : k === "pr" ? !!pr.trim()
+    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!nickname.trim() : k === "place" ? !!placeCity.trim()
     : k === "perks" ? perksOn.length > 0 : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
   );
@@ -12200,6 +12222,8 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       if (!session) { setSaving(false); return; }
       const { error } = await supabase.from("employer_profiles").upsert({
         auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(),
+        place_zip: placeZip.trim(), place_prefecture: placePref.trim(), place_city: placeCity.trim(),
+        place_town: placeTown.trim(), place_address: placeAddr.trim(),
         has_transport: hasTransport, has_parking: hasParking, has_commute_allowance: hasCommuteAllowance,
         has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
@@ -12255,7 +12279,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16）
           { k:"avatar",   e:"🖼️", l:"ロゴ・アイコン", req:true, v: avatarUrl ? "設定済み" : "" },
           { k:"nickname", e:"✏️", l:"農園名",         req:true, v: nickname },
-          { k:"pr",       e:"📝", l:"紹介・PR",       req:true, v: pr },
+          { k:"place",    e:"📍", l:"作業場所",       req:true, v: [placePref, placeCity, placeTown].filter(Boolean).join("") },
           { k:"perks",    e:"🎁", l:"共通条件",       v: perksOn.join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
           { k:"intro",    e:"🏡", l:"農園紹介",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
@@ -12306,9 +12330,23 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：山川ファーム / 千歳農園" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       </>)}
 
-      {editBox==="pr" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>紹介・PR</label>
-      <textarea value={pr} onChange={e=>setPr(e.target.value)} placeholder="家族でブロッコリーを育てています。丁寧に教えます。" rows={4} className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }} />
+      {editBox==="place" && (<>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>作業場所（集合場所の既定値）</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:10, lineHeight:1.6 }}>求人作成の集合場所で「復元」を押すと、ここの住所が入ります。番地・建物名は公開されません。</p>
+      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>郵便番号</label>
+      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+        <input value={placeZip} onChange={e=>{ setPlaceZip(e.target.value); setPlaceZipError(""); }} placeholder="例：779-3401" className="field f-sans" style={{ flex:1, fontSize:14, marginBottom:0 }} />
+        <button onClick={searchPlaceZip} disabled={placeZipBusy} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:12, fontWeight:600, cursor: placeZipBusy ? "default" : "pointer", whiteSpace:"nowrap" }}>{placeZipBusy ? "検索中..." : "住所を検索"}</button>
+      </div>
+      {placeZipError && <p className="f-sans" style={{ fontSize:12, color:"#E53935", marginBottom:8 }}>{placeZipError}</p>}
+      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>都道府県</label>
+      <input value={placePref} onChange={e=>setPlacePref(e.target.value)} placeholder="例：徳島県" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
+      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>市区町村</label>
+      <input value={placeCity} onChange={e=>setPlaceCity(e.target.value)} placeholder="例：吉野川市" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
+      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>町域</label>
+      <input value={placeTown} onChange={e=>setPlaceTown(e.target.value)} placeholder="例：山川町〇〇" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
+      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>番地・建物名</label>
+      <input value={placeAddr} onChange={e=>setPlaceAddr(e.target.value)} placeholder="例：1-2-3 〇〇ハイツ101" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       </>)}
 
       {editBox==="perks" && (<>
@@ -12639,11 +12677,11 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   // 未設定の項目数（編集ページの8ボックス基準）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
-  // 核（アイコン・農園名・自己紹介）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ
+  // 核（アイコン・農園名・作業場所）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（紹介PR→作業場所に差替・2026-07-16）
   const empUnsetReq = empMini ? [
     !!empMini.avatar_url,
     !!(empMini.nickname || "").trim(),
-    !!(empMini.pr || "").trim(),
+    !!(empMini.place_city || "").trim(),
   ].filter(x => !x).length : 3;
   const empUnsetCount = empMini ? empUnsetReq + [
     !!(empMini.has_transport || empMini.has_parking || empMini.has_commute_allowance || empMini.has_bonus || empMini.employer_pays_supplies || empMini.accessory_ok),
