@@ -7221,17 +7221,24 @@ function JobSearchMapView({ onRegister, me }) {
               </div>
               )}
 
-              {/* 経験・持ち物・備考（配列駆動・未入力は「ー」） */}
+              {/* 経験・持ち物・備考（配列駆動・未入力は「ー」）。希望する働き手は削除・必要経験と持ち物はバッジ表示（2026-07-16・確認/プレビューと同設計） */}
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                 {[
-                  { label:"必要経験",       value: disp(selectedJob.experience) },
-                  { label:"希望する働き手", value: disp(selectedJob.wanted) },
-                  { label:"持ち物",         value: disp(selectedJob.items) },
-                  { label:"備考・注意",     value: disp(selectedJob.cautions) },
+                  { label:"必要経験",   value: disp(selectedJob.experience), chips:true },
+                  { label:"持ち物",     value: disp(selectedJob.items), chips:true, pin:true },
+                  { label:"備考・注意", value: disp(selectedJob.cautions) },
                 ].map(row => (
                   <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                     <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
-                    <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
+                    {row.chips && row.value !== "ー"
+                      ? (
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2 }}>
+                          {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
+                            <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin ? "📌 " : ""}{c}</span>
+                          ))}
+                        </div>
+                      )
+                      : <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>}
                   </div>
                 ))}
               </div>
