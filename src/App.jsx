@@ -4810,6 +4810,27 @@ function YesNoPill({ label, value, onChange }) {
 const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }];
 const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }];
 
+// 日程ラベル（確認ページのjobDateLabelと同一仕様・2026-07-16）：
+// 年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
+function dateRangeLabel(startStr, endStr) {
+  if (!startStr) return "";
+  const parse = (s) => { const [y, m, d] = String(s).slice(0, 10).split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+  const WD = ["日","月","火","水","木","金","土"];
+  const fmt = (d, opts = {}) => {
+    const w = WD[d.getDay()];
+    if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
+    if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}（${w}）`;
+  };
+  const start = parse(startStr);
+  const end = endStr ? parse(endStr) : start;
+  const thisYear = new Date().getFullYear();
+  const inYear = start.getFullYear() === thisYear && end.getFullYear() === thisYear;
+  if (start.toDateString() === end.toDateString()) return fmt(start, { omitYear: inYear });
+  const sameMonth = inYear && start.getMonth() === end.getMonth();
+  return `${fmt(start, { omitYear: inYear })} 〜 ${fmt(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
+}
+
 // jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
 // さがす一覧・求人詳細・管理者プレビューで共通利用
 function mapJobPublicRow(j) {
@@ -4817,7 +4838,8 @@ function mapJobPublicRow(j) {
     id: j.job_number,
     crop: j.crop || "",
     task: j.task || "",
-    dateLabel: j.date_label || "",
+    // date_start/date_endから確認ページと同じ仕様で組み立て。日付列が無い旧データは保存済みラベルへフォールバック
+    dateLabel: dateRangeLabel(j.date_start, j.date_end) || (j.date_label || ""),
     payType: j.pay_type === "日給" ? "daily" : "hourly",
     pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
     town: j.town || "",
