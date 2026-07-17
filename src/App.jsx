@@ -8217,6 +8217,26 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [showTask2, setShowTask2] = useState(false);
   const [confActiveSlide, setConfActiveSlide] = useState(0);
   const confScrollRef = useRef(null);
+  // 確認ページ写真のループ（2026-07-16・詳細ページと同方式）：[最後,...実写真,最初]のクローンを並べ、端に静止したら実体位置へ瞬間ジャンプ
+  const confLooped = jobPhotos.length > 1;
+  const handleConfPhotoScroll = (e) => {
+    const el = e.currentTarget;
+    const w = el.clientWidth;
+    if (!w) return;
+    const idx = Math.round(el.scrollLeft / w);
+    if (!confLooped) { setConfActiveSlide(idx); return; }
+    const n = jobPhotos.length;
+    const settled = Math.abs(el.scrollLeft - idx * w) < 2;
+    if (settled && idx === 0) { el.scrollLeft = n * w; setConfActiveSlide(n - 1); return; }
+    if (settled && idx === n + 1) { el.scrollLeft = w; setConfActiveSlide(0); return; }
+    setConfActiveSlide(((idx - 1) % n + n) % n);
+  };
+  useEffect(() => {
+    if (step !== 11 || !confLooped) return;
+    const el = confScrollRef.current;
+    if (el) requestAnimationFrame(() => { el.scrollLeft = el.clientWidth; }); // 初期位置＝実写真1枚目（クローンの次）
+    setConfActiveSlide(0);
+  }, [step, confLooped]); // eslint-disable-line react-hooks/exhaustive-deps
   const captionTextareaRef = useRef(null);
   const flowScrollRef = useRef(null); // スクロール領域（step遷移時に先頭へ戻す用）
 
@@ -9441,9 +9461,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       {/* 白落ち対策（2026-07-16）：iOS Safariでtransformアニメ中の親内のスナップスクロール画像が
                           白く描画されない事象への対処。translateZ(0)で各スライドを独立レイヤーに昇格（☰固定バグと同じ処方）。
                           画像URLが読めない場合は📷プレースホルダーが出る（真っ白のまま原因不明、を防ぐ） */}
-                      <div ref={confScrollRef} onScroll={e => { const w = e.currentTarget.offsetWidth; if (w > 0) setConfActiveSlide(Math.round(e.currentTarget.scrollLeft / w)); }} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x", overscrollBehaviorX:"contain" }}>
+                      <div ref={confScrollRef} onScroll={handleConfPhotoScroll} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x", overscrollBehaviorX:"contain" }}>
                         {jobPhotos.length > 0
-                          ? jobPhotos.map((p, i) => (
+                          ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => (
                               <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
                                 <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>
                                 <img src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
