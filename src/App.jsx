@@ -4810,6 +4810,15 @@ function YesNoPill({ label, value, onChange }) {
 const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }];
 const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }];
 
+// 写真配列の正規化（2026-07-16）：旧形式（"url"文字列）が混ざると確認ページ等の p.url が
+// undefined になり真っ白なスライドが出るため、復元・再開の境界で必ず {url, caption} に揃える。
+// url の無い壊れた要素は除外する
+function normalizePhotos(arr) {
+  return (Array.isArray(arr) ? arr : [])
+    .map(p => (typeof p === "string" ? { url: p } : p))
+    .filter(p => p && typeof p.url === "string" && p.url.trim());
+}
+
 // 日程ラベル（確認ページのjobDateLabelと同一仕様・2026-07-16）：
 // 年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
 function dateRangeLabel(startStr, endStr) {
@@ -8145,7 +8154,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [breakTime, setBreakTime] = useState(d.breakTime ?? "");
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
   const [nearestStation, setNearestStation] = useState(d.nearestStation ?? "");
-  const [jobPhotos, setJobPhotos] = useState(d.jobPhotos ?? []);
+  const [jobPhotos, setJobPhotos] = useState(normalizePhotos(d.jobPhotos)); // 旧形式draft対策（真っ白バグ・2026-07-16）
   const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [photoCaptionsOpen, setPhotoCaptionsOpen] = useState(false); // step8「写真ごとに説明」ポップアップ（2026-07-16）
@@ -8305,7 +8314,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setJobCautions(data.cautions ?? "");
         setJobDangerPlaces(data.danger_places ?? []);
         setJobDangerTasks(data.danger_tasks ?? []);
-        setJobPhotos(data.photos ?? []);
+        setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
         setStep(data.draft_step != null ? data.draft_step : 11);
       } catch {}
     })();
@@ -9373,11 +9382,15 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       <button onClick={() => { setReturnToConfirm(true); setStep(7); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
                     <div style={{ position:"relative", maxWidth:870, margin:"0 auto" }}>
-                      <div ref={confScrollRef} onScroll={e => { const w = e.currentTarget.offsetWidth; if (w > 0) setConfActiveSlide(Math.round(e.currentTarget.scrollLeft / w)); }} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12 }}>
+                      {/* 白落ち対策（2026-07-16）：iOS Safariでtransformアニメ中の親内のスナップスクロール画像が
+                          白く描画されない事象への対処。translateZ(0)で各スライドを独立レイヤーに昇格（☰固定バグと同じ処方）。
+                          画像URLが読めない場合は📷プレースホルダーが出る（真っ白のまま原因不明、を防ぐ） */}
+                      <div ref={confScrollRef} onScroll={e => { const w = e.currentTarget.offsetWidth; if (w > 0) setConfActiveSlide(Math.round(e.currentTarget.scrollLeft / w)); }} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)" }}>
                         {jobPhotos.length > 0
                           ? jobPhotos.map((p, i) => (
-                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start" }}>
-                                <img src={p.url} alt={`写真${i+1}`} style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
+                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
+                                <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>
+                                <img src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
                                 {p.caption && (
                                   <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:14, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
                                 )}
