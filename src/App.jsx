@@ -4930,6 +4930,8 @@ function mapJobPublicRow(j) {
     task: j.task || "",
     // date_start/date_endから確認ページと同じ仕様で組み立て。日付列が無い旧データは保存済みラベルへフォールバック
     dateLabel: dateRangeLabel(j.date_start, j.date_end) || (j.date_label || ""),
+    dateStartRaw: j.date_start || "",
+    dateEndRaw: j.date_end || "",
     // 新着＝掲載（status→open遷移）から3日間（2026-07-16・jobs.opened_atはDBトリガーが刻む）
     isNew: !!j.opened_at && (Date.now() - new Date(j.opened_at).getTime()) < 3 * 24 * 60 * 60 * 1000,
     payType: j.pay_type === "日給" ? "daily" : "hourly",
@@ -6788,6 +6790,12 @@ function JobCard({ job, variant, saved, onToggleSave }) {
       )}
       {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16） */}
       {job.isNew && <StatusRibbonLeft label="新着" color="#E24B4A" />}
+      {/* 開始日チップ：写真右下（2026-07-16）。期間ものは「〜」付き */}
+      {job.dateStartRaw && (
+        <span className="f-sans" style={{ position:"absolute", top: photoHeight - 34, right:8, zIndex:2, padding:"4px 10px", borderRadius:20, background:"rgba(255,255,255,0.92)", color:"#222", fontSize:11, fontWeight:700, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>
+          {dateRangeLabel(job.dateStartRaw)}{job.dateEndRaw && job.dateEndRaw !== job.dateStartRaw ? "〜" : ""}
+        </span>
+      )}
       {topSrc ? (
         <img src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius }} />
       ) : (
