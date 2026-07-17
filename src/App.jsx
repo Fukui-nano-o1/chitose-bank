@@ -9384,7 +9384,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
                     <div className="job-detail-info-grid">
                       {[
-                        { label:"日程",     value: jobDateLabel !== "日程を選択してください" ? jobDateLabel : "", editStep:4 },
+                        // 期間ものは「〜終了日」を下段に折り返す（2026-07-16・whiteSpace:pre-lineで改行）
+                        { label:"日程",     value: jobDateLabel !== "日程を選択してください" ? jobDateLabel.replace("〜", "\n〜") : "", editStep:4 },
                         { label:"勤務時間", value: workTimeLabel, editStep:5 },
                         { label:"休憩時間", value: breakTime, editStep:5 },
                         { label:"採用人数", value: jobCount ? `${jobCount}人` : "", editStep:4 },
@@ -9397,7 +9398,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                             {row.label}
                             <button onClick={() => { setReturnToConfirm(true); setStep(row.editStep); }} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                           </span>
-                          <span className="f-sans" style={{ fontSize:15, color: row.value ? "#222" : "#B0B0B0", fontWeight: row.value ? 600 : 400, lineHeight:1.6 }}>{row.value || "未設定"}</span>
+                          <span className="f-sans" style={{ fontSize:15, color: row.value ? "#222" : "#B0B0B0", fontWeight: row.value ? 600 : 400, lineHeight:1.6, whiteSpace:"pre-line" }}>{row.value || "未設定"}</span>
                         </div>
                       ))}
                     </div>
