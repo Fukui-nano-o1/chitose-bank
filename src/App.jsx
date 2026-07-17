@@ -8376,6 +8376,53 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     })();
     return () => { cancelled = true; };
   }, [step, isFarmer]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 農家プロの作業場所が未入力のとき：⎘タップでこの入力ボックスを展開し、保存で「農家プロ＋求人フロー」両方へ反映（2026-07-16）
+  const [placeBoxOpen, setPlaceBoxOpen] = useState(false);
+  const [pbZip, setPbZip] = useState("");
+  const [pbPref, setPbPref] = useState("");
+  const [pbCity, setPbCity] = useState("");
+  const [pbTown, setPbTown] = useState("");
+  const [pbAddr, setPbAddr] = useState("");
+  const [pbBusy, setPbBusy] = useState(false);
+  const [pbErr, setPbErr] = useState("");
+  const [pbSaving, setPbSaving] = useState(false);
+  const searchPbZip = async () => {
+    const zip = pbZip.replace(/[^0-9]/g, "");
+    if (zip.length !== 7) { setPbErr("郵便番号は7桁で入力してください"); return; }
+    setPbBusy(true); setPbErr("");
+    try {
+      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
+      const data = await res.json();
+      if (data.status === 200 && data.results) {
+        const r = data.results[0];
+        setPbPref(r.address1); setPbCity(r.address2); setPbTown(r.address3 || "");
+      } else { setPbErr("郵便番号が見つかりませんでした"); }
+    } catch { setPbErr("検索に失敗しました。通信環境をご確認ください"); }
+    setPbBusy(false);
+  };
+  const savePlaceBox = async () => {
+    if (pbSaving) return;
+    setPbSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { alert("ログインが必要です"); setPbSaving(false); return; }
+      const { error } = await supabase.from("employer_profiles").upsert({
+        auth_id: session.user.id,
+        place_zip: pbZip.trim(), place_prefecture: pbPref.trim(), place_city: pbCity.trim(),
+        place_town: pbTown.trim(), place_address: pbAddr.trim(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "auth_id" });
+      if (error) { alert("保存に失敗しました：" + error.message); setPbSaving(false); return; }
+      // 求人フロー側の集合場所にも反映
+      setFarmerZip(pbZip.trim()); setFarmerPref(pbPref.trim()); setFarmerCity(pbCity.trim());
+      setFarmerTown(pbTown.trim()); setFarmerAddr(pbAddr.trim());
+      setFarmerRegion(pbPref.trim() + pbCity.trim() + pbTown.trim());
+      setZipError("");
+      setPrevAddress({ zip: pbZip.trim(), prefecture: pbPref.trim(), city: pbCity.trim(), town: pbTown.trim(), address: pbAddr.trim() });
+      setPlaceBoxOpen(false);
+    } catch (e) { alert("保存に失敗しました"); }
+    setPbSaving(false);
+  };
   useEffect(() => {
     if (!_editJobNumber) return;
     (async () => {
@@ -8773,14 +8820,44 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           </>)}
 
           {isFarmer && step === 3 && (<>
+            {/* 農家プロの作業場所ボックス（未設定時に⎘から展開・2026-07-16）。保存＝農家プロ＋この画面の両方へ反映 */}
+            {placeBoxOpen && (
+              <div onClick={()=>setPlaceBoxOpen(false)} style={{ position:"fixed", inset:0, zIndex:700, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+                <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+                    <button onClick={()=>setPlaceBoxOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>📍 作業場所（農家プロフィール）</p>
+                  </div>
+                  <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:16 }}>
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.7 }}>プロフィールに作業場所が未設定です。保存すると、農家プロフィールとこの求人の集合場所の両方に入ります。</p>
+                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>郵便番号</label>
+                    <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                      <input value={pbZip} onChange={e=>{ setPbZip(e.target.value); setPbErr(""); }} placeholder="例：779-3401" className="field f-sans" style={{ flex:1, fontSize:14, marginBottom:0 }} />
+                      <button onClick={searchPbZip} disabled={pbBusy} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:12, fontWeight:600, cursor: pbBusy ? "default" : "pointer", whiteSpace:"nowrap" }}>{pbBusy ? "検索中..." : "住所を検索"}</button>
+                    </div>
+                    {pbErr && <p className="f-sans" style={{ fontSize:12, color:"#E53935", marginBottom:8 }}>{pbErr}</p>}
+                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>都道府県</label>
+                    <input value={pbPref} onChange={e=>setPbPref(e.target.value)} placeholder="例：徳島県" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
+                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>市区町村</label>
+                    <input value={pbCity} onChange={e=>setPbCity(e.target.value)} placeholder="例：吉野川市" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
+                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>町域</label>
+                    <input value={pbTown} onChange={e=>setPbTown(e.target.value)} placeholder="例：山川町〇〇" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
+                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>番地・建物名</label>
+                    <input value={pbAddr} onChange={e=>setPbAddr(e.target.value)} placeholder="例：1-2-3 〇〇ハイツ101" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+                    <button onClick={savePlaceBox} disabled={pbSaving || !pbCity.trim()} className="btn-primary f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, opacity: (pbSaving || !pbCity.trim()) ? 0.5 : 1 }}>{pbSaving ? "保存中..." : "保存する"}</button>
+                  </div>
+                </div>
+              </div>
+            )}
             <h2 className="f-sans" style={lfStyles.stepTitle}>集合場所を入力してください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
 
             <LFWizCard>
               <div style={{ position:"relative" }}>
-                {/* 作業場所を復元（2026-07-16）：農家プロフィールの作業場所が設定済みなら右上に出す。未設定なら非表示 */}
-                {prevAddress && (
-                  <button onClick={() => {
+                {/* ⎘＝作業場所の復元マーク（2026-07-16・マークのみ）。プロフィール設定済み=タップで復元／
+                    未設定=タップで作業場所の入力ボックスを展開（保存で農家プロ＋この画面の両方へ反映） */}
+                <button onClick={() => {
+                  if (prevAddress) {
                     setFarmerZip(prevAddress.zip || "");
                     setFarmerPref(prevAddress.prefecture || "");
                     setFarmerCity(prevAddress.city || "");
@@ -8788,8 +8865,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     setFarmerAddr(prevAddress.address || "");
                     setFarmerRegion((prevAddress.prefecture || "") + (prevAddress.city || "") + (prevAddress.town || ""));
                     setZipError("");
-                  }} className="f-sans" style={{ position:"absolute", top:-4, right:0, zIndex:1, display:"flex", alignItems:"center", gap:5, padding:"7px 12px", borderRadius:20, border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>⎘ 作業場所を復元</button>
-                )}
+                  } else {
+                    setPbZip(farmerZip); setPbPref(farmerPref); setPbCity(farmerCity); setPbTown(farmerTown); setPbAddr(farmerAddr);
+                    setPbErr("");
+                    setPlaceBoxOpen(true);
+                  }
+                }} aria-label="作業場所を復元" className="f-sans" style={{ position:"absolute", top:-4, right:0, zIndex:1, width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:16, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>⎘</button>
                 <label className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
                 <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:8 }}>
                   <input
