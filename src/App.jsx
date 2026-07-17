@@ -12796,6 +12796,29 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       try { if (sessionStorage.getItem("cb_afterDraftSave")==="1") { setJobTab("draft"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
     })();
   }, []);
+  // 応募者タブを開くたびに応募の最新statusを取り直す（2026-07-16）。
+  // 初回マウント時の1回だけだと、働き手側の操作（終了打刻→completed等）が進んでも
+  // カードの帯が古いまま（契約のまま）になるため
+  useEffect(() => {
+    if (jobTab !== "applicants") return;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data: appData } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at", { ascending: false });
+        if (!appData) return;
+        setDbApplicants(appData);
+        // 新しく増えた応募者のプロフィールも補充
+        const missing = [...new Set(appData.map(a => a.worker_id).filter(Boolean))].filter(id => !workerProfiles[id]);
+        if (missing.length > 0) {
+          const { data: wpData } = await supabase.from("worker_profiles").select("*").in("auth_id", missing);
+          if (wpData && wpData.length > 0) {
+            setWorkerProfiles(prev => { const m = { ...prev }; wpData.forEach(wp => { m[wp.auth_id] = wp; }); return m; });
+          }
+        }
+      } catch {}
+    })();
+  }, [jobTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const JOB_TABS = [
     { k:"profile", l:"プロフィール" },
     { k:"draft",   l:"作成中" },
