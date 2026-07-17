@@ -2479,8 +2479,9 @@ function Carousel({ children, style, className, wrapperStyle, onScroll, scroller
         <button onClick={() => scroll(-1)} className="f-sans"
           style={{ ...btnStyle, left:-16 }}>‹</button>
       )}
-      {/* touchAction:pan-x（2026-07-16）：カルーセル上のスワイプで縦スクロールが同時に動かないよう横専用に固定 */}
-      <div ref={(el)=>{ ref.current = el; if (scrollerRef) scrollerRef.current = el; }} className={className} style={{ touchAction:"pan-x", overscrollBehaviorX:"contain", ...style }} onScroll={handleScroll}>
+      {/* touchAction:pan-x pan-y（2026-07-16）：横ドラッグ=カルーセル／縦ドラッグ=ページスクロールに変換。
+          最初の指の向きでブラウザが軸を1つに確定するため、斜めに両方動く事故は起きない */}
+      <div ref={(el)=>{ ref.current = el; if (scrollerRef) scrollerRef.current = el; }} className={className} style={{ touchAction:"pan-x pan-y", overscrollBehaviorX:"contain", ...style }} onScroll={handleScroll}>
         {children}
       </div>
       {!atRight && (
@@ -9463,7 +9464,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       {/* 白落ち対策（2026-07-16）：iOS Safariでtransformアニメ中の親内のスナップスクロール画像が
                           白く描画されない事象への対処。translateZ(0)で各スライドを独立レイヤーに昇格（☰固定バグと同じ処方）。
                           画像URLが読めない場合は📷プレースホルダーが出る（真っ白のまま原因不明、を防ぐ） */}
-                      <div ref={confScrollRef} onScroll={handleConfPhotoScroll} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x", overscrollBehaviorX:"contain" }}>
+                      <div ref={confScrollRef} onScroll={handleConfPhotoScroll} style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x pan-y", overscrollBehaviorX:"contain" }}>
                         {jobPhotos.length > 0
                           ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => (
                               <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:391, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
