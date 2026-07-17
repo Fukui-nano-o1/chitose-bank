@@ -4839,7 +4839,7 @@ function perkBadges(ep) {
     ep.has_parking && "🅿️ 駐車場",
     ep.has_commute_allowance && "🚃 通勤手当",
     ep.has_bonus && "🎁 賞与",
-    ep.employer_pays_supplies && "🧤 持ち物は農家負担",
+    ep.employer_pays_supplies && ("🧤 持ち物は農家負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "")),
     ep.accessory_ok && "💍 アクセサリーOK",
   ].filter(Boolean);
 }
@@ -7246,7 +7246,7 @@ function JobSearchMapView({ onRegister, me }) {
                   { label:"駐車場",   on: empEmployer.has_parking,          value: empEmployer.has_parking ? `あり${empEmployer.parking_capacity ? "（" + empEmployer.parking_capacity + "台）" : ""}` : EMPTY_MARK },
                   { label:"通勤手当", on: empEmployer.has_commute_allowance, value: empEmployer.has_commute_allowance ? `あり${empEmployer.commute_allowance_detail ? "（" + empEmployer.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
                   { label:"賞与",     on: empEmployer.has_bonus,            value: empEmployer.has_bonus ? "あり" : EMPTY_MARK },
-                  { label:"持ち物",   on: empEmployer.employer_pays_supplies, value: empEmployer.employer_pays_supplies ? "農家負担" : EMPTY_MARK },
+                  { label:"農家負担", on: empEmployer.employer_pays_supplies, value: empEmployer.employer_pays_supplies ? `あり${empEmployer.supplies_cap ? "（" + empEmployer.supplies_cap + "）" : ""}` : EMPTY_MARK },
                   { label:"アクセサリー", on: empEmployer.accessory_ok,          value: empEmployer.accessory_ok ? "OK" : EMPTY_MARK },
                 ];
                 return (
@@ -9513,7 +9513,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       { label:"駐車場",   on: confEmployer.has_parking,          value: confEmployer.has_parking ? `あり${confEmployer.parking_capacity ? "（" + confEmployer.parking_capacity + "台）" : ""}` : EMPTY_MARK },
                       { label:"通勤手当", on: confEmployer.has_commute_allowance, value: confEmployer.has_commute_allowance ? `あり${confEmployer.commute_allowance_detail ? "（" + confEmployer.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
                       { label:"賞与",     on: confEmployer.has_bonus,            value: confEmployer.has_bonus ? "あり" : EMPTY_MARK },
-                      { label:"持ち物",   on: confEmployer.employer_pays_supplies, value: confEmployer.employer_pays_supplies ? "農家負担" : EMPTY_MARK },
+                      { label:"農家負担", on: confEmployer.employer_pays_supplies, value: confEmployer.employer_pays_supplies ? `あり${confEmployer.supplies_cap ? "（" + confEmployer.supplies_cap + "）" : ""}` : EMPTY_MARK },
                       { label:"アクセサリー", on: confEmployer.accessory_ok,          value: confEmployer.accessory_ok ? "OK" : EMPTY_MARK },
                     ];
                     return (
@@ -11955,6 +11955,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [accessoryOk, setAccessoryOk] = useState(false);
   const [parkingCapacity, setParkingCapacity] = useState("");
   const [commuteAllowanceDetail, setCommuteAllowanceDetail] = useState("");
+  const [suppliesCap, setSuppliesCap] = useState(""); // 持ち物農家負担の上限設定（例：上限1,000円まで・2026-07-16）
   const [transportArea, setTransportArea] = useState("");
   const [introPath, setIntroPath] = useState("");
   const [introJoy, setIntroJoy] = useState("");
@@ -11988,6 +11989,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           setAccessoryOk(data.accessory_ok ?? false);
           setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
           setCommuteAllowanceDetail(data.commute_allowance_detail || "");
+          setSuppliesCap(data.supplies_cap || "");
           setTransportArea(data.transport_area || "");
           setIntroPath(data.intro_path ?? "");
           setIntroJoy(data.intro_joy ?? "");
@@ -12115,6 +12117,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
         commute_allowance_detail: hasCommuteAllowance ? (commuteAllowanceDetail || null) : null,
+        supplies_cap: employerPaysSupplies ? (suppliesCap.trim() || "") : "",
         transport_area: hasTransport ? (transportArea || null) : null,
         intro_path: introPath || null,
         intro_joy: introJoy || null,
@@ -12251,7 +12254,14 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           )}
         </div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="賞与" checked={hasBonus} onChange={setHasBonus} /></div>
-        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}>
+          <ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} />
+          {employerPaysSupplies && (
+            <div style={{ marginLeft:16, paddingBottom:12 }}>
+              <input value={suppliesCap} onChange={e=>setSuppliesCap(e.target.value)} placeholder="上限の設定（例：上限1,000円まで / 軍手・長靴のみ）" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+            </div>
+          )}
+        </div>
         <div><ToggleSwitch label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
       </>)}
