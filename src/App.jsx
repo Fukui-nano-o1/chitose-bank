@@ -9503,8 +9503,16 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     {(() => {
                       const v = confExtraTab === "必要経験" ? jobExp : confExtraTab === "持ち物" ? jobNotes : jobCautions;
                       const has = v && String(v).trim();
+                      if (!has) return <p className="f-sans" style={{ fontSize:15, color:"#B0B0B0", lineHeight:1.7, margin:0 }}>未設定</p>;
+                      // 必要経験・持ち物はバッジ表示（2026-07-16・区切り文字で分割）。備考・注意は文章のまま
+                      if (confExtraTab === "備考・注意") return <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{v}</p>;
+                      const chips = String(v).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean);
                       return (
-                        <p className="f-sans" style={{ fontSize:15, color: has ? "#222" : "#B0B0B0", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{has ? v : "未設定"}</p>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                          {chips.map((c, i) => (
+                            <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{confExtraTab === "持ち物" ? "📌 " : ""}{c}</span>
+                          ))}
+                        </div>
                       );
                     })()}
                   </div>
@@ -10173,17 +10181,24 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           </div>
           )}
 
-          {/* 経験・持ち物・備考（配列駆動・未入力は「ー」） */}
+          {/* 経験・持ち物・備考（配列駆動・未入力は「ー」）。希望する働き手は削除・必要経験と持ち物はバッジ表示（2026-07-16） */}
           <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
             {[
-              { label:"必要経験",       value: disp(job.experience) },
-              { label:"希望する働き手", value: disp(job.wanted) },
-              { label:"持ち物",         value: disp(job.items) },
-              { label:"備考・注意",     value: disp(job.cautions) },
+              { label:"必要経験",   value: disp(job.experience), chips:true },
+              { label:"持ち物",     value: disp(job.items), chips:true, pin:true },
+              { label:"備考・注意", value: disp(job.cautions) },
             ].map(row => (
               <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                 <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
-                <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
+                {row.chips && row.value !== "ー"
+                  ? (
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2 }}>
+                      {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
+                        <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"5px 12px" }}>{row.pin ? "📌 " : ""}{c}</span>
+                      ))}
+                    </div>
+                  )
+                  : <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>}
               </div>
             ))}
           </div>
