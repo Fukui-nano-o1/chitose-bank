@@ -10650,6 +10650,21 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [pendingJobs, setPendingJobs] = useState([]);
   const [pendingPrs, setPendingPrs] = useState([]); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
   const [sheetPrId, setSheetPrId] = useState(null); // 自由記述審査：タップした働き手のボトムシート（auth_id）
+  // 全ての自由記述の展開一覧（2026-07-16）：農家プロフィールの自由記述は承認ゲートが無いため、審査タブで全件を目視できるようにする
+  const [empTexts, setEmpTexts] = useState([]);
+  useEffect(() => {
+    if (sub !== "jobs") return;
+    (async () => {
+      try {
+        const { data } = await supabase.from("employer_profiles")
+          .select("auth_id,nickname,avatar_url,updated_at,owner_comment,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,transport_area,commute_allowance_detail,supplies_cap,pr")
+          .order("updated_at", { ascending: false });
+        if (!data) return;
+        const hasText = (r) => [r.owner_comment, r.intro_path, r.intro_joy, r.intro_crops, r.intro_atmosphere, r.intro_message, r.unique_point, r.always_do, r.break_style, r.transport_area, r.commute_allowance_detail, r.supplies_cap, r.pr].some(t => t && String(t).trim());
+        setEmpTexts(data.filter(hasText));
+      } catch {}
+    })();
+  }, [sub]); // eslint-disable-line react-hooks/exhaustive-deps
   const [reports, setReports] = useState([]); // 通報（job_reports）
   const [disputes, setDisputes] = useState([]); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
   const [prPublishing, setPrPublishing] = useState(null);
@@ -11492,6 +11507,46 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               </button>
             ))}
           </div>
+          )}
+          {/* ── 農家プロフィールの自由記述（全件展開・2026-07-16）：承認ゲートが無い公開文のため、ここで全て目視できる ── */}
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 10px" }}>農家プロフィールの自由記述（全件・更新順）</p>
+          {empTexts.length === 0 ? (
+            <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>自由記述のある農家プロフィールはありません</p>
+          ) : (
+            <div style={{ display:"grid", gap:10 }}>
+              {empTexts.map(r => {
+                const fields = [
+                  { l:"代表より", v:r.owner_comment },
+                  { l:"就農するまで", v:r.intro_path },
+                  { l:"いま楽しいこと", v:r.intro_joy },
+                  { l:"どんな作物を、どんな想いで", v:r.intro_crops },
+                  { l:"職場の雰囲気", v:r.intro_atmosphere },
+                  { l:"初めての人へのメッセージ", v:r.intro_message },
+                  { l:"畑・農園のユニークなところ", v:r.unique_point },
+                  { l:"いつもしていること", v:r.always_do },
+                  { l:"休憩とお茶", v:r.break_style },
+                  { l:"送迎エリア", v:r.transport_area },
+                  { l:"通勤手当の内容", v:r.commute_allowance_detail },
+                  { l:"持ち物の上限設定", v:r.supplies_cap },
+                  { l:"旧・紹介PR", v:r.pr },
+                ].filter(f => f.v && String(f.v).trim());
+                return (
+                  <div key={r.auth_id} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                      <Avatar url={r.avatar_url} name={r.nickname || "？"} size={30} />
+                      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, flex:1 }}>{r.nickname || "（名前未設定）"}</p>
+                      {r.updated_at && <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{String(r.updated_at).slice(0, 10)}</span>}
+                    </div>
+                    {fields.map(f => (
+                      <div key={f.l} style={{ padding:"6px 0", borderTop:"1px solid #F7F7F7" }}>
+                        <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{f.l}</span>
+                        <span className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{f.v}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           )}
           {/* 自由記述のボトムシート（本文・Q&A・公開ボタン。公開後は一覧から消えて自動で閉じる） */}
           {(() => {
