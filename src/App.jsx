@@ -13019,8 +13019,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           const isPast = (j) => { const end = j.date_end || j.date_start; return !!end && end < todayYmd; };
           // 一時非公開（status=draftだが掲載歴opened_atあり）は作成中でなく公開中タブに帯付きで残す（2026-07-16）
           const isUnpublished = (j) => j.status === "draft" && !!j.opened_at;
-          setDbDrafts(allJobs.filter(j => j.status === "draft" && !j.opened_at && !isPast(j)));
-          setDbActive(allJobs.filter(j => (j.status === "pending" || j.status === "open" || isUnpublished(j)) && !isPast(j)));
+          // 作成中タブ＝作成中＋審査中／公開中タブ＝公開中＋一時非公開（2026-07-16たきと指定）
+          setDbDrafts(allJobs.filter(j => ((j.status === "draft" && !j.opened_at) || j.status === "pending") && !isPast(j)));
+          setDbActive(allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j)));
           setDbExpired(allJobs.filter(isPast));
         }
         const { data: appData, error: appErr } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
@@ -13514,19 +13515,32 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
           </div>
         ) : (
-          dbDrafts.map(d => {
-            const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+          (() => {
+            // 作成中と審査中をセクションで分離（2026-07-16）。審査中は閲覧のみ（再開/削除は作成中のみ）
+            const renderDraftCard = (d) => {
+              const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+              return (
+              <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft" })}
+                className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
+                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
+                  <StatusRibbon label={d.status === "pending" ? "審査中" : "作成中"} color={d.status === "pending" ? "#C77700" : "#8A6D1D"} />
+                </div>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
+              </button>
+              );
+            };
+            const making = dbDrafts.filter(d => d.status === "draft");
+            const pending = dbDrafts.filter(d => d.status === "pending");
             return (
-            <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: true })}
-              className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
-                <StatusRibbon label="作成中" color="#8A6D1D" />
-              </div>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
-            </button>
+              <>
+                {making.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#8A6D1D", margin:"0 0 -2px" }}>作成中（{making.length}）</p>}
+                {making.map(renderDraftCard)}
+                {pending.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#C77700", margin:"8px 0 -2px" }}>審査中（{pending.length}）</p>}
+                {pending.map(renderDraftCard)}
+              </>
             );
-          })
+          })()
         )}
             </div>
           </div>
@@ -13553,14 +13567,11 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               </div>
               );
             };
-            const pending = dbActive.filter(d => d.status === "pending");
             const open = dbActive.filter(d => d.status === "open");
             const unpub = dbActive.filter(d => d.status === "draft"); // 一時非公開（掲載歴あり）
             return (
               <>
-                {pending.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#C77700", margin:"0 0 -2px" }}>審査中（{pending.length}）</p>}
-                {pending.map(renderActiveJobCard)}
-                {open.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#00A86B", margin:"8px 0 -2px" }}>公開中（{open.length}）</p>}
+                {open.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 -2px" }}>公開中（{open.length}）</p>}
                 {open.map(renderActiveJobCard)}
                 {unpub.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#757575", margin:"8px 0 -2px" }}>一時非公開（{unpub.length}）</p>}
                 {unpub.map(renderActiveJobCard)}
