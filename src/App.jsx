@@ -8513,7 +8513,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       ["町域",                   !!farmerTown.trim()],
       ["作業日程（開始日）",       !!jobDateStart],
       ["採用人数",                Number(jobCount) > 0],
-      ["時給または日給（最低賃金以上）", (!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation],
+      ["日給（最低賃金以上）", (!!hourlyWageInput || !!dailyWageInput) && !hourlyViolation && !dailyViolation],
       ["休憩時間",                breakTime !== ""],
     ];
     return checks.filter(([, ok]) => !ok).map(([label]) => label);
@@ -8836,14 +8836,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div style={{ marginBottom:6 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>報酬</label>
               </div>
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>時給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
-                <input inputMode="numeric" value={hourlyWageInput} onChange={e => setHourlyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：1200" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
-                <LFWageCompare type="時給" value={hourlyWage} avg={AVG_HOURLY} count={AVG_COUNT} />
-                {hourlyViolation && (
-                  <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
-                )}
-              </div>
+              {/* 時給欄は削除（2026-07-16・日給に一本化）。変数hourlyWageInput・保存経路・最賃チェックは
+                  既存下書きの復元と表示のため温存（UIのみ撤去） */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
                 <input inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
