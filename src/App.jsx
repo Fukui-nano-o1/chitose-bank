@@ -8114,6 +8114,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [photoCaptionsOpen, setPhotoCaptionsOpen] = useState(false); // step8「写真ごとに説明」ポップアップ（2026-07-16）
+  const [confExtraTab, setConfExtraTab] = useState("必要経験"); // 確認ページ「経験・持ち物・備考」カードのタブ（2026-07-16）
   const [photoUploading, setPhotoUploading] = useState(false);
   const [jobDangerPlaces, setJobDangerPlaces] = useState((d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]).map(p => ({ photos:[], ...p })));
   const [jobDangerTasks, setJobDangerTasks] = useState((d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]).map(t => ({ photos:[], ...t })));
@@ -9463,22 +9464,34 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{jobDescription || tmpl.body}</p>
                   </div>
 
-                  {/* 経験・持ち物・備考カード（詳細ページと同じ配列駆動・未入力は「未設定」） */}
+                  {/* 経験・持ち物・備考カード：タブ切替式（2026-07-16）。未入力タブは「未設定」表示。
+                      希望する働き手は確認ページから削除済み（変数farmerWantedは保存・詳細表示で継続使用のため温存） */}
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
-                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
-                      <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                    </div>
-                    {/* 希望する働き手は確認ページから削除（2026-07-16）。変数farmerWantedは保存・詳細表示で継続使用のため温存 */}
-                    {[
-                      { label:"必要経験",       value: jobExp },
-                      { label:"持ち物",         value: jobNotes },
-                      { label:"備考・注意",     value: jobCautions },
-                    ].map(row => (
-                      <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                        <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{row.label}</span>
-                        <span className="f-sans" style={{ fontSize:15, color: (row.value && String(row.value).trim()) ? "#222" : "#B0B0B0", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{(row.value && String(row.value).trim()) ? row.value : "未設定"}</span>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:12 }}>
+                      <div style={{ display:"flex", gap:6, flex:1 }}>
+                        {[
+                          { label:"必要経験",   value: jobExp },
+                          { label:"持ち物",     value: jobNotes },
+                          { label:"備考・注意", value: jobCautions },
+                        ].map(t => (
+                          <button key={t.label} onClick={()=>setConfExtraTab(t.label)} className="f-sans" style={{
+                            flex:1, padding:"8px 0", borderRadius:10,
+                            border: confExtraTab===t.label ? "2px solid #222" : "1px solid #EBEBEB",
+                            background:"#fff", fontSize:12, fontWeight: confExtraTab===t.label ? 800 : 600,
+                            color: confExtraTab===t.label ? "#222" : ((t.value && String(t.value).trim()) ? "#717171" : "#C9C9C9"),
+                            cursor:"pointer", whiteSpace:"nowrap",
+                          }}>{t.label}</button>
+                        ))}
                       </div>
-                    ))}
+                      <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0, flexShrink:0 }}>編集</button>
+                    </div>
+                    {(() => {
+                      const v = confExtraTab === "必要経験" ? jobExp : confExtraTab === "持ち物" ? jobNotes : jobCautions;
+                      const has = v && String(v).trim();
+                      return (
+                        <p className="f-sans" style={{ fontSize:15, color: has ? "#222" : "#B0B0B0", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{has ? v : "未設定"}</p>
+                      );
+                    })()}
                   </div>
 
                   {/* 危険区域カード（詳細ページと同一構造：場所→作業・縦積み・全幅写真） */}
