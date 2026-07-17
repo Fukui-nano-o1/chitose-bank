@@ -8876,14 +8876,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <p className="f-sans" style={{ fontSize:16, color:"#222", lineHeight:1.7, margin:0 }}>ここから先は、入力しなくても求人を出せます。ですが、写真や作業の詳しい説明、勤務条件などを加えると、働き手が「ここで働きたい」と感じやすくなります。あなたの求人を、もっと魅力的にしましょう。</p>
                 </div>
               </div>
-              <div style={{ background:"#fff", border:"1px solid #EEE", borderRadius:16, overflow:"hidden", boxShadow:"0 4px 16px rgba(0,0,0,0.06)" }}>
-                <div style={{ height:200, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:80 }}>📸</div>
-                <div style={{ padding:"20px 24px 24px" }}>
-                  <p className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", margin:"0 0 6px" }}>写真・条件がそろった求人は</p>
-                  <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 12px" }}>働き手に選ばれやすくなります</p>
-                  <p className="f-mono" style={{ fontSize:20, fontWeight:700, color:"#00A86B", margin:0 }}>応募 ↑</p>
-                </div>
-              </div>
+              {/* 📸見本カードは削除（2026-07-16）：step0の見本カードと同じく、実在の求人と誤認されうるため */}
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", marginTop:24 }}>
               {!returnToConfirm && (
