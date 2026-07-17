@@ -9389,7 +9389,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         { label:"休憩時間", value: breakTime, editStep:5 },
                         { label:"採用人数", value: jobCount ? `${jobCount}人` : "", editStep:4 },
                         { label:"移動時間", value: stationLabel(nearestStation, commuteTime), editStep:3 },
-                        { label:"報酬",     value: rewardLabel !== "未設定" ? `${rewardLabel}${(payTiming || payMethod) ? "　" + [payTiming, payMethod].filter(Boolean).join("・") : ""}` : "", editStep:5 },
+                        {/* 報酬は金額だけ表示（2026-07-16）：支払いタイミング・支払方法を繋げると読みにくいため */}
+                        { label:"報酬",     value: rewardLabel !== "未設定" ? rewardLabel : "", editStep:5 },
                       ].map(row => (
                         <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
                           <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"flex", alignItems:"center", gap:6 }}>
