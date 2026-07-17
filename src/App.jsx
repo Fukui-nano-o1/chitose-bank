@@ -10831,7 +10831,9 @@ function AdminBoxRegistryPage() {
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={nPreview.name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
-            <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{nPreview.body}</p>
+            {nPreview.image_url
+              ? <img src={nPreview.image_url} alt={nPreview.name} style={{ display:"block", width:"100%", borderRadius:12 }} />
+              : <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{nPreview.body}</p>}
             {nPreview.link_label && nPreview.link_hash && (
               <p style={{ margin:"22px 0 0" }}>
                 <button onClick={()=>{ const h = nPreview.link_hash; setNPreview(null); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 1px", fontSize:18, fontWeight:800, color:"#00A86B", borderBottom:"2px solid #00A86B", cursor:"pointer" }}><NoticeJumpText text={nPreview.link_label + " →"} /></button>
@@ -15460,7 +15462,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const [activeNotices, setActiveNotices] = useState(null);
   const showNoticesFor = async (trigger) => {
     try {
-      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on").order("sort");
+      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on,image_url").order("sort");
       if (!data || data.length === 0) return;
       let read = [];
       try { read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]"); } catch {}
@@ -15733,7 +15735,9 @@ const subDest=useCallback(async d=>{
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={activeNotices[0].name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
-            <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{activeNotices[0].body}</p>
+            {activeNotices[0].image_url
+              ? <img src={activeNotices[0].image_url} alt={activeNotices[0].name} style={{ display:"block", width:"100%", borderRadius:12 }} />
+              : <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{activeNotices[0].body}</p>}
             {activeNotices[0].link_label && activeNotices[0].link_hash && (
               <p style={{ margin:"22px 0 0" }}>
                 <button onClick={()=>{ const h = activeNotices[0].link_hash; dismissNotices(); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 1px", fontSize:18, fontWeight:800, color:"#00A86B", borderBottom:"2px solid #00A86B", cursor:"pointer" }}><NoticeJumpText text={activeNotices[0].link_label + " →"} /></button>
