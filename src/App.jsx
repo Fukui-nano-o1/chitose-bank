@@ -4810,6 +4810,20 @@ function YesNoPill({ label, value, onChange }) {
 const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }];
 const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }];
 
+// 待遇バッジ（タイトル下用・2026-07-16）：employer_profilesのONの項目だけ短いラベルで返す。
+// 確認ページ・詳細ページで共通。OFFの項目は出さない（ダミー禁止）
+function perkBadges(ep) {
+  if (!ep) return [];
+  return [
+    ep.has_transport && "🚐 送迎あり",
+    ep.has_parking && "🅿️ 駐車場",
+    ep.has_commute_allowance && "🚃 通勤手当",
+    ep.has_bonus && "🎁 賞与",
+    ep.employer_pays_supplies && "🧤 持ち物は農家負担",
+    ep.accessory_ok && "💍 アクセサリーOK",
+  ].filter(Boolean);
+}
+
 // 写真配列の正規化（2026-07-16）：旧形式（"url"文字列）が混ざると確認ページ等の p.url が
 // undefined になり真っ白なスライドが出るため、復元・再開の境界で必ず {url, caption} に揃える。
 // url の無い壊れた要素は除外する
@@ -7152,11 +7166,14 @@ function JobSearchMapView({ onRegister, me }) {
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}</h2>
-            {/* はじめてOK・リピート即決はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
-            {(selectedJob.beginnerOk || selectedJob.instantApproveRepeat) && (
+            {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
+            {(selectedJob.beginnerOk || selectedJob.instantApproveRepeat || perkBadges(empEmployer).length > 0) && (
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
                 {selectedJob.beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
                 {selectedJob.instantApproveRepeat && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"4px 12px", borderRadius:20 }}>🌟 リピート即決</span>}
+                {perkBadges(empEmployer).map(b => (
+                  <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
+                ))}
               </div>
             )}
           </div>
@@ -9416,11 +9433,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}` : ""}</h2>
-                {/* はじめてOK・リピート即決はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
-                {(beginnerOk || instantApproveRepeat) && (
+                {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
+                {(beginnerOk || instantApproveRepeat || perkBadges(confEmployer).length > 0) && (
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
                     {beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
                     {instantApproveRepeat && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"4px 12px", borderRadius:20 }}>🌟 リピート即決</span>}
+                    {perkBadges(confEmployer).map(b => (
+                      <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
+                    ))}
                   </div>
                 )}
                 <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", margin:0, marginTop:4, display:"flex", alignItems:"center", gap:10 }}>
