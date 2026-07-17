@@ -12280,7 +12280,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           { k:"avatar",   e:"🖼️", l:"ロゴ・アイコン", req:true, v: avatarUrl ? "設定済み" : "" },
           { k:"nickname", e:"✏️", l:"農園名",         req:true, v: nickname },
           { k:"place",    e:"📍", l:"作業場所",       req:true, v: [placePref, placeCity, placeTown].filter(Boolean).join("") },
-          { k:"perks",    e:"🎁", l:"共通条件",       v: perksOn.join("・") },
+          { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
           { k:"intro",    e:"🏡", l:"農園紹介",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
