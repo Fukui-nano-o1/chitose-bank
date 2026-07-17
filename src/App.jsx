@@ -7718,10 +7718,10 @@ function JobSearchMapView({ onRegister, me }) {
                   </div>
                 </div>
               )}
-              {empEmployer.pr && empEmployer.pr.trim() && (
+              {empEmployer.owner_comment && empEmployer.owner_comment.trim() && (
                 <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", marginBottom:16 }}>
                   <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-                  <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.pr}</p>
+                  <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.owner_comment}</p>
                 </div>
               )}
               <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -9767,10 +9767,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                           <FarmerTrustCard profile={confEmployer} trust={confTrust} />
                         </div>
                       )}
-                      {confEmployer.pr && confEmployer.pr.trim() && (
+                      {confEmployer.owner_comment && confEmployer.owner_comment.trim() && (
                         <div style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", marginBottom:16 }}>
                           <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-                          <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.pr}</p>
+                          <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.owner_comment}</p>
                         </div>
                       )}
                       <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
