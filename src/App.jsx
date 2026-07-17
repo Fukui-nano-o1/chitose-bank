@@ -8113,6 +8113,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobPhotos, setJobPhotos] = useState(d.jobPhotos ?? []);
   const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [photoCaptionsOpen, setPhotoCaptionsOpen] = useState(false); // step8「写真ごとに説明」ポップアップ（2026-07-16）
   const [photoUploading, setPhotoUploading] = useState(false);
   const [jobDangerPlaces, setJobDangerPlaces] = useState((d.jobDangerPlaces ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]).map(p => ({ photos:[], ...p })));
   const [jobDangerTasks, setJobDangerTasks] = useState((d.jobDangerTasks ?? [{ icon:"⚠️", label:"", desc:"" }, { icon:"⚠️", label:"", desc:"" }]).map(t => ({ photos:[], ...t })));
@@ -8988,6 +8989,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {isFarmer && step === 8 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>作業の説明</h2>
             <p className="f-sans" style={lfStyles.subtitle}>どんな作業をするか、自由に書けます。空欄のままでも、作業内容に応じた説明が自動で入ります。思いつくことから書いてみましょう。</p>
+            {jobPhotos.length > 0 && (
+              <button onClick={()=>setPhotoCaptionsOpen(true)} className="f-sans" style={{ display:"inline-flex", alignItems:"center", gap:6, background:"none", border:"none", padding:0, margin:"-8px 0 16px", fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
+                写真ごとに説明 → <span aria-hidden="true">🔗</span>
+              </button>
+            )}
             <LFWizCard>
               <textarea
                 value={jobDescription}
@@ -8999,29 +9005,37 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:8, textAlign:"right" }}>{jobDescription.length} / 1000</p>
             </LFWizCard>
 
-    {jobPhotos.length > 0 && (
-      <LFWizCard>
-        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:6 }}>写真ごとの説明</p>
-        <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:14 }}>写真を選ぶと、その写真について一言添えられます。</p>
-        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
-          {jobPhotos.map((p, i) => (
-            <button key={i} onClick={() => { setSelectedPhotoIndex(i); captionTextareaRef.current?.focus(); }} style={{ padding:0, border: i === selectedPhotoIndex ? "3px solid #00A86B" : "3px solid transparent", borderRadius:12, cursor:"pointer", background:"none", lineHeight:0 }}>
-              <img src={p.url} alt={`写真${i+1}`} style={{ width:84, height:84, objectFit:"cover", borderRadius:9, opacity: i === selectedPhotoIndex ? 1 : 0.6 }} />
-            </button>
-          ))}
+    {/* 写真ごとの説明はポップアップに移設（2026-07-16）：「写真ごとに説明→🔗」タップで展開・0.8秒 */}
+    {photoCaptionsOpen && jobPhotos.length > 0 && (
+      <div onClick={()=>setPhotoCaptionsOpen(false)} style={{ position:"fixed", inset:0, zIndex:700, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+        <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+            <button onClick={()=>setPhotoCaptionsOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>写真ごとの説明</p>
+          </div>
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:14 }}>写真を選ぶと、その写真について一言添えられます。</p>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+              {jobPhotos.map((p, i) => (
+                <button key={i} onClick={() => { setSelectedPhotoIndex(i); captionTextareaRef.current?.focus(); }} style={{ padding:0, border: i === selectedPhotoIndex ? "3px solid #00A86B" : "3px solid transparent", borderRadius:12, cursor:"pointer", background:"none", lineHeight:0 }}>
+                  <img src={p.url} alt={`写真${i+1}`} style={{ width:84, height:84, objectFit:"cover", borderRadius:9, opacity: i === selectedPhotoIndex ? 1 : 0.6 }} />
+                </button>
+              ))}
+            </div>
+            <div style={{ position:"relative" }}>
+              <img src={jobPhotos[selectedPhotoIndex]?.url} alt="選択中の写真" style={{ width:"100%", height:200, objectFit:"cover", borderRadius:14, marginBottom:10 }} />
+            </div>
+            <textarea
+              ref={captionTextareaRef}
+              value={jobPhotos[selectedPhotoIndex]?.caption ?? ""}
+              onChange={e => setJobPhotos(prev => prev.map((p, i) => i === selectedPhotoIndex ? { ...p, caption: e.target.value } : p))}
+              placeholder="この写真について一言（例：収穫するブロッコリー畑です）"
+              maxLength={100}
+              style={{ width:"100%", minHeight:80, padding:"14px", fontSize:14, lineHeight:1.6, background:"#fff", color:"#222", border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
+            />
+          </div>
         </div>
-        <div style={{ position:"relative" }}>
-          <img src={jobPhotos[selectedPhotoIndex]?.url} alt="選択中の写真" style={{ width:"100%", height:200, objectFit:"cover", borderRadius:14, marginBottom:10 }} />
-        </div>
-        <textarea
-          ref={captionTextareaRef}
-          value={jobPhotos[selectedPhotoIndex]?.caption ?? ""}
-          onChange={e => setJobPhotos(prev => prev.map((p, i) => i === selectedPhotoIndex ? { ...p, caption: e.target.value } : p))}
-          placeholder="この写真について一言（例：収穫するブロッコリー畑です）"
-          maxLength={100}
-          style={{ width:"100%", minHeight:80, padding:"14px", fontSize:14, lineHeight:1.6, background:"#fff", color:"#222", border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
-        />
-      </LFWizCard>
+      </div>
     )}
 
           </>)}
