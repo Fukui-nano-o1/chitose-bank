@@ -9250,16 +9250,18 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>写真ごとの説明</p>
           </div>
           <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:14 }}>写真を選ぶと、その写真について一言添えられます。</p>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:14 }}>写真を横にスワイプして、それぞれに一言添えられます。</p>
+            {/* サムネイル選択→横スワイプ切替に変更（2026-07-16）。表示中の写真のキャプションを下で編集 */}
+            <div onScroll={e => { const w = e.currentTarget.clientWidth; if (w > 0) setSelectedPhotoIndex(Math.max(0, Math.min(jobPhotos.length - 1, Math.round(e.currentTarget.scrollLeft / w)))); }}
+              style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:14, touchAction:"pan-x pan-y", overscrollBehaviorX:"contain", transform:"translateZ(0)", marginBottom:8 }}>
               {jobPhotos.map((p, i) => (
-                <button key={i} onClick={() => { setSelectedPhotoIndex(i); captionTextareaRef.current?.focus(); }} style={{ padding:0, border: i === selectedPhotoIndex ? "3px solid #00A86B" : "3px solid transparent", borderRadius:12, cursor:"pointer", background:"none", lineHeight:0 }}>
-                  <img src={p.url} alt={`写真${i+1}`} style={{ width:84, height:84, objectFit:"cover", borderRadius:9, opacity: i === selectedPhotoIndex ? 1 : 0.6 }} />
-                </button>
+                <img key={i} src={p.url} alt={`写真${i+1}`} style={{ flexShrink:0, width:"100%", height:200, objectFit:"cover", borderRadius:14, scrollSnapAlign:"start" }} />
               ))}
             </div>
-            <div style={{ position:"relative" }}>
-              <img src={jobPhotos[selectedPhotoIndex]?.url} alt="選択中の写真" style={{ width:"100%", height:200, objectFit:"cover", borderRadius:14, marginBottom:10 }} />
+            <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:10 }}>
+              {jobPhotos.map((_, i) => (
+                <span key={i} style={{ fontSize:10, color: i === selectedPhotoIndex ? "#00A86B" : "#D0D0D0" }}>{i === selectedPhotoIndex ? "●" : "○"}</span>
+              ))}
             </div>
             <textarea
               ref={captionTextareaRef}
