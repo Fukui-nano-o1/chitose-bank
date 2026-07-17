@@ -8632,8 +8632,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           </>)}
 
           {isFarmer && step === 3 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>場所を入力してください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>作業場所の住所を入力します。番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>集合場所を入力してください</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
 
             <LFWizCard>
               <div>
@@ -8692,6 +8692,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   ref={addrRef}
                   value={farmerAddr}
                   onChange={e => setFarmerAddr(e.target.value)}
+                  onKeyDown={(e) => {
+                    // 最後の欄の確定＝次の入力先（次のステップ）へ自動遷移。未入力が残っていればキーボードを閉じるだけ
+                    if (e.key === "Enter") { e.preventDefault(); if (canGoNext) goNext(); else e.currentTarget.blur(); }
+                  }}
                   placeholder="例：1-2-3 〇〇ハイツ101"
                   className="field f-sans"
                   style={{ fontSize:16 }}
@@ -9366,7 +9370,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   編集：
                   <button onClick={() => { setReturnToConfirm(true); setStep(1); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作物</button>
                   <button onClick={() => { setReturnToConfirm(true); setStep(2); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作業</button>
-                  <button onClick={() => { setReturnToConfirm(true); setStep(3); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>場所</button>
+                  <button onClick={() => { setReturnToConfirm(true); setStep(3); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>集合場所</button>
                 </p>
               </div>
 
