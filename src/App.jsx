@@ -6487,9 +6487,10 @@ function MyCalendar() {
                 <button onClick={() => setShowEnded(v => !v)} className="f-sans" style={{ background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:700, color:"#717171", padding:"4px 0", marginBottom:8 }}>
                   {showEnded ? "▾" : "▸"} 過去{grouped.ended.length}件
                 </button>
+                {/* 過去もそれ以降と同じ3列グリッド・同じカード設計（2026-07-16） */}
                 {showEnded && (
-                  <div style={{ display:"grid", gap:8 }}>
-                    {grouped.ended.map(e => <AgendaRow key={e.application_id} e={e} />)}
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+                    {grouped.ended.map(e => <AgendaRow key={e.application_id || `j${e.job_number}-${e.relation || ""}`} e={e} />)}
                   </div>
                 )}
               </div>
