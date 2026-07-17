@@ -12553,8 +12553,9 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
               <Avatar url={data.avatar_url} name={data.nickname} size={56} />
             </div>
             <p onClick={onEditItem ? ()=>onEditItem("nickname") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{data.nickname || "農園名未設定"}</p>
-            {data.pr && (
-              <p onClick={onEditItem ? ()=>onEditItem("pr") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{data.pr.length > 100 ? data.pr.slice(0, 100) + "…" : data.pr}</p>
+            {/* 旧・自己PR枠は代表より（owner_comment）に差し替え（2026-07-16）。タップで農園紹介ボックスを編集 */}
+            {comment && (
+              <p onClick={onEditItem ? ()=>onEditItem("intro") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{comment.length > 100 ? comment.slice(0, 100) + "…" : comment}</p>
             )}
           </div>
           {perks.length > 0 && (
@@ -12577,7 +12578,7 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
             </div>
           )}
           {topics.length > 0 && (
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom: comment ? 16 : 0 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom:0 }}>
               {topics.map((t, i) => (
                 <div key={i} onClick={onEditItem ? ()=>onEditItem("intro") : undefined} role={onEditItem ? "button" : undefined} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>
                   <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
@@ -12586,12 +12587,7 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
               ))}
             </div>
           )}
-          {comment && (
-            <div onClick={onEditItem ? ()=>onEditItem("intro") : undefined} role={onEditItem ? "button" : undefined} style={{ background:"#F7F7F7", borderRadius:16, padding:"16px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>
-              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>代表より</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
-            </div>
-          )}
+          {/* 下部の代表よりカードは削除（2026-07-16）：名前下に移設したため重複回避 */}
         </div>
       )}
       {/* 「編集する」ボタンは削除（2026-07-16）：項目タップ編集に一本化 */}
