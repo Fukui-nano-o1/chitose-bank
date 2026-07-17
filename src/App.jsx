@@ -1078,6 +1078,12 @@ input:focus { outline: none; }
 }
 
 /* ── Input ── */
+/* iOS自動ズーム防止（2026-07-16・第1段）：フォント16px未満の入力欄にフォーカスすると
+   Safariが勝手にズームするため、モバイルでは全入力を16pxへ底上げ（inlineの13〜14px指定を!importantで上書き） */
+@media (max-width: 768px) {
+  input, textarea, select { font-size: 16px !important; }
+}
+
 .field {
   width: 100%;
   padding: 14px 16px;
