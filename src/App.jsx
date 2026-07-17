@@ -9859,15 +9859,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       )}
 
-      {/* 下部ナビ（ホーム・完了画面以外。掲載モーダル展開中も非表示） */}
+      {/* 下部ナビのバーは削除（2026-07-16）：戻る／次へは浮遊固定ボックス（スクロール追従）に。
+          embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
       {step > 0 && step < TOTAL && step !== 12 && !publishModal && (
-        <div style={embedded ? {
+        embedded ? (
+        <div style={{
           background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 8px",
-          display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
-        } : {
-          position:"fixed", bottom:0, left:0, right:0, background:"#fff",
-          borderTop:"1px solid #EBEBEB",
-          padding:"16px 8px calc(16px + env(safe-area-inset-bottom, 0px))",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
         }}>
           {/* step1は戻る先が説明ページしかないため戻るボタンなし（2026-07-16）。spanはspace-betweenの左詰め維持用 */}
@@ -9885,7 +9882,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               )}
             </div>
           )}
-          {/* 確認ページ(step11)：下部ナビ右に「保存」＋「掲載する」（求人詳細の応募フッターと同型） */}
           {isFarmer && step === 11 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
@@ -9893,6 +9889,35 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
             </div>
           )}
         </div>
+        ) : (<>
+          {/* ← 戻る：左下の浮遊ボックス（step1は非表示） */}
+          {step !== 1 && (
+            <button onClick={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack} className="f-sans" style={{
+              position:"fixed", left:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60,
+              display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+              fontSize:14, fontWeight:600, color:"#222", cursor:"pointer", padding:"12px 18px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+            }}>← 戻る</button>
+          )}
+          {/* 次へ（＋スキップ）：右下の浮遊ボックス */}
+          {!isAutoStep && step !== 11 && (
+            <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8 }}>
+              {!returnToConfirm && step >= 7 && step <= 10 && (
+                <button onClick={() => setStep(11)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:"7px 12px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>残りをスキップして確認へ →</button>
+              )}
+              <button onClick={canGoNext ? (returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
+                padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)",
+                cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
+              }}>{returnToConfirm ? "確認に戻る →" : "次へ →"}</button>
+            </div>
+          )}
+          {/* 確認ページ(step11)：右下に「保存」＋「掲載する」の浮遊ペア */}
+          {isFarmer && step === 11 && (
+            <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10 }}>
+              <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => setPublishModal(true)} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
+            </div>
+          )}
+        </>)
       )}
     </div>
   );
