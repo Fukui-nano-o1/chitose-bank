@@ -7131,16 +7131,17 @@ function JobSearchMapView({ onRegister, me }) {
               <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                 <div className="job-detail-info-grid">
                   {[
-                    { label:"日程",     value: selectedJob.dateLabel },
+                    // 日程は確認ページと同じ設計（2026-07-16）：「〜終了日」を下段に折り返し
+                    { label:"日程",     value: (selectedJob.dateLabel || "").replace("〜", "\n〜") },
                     { label:"勤務時間", value: selectedJob.workTime },
                     { label:"休憩時間", value: selectedJob.breakTime },
                     { label:"採用人数", value: selectedJob.count },
                     { label:"移動時間", value: stationLabel(selectedJob.nearestStation, selectedJob.commuteTime) },
                     { label:"報酬",     value: (selectedJob.payTiming || selectedJob.payMethod) ? `${payLabel(selectedJob)}　${[selectedJob.payTiming, selectedJob.payMethod].filter(Boolean).join("・")}` : payLabel(selectedJob) },
                   ].filter(row => row.value && String(row.value).trim()).map(row => (
-                    <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                    <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", textAlign:"center" }}>
                       <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
-                      <span className="f-sans" style={{ fontSize:15, color:"#222", fontWeight:600, lineHeight:1.6 }}>{row.value}</span>
+                      <span className="f-sans" style={{ fontSize:15, color:"#222", fontWeight:600, lineHeight:1.6, whiteSpace:"pre-line" }}>{row.value}</span>
                     </div>
                   ))}
                 </div>
@@ -9394,7 +9395,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         // 報酬は金額だけ表示（2026-07-16）：支払いタイミング・支払方法を繋げると読みにくいため
                         { label:"報酬",     value: rewardLabel !== "未設定" ? rewardLabel : "", editStep:5 },
                       ].map(row => (
-                        <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                        <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", textAlign:"center" }}>
                           <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"flex", alignItems:"center", gap:6 }}>
                             {row.label}
                             <button onClick={() => { setReturnToConfirm(true); setStep(row.editStep); }} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
@@ -10133,16 +10134,17 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:14 }}>
             <div className="job-detail-info-grid">
               {[
-                { label:"日程",     value: job.dateLabel },
+                // 日程は確認ページと同じ設計（2026-07-16）：「〜終了日」を下段に折り返し
+                { label:"日程",     value: (job.dateLabel || "").replace("〜", "\n〜") },
                 { label:"勤務時間", value: job.workTime },
                 { label:"休憩時間", value: job.breakTime },
                 { label:"採用人数", value: job.count },
                 { label:"移動時間", value: stationLabel(job.nearestStation, job.commuteTime) },
                 { label:"報酬",     value: (job.payTiming || job.payMethod) ? `${payLabel(job)}　${[job.payTiming, job.payMethod].filter(Boolean).join("・")}` : payLabel(job) },
               ].filter(row => row.value && String(row.value).trim()).map(row => (
-                <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", textAlign:"center" }}>
                   <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
-                  <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{row.value}</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600, whiteSpace:"pre-line" }}>{row.value}</span>
                 </div>
               ))}
             </div>
