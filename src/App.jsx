@@ -13182,7 +13182,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     })();
   }, [jobTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const JOB_TABS = [
-    { k:"profile", l:"プロフィール" },
+    { k:"profile", l:"雇い手プロフィール" },
     { k:"draft",   l:"作成中" },
     { k:"active",  l:"公開中" },
     { k:"applicants", l:"応募者" },
