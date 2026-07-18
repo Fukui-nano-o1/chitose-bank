@@ -8730,6 +8730,40 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     })();
   }, [confProfileOpen]); // 編集ボックスを閉じたら再取得＝入力したプロフィールが確認ページに即反映（2026-07-16）
 
+  // プロフィール入力のお願い（2026-07-17）：確認ページ到達時、農家プロに未入力の項目があれば
+  // Appルートへ通知（cb:confirmNotice→trigger=confirmのお知らせ展開）。判定項目は農家プロ入口の
+  // ボックス格子(boxFilled: avatar/nickname/place/perks/staff/intro/ask/style)と同じ8区分
+  useEffect(() => {
+    if (step !== 11 || role !== "farmer") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        if (cancelled) return;
+        const filledText = (...vals) => vals.some(v => (v || "").trim() !== "");
+        const hasUnfilled = !ep
+          || !ep.avatar_url
+          || !filledText(ep.nickname)
+          || !filledText(ep.place_city)
+          || !(ep.has_transport || ep.has_parking || ep.has_commute_allowance || ep.has_bonus || ep.employer_pays_supplies || ep.accessory_ok)
+          || ep.staff_count == null || String(ep.staff_count).trim() === ""
+          || !filledText(ep.owner_comment, ep.intro_path, ep.intro_joy, ep.intro_crops, ep.intro_atmosphere, ep.intro_message)
+          || !filledText(ep.unique_point, ep.always_do, ep.break_style)
+          || !filledText(ep.interaction_style);
+        if (hasUnfilled) window.dispatchEvent(new Event("cb:confirmNotice"));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+  // お知らせの「はじめる」リンク（event:cb:openConfProfile）＝農家プロ入力ボックスをこの場で展開
+  useEffect(() => {
+    const f = () => setConfProfileOpen(true);
+    window.addEventListener("cb:openConfProfile", f);
+    return () => window.removeEventListener("cb:openConfProfile", f);
+  }, []);
+
   // Airbnb模擬・部品1:step移動ごとに自動で下書き保存（農家フロー中のみ・home(0)と完了(12)は除外）
   useEffect(() => {
     if (role === "farmer" && step >= 1 && step <= 11) saveDraft();
@@ -10836,7 +10870,7 @@ function AdminBoxRegistryPage() {
               : <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{nPreview.body}</p>}
             {nPreview.link_label && nPreview.link_hash && (
               <p style={{ margin:"22px 0 0" }}>
-                <button onClick={()=>{ const h = nPreview.link_hash; setNPreview(null); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 1px", fontSize:18, fontWeight:800, color:"#00A86B", borderBottom:"2px solid #00A86B", cursor:"pointer" }}><NoticeJumpText text={nPreview.link_label + " →"} /></button>
+                <button onClick={()=>{ const h = nPreview.link_hash; setNPreview(null); if (!h.startsWith("event:")) window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 1px", fontSize:18, fontWeight:800, color:"#00A86B", borderBottom:"2px solid #00A86B", cursor:"pointer" }}><NoticeJumpText text={nPreview.link_label + " →"} /></button>
               </p>
             )}
             <div style={{ marginTop:20, borderTop:"1px solid #F0F0F0", paddingTop:12 }}>
@@ -10845,7 +10879,7 @@ function AdminBoxRegistryPage() {
                 <span style={{ padding:"2px 8px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg, marginRight:8 }}>{st.l}</span>
                 対象：{audienceLabel(nPreview.audience)}
                 {(nPreview.starts_at || nPreview.ends_at) ? `　期間：${fmtDate(nPreview.starts_at) || "指定なし"}〜${fmtDate(nPreview.ends_at) || "指定なし"}` : "　期間：指定なし"}
-                <br />展開機会：{(nPreview.trigger_on || "startup").split(",").map(t => ({ startup:"起動時", login:"ログイン画面を開いたとき", after_login:"ログイン後", approval:"応募承認後" }[t.trim()] || t)).join("・")}{nPreview.show_every_time ? "のたびに毎回ポップアップ表示されます（✕で閉じても次回また表示）。" : "に1回だけポップアップ表示されます（✕で既読）。"}上の表示が本番そのままの見え方です。
+                <br />展開機会：{(nPreview.trigger_on || "startup").split(",").map(t => ({ startup:"起動時", login:"ログイン画面を開いたとき", after_login:"ログイン後", approval:"応募承認後", confirm:"確認ページ（農家プロ未入力時）" }[t.trim()] || t)).join("・")}{nPreview.show_every_time ? "のたびに毎回ポップアップ表示されます（✕で閉じても次回また表示）。" : "に1回だけポップアップ表示されます（✕で既読）。"}上の表示が本番そのままの見え方です。
               </p>
             </div>
           </div>
@@ -15474,6 +15508,11 @@ const loadNotifs=useCallback(async(farmerId)=>{
   useEffect(() => { showNoticesFor("startup"); }, [me?.id]); // ログインで農家/働き手向けの未読が増えることがあるため再判定
   useEffect(() => { if (tab === "login") showNoticesFor("login"); }, [tab]); // ログインをタップ＝ログイン画面を開いた瞬間に展開
   useEffect(() => { if (me?.id) showNoticesFor("after_login"); }, [me?.id]); // ログイン後（ログイン完了・ログイン済みの起動を含む）
+  useEffect(() => { // 確認ページ（trigger=confirm）：LandingFlowが「農家プロ未入力で確認ページ到達」を検知してこのイベントを飛ばす
+    const f = () => showNoticesFor("confirm");
+    window.addEventListener("cb:confirmNotice", f);
+    return () => window.removeEventListener("cb:confirmNotice", f);
+  }, [me?.id]);
   // approvalトリガー（応募承認後）の専用照会は2026-07-17に撤去：熱中症お知らせがafter_login×毎回表示に変更され、
   // ログイン済み利用者の来訪すべてをカバーするため。approval値の判定はshowNoticesForに残っており、再開時はここにeffectを足すだけ
   const dismissNotices = () => {
@@ -15732,7 +15771,7 @@ const subDest=useCallback(async d=>{
               : <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{activeNotices[0].body}</p>}
             {activeNotices[0].link_label && activeNotices[0].link_hash && (
               <p style={{ margin:"22px 0 0" }}>
-                <button onClick={()=>{ const h = activeNotices[0].link_hash; dismissNotices(); window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 1px", fontSize:18, fontWeight:800, color:"#00A86B", borderBottom:"2px solid #00A86B", cursor:"pointer" }}><NoticeJumpText text={activeNotices[0].link_label + " →"} /></button>
+                <button onClick={()=>{ const h = activeNotices[0].link_hash; dismissNotices(); if (h.startsWith("event:")) window.dispatchEvent(new Event(h.slice(6))); else window.location.hash = h; }} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 1px", fontSize:18, fontWeight:800, color:"#00A86B", borderBottom:"2px solid #00A86B", cursor:"pointer" }}><NoticeJumpText text={activeNotices[0].link_label + " →"} /></button>
               </p>
             )}
           </div>
