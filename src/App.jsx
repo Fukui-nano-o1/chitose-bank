@@ -7363,8 +7363,7 @@ function JobSearchMapView({ onRegister, me }) {
             {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
             {(selectedJob.beginnerOk || selectedJob.instantApproveRepeat || perkBadges(empEmployer).length > 0) && (
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
-                {selectedJob.beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
-                {selectedJob.instantApproveRepeat && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"4px 12px", borderRadius:20 }}>🌟 リピート即決</span>}
+                <JobFlagBadges beginner={selectedJob.beginnerOk} repeat={selectedJob.instantApproveRepeat} />
                 {perkBadges(empEmployer).map(b => (
                   <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
                 ))}
@@ -9785,8 +9784,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
                 {(beginnerOk || instantApproveRepeat || perkBadges(confEmployer).length > 0) && (
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
-                    {beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
-                    {instantApproveRepeat && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"4px 12px", borderRadius:20 }}>🌟 リピート即決</span>}
+                    <JobFlagBadges beginner={beginnerOk} repeat={instantApproveRepeat} />
                     {perkBadges(confEmployer).map(b => (
                       <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
                     ))}
@@ -10543,8 +10541,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
             <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"4px 0 0", userSelect:"text" }}>#{job.id}</p>
             {(job.beginnerOk || job.instantApproveRepeat) && (
               <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
-                {job.beginnerOk && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"4px 12px", borderRadius:20 }}>🌱 はじめてOK</span>}
-                {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"4px 12px", borderRadius:20 }}>🌟 リピート即決</span>}
+                <JobFlagBadges beginner={job.beginnerOk} repeat={job.instantApproveRepeat} />
               </div>
             )}
           </div>
@@ -10693,6 +10690,36 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 }
 
 // ── AdminTab ─────────────────────────────────────────────────
+// はじめてOK・リピート即決バッジ（2026-07-17）：タップで1〜2行の説明コメントを展開（もう一度タップで閉じる）。
+// 詳細・確認・プレビューの3画面共通。flexWrap行内でコメント(width:100%)が次の行に折り返して出る構造
+const JOB_FLAG_INFO = {
+  beginner: { icon:"🌱", label:"はじめてOK",   bg:"#E6F7EF", fg:"#00A86B", desc:"農業がはじめての方も歓迎の求人です。経験がなくても応募できます。" },
+  repeat:   { icon:"🌟", label:"リピート即決", bg:"#FFF8E7", fg:"#8A6D1D", desc:"以前この農家で働いた方は、再応募すると自動で承認されてすぐに確定します（この農家の求人のみ）。" },
+};
+function JobFlagBadges({ beginner, repeat }) {
+  const [open, setOpen] = useState(null); // "beginner"|"repeat"|null
+  const keys = [beginner && "beginner", repeat && "repeat"].filter(Boolean);
+  if (keys.length === 0) return null;
+  return (
+    <>
+      {keys.map(k => {
+        const b = JOB_FLAG_INFO[k];
+        return (
+          <button key={k} onClick={()=>setOpen(o => (o === k ? null : k))} className="f-sans"
+            style={{ fontSize:12, fontWeight:700, color:b.fg, background:b.bg, padding:"4px 12px", borderRadius:20, border:"none", cursor:"pointer" }}>
+            {b.icon} {b.label} {open === k ? "▴" : "▾"}
+          </button>
+        );
+      })}
+      {open && (
+        <span className="f-sans fade-in" style={{ display:"block", width:"100%", fontSize:12, color:JOB_FLAG_INFO[open].fg, background:JOB_FLAG_INFO[open].bg, borderRadius:10, padding:"8px 12px", lineHeight:1.6 }}>
+          {JOB_FLAG_INFO[open].desc}
+        </span>
+      )}
+    </>
+  );
+}
+
 // お知らせ規定（2026-07-17追加）：タイトルとリンクは頭文字から順に1文字ずつ上へジャンプし、
 // 尻の文字まで届いたら約2秒おいて先頭からループする。
 // 尻までの到達時間は文字数によらず固定0.9s＝タイトルとリンクで同じ（周期も共通so波とループが同期する）
