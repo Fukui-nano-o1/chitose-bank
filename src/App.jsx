@@ -7242,9 +7242,12 @@ function JobSearchMapView({ onRegister, me }) {
     : myAppStatus === "applied" ? { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }
     : {};
   // 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照）
+  // 応募確認ボックス（2026-07-18）：新規応募はボタン直送信でなく、内容確認のボックスを展開してから
+  const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
+  useEffect(() => { setApplyConfirmOpen(false); }, [selectedJob?.id]);
   const applyBtnOnClick = myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
-    : handleApply;
+    : (() => setApplyConfirmOpen(true));
 
   if (!me) {
     return (
@@ -7746,6 +7749,41 @@ function JobSearchMapView({ onRegister, me }) {
           <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
             応募しても即採用ではなく、面接後に決まります
           </p>
+        </div>
+      )}
+
+      {/* 応募確認ボックス（2026-07-18）：応募ボタンタップで展開。求人の要点＋承認制の説明、下部に「戻る」「応募する」 */}
+      {applyConfirmOpen && selectedJob && (
+        <div onClick={()=>setApplyConfirmOpen(false)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setApplyConfirmOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>応募の確認</p>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
+              {(selectedJob.photos || [])[0] && (
+                <img src={typeof selectedJob.photos[0] === "string" ? selectedJob.photos[0] : selectedJob.photos[0]?.url} alt="" style={{ display:"block", width:"100%", height:150, objectFit:"cover", borderRadius:12, marginBottom:12 }} />
+              )}
+              <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 10px" }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}</p>
+              {[
+                { label:"日程", value: selectedJob.dateLabel || "—" },
+                { label:"報酬", value: payLabel(selectedJob) },
+                { label:"最高額", value: maxPay != null ? `¥${maxPay.toLocaleString()}（期間内に全て勤務した場合）` : "—" },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:56, flexShrink:0 }}>{label}</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
+                </div>
+              ))}
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"14px 0 0" }}>
+                応募はまだ採用ではありません。農家が内容を確認し、承認されるとチャットで打ち合わせが始まります。承認前であれば、応募中ページからいつでも取り消せます。
+              </p>
+            </div>
+            <div style={{ display:"flex", gap:8, padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setApplyConfirmOpen(false)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
+              <button onClick={()=>{ setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applying ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
+            </div>
+          </div>
         </div>
       )}
 
