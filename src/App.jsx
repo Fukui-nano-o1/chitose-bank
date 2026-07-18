@@ -4978,6 +4978,7 @@ function mapJobPublicRow(j) {
     fullPayGuarantee: !!j.full_pay_guarantee,
     beginnerOk: !!j.beginner_ok,
     instantApproveRepeat: !!j.instant_approve_repeat,
+    perks: j.perks || null, // この求人だけの待遇上書き（NULL=農家プロフィールの待遇・2026-07-18）
   };
 }
 
@@ -7384,10 +7385,10 @@ function JobSearchMapView({ onRegister, me }) {
           <div style={{ marginBottom:20 }}>
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}</h2>
             {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
-            {(selectedJob.beginnerOk || selectedJob.instantApproveRepeat || perkBadges(empEmployer).length > 0) && (
+            {(selectedJob.beginnerOk || selectedJob.instantApproveRepeat || perkBadges(selectedJob.perks ? { ...(empEmployer || {}), ...selectedJob.perks } : empEmployer).length > 0) && (
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
                 <JobFlagBadges beginner={selectedJob.beginnerOk} repeat={selectedJob.instantApproveRepeat} />
-                {perkBadges(empEmployer).map(b => (
+                {perkBadges(selectedJob.perks ? { ...(empEmployer || {}), ...selectedJob.perks } : empEmployer).map(b => (
                   <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
                 ))}
               </div>
@@ -7437,13 +7438,14 @@ function JobSearchMapView({ onRegister, me }) {
               )}
 
               {empEmployer && empEmployer.nickname && (() => {
+                const pk = selectedJob.perks ? { ...empEmployer, ...selectedJob.perks } : empEmployer; // 求人ごとの待遇上書き（2026-07-18）
                 const perkRows = [
-                  { label:"送迎",     on: empEmployer.has_transport,        value: empEmployer.has_transport ? `あり${empEmployer.transport_area ? "（" + empEmployer.transport_area + "）" : ""}` : EMPTY_MARK },
-                  { label:"駐車場",   on: empEmployer.has_parking,          value: empEmployer.has_parking ? `あり${empEmployer.parking_capacity ? "（" + empEmployer.parking_capacity + "台）" : ""}` : EMPTY_MARK },
-                  { label:"通勤手当", on: empEmployer.has_commute_allowance, value: empEmployer.has_commute_allowance ? `あり${empEmployer.commute_allowance_detail ? "（" + empEmployer.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
-                  { label:"賞与",     on: empEmployer.has_bonus,            value: empEmployer.has_bonus ? "あり" : EMPTY_MARK },
-                  { label:"農家負担", on: empEmployer.employer_pays_supplies, value: empEmployer.employer_pays_supplies ? `あり${empEmployer.supplies_cap ? "（" + empEmployer.supplies_cap + "）" : ""}` : EMPTY_MARK },
-                  { label:"アクセサリー", on: empEmployer.accessory_ok,          value: empEmployer.accessory_ok ? "OK" : EMPTY_MARK },
+                  { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
+                  { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
+                  { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
+                  { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
+                  { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
+                  { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
                 ];
                 return (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
@@ -8444,11 +8446,70 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [beginnerOk,        setBeginnerOk]        = useState(d.beginnerOk ?? false); // 🌱はじめての人も歓迎 → jobs.beginner_ok
   const [instantApproveRepeat, setInstantApproveRepeat] = useState(d.instantApproveRepeat ?? false); // 🌟また呼びたい即決 → jobs.instant_approve_repeat（効果は自分の求人×自分が評価した相手のみ・労働局確認済み）
   const [flagInfoOpen, setFlagInfoOpen] = useState(null); // 「はじめてOKとは？」「リピート即決とは？」の説明ボックス（2026-07-18）
+  const [jobPerks, setJobPerks] = useState(d.jobPerks ?? null); // この求人だけの待遇上書き → jobs.perks（NULL=プロフィールの待遇・2026-07-18）
   const [jobSaving, setJobSaving] = useState(false);
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
   const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
   const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
   const [confProfileOpen, setConfProfileOpen] = useState(false); // 農家プロ未入力時：カードタップで編集ボックス展開（2026-07-16）
+  // 待遇の求人ごと変更（2026-07-18）：確認ページの待遇タップで編集ボックス。
+  // 「この求人のみ」＝jobPerksに保持→jobs.perksへ保存（求人審査で内容確認）／「保存」＝プロフィールにも反映
+  // （自由記述3項目=送迎範囲・通勤手当の内容・農家負担の上限はtexts_pending経由＝運営承認後に公開・憲法5条）
+  const [perksEditOpen, setPerksEditOpen] = useState(false);
+  const [perkDraft, setPerkDraft] = useState(null);
+  const [perkSaving, setPerkSaving] = useState(false);
+  const openPerksEdit = () => {
+    const base = jobPerks ? { ...(confEmployer || {}), ...jobPerks } : (confEmployer || {});
+    setPerkDraft({
+      has_transport: !!base.has_transport, transport_area: base.transport_area || "",
+      has_parking: !!base.has_parking, parking_capacity: base.parking_capacity || "",
+      has_commute_allowance: !!base.has_commute_allowance, commute_allowance_detail: base.commute_allowance_detail || "",
+      has_bonus: !!base.has_bonus,
+      employer_pays_supplies: !!base.employer_pays_supplies, supplies_cap: base.supplies_cap || "",
+      accessory_ok: !!base.accessory_ok,
+    });
+    setPerksEditOpen(true);
+  };
+  const savePerksToProfile = async () => {
+    if (perkSaving || !perkDraft) return;
+    setPerkSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setPerkSaving(false); return; }
+      const { data: cur } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+      // 自由記述はtexts_pending経由（承認済み値と異なるキーだけ積む・EmployerProfileEdit.saveと同じ作法）
+      const desired = {
+        transport_area: perkDraft.has_transport ? (perkDraft.transport_area || "") : "",
+        commute_allowance_detail: perkDraft.has_commute_allowance ? (perkDraft.commute_allowance_detail || "") : "",
+        supplies_cap: perkDraft.employer_pays_supplies ? (perkDraft.supplies_cap.trim() || "") : "",
+      };
+      const pend = { ...((cur && cur.texts_pending) || {}) };
+      Object.entries(desired).forEach(([k, v]) => {
+        if (((cur && cur[k]) || "") !== v) pend[k] = v; else delete pend[k];
+      });
+      const payload = {
+        auth_id: session.user.id,
+        has_transport: perkDraft.has_transport,
+        has_parking: perkDraft.has_parking,
+        parking_capacity: perkDraft.has_parking ? (perkDraft.parking_capacity || "") : "",
+        has_commute_allowance: perkDraft.has_commute_allowance,
+        has_bonus: perkDraft.has_bonus,
+        employer_pays_supplies: perkDraft.employer_pays_supplies,
+        accessory_ok: perkDraft.accessory_ok,
+        texts_pending: pend,
+        texts_submitted_at: Object.keys(pend).length ? new Date().toISOString() : ((cur && cur.texts_submitted_at) || null),
+      };
+      const { error } = await supabase.from("employer_profiles").upsert(payload, { onConflict: "auth_id" });
+      if (error) { alert("保存に失敗しました：" + error.message); setPerkSaving(false); return; }
+      setJobPerks(null); // プロフィールに保存＝この求人はプロフィールの待遇に従う
+      try {
+        const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        if (ep) setConfEmployer(ep);
+      } catch {}
+      setPerksEditOpen(false);
+    } catch { alert("保存に失敗しました。"); }
+    setPerkSaving(false);
+  };
   const [confTrust, setConfTrust] = useState(null); // 確認ページ用：登録してからの月日など（employer_trust_info）
   const [confCalOpen, setConfCalOpen] = useState(false); // 確認ページ用：📅浮遊ボタン→作業日程カレンダーモーダル（詳細ページと同構造）
   const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
@@ -8626,6 +8687,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setJobExp(data.job_exp ?? "");
         setBeginnerOk(!!data.beginner_ok);
         setInstantApproveRepeat(!!data.instant_approve_repeat);
+        setJobPerks(data.perks || null);
         setJobDescription(data.notes ?? "");
         setJobNotes(data.belongings ?? "");
         setJobCautions(data.cautions ?? "");
@@ -8658,7 +8720,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         farmerWanted, farmerPayType, payTiming, payMethod,
         startHour, startMinute, endHour, endMinute,
         jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
-        jobExp, jobTemplate, jobNotes, jobCautions, jobDescription, beginnerOk, instantApproveRepeat,
+        jobExp, jobTemplate, jobNotes, jobCautions, jobDescription, beginnerOk, instantApproveRepeat, jobPerks,
         jobDateStart: jobDateStart?.toISOString() ?? null,
         jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
       };
@@ -8694,6 +8756,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
       job_exp:         jobExp,
       beginner_ok:     beginnerOk,
       instant_approve_repeat: instantApproveRepeat,
+      perks:           jobPerks,
       notes:           jobDescription,
       belongings:      jobNotes,
       cautions:        jobCautions,
@@ -9849,10 +9912,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div style={{ marginBottom:20 }}>
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}` : ""}</h2>
                 {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
-                {(beginnerOk || instantApproveRepeat || perkBadges(confEmployer).length > 0) && (
+                {(beginnerOk || instantApproveRepeat || perkBadges(jobPerks ? { ...(confEmployer || {}), ...jobPerks } : confEmployer).length > 0) && (
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
                     <JobFlagBadges beginner={beginnerOk} repeat={instantApproveRepeat} />
-                    {perkBadges(confEmployer).map(b => (
+                    {perkBadges(jobPerks ? { ...(confEmployer || {}), ...jobPerks } : confEmployer).map(b => (
                       <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
                     ))}
                   </div>
@@ -9898,13 +9961,14 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   {/* 農家プロフィールカード（詳細ページと同一構造：アバター・自己紹介・待遇。
                       データは employer_profiles の本人行。未作成なら最小カードにフォールバック） */}
                   {(confEmployer && confEmployer.nickname) ? (() => {
+                    const pk = jobPerks ? { ...confEmployer, ...jobPerks } : confEmployer; // この求人だけの待遇があれば上書き表示（2026-07-18）
                     const perkRows = [
-                      { label:"送迎",     on: confEmployer.has_transport,        value: confEmployer.has_transport ? `あり${confEmployer.transport_area ? "（" + confEmployer.transport_area + "）" : ""}` : EMPTY_MARK },
-                      { label:"駐車場",   on: confEmployer.has_parking,          value: confEmployer.has_parking ? `あり${confEmployer.parking_capacity ? "（" + confEmployer.parking_capacity + "台）" : ""}` : EMPTY_MARK },
-                      { label:"通勤手当", on: confEmployer.has_commute_allowance, value: confEmployer.has_commute_allowance ? `あり${confEmployer.commute_allowance_detail ? "（" + confEmployer.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
-                      { label:"賞与",     on: confEmployer.has_bonus,            value: confEmployer.has_bonus ? "あり" : EMPTY_MARK },
-                      { label:"農家負担", on: confEmployer.employer_pays_supplies, value: confEmployer.employer_pays_supplies ? `あり${confEmployer.supplies_cap ? "（" + confEmployer.supplies_cap + "）" : ""}` : EMPTY_MARK },
-                      { label:"アクセサリー", on: confEmployer.accessory_ok,          value: confEmployer.accessory_ok ? "OK" : EMPTY_MARK },
+                      { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
+                      { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
+                      { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
+                      { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
+                      { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
+                      { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
                     ];
                     return (
                       <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
@@ -9920,7 +9984,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                           </div>
                         </div>
                         <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em", textAlign:"center" }}>待遇</p>
+                        {/* 待遇タップ→この求人だけの待遇を編集するボックスを展開（2026-07-18） */}
+                        <div onClick={openPerksEdit} role="button" style={{ cursor:"pointer" }}>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em", textAlign:"center" }}>待遇{jobPerks ? "（この求人のみ変更中）" : ""}</p>
                         <div style={{ width:"fit-content", margin:"0 auto" }}>{/* 待遇ブロックはカード中央配置（2026-07-16・旧:境界線を中央に合わせるtranslateX(-78px)） */}
                           {perkRows.map((row, i) => (
                             <div key={row.label} style={{
@@ -9932,6 +9998,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                             </div>
                           ))}
                         </div>
+                        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", textAlign:"center", margin:"8px 0 0" }}>タップして待遇を変更 →</p>
+                        </div>
                       </div>
                     );
                   })() : (
@@ -9941,6 +10009,43 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
                         <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
                         <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"8px 0 0" }}>タップして農園プロフィールを入力 →</p>
+                      </div>
+                    </div>
+                  )}
+                  {/* 待遇の編集ボックス（2026-07-18）：送迎から順。下部に「保存」（プロフィールにも反映）と「この求人のみ」 */}
+                  {perksEditOpen && perkDraft && (
+                    <div onClick={()=>setPerksEditOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+                      <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+                          <button onClick={()=>setPerksEditOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+                          <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>🎁 待遇の変更</p>
+                        </div>
+                        <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
+                          {[
+                            { k:"has_transport", l:"🚐 送迎", tk:"transport_area", tp:"送迎の範囲（例：吉野川市内）" },
+                            { k:"has_parking", l:"🅿️ 駐車場", tk:"parking_capacity", tp:"台数（例：3）" },
+                            { k:"has_commute_allowance", l:"🚃 通勤手当", tk:"commute_allowance_detail", tp:"内容（例：1日500円まで）" },
+                            { k:"has_bonus", l:"🎁 賞与" },
+                            { k:"employer_pays_supplies", l:"🧤 持ち物は農家負担", tk:"supplies_cap", tp:"上限（例：軍手・長靴まで）" },
+                            { k:"accessory_ok", l:"💍 アクセサリーOK" },
+                          ].map(row => (
+                            <div key={row.k} style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
+                              <button type="button" onClick={()=>setPerkDraft(p=>({ ...p, [row.k]: !p[row.k] }))} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"10px 12px", borderRadius:10, border:"2px solid", borderColor: perkDraft[row.k] ? "#00A86B" : "#EBEBEB", background: perkDraft[row.k] ? "#E6F7EF" : "#fff", cursor:"pointer", fontSize:14, fontWeight:700, color: perkDraft[row.k] ? "#00A86B" : "#222" }}>
+                                {row.l}{perkDraft[row.k] ? "　✓" : ""}
+                              </button>
+                              {row.tk && perkDraft[row.k] && (
+                                <input value={perkDraft[row.tk]} onChange={e=>setPerkDraft(p=>({ ...p, [row.tk]: e.target.value }))} placeholder={row.tp} className="field f-sans" style={{ fontSize:13, marginTop:8, marginBottom:0 }} />
+                              )}
+                            </div>
+                          ))}
+                          <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:10 }}>
+                            「保存」＝農家プロフィールの待遇も更新します（文章の項目は運営の確認後に公開）。「この求人のみ」＝この求人だけに適用し、プロフィールは変わりません（求人審査の中で確認されます）。
+                          </p>
+                        </div>
+                        <div style={{ display:"flex", gap:8, padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
+                          <button onClick={savePerksToProfile} disabled={perkSaving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:12, cursor:"pointer", opacity: perkSaving ? 0.6 : 1 }}>{perkSaving ? "保存中..." : "保存"}</button>
+                          <button onClick={()=>{ setJobPerks({ ...perkDraft }); setPerksEditOpen(false); }} disabled={perkSaving} className="btn-primary f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12 }}>この求人のみ</button>
+                        </div>
                       </div>
                     </div>
                   )}
