@@ -5011,6 +5011,15 @@ function ChatView({ applicationId, onBack }) {
     try {
       const { data } = await supabase.from("messages").select("*").eq("application_id", applicationId).order("created_at",{ascending:true});
       if (data) setMsgs(data);
+      // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && (data || []).some(m => m.sender_id !== session.user.id && !m.read_at)) {
+          await supabase.from("messages").update({ read_at: new Date().toISOString() })
+            .eq("application_id", applicationId).neq("sender_id", session.user.id).is("read_at", null);
+          window.dispatchEvent(new Event("cb:unreadRefresh"));
+        }
+      } catch {}
     } catch {}
   };
   useEffect(() => {
@@ -5146,7 +5155,16 @@ function ChatList() {
   const [dmUnread, setDmUnread] = useState(0);
   const [dmText, setDmText] = useState("");
   const [dmSending, setDmSending] = useState(false);
+  const [unreadMap, setUnreadMap] = useState({}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
   const dmUid = useRef(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.rpc("my_unread_message_counts");
+        if (data) setUnreadMap(data.by_application || {});
+      } catch {}
+    })();
+  }, []);
   const loadDm = async (markRead) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -5159,6 +5177,7 @@ function ChatList() {
       if (markRead && unread > 0) {
         await supabase.from("admin_messages").update({ read_at: new Date().toISOString() }).eq("user_id", session.user.id).eq("from_admin", true).is("read_at", null);
         setDmUnread(0);
+        window.dispatchEvent(new Event("cb:unreadRefresh"));
       }
     } catch {}
   };
@@ -5282,6 +5301,7 @@ function ChatList() {
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
                     <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
+                    {unreadMap[a.id] > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{unreadMap[a.id]}</span>}
                     <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:"#E6F7EF", color:"#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
                   </div>
                   {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}</p>}
@@ -15542,6 +15562,22 @@ const loadNotifs=useCallback(async(farmerId)=>{
     window.addEventListener("cb:confirmNotice", f);
     return () => window.removeEventListener("cb:confirmNotice", f);
   }, [me?.id]);
+  // チャット未読通知（2026-07-17）：下部バー「チャット」に未読合計（当事者チャット＋運営DM）の赤バッジ。
+  // 再計算のタイミング＝起動・ページ遷移(hashchange)・チャット/運営DMを開いて既読化した時(cb:unreadRefresh)
+  const [chatUnread, setChatUnread] = useState(0);
+  useEffect(() => {
+    if (!me?.id) { setChatUnread(0); return; }
+    const refresh = async () => {
+      try {
+        const { data } = await supabase.rpc("my_unread_message_counts");
+        if (data) setChatUnread((data.chat || 0) + (data.dm || 0));
+      } catch {}
+    };
+    refresh();
+    window.addEventListener("hashchange", refresh);
+    window.addEventListener("cb:unreadRefresh", refresh);
+    return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); };
+  }, [me?.id]);
   // approvalトリガー（応募承認後）の専用照会は2026-07-17に撤去：熱中症お知らせがafter_login×毎回表示に変更され、
   // ログイン済み利用者の来訪すべてをカバーするため。approval値の判定はshowNoticesForに残っており、再開時はここにeffectを足すだけ
   const dismissNotices = () => {
@@ -15946,8 +15982,11 @@ const subDest=useCallback(async d=>{
                 setTab(t.k); window.location.hash = "/" + t.k;
               }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
-              <span className="icon">
+              <span className="icon" style={{ position:"relative" }}>
                 {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} /> : t.icon}
+                {t.k === "chats" && chatUnread > 0 && (
+                  <span style={{ position:"absolute", top:-4, right:-10, minWidth:16, height:16, borderRadius:8, background:"#E24B4A", color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px", pointerEvents:"none" }}>{chatUnread > 99 ? "99+" : chatUnread}</span>
+                )}
               </span>
               <span className="label">{t.label}</span>
             </button>
