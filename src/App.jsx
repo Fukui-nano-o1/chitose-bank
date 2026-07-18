@@ -10879,7 +10879,7 @@ function AdminBoxRegistryPage() {
                 <span style={{ padding:"2px 8px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg, marginRight:8 }}>{st.l}</span>
                 対象：{audienceLabel(nPreview.audience)}
                 {(nPreview.starts_at || nPreview.ends_at) ? `　期間：${fmtDate(nPreview.starts_at) || "指定なし"}〜${fmtDate(nPreview.ends_at) || "指定なし"}` : "　期間：指定なし"}
-                <br />展開機会：{(nPreview.trigger_on || "startup").split(",").map(t => ({ startup:"起動時", login:"ログイン画面を開いたとき", after_login:"ログイン後", approval:"応募承認後", confirm:"確認ページ（農家プロ未入力時）" }[t.trim()] || t)).join("・")}{nPreview.show_every_time ? "のたびに毎回ポップアップ表示されます（✕で閉じても次回また表示）。" : "に1回だけポップアップ表示されます（✕で既読）。"}上の表示が本番そのままの見え方です。
+                <br />展開機会：{(nPreview.trigger_on || "startup").split(",").map(t => ({ startup:"起動時", login:"ログイン画面を開いたとき", after_login:"ログイン後", approval:"応募承認後", confirm:"確認ページ（農家プロ未入力時）" }[t.trim()] || t)).join("・")}{nPreview.show_every_time ? "のたびに毎回ポップアップ表示されます（✕で閉じても次回また表示）。" : nPreview.repeat_chance > 0 ? `のたびに約${nPreview.repeat_chance}%の確率でランダム表示されます（✕で閉じても対象のまま）。` : "に1回だけポップアップ表示されます（✕で既読）。"}上の表示が本番そのままの見え方です。
               </p>
             </div>
           </div>
@@ -15496,12 +15496,14 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const [activeNotices, setActiveNotices] = useState(null);
   const showNoticesFor = async (trigger) => {
     try {
-      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on,image_url,show_every_time").order("sort");
+      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on,image_url,show_every_time,repeat_chance").order("sort");
       if (!data || data.length === 0) return;
       let read = [];
       try { read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]"); } catch {}
       const roleAud = !me ? ["all"] : me.isWorker ? ["all", "worker"] : ["all", "farmer"];
-      const fresh = data.filter(n => (n.trigger_on || "startup").split(",").map(s => s.trim()).includes(trigger) && (n.show_every_time || !read.includes(n.id)) && roleAud.includes(n.audience));
+      const fresh = data.filter(n => (n.trigger_on || "startup").split(",").map(s => s.trim()).includes(trigger)
+        && (!read.includes(n.id) || n.show_every_time || (n.repeat_chance > 0 && Math.random() * 100 < n.repeat_chance))
+        && roleAud.includes(n.audience));
       if (fresh.length > 0) setActiveNotices(prev => (prev && prev.length ? prev : fresh)); // 表示中は上書きしない＝1回1件
     } catch {}
   };
