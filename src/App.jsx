@@ -7761,22 +7761,10 @@ function JobSearchMapView({ onRegister, me }) {
               <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>応募の確認</p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
-              {(selectedJob.photos || [])[0] && (
-                <img src={typeof selectedJob.photos[0] === "string" ? selectedJob.photos[0] : selectedJob.photos[0]?.url} alt="" style={{ display:"block", width:"100%", height:150, objectFit:"cover", borderRadius:12, marginBottom:12 }} />
-              )}
-              <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 10px" }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}</p>
-              {[
-                { label:"日程", value: selectedJob.dateLabel || "—" },
-                { label:"報酬", value: payLabel(selectedJob) },
-                { label:"最高額", value: maxPay != null ? `¥${maxPay.toLocaleString()}（期間内に全て勤務した場合）` : "—" },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:56, flexShrink:0 }}>{label}</span>
-                  <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
-                </div>
-              ))}
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"14px 0 0" }}>
-                応募はまだ採用ではありません。農家が内容を確認し、承認されるとチャットで打ち合わせが始まります。承認前であれば、応募中ページからいつでも取り消せます。
+              {/* 承認の流れ（①プロフィール確認②判断③承認決定）のインフォグラフィック＝応募前に承認制であることを伝える */}
+              <img src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます" style={{ display:"block", width:"100%", borderRadius:12 }} />
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"12px 0 0" }}>
+                応募はまだ採用ではありません。承認前であれば、応募中ページからいつでも取り消せます。
               </p>
             </div>
             <div style={{ display:"flex", gap:8, padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
