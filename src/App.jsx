@@ -7490,7 +7490,6 @@ function JobSearchMapView({ onRegister, me }) {
               {/* 経験・持ち物・備考（配列駆動・未入力は「ー」）。希望する働き手は削除・必要経験と持ち物はバッジ表示（2026-07-16・確認/プレビューと同設計） */}
               <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                 {[
-                  { label:"必要経験",   value: disp(selectedJob.experience), chips:true },
                   { label:"持ち物",     value: disp(selectedJob.items), chips:true, pin:true },
                   { label:"備考・注意", value: disp(selectedJob.cautions) },
                 ].map(row => (
@@ -10092,7 +10091,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                       <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
                     {[
-                      { label:"必要経験",   value: jobExp, chips:true },
                       { label:"持ち物",     value: jobNotes, chips:true, pin:true },
                       { label:"備考・注意", value: jobCautions },
                     ].map(row => {
@@ -10761,7 +10759,6 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           {/* 経験・持ち物・備考（配列駆動・未入力は「ー」）。希望する働き手は削除・必要経験と持ち物はバッジ表示（2026-07-16） */}
           <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
             {[
-              { label:"必要経験",   value: disp(job.experience), chips:true },
               { label:"持ち物",     value: disp(job.items), chips:true, pin:true },
               { label:"備考・注意", value: disp(job.cautions) },
             ].map(row => (
