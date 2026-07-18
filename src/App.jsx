@@ -10845,7 +10845,7 @@ function AdminBoxRegistryPage() {
                 <span style={{ padding:"2px 8px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg, marginRight:8 }}>{st.l}</span>
                 対象：{audienceLabel(nPreview.audience)}
                 {(nPreview.starts_at || nPreview.ends_at) ? `　期間：${fmtDate(nPreview.starts_at) || "指定なし"}〜${fmtDate(nPreview.ends_at) || "指定なし"}` : "　期間：指定なし"}
-                <br />展開機会：{(nPreview.trigger_on || "startup").split(",").map(t => ({ startup:"起動時", login:"ログイン画面を開いたとき", after_login:"ログイン後", approval:"応募承認後" }[t.trim()] || t)).join("・")}に1回だけポップアップ表示されます（✕で既読）。上の表示が本番そのままの見え方です。
+                <br />展開機会：{(nPreview.trigger_on || "startup").split(",").map(t => ({ startup:"起動時", login:"ログイン画面を開いたとき", after_login:"ログイン後", approval:"応募承認後" }[t.trim()] || t)).join("・")}{nPreview.show_every_time ? "のたびに毎回ポップアップ表示されます（✕で閉じても次回また表示）。" : "に1回だけポップアップ表示されます（✕で既読）。"}上の表示が本番そのままの見え方です。
               </p>
             </div>
           </div>
@@ -15462,28 +15462,20 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const [activeNotices, setActiveNotices] = useState(null);
   const showNoticesFor = async (trigger) => {
     try {
-      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on,image_url").order("sort");
+      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on,image_url,show_every_time").order("sort");
       if (!data || data.length === 0) return;
       let read = [];
       try { read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]"); } catch {}
       const roleAud = !me ? ["all"] : me.isWorker ? ["all", "worker"] : ["all", "farmer"];
-      const fresh = data.filter(n => (n.trigger_on || "startup").split(",").map(s => s.trim()).includes(trigger) && !read.includes(n.id) && roleAud.includes(n.audience));
+      const fresh = data.filter(n => (n.trigger_on || "startup").split(",").map(s => s.trim()).includes(trigger) && (n.show_every_time || !read.includes(n.id)) && roleAud.includes(n.audience));
       if (fresh.length > 0) setActiveNotices(prev => (prev && prev.length ? prev : fresh)); // 表示中は上書きしない＝1回1件
     } catch {}
   };
   useEffect(() => { showNoticesFor("startup"); }, [me?.id]); // ログインで農家/働き手向けの未読が増えることがあるため再判定
   useEffect(() => { if (tab === "login") showNoticesFor("login"); }, [tab]); // ログインをタップ＝ログイン画面を開いた瞬間に展開
   useEffect(() => { if (me?.id) showNoticesFor("after_login"); }, [me?.id]); // ログイン後（ログイン完了・ログイン済みの起動を含む）
-  useEffect(() => { // 応募承認後：直近7日以内に承認決定(decided_at)された応募を持つ働き手＝承認メール受信後にサイトを開いた時
-    if (!me?.id) return;
-    (async () => {
-      try {
-        const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-        const { data } = await supabase.from("applications").select("id").eq("worker_id", me.id).not("decided_at", "is", null).gte("decided_at", since).limit(1);
-        if (data && data.length > 0) showNoticesFor("approval");
-      } catch {}
-    })();
-  }, [me?.id]);
+  // approvalトリガー（応募承認後）の専用照会は2026-07-17に撤去：熱中症お知らせがafter_login×毎回表示に変更され、
+  // ログイン済み利用者の来訪すべてをカバーするため。approval値の判定はshowNoticesForに残っており、再開時はここにeffectを足すだけ
   const dismissNotices = () => {
     // 既読にするのは表示した1件だけ。残りは次回サイトを開いたときに1件ずつ＝詰め込まない（2026-07-16たきと方針）
     setActiveNotices(prev => {
