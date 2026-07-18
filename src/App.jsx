@@ -395,9 +395,9 @@ input:focus { outline: none; }
 .cb-sheet-up { animation: cbPop .8s cubic-bezier(.2, 1.3, .3, 1); transform-origin: center center; }
 /* お知らせボックスの高さ規定（2026-07-17）：上限=ステータスバーの30px下・下限=下部フッターの20px上。
    100vhはiOSでツールバー裏まで含むため、対応ブラウザでは実表示高さ(100dvh)で上書きして上端の見切れを防ぐ */
-.cb-notice-sheet { max-height: calc(100vh - env(safe-area-inset-top, 0px) - 30px - 64px - 20px - env(safe-area-inset-bottom, 0px)); }
+.cb-notice-sheet { max-height: calc(100vh - env(safe-area-inset-top, 0px) - 30px - 64px - 40px - env(safe-area-inset-bottom, 0px)); }
 @supports (height: 100dvh) {
-  .cb-notice-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 30px - 64px - 20px - env(safe-area-inset-bottom, 0px)); }
+  .cb-notice-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 30px - 64px - 40px - env(safe-area-inset-bottom, 0px)); }
 }
 /* お知らせ規定（2026-07-17追加）：タイトル・リンクの文字が頭から順に上へジャンプする波。
    1文字の山は周期の先頭8%（周期はNoticeJumpTextが文字数から算出＝波の走破後に約2秒の休止を挟んでループ） */
@@ -11068,7 +11068,7 @@ function AdminBoxRegistryPage() {
         const st = noticeStatus(nPreview);
         return (
         <div onClick={()=>setNPreview(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
             <button onClick={()=>setNPreview(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={nPreview.name} /></p>
@@ -15983,11 +15983,11 @@ const subDest=useCallback(async d=>{
       )}
 
       {/* 運営お知らせポップアップの規定（2026-07-17設計）：左詰め・緑の太縁(3px)・タイトルと説明の間に横線・
-          上限=画面上から30px・下限=下部フッターの20px上・最後の段に「〇〇する」形式のリンク（タップ=既読化して遷移）。
+          上限=画面上から30px・下限=下部フッターの40px上（2026-07-18に20px引き上げ）・最後の段に「〇〇する」形式のリンク（タップ=既読化して遷移）。
           文字はタイトル20/本文18/リンク18（2026-07-17縮小・説明文が5行を超えると読まれないため）。1回の起動で1件、残りは次回（たきと方針） */}
       {activeNotices && !welcomeApproved && (
         <div onClick={dismissNotices} style={{ position:"fixed", inset:0, zIndex:10900, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 20px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
             <button onClick={dismissNotices} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={activeNotices[0].name} /></p>
