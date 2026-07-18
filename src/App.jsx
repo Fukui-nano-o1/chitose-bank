@@ -417,6 +417,16 @@ input:focus { outline: none; }
   100%  { transform: translateY(0);    box-shadow: 0 1px 4px rgba(226,75,74,.4); }
 }
 .cb-urgent-card { animation: cbUrgent 3.5s ease-in-out infinite; }
+/* 赤影なしの飛ぶ動作（2026-07-18）：チャット未読の下部バーアイコン用。跳ねのリズムはcbUrgentと同じ */
+@keyframes cbJump {
+  0%    { transform: translateY(0); }
+  3.6%  { transform: translateY(-5px); }
+  7.1%  { transform: translateY(0); }
+  10.7% { transform: translateY(-5px); }
+  14.3% { transform: translateY(-2px); }
+  100%  { transform: translateY(0); }
+}
+.cb-jump { animation: cbJump 3.5s ease-in-out infinite; }
 /* 任意項目の未入力：赤影のみ（浮遊アニメなし・2026-07-16） */
 .cb-urgent-still { box-shadow: 0 2px 6px rgba(226,75,74,.45) !important; }
 /* 体感0.8秒（退場0.4s＋入場0.4s）・スワイプ風の横滑り（2026-07-16） */
@@ -5250,7 +5260,7 @@ function ChatList() {
     <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0" }}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>チャット</h2>
       {/* 運営DMタブ（2026-07-16）：常に最上部。未読は赤バッジ */}
-      <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer", marginBottom:10 }}>
+      <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className={"f-sans" + (dmUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer", marginBottom:10 }}>
         <span style={{ width:40, height:40, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>🛡</span>
         <div style={{ flex:1, minWidth:0 }}>
           <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>chitose-bank運営</p>
@@ -5297,7 +5307,7 @@ function ChatList() {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
             return (
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
-                className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
+                className={"f-sans" + (unreadMap[a.id] > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
                   border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
                 <Avatar url={a.partnerAvatar} name={a.partnerName} size={40} />
                 <div style={{ minWidth:0, flex:1 }}>
@@ -16143,7 +16153,7 @@ const subDest=useCallback(async d=>{
                 setTab(t.k); window.location.hash = "/" + t.k;
               }}
               className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
-              <span className="icon" style={{ position:"relative" }}>
+              <span className={"icon" + (t.k === "chats" && chatUnread > 0 ? " cb-jump" : "")} style={{ position:"relative" }}>
                 {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} /> : t.icon}
                 {t.k === "chats" && chatUnread > 0 && (
                   <span style={{ position:"absolute", top:-4, right:-10, minWidth:16, height:16, borderRadius:8, background:"#E24B4A", color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px", pointerEvents:"none" }}>{chatUnread > 99 ? "99+" : chatUnread}</span>
