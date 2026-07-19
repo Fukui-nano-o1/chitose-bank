@@ -13593,6 +13593,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   // お気に入り登録しました！ボックス（2026-07-19）：登録成功の瞬間に展開。アイコンに❤️が付く動作つき
   const [favDone, setFavDone] = useState(null); // {workerId, nickname, avatar_url}
   const [favDetailOpen, setFavDetailOpen] = useState(false);
+  const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
     if (!completeDone) return;
@@ -13866,8 +13867,13 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           </button>
           {rosterRows.length > 0 && (
             <div className="f-sans" style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px" }}>❤️ また呼びたいリスト</p>
-              <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>一緒に働いたあと、あなたが「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとこの方たちにお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
+              <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 12px" }}>
+                <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>❤️ また呼びたいリスト</p>
+                <button onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" className="f-sans" style={{ width:22, height:22, borderRadius:11, background: rosterInfoOpen ? "#00A86B" : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", border:"none", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</button>
+              </div>
+              {rosterInfoOpen && (
+                <p className="fade-in" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>一緒に働いたあと、あなたが「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとこの方たちにお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
+              )}
               {/* アイコンのみ（2026-07-19・ニックネーム非表示）。タップで詳細モーダル（解除もそこから） */}
               <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
                 {rosterRows.map(r => (
