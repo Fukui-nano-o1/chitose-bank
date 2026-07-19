@@ -5488,7 +5488,7 @@ function ChatList() {
               ) : dmMsgs.map(m => (
                 <div key={m.id} style={{ alignSelf: m.from_admin ? "flex-start" : "flex-end", maxWidth:"85%" }}>
                   {m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>🛡 運営</p>}
-                  <div className="f-sans" style={{ background: m.from_admin ? "#F5F5F5" : "#00A86B", color: m.from_admin ? "#222" : "#fff", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{m.body}</div>
+                  <div className="f-sans" style={{ background: m.from_admin ? "#F5F5F5" : "#00A86B", color: m.from_admin ? "#222" : "#fff", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={m.body} onNavigate={()=>setDmOpen(false)} /></div>
                   <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "left" : "right" }}>{String(m.created_at).slice(5, 16).replace("T", " ")}</p>
                 </div>
               ))}
@@ -5794,6 +5794,18 @@ async function uploadAvatarResilient(folder, blob) {
     } catch {}
   }
   return err;
+}
+// DM本文のURLをタップ可能なリンクにする（2026-07-19）：修正依頼の「▶ 修正はこちら」等。
+// chitose-bank.comの#リンクはアプリ内遷移（hash変更・リロードなし）、外部URLは新規タブ。
+// onNavigate＝アプリ内リンクを踏んだ時に呼ぶ（DMポップアップを閉じる用）
+function LinkifiedText({ text, onNavigate }) {
+  const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
+  return parts.map((p, i) => {
+    if (!/^https?:\/\//.test(p)) return p;
+    const m = p.match(/^https?:\/\/(?:www\.)?chitose-bank\.com\/(#\/[^\s]*)$/);
+    if (m) return <a key={i} href={m[1]} onClick={()=>{ if (typeof onNavigate === "function") onNavigate(); }} style={{ color:"inherit", fontWeight:700, textDecoration:"underline" }}>{p}</a>;
+    return <a key={i} href={p} target="_blank" rel="noopener noreferrer" style={{ color:"inherit", fontWeight:700, textDecoration:"underline" }}>{p}</a>;
+  });
 }
 function WorkerPreviewSheet() {
   const [st, setSt] = useState(null); // {worker_id, loading, profile, trust}
@@ -12258,7 +12270,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               ) : dmThread.map(m => (
                 <div key={m.id} style={{ alignSelf: m.from_admin ? "flex-end" : "flex-start", maxWidth:"85%" }}>
                   {!m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>{dmUser.name}</p>}
-                  <div className="f-sans" style={{ background: m.from_admin ? "#00A86B" : "#F5F5F5", color: m.from_admin ? "#fff" : "#222", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{m.body}</div>
+                  <div className="f-sans" style={{ background: m.from_admin ? "#00A86B" : "#F5F5F5", color: m.from_admin ? "#fff" : "#222", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={m.body} /></div>
                   <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "right" : "left" }}>{String(m.created_at).slice(5, 16).replace("T", " ")}{m.from_admin && m.read_at ? "・既読" : ""}</p>
                 </div>
               ))}
