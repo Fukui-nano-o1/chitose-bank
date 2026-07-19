@@ -13726,29 +13726,22 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     if (!completeModalApp || completeWantAgain===null || completeEntrust===null || completeSubmitting) return;
     setCompleteSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc('complete_work', { p_application_id: completeModalApp.id, p_attended: true });
-      if (error || !data?.ok) { alert('完了処理に失敗しました：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
-      const { error: revErr } = await supabase.from('reviews').insert({
-        application_id: completeModalApp.id, reviewer_id: me.id, reviewee_id: completeModalApp.worker_id,
-        direction: 'farmer_to_worker', want_again: completeWantAgain, entrust: completeEntrust,
-        public_comment: completePublicComment.trim() || null, private_memo: completePrivateMemo.trim() || null,
+      // 原子化（2026-07-19）：完了処理・評価保存・お気に入り登録を1つのRPC＝1トランザクションで実行。
+      // 送信ボタンのタップだけがトリガーで、途中失敗なら何も保存されない（中途半端な履歴が残らない）
+      const { data, error } = await supabase.rpc('submit_farmer_review', {
+        p_application_id: completeModalApp.id,
+        p_want_again: completeWantAgain, p_entrust: completeEntrust,
+        p_public_comment: completePublicComment.trim(), p_private_memo: completePrivateMemo.trim(),
+        p_favorite: completeNotifyNext,
       });
-      if (revErr) { alert('評価の保存に失敗しました：' + revErr.message); setCompleteSubmitting(false); return; }
-      let favorited = false;
-      if (completeWantAgain === true && completeNotifyNext) {
-        // また呼びたいリスト登録（失敗しても評価自体は成立済みso止めない）
-        const { error: rosErr } = await supabase.from('repeat_roster').upsert(
-          { farmer_id: me.id, worker_id: completeModalApp.worker_id, source_application_id: completeModalApp.id, notify: true },
-          { onConflict: 'farmer_id,worker_id' }
-        );
-        if (!rosErr) {
-          favorited = true;
-          const wp = workerProfiles[completeModalApp.worker_id];
-          setRosterRows(prev => prev.some(r => r.worker_id === completeModalApp.worker_id) ? prev
-            : [{ worker_id: completeModalApp.worker_id, nickname: wp?.nickname || null, avatar_url: wp?.avatar_url || null }, ...prev]);
-          setFavDetailOpen(false);
-          setFavDone({ workerId: completeModalApp.worker_id, nickname: wp?.nickname || "", avatar_url: wp?.avatar_url || "" });
-        }
+      if (error || !data?.ok) { alert('送信に失敗しました（何も保存されていません）：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
+      const favorited = !!data.favorited;
+      if (favorited) {
+        const wp = workerProfiles[completeModalApp.worker_id];
+        setRosterRows(prev => prev.some(r => r.worker_id === completeModalApp.worker_id) ? prev
+          : [{ worker_id: completeModalApp.worker_id, nickname: wp?.nickname || null, avatar_url: wp?.avatar_url || null }, ...prev]);
+        setFavDetailOpen(false);
+        setFavDone({ workerId: completeModalApp.worker_id, nickname: wp?.nickname || "", avatar_url: wp?.avatar_url || "" });
       }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
       // 評価登録完了モーダル用の控えを組み立てる（求人タイトルはdbActive→jobsの順で解決）
