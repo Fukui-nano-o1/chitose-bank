@@ -5017,6 +5017,7 @@ function ChatView({ applicationId, onBack }) {
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState(null);
   const [partner, setPartner] = useState(null); // { nickname, avatar_url }
+  const [partnerWorkerId, setPartnerWorkerId] = useState(null); // 相手が働き手ならそのauth_id（アイコンタップでプレビュー・2026-07-19）
   // はじめる前の確認カード（⑦）
   const [confirmJob, setConfirmJob] = useState(null); // mapJobPublicRowで整形した求人情報
   const [chatJobNumber, setChatJobNumber] = useState(null); // ヘッダー・確認カードの#N表示用（jobs_publicから消えた求人でも出す）
@@ -5055,6 +5056,7 @@ function ChatView({ applicationId, onBack }) {
           const iAmWorker = session.user.id === app.worker_id;
           const table = iAmWorker ? "employer_profiles" : "worker_profiles";
           const partnerId = iAmWorker ? app.farmer_id : app.worker_id;
+          setPartnerWorkerId(iAmWorker ? null : app.worker_id); // 相手が働き手の時だけアイコンタップでプレビュー（2026-07-19）
           const { data: pData } = await supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle();
           if (pData) setPartner(pData);
           setIsWorkerSide(iAmWorker);
@@ -5101,7 +5103,9 @@ function ChatView({ applicationId, onBack }) {
       <button onClick={onBack} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:13, cursor:"pointer", padding:"8px 0", textAlign:"left" }}>← 戻る</button>
       {partner && (
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0 12px", borderBottom:"1px solid #EEE" }}>
-          <Avatar url={partner.avatar_url} name={partner.nickname} size={36} />
+          <span onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); }} style={{ flexShrink:0, cursor: partnerWorkerId ? "pointer" : "default" }}>
+            <Avatar url={partner.avatar_url} name={partner.nickname} size={36} />
+          </span>
           <div>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
             {chatJobNumber != null && (
@@ -5353,7 +5357,10 @@ function ChatList() {
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
                 className={"f-sans" + (unreadMap[a.id] > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
                   border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
-                <Avatar url={a.partnerAvatar} name={a.partnerName} size={40} />
+                {/* 相手が働き手（自分が農家側）ならアイコンタップでプレビュー展開（2026-07-19） */}
+                <span onClick={(e)=>{ if (a._role === "farmer") { e.stopPropagation(); openWorkerPreview(a.worker_id); } }} style={{ flexShrink:0 }}>
+                  <Avatar url={a.partnerAvatar} name={a.partnerName} size={40} />
+                </span>
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
                     <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
@@ -5529,6 +5536,69 @@ function MyReviewsOfWorker({ workerId }) {
           {r.private_memo && <p style={{ margin:"4px 0 0", lineHeight:1.6, color:"#717171", overflowWrap:"break-word", wordBreak:"break-word" }}>🔒 メモ（自分のみ）：{r.private_memo}</p>}
         </div>
       ))}
+    </div>
+  );
+}
+
+// 働き手プレビューの全域ボックス（2026-07-19）：どの画面の働き手アイコンからでも
+// openWorkerPreview(worker_id) で展開できる。中身はまた呼びたいリスト詳細と同じ
+// （WorkerTrustCard＋Q&A＋あなたの評価）。Appルートに1つだけマウントし、イベントで開く
+function openWorkerPreview(workerId) {
+  if (workerId) window.dispatchEvent(new CustomEvent("cb:openWorkerPreview", { detail: workerId }));
+}
+function WorkerPreviewSheet() {
+  const [st, setSt] = useState(null); // {worker_id, loading, profile, trust}
+  useEffect(() => {
+    const f = (e) => {
+      const workerId = e.detail;
+      if (!workerId) return;
+      setSt({ worker_id: workerId, loading: true, profile: null, trust: null });
+      (async () => {
+        try {
+          const [wpRes, trustRes] = await Promise.all([
+            supabase.from("worker_profiles").select("*").eq("auth_id", workerId).maybeSingle(),
+            supabase.rpc("worker_trust_info", { p_worker_id: workerId }),
+          ]);
+          setSt(prev => prev && prev.worker_id === workerId ? {
+            worker_id: workerId, loading: false,
+            profile: wpRes.data || null,
+            trust: (trustRes.data && trustRes.data.ok) ? trustRes.data : null,
+          } : prev);
+        } catch {
+          setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false } : prev);
+        }
+      })();
+    };
+    window.addEventListener("cb:openWorkerPreview", f);
+    return () => window.removeEventListener("cb:openWorkerPreview", f);
+  }, []);
+  if (!st) return null;
+  return (
+    <div onClick={()=>setSt(null)} style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+      <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+        <button onClick={()=>setSt(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>働き手のプレビュー</p>
+        {st.loading ? (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+        ) : st.profile ? (
+          <>
+            <WorkerTrustCard profile={st.profile} trust={st.trust} />
+            {Array.isArray(st.profile.pr_qa) && st.profile.pr_qa.length > 0 && (
+              <div style={{ display:"grid", gap:10, marginTop:16 }}>
+                {st.profile.pr_qa.map(({ q, a }) => (
+                  <div key={q}>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <MyReviewsOfWorker workerId={st.worker_id} />
+          </>
+        ) : (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この方のプロフィールは未設定です</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -14207,7 +14277,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
             <button onClick={()=>setFavDone(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 18px" }}>お気に入り登録しました！</p>
-            <div style={{ position:"relative", width:88, height:88, margin:"0 auto 16px" }}>
+            <div onClick={()=>openWorkerPreview(favDone.workerId)} role="button" style={{ position:"relative", width:88, height:88, margin:"0 auto 16px", cursor:"pointer" }}>
               <Avatar url={favDone.avatar_url} name={favDone.nickname || "？"} size={88} />
               <span className="cb-heart-pop" style={{ position:"absolute", right:-8, bottom:-4, fontSize:32, lineHeight:1, filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.25))" }}>❤️</span>
             </div>
@@ -16144,6 +16214,9 @@ const subDest=useCallback(async d=>{
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
       <style>{CSS}</style>
+
+      {/* 働き手プレビューの全域ボックス（どの画面のアイコンからでもcb:openWorkerPreviewで展開・2026-07-19） */}
+      <WorkerPreviewSheet />
 
       {/* ── プロフィール承認の「お帰りなさい」ポップアップ（起動時1回・ボックス展開） ── */}
       {welcomeApproved && (
