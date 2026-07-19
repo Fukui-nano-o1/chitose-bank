@@ -5940,6 +5940,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [revTargets, setRevTargets] = useState([]); // 修正依頼の指摘対象（"自己紹介本文"/質問文・2026-07-19）
   useEffect(() => {
     (async () => {
       try {
@@ -5958,6 +5959,8 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           setPhysicalLevel(data.physical_level || "");
           setInterests(Array.isArray(data.interests) ? data.interests : []);
           setLanguages(Array.isArray(data.languages) ? data.languages : []);
+          // 修正依頼の指摘対象（2026-07-19）：該当ボックスに赤帯を出す。再提出（保存）で消える
+          setRevTargets(Array.isArray(data.pr_revision_targets) ? data.pr_revision_targets : []);
         }
       } catch {}
       setLoading(false);
@@ -6099,12 +6102,14 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       const { error } = await supabase.from("worker_profiles").upsert({
         auth_id: session.user.id, nickname: nickname.trim(),
         pr_pending: pr.trim(), pr_qa_pending: prQa, pr_submitted_at: new Date().toISOString(),
+        pr_revision_targets: null, // 再提出＝修正依頼の赤帯を解除（2026-07-19）
         residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
         interests, languages, updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) {
         setSaved(true);
+        setRevTargets([]);
         if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
         if (stay === true) {
           // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）
@@ -6145,13 +6150,20 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"interests", e:"🎨", l:"趣味",         v: interests.join("・") },
           { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
           { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
-        ].map(b => (
-          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+        ].map(b => {
+          // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
+          const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
+          return (
+          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+            {revFlagged && (
+              <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:1, padding:"5px 6px", borderRadius:"0 0 20px 20px", background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>⚠️ 修正のお願い</span>
+            )}
             {b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>}
             <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
             <span style={{ fontSize:11, color: b.v ? "#00A86B" : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
           </button>
-        ))}
+          );
+        })}
       </div>
       {saved && (
         <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>保存しました ✓　自己紹介は運営の確認後に公開されます（最大2日）</p>
@@ -6290,6 +6302,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
               {questions.map(q => {
                 const answered = prQa.some(x => x.q === q);
+                const revFlaggedQ = revTargets.includes(q); // 修正依頼の指摘対象の質問は赤で明示（2026-07-19）
                 return (
                   <button
                     key={q}
@@ -6298,12 +6311,12 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
                     className="f-sans"
                     style={{
                       padding:"6px 12px", borderRadius:20,
-                      border:"1px solid " + (answered ? "#00A86B" : "#EBEBEB"),
-                      background: answered ? "#E6F7EF" : "#F7F7F7",
-                      color: answered ? "#00A86B" : "#717171",
+                      border: revFlaggedQ ? "2px solid #E24B4A" : "1px solid " + (answered ? "#00A86B" : "#EBEBEB"),
+                      background: revFlaggedQ ? "#FDECEC" : answered ? "#E6F7EF" : "#F7F7F7",
+                      color: revFlaggedQ ? "#E24B4A" : answered ? "#00A86B" : "#717171",
                       fontSize:12, fontWeight:600, cursor:"pointer",
                     }}
-                  >{answered ? "✓ " : ""}{q}</button>
+                  >{revFlaggedQ ? "⚠️ " : answered ? "✓ " : ""}{q}</button>
                 );
               })}
             </div>
@@ -11948,7 +11961,9 @@ function AdminTab({ onJump, onShowAccountForm }) {
     const reasonText = buildPrRevisionText(prRevFindings);
     if (prRevSending || !reasonText) return;
     setPrRevSending(true);
-    const { data, error } = await supabase.rpc("request_worker_pr_revision", { p_auth_id: w.auth_id, p_reason: reasonText });
+    // 指摘対象（どこ）も渡す＝本人の編集ページで該当ボックスに赤帯を出すため（2026-07-19）
+    const targets = [...new Set(prRevFindings.filter(f => f.target && f.issueType).map(f => f.target))];
+    const { data, error } = await supabase.rpc("request_worker_pr_revision", { p_auth_id: w.auth_id, p_reason: reasonText, p_targets: targets });
     setPrRevSending(false);
     if (error || !data?.ok) { alert("修正依頼の送信に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     setPrRevDone(true);
