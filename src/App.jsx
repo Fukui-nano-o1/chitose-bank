@@ -14206,7 +14206,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               </button>
             ))}
           </div>
-          <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+          <button onClick={onNewJob} className="f-sans cb-jump" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 赤影なしの飛ぶ動作（チャット未読アイコンと同じcb-jump・2026-07-19） */}
             <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
             <span>
               <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく求人を出す</span>
