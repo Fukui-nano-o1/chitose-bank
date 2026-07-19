@@ -6847,16 +6847,16 @@ function MyCalendar() {
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>カレンダー</h2>
-      {/* 下書きを進めませんか？ボックス（2026-07-19）：下書きカードタップ→保存済みステップから求人フロー再開 */}
+      {/* 下書きを進めませんか？ボックス（2026-07-19）：下書きカードタップ→保存済みステップから求人フロー再開。
+          意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルと説明の間に横線・上限30px/下限フッター+40px・タイトル20/本文18） */}
       {draftPrompt && (
-        <div onClick={()=>setDraftPrompt(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-              <button onClick={()=>setDraftPrompt(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
-              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>📝 下書きを進めませんか？</p>
-            </div>
-            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"14px 16px 16px" }}>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:"0 0 12px" }}>作成途中の求人があります。カードをタップすると、続きから再開できます。</p>
+        <div onClick={()=>setDraftPrompt(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+            <button onClick={()=>setDraftPrompt(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>📝 下書きを進めませんか？</p>
+            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
+            <div>
+              <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"0 0 14px" }}>作成途中の求人があります。カードをタップすると、続きから再開できます。</p>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
                 {draftPrompt.map(j => {
                   const photo = j.photos && j.photos[0] ? (typeof j.photos[0] === "string" ? j.photos[0] : j.photos[0]?.url) : null;
