@@ -11120,7 +11120,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
       {/* 開催期間カレンダー📅：確認ページ下部ナビ右上の浮遊ボタン＋モーダル（求人詳細ページと同構造）。
           詳細ページと違い日程未設定でも常に表示（農家の編集の場のため。モーダル内に日程入力への導線） */}
-      {isFarmer && step === 11 && !publishModal && (
+      {/* 待遇編集・プロフィール編集ボックス展開中は非表示（2026-07-19）：ボックスは深い階層のため
+          z-indexだけでは📅（fixed）が上に重なって描画される（stacking context跨ぎ）。展開中は消すのが確実 */}
+      {isFarmer && step === 11 && !publishModal && !perksEditOpen && !confProfileOpen && (
         <button className="calendar-fab calendar-fab-confirm" aria-label="作業日程カレンダーを見る" onClick={() => setConfCalOpen(true)}>📅</button>
       )}
       {confCalOpen && (
