@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import Terms, { TERMS_ARTICLES } from "./Terms.jsx";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -5262,9 +5262,26 @@ function ChatView({ applicationId, onBack }) {
         {msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>打ち合わせや面接の連絡は、ここで行えます。</p>
         ) : msgs.map(m => (
-          <div key={m.id}
+          <Fragment key={m.id}>
+          <div
             onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
             style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none" }} className="f-sans">{m.body}</div>
+          {/* 応募の自動メッセージの直後（農家側のみ）：2通目として応募者のプロフィールカードを表示（2026-07-19）。
+              アイコン＋〇〇さん＋「プロフィールを見る →」。タップでプレビューボックス展開。DBには保存しないUI表示 */}
+          {!isWorkerSide && partnerWorkerId && m.sender_id !== myId && m.body === "あなたの求人に応募しました！確認をお願いします。" && (
+            <div
+              onClick={()=>{ if (!reportMode) openWorkerPreview(partnerWorkerId); }}
+              role="button"
+              className="f-sans"
+              style={{ alignSelf:"flex-start", maxWidth:"75%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 16px", display:"flex", alignItems:"center", gap:12, cursor: reportMode ? "default" : "pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
+              <Avatar url={partner?.avatar_url} name={partner?.nickname || "？"} size={48} />
+              <div>
+                <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{(partner?.nickname || "働き手")}さん</p>
+                <p style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"4px 0 0", textDecoration:"underline" }}>プロフィールを見る →</p>
+              </div>
+            </div>
+          )}
+          </Fragment>
         ))}
       </div>
       {/* コメント報告ボックス（2026-07-19）：該当コメントの引用＋どう問題かの選択＋補足→送信で運営に届く */}
