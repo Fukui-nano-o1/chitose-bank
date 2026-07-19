@@ -7515,10 +7515,11 @@ function JobCard({ job, variant, saved, onToggleSave }) {
   const p0 = job.photos?.[0];
   const topSrc = typeof p0 === "string" ? p0 : p0?.url;
   const cropIcon = CROP_OPTIONS.find(c => job.crop && job.crop.includes(c.name))?.icon || "🌱";
-  const photoHeight = isList ? 210 : 220;
-  const photoRadius = isList ? "12px 12px 0 0" : 16;
+  const photoHeight = isList ? 220 : 220;
+  // Airbnb風：写真は四隅を丸く（枠なしカード・2026-07-19）
+  const photoRadius = 16;
   const cardStyle = isList
-    ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", border:"none", borderRadius:12, marginBottom:14, overflow:"hidden", position:"relative" }
+    ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", border:"none", marginBottom:22, position:"relative" }
     : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", position:"relative" };
   return (
     <a
@@ -7554,7 +7555,7 @@ function JobCard({ job, variant, saved, onToggleSave }) {
           {cropIcon}
         </div>
       )}
-      <div style={{ padding: isList ? "12px 16px 16px" : "4px 2px 0" }}>
+      <div style={{ padding: isList ? "12px 4px 0" : "4px 2px 0" }}>
         <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom: isList?4:0 }}>
           <p className="f-sans" style={{ fontSize: isList?17:13, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
           <span className="f-sans" style={{ fontSize: isList?12:9, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
