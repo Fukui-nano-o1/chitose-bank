@@ -5195,6 +5195,22 @@ function ChatView({ applicationId, onBack }) {
           <div key={m.id} style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222" }} className="f-sans">{m.body}</div>
         ))}
       </div>
+      {/* 採用するボタン（農家側に常駐・2026-07-19）：打合せ・面接はチャットで行い、最終的にここで採用を決定する。
+          凍結トリガー＝働き手の「はじめる前の確認」＋この採用タップの両方（confirm_terms・どちらか片方では凍結されない） */}
+      {confirmJob && !isWorkerSide && (
+        <div style={{ borderTop:"1px solid #EEE", padding:"10px 0" }}>
+          {farmerConfirmed ? (
+            <p className="f-sans" style={{ fontSize:12, color:"#00A86B", fontWeight:700, margin:0, textAlign:"center" }}>✓ 採用を決定しました{!workerConfirmed ? "（働き手の内容確認待ち）" : ""}</p>
+          ) : (
+            <>
+              <button onClick={()=>{ if (window.confirm("この方の採用を決定しますか？")) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>
+                {confirmingTerms ? "..." : "採用する"}
+              </button>
+              <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"6px 0 0", textAlign:"center" }}>打ち合わせ・面接はチャットで。決めたらタップしてください{workerConfirmed ? "（働き手は内容確認済み）" : ""}</p>
+            </>
+          )}
+        </div>
+      )}
       <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE" }}>
         <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") send(); }} placeholder="メッセージを入力" className="field f-sans" style={{ flex:1, fontSize:14 }} />
         <button onClick={send} disabled={sending} className="f-sans" style={{ padding:"10px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{sending?"...":"送信"}</button>
