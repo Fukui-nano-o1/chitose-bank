@@ -5100,7 +5100,7 @@ function ChatView({ applicationId, onBack }) {
           .eq("id", applicationId).maybeSingle();
         if (app) {
           const iAmWorker = session.user.id === app.worker_id;
-          const table = iAmWorker ? "employer_profiles" : "worker_profiles";
+          const table = iAmWorker ? "employer_profiles_public" : "worker_profiles"; // 他人の雇い手行は公開ビュー経由（番地・未公開テキスト遮断・2026-07-19監査#1）
           const partnerId = iAmWorker ? app.farmer_id : app.worker_id;
           setPartnerWorkerId(iAmWorker ? null : app.worker_id); // 相手が働き手の時だけアイコンタップでプレビュー（2026-07-19）
           setPartnerFarmerId(iAmWorker ? app.farmer_id : null);
@@ -5405,7 +5405,7 @@ function ChatList() {
         const jobNumbers = [...new Set(all.map(a => a.job_number).filter(Boolean))];
 
         const [epRes, wpRes, jobRes] = await Promise.all([
-          farmerIds.length ? supabase.from("employer_profiles").select("auth_id,nickname,avatar_url").in("auth_id", farmerIds) : Promise.resolve({ data: [] }),
+          farmerIds.length ? supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url").in("auth_id", farmerIds) : Promise.resolve({ data: [] }),
           workerIds.length ? supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", workerIds) : Promise.resolve({ data: [] }),
           jobNumbers.length ? supabase.from("jobs_public").select("job_number,crop,task").in("job_number", jobNumbers) : Promise.resolve({ data: [] }),
         ]);
@@ -5697,7 +5697,7 @@ function EmployerPreviewSheet() {
       (async () => {
         try {
           const [epRes, trustRes] = await Promise.all([
-            supabase.from("employer_profiles").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,staff_count,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,created_at").eq("auth_id", farmerId).maybeSingle(),
+            supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,staff_count,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,created_at").eq("auth_id", farmerId).maybeSingle(),
             supabase.rpc("employer_trust_info", { p_farmer_id: farmerId }),
           ]);
           setSt(prev => prev && prev.farmer_id === farmerId ? {
