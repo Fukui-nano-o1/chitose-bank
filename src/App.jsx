@@ -5029,6 +5029,24 @@ function ChatView({ applicationId, onBack }) {
   const [isWorkerSide, setIsWorkerSide] = useState(false);
   const [confirmingTerms, setConfirmingTerms] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
+  // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
+  const [reportMode, setReportMode] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportSending, setReportSending] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
+  const REPORT_REASONS = ["連絡先の交換・誘導", "誹謗中傷・攻撃的な言葉", "差別的な発言", "金銭・契約のトラブル", "迷惑・スパム", "その他"];
+  const submitReport = async () => {
+    if (!reportTarget || !reportReason || reportSending) return;
+    setReportSending(true);
+    try {
+      const { data, error } = await supabase.rpc("report_chat_message", { p_message_id: reportTarget.id, p_reason: reportReason, p_detail: reportDetail.trim() });
+      if (error || !data?.ok) { alert("報告に失敗しました：" + (data?.reason || error?.message || "不明")); setReportSending(false); return; }
+      setReportDone(true);
+    } catch { alert("報告に失敗しました。"); }
+    setReportSending(false);
+  };
   // 相手ごとのチャット（2026-07-19たきと指示）：求人・応募ごとに分けず、同じ相手との全応募のメッセージを1本に統合する。
   // appIds＝この相手と共有する全応募ID／activeAppId＝送信・確認カード・採用ボタンが紐づく「現役」の応募
   // （進行中で最新のもの。無ければ最新。完了した過去の応募は履歴としてメッセージに混ざる）
@@ -5129,13 +5147,18 @@ function ChatView({ applicationId, onBack }) {
           <span onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} style={{ flexShrink:0, cursor:"pointer" }}>
             <Avatar url={partner.avatar_url} name={partner.nickname} size={36} />
           </span>
-          <div>
+          <div style={{ flex:1, minWidth:0 }}>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
             {chatJobNumber != null && (
               <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0", userSelect:"text" }}>求人 #{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "・" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") : ""}</p>
             )}
           </div>
+          {/* コメント報告の入口（2026-07-19）：タップで報告モード＝問題のコメントを選べる */}
+          <button onClick={()=>{ setReportMode(v=>!v); setReportTarget(null); }} className="f-sans" style={{ flexShrink:0, background: reportMode ? "#FDECEC" : "none", border:"1px solid " + (reportMode ? "#E24B4A" : "#EBEBEB"), borderRadius:20, padding:"6px 12px", fontSize:12, fontWeight:600, color: reportMode ? "#E24B4A" : "#717171", cursor:"pointer" }}>{reportMode ? "キャンセル" : "🚩 報告する"}</button>
         </div>
+      )}
+      {reportMode && !reportTarget && (
+        <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
       )}
 
       {/* はじめる前の確認カード（⑦）：双方確認済みなら小さく畳む */}
@@ -5213,9 +5236,40 @@ function ChatView({ applicationId, onBack }) {
         {msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>打ち合わせや面接の連絡は、ここで行えます。</p>
         ) : msgs.map(m => (
-          <div key={m.id} style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222" }} className="f-sans">{m.body}</div>
+          <div key={m.id}
+            onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
+            style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none" }} className="f-sans">{m.body}</div>
         ))}
       </div>
+      {/* コメント報告ボックス（2026-07-19）：該当コメントの引用＋どう問題かの選択＋補足→送信で運営に届く */}
+      {reportTarget && (
+        <div onClick={()=>{ if (!reportSending) { setReportTarget(null); if (reportDone) setReportMode(false); } }} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>{ setReportTarget(null); if (reportDone) setReportMode(false); }} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            {reportDone ? (
+              <div style={{ textAlign:"center", padding:"16px 0" }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>🚩</div>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 6px" }}>報告を受け付けました</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>運営が内容を確認します。コメントは記録として保存されました。</p>
+              </div>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 12px" }}>🚩 コメントを報告する</p>
+                <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:10, padding:"10px 12px", fontSize:13, color:"#222", lineHeight:1.7, marginBottom:14, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", maxHeight:"20vh", overflowY:"auto" }}>{reportTarget.body}</div>
+                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>このコメントは、どう問題ですか？</p>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
+                  {REPORT_REASONS.map(r => (
+                    <button key={r} onClick={()=>setReportReason(r)} className="f-sans" style={{ padding:"8px 12px", borderRadius:20, border: reportReason === r ? "2px solid #E24B4A" : "1px solid #EBEBEB", background: reportReason === r ? "#FDECEC" : "#fff", fontSize:12, fontWeight:600, color: reportReason === r ? "#E24B4A" : "#717171", cursor:"pointer" }}>{r}</button>
+                  ))}
+                </div>
+                <textarea value={reportDetail} onChange={e=>setReportDetail(e.target.value)} placeholder="補足があれば（任意）" rows={3} className="field f-sans" style={{ fontSize:13, marginBottom:12, resize:"vertical" }} />
+                <button onClick={submitReport} disabled={!reportReason || reportSending} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: (!reportReason || reportSending) ? 0.5 : 1 }}>{reportSending ? "送信中..." : "報告する"}</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 採用するボタン（農家側に常駐・2026-07-19）：打合せ・面接はチャットで行い、最終的にここで採用を決定する。
           凍結トリガー＝働き手の「はじめる前の確認」＋この採用タップの両方（confirm_terms・どちらか片方では凍結されない） */}
       {confirmJob && !isWorkerSide && (
@@ -11515,6 +11569,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
     loadEmpTexts();
   };
   const [reports, setReports] = useState([]); // 通報（job_reports）
+  const [msgReports, setMsgReports] = useState([]); // チャットのコメント報告（message_reports・2026-07-19）
   const [disputes, setDisputes] = useState([]); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
   const [prPublishing, setPrPublishing] = useState(null);
   const [publishing, setPublishing] = useState(null);
@@ -11544,7 +11599,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re, ae, pj, wp, jr, av, la] = await Promise.all([
+    const [fr, de, re, ae, pj, wp, jr, av, la, mr] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
@@ -11554,6 +11609,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
       supabase.from("job_reports").select("*").order("created_at",{ascending:false}),
       supabase.from("attendance_events").select("*").eq("kind","dispute_no_show").order("created_at",{ascending:false}),
       supabase.rpc("admin_list_accounts"),
+      supabase.from("message_reports").select("*").order("created_at",{ascending:false}),
     ]);
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
@@ -11564,6 +11620,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
     if (!jr.error) setReports(jr.data || []);
     if (!av.error) setDisputes(av.data || []);
     if (!la.error && Array.isArray(la.data)) setAccounts(la.data); // {ok:false,reason:'not_admin'}時は配列でないため無視
+    if (!mr.error) setMsgReports(mr.data || []);
     setLoading(false);
   }, []);
 
@@ -11608,6 +11665,11 @@ function AdminTab({ onJump, onShowAccountForm }) {
     const { error } = await supabase.from("job_reports").update({ status: "resolved" }).eq("id", r.id);
     if (error) { alert("更新に失敗しました：" + error.message); return; }
     setReports(prev => prev.map(x => x.id === r.id ? { ...x, status: "resolved" } : x));
+  };
+  const resolveMsgReport = async (r) => {
+    const { error } = await supabase.from("message_reports").update({ status: "resolved" }).eq("id", r.id);
+    if (error) { alert("更新に失敗しました：" + error.message); return; }
+    setMsgReports(prev => prev.map(x => x.id === r.id ? { ...x, status: "resolved" } : x));
   };
 
   const publishJob = async (jobNumber) => {
@@ -11742,7 +11804,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
   // 審査タブに全ての審査待ちを集約（2026-07-14）：求人＋アカウント承認＋自由記述＋通報＋異議
   const pendingFarmerAccounts = farmers.filter(f => f.status === "pending");
   const openReports = reports.filter(r => r.status !== "resolved");
-  const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + empPendingCount + openReports.length + disputes.length;
+  const openMsgReports = msgReports.filter(r => r.status !== "resolved");
+  const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + empPendingCount + openReports.length + openMsgReports.length + disputes.length;
   const TOP_TABS = [
     { k:"jobs",    l:"審査",       icon:"🔍", n: reviewTotal },
     { k:"account", l:"アカウント", icon:"👤", n: null },
@@ -12191,7 +12254,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"jobs",     e:"🔍", l:"求人",           n:pendingJobs.length },
             { k:"accounts", e:"👤", l:"アカウント承認", n:pendingFarmerAccounts.length },
             { k:"prs",      e:"📝", l:"自由記述",       n:pendingPrs.length + empPendingCount },
-            { k:"reports",  e:"🚨", l:"通報",           n:openReports.length },
+            { k:"reports",  e:"🚨", l:"通報",           n:openReports.length + openMsgReports.length },
             { k:"disputes", e:"⚖️", l:"欠勤異議",       n:disputes.length },
           ].map(c => (
             <button key={c.k} onClick={()=>setReviewSec(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
@@ -12399,6 +12462,26 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>setPreviewJobNumber(r.job_number)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>求人を見る</button>
                   <button onClick={()=>resolveReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* チャットのコメント報告（message_reports・2026-07-19）：本文は報告時点の凍結コピー */}
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 10px" }}>チャットのコメント報告{openMsgReports.length > 0 ? `（${openMsgReports.length}）` : ""}</p>
+          <div style={{ display:"grid", gap:12 }}>
+            {openMsgReports.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>未対応のコメント報告はありません</p>
+            ) : openMsgReports.map(r => (
+              <div key={r.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#E24B4A", margin:0 }}>{r.reason}</p>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{r.created_at ? new Date(r.created_at).toLocaleString("ja-JP") : ""}</span>
+                </div>
+                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:"0 0 8px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#F7F7F7", borderRadius:8, padding:"8px 10px" }}>{r.body_snapshot}</p>
+                {r.detail && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px" }}>補足：{r.detail}</p>}
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 10px" }}>応募ID：{String(r.application_id || "").slice(0, 8)}…　発言者：{String(r.sender_id_snapshot || "").slice(0, 8)}…　報告者：{String(r.reporter_id || "").slice(0, 8)}…</p>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>resolveMsgReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
                 </div>
               </div>
             ))}
