@@ -9791,7 +9791,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               <div>
                 <button type="button" onClick={()=>setInstantApproveRepeat(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: instantApproveRepeat ? "#D9A013" : "#EBEBEB", background: instantApproveRepeat ? "#FFF8E7" : "#fff", cursor:"pointer" }}>
                   <span style={{ display:"block", fontSize:14, fontWeight:700, color: instantApproveRepeat ? "#8A6D1D" : "#222" }}>🌟 また呼びたい即決{instantApproveRepeat ? "　✓" : ""}</span>
-                  <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>あなたが以前「また呼びたい」と評価した方の応募は、選考なしで自動承認されます</span>
+                  <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>あなたがお気に入り登録（また呼びたい）した方の応募だけ、自動で承認されます</span>
                 </button>
                 <button type="button" onClick={()=>setFlagInfoOpen("repeat")} className="f-sans" style={{ background:"none", border:"none", padding:"4px 2px 0", fontSize:12, color:"#8A6D1D", textDecoration:"underline", cursor:"pointer" }}>リピート即決とは？</button>
               </div>
@@ -9803,7 +9803,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 ? { icon:"🌱", title:"はじめてOKとは？", body:"農業がはじめての人も歓迎する求人であることを示すマークです。ONにすると、求人カードと詳細ページに「🌱はじめてOK」バッジが表示され、経験のない方も応募しやすくなります。承認するかどうかの判断は、これまで通りあなたが行います。" }
                 : flagInfoOpen === "expert"
                 ? { icon:"💪", title:"経験者優遇とは？", body:"農作業の経験がある方を優先したいことを示すマークです。ONにすると、求人カードと詳細ページに「💪経験者優遇」バッジが表示され、経験のある方が応募しやすくなります。経験の浅い方の応募を妨げるものではなく、承認の判断はこれまで通りあなたが行います。" }
-                : { icon:"🌟", title:"リピート即決とは？", body:"あなたが以前「また呼びたい」と評価した方がこの求人に応募したとき、選考なしで自動的に承認される仕組みです。効果はあなた自身の求人だけに働き、ほかの農家の求人には影響しません。ONにすると、求人カードに「🌟リピート即決」バッジが表示され、一度働いた方が再応募しやすくなります。" };
+                : { icon:"🌟", title:"リピート即決とは？", body:"一緒に働いたあと、あなたが「また呼びたい」と評価してお気に入り登録した方が、この求人に応募したときだけ、選考なしで自動的に承認される仕組みです。登録していない方の応募は、これまで通りあなたが判断します。効果はあなた自身の求人だけに働き、ほかの農家の求人には影響しません。" };
               return (
                 <div onClick={()=>setFlagInfoOpen(null)}
                   onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
@@ -10962,7 +10962,7 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 const JOB_FLAG_INFO = {
   beginner: { icon:"🌱", label:"はじめてOK",   bg:"#E6F7EF", fg:"#00A86B", desc:"農業がはじめての方も歓迎の求人です。経験がなくても応募できます。" },
   expert:   { icon:"💪", label:"経験者優遇",   bg:"#E8F0FE", fg:"#1A56C5", desc:"農作業の経験がある方を優先したい求人です。経験の浅い方も応募はできます。承認するかどうかは農家が判断します。" },
-  repeat:   { icon:"🌟", label:"リピート即決", bg:"#FFF8E7", fg:"#8A6D1D", desc:"以前この農家で働いた方は、再応募すると自動で承認されてすぐに確定します（この農家の求人のみ）。" },
+  repeat:   { icon:"🌟", label:"リピート即決", bg:"#FFF8E7", fg:"#8A6D1D", desc:"以前この農家で働き、農家が「また呼びたい」とお気に入り登録した方だけが、再応募すると自動で承認されます（働いたことがあるだけでは対象になりません・この農家の求人のみ）。" },
 };
 function JobFlagBadges({ beginner, expert, repeat }) {
   const [open, setOpen] = useState(null); // "beginner"|"expert"|"repeat"|null
@@ -13853,16 +13853,15 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           {rosterRows.length > 0 && (
             <div className="f-sans" style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px" }}>💚 また呼びたいリスト</p>
-              <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>新しい求人を出すと、この方たちにお知らせが届きます。</p>
-              {rosterRows.map(r => (
-                <div key={r.worker_id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderTop:"1px solid #F5F5F5" }}>
-                  <button onClick={()=>openRosterDetail(r.worker_id)} className="f-sans" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:12, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left" }}>
-                    <Avatar url={r.avatar_url} name={r.nickname || "？"} size={44} />
-                    <span style={{ flex:1, fontSize:14, fontWeight: r.nickname ? 600 : 400, color: r.nickname ? "#222" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.nickname || "（名前未設定）"}</span>
+              <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>一緒に働いたあと、あなたが「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとこの方たちにお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
+              {/* アイコンのみ（2026-07-19・ニックネーム非表示）。タップで詳細モーダル（解除もそこから） */}
+              <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                {rosterRows.map(r => (
+                  <button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}>
+                    <Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} />
                   </button>
-                  <button onClick={()=>stopRosterNotify(r.worker_id)} className="f-sans" style={{ flexShrink:0, background:"none", border:"1px solid #EBEBEB", borderRadius:8, padding:"6px 10px", fontSize:12, color:"#717171", cursor:"pointer" }}>通知を止める</button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
           <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
@@ -14165,6 +14164,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             ) : (
               <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この方のプロフィールは未設定です</p>
             )}
+            <button onClick={()=>{ const wid = rosterDetail.worker_id; setRosterDetail(null); stopRosterNotify(wid); }} className="f-sans" style={{ width:"100%", marginTop:16, padding:"12px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A44", borderRadius:10, cursor:"pointer" }}>
+              お気に入りを解除する
+            </button>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, margin:"8px 0 0", textAlign:"center" }}>解除するとリストから外れ、新しい求人のお知らせとリピート即決の対象からも外れます</p>
           </div>
         </div>
       )}
