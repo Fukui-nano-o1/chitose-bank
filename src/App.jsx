@@ -14161,7 +14161,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                 {completeWantAgain === true && (
                   <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", marginBottom:16 }}>
                     <input type="checkbox" checked={completeNotifyNext} onChange={e=>setCompleteNotifyNext(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
-                    この方に、次の求人をお知らせする
+                    ❤️ お気に入り登録する
                   </label>
                 )}
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
