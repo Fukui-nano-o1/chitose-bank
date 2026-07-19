@@ -5775,6 +5775,26 @@ function EmployerPreviewSheet() {
 function openWorkerPreview(workerId) {
   if (workerId) window.dispatchEvent(new CustomEvent("cb:openWorkerPreview", { detail: workerId }));
 }
+// アバターのアップロード（通信断耐性・2026-07-19）：iOS Safariでは応答だけ失われて「Load failed」に
+// なっても実際にはサーバー保存済みのことがある（実事例：2026-07-19 働き手アイコン）。
+// 1回リトライ→それでも失敗なら実物の存在確認で救済する。呼び出し前に旧ファイルは掃除済みの前提
+// （フォルダにavatar.jpgが残っていれば今回のアップロードの実物と判断できる）
+async function uploadAvatarResilient(folder, blob) {
+  const path = folder + "/avatar.jpg";
+  const attempt = async () => (await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })).error;
+  let err = await attempt();
+  if (err) {
+    await new Promise(r => setTimeout(r, 800));
+    err = await attempt();
+  }
+  if (err) {
+    try {
+      const { data: files, error: listErr } = await supabase.storage.from('avatars').list(folder);
+      if (!listErr && (files || []).some(f => f.name === 'avatar.jpg')) err = null;
+    } catch {}
+  }
+  return err;
+}
 function WorkerPreviewSheet() {
   const [st, setSt] = useState(null); // {worker_id, loading, profile, trust}
   useEffect(() => {
@@ -5997,8 +6017,8 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         }
       } catch {}
       const path = "worker/" + session.user.id + "/avatar.jpg";
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-      if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message); return; }
+      const upErr = await uploadAvatarResilient("worker/" + session.user.id, blob);
+      if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message + "\n通信環境を確認して、もう一度お試しください。"); return; }
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
       await supabase.from('worker_profiles').upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
@@ -13507,8 +13527,8 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         }
       } catch {}
       const path = "employer/" + session.user.id + "/avatar.jpg";
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-      if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message); return; }
+      const upErr = await uploadAvatarResilient("employer/" + session.user.id, blob);
+      if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message + "\n通信環境を確認して、もう一度お試しください。"); return; }
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
       await supabase.from('employer_profiles').upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
