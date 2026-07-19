@@ -5118,10 +5118,11 @@ function ChatView({ applicationId, onBack }) {
       )}
 
       {/* はじめる前の確認カード（⑦）：双方確認済みなら小さく畳む */}
-      {confirmJob && (
-        (workerConfirmed && farmerConfirmed) ? (
+      {/* はじめる前の確認は働き手のみ表示（2026-07-19）：求人を書いた農家に自分の求人の概要確認は不要 */}
+      {confirmJob && isWorkerSide && (
+        workerConfirmed ? (
           <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 0", fontSize:12, color:"#00A86B", fontWeight:700 }}>
-            ✓ はじめる前の確認・双方確認済み
+            ✓ はじめる前の確認・確認済み
           </div>
         ) : (
           (() => {
@@ -5138,7 +5139,7 @@ function ChatView({ applicationId, onBack }) {
               { label:"保険",     value: insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません" },
             ];
             const done = confirmStep >= rows.length;
-            const iConfirmed = isWorkerSide ? workerConfirmed : farmerConfirmed;
+            const iConfirmed = workerConfirmed; // 働き手のみの確認制（2026-07-19）
             return (
           <div style={{ background:"#F7F7F7", borderRadius:14, padding:"14px 16px", margin:"10px 0" }}>
             <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 10px" }}>はじめる前の確認{chatJobNumber != null && <span style={{ fontSize:11, fontWeight:400, color:"#999" }}>　求人 #{chatJobNumber}</span>}
