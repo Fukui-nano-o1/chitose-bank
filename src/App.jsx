@@ -5301,7 +5301,7 @@ function ChatView({ applicationId, onBack }) {
             {farmerConfirmed ? (
               <span className="f-sans" style={{ display:"inline-block", background:"#E6F7EF", color:"#00A86B", fontSize:12, fontWeight:700, borderRadius:20, padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>✓ 採用決定済み{!workerConfirmed ? "（働き手の確認待ち）" : ""}</span>
             ) : (
-              <button onClick={()=>{ if (window.confirm("この方の採用を決定しますか？\n打ち合わせ・面接はチャットで行い、決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : ""))) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ background:"#00A86B", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:20, padding:"10px 18px", cursor:"pointer", boxShadow:"0 4px 12px rgba(0,168,107,0.4)", opacity: confirmingTerms ? 0.6 : 1 }}>
+              <button onClick={()=>{ if (window.confirm("この方の採用を決定しますか？\n打ち合わせ・面接はチャットで行い、決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : ""))) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:20, padding:"10px 18px", cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,0.35)", opacity: confirmingTerms ? 0.6 : 1 }}>
                 {confirmingTerms ? "..." : "採用する"}
               </button>
             )}
