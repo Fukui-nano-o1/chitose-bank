@@ -5122,7 +5122,7 @@ function ChatView({ applicationId, onBack }) {
               { label:"注意・備考", value: disp(confirmJob.cautions) },
               { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
               { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
-              { label:"保険",     value: insurancePreparedAt ? "✓ 農家が準備済み" : "未準備" },
+              { label:"保険",     value: insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません" },
             ];
             const done = confirmStep >= rows.length;
             const iConfirmed = isWorkerSide ? workerConfirmed : farmerConfirmed;
@@ -13683,7 +13683,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               {/* 保険準備ボタン（承認済み以降） */}
               {APPROVED_PLUS_STATUSES.includes(a.status) && (
                 a.insurance_prepared_at ? (
-                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 保険準備済み・働き手に通知しました</p>
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 準備したと報告済み・働き手にお知らせしました</p>
                 ) : (
                   <button onClick={async ()=>{
                     const { data, error } = await supabase.rpc('confirm_insurance', { p_application_id: a.id });
@@ -15108,7 +15108,7 @@ const HELP_CONTENT = {
       { key:"farmer-applyMail",       label: "⑤ 応募メールが届く", body: "働き手から応募があると、メールで知らされます。" },
       { key:"farmer-approve",         label: "⑥ 承認", body: "応募者のプロフィールを見て、承認するか決めます。" },
       { key:"farmer-chatMeet",        label: "⑦ チャットと確認カードで打合せ", body: "承認後、チャットと確認カードで日程や集合場所などを打ち合わせます。" },
-      { key:"farmer-insurance",       label: "⑧ 保険の準備", body: "作業当日に備えて、保険を準備します。" },
+      { key:"farmer-insurance",       label: "⑧ 保険の準備", body: "作業当日に備えて、働き手のケガに備える保険（1日傷害保険など）の準備をおすすめします。準備したら「☑保険を準備した」を押しましょう。働き手にお知らせが届きます。" },
       { key:"farmer-confirmStart",    label: "⑨ 当日「開始を確認」", body: "働き手が作業を開始したら、「開始を確認」を押します。" },
       { key:"farmer-completeReview",  label: "⑩ 作業後「完了して評価する」", body: "働き手が来たか確認し、2タップで評価します。" },
       { key:"farmer-fullPay",         label: "満額保証型とは", body: "満額保証型（デフォルト）では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。" },
@@ -15141,7 +15141,7 @@ const HELP_CONTENT = {
       { key:"mails-revision",          label: "M21　求人修正のお願い", body: "いつ：審査で差し戻しになった時／誰に：農家" },
       { key:"mails-profileRevision",   label: "M15　自己紹介の修正のお願い", body: "いつ：自由記述の確認で修正をお願いする時／誰に：働き手" },
       { key:"mails-insuranceReminder", label: "M08　保険のご準備を", body: "いつ：承認後・作業日の3日前・前日17時／誰に：農家" },
-      { key:"mails-insuranceDone",     label: "M09　保険準備完了", body: "いつ：農家が保険準備を確認した時／誰に：働き手" },
+      { key:"mails-insuranceDone",     label: "M09　保険の準備の報告", body: "いつ：農家が「保険を準備した」と報告した時／誰に：働き手\nこのお知らせは農家からの報告に基づきます（運営が保険の証書を確認するものではありません）" },
       { key:"mails-startSoon",         label: "M10　まもなく作業開始", body: "いつ：作業開始の1時間前／誰に：農家・働き手の双方／内容：緊急連絡ボタンつき。メールのリンクから緊急連絡をそのまま送れます" },
       { key:"mails-doneCheck",         label: "M12　作業は終わりましたか", body: "いつ：作業日翌朝9時（最大2回）／誰に：農家" },
       { key:"mails-reviewRequest",     label: "M13　評価のお願い", body: "いつ：作業が完了した時／誰に：働き手" },
@@ -15176,7 +15176,7 @@ const HELP_CONTENT = {
       { key:"faq-wrongReview",     label: "評価を間違えた", body: "お問い合わせ窓口までご連絡ください。" },
       { key:"faq-profileHidden",   label: "自己紹介が表示されない", body: "自由記述の自己紹介は、運営の確認後に公開されます（最大2日）。確認中は、あなたのプレビューに「確認待ち」と表示されます。" },
       { key:"faq-withdraw",        label: "退会したい", body: "お問い合わせ窓口までご連絡ください。" },
-      { key:"faq-insuranceWho",    label: "保険は誰が掛けますか", body: "農家が保険を準備します。準備が完了すると、働き手に通知が届きます。" },
+      { key:"faq-insuranceWho",    label: "保険は誰が掛けますか", body: "保険の準備は農家にお願いしています（1日傷害保険など・多くは前日までの加入が必要です）。農家が「保険を準備した」と報告すると、働き手にお知らせが届きます。お知らせは農家からの報告に基づくもので、運営が証書を確認するものではありません。気になる時は、チャットで保険の内容を気軽に確認してください。働き手自身が1日数百円の傷害保険に入ることもできます。" },
       { key:"faq-howToReport",     label: "通報のしかた", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。" },
       { key:"faq-howToDispute",    label: "異議申立のしかた", body: "欠勤記録の通知から72時間以内に、アプリから異議申立ができます。" },
       { key:"faq-contact",         label: "お問い合わせ", body: "t5fki6643qty@gmail.com までご連絡ください。苦情には遅滞なく対応します。" },
