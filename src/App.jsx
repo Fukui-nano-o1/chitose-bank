@@ -426,7 +426,7 @@ input:focus { outline: none; }
   14.3% { transform: translateY(-2px); }
   100%  { transform: translateY(0); }
 }
-.cb-jump { animation: cbJump 3.5s ease-in-out infinite; }
+.cb-jump { animation: cbJump 3.5s ease-in-out infinite; will-change: transform; }
 /* お気に入り登録ボックス（2026-07-19）：アイコンに❤️が付くポップ動作（ボックス展開の0.3s後に出現） */
 @keyframes cbHeartPop {
   0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
@@ -581,6 +581,10 @@ input:focus { outline: none; }
     /* 左右4px：5タブを画面端ギリギリまで広げる（headerの0 16px !importantをクラス詳細度で上書き） */
     padding: 0 4px env(safe-area-inset-bottom, 0px) !important;
     transition: transform .25s ease;
+    /* 2026-07-19: バー内の常時アニメ（チャット未読のcb-jump）でiOS WebKitがfixedのバーを
+       置き去りにする事象（☰で既出のバグと同種）への対処。☰と同じく自前の合成レイヤーに昇格 */
+    transform: translateZ(0);
+    will-change: transform;
   }
   /* スクロール連動の自動格納（Part C）。求人詳細では上のdisplay:noneガードが優先される */
   body.cb-scroll-hide .app-header-mobile { transform: translateY(calc(100% + env(safe-area-inset-bottom, 0px))); }
