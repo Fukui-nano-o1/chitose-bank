@@ -5198,7 +5198,10 @@ function ChatView({ applicationId, onBack }) {
 
 // チャット可能な段階（承認以降）のapplicationsを一覧表示。自分がworker/farmerどちらの当事者でも拾う
 const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","working"];
-const CHAT_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中" };
+// チャット一覧の表示対象（2026-07-19）：完了後もスレッドを残す＝履歴として双方の確認が取れる状態を保つ。
+// 打刻・緊急連絡など「進行中だけの操作」の判定はCHAT_ELIGIBLE_STATUSESのまま変えない
+const CHAT_LIST_STATUSES = [...CHAT_ELIGIBLE_STATUSES, "completed"];
+const CHAT_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
 function ChatList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5252,8 +5255,8 @@ function ChatList() {
         if (!session) { setLoading(false); return; }
         const uid = session.user.id;
         const [{ data: asWorker }, { data: asFarmer }] = await Promise.all([
-          supabase.from("applications").select("*").eq("worker_id", uid).in("status", CHAT_ELIGIBLE_STATUSES),
-          supabase.from("applications").select("*").eq("farmer_id", uid).in("status", CHAT_ELIGIBLE_STATUSES),
+          supabase.from("applications").select("*").eq("worker_id", uid).in("status", CHAT_LIST_STATUSES),
+          supabase.from("applications").select("*").eq("farmer_id", uid).in("status", CHAT_LIST_STATUSES),
         ]);
         // worker_id===farmer_id（自分の求人に自分で応募したテストデータ等）で同一行が
         // 両方のクエリに一致するケースがあるため、id基準で重複排除する
@@ -5355,7 +5358,7 @@ function ChatList() {
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
                     <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
                     {unreadMap[a.id] > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{unreadMap[a.id]}</span>}
-                    <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:"#E6F7EF", color:"#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
+                    <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: a.status === "completed" ? "#F3F3F3" : "#E6F7EF", color: a.status === "completed" ? "#999" : "#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
                   </div>
                   {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}</p>}
                 </div>
