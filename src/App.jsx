@@ -5019,6 +5019,7 @@ function ChatView({ applicationId, onBack }) {
   const [insurancePreparedAt, setInsurancePreparedAt] = useState(null);
   const [isWorkerSide, setIsWorkerSide] = useState(false);
   const [confirmingTerms, setConfirmingTerms] = useState(false);
+  const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
   const load = async () => {
     try {
       const { data } = await supabase.from("messages").select("*").eq("application_id", applicationId).order("created_at",{ascending:true});
@@ -5110,33 +5111,56 @@ function ChatView({ applicationId, onBack }) {
             ✓ はじめる前の確認・双方確認済み
           </div>
         ) : (
+          (() => {
+            // 分割式（2026-07-18）：8項目を1つずつ表示し「はい」で次へ。全部はいの後に一覧＋「内容に相違ありません」
+            const rows = [
+              { label:"日程",     value: disp(confirmJob.dateLabel) },
+              { label:"時間",     value: disp(confirmJob.workTime) },
+              { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中..." },
+              { label:"持ち物",   value: disp(confirmJob.items) },
+              { label:"服装",     value: disp(confirmJob.cautions) },
+              { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
+              { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
+              { label:"保険",     value: insurancePreparedAt ? "✓ 農家が準備済み" : "未準備" },
+            ];
+            const done = confirmStep >= rows.length;
+            const iConfirmed = isWorkerSide ? workerConfirmed : farmerConfirmed;
+            return (
           <div style={{ background:"#F7F7F7", borderRadius:14, padding:"14px 16px", margin:"10px 0" }}>
-            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 10px" }}>はじめる前の確認{chatJobNumber != null && <span style={{ fontSize:11, fontWeight:400, color:"#999" }}>　求人 #{chatJobNumber}</span>}</p>
-            <div style={{ display:"grid", gap:8, marginBottom:12 }}>
-              {[
-                { label:"日程",     value: disp(confirmJob.dateLabel) },
-                { label:"時間",     value: disp(confirmJob.workTime) },
-                { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中..." },
-                { label:"持ち物",   value: disp(confirmJob.items) },
-                { label:"服装",     value: disp(confirmJob.cautions) },
-                { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
-                { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
-                { label:"保険",     value: insurancePreparedAt ? "✓ 農家が準備済み" : "未準備" },
-              ].map(row => (
-                <div key={row.label} style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
-                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>{row.label}</span>
-                  <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-            {(isWorkerSide ? workerConfirmed : farmerConfirmed) ? (
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 10px" }}>はじめる前の確認{chatJobNumber != null && <span style={{ fontSize:11, fontWeight:400, color:"#999" }}>　求人 #{chatJobNumber}</span>}
+              {!iConfirmed && !done && <span style={{ float:"right", fontSize:11, fontWeight:600, color:"#999" }}>{confirmStep + 1} / {rows.length}</span>}
+            </p>
+            {iConfirmed ? (
               <p className="f-sans" style={{ fontSize:12, color:"#00A86B", fontWeight:700, margin:0, textAlign:"center" }}>あなたは確認済みです。相手の確認をお待ちください</p>
+            ) : !done ? (
+              <div>
+                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 4px" }}>{rows[confirmStep].label}</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#222", fontWeight:700, lineHeight:1.7, margin:"0 0 12px", overflowWrap:"break-word", wordBreak:"break-word" }}>{rows[confirmStep].value}</p>
+                <div style={{ display:"flex", gap:8 }}>
+                  {confirmStep > 0 && (
+                    <button onClick={()=>setConfirmStep(s=>s-1)} className="f-sans" style={{ padding:"10px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 前へ</button>
+                  )}
+                  <button onClick={()=>setConfirmStep(s=>s+1)} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>はい</button>
+                </div>
+              </div>
             ) : (
-              <button onClick={confirmTerms} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
-                {confirmingTerms ? "..." : "内容に相違ありません"}
-              </button>
+              <div>
+                <div style={{ display:"grid", gap:8, marginBottom:12 }}>
+                  {rows.map(row => (
+                    <div key={row.label} style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
+                      <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>{row.label}</span>
+                      <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}>✓ {row.value}</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={confirmTerms} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
+                  {confirmingTerms ? "..." : "内容に相違ありません"}
+                </button>
+              </div>
             )}
           </div>
+            );
+          })()
         )
       )}
 
