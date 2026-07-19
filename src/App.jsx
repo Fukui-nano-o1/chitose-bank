@@ -427,6 +427,13 @@ input:focus { outline: none; }
   100%  { transform: translateY(0); }
 }
 .cb-jump { animation: cbJump 3.5s ease-in-out infinite; }
+/* お気に入り登録ボックス（2026-07-19）：アイコンに❤️が付くポップ動作（ボックス展開の0.3s後に出現） */
+@keyframes cbHeartPop {
+  0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+  60%  { transform: scale(1.35) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.cb-heart-pop { animation: cbHeartPop .6s cubic-bezier(.2, 1.4, .4, 1) .3s both; }
 /* 任意項目の未入力：赤影のみ（浮遊アニメなし・2026-07-16） */
 .cb-urgent-still { box-shadow: 0 2px 6px rgba(226,75,74,.45) !important; }
 /* 体感0.8秒（退場0.4s＋入場0.4s）・スワイプ風の横滑り（2026-07-16） */
@@ -13555,6 +13562,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           const wp = workerProfiles[completeModalApp.worker_id];
           setRosterRows(prev => prev.some(r => r.worker_id === completeModalApp.worker_id) ? prev
             : [{ worker_id: completeModalApp.worker_id, nickname: wp?.nickname || null, avatar_url: wp?.avatar_url || null }, ...prev]);
+          setFavDetailOpen(false);
+          setFavDone({ workerId: completeModalApp.worker_id, nickname: wp?.nickname || "", avatar_url: wp?.avatar_url || "" });
         }
       }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
@@ -13581,6 +13590,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     } catch { alert('処理に失敗しました。'); }
     setCompleteSubmitting(false);
   };
+  // お気に入り登録しました！ボックス（2026-07-19）：登録成功の瞬間に展開。アイコンに❤️が付く動作つき
+  const [favDone, setFavDone] = useState(null); // {workerId, nickname, avatar_url}
+  const [favDetailOpen, setFavDetailOpen] = useState(false);
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
     if (!completeDone) return;
@@ -13594,6 +13606,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         const wp = workerProfiles[completeDone.workerId];
         setRosterRows(prev => prev.some(r => r.worker_id === completeDone.workerId) ? prev
           : [{ worker_id: completeDone.workerId, nickname: wp?.nickname || null, avatar_url: wp?.avatar_url || null }, ...prev]);
+        setFavDetailOpen(false);
+        setFavDone({ workerId: completeDone.workerId, nickname: wp?.nickname || "", avatar_url: wp?.avatar_url || "" });
       } else {
         const { error } = await supabase.from('repeat_roster').delete().eq('farmer_id', me.id).eq('worker_id', completeDone.workerId);
         if (error) { alert('解除に失敗しました：' + error.message); return; }
@@ -13852,7 +13866,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           </button>
           {rosterRows.length > 0 && (
             <div className="f-sans" style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px" }}>💚 また呼びたいリスト</p>
+              <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px" }}>❤️ また呼びたいリスト</p>
               <p style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>一緒に働いたあと、あなたが「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとこの方たちにお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
               {/* アイコンのみ（2026-07-19・ニックネーム非表示）。タップで詳細モーダル（解除もそこから） */}
               <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
@@ -14139,6 +14153,31 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           } : undefined} />
       )}
 
+      {/* お気に入り登録しました！ボックス（2026-07-19）：働き手アイコンに❤️が付く動作・説明は1文×2・詳細は展開 */}
+      {favDone && (
+        <div onClick={()=>setFavDone(null)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
+            <button onClick={()=>setFavDone(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 18px" }}>お気に入り登録しました！</p>
+            <div style={{ position:"relative", width:88, height:88, margin:"0 auto 16px" }}>
+              <Avatar url={favDone.avatar_url} name={favDone.nickname || "？"} size={88} />
+              <span className="cb-heart-pop" style={{ position:"absolute", right:-8, bottom:-4, fontSize:32, lineHeight:1, filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.25))" }}>❤️</span>
+            </div>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:"0 0 6px" }}>「また呼びたい」と思った方を、あなたのお気に入りに登録しました。</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:0 }}>リピート即決ONのあなたの求人にこの方が応募すると、自動で承認されます。</p>
+            {favDetailOpen ? (
+              <div className="f-sans fade-in" style={{ marginTop:14, background:"#F7F7F7", borderRadius:12, padding:"12px 14px", textAlign:"left", fontSize:12, color:"#555", lineHeight:1.8 }}>
+                ・新しい求人を出すと、この方にお知らせが届きます<br/>
+                ・効果はあなた自身の求人だけに働き、ほかの農家の求人には影響しません<br/>
+                ・登録した方は農家プロフィールの「❤️ また呼びたいリスト」に表示されます<br/>
+                ・解除はいつでも：リストのアイコンをタップ→「お気に入りを解除する」
+              </div>
+            ) : (
+              <button onClick={()=>setFavDetailOpen(true)} className="f-sans" style={{ marginTop:14, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>詳しく見る ▾</button>
+            )}
+          </div>
+        </div>
+      )}
       {/* また呼びたいリスト：働き手詳細モーダル（アイコンタップで展開・応募者カードと同じ表示部品） */}
       {rosterDetail && (
         <div onClick={()=>setRosterDetail(null)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
