@@ -5052,6 +5052,20 @@ function ChatView({ applicationId, onBack }) {
   // （進行中で最新のもの。無ければ最新。完了した過去の応募は履歴としてメッセージに混ざる）
   const [appIds, setAppIds] = useState(null);
   const [activeAppId, setActiveAppId] = useState(applicationId);
+  const [activeStatus, setActiveStatus] = useState(null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
+  const [deciding, setDeciding] = useState(false);
+  const decideApplication = async (approve) => {
+    if (deciding) return;
+    if (!approve && !window.confirm("この応募を見送りますか？")) return;
+    setDeciding(true);
+    try {
+      const { data, error } = await supabase.rpc("approve_application", { p_application_id: activeAppId, p_approve: approve });
+      if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); setDeciding(false); return; }
+      setActiveStatus(data.status);
+      await load(); // ボタンに応じた自動返信（承認/見送り）が届くので再読込
+    } catch { alert("処理に失敗しました。"); }
+    setDeciding(false);
+  };
   const load = async (ids) => {
     const scope = ids || appIds || [applicationId];
     try {
@@ -5098,6 +5112,7 @@ function ChatView({ applicationId, onBack }) {
           setAppIds(ids);
           if (active) {
             setActiveAppId(active.id);
+            setActiveStatus(active.status);
             setWorkerConfirmed(!!active.terms_confirmed_worker_at);
             setFarmerConfirmed(!!active.terms_confirmed_farmer_at);
             setInsurancePreparedAt(active.insurance_prepared_at);
@@ -5163,7 +5178,7 @@ function ChatView({ applicationId, onBack }) {
 
       {/* はじめる前の確認カード（⑦）：双方確認済みなら小さく畳む */}
       {/* はじめる前の確認は働き手のみ表示（2026-07-19）：求人を書いた農家に自分の求人の概要確認は不要 */}
-      {confirmJob && isWorkerSide && (
+      {confirmJob && isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
         workerConfirmed ? (
           <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 0", fontSize:12, color:"#00A86B", fontWeight:700 }}>
             ✓ はじめる前の確認・確認済み
@@ -5272,7 +5287,7 @@ function ChatView({ applicationId, onBack }) {
 
       {/* 採用するボタン（農家側に常駐・2026-07-19）：打合せ・面接はチャットで行い、最終的にここで採用を決定する。
           凍結トリガー＝働き手の「はじめる前の確認」＋この採用タップの両方（confirm_terms・どちらか片方では凍結されない） */}
-      {confirmJob && !isWorkerSide && (
+      {confirmJob && !isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
         <div style={{ borderTop:"1px solid #EEE", padding:"10px 0" }}>
           {farmerConfirmed ? (
             <p className="f-sans" style={{ fontSize:12, color:"#00A86B", fontWeight:700, margin:0, textAlign:"center" }}>✓ 採用を決定しました{!workerConfirmed ? "（働き手の内容確認待ち）" : ""}</p>
@@ -5286,10 +5301,21 @@ function ChatView({ applicationId, onBack }) {
           )}
         </div>
       )}
+      {(!isWorkerSide && activeStatus === "applied") ? (
+        /* 承認待ちの間、農家の入力欄は一時的に承認/見送るボタンへ（2026-07-19）。判断後は通常の入力欄に戻る */
+        <div style={{ padding:"12px 0", borderTop:"1px solid #EEE" }}>
+          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px", textAlign:"center" }}>応募が届いています。アイコンからプロフィールを確認して判断してください</p>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={()=>decideApplication(false)} disabled={deciding} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>見送る</button>
+            <button onClick={()=>decideApplication(true)} disabled={deciding} className="f-sans" style={{ flex:2, padding:"13px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: deciding ? 0.6 : 1 }}>{deciding ? "..." : "承認する"}</button>
+          </div>
+        </div>
+      ) : (
       <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE" }}>
         <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") send(); }} placeholder="メッセージを入力" className="field f-sans" style={{ flex:1, fontSize:14 }} />
         <button onClick={send} disabled={sending} className="f-sans" style={{ padding:"10px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{sending?"...":"送信"}</button>
       </div>
+      )}
     </div>
   );
 }
@@ -5298,8 +5324,9 @@ function ChatView({ applicationId, onBack }) {
 const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","working"];
 // チャット一覧の表示対象（2026-07-19）：完了後もスレッドを残す＝履歴として双方の確認が取れる状態を保つ。
 // 打刻・緊急連絡など「進行中だけの操作」の判定はCHAT_ELIGIBLE_STATUSESのまま変えない
-const CHAT_LIST_STATUSES = [...CHAT_ELIGIBLE_STATUSES, "completed"];
-const CHAT_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
+// applied=応募直後から相手とチャットで繋がる（2026-07-19）。rejected=見送りの自動返信を読めるよう履歴として残す
+const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected"];
+const CHAT_STATUS_LABEL = { applied:"承認待ち", approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了", rejected:"見送り" };
 function ChatList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5469,7 +5496,7 @@ function ChatList() {
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
                     <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
                     {rowUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{rowUnread}</span>}
-                    <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: a.status === "completed" ? "#F3F3F3" : "#E6F7EF", color: a.status === "completed" ? "#999" : "#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
+                    <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: (a.status === "completed" || a.status === "rejected") ? "#F3F3F3" : a.status === "applied" ? "#FFF4E0" : "#E6F7EF", color: (a.status === "completed" || a.status === "rejected") ? "#999" : a.status === "applied" ? "#C77700" : "#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
                   </div>
                   {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}{a._count > 1 ? `　ほか${a._count - 1}件` : ""}</p>}
                 </div>
