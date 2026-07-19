@@ -1224,3 +1224,14 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 - 連絡先交換の禁止は従来通り「規約」で運用する（メッセージの削除・検閲はしない）。
   この方針に反する指示（メッセージ削除機能・本文の自動マスク等）を受けたら、本項を提示して確認を取ること
 ━━━ ここまで ━━━
+
+━━━ 2026-07-19 DB実装ルール：ビューはSELECT専用にする — 絶対遵守 ━━━
+- ビューを作る時は、作成直後に必ず revoke all ＋ grant select のみを行う：
+    REVOKE ALL ON public.<view> FROM anon, authenticated;
+    GRANT SELECT ON public.<view> TO authenticated;  -- 公開時にanonへも
+  理由：単純ビュー（単一テーブル・集計なし）は自動更新可能で、書き込みは
+  ビュー所有者権限で実行される＝基表のRLSを迂回して他人の行をUPDATE/DELETEできてしまう
+  （2026-07-19 employer_profiles_publicの検収で実際に発見・修理した穴）
+- 検収時は pg_policies（RLSポリシー）と information_schema.role_table_grants（権限）の
+  両方を見る。ポリシーだけ見て合格にしない——ビューの書き込み権限はポリシーに映らない
+━━━ ここまで ━━━
