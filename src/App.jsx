@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
+import { createPortal } from "react-dom";
 import Terms, { TERMS_ARTICLES } from "./Terms.jsx";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -11306,7 +11307,10 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
   };
 
-  return (
+  // document.bodyへポータル（2026-07-19）：呼び出し元の祖先（AdminTabの.appear等）がtransformを
+  // 保持していると、その要素がposition:fixedの基準になり全画面に広がらない（審査プレビューが途中で切れる不具合）。
+  // bodyへ出せばfixedの基準が確実にビューポートになる
+  return createPortal(
     <div onClick={ownerView ? onClose : undefined} style={ownerView
       ? { position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }
       : { position:"fixed", inset:0, zIndex:9000, background:"#fff", overflowY:"auto" }}>
@@ -11547,7 +11551,8 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
         </div>
       )}
     </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -13107,9 +13112,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         />
       )}
 
-      {/* ── 差し戻し（修正依頼）モーダル：指摘の積み上げ式 ── */}
-      {revisionTarget != null && (
-        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      {/* ── 差し戻し（修正依頼）モーダル：指摘の積み上げ式。プレビューと同じくbodyへポータル
+           （.appearのtransformでfixedが全画面にならない不具合の回避・2026-07-19） ── */}
+      {revisionTarget != null && createPortal(
+        <div style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:480, width:"100%", maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
             {revisionDone ? (
               <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>✓ 農家に修正依頼を送りました</p>
@@ -13163,7 +13169,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── 記録データ管理（その他＞旧事業データ） ── */}
