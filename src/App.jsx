@@ -5136,7 +5136,7 @@ function ChatView({ applicationId, onBack }) {
             ) : !done ? (
               <div>
                 <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 4px" }}>{rows[confirmStep].label}</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#222", fontWeight:700, lineHeight:1.7, margin:"0 0 6px", overflowWrap:"break-word", wordBreak:"break-word" }}>{rows[confirmStep].value}</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#222", fontWeight:700, lineHeight:1.7, margin:"0 0 6px", overflowWrap:"break-word", wordBreak:"break-word", maxHeight:"28vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>{rows[confirmStep].value}</p>
                 {rows[confirmStep].mapUrl && (
                   <a href={rows[confirmStep].mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ display:"inline-block", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", marginBottom:6 }}>📍 Googleマップで開く →</a>
                 )}
@@ -5150,7 +5150,8 @@ function ChatView({ applicationId, onBack }) {
               </div>
             ) : (
               <div>
-                <div style={{ display:"grid", gap:8, marginBottom:12 }}>
+                {/* 内容が多いとチャット枠からはみ出すため、一覧はカード内スクロール（2026-07-18） */}
+                <div style={{ display:"grid", gap:8, marginBottom:12, maxHeight:"32vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
                   {rows.map(row => (
                     <div key={row.label} style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
                       <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>{row.label}</span>
