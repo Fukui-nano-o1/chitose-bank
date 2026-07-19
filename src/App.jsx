@@ -434,6 +434,13 @@ input:focus { outline: none; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 .cb-heart-pop { animation: cbHeartPop .6s cubic-bezier(.2, 1.4, .4, 1) .3s both; }
+/* 採用おめでとうの花びら（2026-07-19）：採用ボックス展開中、画面全体を舞い落ちる🌸 */
+@keyframes cbPetalFall {
+  0% { transform: translate3d(0, -60px, 0) rotate(0deg); opacity: 0; }
+  8% { opacity: 1; }
+  100% { transform: translate3d(46px, 105vh, 0) rotate(340deg); opacity: 0.85; }
+}
+.cb-petal { position: absolute; top: 0; pointer-events: none; animation: cbPetalFall linear infinite; will-change: transform; }
 /* 委託準備室の印刷（2026-07-19）：印刷時は仕様書(.consign-print)だけを紙に出す */
 @media print {
   body * { visibility: hidden; }
@@ -16760,6 +16767,44 @@ const loadNotifs=useCallback(async(farmerId)=>{
       .subscribe();
     return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
   }, [me?.id]);
+  // 採用おめでとうボックス（2026-07-19）：農家が採用を決定した応募を検知し、働き手に1回だけ展開
+  // （localStorage cb_hiredBoxShownで応募ごとに1回）。起動時チェック＋applicationsのUPDATEをRealtime購読で即時展開
+  const [hiredBox, setHiredBox] = useState(null); // {appId, jobNumber, farmerName, jobTitle}
+  const [hiredInfoOpen, setHiredInfoOpen] = useState(null); // 開いている？マーク: emergency|flow|review|null
+  useEffect(() => {
+    if (!me?.id) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const { data: apps } = await supabase.from("applications")
+          .select("id,job_number,farmer_id,terms_confirmed_farmer_at")
+          .eq("worker_id", me.id).not("terms_confirmed_farmer_at", "is", null)
+          .gte("terms_confirmed_farmer_at", new Date(Date.now() - 7 * 86400 * 1000).toISOString()) // 新端末で過去の採用を再生しない（直近7日限定）
+          .order("terms_confirmed_farmer_at", { ascending: false }).limit(5);
+        if (cancelled || !apps || apps.length === 0) return;
+        let shown = []; try { shown = JSON.parse(localStorage.getItem("cb_hiredBoxShown") || "[]"); } catch {}
+        const fresh = apps.find(a => !shown.includes(a.id));
+        if (!fresh) return;
+        const [epRes, jobRes] = await Promise.all([
+          supabase.from("employer_profiles_public").select("nickname").eq("auth_id", fresh.farmer_id).maybeSingle(),
+          supabase.from("jobs_public").select("crop,task").eq("job_number", fresh.job_number).maybeSingle(),
+        ]);
+        if (cancelled) return;
+        try { localStorage.setItem("cb_hiredBoxShown", JSON.stringify([...shown, fresh.id])); } catch {}
+        setHiredBox({
+          appId: fresh.id, jobNumber: fresh.job_number,
+          farmerName: (epRes.data?.nickname || "").trim() || "農家",
+          jobTitle: jobRes.data ? [jobRes.data.crop, jobRes.data.task].filter(Boolean).join(" ") : "",
+        });
+        setHiredInfoOpen(null);
+      } catch {}
+    };
+    check();
+    const ch = supabase.channel("hired-watch")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "applications", filter: "worker_id=eq." + me.id }, check)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [me?.id]);
   // approvalトリガー（応募承認後）の専用照会は2026-07-17に撤去：熱中症お知らせがafter_login×毎回表示に変更され、
   // ログイン済み利用者の来訪すべてをカバーするため。approval値の判定はshowNoticesForに残っており、再開時はここにeffectを足すだけ
   const dismissNotices = () => {
@@ -16989,6 +17034,37 @@ const subDest=useCallback(async d=>{
       <style>{CSS}</style>
 
       {/* 働き手/雇い手プレビューの全域ボックス（どの画面のアイコンからでもイベントで展開・2026-07-19） */}
+      {/* 採用おめでとうボックス（2026-07-19）：花びら🌸＋求人リンク＋？マーク3つ（緊急連絡先・採用からの流れ・評価とは） */}
+      {hiredBox && (
+        <div onClick={()=>setHiredBox(null)} style={{ position:"fixed", inset:0, zIndex:9640, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"fadeIn .2s ease", overflow:"hidden" }}>
+          {Array.from({ length: 14 }).map((_, i) => (
+            <span key={i} className="cb-petal" style={{ left: `${(i * 7.3 + 3) % 100}%`, fontSize: 14 + (i % 4) * 5, animationDuration: `${4 + (i % 5)}s`, animationDelay: `${(i % 7) * 0.6}s` }}>🌸</span>
+          ))}
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 20px", maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", textAlign:"left", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>setHiredBox(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="採用されました！" /></p>
+            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
+            <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"0 0 14px" }}>
+              {hiredBox.farmerName}さんの
+              <a href={"#/work/job/" + hiredBox.jobNumber} onClick={()=>setHiredBox(null)} style={{ color:"#00A86B", fontWeight:700 }}>「{hiredBox.jobTitle || `求人 #${hiredBox.jobNumber}`}」</a>
+              に採用されました。
+            </p>
+            {[
+              { k:"emergency", l:"緊急連絡先", body:"当日行けない・遅れる時は、プロフィールの「チェック」ページにある「⚠️ 緊急連絡」から連絡できます。無断欠勤は記録に残るため、必ず連絡してください。" },
+              { k:"flow", l:"採用からの流れ", body:"作業日までにチャットで最終確認（集合場所・持ち物・時間）→ 当日作業 → 終了後に農家が完了処理をします。困ったことはチャットで相談してください。" },
+              { k:"review", l:"評価とは？", body:"仕事を終えたあと、農家と働き手がお互いを記録する仕組みです。「また呼びたい」と評価されてお気に入り登録されると、その農家のリピート即決の対象になることがあります。" },
+            ].map(r => (
+              <div key={r.k} style={{ borderTop:"1px solid #F0F0F0", padding:"10px 0" }}>
+                <button onClick={()=>setHiredInfoOpen(v => v === r.k ? null : r.k)} className="f-sans" style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:"none", border:"none", padding:0, fontSize:15, fontWeight:700, color:"#222", cursor:"pointer" }}>
+                  {r.l}
+                  <span style={{ width:24, height:24, borderRadius:"50%", background:"#E6F7EF", color:"#00A86B", fontSize:14, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</span>
+                </button>
+                {hiredInfoOpen === r.k && <p className="f-sans fade-in" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"8px 0 0" }}>{r.body}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <WorkerPreviewSheet />
       <EmployerPreviewSheet />
 
