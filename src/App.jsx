@@ -16886,7 +16886,8 @@ const subDest=useCallback(async d=>{
         ) : showApplyDone ? (
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
             <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
-            <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>{applyAlready ? "この求人には応募済みです" : "応募を受け付けました"}</h2>
+            {/* タイトルは応募完了しました！に統一・タイトルだけ文字ジャンプ（2026-07-19） */}
+            <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}><NoticeJumpText text={applyAlready ? "この求人には応募済みです" : "応募完了しました！"} /></h2>
             <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, marginBottom:8 }}>
               {applyAlready ? (
                 "農家が内容を確認し、承認するとお知らせします。"
@@ -16896,9 +16897,10 @@ const subDest=useCallback(async d=>{
                 その後、打ち合わせ・面接を経て、契約となります。
               </>)}
             </p>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginBottom:28 }}>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginBottom:16 }}>
               chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。
             </p>
+            <button onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans" style={{ background:"none", border:"none", fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer", marginBottom:20 }}>どんなメールが来るか確認する →</button>
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} me={me} /> : null}
