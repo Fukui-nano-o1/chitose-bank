@@ -7518,7 +7518,7 @@ function JobCard({ job, variant, saved, onToggleSave }) {
   const photoHeight = isList ? 210 : 220;
   const photoRadius = isList ? "12px 12px 0 0" : 16;
   const cardStyle = isList
-    ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"#fff", border:"1px solid #EEE", borderRadius:12, marginBottom:14, overflow:"hidden", position:"relative" }
+    ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", border:"none", borderRadius:12, marginBottom:14, overflow:"hidden", position:"relative" }
     : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", position:"relative" };
   return (
     <a
