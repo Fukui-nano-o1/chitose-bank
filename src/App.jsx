@@ -5804,14 +5804,20 @@ function WorkerPreviewSheet() {
       setSt({ worker_id: workerId, loading: true, profile: null, trust: null });
       (async () => {
         try {
-          const [wpRes, trustRes] = await Promise.all([
+          const [wpRes, trustRes, sessRes] = await Promise.all([
             supabase.from("worker_profiles").select("*").eq("auth_id", workerId).maybeSingle(),
             supabase.rpc("worker_trust_info", { p_worker_id: workerId }),
+            supabase.auth.getSession(),
           ]);
+          // 審査中（審査待ち／修正依頼中）の働き手は、本人と運営以外にプレビューを見せない（2026-07-19）
+          const p = wpRes.data || null;
+          const viewer = sessRes?.data?.session?.user || null;
+          const underReview = !!(p && (((p.pr_pending || "").trim()) || (Array.isArray(p.pr_qa_pending) && p.pr_qa_pending.length > 0)));
+          const blocked = underReview && viewer?.id !== workerId && !isAdmin(viewer);
           setSt(prev => prev && prev.worker_id === workerId ? {
-            worker_id: workerId, loading: false,
-            profile: wpRes.data || null,
-            trust: (trustRes.data && trustRes.data.ok) ? trustRes.data : null,
+            worker_id: workerId, loading: false, blocked,
+            profile: blocked ? null : p,
+            trust: (!blocked && trustRes.data && trustRes.data.ok) ? trustRes.data : null,
           } : prev);
         } catch {
           setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false } : prev);
@@ -5844,6 +5850,12 @@ function WorkerPreviewSheet() {
             )}
             <MyReviewsOfWorker workerId={st.worker_id} />
           </>
+        ) : st.blocked ? (
+          <div style={{ textAlign:"center", padding:"32px 0" }}>
+            <div style={{ fontSize:36, marginBottom:10 }}>⏳</div>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 6px" }}>プロフィールは審査中です</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>運営の確認が終わると表示されます。</p>
+          </div>
         ) : (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この方のプロフィールは未設定です</p>
         )}
@@ -7201,6 +7213,9 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     Array.isArray(wMini.languages) && wMini.languages.length > 0,
     (Array.isArray(wMini.pr_qa_pending) ? wMini.pr_qa_pending.length : (Array.isArray(wMini.pr_qa) ? wMini.pr_qa.length : 0)) > 0,
   ].filter(x => !x).length : 10;
+  // 自己紹介の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中=赤帯（修正のためタップは可能）
+  const wHasPending = !!(wMini && (((wMini.pr_pending || "").trim()) || (Array.isArray(wMini.pr_qa_pending) && wMini.pr_qa_pending.length > 0)));
+  const wReview = wHasPending ? (wMini.pr_submitted_at ? "pending" : "revision") : null;
   return (
     <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
@@ -7225,10 +7240,16 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             {/* ═══ Airbnb型入口メニュー（働き手側・2026-07-14）：農家プロ入口と同構造。旧サイドタブ列は廃止 ═══ */}
             {/* トップボックスは反転式（2026-07-16）：表=アイコン＋ニックネーム／裏=アイコン・ニックネーム抜きのプレビュー。右上⇄で反転0.8秒 */}
             <div style={{ position:"relative" }}>
-              <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }}
-                className={"f-sans" + (wTopAnim ? " " + wTopAnim : (wUnsetReq > 0 ? " cb-urgent-card" : wUnsetCount > 0 ? " cb-urgent-still" : ""))}
+              <button onClick={()=>{ if (wReview === "pending") return; window.location.hash="/profile/worker/profile"; }}
+                className={"f-sans" + (wTopAnim ? " " + wTopAnim : (wReview ? "" : wUnsetReq > 0 ? " cb-urgent-card" : wUnsetCount > 0 ? " cb-urgent-still" : ""))}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && wTopAnim === "pflip-in") setWTopAnim(""); }}
-                style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+                style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding: wReview ? "28px 20px 44px" : "28px 20px", cursor: wReview === "pending" ? "default" : "pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+                {/* 審査帯（2026-07-19）：審査待ち=オレンジ帯＋タップ不能／修正依頼中=赤帯（タップで修正へ） */}
+                {wReview && (
+                  <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"8px 12px", borderRadius:"0 0 24px 24px", background: wReview === "revision" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:13, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>
+                    {wReview === "revision" ? "⚠️ 修正のお願いがあります（タップして修正）" : "⏳ 審査待ち：運営が確認しています"}
+                  </span>
+                )}
                 {!wTopBack ? (
                   <>
                     {/* 未設定の項目数（編集ページの10ボックス基準）。全て設定済みなら非表示。右上は⇄マークなので左隣に */}
@@ -7623,6 +7644,11 @@ function JobSearchMapView({ onRegister, me }) {
       else if (data && data.reason === "job_not_open") { alert("この求人は現在募集を受け付けていません。"); }
       else if (data && data.reason === "profile_incomplete") {
         setProfileGate({ mode:"hard", hasNickname: !!data.has_nickname, qaAnswered: data.qa_answered ?? 0, qaRequired: data.qa_required ?? 5 });
+      }
+      else if (data && data.reason === "profile_under_review") {
+        alert(data.revision
+          ? "自己紹介に運営から修正のお願いが届いています。プロフィールを修正して保存すると、審査のうえ応募できるようになります。"
+          : "自己紹介が運営の審査待ちのため、いまは応募できません。公開までお待ちください（最大2日）。");
       }
       else { alert("応募できませんでした。"); }
     } catch { setApplying(false); alert("応募に失敗しました。"); }
@@ -9011,6 +9037,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         accessory_ok: perkDraft.accessory_ok,
         texts_pending: pend,
         texts_submitted_at: Object.keys(pend).length ? new Date().toISOString() : ((cur && cur.texts_submitted_at) || null),
+        // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
+        ...(Object.keys(pend).length ? { texts_revision_requested_at: null } : {}),
       };
       const { error } = await supabase.from("employer_profiles").upsert(payload, { onConflict: "auth_id" });
       if (error) { alert("保存に失敗しました：" + error.message); setPerkSaving(false); return; }
@@ -13680,6 +13708,8 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         interaction_style: interactionStyle || null,
         texts_pending: textsPending,
         texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
+        // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
+        ...(Object.keys(textsPending).length > 0 ? { texts_revision_requested_at: null } : {}),
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
@@ -14126,6 +14156,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     [empMini.unique_point, empMini.always_do, empMini.break_style].some(t => t && String(t).trim()),
     !!empMini.interaction_style,
   ].filter(x => !x).length : 8;
+  // 自由記述の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中（差し戻し済み）=赤帯（修正のためタップは可能）
+  const empHasPending = !!(empMini && empMini.texts_pending && Object.keys(empMini.texts_pending).length > 0);
+  const empReview = empHasPending ? "pending" : (empMini?.texts_revision_requested_at ? "revision" : null);
   const [rosterRows, setRosterRows] = useState([]); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
   useEffect(() => {
     (async () => {
@@ -14506,10 +14539,16 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                文字タブの羅列を廃止し、タップで各サブページへ ═══ */}
           {/* トップボックスは反転式（2026-07-16・働き手側と同構造）：表=アイコン＋農園名／裏=アイコン・名前抜きのプレビュー。右上⇄で反転0.8秒 */}
           <div style={{ position:"relative" }}>
-            <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }}
-              className={"f-sans" + (empTopAnim ? " " + empTopAnim : (empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : ""))}
+            <button onClick={()=>{ if (empReview === "pending") return; window.location.hash="/profile/employer/profile"; }}
+              className={"f-sans" + (empTopAnim ? " " + empTopAnim : (empReview ? "" : empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : ""))}
               onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && empTopAnim === "pflip-in") setEmpTopAnim(""); }}
-              style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+              style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding: empReview ? "28px 20px 44px" : "28px 20px", cursor: empReview === "pending" ? "default" : "pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+              {/* 審査帯（2026-07-19）：審査待ち=オレンジ帯＋タップ不能／修正依頼中=赤帯（タップで修正へ） */}
+              {empReview && (
+                <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"8px 12px", borderRadius:"0 0 24px 24px", background: empReview === "revision" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:13, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>
+                  {empReview === "revision" ? "⚠️ 修正のお願いがあります（タップして修正）" : "⏳ 審査待ち：運営が確認しています"}
+                </span>
+              )}
               {!empTopBack ? (
                 <>
                   {/* 未設定の項目数（全て設定済みなら非表示）。右上は⇄マークなので左隣に */}
