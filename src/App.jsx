@@ -11905,6 +11905,31 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [msgReports, setMsgReports] = useState([]); // チャットのコメント報告（message_reports・2026-07-19）
   const [disputes, setDisputes] = useState([]); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
   const [prPublishing, setPrPublishing] = useState(null);
+  // 自己紹介（働き手・審査待ち）への修正依頼（2026-07-19）：どこの何がどう問題かを選んで積み上げ→運営チャット＋メールをセット送信
+  const [prRevTarget, setPrRevTarget] = useState(null); // フォームを開いている対象（auth_id）
+  const emptyPrFinding = () => ({ target:"", issueType:"", note:"" });
+  const [prRevFindings, setPrRevFindings] = useState([emptyPrFinding()]);
+  const [prRevSending, setPrRevSending] = useState(false);
+  const [prRevDone, setPrRevDone] = useState(false);
+  const PR_REVISION_ISSUE_TYPES = ["連絡先・外部サービスへの誘導","個人情報の書きすぎ（本名・住所など）","禁止項目に触れる内容（年代・学校名・家族構成・国籍など）","誹謗中傷・不適切な表現","虚偽・誇大の疑い","表現が不明瞭","その他"];
+  const buildPrRevisionText = (fs) => fs
+    .filter(f => f.target && f.issueType)
+    .map(f => `【${f.target}】→ ${f.issueType}${f.note.trim() ? `（${f.note.trim()}）` : ""}`)
+    .join("\n");
+  const sendPrRevision = async (w) => {
+    const reasonText = buildPrRevisionText(prRevFindings);
+    if (prRevSending || !reasonText) return;
+    setPrRevSending(true);
+    const { data, error } = await supabase.rpc("request_worker_pr_revision", { p_auth_id: w.auth_id, p_reason: reasonText });
+    setPrRevSending(false);
+    if (error || !data?.ok) { alert("修正依頼の送信に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    setPrRevDone(true);
+    setTimeout(() => {
+      setPrRevDone(false); setPrRevTarget(null); setPrRevFindings([emptyPrFinding()]);
+      setSheetPrId(null);
+      setPendingPrs(prev => prev.filter(x => x.auth_id !== w.auth_id));
+    }, 1100);
+  };
   const [publishing, setPublishing] = useState(null);
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
   const [revisionTarget, setRevisionTarget] = useState(null); // job_number（差し戻しモーダルの対象）
@@ -11949,7 +11974,8 @@ function AdminTab({ onJump, onShowAccountForm }) {
     if (!re.error) setRecords(re.data || []);
     if (!ae.error) setAppErrors(ae.data || []);
     if (!pj.error) setPendingJobs(pj.data || []);
-    if (!wp.error) setPendingPrs((wp.data || []).filter(w => w.pr_pending || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0)));
+    // pr_submitted_at必須（2026-07-19）：修正依頼済み（submitted_at=null）は本人が修正して再保存するまで審査待ちに出さない
+    if (!wp.error) setPendingPrs((wp.data || []).filter(w => w.pr_submitted_at && (w.pr_pending || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0))));
     if (!jr.error) setReports(jr.data || []);
     if (!av.error) setDisputes(av.data || []);
     if (!la.error && Array.isArray(la.data)) setAccounts(la.data); // {ok:false,reason:'not_admin'}時は配列でないため無視
@@ -12768,9 +12794,61 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                         <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
                       </div>
                     ))}
-                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
-                      <button onClick={()=>publishPendingPr(w)} disabled={prPublishing===w.auth_id} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{prPublishing===w.auth_id ? "公開中..." : "公開する"}</button>
-                    </div>
+                    {(() => {
+                      // 修正依頼フォーム（2026-07-19）：どこ（本文/各質問）×どう問題か を選んで積み上げ→チャット＋メールで本人へ
+                      const targets = [
+                        ...(w.pr_pending ? ["自己紹介本文"] : []),
+                        ...((Array.isArray(w.pr_qa_pending) ? w.pr_qa_pending : []).map(x => x.q).filter(Boolean)),
+                      ];
+                      const formOpen = prRevTarget === w.auth_id;
+                      const reasonText = buildPrRevisionText(prRevFindings);
+                      const pill = (selected) => ({ padding:"7px 11px", borderRadius:18, border: selected ? "2px solid #EA580C" : "1px solid #EBEBEB", background: selected ? "#FFF1E7" : "#fff", fontSize:12, fontWeight:600, color: selected ? "#EA580C" : "#717171", cursor:"pointer", textAlign:"left" });
+                      return (
+                        <>
+                          <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
+                            <button onClick={()=>{ setPrRevTarget(formOpen ? null : w.auth_id); setPrRevFindings([emptyPrFinding()]); setPrRevDone(false); }} className="f-sans" style={{ padding:"10px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{formOpen ? "修正依頼をやめる" : "修正を依頼"}</button>
+                            <button onClick={()=>publishPendingPr(w)} disabled={prPublishing===w.auth_id} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{prPublishing===w.auth_id ? "公開中..." : "公開する"}</button>
+                          </div>
+                          {formOpen && (
+                            <div className="fade-in" style={{ marginTop:14, background:"#FFF7ED", border:"1px solid #FDBA74", borderRadius:12, padding:"12px 14px" }}>
+                              {prRevDone ? (
+                                <p className="f-sans" style={{ textAlign:"center", fontSize:14, fontWeight:700, color:"#EA580C", margin:"8px 0" }}>✓ 修正依頼を送信しました（チャット＋メール）</p>
+                              ) : (
+                                <>
+                                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#9A3412", margin:"0 0 10px" }}>どこの何が、どう問題かを選んでください（複数可）</p>
+                                  {prRevFindings.map((f, i) => (
+                                    <div key={i} style={{ background:"#fff", borderRadius:10, padding:"10px 12px", marginBottom:8, position:"relative" }}>
+                                      {prRevFindings.length > 1 && (
+                                        <button onClick={()=>setPrRevFindings(prev => prev.filter((_,idx)=>idx!==i))} aria-label="この指摘を削除" style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:12, cursor:"pointer" }}>✕</button>
+                                      )}
+                                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>どこ</p>
+                                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
+                                        {targets.map(t => (
+                                          <button key={t} onClick={()=>setPrRevFindings(prev=>prev.map((x,idx)=>idx===i?{...x,target:t}:x))} className="f-sans" style={pill(f.target===t)}>{t}</button>
+                                        ))}
+                                      </div>
+                                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>どう問題か</p>
+                                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
+                                        {PR_REVISION_ISSUE_TYPES.map(t => (
+                                          <button key={t} onClick={()=>setPrRevFindings(prev=>prev.map((x,idx)=>idx===i?{...x,issueType:t}:x))} className="f-sans" style={pill(f.issueType===t)}>{t}</button>
+                                        ))}
+                                      </div>
+                                      <input value={f.note} onChange={e=>setPrRevFindings(prev=>prev.map((x,idx)=>idx===i?{...x,note:e.target.value}:x))} placeholder="補足があれば（任意）" className="field f-sans" style={{ fontSize:12 }} />
+                                    </div>
+                                  ))}
+                                  <button onClick={()=>setPrRevFindings(prev=>[...prev, emptyPrFinding()])} className="f-sans" style={{ width:"100%", padding:"8px", fontSize:12, fontWeight:700, background:"#fff", color:"#717171", border:"1px dashed #D0D0D0", borderRadius:10, cursor:"pointer", marginBottom:10 }}>＋ 指摘を追加</button>
+                                  {reasonText && (
+                                    <div className="f-sans" style={{ background:"#fff", borderRadius:10, padding:"8px 12px", fontSize:12, color:"#444", lineHeight:1.8, whiteSpace:"pre-wrap", marginBottom:10 }}>{reasonText}</div>
+                                  )}
+                                  <p className="f-sans" style={{ fontSize:11, color:"#9A3412", lineHeight:1.7, margin:"0 0 10px" }}>送信すると、本人に運営チャットとメールがセットで届きます。この提出は審査待ちから外れ、本人が修正して保存すると再び審査に届きます。</p>
+                                  <button onClick={()=>sendPrRevision(w)} disabled={!reasonText || prRevSending} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background: reasonText ? "#EA580C" : "#EBEBEB", color: reasonText ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{prRevSending ? "送信中..." : "修正を依頼する（チャット＋メール）"}</button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
