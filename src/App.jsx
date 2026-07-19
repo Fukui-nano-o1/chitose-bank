@@ -6965,7 +6965,9 @@ function MyCalendar() {
   const [cvMonth, setCvMonth] = useState(new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState(null);
   const [showEnded, setShowEnded] = useState(false);
-  const [highlightIds, setHighlightIds] = useState(() => new Set());
+  // 予定エントリの安定キー（2026-07-19）：応募なしの行（own/liked）はapplication_idがundefinedで衝突するため、
+  // job_number＋relationも混ぜて一意化。ハイライトのキー衝突（該当しない求人まで変色）の根治に使う
+  const entryKey = (e) => e.application_id || `j${e.job_number}-${e.relation || ""}`;
   const [likedIds, setLikedIds] = useState(() => new Set()); // いいね済みjob_number（❤️表示）
   const [previewDraft, setPreviewDraft] = useState(null); // 下書きカードタップ→プレビューボックス（再開/削除・2026-07-16）
   // 下書きを進めませんか？（2026-07-19）：カレンダータップ（タブを開いた時）に下書きがあればボックス展開。
@@ -7052,12 +7054,11 @@ function MyCalendar() {
       return;
     }
     setFlashNoPlan(false);
-    setHighlightIds(new Set(matches.map(m => m.application_id)));
-    flashTimer.current = setTimeout(() => setHighlightIds(new Set()), 1800);
+    // ハイライトはselectedDayから直接導出（下のAgendaRow）。ここでは対象行へスクロールするだけ
     const needsEndedOpen = matches.every(m => bucketOf(m) === "ended") && !showEnded;
     if (needsEndedOpen) setShowEnded(true);
     setTimeout(() => {
-      const el = rowRefs.current[matches[0].application_id];
+      const el = rowRefs.current[entryKey(matches[0])];
       if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
     }, needsEndedOpen ? 60 : 0);
   };
@@ -7072,11 +7073,12 @@ function MyCalendar() {
   const AgendaRow = ({ e }) => {
     const c = CALENDAR_STATUS_COLOR(e.application_status);
     const dateLabel = e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start);
-    const highlighted = highlightIds.has(e.application_id);
+    // 選択中の日に該当する予定だけ変色（2026-07-19）：日付範囲を直接判定＝キー衝突なし・選択中は色を保つ
+    const highlighted = !!(selectedDay && e.date_start && ymdLocal(selectedDay) >= e.date_start && ymdLocal(selectedDay) <= (e.date_end || e.date_start));
     const photo = e.photos && e.photos[0] ? (typeof e.photos[0] === "string" ? e.photos[0] : e.photos[0]?.url) : null;
     return (
       <button
-        ref={el => { rowRefs.current[e.application_id || `j${e.job_number}-${e.relation || ""}`] = el; }}
+        ref={el => { rowRefs.current[entryKey(e)] = el; }}
         onClick={() => {
           // 下書きは詳細ページが無い（未公開）ため、プレビューボックスを展開して再開/削除（2026-07-16）
           if (e.status === "draft") { setPreviewDraft(e.job_number); return; }
