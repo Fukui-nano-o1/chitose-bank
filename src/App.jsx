@@ -5029,16 +5029,22 @@ function ChatView({ applicationId, onBack }) {
   const [isWorkerSide, setIsWorkerSide] = useState(false);
   const [confirmingTerms, setConfirmingTerms] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
-  const load = async () => {
+  // 相手ごとのチャット（2026-07-19たきと指示）：求人・応募ごとに分けず、同じ相手との全応募のメッセージを1本に統合する。
+  // appIds＝この相手と共有する全応募ID／activeAppId＝送信・確認カード・採用ボタンが紐づく「現役」の応募
+  // （進行中で最新のもの。無ければ最新。完了した過去の応募は履歴としてメッセージに混ざる）
+  const [appIds, setAppIds] = useState(null);
+  const [activeAppId, setActiveAppId] = useState(applicationId);
+  const load = async (ids) => {
+    const scope = ids || appIds || [applicationId];
     try {
-      const { data } = await supabase.from("messages").select("*").eq("application_id", applicationId).order("created_at",{ascending:true});
+      const { data } = await supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true});
       if (data) setMsgs(data);
       // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session && (data || []).some(m => m.sender_id !== session.user.id && !m.read_at)) {
           await supabase.from("messages").update({ read_at: new Date().toISOString() })
-            .eq("application_id", applicationId).neq("sender_id", session.user.id).is("read_at", null);
+            .in("application_id", scope).neq("sender_id", session.user.id).is("read_at", null);
           window.dispatchEvent(new Event("cb:unreadRefresh"));
         }
       } catch {}
@@ -5048,10 +5054,10 @@ function ChatView({ applicationId, onBack }) {
     (async () => {
       try {
         const { data:{ session } } = await supabase.auth.getSession();
-        if (!session) { load(); return; }
+        if (!session) { load([applicationId]); return; }
         setMyId(session.user.id);
         const { data: app } = await supabase.from("applications")
-          .select("farmer_id,worker_id,job_number,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at")
+          .select("farmer_id,worker_id")
           .eq("id", applicationId).maybeSingle();
         if (app) {
           const iAmWorker = session.user.id === app.worker_id;
@@ -5062,26 +5068,41 @@ function ChatView({ applicationId, onBack }) {
           const { data: pData } = await supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle();
           if (pData) setPartner(pData);
           setIsWorkerSide(iAmWorker);
-          setWorkerConfirmed(!!app.terms_confirmed_worker_at);
-          setFarmerConfirmed(!!app.terms_confirmed_farmer_at);
-          setInsurancePreparedAt(app.insurance_prepared_at);
-          setChatJobNumber(app.job_number ?? null);
-          if (app.job_number) {
-            const { data: jobRow } = await supabase.from("jobs_public").select("*").eq("job_number", app.job_number).maybeSingle();
-            if (jobRow) setConfirmJob(mapJobPublicRow(jobRow));
-            const { data: mp } = await supabase.rpc('job_meeting_place', { p_job_number: app.job_number });
-            if (mp && mp.ok) setConfirmMeetingPlace(mp);
+          // この相手との全応募（新しい順）。現役＝進行中（承認済み〜作業中）で最新→無ければ最新
+          const { data: rel } = await supabase.from("applications")
+            .select("id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at")
+            .eq(iAmWorker ? "worker_id" : "farmer_id", session.user.id)
+            .eq(iAmWorker ? "farmer_id" : "worker_id", partnerId)
+            .order("created_at", { ascending: false });
+          const relRows = (rel && rel.length > 0) ? rel : null;
+          const active = relRows ? (relRows.find(r => CHAT_ELIGIBLE_STATUSES.includes(r.status)) || relRows[0]) : null;
+          const ids = relRows ? relRows.map(r => r.id) : [applicationId];
+          setAppIds(ids);
+          if (active) {
+            setActiveAppId(active.id);
+            setWorkerConfirmed(!!active.terms_confirmed_worker_at);
+            setFarmerConfirmed(!!active.terms_confirmed_farmer_at);
+            setInsurancePreparedAt(active.insurance_prepared_at);
+            setChatJobNumber(active.job_number ?? null);
+            if (active.job_number) {
+              const { data: jobRow } = await supabase.from("jobs_public").select("*").eq("job_number", active.job_number).maybeSingle();
+              if (jobRow) setConfirmJob(mapJobPublicRow(jobRow));
+              const { data: mp } = await supabase.rpc('job_meeting_place', { p_job_number: active.job_number });
+              if (mp && mp.ok) setConfirmMeetingPlace(mp);
+            }
           }
+          load(ids);
+          return;
         }
       } catch {}
-      load();
+      load([applicationId]);
     })();
   }, [applicationId]);
   const confirmTerms = async () => {
     if (confirmingTerms) return;
     setConfirmingTerms(true);
     try {
-      const { data, error } = await supabase.rpc('confirm_terms', { p_application_id: applicationId });
+      const { data, error } = await supabase.rpc('confirm_terms', { p_application_id: activeAppId });
       if (!error && data && data.ok) {
         setWorkerConfirmed(!!data.worker_confirmed);
         setFarmerConfirmed(!!data.farmer_confirmed);
@@ -5095,7 +5116,7 @@ function ChatView({ applicationId, onBack }) {
     try {
       const { data:{ session } } = await supabase.auth.getSession();
       if (!session) { setSending(false); return; }
-      const { error } = await supabase.from("messages").insert({ application_id: applicationId, sender_id: session.user.id, body: text.trim() });
+      const { error } = await supabase.from("messages").insert({ application_id: activeAppId, sender_id: session.user.id, body: text.trim() });
       if (!error) { setText(""); await load(); }
     } catch {}
     setSending(false);
@@ -5316,7 +5337,16 @@ function ChatList() {
             };
           })
           .sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
-        setRows(merged);
+        // 相手ごとに1スレッド（2026-07-19たきと指示）：求人・応募ごとに分けず利用者で束ねる。
+        // 代表＝その相手との最新の応募（行タップの遷移先）。未読は束ねた全応募の合算で表示
+        const byPartner = new Map();
+        merged.forEach(a => {
+          const key = (a._role === "worker" ? a.farmer_id : a.worker_id) || a.id;
+          const g = byPartner.get(key);
+          if (!g) byPartner.set(key, { ...a, _appIds: [a.id], _count: 1 });
+          else { g._appIds.push(a.id); g._count += 1; }
+        });
+        setRows([...byPartner.values()]);
       } catch {}
       setLoading(false);
     })();
@@ -5372,9 +5402,10 @@ function ChatList() {
         <div style={{ display:"grid", gap:10 }}>
           {rows.map(a => {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
+            const rowUnread = (a._appIds || [a.id]).reduce((s, id) => s + (unreadMap[id] || 0), 0); // 相手との全応募の未読合算
             return (
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
-                className={"f-sans" + (unreadMap[a.id] > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
+                className={"f-sans" + (rowUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
                   border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
                 {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}
                 <span onClick={(e)=>{ e.stopPropagation(); if (a._role === "farmer") openWorkerPreview(a.worker_id); else openEmployerPreview(a.farmer_id); }} style={{ flexShrink:0 }}>
@@ -5383,10 +5414,10 @@ function ChatList() {
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
                     <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
-                    {unreadMap[a.id] > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{unreadMap[a.id]}</span>}
+                    {rowUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{rowUnread}</span>}
                     <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: a.status === "completed" ? "#F3F3F3" : "#E6F7EF", color: a.status === "completed" ? "#999" : "#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
                   </div>
-                  {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}</p>}
+                  {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}{a._count > 1 ? `　ほか${a._count - 1}件` : ""}</p>}
                 </div>
               </button>
             );
