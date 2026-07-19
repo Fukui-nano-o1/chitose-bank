@@ -5167,6 +5167,16 @@ function ChatView({ applicationId, onBack }) {
       load([applicationId]);
     })();
   }, [applicationId]);
+  // リアルタイム受信（2026-07-19）：この相手との応募IDへの新着メッセージINSERTを購読し、即時再読込。
+  // 配信はRLS準拠（当事者のみ）。loadが既読化と下部バーバッジ再計算(cb:unreadRefresh)も担う。
+  // 自分の送信分もイベントが来るがloadは冪等。チャットを閉じると購読解除
+  useEffect(() => {
+    if (!appIds || appIds.length === 0) return;
+    const ch = supabase.channel("chat-" + applicationId)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "application_id=in.(" + appIds.join(",") + ")" }, () => { load(appIds); })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [appIds]); // eslint-disable-line react-hooks/exhaustive-deps
   const confirmTerms = async () => {
     if (confirmingTerms) return;
     setConfirmingTerms(true);
@@ -5455,6 +5465,23 @@ function ChatList() {
     } catch {}
   };
   useEffect(() => { loadDm(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // リアルタイム（2026-07-19）：チャット一覧を開いている間、新着を購読して一覧の未読数と運営DMを即時更新。
+  // 配信はRLS準拠（自分の当事者チャット・自分宛DMのみ）。DMポップアップを開いていれば既読化も走る
+  const dmOpenRef = useRef(false);
+  useEffect(() => { dmOpenRef.current = dmOpen; }, [dmOpen]);
+  useEffect(() => {
+    const refreshUnreadMap = async () => {
+      try {
+        const { data } = await supabase.rpc("my_unread_message_counts");
+        if (data) setUnreadMap(data.by_application || {});
+      } catch {}
+    };
+    const ch = supabase.channel("chatlist-live")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, refreshUnreadMap)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, () => loadDm(dmOpenRef.current))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const sendDm = async () => {
     const body = dmText.trim();
     if (!body || dmSending || !dmUid.current) return;
@@ -16725,7 +16752,13 @@ const loadNotifs=useCallback(async(farmerId)=>{
     refresh();
     window.addEventListener("hashchange", refresh);
     window.addEventListener("cb:unreadRefresh", refresh);
-    return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); };
+    // リアルタイム（2026-07-19）：自分宛メッセージのINSERTを購読し、バッジを即時更新。
+    // 配信はRLS準拠＝自分が当事者のchat/自分宛DMしか届かない。自分の送信分も届くがrefreshは冪等
+    const ch = supabase.channel("unread-badge")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, refresh)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, refresh)
+      .subscribe();
+    return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
   }, [me?.id]);
   // approvalトリガー（応募承認後）の専用照会は2026-07-17に撤去：熱中症お知らせがafter_login×毎回表示に変更され、
   // ログイン済み利用者の来訪すべてをカバーするため。approval値の判定はshowNoticesForに残っており、再開時はここにeffectを足すだけ
