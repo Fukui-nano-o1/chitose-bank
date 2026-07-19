@@ -6465,6 +6465,20 @@ function MyCalendar() {
   const [highlightIds, setHighlightIds] = useState(() => new Set());
   const [likedIds, setLikedIds] = useState(() => new Set()); // いいね済みjob_number（❤️表示）
   const [previewDraft, setPreviewDraft] = useState(null); // 下書きカードタップ→プレビューボックス（再開/削除・2026-07-16）
+  // 下書きを進めませんか？（2026-07-19）：カレンダータップ（タブを開いた時）に下書きがあればボックス展開。
+  // カードタップ→保存済みステップから求人フロー再開（#/work/edit/{n}・hashだけでshowJobPostが立つ既存レール）
+  const [draftPrompt, setDraftPrompt] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from("jobs").select("job_number,crop,task,photos,draft_step,opened_at").eq("farmer_id", session.user.id).eq("status", "draft").order("created_at", { ascending: false });
+        const drafts = (data || []).filter(j => !j.opened_at); // 一時非公開（open経験あり）は下書きではないので除外
+        if (drafts.length > 0) setDraftPrompt(drafts);
+      } catch {}
+    })();
+  }, []);
   const [flashNoPlan, setFlashNoPlan] = useState(false);
   const rowRefs = useRef({});
   const flashTimer = useRef(null);
@@ -6595,6 +6609,35 @@ function MyCalendar() {
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>カレンダー</h2>
+      {/* 下書きを進めませんか？ボックス（2026-07-19）：下書きカードタップ→保存済みステップから求人フロー再開 */}
+      {draftPrompt && (
+        <div onClick={()=>setDraftPrompt(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setDraftPrompt(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>📝 下書きを進めませんか？</p>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"14px 16px 16px" }}>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:"0 0 12px" }}>作成途中の求人があります。カードをタップすると、続きから再開できます。</p>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+                {draftPrompt.map(j => {
+                  const photo = j.photos && j.photos[0] ? (typeof j.photos[0] === "string" ? j.photos[0] : j.photos[0]?.url) : null;
+                  return (
+                    <button key={j.job_number} onClick={()=>{ setDraftPrompt(null); window.location.hash = "/work/edit/" + j.job_number; }}
+                      className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                      <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
+                        {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                        <StatusRibbonLeft label="下書き" color="#717171" />
+                      </div>
+                      <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", margin:0, padding:"7px 8px 9px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
       ) : entries.length === 0 ? (
