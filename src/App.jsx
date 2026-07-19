@@ -5259,6 +5259,19 @@ function ChatView({ applicationId, onBack }) {
       )}
 
       <div style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
+        {/* 採用するボタン（農家側・2026-07-19）：チャット右上に浮遊（sticky＝スクロールしても右上に留まる）。
+            凍結トリガー＝働き手の「はじめる前の確認」＋この採用タップの両方（confirm_terms・どちらか片方では凍結されない） */}
+        {confirmJob && !isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
+          <div style={{ position:"sticky", top:0, alignSelf:"flex-end", zIndex:5 }}>
+            {farmerConfirmed ? (
+              <span className="f-sans" style={{ display:"inline-block", background:"#E6F7EF", color:"#00A86B", fontSize:12, fontWeight:700, borderRadius:20, padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>✓ 採用決定済み{!workerConfirmed ? "（働き手の確認待ち）" : ""}</span>
+            ) : (
+              <button onClick={()=>{ if (window.confirm("この方の採用を決定しますか？\n打ち合わせ・面接はチャットで行い、決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : ""))) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ background:"#00A86B", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:20, padding:"10px 18px", cursor:"pointer", boxShadow:"0 4px 12px rgba(0,168,107,0.4)", opacity: confirmingTerms ? 0.6 : 1 }}>
+                {confirmingTerms ? "..." : "採用する"}
+              </button>
+            )}
+          </div>
+        )}
         {msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>打ち合わせや面接の連絡は、ここで行えます。</p>
         ) : msgs.map(m => (
@@ -5313,22 +5326,7 @@ function ChatView({ applicationId, onBack }) {
         </div>
       )}
 
-      {/* 採用するボタン（農家側に常駐・2026-07-19）：打合せ・面接はチャットで行い、最終的にここで採用を決定する。
-          凍結トリガー＝働き手の「はじめる前の確認」＋この採用タップの両方（confirm_terms・どちらか片方では凍結されない） */}
-      {confirmJob && !isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
-        <div style={{ borderTop:"1px solid #EEE", padding:"10px 0" }}>
-          {farmerConfirmed ? (
-            <p className="f-sans" style={{ fontSize:12, color:"#00A86B", fontWeight:700, margin:0, textAlign:"center" }}>✓ 採用を決定しました{!workerConfirmed ? "（働き手の内容確認待ち）" : ""}</p>
-          ) : (
-            <>
-              <button onClick={()=>{ if (window.confirm("この方の採用を決定しますか？")) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>
-                {confirmingTerms ? "..." : "採用する"}
-              </button>
-              <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"6px 0 0", textAlign:"center" }}>打ち合わせ・面接はチャットで。決めたらタップしてください{workerConfirmed ? "（働き手は内容確認済み）" : ""}</p>
-            </>
-          )}
-        </div>
-      )}
+      {/* 採用するボタンはチャット右上の浮遊に移設（2026-07-19・上のsticky）。下部の常駐ブロックは廃止 */}
       {(!isWorkerSide && activeStatus === "applied") ? (
         /* 承認待ちの間、農家の入力欄は一時的に承認/見送るボタンへ（2026-07-19）。判断後は通常の入力欄に戻る */
         <div style={{ padding:"12px 0", borderTop:"1px solid #EEE" }}>
