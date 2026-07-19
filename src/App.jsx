@@ -10504,6 +10504,19 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session) { saveDraft(); onLogin(); return; }
+                // プロフィール審査中の農家は掲載不能（編集・下書きは可・2026-07-19）。DBトリガーの手前で分かりやすく案内
+                if (!isAdmin(session.user)) {
+                  try {
+                    const { data: ep } = await supabase.from("employer_profiles").select("texts_pending,texts_revision_requested_at").eq("auth_id", session.user.id).maybeSingle();
+                    const epPending = !!(ep?.texts_pending && Object.keys(ep.texts_pending).length > 0);
+                    if (epPending || ep?.texts_revision_requested_at) {
+                      alert(!epPending && ep?.texts_revision_requested_at
+                        ? "プロフィールに修正のお願いが届いているため、いまは掲載できません。\nプロフィールを修正して保存すると、審査のうえ掲載できるようになります。\n（この求人の編集・下書き保存はいつでも可能です）"
+                        : "プロフィールが運営の審査待ちのため、いまは掲載できません。\n審査が終わると掲載できるようになります（最大2日）。\n（この求人の編集・下書き保存はいつでも可能です）");
+                      return;
+                    }
+                  } catch {}
+                }
                 let _jn = draftJobNumber;
                 if (!_jn) { try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _jn = _d.job_number ?? null; } catch {} }
                 let error;
@@ -10516,7 +10529,12 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   error = r.error;
                   if (!error && r.data) setDraftJobNumber(r.data.job_number);
                 }
-                if (error) { alert("掲載エラー: " + error.message); return; }
+                if (error) {
+                  alert(String(error.message || "").includes("PROFILE_UNDER_REVIEW")
+                    ? "プロフィールが審査中のため、いまは掲載できません（下書き保存は可能です）。審査が終わると掲載できるようになります。"
+                    : "掲載エラー: " + error.message);
+                  return;
+                }
                 try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                 setDraftJobNumber(null);
                 setPublishModal(false);
