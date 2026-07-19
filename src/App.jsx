@@ -5076,6 +5076,16 @@ function ChatView({ applicationId, onBack }) {
   // appIds＝この相手と共有する全応募ID／activeAppId＝送信・確認カード・採用ボタンが紐づく「現役」の応募
   // （進行中で最新のもの。無ければ最新。完了した過去の応募は履歴としてメッセージに混ざる）
   const [appIds, setAppIds] = useState(null);
+  const [appJobMap, setAppJobMap] = useState({}); // application_id→job_number（自動メッセージ下「応募された求人を見る」用・2026-07-19）
+  const [jobBox, setJobBox] = useState(null); // 該当求人のボックス表示：{loading, job_number, job}
+  const openJobBox = async (jobNumber) => {
+    if (!jobNumber) return;
+    setJobBox({ loading: true, job_number: jobNumber, job: null });
+    try {
+      const { data } = await supabase.from("jobs_public").select("*").eq("job_number", jobNumber).maybeSingle();
+      setJobBox({ loading: false, job_number: jobNumber, job: data ? mapJobPublicRow(data) : null });
+    } catch { setJobBox({ loading: false, job_number: jobNumber, job: null }); }
+  };
   const [activeAppId, setActiveAppId] = useState(applicationId);
   const [activeStatus, setActiveStatus] = useState(null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
   const [deciding, setDeciding] = useState(false);
@@ -5135,6 +5145,7 @@ function ChatView({ applicationId, onBack }) {
           const active = relRows ? (relRows.find(r => CHAT_ELIGIBLE_STATUSES.includes(r.status)) || relRows[0]) : null;
           const ids = relRows ? relRows.map(r => r.id) : [applicationId];
           setAppIds(ids);
+          if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
           if (active) {
             setActiveAppId(active.id);
             setActiveStatus(active.status);
@@ -5293,9 +5304,10 @@ function ChatView({ applicationId, onBack }) {
           <div
             onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
             style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none" }} className="f-sans">{m.body}</div>
-          {/* 応募の自動メッセージの直後（農家側のみ）：2通目として応募者のプロフィールカードを表示（2026-07-19）。
-              アイコン＋〇〇さん＋「プロフィールを見る →」。タップでプレビューボックス展開。DBには保存しないUI表示 */}
-          {!isWorkerSide && partnerWorkerId && m.sender_id !== myId && m.body === "あなたの求人に応募しました！確認をお願いします。" && (
+          {/* 応募の自動メッセージの直後（農家側のみ）：2通目として応募者のプロフィールカード＋
+              「応募された求人を見る →」リンクを表示（2026-07-19）。旧文言（確認をお願いします）にも出すためstartsWithで判定 */}
+          {!isWorkerSide && partnerWorkerId && m.sender_id !== myId && m.body.startsWith("あなたの求人に応募しました！") && (
+            <>
             <div
               onClick={()=>{ if (!reportMode) openWorkerPreview(partnerWorkerId); }}
               role="button"
@@ -5307,6 +5319,11 @@ function ChatView({ applicationId, onBack }) {
                 <p style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"4px 0 0", textDecoration:"underline" }}>プロフィールを見る →</p>
               </div>
             </div>
+            <button
+              onClick={()=>{ if (!reportMode) openJobBox(appJobMap[m.application_id] ?? chatJobNumber); }}
+              className="f-sans"
+              style={{ alignSelf:"flex-start", background:"none", border:"none", padding:"0 0 2px", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor: reportMode ? "default" : "pointer" }}>応募された求人を見る →</button>
+            </>
           )}
           </Fragment>
         ))}
@@ -5335,6 +5352,41 @@ function ChatView({ applicationId, onBack }) {
                 <textarea value={reportDetail} onChange={e=>setReportDetail(e.target.value)} placeholder="補足があれば（任意）" rows={3} className="field f-sans" style={{ fontSize:13, marginBottom:12, resize:"vertical" }} />
                 <button onClick={submitReport} disabled={!reportReason || reportSending} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: (!reportReason || reportSending) ? 0.5 : 1 }}>{reportSending ? "送信中..." : "報告する"}</button>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 該当求人ボックス（2026-07-19）：「応募された求人を見る →」タップで展開。写真＋主要情報＋詳細ページへのリンク */}
+      {jobBox && (
+        <div onClick={()=>setJobBox(null)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>setJobBox(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2, boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>✕</button>
+            {jobBox.loading ? (
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中...</p>
+            ) : jobBox.job ? (
+              <>
+                {(() => {
+                  const p0 = jobBox.job.photos?.[0];
+                  const src = typeof p0 === "string" ? p0 : p0?.url;
+                  return src
+                    ? <img src={src} alt="" style={{ width:"100%", height:170, objectFit:"cover", display:"block", borderRadius:"16px 16px 0 0" }} />
+                    : <div style={{ width:"100%", height:170, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48, borderRadius:"16px 16px 0 0" }}>🌾</div>;
+                })()}
+                <div style={{ padding:"14px 18px 18px" }} className="f-sans">
+                  <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
+                    <p style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, flex:1, minWidth:0 }}>{[jobBox.job.crop, jobBox.job.task].filter(Boolean).join(" ") || "求人"}</p>
+                    <span style={{ fontSize:11, color:"#C8C8C8", flexShrink:0 }}>#{jobBox.job.id}</span>
+                  </div>
+                  {jobBox.job.region && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📍 {jobBox.job.region}</p>}
+                  {jobBox.job.dateLabel && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📅 {jobBox.job.dateLabel}{jobBox.job.workTime ? "　" + jobBox.job.workTime : ""}</p>}
+                  {jobBox.job.pay > 0 && <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"6px 0 0" }}>{jobBox.job.payType === "daily" ? "日給" : "時給"} {jobBox.job.pay.toLocaleString()}円</p>}
+                  {jobBox.job.count && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>👥 募集 {jobBox.job.count}</p>}
+                  <button onClick={()=>{ setJobBox(null); try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + jobBox.job_number; }} className="f-sans" style={{ marginTop:14, background:"none", border:"none", padding:"0 0 2px", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>詳細ページで見る →</button>
+                </div>
+              </>
+            ) : (
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 16px" }}>この求人（#{jobBox.job_number}）は現在公開されていません</p>
             )}
           </div>
         </div>
