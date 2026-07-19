@@ -5116,7 +5116,8 @@ function ChatView({ applicationId, onBack }) {
             const rows = [
               { label:"日程",     value: disp(confirmJob.dateLabel) },
               { label:"時間",     value: disp(confirmJob.workTime) },
-              { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中..." },
+              { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中...",
+                mapUrl: confirmMeetingPlace?.full_address ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(confirmMeetingPlace.full_address) : null },
               { label:"持ち物",   value: disp(confirmJob.items) },
               { label:"服装",     value: disp(confirmJob.cautions) },
               { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
@@ -5135,7 +5136,11 @@ function ChatView({ applicationId, onBack }) {
             ) : !done ? (
               <div>
                 <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 4px" }}>{rows[confirmStep].label}</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#222", fontWeight:700, lineHeight:1.7, margin:"0 0 12px", overflowWrap:"break-word", wordBreak:"break-word" }}>{rows[confirmStep].value}</p>
+                <p className="f-sans" style={{ fontSize:14, color:"#222", fontWeight:700, lineHeight:1.7, margin:"0 0 6px", overflowWrap:"break-word", wordBreak:"break-word" }}>{rows[confirmStep].value}</p>
+                {rows[confirmStep].mapUrl && (
+                  <a href={rows[confirmStep].mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ display:"inline-block", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", marginBottom:6 }}>📍 Googleマップで開く →</a>
+                )}
+                <div style={{ height:6 }} />
                 <div style={{ display:"flex", gap:8 }}>
                   {confirmStep > 0 && (
                     <button onClick={()=>setConfirmStep(s=>s-1)} className="f-sans" style={{ padding:"10px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 前へ</button>
@@ -5149,7 +5154,11 @@ function ChatView({ applicationId, onBack }) {
                   {rows.map(row => (
                     <div key={row.label} style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
                       <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>{row.label}</span>
-                      <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}>✓ {row.value}</span>
+                      {row.mapUrl ? (
+                        <a href={row.mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ fontSize:12, color:"#00A86B", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word", textDecoration:"underline" }}>✓ {row.value} 📍</a>
+                      ) : (
+                        <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}>✓ {row.value}</span>
+                      )}
                     </div>
                   ))}
                 </div>
