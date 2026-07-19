@@ -434,6 +434,13 @@ input:focus { outline: none; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 .cb-heart-pop { animation: cbHeartPop .6s cubic-bezier(.2, 1.4, .4, 1) .3s both; }
+/* 委託準備室の印刷（2026-07-19）：印刷時は仕様書(.consign-print)だけを紙に出す */
+@media print {
+  body * { visibility: hidden; }
+  .consign-print, .consign-print * { visibility: visible; }
+  .consign-print { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
+}
 /* 任意項目の未入力：赤影のみ（浮遊アニメなし・2026-07-16） */
 .cb-urgent-still { box-shadow: 0 2px 6px rgba(226,75,74,.45) !important; }
 /* 体感0.8秒（退場0.4s＋入場0.4s）・スワイプ風の横滑り（2026-07-16） */
@@ -11333,6 +11340,207 @@ function NoticeJumpText({ text }) {
   ));
 }
 
+// ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
+//    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
+//    タブ2つ：仕様書（フォーム→保存→印刷ビュー）／台帳（consignment_deals一覧・行タップで編集・状態更新・メモ）
+const CONSIGN_STATUS = [
+  { k:"draft",     l:"下書き", bg:"#F5F5F5", fg:"#717171" },
+  { k:"agreed",    l:"合意",   bg:"#E8F0FE", fg:"#1A56C5" },
+  { k:"working",   l:"作業中", bg:"#FFF4E0", fg:"#C77700" },
+  { k:"inspected", l:"検収済", bg:"#E6F7EF", fg:"#00A86B" },
+  { k:"paid",      l:"支払済", bg:"#E6F7EF", fg:"#00A86B" },
+  { k:"completed", l:"完了",   bg:"#F3F3F3", fg:"#999" },
+];
+const CONSIGN_FIXED_CLAUSES = [
+  "本委託の対価は作業の実施であり、収量・収益を保証するものではありません",
+  "賠償は本件報酬額を上限とし、逸失利益は対象外とします（故意・重過失を除く）",
+  "作業の指揮命令は受託者の責任者が行います",
+  "天候等による中止：開始◯日前までの通知は無償、以後は前金を上限に精算",
+  "支払い：前金→区画ごとの検収後に残額",
+];
+const CONSIGN_EMPTY = { contractor:"", field_name:"", area_a:"", crop:"", task:"", unit_price_10a:"", total:"", advance:"", period_start:"", period_end:"", inspection:"", field_cond:"", special:"" };
+const CONSIGN_BASIC_FIELDS = [
+  { k:"contractor",     l:"受託者名" },
+  { k:"field_name",     l:"圃場の呼び名" },
+  { k:"area_a",         l:"面積（a）" },
+  { k:"crop",           l:"作物" },
+  { k:"task",           l:"作業" },
+  { k:"unit_price_10a", l:"単価（10aあたり・円）" },
+  { k:"total",          l:"総額（円）" },
+  { k:"advance",        l:"前金額（円）" },
+];
+const CONSIGN_TEXT_FIELDS = [
+  { k:"inspection", l:"検収基準", ph:"例：2L以上・軸2cm・コンテナ渡し" },
+  { k:"field_cond", l:"圃場条件", ph:"残渣・傾斜・進入路など" },
+  { k:"special",    l:"特約",     ph:"あれば記入" },
+];
+function ConsignmentRoom() {
+  const [cTab, setCTab] = useState("spec"); // spec=仕様書 / ledger=台帳
+  const [spec, setSpec] = useState({ ...CONSIGN_EMPTY });
+  const [editId, setEditId] = useState(null);
+  const [status, setStatus] = useState("draft");
+  const [memo, setMemo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [deals, setDeals] = useState([]);
+  const loadDeals = async () => {
+    const { data } = await supabase.from("consignment_deals").select("*").order("created_at", { ascending: false });
+    setDeals(data || []);
+  };
+  useEffect(() => { loadDeals(); }, []);
+  const setF = (k, v) => setSpec(p => ({ ...p, [k]: v }));
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const payload = { spec: { ...spec, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, memo: memo.trim() || null, updated_at: new Date().toISOString() };
+      if (editId) {
+        const { error } = await supabase.from("consignment_deals").update(payload).eq("id", editId);
+        if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return; }
+      } else {
+        const { data, error } = await supabase.from("consignment_deals").insert(payload).select("id").single();
+        if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return; }
+        if (data) setEditId(data.id);
+      }
+      await loadDeals();
+    } catch { alert("保存に失敗しました。"); }
+    setSaving(false);
+  };
+  const openDeal = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setStatus(d.status || "draft"); setMemo(d.memo || ""); setCTab("spec"); };
+  const newDeal = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setStatus("draft"); setMemo(""); setCTab("spec"); };
+  const stBadge = (k) => CONSIGN_STATUS.find(s => s.k === k) || CONSIGN_STATUS[0];
+  const period = [spec.period_start, spec.period_end].filter(Boolean).join(" 〜 ");
+
+  if (printOpen) {
+    return (
+      <div style={{ maxWidth:760, margin:"0 auto", padding:"24px 16px 120px" }}>
+        <div className="no-print" style={{ display:"flex", gap:8, marginBottom:16 }}>
+          <button onClick={()=>setPrintOpen(false)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻る</button>
+          <button onClick={()=>window.print()} className="btn-primary f-sans" style={{ padding:"9px 20px", fontSize:13, fontWeight:700, borderRadius:10 }}>🖨 印刷する</button>
+        </div>
+        <div className="consign-print" style={{ background:"#fff", border:"1px solid #DDD", borderRadius:4, padding:"32px 28px", fontFamily:"serif", color:"#111" }}>
+          <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, textAlign:"center", margin:"0 0 4px" }}>農作業委託 仕様書</h1>
+          <p className="f-sans" style={{ fontSize:11, color:"#666", textAlign:"center", margin:"0 0 20px" }}>chitose-bank 委託準備室</p>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, marginBottom:18 }}>
+            <tbody>
+              {[...CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]), ["作業期間", period]].map(([l, v]) => (
+                <tr key={l}>
+                  <td style={{ border:"1px solid #999", padding:"7px 10px", width:170, background:"#F5F5F5", fontWeight:700 }}>{l}</td>
+                  <td style={{ border:"1px solid #999", padding:"7px 10px" }}>{v || "　"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {CONSIGN_TEXT_FIELDS.map(f => (
+            <div key={f.k} style={{ marginBottom:14 }}>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ {f.l}</p>
+              <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{spec[f.k] || "　"}</p>
+            </div>
+          ))}
+          <div style={{ marginTop:18 }}>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 6px" }}>■ 定型条項（全仕様書共通）</p>
+            {CONSIGN_FIXED_CLAUSES.map(c => (
+              <p key={c} style={{ fontSize:12, lineHeight:1.9, margin:0 }}>・{c}</p>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px" }}>
+      <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 管理</button>
+      <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>🚩 委託 準備室</p>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>B2B委託レーンの手動1件用の内部道具です（管理者のみ・市場機能はまだ作らない）</p>
+      <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
+        {[{ k:"spec", l:"📄 仕様書" }, { k:"ledger", l:"📚 台帳", n:deals.length }].map(t => (
+          <button key={t.k} onClick={()=>setCTab(t.k)} className="f-sans"
+            style={{ flex:1, padding:"11px 0", borderRadius:12, border: cTab===t.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:14, fontWeight: cTab===t.k ? 800 : 600, color: cTab===t.k ? "#222" : "#999", cursor:"pointer" }}>
+            {t.l}{t.n > 0 ? `（${t.n}）` : ""}
+          </button>
+        ))}
+      </div>
+
+      {cTab === "spec" && (
+        <div className="fade-in">
+          {editId && (
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+              <span className="f-sans" style={{ fontSize:12, color:"#717171" }}>編集中：{spec.contractor || "（受託者未記入）"}</span>
+              <button onClick={newDeal} className="f-sans" style={{ marginLeft:"auto", background:"none", border:"1px solid #EBEBEB", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#717171", cursor:"pointer" }}>＋ 新規作成</button>
+            </div>
+          )}
+          {CONSIGN_BASIC_FIELDS.map(f => (
+            <div key={f.k} style={{ marginBottom:10 }}>
+              <label className="lbl f-sans">{f.l}</label>
+              <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} style={{ fontSize:14, marginBottom:0 }} />
+            </div>
+          ))}
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <div style={{ flex:1 }}>
+              <label className="lbl f-sans">作業期間（開始）</label>
+              <input className="field f-sans" type="date" value={spec.period_start} onChange={e=>setF("period_start", e.target.value)} style={{ fontSize:13, marginBottom:0 }} />
+            </div>
+            <div style={{ flex:1 }}>
+              <label className="lbl f-sans">作業期間（終了）</label>
+              <input className="field f-sans" type="date" value={spec.period_end} onChange={e=>setF("period_end", e.target.value)} style={{ fontSize:13, marginBottom:0 }} />
+            </div>
+          </div>
+          {CONSIGN_TEXT_FIELDS.map(f => (
+            <div key={f.k} style={{ marginBottom:10 }}>
+              <label className="lbl f-sans">{f.l}</label>
+              <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+            </div>
+          ))}
+          <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", margin:"14px 0" }}>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
+            {CONSIGN_FIXED_CLAUSES.map(c => (
+              <p key={c} className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.8, margin:0 }}>・{c}</p>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <div style={{ flex:1 }}>
+              <label className="lbl f-sans">状態</label>
+              <select className="field f-sans" value={status} onChange={e=>setStatus(e.target.value)} style={{ fontSize:13, marginBottom:0 }}>
+                {CONSIGN_STATUS.map(s => <option key={s.k} value={s.k}>{s.l}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label className="lbl f-sans">メモ（内部用・仕様書には印字されない）</label>
+            <textarea className="field f-sans" value={memo} onChange={e=>setMemo(e.target.value)} rows={2} style={{ fontSize:13, marginBottom:0, resize:"vertical" }} />
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : (editId ? "更新を保存" : "保存")}</button>
+            <button onClick={()=>setPrintOpen(true)} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#222", border:"1px solid #222", borderRadius:12, cursor:"pointer" }}>🖨 印刷ビュー</button>
+          </div>
+        </div>
+      )}
+
+      {cTab === "ledger" && (
+        <div className="fade-in">
+          {deals.length === 0 ? (
+            <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", padding:"32px 0" }}>台帳は空です。仕様書タブから保存すると、ここに並びます。</p>
+          ) : deals.map(d => {
+            const s = d.spec || {};
+            const st = stBadge(d.status);
+            return (
+              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"12px 4px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
+                <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
+                <span style={{ flex:1, minWidth:0 }}>
+                  <span className="f-sans" style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.contractor || "（受託者未記入）"}　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
+                  <span className="f-sans" style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{s.field_name || "圃場未記入"}・{s.area_a ? s.area_a + "a" : "面積未記入"}・総額{s.total ? Number(s.total).toLocaleString() + "円" : "未記入"}　{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
+                </span>
+                <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（🗂ボックス台帳 ⇄ 📢お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
 //    （農家プロ作成中⇄公開中と同じページャー作法）。台帳はadmin_box_registry / admin_notice_registry（RLSで管理者限定）。
@@ -11952,8 +12160,9 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"system",  e:"⚙️", l:"システム" },
             { k:"boxlist", e:"🗂", l:"ボックス一覧" },
             { k:"notices", e:"📢", l:"お知らせ一覧" },
+            { k:"consign", e:"🚩", l:"委託 準備室" },
           ].map(c => (
-            <button key={c.k} onClick={()=>{ if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button key={c.k} onClick={()=>{ if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else if (c.k === "consign") { window.location.hash = "/admin/consignment"; } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <span style={{ fontSize:36, lineHeight:1 }}>{c.e}</span>
               <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>
@@ -15840,7 +16049,7 @@ function PresentationCreateCanvasPage() {
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","page-presentation-create-canvas"];
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment") return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
@@ -15853,7 +16062,7 @@ export default function App(){
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
     const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/worker/profile" || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
     // 審査メールの深いリンク(#/admin/review/{job_number})を、tab同期で#/adminに巻き戻さないよう保持
-    const _subTabOfAdmin = (tab === "admin") && _curHash.startsWith("admin/review/");
+    const _subTabOfAdmin = (tab === "admin") && (_curHash.startsWith("admin/review/") || _curHash === "admin/consignment");
     // ヘルプの章アンカー(#/help/{chapter})を、tab同期で#/helpに巻き戻さないよう保持
     const _subTabOfHelp = (tab === "help") && _curHash.startsWith("help/");
     // ボックス一覧ページのお知らせタブ(#/boxes/notices)を、tab同期で#/boxesに巻き戻さないよう保持
@@ -15896,6 +16105,7 @@ export default function App(){
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
       if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
       setShowApplyDone(rawHash === "apply/done");
+      setConsignRoom(rawHash === "admin/consignment");
       if (rawHash === "apply/done") {
         try { setApplyAlready(sessionStorage.getItem("cb_applyAlready")==="1"); sessionStorage.removeItem("cb_applyAlready"); } catch {}
       }
@@ -15968,6 +16178,7 @@ export default function App(){
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
+  const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="admin/consignment"; } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19）
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
   const [applyAlready,setApplyAlready]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")==="1");
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
@@ -16746,7 +16957,8 @@ const subDest=useCallback(async d=>{
                 }}>データを入力する</button>
               </div>
         )}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&<AdminTab
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<ConsignmentRoom/>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&<AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
