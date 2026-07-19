@@ -591,6 +591,20 @@ input:focus { outline: none; }
   .bottom-tab-bar { display: none !important; }
 }
 
+/* ── チャット縦最大化（2026-07-19）：mainの上余白を打ち消し、下部バー直上まで拡大。
+   PCは従来の70vh。モバイルはsafe-area(ノッチ)+8pxを上端、下部バー64px+safe-bottomを下端に。
+   100vhはiOSでURLバー分を含み過大なため、対応環境では100dvhで上書き ── */
+.chat-full { height: 70vh; }
+@media (max-width: 768px) {
+  .chat-full {
+    margin-top: calc(env(safe-area-inset-top, 0px) + 8px - 68px); /* mainのpadding-top 68pxを打ち消す */
+    height: calc(100vh - env(safe-area-inset-top, 0px) - 8px - 64px - env(safe-area-inset-bottom, 0px) - 8px);
+  }
+  @supports (height: 100dvh) {
+    .chat-full { height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px - 64px - env(safe-area-inset-bottom, 0px) - 8px); }
+  }
+}
+
 /* ── モバイル下部バー最終形：☰（アイコンのみ・コンパクト）＋5機能タブ（さがす／いいね／カレンダー／チャット／プロフィール） ── */
 .app-header-mobile-tabs {
   display: flex;
@@ -5166,7 +5180,7 @@ function ChatView({ applicationId, onBack }) {
     setSending(false);
   };
   return (
-    <div style={{ maxWidth:600, margin:"0 auto", display:"flex", flexDirection:"column", height:"70vh" }}>
+    <div className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
       <button onClick={onBack} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:13, cursor:"pointer", padding:"8px 0", textAlign:"left" }}>← 戻る</button>
       {partner && (
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0 12px", borderBottom:"1px solid #EEE" }}>
