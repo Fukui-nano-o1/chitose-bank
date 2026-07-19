@@ -11277,6 +11277,38 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
   const [dangerLightbox, setDangerLightbox] = useState(null);
+  // タップ式修正依頼（2026-07-19）：審査中、プレビューの各項目の「⚠️指摘」を押して、何がどう問題かを積み上げる
+  const [findings, setFindings] = useState([]); // [{target, issueType, note}]
+  const [editTarget, setEditTarget] = useState(null); // 指摘編集中の項目ラベル
+  const [editIssue, setEditIssue] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [revSending, setRevSending] = useState(false);
+  const [revSent, setRevSent] = useState(false);
+  const findingFor = (label) => findings.find(f => f.target === label);
+  const openFindingEditor = (label) => { const f = findingFor(label); setEditTarget(label); setEditIssue(f?.issueType || ""); setEditNote(f?.note || ""); };
+  const saveFinding = () => {
+    if (!editIssue) return;
+    setFindings(prev => { const rest = prev.filter(f => f.target !== editTarget); return [...rest, { target: editTarget, issueType: editIssue, note: editNote }]; });
+    setEditTarget(null);
+  };
+  const removeFinding = (label) => { setFindings(prev => prev.filter(f => f.target !== label)); setEditTarget(null); };
+  const buildRevText = () => findings.filter(f => f.issueType).map(f => `【${f.target}】→ ${f.issueType}${f.note.trim() ? `（${f.note.trim()}）` : ""}`).join("\n");
+  const submitRevision = async () => {
+    const text = buildRevText();
+    if (!text || revSending) return;
+    setRevSending(true);
+    const ok = await onRequestRevision(text); // AdminTab側でRPC送信・成否をbooleanで返す
+    setRevSending(false);
+    if (ok) { setRevSent(true); setTimeout(() => onClose(), 1200); }
+  };
+  // 指摘チップ（!ownerViewの審査時のみ表示）：各項目の右上に置く。指摘済みは色反転
+  const revChip = (label) => ownerView ? null : (
+    <button onClick={(e)=>{ e.stopPropagation(); openFindingEditor(label); }} className="f-sans"
+      style={{ position:"absolute", top:8, right:8, zIndex:4, background: findingFor(label) ? "#EA580C" : "rgba(255,255,255,0.95)", color: findingFor(label) ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:16, padding:"4px 10px", fontSize:11, fontWeight:700, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
+      {findingFor(label) ? "⚠️ 指摘済み" : "⚠️ 指摘"}
+    </button>
+  );
+  const revOutline = (label) => (!ownerView && findingFor(label)) ? { outline:"2px solid #EA580C", outlineOffset:2 } : {};
 
   useEffect(() => {
     let cancelled = false;
@@ -11343,10 +11375,10 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
         position:"sticky", top:0, zIndex:10, background:"#FFF8E7", borderBottom:"1px solid #F5D98F",
         padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap",
       }}>
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:0 }}>🔍 審査プレビュー — この求人はまだ公開されていません</p>
+        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:0 }}>🔍 審査プレビュー — 各項目の「⚠️指摘」を押して修正を依頼できます</p>
         <div style={{ display:"flex", gap:8, flexShrink:0 }}>
           <button onClick={onClose} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-          <button onClick={onRequestRevision} disabled={!job} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", opacity: job ? 1 : 0.6 }}>修正を依頼</button>
+          <button onClick={findings.length > 0 ? submitRevision : ()=>alert("修正を依頼したい項目の「⚠️指摘」を押して、何がどう問題かを入力してください。")} disabled={!job || revSending} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background: findings.length > 0 ? "#EA580C" : "#fff", color: findings.length > 0 ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>{revSending ? "送信中..." : `修正を依頼${findings.length > 0 ? `（${findings.length}）` : ""}`}</button>
           <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
         </div>
       </div>
@@ -11366,7 +11398,8 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
             const photos = job.photos.length > 0 ? job.photos : [job.icon, job.icon, job.icon];
             const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
             return (
-              <>
+              <div style={{ position:"relative", borderRadius:12, ...revOutline("写真"), marginBottom:8 }}>
+                {revChip("写真")}
                 <Carousel
                   className="carousel-scroll"
                   style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
@@ -11393,17 +11426,19 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
                     );
                   })}
                 </Carousel>
-                <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:20 }}>
+                <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
                   {photos.map((_, i) => (
                     <span key={i} style={{ fontSize:10, color: i===activeSlide ? "#00A86B" : "#D0D0D0" }}>{i===activeSlide ? "●" : "○"}</span>
                   ))}
                 </div>
-              </>
+              </div>
             );
           })()}
+          <div style={{ marginBottom:12 }} />
 
           {/* ヘッダー */}
-          <div style={{ marginBottom:20 }}>
+          <div style={{ position:"relative", marginBottom:20, borderRadius:12, padding: ownerView ? 0 : 4, ...revOutline("求人タイトル・募集タグ") }}>
+            {revChip("求人タイトル・募集タグ")}
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{job.crop} {job.task}{job.region ? `｜${job.region}` : ""}</h2>
             <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"4px 0 0", userSelect:"text" }}>#{job.id}</p>
             {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
@@ -11414,7 +11449,8 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           </div>
 
           {/* 主要情報 */}
-          <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
+          <div style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, ...revOutline("報酬・勤務条件・日程") }}>
+            {revChip("報酬・勤務条件・日程")}
             <div className="job-detail-info-grid">
               {[
                 // 日程は確認ページと同じ設計（2026-07-16）：「〜終了日」を下段に折り返し
@@ -11436,14 +11472,16 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
           {/* 作業説明 */}
           {job.jobBody && job.jobBody.trim() && (
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
+          <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, ...revOutline("作業内容") }}>
+            {revChip("作業内容")}
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
             <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
           </div>
           )}
 
           {/* 経験・持ち物・備考（配列駆動・未入力は「ー」）。希望する働き手は削除・必要経験と持ち物はバッジ表示（2026-07-16） */}
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
+          <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, ...revOutline("持ち物・備考") }}>
+            {revChip("持ち物・備考")}
             {[
               { label:"持ち物",     value: disp(job.items), chips:true, pin:true },
               { label:"備考・注意", value: disp(job.cautions) },
@@ -11465,7 +11503,8 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
           {/* 危険区域セクション（両方空なら見出しごと非表示） */}
           {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
-          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20 }}>
+          <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20, ...revOutline("危険箇所") }}>
+            {revChip("危険箇所")}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
               <span style={{ fontSize:18 }}>⚠️</span>
               <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
@@ -11502,7 +11541,8 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
           )}
 
           {/* 地図（集合場所のおおよその範囲・円のみ） */}
-          <div style={{ width:"100%", marginBottom:20 }}>
+          <div style={{ position:"relative", width:"100%", marginBottom:20, borderRadius:12, ...revOutline("場所・地図") }}>
+            {revChip("場所・地図")}
             <JobLocationMap lat={job.lat} lng={job.lng} radius={job.radius} label={job.region} />
           </div>
 
@@ -11535,6 +11575,44 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
         </div>
       )}
 
+      {/* 指摘エディタ（2026-07-19）：項目の「⚠️指摘」タップで開く。何がどう問題かを選んで補足を書く */}
+      {editTarget && createPortal(
+        <div onClick={()=>setEditTarget(null)} style={{ position:"fixed", inset:0, zIndex:10050, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:420, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>setEditTarget(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#EA580C", margin:"0 0 4px" }}>この項目を指摘</p>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 14px" }}>【{editTarget}】</p>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>どう問題ですか？</p>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
+              {JOB_REVISION_ISSUE_TYPES.map(t => (
+                <button key={t} onClick={()=>setEditIssue(t)} className="f-sans" style={{ padding:"8px 12px", borderRadius:20, border: editIssue === t ? "2px solid #EA580C" : "1px solid #EBEBEB", background: editIssue === t ? "#FFF1E7" : "#fff", fontSize:12, fontWeight:600, color: editIssue === t ? "#EA580C" : "#717171", cursor:"pointer" }}>{t}</button>
+              ))}
+            </div>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>何がダメか・どう直すか（任意）</p>
+            <textarea value={editNote} onChange={e=>setEditNote(e.target.value)} placeholder="例：時給が最低賃金を下回っています。980円以上にしてください。" rows={3} className="field f-sans" style={{ fontSize:13, marginBottom:14, resize:"vertical" }} />
+            <div style={{ display:"flex", gap:8 }}>
+              {findingFor(editTarget) && (
+                <button onClick={()=>removeFinding(editTarget)} className="f-sans" style={{ padding:"12px 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>指摘を取消</button>
+              )}
+              <button onClick={saveFinding} disabled={!editIssue} className="f-sans" style={{ flex:1, padding:"12px", fontSize:14, fontWeight:700, background: editIssue ? "#EA580C" : "#EBEBEB", color: editIssue ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>この指摘を保存</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 送信完了トースト（2026-07-19） */}
+      {revSent && createPortal(
+        <div style={{ position:"fixed", inset:0, zIndex:10060, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
+          <div className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"28px 24px", maxWidth:340, width:"100%", textAlign:"center" }}>
+            <div style={{ fontSize:40, marginBottom:10 }}>✉️</div>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 6px" }}>修正依頼を送りました</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>農家にチャットとメールで届きます。求人は「作成中」に戻ります。</p>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* 一時非公開の確認ボックス（2026-07-16）：はい=非公開化・いいえ/背景タップ=閉じる */}
       {confirmUnpub && (
         <div onClick={e => { e.stopPropagation(); setConfirmUnpub(false); }} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
@@ -11555,6 +11633,9 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
     document.body
   );
 }
+
+// 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
+const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い","差別的な条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","表現が不明瞭","写真が不適切","その他"];
 
 // ── AdminTab ─────────────────────────────────────────────────
 // はじめてOK・リピート即決バッジ（2026-07-17）：タップで1〜2行の説明コメントを展開（もう一度タップで閉じる）。
@@ -12110,11 +12191,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
   };
   const [publishing, setPublishing] = useState(null);
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
-  const [revisionTarget, setRevisionTarget] = useState(null); // job_number（差し戻しモーダルの対象）
-  const emptyFinding = () => ({ category:"", location:"", issueType:"", note:"" });
-  const [revisionFindings, setRevisionFindings] = useState([emptyFinding()]); // 指摘の積み上げ（対象項目/該当箇所/問題の種類/補足）
-  const [revisionSending, setRevisionSending] = useState(false);
-  const [revisionDone, setRevisionDone] = useState(false);
+  // 修正依頼は審査プレビュー内のタップ式指摘に一本化（2026-07-19）。送信はsubmitJobRevisionで実行
 
   // 審査メールのボタン（#/admin/review/{job_number}）からの深いリンク対応。
   // マウント時に加え、既にAdminTabが開いた状態で別の審査メールのリンクを踏んだ場合(hashchange)にも追従
@@ -12130,8 +12207,6 @@ function AdminTab({ onJump, onShowAccountForm }) {
   }, []);
 
   const TIERS = ["1-3","4-10","10+"];
-  const REVISION_CATEGORIES = ["報酬","勤務時間・休憩","危険情報","作業の説明","必要経験","持ち物","注意事項","写真","場所・日程","その他"];
-  const REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い","差別的条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","表現が不明瞭","その他"];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -12219,37 +12294,13 @@ function AdminTab({ onJump, onShowAccountForm }) {
   };
   useEffect(() => { load(); }, [load, sub]);
 
-  // モーダルを開くたび（対象求人が変わるたび）指摘を1件の空欄にリセット
-  useEffect(() => {
-    if (revisionTarget != null) setRevisionFindings([emptyFinding()]);
-  }, [revisionTarget]);
-
-  const updateFinding = (i, patch) => setRevisionFindings(prev => prev.map((f, idx) => idx===i ? { ...f, ...patch } : f));
-  const addFinding = () => setRevisionFindings(prev => [...prev, emptyFinding()]);
-  const removeFinding = (i) => setRevisionFindings(prev => prev.length<=1 ? prev : prev.filter((_, idx) => idx!==i));
-
-  // 指摘の積み上げを1本のテキストに整形（RPC側は無変更・p_reasonはtextのまま）
-  const buildRevisionReasonText = (findings) => findings
-    .filter(f => f.category && f.issueType)
-    .map(f => `【${f.category}】${f.location.trim() ? f.location.trim() + " " : ""}→ ${f.issueType}${f.note.trim() ? `（${f.note.trim()}）` : ""}`)
-    .join("\n");
-
-  const requestRevision = async () => {
-    const reasonText = buildRevisionReasonText(revisionFindings);
-    if (revisionSending || !reasonText) return;
-    setRevisionSending(true);
-    const { data, error } = await supabase.rpc('request_job_revision', { p_job_number: revisionTarget, p_reason: reasonText });
-    setRevisionSending(false);
-    if (error || !data?.ok) { alert("修正依頼の送信に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-    setRevisionDone(true);
-    setTimeout(() => {
-      setRevisionDone(false);
-      setRevisionTarget(null);
-      setRevisionFindings([emptyFinding()]);
-      setPreviewJobNumber(null);
-      window.location.hash = "/admin";
-      load();
-    }, 1100);
+  // タップ式修正依頼の送信（2026-07-19）：プレビューで積み上げた指摘テキストを受け取りRPC送信。成否をbooleanで返す
+  const submitJobRevision = async (jobNumber, reasonText) => {
+    if (!reasonText) return false;
+    const { data, error } = await supabase.rpc('request_job_revision', { p_job_number: jobNumber, p_reason: reasonText });
+    if (error || !data?.ok) { alert("修正依頼の送信に失敗しました：" + (data?.reason || error?.message || "不明")); return false; }
+    setTimeout(() => { setPreviewJobNumber(null); window.location.hash = "/admin"; load(); }, 1300);
+    return true;
   };
 
   const ask = (msg, onOk) => setConfirm({ msg, onOk });
@@ -13108,70 +13159,11 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           publishing={publishing===previewJobNumber}
           onClose={()=>{ setPreviewJobNumber(null); window.location.hash = "/admin"; }}
           onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); window.location.hash = "/admin"; }}
-          onRequestRevision={()=>setRevisionTarget(previewJobNumber)}
+          onRequestRevision={(reasonText)=>submitJobRevision(previewJobNumber, reasonText)}
         />
       )}
 
-      {/* ── 差し戻し（修正依頼）モーダル：指摘の積み上げ式。プレビューと同じくbodyへポータル
-           （.appearのtransformでfixedが全画面にならない不具合の回避・2026-07-19） ── */}
-      {revisionTarget != null && createPortal(
-        <div style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:480, width:"100%", maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
-            {revisionDone ? (
-              <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>✓ 農家に修正依頼を送りました</p>
-            ) : (
-              <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12, flexShrink:0 }}>修正をお願いする点</p>
-                <div style={{ overflowY:"auto", marginBottom:12 }}>
-                  {revisionFindings.map((f, i) => (
-                    <div key={i} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:14, marginBottom:10, position:"relative" }}>
-                      {revisionFindings.length > 1 && (
-                        <button onClick={()=>removeFinding(i)} className="f-sans" style={{ position:"absolute", top:8, right:8, border:"none", background:"transparent", color:"#B0B0B0", fontSize:14, cursor:"pointer", padding:4 }}>✕</button>
-                      )}
-                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8 }}>指摘 {i+1}</p>
-                      <div style={{ display:"grid", gap:8 }}>
-                        <select value={f.category} onChange={e=>updateFinding(i,{category:e.target.value})} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" }}>
-                          <option value="">対象項目を選択</option>
-                          {REVISION_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
-                        </select>
-                        <input
-                          value={f.location}
-                          onChange={e=>updateFinding(i,{location:e.target.value})}
-                          placeholder="該当箇所（任意・問題の語句や文をコピペ）"
-                          className="f-sans"
-                          style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }}
-                        />
-                        <select value={f.issueType} onChange={e=>updateFinding(i,{issueType:e.target.value})} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" }}>
-                          <option value="">問題の種類を選択</option>
-                          {REVISION_ISSUE_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
-                        </select>
-                        <input
-                          value={f.note}
-                          onChange={e=>updateFinding(i,{note:e.target.value})}
-                          placeholder="補足（任意）"
-                          className="f-sans"
-                          style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  <button onClick={addFinding} className="f-sans" style={{ width:"100%", padding:"10px", border:"1.5px dashed #EBEBEB", borderRadius:10, background:"transparent", color:"#717171", fontSize:12, fontWeight:600, cursor:"pointer" }}>＋ 指摘を追加</button>
-                </div>
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end", flexShrink:0 }}>
-                  <button onClick={()=>{ setRevisionTarget(null); setRevisionFindings([emptyFinding()]); }} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-                  <button
-                    onClick={requestRevision}
-                    disabled={revisionSending || !buildRevisionReasonText(revisionFindings)}
-                    className="f-sans"
-                    style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: buildRevisionReasonText(revisionFindings) ? "#EA580C" : "#EBEBEB", color: buildRevisionReasonText(revisionFindings) ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}
-                  >{revisionSending ? "送信中..." : "送信する"}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
+      {/* 旧・差し戻しモーダル（ドロップダウン式）は、審査プレビューのタップ式指摘に置き換え（2026-07-19） */}
 
       {/* ── 記録データ管理（その他＞旧事業データ） ── */}
       {!loading && sub==="other" && legacyView==="records" && (
