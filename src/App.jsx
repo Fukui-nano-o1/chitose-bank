@@ -7459,6 +7459,7 @@ function JobSearchMapView({ onRegister, me }) {
 
   // ── いいね（お気に入り）：saved_jobs（本人のみRLS）。job_number(=job.id)をキーに管理 ──
   const [savedIds, setSavedIds] = useState(new Set());
+  const [likeDone, setLikeDone] = useState(null); // 初いいねボックス（2026-07-19）：各求人の最初のいいねで1回だけ展開（localStorage cb_likeBoxShown）
   useEffect(() => {
     if (!me) { setSavedIds(new Set()); return; }
     (async () => {
@@ -7475,7 +7476,17 @@ function JobSearchMapView({ onRegister, me }) {
     const { error } = isSaved
       ? await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", job.id)
       : await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: job.id });
-    if (error) setSavedIds(prev => { const next = new Set(prev); isSaved ? next.add(job.id) : next.delete(job.id); return next; });
+    if (error) { setSavedIds(prev => { const next = new Set(prev); isSaved ? next.add(job.id) : next.delete(job.id); return next; }); return; }
+    // 各求人の初いいねだけボックス展開（求人ごとに1回・解除→再いいねでは出さない）
+    if (!isSaved) {
+      try {
+        const shown = JSON.parse(localStorage.getItem("cb_likeBoxShown") || "[]");
+        if (!shown.includes(job.id)) {
+          localStorage.setItem("cb_likeBoxShown", JSON.stringify([...shown, job.id]));
+          setLikeDone(job);
+        }
+      } catch { setLikeDone(job); }
+    }
   };
   useEffect(() => {
     const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
@@ -8202,6 +8213,41 @@ function JobSearchMapView({ onRegister, me }) {
               <button onClick={()=>setApplyConfirmOpen(false)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
               <button onClick={()=>{ setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applying ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 初いいねボックス（2026-07-19）：各求人の最初のいいねで1回だけ展開。
+          意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・本文18・リンク18）。
+          求人カードに❤️が付く動作（cb-heart-pop）＋「いいね一覧を見る →」リンク */}
+      {likeDone && (
+        <div onClick={()=>setLikeDone(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+            <button onClick={()=>setLikeDone(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}>✕</button>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="いいねしました！" /></p>
+            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
+            {/* いいねした求人のカード：右上に❤️が付く動作（一覧カードの♡ボタンと同じ位置） */}
+            <div style={{ position:"relative", margin:"6px 0 14px" }}>
+              <div style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff" }}>
+                {(() => {
+                  const p0 = likeDone.photos?.[0];
+                  const src = typeof p0 === "string" ? p0 : p0?.url;
+                  const icon = CROP_OPTIONS.find(c => likeDone.crop && likeDone.crop.includes(c.name))?.icon || "🌱";
+                  return src
+                    ? <img src={src} alt="" style={{ width:"100%", height:150, objectFit:"cover", display:"block" }} />
+                    : <div style={{ width:"100%", height:150, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44 }}>{icon}</div>;
+                })()}
+                <div style={{ padding:"10px 14px 12px" }}>
+                  <p className="f-sans" style={{ fontSize:15, fontWeight:600, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[likeDone.crop, likeDone.task].filter(Boolean).join(" ") || "求人"}</p>
+                  {likeDone.region && <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"2px 0 0" }}>{likeDone.region}</p>}
+                </div>
+              </div>
+              <span className="cb-heart-pop" style={{ position:"absolute", top:8, right:8, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, boxShadow:"0 1px 4px rgba(0,0,0,0.18)" }}>❤️</span>
+            </div>
+            <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
+              いいねした求人は、いつでも一覧から見返せます。
+            </p>
+            <button onClick={()=>{ setLikeDone(null); window.location.hash="/saved"; }} className="f-sans" style={{ marginTop:16, background:"none", border:"none", borderBottom:"2px solid #00A86B", padding:"0 0 2px", fontSize:18, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>いいね一覧を見る →</button>
           </div>
         </div>
       )}
