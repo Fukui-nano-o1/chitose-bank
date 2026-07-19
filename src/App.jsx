@@ -5018,6 +5018,7 @@ function ChatView({ applicationId, onBack }) {
   const [myId, setMyId] = useState(null);
   const [partner, setPartner] = useState(null); // { nickname, avatar_url }
   const [partnerWorkerId, setPartnerWorkerId] = useState(null); // 相手が働き手ならそのauth_id（アイコンタップでプレビュー・2026-07-19）
+  const [partnerFarmerId, setPartnerFarmerId] = useState(null); // 相手が農家ならそのauth_id（アイコンタップで雇い手プレビュー・2026-07-19）
   // はじめる前の確認カード（⑦）
   const [confirmJob, setConfirmJob] = useState(null); // mapJobPublicRowで整形した求人情報
   const [chatJobNumber, setChatJobNumber] = useState(null); // ヘッダー・確認カードの#N表示用（jobs_publicから消えた求人でも出す）
@@ -5057,6 +5058,7 @@ function ChatView({ applicationId, onBack }) {
           const table = iAmWorker ? "employer_profiles" : "worker_profiles";
           const partnerId = iAmWorker ? app.farmer_id : app.worker_id;
           setPartnerWorkerId(iAmWorker ? null : app.worker_id); // 相手が働き手の時だけアイコンタップでプレビュー（2026-07-19）
+          setPartnerFarmerId(iAmWorker ? app.farmer_id : null);
           const { data: pData } = await supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle();
           if (pData) setPartner(pData);
           setIsWorkerSide(iAmWorker);
@@ -5103,7 +5105,7 @@ function ChatView({ applicationId, onBack }) {
       <button onClick={onBack} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:13, cursor:"pointer", padding:"8px 0", textAlign:"left" }}>← 戻る</button>
       {partner && (
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0 12px", borderBottom:"1px solid #EEE" }}>
-          <span onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); }} style={{ flexShrink:0, cursor: partnerWorkerId ? "pointer" : "default" }}>
+          <span onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} style={{ flexShrink:0, cursor:"pointer" }}>
             <Avatar url={partner.avatar_url} name={partner.nickname} size={36} />
           </span>
           <div>
@@ -5357,8 +5359,8 @@ function ChatList() {
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
                 className={"f-sans" + (unreadMap[a.id] > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
                   border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
-                {/* 相手が働き手（自分が農家側）ならアイコンタップでプレビュー展開（2026-07-19） */}
-                <span onClick={(e)=>{ if (a._role === "farmer") { e.stopPropagation(); openWorkerPreview(a.worker_id); } }} style={{ flexShrink:0 }}>
+                {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}
+                <span onClick={(e)=>{ e.stopPropagation(); if (a._role === "farmer") openWorkerPreview(a.worker_id); else openEmployerPreview(a.farmer_id); }} style={{ flexShrink:0 }}>
                   <Avatar url={a.partnerAvatar} name={a.partnerName} size={40} />
                 </span>
                 <div style={{ minWidth:0, flex:1 }}>
@@ -5543,6 +5545,76 @@ function MyReviewsOfWorker({ workerId }) {
 // 働き手プレビューの全域ボックス（2026-07-19）：どの画面の働き手アイコンからでも
 // openWorkerPreview(worker_id) で展開できる。中身はまた呼びたいリスト詳細と同じ
 // （WorkerTrustCard＋Q&A＋あなたの評価）。Appルートに1つだけマウントし、イベントで開く
+// 雇い手プレビューの全域ボックス（2026-07-19）：どの画面の雇い手アイコンからでも
+// openEmployerPreview(farmer_id) で展開できる。中身は農園紹介モーダルと同系
+// （FarmerTrustCard＋待遇バッジ＋農園紹介のお題）。取得列は公開用に限定（place_*住所・texts_pendingは読まない）
+function openEmployerPreview(farmerId) {
+  if (farmerId) window.dispatchEvent(new CustomEvent("cb:openEmployerPreview", { detail: farmerId }));
+}
+function EmployerPreviewSheet() {
+  const [st, setSt] = useState(null); // {farmer_id, loading, profile, trust}
+  useEffect(() => {
+    const f = (e) => {
+      const farmerId = e.detail;
+      if (!farmerId) return;
+      setSt({ farmer_id: farmerId, loading: true, profile: null, trust: null });
+      (async () => {
+        try {
+          const [epRes, trustRes] = await Promise.all([
+            supabase.from("employer_profiles").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,staff_count,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,created_at").eq("auth_id", farmerId).maybeSingle(),
+            supabase.rpc("employer_trust_info", { p_farmer_id: farmerId }),
+          ]);
+          setSt(prev => prev && prev.farmer_id === farmerId ? {
+            farmer_id: farmerId, loading: false,
+            profile: epRes.data || null,
+            trust: (trustRes.data && trustRes.data.ok) ? trustRes.data : null,
+          } : prev);
+        } catch {
+          setSt(prev => prev && prev.farmer_id === farmerId ? { ...prev, loading: false } : prev);
+        }
+      })();
+    };
+    window.addEventListener("cb:openEmployerPreview", f);
+    return () => window.removeEventListener("cb:openEmployerPreview", f);
+  }, []);
+  if (!st) return null;
+  const topics = st.profile ? farmIntroTopics(st.profile) : [];
+  return (
+    <div onClick={()=>setSt(null)} style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+      <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+        <button onClick={()=>setSt(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{st.profile?.nickname ? `${st.profile.nickname}の農園紹介` : "農園紹介"}</p>
+        {st.loading ? (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+        ) : st.profile ? (
+          <>
+            <FarmerTrustCard profile={st.profile} trust={st.trust} />
+            {perkBadges(st.profile).length > 0 && (
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
+                {perkBadges(st.profile).map(b => (
+                  <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
+                ))}
+              </div>
+            )}
+            {topics.length > 0 && (
+              <div style={{ display:"grid", gap:10, marginTop:16 }}>
+                {topics.map(t => (
+                  <div key={t.label}>
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{t.label}</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この農家のプロフィールは未設定です</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function openWorkerPreview(workerId) {
   if (workerId) window.dispatchEvent(new CustomEvent("cb:openWorkerPreview", { detail: workerId }));
 }
@@ -16215,8 +16287,9 @@ const subDest=useCallback(async d=>{
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
       <style>{CSS}</style>
 
-      {/* 働き手プレビューの全域ボックス（どの画面のアイコンからでもcb:openWorkerPreviewで展開・2026-07-19） */}
+      {/* 働き手/雇い手プレビューの全域ボックス（どの画面のアイコンからでもイベントで展開・2026-07-19） */}
       <WorkerPreviewSheet />
+      <EmployerPreviewSheet />
 
       {/* ── プロフィール承認の「お帰りなさい」ポップアップ（起動時1回・ボックス展開） ── */}
       {welcomeApproved && (
