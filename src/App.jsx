@@ -1999,7 +1999,7 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
       <div style={{ width:"100%", maxWidth:640, margin:"0 auto" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
-          <div className="f-sans" style={{ fontSize:20, fontWeight:700, color:C.ink }}>新規登録①：本人情報の入力</div>
+          <div className="f-sans" style={{ fontSize:20, fontWeight:700, color:C.ink }}>新規登録：本人情報の入力</div>
           <p className="f-sans" style={{ fontSize:11, color:C.dim, marginTop:6 }}>ご利用のために、本人確認情報をご入力ください</p>
         </div>
 
@@ -16793,8 +16793,9 @@ const subDest=useCallback(async d=>{
         </div>
       </header>
 
-      {/* ── MOBILE ☰浮遊ボタン（2026-07-13 下部バーから上部左へ移設。fixed＝スクロール追従） ── */}
-      <div className="app-header-mobile-float">
+      {/* ── MOBILE ☰浮遊ボタン（2026-07-13 下部バーから上部左へ移設。fixed＝スクロール追従）
+           新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
+      {!(needsAccountHolder || openAccountForm) && <div className="app-header-mobile-float">
         <button
           onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); }}
           aria-label="メニュー"
@@ -16818,10 +16819,11 @@ const subDest=useCallback(async d=>{
             )}
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* ── MOBILE BOTTOM NAV（5機能タブ。カレンダーが中央。☰は上部浮遊へ移設済み） ── */}
-      <header className="app-header app-header-mobile">
+      {/* ── MOBILE BOTTOM NAV（5機能タブ。カレンダーが中央。☰は上部浮遊へ移設済み）
+           新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
+      {!(needsAccountHolder || openAccountForm) && <header className="app-header app-header-mobile">
         <div className="app-header-mobile-tabs">
           {MOBILE_TABS.map(t => (
             <button key={t.k}
@@ -16854,7 +16856,7 @@ const subDest=useCallback(async d=>{
             </button>
           ))}
         </div>
-      </header>
+      </header>}
 
       {/* ── 旧・下部タブバー（さがす/プロフィール/管理）：モバイル下部バー統合につき廃止。
            削除ではなく非表示化（CSS）。PCは元々min-width:769pxで非表示済みのため無変更。
@@ -17109,8 +17111,8 @@ const subDest=useCallback(async d=>{
         )}
       </main>
 
-      {/* ── FOOTER（Airbnb型3列） ── */}
-      <footer className="site-footer-fixed">
+      {/* ── FOOTER（Airbnb型3列）：新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
+      {!(needsAccountHolder || openAccountForm) && <footer className="site-footer-fixed">
         <div className="footer-columns">
           <div>
             <p className="f-sans footer-col-title">サポート</p>
@@ -17144,7 +17146,7 @@ const subDest=useCallback(async d=>{
             chitose-bankは銀行ではありません。
           </p>
         </div>
-      </footer>
+      </footer>}
 
       {/* この画面を報告：☰やヘルプの章開閉と無関係な階層に常駐（2026-07-14アンマウントバグ修正） */}
       <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
