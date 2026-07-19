@@ -5119,7 +5119,7 @@ function ChatView({ applicationId, onBack }) {
               { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中...",
                 mapUrl: confirmMeetingPlace?.full_address ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(confirmMeetingPlace.full_address) : null },
               { label:"持ち物",   value: disp(confirmJob.items) },
-              { label:"服装",     value: disp(confirmJob.cautions) },
+              { label:"注意・備考", value: disp(confirmJob.cautions) },
               { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
               { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
               { label:"保険",     value: insurancePreparedAt ? "✓ 農家が準備済み" : "未準備" },
