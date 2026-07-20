@@ -5102,6 +5102,7 @@ const Avatar = ({ url, name, size = 40 }) => url
 
 function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
+  const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState(null);
@@ -5242,6 +5243,11 @@ function ChatView({ applicationId, onBack }) {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [appIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 最新メッセージへ自動スクロール（LINE式・2026-07-19）：メッセージ更新のたびに一番下へ
+  useEffect(() => {
+    const el = msgScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [msgs]);
   const confirmTerms = async () => {
     if (confirmingTerms) return;
     setConfirmingTerms(true);
@@ -5372,7 +5378,7 @@ function ChatView({ applicationId, onBack }) {
         );
       })()}
 
-      <div style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
+      <div ref={msgScrollRef} style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
         {/* 採用するボタン（農家側・2026-07-19）：チャット右上に浮遊（sticky＝スクロールしても右上に留まる）。
             凍結トリガー＝働き手の「はじめる前の確認」＋この採用タップの両方（confirm_terms・どちらか片方では凍結されない） */}
         {confirmJob && !isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
