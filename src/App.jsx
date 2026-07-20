@@ -14406,6 +14406,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [dbActive, setDbActive] = useState([]);
   const [dbExpired, setDbExpired] = useState([]); // 作業日程が過ぎた自分の求人（statusは持たず日付から導出・2026-07-16）
   const [dbApplicants, setDbApplicants] = useState([]);
+  const [jobInfoMap, setJobInfoMap] = useState({}); // job_number→{crop,task}（応募者を求人毎に分ける見出し用・2026-07-19）
   const [workerProfiles, setWorkerProfiles] = useState({});
   const [workerTrust, setWorkerTrust] = useState({}); // { [worker_id]: {joined_at, verified_at} }
   const [draftsLoading, setDraftsLoading] = useState(true);
@@ -14450,6 +14451,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。固定列SELECTに入れ忘れると一時非公開が作成中へ落ちる
         const { data: allJobs, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,opened_at").eq("farmer_id", session.user.id).order("job_number",{ascending:false});
         if (!error && allJobs) {
+          setJobInfoMap(Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task }])));
           const todayYmd = ymdLocal(new Date());
           const isPast = (j) => { const end = j.date_end || j.date_start; return !!end && end < todayYmd; };
           // 一時非公開（status=draftだが掲載歴opened_atあり）は作成中でなく公開中タブに帯付きで残す（2026-07-16）
@@ -14745,7 +14747,18 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   ))}
                 </div>
               )}
-              <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{(() => { const jr = dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number); return jr ? [jr.crop, jr.task].filter(Boolean).join(" ") : "求人"; })()} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
+              {/* 求人名はタップで求人プレビューを開くリンク（2026-07-19） */}
+              {(() => {
+                const info = jobInfoMap[a.job_number] || dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number) || {};
+                const title = [info.crop, info.task].filter(Boolean).join(" ") || "求人";
+                return (
+                  <button onClick={()=>setPreviewJob({ num: a.job_number })} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"none", border:"none", padding:0, margin:"0 0 4px", cursor:"pointer" }}>
+                    <span style={{ fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline" }}>{title}</span>
+                    <span style={{ color:"#999", fontWeight:700, fontSize:12, marginLeft:6 }}>#{a.job_number}</span>
+                    <span style={{ color:"#00A86B", fontWeight:700, fontSize:12, marginLeft:6 }}>→</span>
+                  </button>
+                );
+              })()}
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
               {a.status === "applied" && (
                 <div style={{ display:"flex", gap:8, marginBottom:8 }}>
@@ -15043,22 +15056,39 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
           </div>
         ) : (
-          dbApplicants.map(a => {
-            const wp = workerProfiles[a.worker_id];
-            return (
-              <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
-                className={"f-sans" + (a.status === "applied" ? " cb-urgent-card" : needsInsurance(a) ? " cb-urgent-still" : "")}
-                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-                  {wp?.avatar_url
-                    ? <img src={wp.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                    : <Avatar url={null} name={wp?.nickname || "？"} size={64} />}
-                  <StatusRibbon label={appRibbonLabel(a.status)} color={appRibbonColor(a.status)} />
-                </div>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: wp?.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "（名前未設定）"}</p>
-              </button>
-            );
-          })
+          // 応募者を求人毎に分ける（2026-07-19）：求人ごとに見出し（タップで求人プレビュー）→その求人の応募者カード。
+          // 単一グリッド内でgridColumn:1/-1の見出しが全幅で改行を作り、区切りとして機能する
+          (() => {
+            const order = []; const byJob = {};
+            dbApplicants.forEach(a => { const jn = a.job_number; if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
+            return order.flatMap(jn => {
+              const info = jobInfoMap[jn] || {};
+              const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
+              return [
+                <button key={`h-${jn}`} onClick={()=>setPreviewJob({ num: jn })} className="f-sans"
+                  style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 14px", cursor:"pointer", marginTop:2 }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8" }}>#{jn}</span></span>
+                  <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 · 求人を見る →</span>
+                </button>,
+                ...byJob[jn].map(a => {
+                  const wp = workerProfiles[a.worker_id];
+                  return (
+                    <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
+                      className={"f-sans" + (a.status === "applied" ? " cb-urgent-card" : needsInsurance(a) ? " cb-urgent-still" : "")}
+                      style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                      <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                        {wp?.avatar_url
+                          ? <img src={wp.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                          : <Avatar url={null} name={wp?.nickname || "？"} size={64} />}
+                        <StatusRibbon label={appRibbonLabel(a.status)} color={appRibbonColor(a.status)} />
+                      </div>
+                      <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: wp?.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "（名前未設定）"}</p>
+                    </button>
+                  );
+                })
+              ];
+            });
+          })()
         )
       ) : jobTab==="expired" ? (
         dbExpired.length === 0 ? (
