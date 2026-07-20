@@ -28,7 +28,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    const payload = JSON.stringify({ title: 'chitose-bank', body: '新しいメッセージが届きました' });
+    // アプリアイコンのバッジ数＝受信者の未読数（内容は運ばず数値のみ）
+    let badge = 0;
+    try { const { data: cnt } = await supabase.rpc('unread_count_for', { p_uid: recipientId }); if (typeof cnt === 'number') badge = cnt; } catch (_) { badge = 0; }
+
+    const payload = JSON.stringify({ title: 'chitose-bank', body: '新しいメッセージが届きました', badge });
     let sent = 0;
     for (const s of subs) {
       try {

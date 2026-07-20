@@ -12,6 +12,14 @@ const b64urlToUint8 = (b64) => {
   const raw = atob(base);
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 };
+// アプリアイコンのバッジ（赤い数字・2026-07-19）：未読数を反映。iOS16.4+のPWA/Android/PCで動作
+function syncAppBadge(n) {
+  try {
+    if ("setAppBadge" in navigator) {
+      if (n > 0) navigator.setAppBadge(n); else navigator.clearAppBadge();
+    }
+  } catch {}
+}
 // 現在の通知状態を返す：'unsupported' | 'need-standalone' | 'default' | 'denied' | 'granted'
 async function pushStatus() {
   if (!pushSupported()) return "unsupported";
@@ -17041,6 +17049,8 @@ const loadNotifs=useCallback(async(farmerId)=>{
       .subscribe();
     return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
   }, [me?.id]);
+  // アプリアイコンのバッジに未読数を反映（2026-07-19）。ログアウト時は0でクリア
+  useEffect(() => { syncAppBadge(me?.id ? chatUnread : 0); }, [chatUnread, me?.id]);
   // 採用おめでとうボックス（2026-07-19）：農家が採用を決定した応募を検知し、働き手に1回だけ展開
   // （localStorage cb_hiredBoxShownで応募ごとに1回）。起動時チェック＋applicationsのUPDATEをRealtime購読で即時展開
   const [hiredBox, setHiredBox] = useState(null); // {appId, jobNumber, farmerName, jobTitle}

@@ -8,15 +8,19 @@ self.addEventListener('push', (event) => {
   try { data = event.data ? event.data.json() : {}; } catch (_) { data = {}; }
   const title = data.title || 'chitose-bank';
   const body = data.body || '新しいメッセージが届きました';
-  event.waitUntil(
-    self.registration.showNotification(title, {
+  event.waitUntil((async () => {
+    await self.registration.showNotification(title, {
       body,
       icon: '/pwa-192.png',
       badge: '/pwa-192.png',
       tag: 'cb-chat', // 同種は上書き＝通知が溜まりすぎない
       data: { url: '/#/chats' },
-    })
-  );
+    });
+    // アプリアイコンのバッジ（赤い数字）＝未読数。payloadのbadgeを反映（アプリを閉じていても更新される）
+    if (typeof data.badge === 'number' && 'setAppBadge' in self.navigator) {
+      try { if (data.badge > 0) await self.navigator.setAppBadge(data.badge); else await self.navigator.clearAppBadge(); } catch (_) {}
+    }
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {
