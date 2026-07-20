@@ -442,11 +442,20 @@ input:focus { outline: none; }
    fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
 .cb-sheet-up { animation: cbPop .8s cubic-bezier(.2, 1.3, .3, 1); transform-origin: center center; }
-/* お知らせボックスの高さ規定（2026-07-17）：上限=ステータスバーの30px下・下限=下部フッターの20px上。
-   100vhはiOSでツールバー裏まで含むため、対応ブラウザでは実表示高さ(100dvh)で上書きして上端の見切れを防ぐ */
-.cb-notice-sheet { max-height: calc(100vh - env(safe-area-inset-top, 0px) - 30px - 64px - 40px - env(safe-area-inset-bottom, 0px)); }
+/* ── ボックス規格（2026-07-21 全ボックス統一）：画面中央にボックスの中央を合わせる。
+   親オーバーレイ(.cb-box-overlay)がflexで上下左右中央寄せ、ボックス(.cb-notice-sheet)は
+   意匠（緑太縁3px・角丸・影・左詰め）と最大サイズ・スクロールを担う。
+   高さ上限＝実表示高さ(100dvh)からセーフエリア＋余白32pxを引いた値so、長文でも画面内に収まり中央を保つ */
+.cb-box-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,0.5); animation: fadeIn .2s ease; }
+.cb-notice-sheet {
+  width: 100%; max-width: 480px;
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px);
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  background: #fff; border: 3px solid #00A86B; border-radius: 20px;
+  padding: 28px 24px 24px; box-shadow: 0 12px 48px rgba(0,0,0,0.25); text-align: left;
+}
 @supports (height: 100dvh) {
-  .cb-notice-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 30px - 64px - 40px - env(safe-area-inset-bottom, 0px)); }
+  .cb-notice-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px); }
 }
 /* お知らせ規定（2026-07-17追加）：タイトル・リンクの文字が頭から順に上へジャンプする波。
    1文字の山は周期の先頭8%（周期はNoticeJumpTextが文字数から算出＝波の走破後に約2秒の休止を挟んでループ） */
@@ -7290,8 +7299,8 @@ function MyCalendar() {
       {/* 下書きを進めませんか？ボックス（2026-07-19）：下書きカードタップ→保存済みステップから求人フロー再開。
           意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルと説明の間に横線・上限30px/下限フッター+40px・タイトル20/本文18） */}
       {draftPrompt && (
-        <div onClick={()=>setDraftPrompt(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+        <div onClick={()=>setDraftPrompt(null)} className="cb-box-overlay" style={{ zIndex:8000 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <button onClick={()=>setDraftPrompt(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="📝 下書きを進めませんか？" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
@@ -8549,8 +8558,8 @@ function JobSearchMapView({ onRegister, me }) {
       {/* 応募確認ボックス（2026-07-18）：応募ボタンタップで展開。承認制の説明＋下部に「戻る」「応募する」。
           意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・上限30px/下限フッター+40px・本文18） */}
       {applyConfirmOpen && selectedJob && (
-        <div onClick={()=>setApplyConfirmOpen(false)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+        <div onClick={()=>setApplyConfirmOpen(false)} className="cb-box-overlay" style={{ zIndex:9000 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <button onClick={()=>setApplyConfirmOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="応募の確認" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
@@ -8571,8 +8580,8 @@ function JobSearchMapView({ onRegister, me }) {
           意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・本文18・リンク18）。
           求人カードに❤️が付く動作（cb-heart-pop）＋「いいね一覧を見る →」リンク */}
       {likeDone && (
-        <div onClick={()=>setLikeDone(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+        <div onClick={()=>setLikeDone(null)} className="cb-box-overlay" style={{ zIndex:9000 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <button onClick={()=>setLikeDone(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="いいねしました！" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
@@ -12225,8 +12234,8 @@ function AdminBoxRegistryPage() {
       {nPreview && (() => {
         const st = noticeStatus(nPreview);
         return (
-        <div onClick={()=>setNPreview(null)} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+        <div onClick={()=>setNPreview(null)} className="cb-box-overlay" style={{ zIndex:8000 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <button onClick={()=>setNPreview(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={nPreview.name} /></p>
@@ -17512,8 +17521,8 @@ const subDest=useCallback(async d=>{
           上限=画面上から30px・下限=下部フッターの40px上（2026-07-18に20px引き上げ）・最後の段に「〇〇する」形式のリンク（タップ=既読化して遷移）。
           文字はタイトル20/本文18/リンク18（2026-07-17縮小・説明文が5行を超えると読まれないため）。1回の起動で1件、残りは次回（たきと方針） */}
       {activeNotices && !welcomeApproved && (
-        <div onClick={dismissNotices} style={{ position:"fixed", inset:0, zIndex:10900, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ position:"absolute", left:12, right:12, bottom:"calc(64px + 40px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 24px", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", textAlign:"left" }}>
+        <div onClick={dismissNotices} className="cb-box-overlay" style={{ zIndex:10900 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <button onClick={dismissNotices} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={activeNotices[0].name} /></p>
