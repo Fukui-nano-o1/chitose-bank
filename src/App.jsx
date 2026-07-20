@@ -427,6 +427,11 @@ input:focus { outline: none; }
   14.3% { transform: translateY(-2px); }
   100%  { transform: translateY(0); }
 }
+/* 新着メッセージのアプリ内トースト（2026-07-19）：画面上から滑り込む */
+@keyframes cbToastIn {
+  from { transform: translateY(-140%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
 .cb-jump { animation: cbJump 3.5s ease-in-out infinite; will-change: transform; }
 /* お気に入り登録ボックス（2026-07-19）：アイコンに❤️が付くポップ動作（ボックス展開の0.3s後に出現） */
 @keyframes cbHeartPop {
@@ -16833,6 +16838,8 @@ const loadNotifs=useCallback(async(farmerId)=>{
   // チャット未読通知（2026-07-17）：下部バー「チャット」に未読合計（当事者チャット＋運営DM）の赤バッジ。
   // 再計算のタイミング＝起動・ページ遷移(hashchange)・チャット/運営DMを開いて既読化した時(cb:unreadRefresh)
   const [chatUnread, setChatUnread] = useState(0);
+  const [msgToast, setMsgToast] = useState(null); // アプリ内トースト（新着メッセージ・2026-07-19）：{text, hash}
+  const msgToastTimer = useRef(null);
   useEffect(() => {
     if (!me?.id) { setChatUnread(0); return; }
     const refresh = async () => {
@@ -16841,14 +16848,27 @@ const loadNotifs=useCallback(async(farmerId)=>{
         if (data) setChatUnread((data.chat || 0) + (data.dm || 0));
       } catch {}
     };
+    // 新着でアプリ内トースト表示（内容は出さない＝「新しいメッセージが届きました」のみ・B案）。
+    // 自分の送信分・今まさに開いているチャットは出さない
+    const showToast = (hash) => {
+      const cur = window.location.hash.replace(/^#\/?/, "");
+      if (hash === "/chats" && (cur === "chats" || cur.startsWith("chat/"))) return; // DM系
+      if (hash.startsWith("/chat/") && cur === hash.replace(/^#?\/?/, "").replace(/^\//, "")) return;
+      if (hash.startsWith("/chat/") && cur.startsWith("chat/")) return; // チャットを開いている間は出さない
+      setMsgToast({ text: "新しいメッセージが届きました", hash });
+      if (msgToastTimer.current) clearTimeout(msgToastTimer.current);
+      msgToastTimer.current = setTimeout(() => setMsgToast(null), 5000);
+    };
+    const onMsg = (payload) => { refresh(); const m = payload?.new; if (m && m.sender_id !== me.id) showToast("/chat/" + m.application_id); };
+    const onDm = (payload) => { refresh(); const m = payload?.new; if (m && m.from_admin) showToast("/chats"); };
     refresh();
     window.addEventListener("hashchange", refresh);
     window.addEventListener("cb:unreadRefresh", refresh);
-    // リアルタイム（2026-07-19）：自分宛メッセージのINSERTを購読し、バッジを即時更新。
-    // 配信はRLS準拠＝自分が当事者のchat/自分宛DMしか届かない。自分の送信分も届くがrefreshは冪等
+    // リアルタイム（2026-07-19）：自分宛メッセージのINSERTを購読し、バッジ即時更新＋トースト。
+    // 配信はRLS準拠＝自分が当事者のchat/自分宛DMしか届かない
     const ch = supabase.channel("unread-badge")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, refresh)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, refresh)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, onMsg)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, onDm)
       .subscribe();
     return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
   }, [me?.id]);
@@ -17162,6 +17182,20 @@ const subDest=useCallback(async d=>{
             ))}
           </div>
         </div>
+      )}
+      {/* アプリ内トースト（新着メッセージ・2026-07-19）：画面上部からスライドイン。タップでチャットへ。内容は出さない */}
+      {msgToast && (
+        <button onClick={()=>{ const h = msgToast.hash; setMsgToast(null); window.location.hash = h; }} className="f-sans"
+          style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 12px)", left:12, right:12, zIndex:11000, maxWidth:460, margin:"0 auto",
+                   display:"flex", alignItems:"center", gap:12, background:"#222", color:"#fff", border:"none", borderRadius:14,
+                   padding:"14px 16px", cursor:"pointer", boxShadow:"0 8px 28px rgba(0,0,0,0.28)", textAlign:"left", animation:"cbToastIn .28s cubic-bezier(.2,.9,.3,1) both" }}>
+          <span style={{ fontSize:22, lineHeight:1, flexShrink:0 }}>💬</span>
+          <span style={{ flex:1, minWidth:0 }}>
+            <span style={{ display:"block", fontSize:14, fontWeight:700 }}>{msgToast.text}</span>
+            <span style={{ display:"block", fontSize:12, color:"#B8B8B8", marginTop:2 }}>タップして開く</span>
+          </span>
+          <span aria-label="閉じる" onClick={(e)=>{ e.stopPropagation(); setMsgToast(null); }} style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13 }}>✕</span>
+        </button>
       )}
       <WorkerPreviewSheet />
       <EmployerPreviewSheet />
