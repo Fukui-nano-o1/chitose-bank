@@ -5234,11 +5234,23 @@ function ChatView({ applicationId, onBack }) {
   const confirmTerms = async () => {
     if (confirmingTerms) return;
     setConfirmingTerms(true);
+    const wasWorkerConfirmed = workerConfirmed; // 遷移検知用（今回初めて確認したかどうか）
     try {
       const { data, error } = await supabase.rpc('confirm_terms', { p_application_id: activeAppId });
       if (!error && data && data.ok) {
         setWorkerConfirmed(!!data.worker_confirmed);
         setFarmerConfirmed(!!data.farmer_confirmed);
+        // 働き手が今回はじめて確認した時、その旨をチャットメッセージとして送信（2026-07-19）。
+        // 履歴として残り、農家にも「確認済み」が伝わる
+        if (isWorkerSide && !wasWorkerConfirmed && data.worker_confirmed) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              await supabase.from("messages").insert({ application_id: activeAppId, sender_id: session.user.id, body: "✓ 求人内容を確認しました。よろしくお願いします。" });
+              await load(appIds);
+            }
+          } catch {}
+        }
       }
     } catch {}
     setConfirmingTerms(false);
@@ -5277,12 +5289,9 @@ function ChatView({ applicationId, onBack }) {
       )}
 
       {/* 求人内容の確認（⑦・働き手のみ）：チャットを占有せず、コンパクトなバー→タップでボックス展開（2026-07-19） */}
-      {confirmJob && isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
-        workerConfirmed ? (
-          <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 0", fontSize:12, color:"#00A86B", fontWeight:700 }}>
-            ✓ 求人内容の確認・確認済み
-          </div>
-        ) : (
+      {/* 確認済みはチャットメッセージ「✓ 求人内容を確認しました」として残る（2026-07-19）ので、
+          未確認の時だけ確認バーを出す */}
+      {confirmJob && isWorkerSide && !workerConfirmed && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
           <button onClick={()=>{ setConfirmStep(0); setConfirmBoxOpen(true); }} className="f-sans cb-urgent-still"
             style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#FFF8E7", border:"1px solid #F5D98F", borderRadius:12, padding:"12px 14px", cursor:"pointer", margin:"10px 0" }}>
             <span style={{ fontSize:20, flexShrink:0 }}>📋</span>
@@ -5292,7 +5301,6 @@ function ChatView({ applicationId, onBack }) {
             </span>
             <span style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", flexShrink:0 }}>確認する →</span>
           </button>
-        )
       )}
       {/* 求人内容確認ボックス（2026-07-19）：分割式（1項目ずつ「はい」→一覧→内容に相違ありません） */}
       {confirmBoxOpen && confirmJob && isWorkerSide && !workerConfirmed && (() => {
