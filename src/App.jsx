@@ -3,7 +3,7 @@ const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env
 
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
-import Terms, { TERMS_ARTICLES } from "./Terms.jsx";
+import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -15632,93 +15632,93 @@ function OnboardingModal({ me, setMe, onComplete, isEditing = false, onClose }) 
 // ── PrivacyPolicy ────────────────────────────────────────────
 // sections本体はモーダル(PrivacyPolicy)とページ(#/privacy)で共通利用するためモジュールレベル定数化
 const PRIVACY_SECTIONS = [
-    { id:"privacy-1", title:"1. 前文", body:[
-      "当社は、農家と働き手が利用する求人情報および求職情報の掲載の場 chitose-bank を運営する。",
-      "当社は、本サービスの提供にあたり利用者の個人情報を取得する。",
-      "当社は、取得した個人情報を、本ポリシーに定める利用目的の範囲でのみ取り扱う。",
-      "当社は、個人情報の保護に関する法律その他の法令を遵守する。",
+    { id:"privacy-1", title:"第1条 基本の約束", body:[
+      "1. 本サービスが取得する情報・その保存と保護・誰に表示されるかは、第3条の一覧表にすべて記載します。**表に無い取得・表に無い開示は行いません。**",
+      "2. 個人情報を、広告目的で利用すること、および第三者に販売・提供することはありません（法令に基づく場合を除きます。第4条）。",
+      "3. 入力の途中の内容、およびキー操作を記録することはありません。",
     ]},
-    { id:"privacy-2", title:"2. 取得する情報", body:[
-      "当社は、利用者の登録および本サービスの利用にともない、次の情報を取得する。",
-      "運営管理情報※1として、氏名、郵便番号、住所、生年月日、個人と法人の区分、法人名、法人番号、連絡先を取得する。",
-      "認証情報として、メールアドレスまたは電話番号を取得する。",
-      "求人情報として、作物、作業内容、日程、報酬、写真、就業場所を取得する。",
-      "求職情報として、経歴および希望を取得する。",
-      "労働実績情報として、本サービスを通じた出退勤の記録、労働の件数、労働の時間、作物別および作業別の割合、再指名の状況を取得する。",
-      "利用状況として、端末に保存する識別情報および操作の記録を取得する。",
-      "サービスの改善のため、ページの閲覧履歴（どのページをいつ表示したか）を記録します。入力の途中の内容やチャットの本文を、この記録に含めることはありません。",
+    { id:"privacy-2", title:"第2条 開示される相手は3種類だけ", body:[
+      "本サービスの中で、あなたの情報を見る可能性があるのは次の3者に限られます。",
+      "**A：他の利用者**——第3条の表で「開示先」に明示された範囲だけが表示されます。",
+      "**B：運営者**——サービスの提供・確認・苦情対応のために、表の範囲で扱います。",
+      "**C：公的機関**——法令に基づく適法な照会（裁判所・警察・労働局・個人情報保護委員会など）があった場合に限ります。",
     ]},
-    { id:"privacy-3", title:"3. 利用目的", body:[
-      "当社は、取得した個人情報を、次の目的のために利用する。",
-      "利用者の本人確認をおこなうために利用する。",
-      "規約違反が生じた場合に、責任を負う者を特定し、書面または連絡先を通じて連絡するために利用する。",
-      "求人情報および求職情報を掲載する場を提供するために利用する。",
-      "本サービスを通じた労働の実績を記録し、作物別および作業別の労働時間、労働の件数、再指名の状況、無断欠勤のない記録を、求職情報として農家に公開するために利用する。",
-      "応募、承認、打合せ、面接、契約、労働、評価にいたる一連のやり取りを、当事者間で進めるために利用する。",
-      "本サービスの運営、保守、改善をおこなうために利用する。",
-      "法令に基づく対応をおこなうために利用する。",
+    { id:"privacy-3", title:"第3条 個人情報の取り扱い一覧・データ台帳", body:[
+      "本サービスが取得する個人情報の全項目を、次の表にまとめます。",
+    ], table:{
+      headers:["情報","取得する時","保存の場所と保護","誰にどう表示されるか","保存期間"],
+      rows:[
+        ["メールアドレス","アカウント登録時","認証データベース（東京リージョン）。技術的な行制限により本人と運営者以外は読めません","他の利用者には**一切表示されません**。運営者の管理画面でも通常は伏せ字（例：t5***@…）で表示されます","アカウント存続中"],
+        ["本人確認情報（氏名・ふりがな・住所・生年月日・電話番号）","登録直後の本人確認の入力時","専用テーブル。本人と運営者以外は読めません。変更があった事実は記録されますが、記録メールに値そのものは含めません","他の利用者には値は表示されず、**「本人確認済み」の表示と確認の年月だけ**が出ます","アカウント存続中＋退会後、一定期間（詳細は今後定めます）"],
+        ["プロフィールの選択項目（活動地域・移動手段・経験・作業の強さ・趣味・言語など）","本人が入力・選択した時","プロフィールテーブル","求人に応募した先の求人者、および求人を閲覧する求職者に**即時**表示されます","存続中（本人がいつでも変更・削除できます）"],
+        ["自己紹介・質問への回答（自由記述）","本人が入力した時","まず**非公開の確認待ち**として保存","**運営者が内容を確認してから**（最大2日・確認され次第）応募先などに表示されます。確認するのは連絡先の記載・個人の特定・不適切な表現の有無だけです","存続中（本人がいつでも変更・削除できます）"],
+        ["プロフィール写真・農園の紹介","本人が登録した時","画像ストレージ＋プロフィールテーブル","応募先・求人の閲覧者に表示されます","存続中"],
+        ["集合場所の詳細（番地・目印）","求人者が求人を作成した時","求人テーブル。公開用の表示からは**除外**されています","**応募が承認された求職者にだけ**表示されます。承認前の閲覧者には町名までしか表示されません","求人の存続中"],
+        ["チャットの内容","送信した時","メッセージテーブル。技術的な行制限により**当事者以外は読めません**","当事者だけが読めます。運営者が内容を確認するのは、**苦情・通報・紛争への対応に必要な場合に限ります**","存続中（紛争対応のための保存を含みます）"],
+        ["応募・承認・作業の記録（応募日時・承認日時・開始と終了の確認・出欠・欠勤への異議）","それぞれの操作の時","応募テーブル","当事者の双方に表示されます。集計した実績（完了件数など）は将来、プロフィールに表示されます","退会後も一定期間（詳細は今後定めます）保存"],
+        ["労働条件の確認記録（双方確認した時点の求人内容の写し）","双方が「相違ありません」を押した時","応募テーブルに改変されない形で保存","当事者の求めと紛争対応の際に使用します。運営者は印刷可能な形で保管します","同上"],
+        ["評価（選択項目・公開コメント・非公開メモ）","作業完了後に本人が入力した時","評価テーブル","**公開されるのは肯定的な評価と公開コメントだけ**です。非公開メモは書いた本人しか見られません。双方の評価が揃うか3日たつまで相手には表示されません。全量は運営者がサービス改善と安全のために保存します","存続中"],
+        ["ページの閲覧履歴（どのページをいつ表示したか）","ページを表示した時","閲覧記録テーブル。**運営者だけ**が見られます","他の利用者には一切表示されません。使い道はサービスの改善（どの画面が分かりにくいかの分析）だけです","一定期間（詳細は今後定めます）で削除"],
+        ["通報・画面の報告・緊急連絡","本人が送信した時","各記録テーブル","通報は運営者だけが確認し、**通報した人が誰かは相手に伝わりません**。緊急連絡は相手方と運営者に通知されます","対応の完了後、一定期間（詳細は今後定めます）"],
+      ],
+    }},
+    { id:"privacy-4", title:"第4条 第三者への提供", body:[
+      "1. 第2条のA・B・C以外に個人情報を提供しません。",
+      "2. 個人情報を外国にある第三者に提供することはありません。",
     ]},
-    { id:"privacy-4", title:"4. 公開する情報と公開しない情報", body:[
-      "当社は、求人情報および求職情報を、本サービス上で公開する。",
-      "当社は、労働実績情報のうち、作物別および作業別の労働時間、労働の件数、再指名の状況、無断欠勤のない記録を、求職情報として農家に公開する。",
-      "当社は、運営管理情報を、本人確認および規約違反時の責任特定のためにのみ保持する。",
+    { id:"privacy-5", title:"第5条 業務の委託先", body:[
+      "システムの運用のため、次の事業者のサービスを利用しています。いずれも上記のデータの保管・配信・送信という役割の範囲でのみ関与し、目的外の利用はできません。",
+      "・データベースと認証：Supabase（データ保存地域：東京）",
+      "・サイトの配信：Vercel",
+      "・メールの送信：Resend",
     ]},
-    { id:"privacy-5", title:"5. 第三者への提供", body:[
-      "当社は、法令に基づく場合、および本人の同意を得た場合に限り、保有個人データ※2を第三者へ提供する。",
-      "当社は、人の生命、身体または財産の保護のために必要がある場合であって、本人の同意を得ることが困難であるときは、法令の定める範囲で個人データ※3を提供する。",
+    { id:"privacy-6", title:"第6条 安全のためにしていること", body:[
+      "1. **行レベルの権限制御**：すべてのデータは、本人・当事者・運営者という権限の範囲でしか読み書きできないよう、データベースの層で技術的に制限しています。画面側の不具合があっても、権限のないデータには届きません。",
+      "2. **変更の全記録**：個人情報を含むデータの追加・変更・削除は、誰がいつ何を変えたかがすべて記録され、運営者に即時通知されます。不正な操作は発見できます。",
+      "3. **運営アカウントの保護**：運営者のアカウントには2段階認証を設定しています。",
+      "4. **バックアップ**：データは定期的にバックアップし、復元できることを定期的に確認します。",
+      "5. **事故対応**：万一、情報の漏えい・滅失が起きた場合の対応手順（被害の封鎖・個人情報保護委員会への報告・ご本人への通知）をあらかじめ定めています。",
     ]},
-    { id:"privacy-6", title:"6. 業務の委託", body:[
-      "当社は、本サービスの提供に必要な範囲で、個人情報の取り扱いを外部の事業者に委託する。",
-      "当社は、郵便番号から住所を検索する処理を外部のサービスに委託する。",
-      "当社は、メールの送信を外部のサービスに委託する。",
-      "当社は、データの保管を外部のクラウド事業者に委託する。",
-      "当社は、本サービスの配信を外部のホスティング事業者に委託する。",
-      "当社は、委託先に対して、個人情報の安全な管理を求め、必要かつ適切な監督をおこなう。",
+    { id:"privacy-7", title:"第7条 保存期間の終わりと退会", body:[
+      "1. 退会のお申し出があった場合、本人確認情報とプロフィールを削除します。",
+      "2. 労働条件の確認記録・応募と作業の記録・評価は、紛争への対応と法令上の必要のため、第3条の表に定める期間、保存します。",
+      "3. 削除のご希望・お問い合わせは、第9条の窓口までお申し出ください。",
     ]},
-    { id:"privacy-7", title:"7. 外国にある第三者への提供", body:[
-      "当社は、業務の委託にともない、外国にある事業者に個人情報の取り扱いを委託する場合がある。",
-      "当社は、この場合、法令の定める措置を講じたうえで取り扱う。",
+    { id:"privacy-8", title:"第8条 開示・訂正・利用停止の請求", body:[
+      "ご本人は、自己の個人情報について、開示・訂正・利用停止を請求できます。ご本人であることを確認のうえ、遅滞なく対応します。",
     ]},
-    { id:"privacy-8", title:"8. 安全管理措置", body:[
-      "当社は、通信を暗号化する。",
-      "当社は、行レベルの制御により、利用者が自身の情報にのみ到達できる状態を保つ。",
-      "当社は、運営管理情報への到達を、管理者の権限に限定する。",
-      "当社は、認証によってアクセスを制御する。",
-      "当社は、これらの措置の具体的な内容について、本人の求めに応じて遅滞なく回答する。",
-    ]},
-    { id:"privacy-9", title:"9. 未成年者", body:[
-      "当社は、18歳以上の者に本サービスの登録を認める。",
-      "当社は、生年月日により年齢を確認する。",
-      "当社は、16歳未満の者の個人情報を取得する場合、法定代理人※4の同意を得る。",
-    ]},
-    { id:"privacy-10", title:"10. 端末に保存する情報", body:[
-      "当社は、本サービスの動作のために、識別情報を利用者の端末に保存する。",
-      "当社は、この情報を、セッションの維持および本サービスの利便のために利用する。",
-    ]},
-    { id:"privacy-11", title:"11. 開示、訂正、利用停止等の請求", body:[
-      "当社は、本人から、保有個人データの開示、訂正、追加、削除、利用の停止、第三者提供の停止の請求を受けた場合、本人であることを確認したうえで、法令に基づき遅滞なく対応する。",
-      "当社は、請求の窓口を第13章に定める。",
-      "当社は、開示の請求に対して、手数料を求める場合がある。",
-    ]},
-    { id:"privacy-12", title:"12. 漏えい等への対応", body:[
-      "当社は、個人情報の漏えい、滅失、毀損が生じた場合、法令の定めに従い、個人情報保護委員会への報告および本人への通知をおこなう。",
-    ]},
-    { id:"privacy-13", title:"13. お問い合わせ窓口", body:[
-      "本ポリシーおよび個人情報の取り扱いに関する請求、苦情、問い合わせは、次の窓口で受け付ける。",
+    { id:"privacy-9", title:"第9条 お問い合わせ窓口", body:[
+      "運営者：福井滝人（屋号：千歳）／サービス名称：chitose-bank",
       "窓口：t5fki6643qty@gmail.com",
-      "当社は、苦情の申し出を受けた場合、内容を確認のうえ遅滞なく対応する。",
-    ]},
-    { id:"privacy-14", title:"14. 改定", body:[
-      "当社は、本ポリシーを改定する場合、本サービス上で公表する。",
-      "当社は、改定後の内容を、公表の時点から適用する。",
-    ]},
-    { id:"privacy-15", title:"15. 用語の定義", body:[
-      "※1 運営管理情報とは、本人確認および規約違反時の責任特定のために当社が保持する非公開の情報をいう。",
-      "※2 保有個人データとは、当社が開示、訂正、利用停止等の権限を有する個人データをいう。",
-      "※3 個人データとは、体系的に整理された個人情報をいう。",
-      "※4 法定代理人とは、未成年者に代わって同意をおこなう権限を有する者をいう。",
+      "苦情のお申し出には、内容を確認のうえ遅滞なく対応します。",
     ]},
   ];
+
+// プライバシーポリシー第3条データ台帳の表描画（モーダル・ページ共通）
+function PrivacyDataTable({ table }) {
+  return (
+    <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+      <table style={{ borderCollapse:"collapse", width:"100%", minWidth:760, fontSize:13 }}>
+        <thead>
+          <tr>
+            {table.headers.map((h, i) => (
+              <th key={i} className="f-sans" style={{ textAlign:"left", padding:"10px 12px", background:"#EFEFEF", borderBottom:"2px solid #DDD", color:"#222", fontWeight:700, whiteSpace:"nowrap" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row, ri) => (
+            <tr key={ri}>
+              {row.map((cell, ci) => (
+                <td key={ci} className="f-sans" style={{ textAlign:"left", padding:"10px 12px", borderBottom:"1px solid #EBEBEB", color:"#444", lineHeight:1.8, verticalAlign:"top" }}>{renderRichText(cell)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function PrivacyPolicy({ onClose }) {
   const sections = PRIVACY_SECTIONS;
@@ -15734,14 +15734,15 @@ function PrivacyPolicy({ onClose }) {
       >
         <button onClick={onClose} aria-label="閉じる" style={{ position:"absolute", top:18, right:18, width:40, height:40, borderRadius:999, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:24, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.12)", cursor:"pointer", zIndex:10 }}>×</button>
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 4px", textAlign:"center" }}>プライバシーポリシー</h2>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 制定日：2026年7月5日 · 最終改定日：2026年7月13日</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 制定：2026年7月5日／全面改定：2026年7月21日</p>
         <div style={{ display:"grid", gap:20 }}>
           {sections.map((s, i) => (
             <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
               <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
               {s.body.map((p, j) => (
-                <p key={j} className="f-sans" style={{ fontSize:16, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
+                <p key={j} className="f-sans" style={{ fontSize:16, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>
               ))}
+              {s.table && <div style={{ marginTop:12 }}><PrivacyDataTable table={s.table} /></div>}
             </div>
           ))}
         </div>
@@ -16531,6 +16532,14 @@ export default function App(){
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
   const [applyAlready,setApplyAlready]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")==="1");
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
+  // 規約v2・プラポリv2 全面改定バナー（7日間限定・2026-07-21〜07-28）。閉じるとlocalStorageで再表示しない
+  const [legalV2BannerDismissed,setLegalV2BannerDismissed]=useState(()=>{ try { return localStorage.getItem("cb_legalv2_banner_dismissed")==="1"; } catch { return false; } });
+  const showLegalV2Banner = (() => {
+    const from = new Date("2026-07-21T00:00:00+09:00").getTime();
+    const until = from + 7*24*60*60*1000;
+    const now = Date.now();
+    return !legalV2BannerDismissed && now >= from && now < until;
+  })();
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -17299,6 +17308,15 @@ const subDest=useCallback(async d=>{
       {/* ── MAIN ── */}
       <main style={{maxWidth:1200,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
+        {me&&!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab!=="terms"&&safeTab!=="privacy"&&showLegalV2Banner&&(
+          <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"0 0 16px", padding:"14px 18px", background:"#EAF7F0", border:"1px solid #00A86B", borderRadius:12, fontSize:13, color:"#1B5E3F", lineHeight:1.6 }}>
+            <span>利用規約とプライバシーポリシーを全面改定しました（7/21）</span>
+            <div style={{ display:"flex", alignItems:"center", gap:14, flexShrink:0 }}>
+              <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>→ 読む</button>
+              <button onClick={()=>{ setLegalV2BannerDismissed(true); try{ localStorage.setItem("cb_legalv2_banner_dismissed","1"); }catch{} }} aria-label="閉じる" style={{ background:"none", border:"none", fontSize:16, color:"#1B5E3F", cursor:"pointer", padding:0 }}>×</button>
+            </div>
+          </div>
+        )}
         {(needsAccountHolder || openAccountForm) ? (
           <AccountHolderForm onDone={()=>{
             setNeedsAccountHolder(false); setOpenAccountForm(false);
@@ -17477,7 +17495,7 @@ const subDest=useCallback(async d=>{
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定日：2026年7月5日 · 最終改定日：2026年7月13日</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改定：2026年7月21日</p>
 
             <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
               {PRIVACY_SECTIONS.map(s => (
@@ -17495,8 +17513,9 @@ const subDest=useCallback(async d=>{
                 <div key={i} id={s.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88 }}>
                   <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
                   {s.body.map((p, j) => (
-                    <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
+                    <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>
                   ))}
+                  {s.table && <div style={{ marginTop:12 }}><PrivacyDataTable table={s.table} /></div>}
                 </div>
               ))}
             </div>
@@ -17506,7 +17525,7 @@ const subDest=useCallback(async d=>{
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>利用規約</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定日：2026年7月5日 · 最終改定日：2026年7月15日</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改定：2026年7月21日</p>
 
             <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
               {TERMS_ARTICLES.map(a => (
@@ -17524,7 +17543,7 @@ const subDest=useCallback(async d=>{
                 <div key={i} id={a.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88 }}>
                   <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{a.title}</h3>
                   {a.body.map((p, j) => (
-                    <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < a.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{p}</p>
+                    <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < a.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>
                   ))}
                 </div>
               ))}
