@@ -17089,6 +17089,55 @@ const loadNotifs=useCallback(async(farmerId)=>{
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [me?.id]);
+  // 段階お祝いボックス（2026-07-19）：②承認・⑤仕事・⑥評価を、働き手/農家の両側に1回だけ展開。
+  // ①応募=apply/done・④採用=hiredBox は別で担当so除外。applications変化をRealtime購読＋起動時チェック
+  const [stageBox, setStageBox] = useState(null); // {emoji,head,body,link,hash}
+  useEffect(() => {
+    if (!me?.id) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        let shown = []; try { shown = JSON.parse(localStorage.getItem("cb_stageShown") || "[]"); } catch {}
+        const since = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+        const [wRes, fRes] = await Promise.all([
+          supabase.from("applications").select("id,job_number,status,attended,worker_confirmed_end_at,created_at").eq("worker_id", me.id).gte("created_at", since).order("created_at", { ascending: false }).limit(20),
+          supabase.from("applications").select("id,job_number,status,created_at").eq("farmer_id", me.id).gte("created_at", since).order("created_at", { ascending: false }).limit(20),
+        ]);
+        if (cancelled) return;
+        const cands = [];
+        (wRes.data || []).forEach(a => {
+          if (["approved","meeting","interview","contracted","working","completed"].includes(a.status)) cands.push({ a, role:"w", stage:"approved" });
+          if (a.status === "completed" && a.attended === true && !a.worker_confirmed_end_at) cands.push({ a, role:"w", stage:"worked" });
+          if (a.status === "completed" && a.worker_confirmed_end_at) cands.push({ a, role:"w", stage:"reviewed" });
+        });
+        (fRes.data || []).forEach(a => {
+          if (a.status === "applied") cands.push({ a, role:"f", stage:"applied" });
+          if (a.status === "completed") cands.push({ a, role:"f", stage:"worked" });
+        });
+        const fresh = cands.find(c => !shown.includes(`${c.a.id}:${c.stage}:${c.role}`));
+        if (!fresh) return;
+        const { data: job } = await supabase.from("jobs_public").select("crop,task").eq("job_number", fresh.a.job_number).maybeSingle();
+        if (cancelled) return;
+        const title = job ? [job.crop, job.task].filter(Boolean).join(" ") || `求人 #${fresh.a.job_number}` : `求人 #${fresh.a.job_number}`;
+        try { localStorage.setItem("cb_stageShown", JSON.stringify([...shown, `${fresh.a.id}:${fresh.stage}:${fresh.role}`])); } catch {}
+        const defs = {
+          "w:approved": { emoji:"🎉", head:"承認されました！", body:`「${title}」に承認されました。打ち合わせ・面接をチャットで進めましょう。`, link:"チャットを開く →", hash:"/chat/" + fresh.a.id },
+          "w:worked":   { emoji:"🌾", head:"お仕事おつかれさまでした", body:`農家が「${title}」の作業完了を記録しました。最後に、お互いを評価しましょう。`, link:"評価する →", hash:"/profile/worker/approved" },
+          "w:reviewed": { emoji:"⭐", head:"評価を送りました", body:`ありがとうございました。「${title}」の実績が、あなたのプロフィールに反映されます。`, link:"実績を見る →", hash:"/profile/worker" },
+          "f:applied":  { emoji:"📩", head:"新しい応募が届きました", body:`「${title}」に新しい応募があります。プロフィールを見て、承認するか決めましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
+          "f:worked":   { emoji:"🌾", head:"作業が完了しました", body:`「${title}」の作業が完了しました。働き手を評価しましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
+        };
+        const d = defs[`${fresh.role}:${fresh.stage}`];
+        if (d && !cancelled) setStageBox(d);
+      } catch {}
+    };
+    check();
+    const ch = supabase.channel("stage-watch")
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: "worker_id=eq." + me.id }, check)
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: "farmer_id=eq." + me.id }, check)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [me?.id]);
   // approvalトリガー（応募承認後）の専用照会は2026-07-17に撤去：熱中症お知らせがafter_login×毎回表示に変更され、
   // ログイン済み利用者の来訪すべてをカバーするため。approval値の判定はshowNoticesForに残っており、再開時はここにeffectを足すだけ
   const dismissNotices = () => {
@@ -17332,6 +17381,19 @@ const subDest=useCallback(async d=>{
 
       {/* 働き手/雇い手プレビューの全域ボックス（どの画面のアイコンからでもイベントで展開・2026-07-19） */}
       {/* 採用おめでとうボックス（2026-07-19）：花びら🌸＋求人リンク＋？マーク3つ（緊急連絡先・採用からの流れ・評価とは） */}
+      {/* 段階お祝いボックス（2026-07-19・②承認/⑤仕事/⑥評価・働き手/農家両側）：お知らせ規格の意匠 */}
+      {stageBox && (
+        <div onClick={()=>setStageBox(null)} style={{ position:"fixed", inset:0, zIndex:9630, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 22px", maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", textAlign:"left", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>setStageBox(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <div style={{ fontSize:34, marginBottom:8 }}>{stageBox.emoji}</div>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={stageBox.head} /></p>
+            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
+            <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>{stageBox.body}</p>
+            <button onClick={()=>{ const h = stageBox.hash; setStageBox(null); window.location.hash = h; }} className="f-sans" style={{ marginTop:16, background:"none", border:"none", borderBottom:"2px solid #00A86B", padding:"0 0 2px", fontSize:18, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>{stageBox.link}</button>
+          </div>
+        </div>
+      )}
       {hiredBox && (
         <div onClick={()=>setHiredBox(null)} style={{ position:"fixed", inset:0, zIndex:9640, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"fadeIn .2s ease", overflow:"hidden" }}>
           {Array.from({ length: 14 }).map((_, i) => (
