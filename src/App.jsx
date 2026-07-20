@@ -12079,6 +12079,25 @@ function AdminTab({ onJump, onShowAccountForm }) {
   const [revReason, setRevReason] = useState("");
   const [revSending, setRevSending] = useState(false);
   const [emailShown, setEmailShown] = useState(null); // 「メールを表示」で全文表示中のauth_id（既定はemail_masked）
+  // アカウントの停止／追放（2026-07-19）：一時停止・永久追放・解除。管理者のみ・解除は手動
+  const [modOpen, setModOpen] = useState(null); // 操作パネルを開いているauth_id
+  const [modAction, setModAction] = useState(null); // "suspend"|"ban"|"unban"
+  const [modReason, setModReason] = useState("");
+  const [modBusy, setModBusy] = useState(false);
+  const runModerate = async (authId, action, reason) => {
+    if (modBusy) return;
+    const verb = action === "suspend" ? "一時停止" : action === "ban" ? "永久追放" : "解除";
+    if (!window.confirm(`このアカウントを${verb}しますか？` + (action === "unban" ? "" : "\nログインと、応募・掲載・チャット送信などが即時に止まります。"))) return;
+    setModBusy(true);
+    const { data, error } = await supabase.rpc("admin_moderate_account", { p_auth_id: authId, p_action: action, p_reason: reason?.trim() || null });
+    setModBusy(false);
+    if (error || !data?.ok) {
+      alert((data?.reason === "cannot_moderate_admin" ? "運営者アカウントは対象にできません。" : "処理に失敗しました：" + (data?.reason || error?.message || "不明")));
+      return;
+    }
+    setAccounts(prev => prev.map(a => a.auth_id === authId ? { ...a, mod_state: data.state, mod_reason: reason?.trim() || null } : a));
+    setModOpen(null); setModAction(null); setModReason("");
+  };
   // 運営DM（2026-07-16）：アカウントから利用者へメッセージ送信（admin_messages・利用者側はチャットの運営タブで受信）
   const [dmUser, setDmUser] = useState(null); // { auth_id, name, avatar }
   const [dmThread, setDmThread] = useState([]);
@@ -12641,10 +12660,12 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                   {u.avatar_url
-                    ? <img src={u.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    ? <img src={u.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: u.mod_state && u.mod_state !== "active" ? "grayscale(1) opacity(0.6)" : "none" }} />
                     : <Avatar url={null} name={u.nickname || u.email_masked || "？"} size={64} />}
-                  {/* 状態マーク（右上）：通報＞確認待ち＞未ログインの優先順で1つだけ */}
-                  {(u.reported > 0 || u.pending_text || u.never_signed_in) && (
+                  {/* 状態マーク（右上）：停止/追放＞通報＞確認待ち＞未ログインの優先順で1つだけ */}
+                  {(u.mod_state && u.mod_state !== "active") ? (
+                    <span style={{ position:"absolute", top:6, right:6, padding:"2px 7px", borderRadius:9, background: u.mod_state === "banned" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:10, fontWeight:800, boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{u.mod_state === "banned" ? "追放" : "停止"}</span>
+                  ) : (u.reported > 0 || u.pending_text || u.never_signed_in) && (
                     <span style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:13, background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
                       {u.reported > 0 ? "⚠️" : (u.pending_text ? "📝" : "✉️")}
                     </span>
@@ -12702,6 +12723,32 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                         📝 自由記述の確認待ちがあります。承認・差し戻しは「審査」タブで行ってください（このボックスでは行いません）
                       </p>
                     )}
+
+                    {/* アカウントの停止／追放（2026-07-19）：管理者のみ。ログイン封鎖＋アプリ内操作の封鎖＋公開物の非表示 */}
+                    <div style={{ marginTop:16, borderTop:"1px solid #F0F0F0", paddingTop:14 }}>
+                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>アカウントの制限</p>
+                      {(u.mod_state && u.mod_state !== "active") ? (
+                        <div>
+                          <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, background: u.mod_state === "banned" ? "#FDECEC" : "#FFF7ED", border:"1px solid " + (u.mod_state === "banned" ? "#F5B5B5" : "#FDBA74"), borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
+                            <span style={{ fontSize:13, fontWeight:800, color: u.mod_state === "banned" ? "#E24B4A" : "#C77700" }}>{u.mod_state === "banned" ? "🚫 永久追放中" : "⏸ 一時停止中"}</span>
+                            {u.mod_reason && <span style={{ fontSize:12, color:"#717171" }}>理由：{u.mod_reason}</span>}
+                          </div>
+                          <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 10px" }}>ログイン・応募・掲載・チャット送信が止まり、公開求人とプロフィールは非表示になっています。チャット履歴は保全されています。</p>
+                          <button onClick={()=>runModerate(u.auth_id, "unban")} disabled={modBusy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{modBusy ? "処理中..." : "制限を解除する"}</button>
+                        </div>
+                      ) : modOpen === u.auth_id ? (
+                        <div className="fade-in">
+                          <textarea value={modReason} onChange={e=>setModReason(e.target.value)} placeholder="理由（任意・運営の記録用。本人には表示しません）" rows={2} className="field f-sans" style={{ fontSize:13, marginBottom:10, resize:"vertical" }} />
+                          <div style={{ display:"flex", gap:8 }}>
+                            <button onClick={()=>{ setModOpen(null); setModReason(""); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
+                            <button onClick={()=>runModerate(u.auth_id, "suspend", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⏸ 一時停止</button>
+                            <button onClick={()=>runModerate(u.auth_id, "ban", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🚫 永久追放</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={()=>{ setModOpen(u.auth_id); setModReason(""); }} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>アカウントを制限する（停止・追放）</button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -16491,6 +16538,7 @@ export default function App(){
   const [loaded,setLoaded]=useState(false);
   const [badgeCnt,setBadgeCnt]=useState(0);
   const [me,setMe]=useState(null);
+  const [blockedAccount,setBlockedAccount]=useState(false); // 停止／追放されたアカウントの制限画面（2026-07-19）
   // ヘッダー（PC・モバイル下部バー）共通のアバター表示規則（2026-07-14改）：
   // 働き手=worker_profiles／雇い手空間(#/profile/employer*)の表示中=employer_profiles でアイコンを分ける。
   // 取得はme.id変化と雇い手空間の出入り(empCtx)ごと。編集画面での変更はonAvatarChangeで即時反映（マージ更新）。
@@ -16700,6 +16748,12 @@ export default function App(){
     let f = [];
     const r = {};
     if (session) {
+      // 停止／追放チェック（2026-07-19）：ログイン封鎖(banned_until)が効くまでの猶予（既存トークン最大1h）を塞ぐ。
+      // 停止中なら即サインアウトして制限画面へ（meはセットしない）
+      try {
+        const { data: modded } = await supabase.rpc('is_account_moderated', { p_uid: session.user.id });
+        if (modded) { setBlockedAccount(true); try { await supabase.auth.signOut(); } catch {} setLoaded(true); return; }
+      } catch {}
       const { data: dbFarmer } = await supabase.from('farmers').select('*').eq('email', session.user.email).single();
       if (dbFarmer) {
         const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, status: dbFarmer.status, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
@@ -17030,6 +17084,19 @@ const subDest=useCallback(async d=>{
   if(!loaded)return(
     <div style={{minHeight:"100vh",background:C.deep,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <p className="f-sans pulse-slow" style={{color:C.dim,fontSize:12,letterSpacing:".1em"}}>読み込み中</p>
+    </div>
+  );
+
+  // 停止／追放されたアカウントの制限画面（2026-07-19）：ログイン封鎖が効くまでの猶予も含めここで止める
+  if (blockedAccount) return (
+    <div style={{ minHeight:"100vh", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", padding:"0 28px" }}>
+      <div style={{ fontSize:44, marginBottom:14 }}>⏸</div>
+      <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 10px" }}>アカウントの利用を停止しています</h2>
+      <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.9, maxWidth:360, margin:0 }}>
+        現在、このアカウントはご利用いただけません。<br/>
+        お心当たりのない場合や、詳細のお問い合わせは、下記までご連絡ください。
+      </p>
+      <a href="mailto:t5fki6643qty@gmail.com" className="f-sans" style={{ marginTop:18, fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline" }}>運営に問い合わせる</a>
     </div>
   );
 
