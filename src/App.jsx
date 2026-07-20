@@ -6938,9 +6938,12 @@ function WorkerApplications({ filter, me }) {
   };
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
-      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
-      {/* お仕事の流れバナー（2026-07-19・チェックタブのみ） */}
+      {/* チェックタブはタイトルをフローバナーに差し替え（2026-07-19）。応募中タブは従来のタイトル */}
+      {filter !== "approved" && (<>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
+      </>)}
+      {/* お仕事の流れバナー（2026-07-19・チェックタブのみ）＝タイトルの代わり */}
       {filter === "approved" && apps.length > 0 && (
         <div style={{ background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:14, padding:"14px 16px", marginBottom:16 }}>
           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 4px" }}>お仕事は、この流れで進みます</p>
