@@ -1,6 +1,46 @@
 import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
+// ── プッシュ通知（Web Push・2026-07-19）───────────────────────────
+// iOSは「ホーム画面に追加したPWA（standalone）」のみ対応。Safariタブでは購読不可。
+const isStandalone = () => (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const isIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent);
+const b64urlToUint8 = (b64) => {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const base = (b64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+};
+// 現在の通知状態を返す：'unsupported' | 'need-standalone' | 'default' | 'denied' | 'granted'
+async function pushStatus() {
+  if (!pushSupported()) return "unsupported";
+  if (isIOS() && !isStandalone()) return "need-standalone"; // iOSはホーム画面追加が前提
+  const perm = Notification.permission;
+  if (perm === "granted") {
+    try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); return sub ? "granted" : "default"; } catch { return "default"; }
+  }
+  return perm; // 'default' | 'denied'
+}
+// 通知をオンにする：許可要求→購読→DB保存。戻り値 {ok, reason}
+async function enablePush() {
+  if (!pushSupported()) return { ok: false, reason: "unsupported" };
+  if (isIOS() && !isStandalone()) return { ok: false, reason: "need-standalone" };
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") return { ok: false, reason: perm };
+  try {
+    const { data: vapid } = await supabase.rpc("push_vapid_public");
+    if (!vapid) return { ok: false, reason: "no_key" };
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlToUint8(vapid) });
+    const j = sub.toJSON();
+    const { data, error } = await supabase.rpc("save_push_subscription", { p_endpoint: sub.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
+    if (error || !data?.ok) return { ok: false, reason: data?.reason || error?.message || "save_failed" };
+    return { ok: true };
+  } catch (e) { return { ok: false, reason: String(e?.message || e) }; }
+}
+
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
@@ -5452,6 +5492,20 @@ function ChatList() {
   const [dmText, setDmText] = useState("");
   const [dmSending, setDmSending] = useState(false);
   const [unreadMap, setUnreadMap] = useState({}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
+  // プッシュ通知の状態（2026-07-19）：チャット一覧の上に「通知をオンにする」を出す
+  const [pushSt, setPushSt] = useState(null); // 'unsupported'|'need-standalone'|'default'|'denied'|'granted'
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushDismissed, setPushDismissed] = useState(() => { try { return localStorage.getItem("cb_pushBannerDismissed") === "1"; } catch { return false; } });
+  useEffect(() => { pushStatus().then(setPushSt); }, []);
+  const doEnablePush = async () => {
+    setPushBusy(true);
+    const r = await enablePush();
+    setPushBusy(false);
+    if (r.ok) { setPushSt("granted"); }
+    else if (r.reason === "need-standalone") { alert("iPhoneでは、まず「ホーム画面に追加」してから、追加したアイコンで開いて通知をオンにしてください。"); }
+    else if (r.reason === "denied") { alert("通知がブロックされています。端末の設定からこのアプリの通知を許可してください。"); setPushSt("denied"); }
+    else { alert("通知をオンにできませんでした。時間をおいてお試しください。"); }
+  };
   const dmUid = useRef(null);
   useEffect(() => {
     (async () => {
@@ -5569,6 +5623,20 @@ function ChatList() {
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0" }}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>チャット</h2>
+      {/* 通知をオンにする案内（2026-07-19）：未許可かつ対応環境のみ。granted/denied/未対応では出さない */}
+      {!pushDismissed && (pushSt === "default" || pushSt === "need-standalone") && (
+        <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
+          <span style={{ fontSize:22, flexShrink:0 }}>🔔</span>
+          <div style={{ flex:1, minWidth:0 }}>
+            <p style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>メッセージの通知を受け取る</p>
+            <p style={{ fontSize:12, color:"#5B7B6D", margin:"2px 0 0", lineHeight:1.6 }}>{pushSt === "need-standalone" ? "「ホーム画面に追加」したアイコンから開くと、通知をオンにできます。" : "新しいメッセージが届いたら、スマホの通知でお知らせします。"}</p>
+          </div>
+          {pushSt === "default" && (
+            <button onClick={doEnablePush} disabled={pushBusy} className="f-sans" style={{ flexShrink:0, padding:"9px 14px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{pushBusy ? "..." : "オンにする"}</button>
+          )}
+          <button onClick={()=>{ setPushDismissed(true); try{localStorage.setItem("cb_pushBannerDismissed","1");}catch{} }} aria-label="閉じる" style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,0.06)", border:"none", fontSize:12, cursor:"pointer", color:"#5B7B6D" }}>✕</button>
+        </div>
+      )}
       {/* 運営DMタブ（2026-07-16）：常に最上部。未読は赤バッジ */}
       <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className={"f-sans" + (dmUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer", marginBottom:10 }}>
         <span style={{ width:40, height:40, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>🛡</span>
