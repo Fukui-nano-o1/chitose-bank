@@ -5095,6 +5095,10 @@ function mapJobPublicRow(j) {
     instantApproveRepeat: !!j.instant_approve_repeat,
     perks: j.perks || null, // この求人だけの待遇上書き（NULL=農家プロフィールの待遇・2026-07-18）
     experiencedPreferred: !!j.experienced_preferred,
+    // 終了帯の判定（2026-07-21）：採用人数を満たした／作業日程が過ぎた。探すからは除外しない
+    hiredCount: j.hired_count != null ? Number(j.hired_count) : 0,
+    filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount),
+    expired: (() => { const end = j.date_end || j.date_start; return !!end && end < ymdLocal(new Date()); })(),
   };
 }
 
@@ -7716,6 +7720,15 @@ function JobCard({ job, variant, saved, onToggleSave }) {
         <span className="f-sans" style={{ position:"absolute", top: photoHeight - 34, right:8, zIndex:2, padding:"4px 10px", borderRadius:20, background:"rgba(255,255,255,0.92)", color:"#222", fontSize:11, fontWeight:700, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>
           {dateRangeLabel(job.dateStartRaw)}{job.dateEndRaw && job.dateEndRaw !== job.dateStartRaw ? "〜" : ""}
         </span>
+      )}
+      {/* 終了帯（2026-07-21）：採用人数を満たした＝募集終了／作業日程が過ぎた＝募集期間終了。
+          探すからは除外せず、写真に半透明の帯を掛けて知らせる（充足を優先表示） */}
+      {(job.filled || job.expired) && (
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, borderRadius:photoRadius, background:"rgba(0,0,0,0.34)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1, pointerEvents:"none" }}>
+          <span className="f-sans" style={{ background:"rgba(30,30,30,0.88)", color:"#fff", fontSize: isList?14:12, fontWeight:800, letterSpacing:".04em", padding:"7px 18px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>
+            {job.filled ? "募集終了（満員）" : "募集期間終了"}
+          </span>
+        </div>
       )}
       {topSrc ? (
         <img src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius }} />
