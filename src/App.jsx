@@ -5107,6 +5107,7 @@ function ChatView({ applicationId, onBack }) {
   const [isWorkerSide, setIsWorkerSide] = useState(false);
   const [confirmingTerms, setConfirmingTerms] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
+  const [confirmBoxOpen, setConfirmBoxOpen] = useState(false); // 求人内容確認をボックス展開（2026-07-19）
   // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
   const [reportMode, setReportMode] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
@@ -5275,76 +5276,82 @@ function ChatView({ applicationId, onBack }) {
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
       )}
 
-      {/* はじめる前の確認カード（⑦）：双方確認済みなら小さく畳む */}
-      {/* はじめる前の確認は働き手のみ表示（2026-07-19）：求人を書いた農家に自分の求人の概要確認は不要 */}
+      {/* 求人内容の確認（⑦・働き手のみ）：チャットを占有せず、コンパクトなバー→タップでボックス展開（2026-07-19） */}
       {confirmJob && isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
         workerConfirmed ? (
           <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 0", fontSize:12, color:"#00A86B", fontWeight:700 }}>
-            ✓ はじめる前の確認・確認済み
+            ✓ 求人内容の確認・確認済み
           </div>
         ) : (
-          (() => {
-            // 分割式（2026-07-18）：8項目を1つずつ表示し「はい」で次へ。全部はいの後に一覧＋「内容に相違ありません」
-            const rows = [
-              { label:"日程",     value: disp(confirmJob.dateLabel) },
-              { label:"時間",     value: disp(confirmJob.workTime) },
-              { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中...",
-                mapUrl: confirmMeetingPlace?.full_address ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(confirmMeetingPlace.full_address) : null },
-              { label:"持ち物",   value: disp(confirmJob.items) },
-              { label:"注意・備考", value: disp(confirmJob.cautions) },
-              { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
-              { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
-              { label:"保険",     value: insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません" },
-            ];
-            const done = confirmStep >= rows.length;
-            const iConfirmed = workerConfirmed; // 働き手のみの確認制（2026-07-19）
-            return (
-          <div style={{ background:"#F7F7F7", borderRadius:14, padding:"14px 16px", margin:"10px 0" }}>
-            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 10px" }}>はじめる前の確認{chatJobNumber != null && <span style={{ fontSize:11, fontWeight:400, color:"#999" }}>　求人 #{chatJobNumber}</span>}
-              {!iConfirmed && !done && <span style={{ float:"right", fontSize:11, fontWeight:600, color:"#999" }}>{confirmStep + 1} / {rows.length}</span>}
-            </p>
-            {iConfirmed ? (
-              <p className="f-sans" style={{ fontSize:12, color:"#00A86B", fontWeight:700, margin:0, textAlign:"center" }}>あなたは確認済みです。相手の確認をお待ちください</p>
-            ) : !done ? (
-              <div>
-                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 4px" }}>{rows[confirmStep].label}</p>
-                <p className="f-sans" style={{ fontSize:14, color:"#222", fontWeight:700, lineHeight:1.7, margin:"0 0 6px", overflowWrap:"break-word", wordBreak:"break-word", maxHeight:"28vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>{rows[confirmStep].value}</p>
-                {rows[confirmStep].mapUrl && (
-                  <a href={rows[confirmStep].mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ display:"inline-block", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", marginBottom:6 }}>📍 Googleマップで開く →</a>
-                )}
-                <div style={{ height:6 }} />
-                <div style={{ display:"flex", gap:8 }}>
-                  {confirmStep > 0 && (
-                    <button onClick={()=>setConfirmStep(s=>s-1)} className="f-sans" style={{ padding:"10px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 前へ</button>
-                  )}
-                  <button onClick={()=>setConfirmStep(s=>s+1)} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>はい</button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                {/* 内容が多いとチャット枠からはみ出すため、一覧はカード内スクロール（2026-07-18） */}
-                <div style={{ display:"grid", gap:8, marginBottom:12, maxHeight:"32vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-                  {rows.map(row => (
-                    <div key={row.label} style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
-                      <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>{row.label}</span>
-                      {row.mapUrl ? (
-                        <a href={row.mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ fontSize:12, color:"#00A86B", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word", textDecoration:"underline" }}>✓ {row.value} 📍</a>
-                      ) : (
-                        <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}>✓ {row.value}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <button onClick={confirmTerms} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
-                  {confirmingTerms ? "..." : "内容に相違ありません"}
-                </button>
-              </div>
-            )}
-          </div>
-            );
-          })()
+          <button onClick={()=>{ setConfirmStep(0); setConfirmBoxOpen(true); }} className="f-sans cb-urgent-still"
+            style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#FFF8E7", border:"1px solid #F5D98F", borderRadius:12, padding:"12px 14px", cursor:"pointer", margin:"10px 0" }}>
+            <span style={{ fontSize:20, flexShrink:0 }}>📋</span>
+            <span style={{ flex:1, minWidth:0 }}>
+              <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#8A6D1D" }}>はじめる前に、求人内容を確認しましょう</span>
+              <span style={{ display:"block", fontSize:12, color:"#B08A2E", marginTop:2 }}>日程・集合場所・持ち物・報酬など{chatJobNumber != null ? `（求人 #${chatJobNumber}）` : ""}</span>
+            </span>
+            <span style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", flexShrink:0 }}>確認する →</span>
+          </button>
         )
       )}
+      {/* 求人内容確認ボックス（2026-07-19）：分割式（1項目ずつ「はい」→一覧→内容に相違ありません） */}
+      {confirmBoxOpen && confirmJob && isWorkerSide && !workerConfirmed && (() => {
+        const rows = [
+          { label:"日程",     value: disp(confirmJob.dateLabel) },
+          { label:"時間",     value: disp(confirmJob.workTime) },
+          { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中...",
+            mapUrl: confirmMeetingPlace?.full_address ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(confirmMeetingPlace.full_address) : null },
+          { label:"持ち物",   value: disp(confirmJob.items) },
+          { label:"注意・備考", value: disp(confirmJob.cautions) },
+          { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
+          { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
+          { label:"保険",     value: insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません" },
+        ];
+        const done = confirmStep >= rows.length;
+        return (
+          <div onClick={()=>setConfirmBoxOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:18, padding:"20px", maxWidth:420, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+              <button onClick={()=>setConfirmBoxOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>はじめる前の確認</p>
+              <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 14px" }}>{chatJobNumber != null ? `求人 #${chatJobNumber}　` : ""}{!done ? `${confirmStep + 1} / ${rows.length}` : "内容の確認"}</p>
+              {!done ? (
+                <div>
+                  <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 4px" }}>{rows[confirmStep].label}</p>
+                  <p className="f-sans" style={{ fontSize:16, color:"#222", fontWeight:700, lineHeight:1.7, margin:"0 0 6px", overflowWrap:"break-word", wordBreak:"break-word" }}>{rows[confirmStep].value}</p>
+                  {rows[confirmStep].mapUrl && (
+                    <a href={rows[confirmStep].mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ display:"inline-block", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", marginBottom:6 }}>📍 Googleマップで開く →</a>
+                  )}
+                  <div style={{ height:12 }} />
+                  <div style={{ display:"flex", gap:8 }}>
+                    {confirmStep > 0 && (
+                      <button onClick={()=>setConfirmStep(s=>s-1)} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 前へ</button>
+                    )}
+                    <button onClick={()=>setConfirmStep(s=>s+1)} className="f-sans" style={{ flex:1, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>はい</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display:"grid", gap:10, marginBottom:14 }}>
+                    {rows.map(row => (
+                      <div key={row.label} style={{ display:"flex", justifyContent:"space-between", gap:12, borderBottom:"1px solid #F7F7F7", paddingBottom:8 }}>
+                        <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>{row.label}</span>
+                        {row.mapUrl ? (
+                          <a href={row.mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ fontSize:13, color:"#00A86B", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word", textDecoration:"underline" }}>✓ {row.value} 📍</a>
+                        ) : (
+                          <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}>✓ {row.value}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={async ()=>{ await confirmTerms(); setConfirmBoxOpen(false); }} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>
+                    {confirmingTerms ? "..." : "内容に相違ありません"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
         {/* 採用するボタン（農家側・2026-07-19）：チャット右上に浮遊（sticky＝スクロールしても右上に留まる）。
