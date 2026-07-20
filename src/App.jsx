@@ -9230,7 +9230,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         auth_id: session.user.id,
         has_transport: perkDraft.has_transport,
         has_parking: perkDraft.has_parking,
-        parking_capacity: perkDraft.has_parking ? (perkDraft.parking_capacity || "") : "",
+        // parking_capacityはinteger列。「3台」等の文字が混ざっても数字だけ取り出し、空はnull（2026-07-19修正）
+        parking_capacity: (() => { const n = parseInt(String(perkDraft.parking_capacity ?? "").replace(/[^0-9]/g, ""), 10); return (perkDraft.has_parking && Number.isFinite(n)) ? n : null; })(),
         has_commute_allowance: perkDraft.has_commute_allowance,
         has_bonus: perkDraft.has_bonus,
         employer_pays_supplies: perkDraft.employer_pays_supplies,
@@ -10801,7 +10802,10 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                                 {row.l}{perkDraft[row.k] ? "　✓" : ""}
                               </button>
                               {row.tk && perkDraft[row.k] && (
-                                <input value={perkDraft[row.tk]} onChange={e=>setPerkDraft(p=>({ ...p, [row.tk]: e.target.value }))} placeholder={row.tp} className="field f-sans" style={{ fontSize:13, marginTop:8, marginBottom:0 }} />
+                                // 台数(parking_capacity)はinteger列so数字のみ入力させる（「3台」等を弾く・2026-07-19）
+                                <input value={perkDraft[row.tk]} inputMode={row.tk === "parking_capacity" ? "numeric" : "text"}
+                                  onChange={e=>{ const v = row.tk === "parking_capacity" ? e.target.value.replace(/[^0-9]/g, "") : e.target.value; setPerkDraft(p=>({ ...p, [row.tk]: v })); }}
+                                  placeholder={row.tp} className="field f-sans" style={{ fontSize:13, marginTop:8, marginBottom:0 }} />
                               )}
                             </div>
                           ))}
