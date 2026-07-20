@@ -9203,6 +9203,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
   const [nearestStation, setNearestStation] = useState(d.nearestStation ?? "");
   const [jobPhotos, setJobPhotos] = useState(normalizePhotos(d.jobPhotos)); // 旧形式draft対策（真っ白バグ・2026-07-16）
+  // 写真の並び替え（2026-07-19）：確認ページで隣と入れ替え。先頭が求人カードのカバー
+  const movePhoto = (i, dir) => setJobPhotos(prev => { const j = i + dir; if (j < 0 || j >= prev.length) return prev; const next = [...prev]; [next[i], next[j]] = [next[j], next[i]]; return next; });
   const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [photoCaptionsOpen, setPhotoCaptionsOpen] = useState(false); // step8「写真ごとに説明」ポップアップ（2026-07-16）
@@ -10752,6 +10754,26 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                         <span key={i} style={{ fontSize:10, color: i === confActiveSlide ? "#00A86B" : "#D0D0D0" }}>{i === confActiveSlide ? "●" : "○"}</span>
                       ))}
                     </div>
+                    {/* 写真の並び替え（2026-07-19）：◀▶で隣と入れ替え。先頭が求人カードのカバー */}
+                    {jobPhotos.length > 1 && (
+                      <div style={{ maxWidth:870, margin:"12px auto 0" }}>
+                        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 8px" }}>写真の並び替え（先頭が求人カードの表紙になります）</p>
+                        <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, WebkitOverflowScrolling:"touch" }}>
+                          {jobPhotos.map((p, i) => (
+                            <div key={i} style={{ flexShrink:0, width:76 }}>
+                              <div style={{ position:"relative", width:76, height:76, borderRadius:8, overflow:"hidden", border: i === 0 ? "2px solid #00A86B" : "1px solid #EBEBEB" }}>
+                                <img src={p.url} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                                {i === 0 && <span className="f-sans" style={{ position:"absolute", top:4, left:4, fontSize:9, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:6, padding:"1px 5px" }}>表紙</span>}
+                              </div>
+                              <div style={{ display:"flex", gap:4, marginTop:4 }}>
+                                <button onClick={() => movePhoto(i, -1)} disabled={i === 0} aria-label="前へ" className="f-sans" style={{ flex:1, padding:"6px 0", fontSize:13, fontWeight:700, background:"#fff", color: i === 0 ? "#D0D0D0" : "#00A86B", border:"1px solid #EBEBEB", borderRadius:6, cursor: i === 0 ? "default" : "pointer" }}>◀</button>
+                                <button onClick={() => movePhoto(i, 1)} disabled={i === jobPhotos.length - 1} aria-label="次へ" className="f-sans" style={{ flex:1, padding:"6px 0", fontSize:13, fontWeight:700, background:"#fff", color: i === jobPhotos.length - 1 ? "#D0D0D0" : "#00A86B", border:"1px solid #EBEBEB", borderRadius:6, cursor: i === jobPhotos.length - 1 ? "default" : "pointer" }}>▶</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>}
                   </div>
                 );
