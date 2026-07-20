@@ -12267,7 +12267,16 @@ function AdminBoxRegistryPage() {
 
 function AdminTab({ onJump, onShowAccountForm }) {
   const [sub, setSub] = useState("jobs"); // "jobs" | "account" | "other"（審査をデフォルトタブに）
-  const [reviewSec, setReviewSec] = useState(null); // 審査タブ内の選択: null=ボックス格子 | jobs|accounts|prs|reports|disputes
+  const [reviewSec, setReviewSec] = useState(null); // 審査タブ内の選択: null=ボックス格子 | jobs|accounts|prs|reports|disputes|contracts
+  const [contracts, setContracts] = useState(null); // 契約スナップショット一覧（採用時に凍結・admin_list_contracts）
+  const [contractDetail, setContractDetail] = useState(null); // 展開中の1件（スナップショット詳細）
+  useEffect(() => {
+    if (reviewSec !== "contracts" || contracts !== null) return;
+    (async () => {
+      const { data } = await supabase.rpc("admin_list_contracts");
+      setContracts(Array.isArray(data) ? data : []);
+    })();
+  }, [reviewSec]); // eslint-disable-line react-hooks/exhaustive-deps
   const [accounts, setAccounts] = useState([]); // 新アカウントタブ：admin_list_accounts()の全ユーザー台帳
   const [expandedAccount, setExpandedAccount] = useState(null); // 展開中のauth_id
   const [revTarget, setRevTarget] = useState(null); // 差し戻し理由入力中のauth_id
@@ -13090,6 +13099,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"prs",      e:"📝", l:"自由記述",       n:pendingPrs.length + empPendingCount },
             { k:"reports",  e:"🚨", l:"通報",           n:openReports.length + openMsgReports.length },
             { k:"disputes", e:"⚖️", l:"欠勤異議",       n:disputes.length },
+            { k:"contracts",e:"📄", l:"契約記録",       n:0 },
           ].map(c => (
             <button key={c.k} onClick={()=>setReviewSec(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               {c.n > 0 && (
@@ -13395,7 +13405,87 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
         )}
 
+        {/* ⑥ 契約スナップショット（採用時に凍結・terms_snapshot）：争いの証跡。閲覧専用 */}
+        {reviewSec==="contracts" && (
+        <div>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 6px" }}>契約スナップショット{contracts ? `（${contracts.length}）` : ""}</p>
+          <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 12px" }}>採用が決まった瞬間（働き手の確認＋農家の採用）の契約条件を、そのまま凍結した記録です。あとから求人を編集しても、この内容は変わりません。</p>
+          <div style={{ display:"grid", gap:10 }}>
+            {contracts === null ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>読み込み中...</p>
+            ) : contracts.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>凍結された契約はまだありません（両者が確認・採用した時点で記録されます）</p>
+            ) : contracts.map(c => {
+              const s = c.snapshot || {};
+              const title = [s.crop, s.task].filter(Boolean).join(" ") || `求人 #${c.job_number}`;
+              return (
+                <button key={c.application_id} onClick={()=>setContractDetail(c)} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", background:"#fff", cursor:"pointer" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", gap:8 }}>
+                    <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8" }}>#{c.job_number}</span></span>
+                    <span style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{c.snapshot_at || ""}</span>
+                  </div>
+                  <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>{c.farmer_name || "農家"} ⇄ {c.worker_name || "働き手"}</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
+        )}
+
+        </div>
+      )}
+
+      {/* 契約スナップショット詳細（凍結内容の全項目・閲覧専用・中央ボックス規格） */}
+      {contractDetail && createPortal(
+        <div onClick={()=>setContractDetail(null)} className="cb-box-overlay" style={{ zIndex:9600 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>setContractDetail(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}>✕</button>
+            {(() => {
+              const c = contractDetail; const s = c.snapshot || {};
+              const title = [s.crop, s.task].filter(Boolean).join(" ") || `求人 #${c.job_number}`;
+              const wage = s.pay_type === "日給" ? (s.daily_wage ? `日給 ${s.daily_wage}円` : "") : (s.hourly_wage ? `時給 ${s.hourly_wage}円` : "");
+              const rows = [
+                ["求人", `${title}　#${c.job_number}`],
+                ["当事者", `農家：${c.farmer_name || "—"}／働き手：${c.worker_name || "—"}`],
+                ["凍結時刻", c.snapshot_at || "—"],
+                ["働き手の確認", c.worker_confirmed_at || "—"],
+                ["農家の採用", c.farmer_confirmed_at || "—"],
+                ["日程", s.date_label || [s.date_start, s.date_end].filter(Boolean).join("〜") || "—"],
+                ["勤務時間", s.work_time || "—"],
+                ["休憩", s.break_time || "—"],
+                ["募集人数", s.headcount != null ? `${s.headcount}名` : "—"],
+                ["報酬", wage || "—"],
+                ["満額保証", s.full_pay_guarantee ? "あり" : "—"],
+                ["場所", [s.prefecture, s.city, s.town, s.address].filter(Boolean).join("") || "—"],
+                ["最寄り駅", s.nearest_station ? `${s.nearest_station}（${s.commute_time || "—"}）` : "—"],
+                ["持ち物", s.belongings || "—"],
+                ["注意・備考", s.cautions || "—"],
+                ["作業説明", s.notes || "—"],
+              ];
+              return (
+                <>
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 2px" }}>📄 契約スナップショット（凍結・閲覧専用）</p>
+                  <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 12px" }}>{title}</p>
+                  <div style={{ display:"grid", gap:8 }}>
+                    {rows.map(([k, v]) => (
+                      <div key={k} style={{ display:"flex", gap:10, borderBottom:"1px solid #F7F7F7", paddingBottom:8 }}>
+                        <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:72, flexShrink:0 }}>{k}</span>
+                        <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {Array.isArray(s.photos) && s.photos.length > 0 && (
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:12 }}>
+                      {s.photos.map((p, i) => { const u = typeof p === "string" ? p : p?.url; return u ? <img key={i} src={u} alt="" style={{ width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid #EEE" }} /> : null; })}
+                    </div>
+                  )}
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"14px 0 0" }}>この記録は採用時に凍結されており、変更できません（争いの証跡）。</p>
+                </>
+              );
+            })()}
+          </div>
+        </div>,
+        document.body
       )}
 
       {previewJobNumber != null && (
