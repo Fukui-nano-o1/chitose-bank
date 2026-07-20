@@ -6849,7 +6849,9 @@ function WorkerApplications({ filter, me }) {
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[jobDates[a.job_number]?.crop, jobDates[a.job_number]?.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+                {/* お仕事の流れ（応募→承認→打合せ・面接→採用→仕事→評価）を可視化（2026-07-19） */}
+                {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={a} /></div>}
                 {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
                 {CHAT_ELIGIBLE_STATUSES.includes(a.status) && isWorkDayToday(jobDates[a.job_number]?.date_start, jobDates[a.job_number]?.date_end) && (
                   a.started_at ? (
@@ -6896,10 +6898,55 @@ function WorkerApplications({ filter, me }) {
       </div>
     );
   };
+  // お仕事の流れ（2026-07-19）：応募→承認→打合せ・面接→採用→仕事→評価。各カードで現在地を可視化
+  const FLOW_STEPS = ["応募", "承認", "打合せ・面接", "採用", "仕事", "評価"];
+  const flowState = (a) => {
+    const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）
+    const worked = a.status === "completed";
+    const reviewed = !!a.worker_confirmed_end_at || (a.status === "completed" && a.attended === false);
+    const done = [true, true, bothConfirmed, bothConfirmed, worked, reviewed];
+    return { done, active: done.findIndex(d => !d) };
+  };
+  const FlowBar = ({ a }) => {
+    const { done, active } = flowState(a);
+    return (
+      <div style={{ display:"flex", alignItems:"flex-start", marginTop:12 }}>
+        {FLOW_STEPS.map((s, i) => {
+          const isDone = done[i]; const isActive = i === active;
+          const reached = isDone || isActive;
+          return (
+            <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
+              {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#00A86B" : "#E5E5E5" }} />}
+              <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
+                background: isDone ? "#00A86B" : "#fff", border: isDone ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
+                {isDone ? "✓" : ""}
+              </div>
+              <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#00A86B" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
+      {/* お仕事の流れバナー（2026-07-19・チェックタブのみ） */}
+      {filter === "approved" && apps.length > 0 && (
+        <div style={{ background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:14, padding:"14px 16px", marginBottom:16 }}>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 4px" }}>お仕事は、この流れで進みます</p>
+          <p className="f-sans" style={{ fontSize:12, color:"#5B7B6D", margin:"0 0 12px", lineHeight:1.6 }}>いまどこまで進んでいるかは、各求人カードでわかります。</p>
+          <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:"4px 2px" }}>
+            {FLOW_STEPS.map((s, i) => (
+              <Fragment key={s}>
+                {i > 0 && <span style={{ color:"#9BC4B3", fontSize:12, fontWeight:700 }}>→</span>}
+                <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#0B6B4F", background:"#fff", border:"1px solid #CDE9DD", borderRadius:20, padding:"4px 10px" }}>{s}</span>
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      )}
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 0" }}>読み込み中...</p>
       ) : apps.length === 0 ? (
@@ -6909,20 +6956,25 @@ function WorkerApplications({ filter, me }) {
           <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>{filter === "approved" ? "農家が承認すると、ここに表示されます。" : "「さがす」から求人に応募できます。"}</p>
         </div>
       ) : filter === "approved" ? (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-          {/* 農家の作成中ページと同設計：正方形写真＋状態リボン＋タイトルのみ。タップでボトムシート展開 */}
+        // フロー可視化のため1列リスト（2026-07-19）：写真＋タイトル＋状態＋進捗ステッパー。タップでボトムシート
+        <div style={{ display:"grid", gap:12 }}>
           {apps.map(a => {
             const job = jobDates[a.job_number] || {};
             const photo = job.photos && job.photos[0] ? (typeof job.photos[0] === "string" ? job.photos[0] : job.photos[0]?.url) : null;
             return (
               <button key={a.id} onClick={()=>setSheetAppId(a.id)}
                 className={"f-sans" + (isAppDone(a) ? "" : " cb-urgent-card")}
-                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                  <StatusRibbon label={ribbonLabel(a)} color={ribbonColor(a)} />
+                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px 14px", cursor:"pointer" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ width:52, height:52, borderRadius:10, background:"#F7F7F7", flexShrink:0, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>
+                    {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</p>
+                    <span className="f-sans" style={{ display:"inline-block", marginTop:4, fontSize:11, fontWeight:700, padding:"2px 10px", borderRadius:20, background: ribbonColor(a) === "#00A86B" ? "#E6F7EF" : ribbonColor(a) === "#C77700" ? "#FFF4E0" : "#F3F3F3", color: ribbonColor(a) }}>{ribbonLabel(a)}</span>
+                  </div>
                 </div>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</p>
+                <FlowBar a={a} />
               </button>
             );
           })}
