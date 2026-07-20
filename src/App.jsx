@@ -650,6 +650,9 @@ input:focus { outline: none; }
   /* スクロール連動の自動格納（Part C）。求人詳細では上のdisplay:noneガードが優先される */
   body.cb-scroll-hide .app-header-mobile { transform: translateY(calc(100% + env(safe-area-inset-bottom, 0px))); }
   .bottom-tab-bar { display: none !important; }
+  /* 入力中（キーボード表示中）は下部バー・浮遊☰を隠す（2026-07-19）。入力欄と被らせない */
+  body.cb-typing .app-header-mobile,
+  body.cb-typing .app-header-mobile-float { display: none !important; }
 }
 
 /* ── チャット縦最大化（2026-07-19）：mainの上余白を打ち消し、下部バー直上まで拡大。
@@ -16905,6 +16908,24 @@ export default function App(){
       document.body.classList.remove('cb-dir-down');
     };
   }, [chatAppId]);
+
+  // 入力中（テキスト入力にフォーカス＝キーボード表示）は下部バー・浮遊☰を隠す（2026-07-19）。
+  // 入力欄の切替でチラつかないよう、blur時は少し遅らせて判定
+  useEffect(() => {
+    const isTextField = (el) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === "TEXTAREA") return true;
+      if (tag === "INPUT") { const t = (el.type || "text").toLowerCase(); return !["checkbox","radio","button","submit","reset","file","range","color","image"].includes(t); }
+      return el.isContentEditable === true;
+    };
+    let t = null;
+    const onFocusIn = (e) => { if (isTextField(e.target)) { if (t) { clearTimeout(t); t = null; } document.body.classList.add("cb-typing"); } };
+    const onFocusOut = () => { if (t) clearTimeout(t); t = setTimeout(() => { if (!isTextField(document.activeElement)) document.body.classList.remove("cb-typing"); }, 120); };
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
+    return () => { document.removeEventListener("focusin", onFocusIn); document.removeEventListener("focusout", onFocusOut); if (t) clearTimeout(t); document.body.classList.remove("cb-typing"); };
+  }, []);
 
   useEffect(()=>{(async()=>{
     const { data, error } = await supabase.rpc('public_farmers_count');
