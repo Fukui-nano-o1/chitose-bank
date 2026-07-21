@@ -5775,6 +5775,7 @@ const WORKER_QA_QUESTIONS = [
   ]},
   { group:"経験", questions:[
     "これまでの農作業の経験を教えてください",
+    "これまでにどんな農作業の経験がありますか？（他のサービスや手伝いでの経験も、作業の内容で教えてください）",
     "農業以外の仕事・バイトの経験は？",
     "使ったことのある道具や機械はありますか？",
     "体を動かすことは好きですか？",
@@ -5792,6 +5793,12 @@ const WORKER_QA_QUESTIONS = [
     "このバイトで得たいことは？",
   ]},
 ];
+
+// 特定の問いにだけ入力例を添える（回数・バッジ・星ではなく「作業の中身」を書いてもらう誘導）。
+// キーは質問文そのもの。未定義の問いはプレースホルダなし
+const WORKER_QA_PLACEHOLDERS = {
+  "これまでにどんな農作業の経験がありますか？（他のサービスや手伝いでの経験も、作業の内容で教えてください）": "ナスの収穫と袋詰めを2シーズン。朝の市場出しも手伝いました",
+};
 
 // 15秒カード用プリセット（2026-07-14たきと判断でCLAUDE.md許可リストに追加。詳細はCLAUDE.md参照）
 const WORK_INTENSITY_OPTIONS = ["軽めの作業希望", "どちらでも", "力仕事もOK"];
@@ -6559,6 +6566,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
               onChange={e=>setQaDraft(e.target.value)}
               rows={3}
               autoFocus
+              placeholder={WORKER_QA_PLACEHOLDERS[activeQ] || ""}
               className="field f-sans"
               style={{ width:"100%", fontSize:14, marginBottom:10, resize:"vertical" }}
             />
@@ -16787,6 +16795,7 @@ const HELP_CONTENT = {
     items: [
       { key:"info-personalData", label: "氏名・住所・生年月日・電話", body: "運営のみが保管します。画面には「✓ 本人確認済み」バッジだけが表示されます。" },
       { key:"info-profileData",  label: "ニックネーム・写真・自己紹介・Q&A・タグ", body: "応募先の農家に表示されます。自由記述は運営が確認してから公開されます。" },
+      { key:"info-externalRecord", label: "他のサービスでの実績について", body: "他サービスでの経験は、ご本人の自己申告として表示されます。運営が確認したものではありません。\nchitose-bankの実績（🌟・完了数・作業時間）は、このサイトでの働きの記録からだけ作られ、自己申告では増えません。" },
       { key:"info-address",      label: "集合場所の番地", body: "承認された働き手にだけ表示されます。" },
       { key:"info-chat",         label: "チャット", body: "当事者だけが読めます。" },
       { key:"info-reviews",      label: "評価", body: "良い評価のみ公開されます。お互いの評価が揃うか、3日たつまでは相手に見えません。メモは自分だけが見られます。" },
