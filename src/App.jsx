@@ -4983,8 +4983,8 @@ function YesNoPill({ label, value, onChange }) {
 }
 
 // 緊急連絡の種別選択肢（当事者ごとに異なる）。attendance_events.kindのCHECK制約と対応
-const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }];
-const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }];
+const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }, { v:"no_show_report", l:"👻 現地に相手がいません・連絡がつきません" }];
+const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }, { v:"no_show_report", l:"👻 現地に相手がいません・連絡がつきません" }];
 
 // アップロード前のクライアント圧縮（2026-07-16）：長辺1600px・JPEG品質0.8に縮小する。
 // 原寸4MB級の写真が確認ページ等で「白いまま読み込み待ち」になる問題と、転送量（egress）対策の両方。
@@ -7096,15 +7096,20 @@ function WorkerApplications({ filter, me }) {
                     <p style={{ margin:0, fontSize:12, color:"#717171" }}>{emergencyCtx.dateLabel && "作業日 " + emergencyCtx.dateLabel}{emergencyCtx.dateLabel && emergencyCtx.partnerName && "　"}{emergencyCtx.partnerName && "相手：" + emergencyCtx.partnerName + "さん"}</p>
                   </div>
                 )}
-                <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
                   {WORKER_EMERGENCY_KINDS.map(k => (
                     <button key={k.v} type="button" onClick={()=>setEmergencyKind(k.v)} className="f-sans" style={{
-                      flex:1, padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
+                      flex: k.v==="no_show_report" ? "1 1 100%" : "1 1 0", padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
                       borderColor: emergencyKind===k.v ? "#00A86B" : "#EBEBEB",
                       background: emergencyKind===k.v ? "#E6F7EF" : "#fff", color: emergencyKind===k.v ? "#00A86B" : "#222",
                     }}>{k.l}</button>
                   ))}
                 </div>
+                {emergencyKind==="no_show_report" && (
+                  <div className="f-sans" style={{ background:"#FFF4E0", borderRadius:10, padding:"10px 12px", marginBottom:12, fontSize:12, color:"#C77700", lineHeight:1.7 }}>
+                    まずチャットか電話で連絡を試してください。15分待っても会えない時にこの連絡を送ると、相手と運営に即時に通知され、日時が記録されます。
+                  </div>
+                )}
                 <textarea value={emergencyReason} onChange={e=>setEmergencyReason(e.target.value)} placeholder="理由・詳細" rows={4}
                   className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
@@ -15805,15 +15810,21 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                     <p style={{ margin:0, fontSize:12, color:"#717171" }}>{emergencyCtx.dateLabel && "作業日 " + emergencyCtx.dateLabel}{emergencyCtx.dateLabel && emergencyCtx.partnerName && "　"}{emergencyCtx.partnerName && "相手：" + emergencyCtx.partnerName + "さん"}</p>
                   </div>
                 )}
-                <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
                   {FARMER_EMERGENCY_KINDS.map(k => (
                     <button key={k.v} type="button" onClick={()=>setEmergencyKind(k.v)} className="f-sans" style={{
-                      flex:1, padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
+                      flex: k.v==="no_show_report" ? "1 1 100%" : "1 1 0", padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
                       borderColor: emergencyKind===k.v ? "#00A86B" : "#EBEBEB",
                       background: emergencyKind===k.v ? "#E6F7EF" : "#fff", color: emergencyKind===k.v ? "#00A86B" : "#222",
                     }}>{k.l}</button>
                   ))}
                 </div>
+                {emergencyKind==="no_show_report" && (
+                  <div className="f-sans" style={{ background:"#FFF4E0", borderRadius:10, padding:"10px 12px", marginBottom:12, fontSize:12, color:"#C77700", lineHeight:1.7 }}>
+                    まずチャットか電話で連絡を試してください。15分待っても会えない時にこの連絡を送ると、相手と運営に即時に通知され、日時が記録されます。<br/>
+                    作業後の欠勤の記録とは別の、その場の緊急連絡です。
+                  </div>
+                )}
                 <textarea value={emergencyReason} onChange={e=>setEmergencyReason(e.target.value)} placeholder="理由・詳細" rows={4}
                   className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
@@ -16765,7 +16776,7 @@ const HELP_CONTENT = {
       { key:"mails-reviewRequest",     label: "M13　評価のお願い", body: "いつ：作業が完了した時／誰に：働き手" },
       { key:"mails-reviewArrived",     label: "M19　🌟評価が届きました", body: "いつ：相手からの評価が公開された時／誰に：農家・働き手の双方／内容：お互いの評価が揃うか、3日たつと公開されます（3日ルール）" },
       { key:"mails-noShow",            label: "M14　欠勤の記録", body: "いつ：農家が欠勤を記録した時／誰に：働き手／内容：72時間以内に異議申立ができます" },
-      { key:"mails-emergency",         label: "M11　緊急連絡", body: "いつ：遅刻・欠勤・中止・延期・欠勤記録への異議の連絡があった時／誰に：相手方（即時）" },
+      { key:"mails-emergency",         label: "M11　緊急連絡", body: "いつ：遅刻・欠勤・中止・延期・欠勤記録への異議の連絡があった時／誰に：相手方（即時）\n現地で会えない時の連絡も、ここから送れます（日時が記録され、話し合いの資料になります）" },
       { key:"mails-repeatNewJob",      label: "M16　🌟また呼びたい農家さんの新求人", body: "いつ：あなたを「また呼びたい」に登録した農家さんが新しい求人を公開した時／誰に：指名リストの働き手" },
       { key:"mails-repeatInstant",       label: "M17　🌟即決で承認されました", body: "いつ：以前「また呼びたい」と評価してくれた農家さんの求人に応募し、選考なしで確定した時／誰に：働き手" },
       { key:"mails-repeatInstantFarmer", label: "M18　🌟リピート即決のお知らせ", body: "いつ：自分の求人の設定（また呼びたい即決）に基づいて自動承認が実行された時／誰に：農家" },
