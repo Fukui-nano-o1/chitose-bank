@@ -1235,3 +1235,13 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 - 検収時は pg_policies（RLSポリシー）と information_schema.role_table_grants（権限）の
   両方を見る。ポリシーだけ見て合格にしない——ビューの書き込み権限はポリシーに映らない
 ━━━ ここまで ━━━
+
+━━━ 2026-07-21 DB二頭運転の交通規則 — 絶対遵守 ━━━
+DBを変更できる手が2つある（Claude=MCP直接／CC=repo migration）。衝突防止の則：
+1. 着手前に必ず既存確認（トリガーはpg_trigger・関数はpg_proc・「無いはず」を信じない）
+2. 同じ目的のオブジェクトを見つけたら、作らずに報告（凍結トリガー二重が前例）
+3. 正本はrepo migration側（版管理される方）。Claude直接適用分は、恒久物ならCCが
+   repo migrationに写して二重化を解消してよい
+4. 新しいDB変更はどちらの手で適用しても、セッション終了前に履歴表（supabase_migrations.
+   schema_migrations）と supabase/migrations/ の差分を写経して同期する
+━━━ ここまで ━━━
