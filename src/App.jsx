@@ -12355,6 +12355,16 @@ function ConsignmentRoom() {
 //    2タブ構成（🗂ボックス台帳 ⇄ 📢お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
 //    （農家プロ作成中⇄公開中と同じページャー作法）。台帳はadmin_box_registry / admin_notice_registry（RLSで管理者限定）。
 //    閲覧専用（2026-07-17変更）：編集UIは持たない。行タップで「本番に出る姿」をそのまま展開し、展開機会と説明を添える
+// 段階お祝いボックスの本番見た目プレビュー（ボックス一覧の preview_key='stage:...' から参照）。
+// 文面は App 内の実定義(defs・17555付近)をサンプル題名で写したもの。実定義を変えたらここも合わせる
+const STAGE_BOX_PREVIEWS = {
+  "w:approved": { emoji:"🎉", head:"承認されました！",         body:"「ブロッコリー 収穫」に承認されました。打ち合わせ・面接をチャットで進めましょう。", link:"チャットを開く →" },
+  "w:worked":   { emoji:"🌾", head:"お仕事おつかれさまでした", body:"農家が「ブロッコリー 収穫」の作業完了を記録しました。最後に、お互いを評価しましょう。", link:"評価する →" },
+  "w:reviewed": { emoji:"⭐", head:"評価を送りました",         body:"ありがとうございました。「ブロッコリー 収穫」の実績が、あなたのプロフィールに反映されます。", link:"実績を見る →" },
+  "f:applied":  { emoji:"📩", head:"新しい応募が届きました",   body:"「ブロッコリー 収穫」に新しい応募があります。プロフィールを見て、承認するか決めましょう。", link:"応募者を見る →" },
+  "f:worked":   { emoji:"🌾", head:"作業が完了しました",       body:"「ブロッコリー 収穫」の作業が完了しました。働き手を評価しましょう。", link:"応募者を見る →" },
+};
+
 function AdminBoxRegistryPage() {
   const hashToTab = () => (window.location.hash.replace(/^#\/?/, "").startsWith("boxes/notices") ? "notices" : "boxes");
   const [pTab, setPTab] = useState(() => { try { return hashToTab(); } catch { return "boxes"; } });
@@ -12489,6 +12499,24 @@ function AdminBoxRegistryPage() {
               <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>🗂 {preview.name}</p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
+              {(() => {
+                // preview_key='stage:...' の行は、本番の段階お祝いボックスの見た目をそのまま展開して見せる
+                const sk = preview.preview_key && preview.preview_key.startsWith("stage:") ? preview.preview_key.slice(6) : null;
+                const sb = sk ? STAGE_BOX_PREVIEWS[sk] : null;
+                if (!sb) return null;
+                return (
+                  <div style={{ marginBottom:18 }}>
+                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 8px" }}>本番の見た目（サンプル題名）</p>
+                    <div className="f-sans" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"24px 20px 20px", boxShadow:"0 6px 24px rgba(0,0,0,0.12)", textAlign:"left" }}>
+                      <div style={{ fontSize:34, marginBottom:8 }}>{sb.emoji}</div>
+                      <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={sb.head} /></p>
+                      <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
+                      <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>{sb.body}</p>
+                      <span className="f-sans" style={{ display:"inline-block", marginTop:16, borderBottom:"2px solid #00A86B", padding:"0 0 2px", fontSize:18, fontWeight:700, color:"#00A86B" }}>{sb.link}</span>
+                    </div>
+                  </div>
+                );
+              })()}
               <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 6px" }}>展開機会・説明（どこから開くか）</p>
               <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.9, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{preview.where_from || "（説明未登録）"}</p>
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:16, borderTop:"1px solid #F7F7F7", paddingTop:12 }}>
