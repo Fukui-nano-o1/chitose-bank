@@ -1245,3 +1245,13 @@ DBを変更できる手が2つある（Claude=MCP直接／CC=repo migration）�
 4. 新しいDB変更はどちらの手で適用しても、セッション終了前に履歴表（supabase_migrations.
    schema_migrations）と supabase/migrations/ の差分を写経して同期する
 ━━━ ここまで ━━━
+
+━━━ 2026-07-22 DB実装ルール：jobs_public に列を足したら SETOF 関数も同時に直す — 絶対遵守 ━━━
+jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public の関数の SELECT 列も
+必ず同数・同順で合わせる。合わせ忘れると呼び出し時に実行時エラー
+（42804 structure of query does not match function result type / return type mismatch）になり、
+その関数を使う画面が「求人が見つかりません」等で全滅する（DDL時ではなく呼び出し時に落ちるので気づきにくい）。
+- 対象関数（現時点で2本）：admin_preview_job（管理タブ審査プレビュー）／employer_public_jobs（雇い手プロフィールの過去の求人）
+- 前例：2026-07-21に hired_count を1列追加→両関数が34列のまま→審査プレビューが開けなくなった（2026-07-22修正）
+- 洗い出し：select proname from pg_proc where pg_get_function_result(oid) ilike '%jobs_public%'（prokind='f'で絞る）
+━━━ ここまで ━━━
