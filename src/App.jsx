@@ -7561,7 +7561,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         try { const { count } = await supabase.from("jobs_public").select("job_number", { count: "exact", head: true }); openCount = count || 0; } catch {}
         const { data: ts } = await supabase.rpc("my_worker_trust_stats");
         if (!cancelled && ts?.ok) setWTrust(ts);
-        if (!cancelled) setWHub({ today: todayCount, searchOpen: openCount, reviewed: ts?.reviewed_count || 0 });
+        if (!cancelled) setWHub({ today: todayCount, searchOpen: openCount, reviewed: ts?.reviewed_count || 0, completed: ts?.completed_count || 0, hours: ts?.total_hours || 0, wantAgain: ts?.want_again_count || 0 });
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -7703,17 +7703,24 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
               );
               return (<>
                 {sec("📌 いま", [
-                  { e:"✅", l:"きょうの仕事", h:"/profile/worker/approved", n:wHub.today },
+                  { e:"✅", l:"きょうの仕事", h:"/profile/worker/approved", n:wHub.today, sub:"開始・終了の確認もここから" },
                   { e:"📨", l:"返事待ち",     h:"/profile/worker/applying", n:wAppCounts.applying },
                 ])}
                 {sec("🔎 次の仕事", [
                   { e:"🔍", l:"さがす", h:"/search", sub:`きょう応募できる求人 ${wHub.searchOpen}件` },
                   { e:"💚", l:"いいね", h:"/saved" },
                 ])}
-                {sec("📖 わたしの記録", [
-                  { e:"🌟", l:"わたしの実績", onClick:()=>{ setShowWAch(true); setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {} }, mark: wHub.reviewed > wSeenReviews },
-                  { e:"📅", l:"カレンダー", h:"/profile/worker/calendar" },
-                ])}
+                <div style={{ marginTop:16 }}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>📖 わたしの記録</p>
+                  <button onClick={()=>{ setShowWAch(true); setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {} }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                    {wHub.reviewed > wSeenReviews && <span style={{ position:"absolute", top:10, right:12, fontSize:18, lineHeight:1 }}>🌟</span>}
+                    <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🌟</span>
+                    <span style={{ flex:1, minWidth:0 }}>
+                      <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>わたしの実績</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>完了 {wHub.completed}回　🌟 {wHub.wantAgain}　作業 {wHub.hours}時間</span>
+                    </span>
+                  </button>
+                </div>
               </>);
             })()}
             {showWAch && (
@@ -15486,6 +15493,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                 {c.n > 0 && <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
                 <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
                 <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+                {c.sub && <span className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", lineHeight:1.4 }}>{c.sub}</span>}
               </button>
             );
             const eSec = (title, boxes) => (
@@ -15498,7 +15506,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               {eSec("📌 いま", [
                 // 応募者：バッジは未完了（完了・見送り以外）のみ計上。未承認あり＝赤バッジ＋浮遊／保険未チェックのみ＝赤影
                 { e:"🤝", l:"応募者", n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending },
-                { e:"✅", l:"きょうの仕事", n:todayCount, h:"/profile/employer/calendar" },
+                { e:"✅", l:"きょうの仕事", n:todayCount, h:"/profile/employer/calendar", sub:"開始・終了の確認もここから" },
               ])}
               {eSec("📋 求人の管理", [
                 { e:"🌱", l:"作成中", n:dbDrafts.length, h:"/profile/employer/drafts" },
@@ -15514,31 +15522,20 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             </span>
           </button>
           <div style={{ marginTop:16 }}>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>📖 記録と予定</p>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-              <button onClick={()=>setShowRoster(true)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
-                {rosterRows.length > 0 && <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{rosterRows.length}</span>}
-                <span style={{ fontSize:44, lineHeight:1 }}>❤️</span>
-                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>また呼びたいリスト</span>
-              </button>
-              <button onClick={()=>{ window.location.hash="/profile/employer/calendar"; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
-                <span style={{ fontSize:44, lineHeight:1 }}>📅</span>
-                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>カレンダー</span>
-              </button>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>📖 記録</p>
+            <div className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 12px" }}>
+                <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>❤️ また呼びたいリスト</p>
+                <button onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" className="f-sans" style={{ width:22, height:22, borderRadius:11, background: rosterInfoOpen ? "#00A86B" : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", border:"none", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</button>
+              </div>
+              {rosterInfoOpen && (
+                <p className="fade-in" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>一緒に働いたあと「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
+              )}
+              {rosterRows.length === 0
+                ? <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます。</p>
+                : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
             </div>
           </div>
-          {showRoster && (
-            <div onClick={()=>setShowRoster(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
-              <div onClick={e=>e.stopPropagation()} className="f-sans" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
-                <button onClick={()=>setShowRoster(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1 }}>✕</button>
-                <p style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 6px" }}>❤️ また呼びたいリスト</p>
-                <p style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>一緒に働いたあと「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
-                {rosterRows.length === 0
-                  ? <p style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px", lineHeight:1.8 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます</p>
-                  : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
-              </div>
-            </div>
-          )}
           <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
         </>
       ) : (
