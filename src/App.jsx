@@ -7310,7 +7310,19 @@ function WorkerApplications({ filter, me }) {
       ? (Number(job.daily_wage) ? `日給${Number(job.daily_wage).toLocaleString()}円` : "")
       : (Number(job.hourly_wage) ? `時給${Number(job.hourly_wage).toLocaleString()}円` : "");
     const summary = [job.date_start ? calFmtDate(job.date_start) : "", job.work_time || "", wage, town].filter(Boolean).join("　");
-    const deadline = job.date_start ? calFmtDate(dayBefore(job.date_start)) : null;
+    // ⏰約束の分岐（2026-07-22）：終了/開始超過→終了文／期限日(前日)が過去→失効予告／通常→前日までに。過去日付は絶対に出さない
+    const startYmd = job.date_start || null;
+    const startMoment = (() => {
+      if (!startYmd) return null;
+      const [Y, M, D] = startYmd.split("-").map(Number);
+      const tm = job.work_time && String(job.work_time).match(/(\d{1,2}):(\d{2})/); // "H:MM〜..." の先頭＝開始時刻。無ければ日末扱い
+      return new Date(Y, M - 1, D, tm ? parseInt(tm[1], 10) : 23, tm ? parseInt(tm[2], 10) : 59);
+    })();
+    // 求人がjobs_public(open)に無い＝閉鎖/充足、または開始時刻を過ぎた＝終了
+    const jobEnded = !startYmd || (!!startMoment && Date.now() > startMoment.getTime());
+    const deadlineYmd = startYmd ? dayBefore(startYmd) : null;
+    const deadlinePast = deadlineYmd ? (deadlineYmd < ymdLocal(new Date())) : false;
+    const deadline = deadlineYmd ? calFmtDate(deadlineYmd) : null;
     const bucket = respBucket(respByFarmer[a.farmer_id]);
     const activeIdx = 1; // 現在＝2段目（農家が確認中）
     return (
@@ -7337,13 +7349,21 @@ function WorkerApplications({ filter, me }) {
             );
           })}
         </div>
-        {/* 期限の約束（作業日の前日までに必ず結果が届く） */}
-        {deadline && (
+        {/* 期限の約束（2026-07-22 分岐）：終了→終了文／期限日が過去→失効予告／通常→前日までに（過去日付は出さない） */}
+        {jobEnded ? (
+          <div style={{ background:"#F3F3F3", border:"1px solid #E0E0E0", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:0, lineHeight:1.7 }}>この求人は終了しました。応募はまもなく自動で失効し、お知らせが届きます</p>
+          </div>
+        ) : deadlinePast ? (
+          <div style={{ background:"#FFF8E7", border:"1px solid #F5D98F", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", margin:0, lineHeight:1.7 }}>⏰ 開始時刻までに返事がない場合は、自動で失効のお知らせが届きます</p>
+          </div>
+        ) : deadline ? (
           <div style={{ background:"#FFF8E7", border:"1px solid #F5D98F", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
             <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", margin:0, lineHeight:1.7 }}>⏰ 遅くとも <b>{deadline}</b> までに必ず結果が届きます</p>
             <p className="f-sans" style={{ fontSize:11, color:"#B08A2E", margin:"2px 0 0", lineHeight:1.6 }}>（返事がない場合も自動でお知らせします）</p>
           </div>
-        )}
+        ) : null}
         {/* 農家の返答傾向（信頼カードの返答速度を転用・データ不足時は非表示） */}
         {bucket && (
           <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", margin:"0 0 2px" }}>💬 この農家さんの返答：これまで おおむね{bucket}</p>
