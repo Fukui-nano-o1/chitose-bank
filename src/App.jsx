@@ -17289,7 +17289,10 @@ export default function App(){
       const rawHash = window.location.hash.replace(/^#\/?/, "");
       const _em = rawHash.match(/^emergency\/([0-9a-fA-F-]+)$/);
       if (_em) { resolveEmergencyLink(_em[1]); return; }
-      setEmpCtx(rawHash.startsWith("profile/employer")); // ヘッダーアイコンの働き手/雇い手切替
+      // 現在モード（雇い手/働き手）はempCtxに集約（同一ソース・二重状態を作らない）。プロフィールの側に入った時だけ
+      // 更新し、共通タブ（カレンダー/チャット等）へ移っても保持（sticky・localStorage永続）。下部ナビの役割追従もこれを見る
+      if (rawHash.startsWith("profile/employer")) { setEmpCtx(true); try { localStorage.setItem("cb_empCtx","1"); } catch {} }
+      else if (rawHash === "profile" || rawHash.startsWith("profile/worker")) { setEmpCtx(false); try { localStorage.setItem("cb_empCtx","0"); } catch {} }
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
       if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
       setShowApplyDone(rawHash === "apply/done");
@@ -17335,7 +17338,19 @@ export default function App(){
   // 取得はme.id変化と雇い手空間の出入り(empCtx)ごと。編集画面での変更はonAvatarChangeで即時反映（マージ更新）。
   const [meAvatar,setMeAvatar]=useState({ url:"", name:"", empUrl:"", empName:"" });
   const isEmpCtxHash = () => window.location.hash.replace(/^#\/?/, "").startsWith("profile/employer");
-  const [empCtx, setEmpCtx] = useState(() => { try { return isEmpCtxHash(); } catch { return false; } });
+  const [empCtx, setEmpCtx] = useState(() => { try { const s = localStorage.getItem("cb_empCtx"); return s !== null ? s === "1" : isEmpCtxHash(); } catch { return false; } });
+  const [empPending, setEmpPending] = useState(0); // 農家モードの下部ナビ「🤝応募者」バッジ＝返事待ち（status=applied）件数
+  useEffect(() => {
+    if (!me?.id || !empCtx) { setEmpPending(0); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { count } = await supabase.from("applications").select("id", { count:"exact", head:true }).eq("farmer_id", me.id).eq("status","applied");
+        if (!cancelled) setEmpPending(count || 0);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [me?.id, empCtx]);
   useEffect(() => {
     if (!me?.id) { setMeAvatar({ url:"", name:"", empUrl:"", empName:"" }); return; }
     let cancelled = false;
@@ -18020,6 +18035,19 @@ const subDest=useCallback(async d=>{
     ? (((tab === "admin" || tab === "boxes") && !isAdmin(me)) || (tab === "plan" && !me) ? "search" : tab)
     : "search";
 
+  // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「さがす・いいね」を「📣求人・🤝応募者」に差し替え。
+  // 後半3つ（カレンダー・チャット・プロフィール）は両モード共通。未ログインは現行のまま（empNav=false）
+  const empNav = !!(me && empCtx);
+  const navTabs = empNav
+    ? [
+        { k:"emp-jobs",       icon:"📣", label:"求人",       hash:"/profile/employer/active" },
+        { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: empPending },
+        { k:"calendar",       icon:"📅", label:"カレンダー" },
+        { k:"chats",          icon:"💬", label:"チャット" },
+        { k:"profile",        icon:"👤", label:"プロフィール" },
+      ]
+    : MOBILE_TABS;
+
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
       <style>{CSS}</style>
@@ -18243,15 +18271,21 @@ const subDest=useCallback(async d=>{
            新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
       {!(needsAccountHolder || openAccountForm) && <header className="app-header app-header-mobile">
         <div className="app-header-mobile-tabs">
-          {MOBILE_TABS.map(t => (
+          {navTabs.map(t => {
+            const cur = window.location.hash.replace(/^#\/?/, "");
+            const isActive = t.hash
+              ? cur.startsWith(t.hash.replace(/^\//, ""))
+              : (t.k === "profile"
+                  ? (empNav ? (cur === "profile/employer" || cur === "profile") : safeTab === "profile")
+                  : safeTab === t.k);
+            const badge = t.k === "chats" ? chatUnread : (t.badge || 0);
+            return (
             <button key={t.k}
               onClick={() => {
                 setMobileMenuOpen(false);
-                // プロフィールタップ＝今いる側のトップ(入口カードメニュー)へ戻る（2026-07-14変更・面は切り替えない）
-                // 農家プロ系の画面→農家プロ入口／それ以外→働き手入口。同hash時はhashchangeが出ないためイベントで状態も直接home化
+                // プロフィールタップ＝現在モードのトップへ（農家モード→農家プロ入口／それ以外→働き手入口）
                 if (t.k === "profile") {
-                  const _h = window.location.hash.replace(/^#\/?/, "");
-                  if (_h.startsWith("profile/employer")) {
+                  if (empCtx) {
                     window.location.hash = "/profile/employer";
                     window.dispatchEvent(new Event("cb:employerHome"));
                   } else {
@@ -18261,18 +18295,20 @@ const subDest=useCallback(async d=>{
                   }
                   return;
                 }
+                if (t.hash) { setTab("profile"); window.location.hash = t.hash; return; }
                 setTab(t.k); window.location.hash = "/" + t.k;
               }}
-              className={"app-header-mobile-tab" + (safeTab === t.k ? " active" : "")}>
+              className={"app-header-mobile-tab" + (isActive ? " active" : "")}>
               <span className={"icon" + (t.k === "chats" && chatUnread > 0 ? " cb-jump" : "")} style={{ position:"relative" }}>
                 {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} /> : t.icon}
-                {t.k === "chats" && chatUnread > 0 && (
-                  <span style={{ position:"absolute", top:-4, right:-10, minWidth:16, height:16, borderRadius:8, background:"#E24B4A", color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px", pointerEvents:"none" }}>{chatUnread > 99 ? "99+" : chatUnread}</span>
+                {badge > 0 && (
+                  <span style={{ position:"absolute", top:-4, right:-10, minWidth:16, height:16, borderRadius:8, background:"#E24B4A", color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px", pointerEvents:"none" }}>{badge > 99 ? "99+" : badge}</span>
                 )}
               </span>
               <span className="label">{t.label}</span>
             </button>
-          ))}
+            );
+          })}
         </div>
       </header>}
 
