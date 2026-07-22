@@ -429,6 +429,15 @@ input:focus { outline: none; }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+/* 「はじめての方はこちら」を跳ねさせて誘目（2026-07-22） */
+@keyframes cbHop {
+  0%,100%  { transform: translateY(0); }
+  30%      { transform: translateY(-6px); }
+  45%      { transform: translateY(0); }
+  60%      { transform: translateY(-3px); }
+  75%      { transform: translateY(0); }
+}
+.cb-hop { animation: cbHop 1.6s ease-in-out infinite; }
 
 .appear      { animation: appear .5s cubic-bezier(.22,.8,.36,1) both; }
 .fade-in     { animation: fadeIn .35s ease both; }
@@ -1847,7 +1856,7 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
                 {sending ? "確認中…" : "ログイン"}
               </button>
               <div style={{ textAlign:"center", marginTop:18, display:"flex", flexDirection:"column", gap:8 }}>
-                <button onClick={()=>{setView("otp");setErr("");setPw("");}} className="f-sans"
+                <button onClick={()=>{setView("otp");setErr("");setPw("");}} className="f-sans cb-hop"
                   style={{ background:"none",border:"none",fontSize:12,fontWeight:700,color:"#00A86B",textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
                   はじめての方はこちら（新規登録）
                 </button>
