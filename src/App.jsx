@@ -5131,14 +5131,18 @@ function mapJobPublicRow(j) {
 
 // 共通アバター部品：写真あり→円形サムネ／写真なし→緑丸＋頭文字2字。
 // 全画面（ヘッダー・応募者カード・チャット・求人詳細の紹介・プロフィール）でこれに統一する。
-const Avatar = ({ url, name, size = 40 }) => url
-  ? <img src={url} alt="" width={size} height={size}
-      style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />
-  : <div style={{ width:size, height:size, borderRadius:"50%", background:"#00A86B",
-      color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
-      fontSize:size*0.38, fontWeight:700, flexShrink:0 }}>
-      {(name||"？").replace(/\s/g,"").slice(0,2)}
-    </div>;
+// ring（任意）：アイコンに役割色の枠を付ける（チャットで使用・働き手=橙／雇い手=緑・第11弾）
+const Avatar = ({ url, name, size = 40, ring }) => {
+  const ringStyle = ring ? { border: "2px solid " + ring, boxSizing: "border-box" } : {};
+  return url
+    ? <img src={url} alt="" width={size} height={size}
+        style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", flexShrink:0, ...ringStyle }} />
+    : <div style={{ width:size, height:size, borderRadius:"50%", background:"#00A86B",
+        color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
+        fontSize:size*0.38, fontWeight:700, flexShrink:0, ...ringStyle }}>
+        {(name||"？").replace(/\s/g,"").slice(0,2)}
+      </div>;
+};
 
 // timestamptz（UTC保存）を日本時間の「MM/DD HH:MM」で表示（2026-07-22）。
 // 以前は String(created_at).slice で生のUTC文字列を出していたため9時間ずれていた（運営DMの時刻ずれ）
@@ -5521,7 +5525,7 @@ function ChatView({ applicationId, onBack }) {
       {partner && (
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0 12px", borderBottom:"1px solid #EEE" }}>
           <span onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} style={{ flexShrink:0, cursor:"pointer" }}>
-            <Avatar url={partner.avatar_url} name={partner.nickname || partnerInitials} size={36} />
+            <Avatar url={partner.avatar_url} name={partner.nickname || partnerInitials} size={36} ring={isWorkerSide ? ROLE_GREEN : ROLE_ORANGE} />
           </span>
           <div style={{ flex:1, minWidth:0 }}>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
@@ -5678,7 +5682,7 @@ function ChatView({ applicationId, onBack }) {
               role="button"
               className="f-sans"
               style={{ alignSelf:"flex-start", maxWidth:"75%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 16px", display:"flex", alignItems:"center", gap:12, cursor: reportMode ? "default" : "pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
-              <Avatar url={partner?.avatar_url} name={partner?.nickname || partnerInitials || "？"} size={48} />
+              <Avatar url={partner?.avatar_url} name={partner?.nickname || partnerInitials || "？"} size={48} ring={ROLE_ORANGE} />
               <div>
                 <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{(partner?.nickname || "働き手")}さん</p>
                 <p style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"4px 0 0", textDecoration:"underline" }}>プロフィールを見る →</p>
@@ -6041,7 +6045,7 @@ function ChatList() {
                   border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
                 {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}
                 <span onClick={(e)=>{ e.stopPropagation(); if (a._role === "farmer") openWorkerPreview(a.worker_id); else openEmployerPreview(a.farmer_id); }} style={{ flexShrink:0 }}>
-                  <Avatar url={a.partnerAvatar} name={a.partnerName || initialsMap[a._role === "worker" ? a.farmer_id : a.worker_id]} size={40} />
+                  <Avatar url={a.partnerAvatar} name={a.partnerName || initialsMap[a._role === "worker" ? a.farmer_id : a.worker_id]} size={40} ring={a._role === "farmer" ? ROLE_ORANGE : ROLE_GREEN} />
                 </span>
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
