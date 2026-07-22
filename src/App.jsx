@@ -7763,7 +7763,7 @@ function MyCalendar() {
           window.location.hash = "/work/job/" + e.job_number;
         }}
         className="f-sans"
-        style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer", transition:"background .5s" }}
+        style={{ display:"block", width:"100%", textAlign:"left", background: highlighted ? "#FFF6DE" : "#fff", border:"1px solid #EBEBEB", borderLeft:"4px solid " + (e.my_role === "worker" ? ROLE_ORANGE : ROLE_GREEN), borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer", transition:"background .5s" }}
       >
         <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
           {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
@@ -7854,7 +7854,10 @@ function MyCalendar() {
                 if (!dd) return <div key={`e${i}`} />;
                 const dt = new Date(cvYear, cvMonth, dd);
                 const ymd = ymdLocal(dt);
-                const hasJob = entriesOnDay(dt).length > 0;
+                // 役割色（第11弾）：農家として設定=緑／働き手として応募・いいね=橙。両方あればドット2つ
+                const es = entriesOnDay(dt);
+                const hasFarmer = es.some(e => e.my_role === "farmer");
+                const hasWorker = es.some(e => e.my_role === "worker");
                 const isToday = ymd === todayYmd;
                 const isSelected = selectedDay && ymdLocal(selectedDay) === ymd;
                 return (
@@ -7866,11 +7869,19 @@ function MyCalendar() {
                     boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
                   }}>
                     <span>{dd}</span>
-                    <span style={{ width:5, height:5, borderRadius:"50%", background: hasJob ? "#00A86B" : "transparent" }} />
+                    <span style={{ display:"flex", gap:2, height:5, alignItems:"center", justifyContent:"center" }}>
+                      {hasFarmer && <span style={{ width:5, height:5, borderRadius:"50%", background:ROLE_GREEN }} />}
+                      {hasWorker && <span style={{ width:5, height:5, borderRadius:"50%", background:ROLE_ORANGE }} />}
+                    </span>
                   </button>
                 );
               })}
             </div>
+          </div>
+          {/* 役割色の凡例（第11弾） */}
+          <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:8 }}>
+            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:8, height:8, borderRadius:"50%", background:ROLE_GREEN }} />農家として</span>
+            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:8, height:8, borderRadius:"50%", background:ROLE_ORANGE }} />働き手として</span>
           </div>
           {flashNoPlan && (
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
