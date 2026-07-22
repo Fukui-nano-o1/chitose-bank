@@ -5137,7 +5137,7 @@ const Avatar = ({ url, name, size = 40, ring }) => {
   return url
     ? <img src={url} alt="" width={size} height={size}
         style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", flexShrink:0, ...ringStyle }} />
-    : <div style={{ width:size, height:size, borderRadius:"50%", background:"#00A86B",
+    : <div style={{ width:size, height:size, borderRadius:"50%", background: ring || "#00A86B",
         color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
         fontSize:size*0.38, fontWeight:700, flexShrink:0, ...ringStyle }}>
         {(name||"？").replace(/\s/g,"").slice(0,2)}
