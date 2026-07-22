@@ -6880,7 +6880,7 @@ function WorkerApplications({ filter, me }) {
   };
   // 未完了＝働き手側の手続きが残っている応募（完了して評価済み/欠勤記録済みになるまで）
   const isAppDone = (a) => a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at);
-  // 応募カード本体（応募中タブのリスト表示と、承認済みタブのボトムシートで共用）
+  // 応募カード本体（返事待ちタブのリスト表示と、きょうの仕事タブのボトムシートで共用）
   const renderAppCard = (a) => {
     const c = color(a.status);
     return (
@@ -6969,12 +6969,12 @@ function WorkerApplications({ filter, me }) {
   };
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      {/* チェックタブはタイトルをフローバナーに差し替え（2026-07-19）。応募中タブは従来のタイトル */}
+      {/* きょうの仕事タブはタイトルをフローバナーに差し替え（2026-07-19）。返事待ちタブは従来のタイトル */}
       {filter !== "approved" && (<>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
         <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
       </>)}
-      {/* お仕事の流れバナー（2026-07-19・チェックタブのみ）＝タイトルの代わり */}
+      {/* お仕事の流れバナー（2026-07-19・きょうの仕事タブのみ）＝タイトルの代わり */}
       {filter === "approved" && apps.length > 0 && (
         <div style={{ background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:14, padding:"14px 16px", marginBottom:16 }}>
           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 4px" }}>お仕事は、この流れで進みます</p>
@@ -6994,7 +6994,7 @@ function WorkerApplications({ filter, me }) {
       ) : apps.length === 0 ? (
         <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
           <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
-          <p style={{ fontSize:14, margin:0 }}>{filter === "approved" ? "承認された求人はまだありません" : "応募中の求人はありません"}</p>
+          <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>{filter === "approved" ? "仕事が決まると、ここに当日やることが出ます" : "いまは待つだけ。作業日の前日までに必ず結果が届きます"}</p>
           <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>{filter === "approved" ? "農家が承認すると、ここに表示されます。" : "「さがす」から求人に応募できます。"}</p>
         </div>
       ) : filter === "approved" ? (
@@ -7478,13 +7478,16 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     })();
     return () => { cancelled = true; };
   }, []);
-  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"応募中", approved:"チェック", wcalendar:"カレンダー" };
+  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"返事待ち", approved:"きょうの仕事", wcalendar:"カレンダー" };
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
   const [wMini, setWMini] = useState(null);
   const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
   const [wTopBack, setWTopBack] = useState(() => { try { return localStorage.getItem("cb_wTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   const [wTrust, setWTrust] = useState(null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
+  const [wHub, setWHub] = useState({ today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
+  const [showWAch, setShowWAch] = useState(false); // 🌟わたしの実績モーダル
+  const [wSeenReviews, setWSeenReviews] = useState(() => { try { return parseInt(localStorage.getItem("cb_wSeenReviews") || "0", 10) || 0; } catch { return 0; } }); // 既読の評価件数（🌟は新着時のみ）
   useEffect(() => {
     if (wTab !== "home") return; // 入口に戻るたびに再取得（編集後のバッジ・スニペット鮮度を担保）
     let cancelled = false;
@@ -7494,7 +7497,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         if (!session || cancelled) return;
         const { data: wp } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         if (!cancelled && wp) setWMini(wp);
-        const { data: apps } = await supabase.from("applications").select("status,attended,worker_confirmed_end_at").eq("worker_id", session.user.id);
+        const { data: apps } = await supabase.from("applications").select("status,attended,worker_confirmed_end_at,job_number").eq("worker_id", session.user.id);
         // 承認済みバッジは未対応（手続きが残っている応募）のみ計上。完了・評価済みまで数えると
         // バッジが常時点灯し、新しい要対応があっても気づけなくなるため（2026-07-16）
         if (!cancelled && apps) setWAppCounts({
@@ -7504,8 +7507,23 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             && !(a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at))
           ).length,
         });
+        // きょうの仕事バッジ＝当日が作業日の確定した仕事（契約済み以降）の件数
+        let todayCount = 0;
+        try {
+          const contracted = (apps || []).filter(a => ["contracted","working"].includes(a.status));
+          if (contracted.length) {
+            const { data: jd } = await supabase.from("jobs_public").select("job_number,date_start,date_end").in("job_number", contracted.map(a => a.job_number));
+            const today = ymdLocal(new Date());
+            const jm = Object.fromEntries((jd || []).map(j => [j.job_number, j]));
+            todayCount = contracted.filter(a => { const j = jm[a.job_number]; if (!j) return false; const s = j.date_start, e = j.date_end || j.date_start; return s && s <= today && today <= e; }).length;
+          }
+        } catch {}
+        // さがす箱＝きょう応募できる求人件数（jobs_public=公開中）
+        let openCount = 0;
+        try { const { count } = await supabase.from("jobs_public").select("job_number", { count: "exact", head: true }); openCount = count || 0; } catch {}
         const { data: ts } = await supabase.rpc("my_worker_trust_stats");
         if (!cancelled && ts?.ok) setWTrust(ts);
+        if (!cancelled) setWHub({ today: todayCount, searchOpen: openCount, reviewed: ts?.reviewed_count || 0 });
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -7628,25 +7646,49 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                 setTimeout(()=>{ setWTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_wTopBack", nv ? "1" : "0"); } catch {} return nv; }); setWTopAnim("pflip-in"); }, 400);
               }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
-              {[
-                { e:"📨", l:"応募中",     n:wAppCounts.applying, h:"/profile/worker/applying" },
-                // チェック（旧・承認済み）：未対応が残っていれば赤バッジ＋赤影アニメ、全て対応済みなら✓チェック（2026-07-16）
-                { e:"✅", l:"チェック",   n:wAppCounts.approved, h:"/profile/worker/approved", urgent:true, doneCheck:true },
-                { e:"💚", l:"いいね",     n:0,                   h:"/saved" }, // 2×2に揃える4枠目（農家プロ入口と同構造・2026-07-14）
-                { e:"📅", l:"カレンダー", n:0,                   h:"/profile/worker/calendar" },
-              ].map(c => (
-                <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className={"f-sans" + (c.urgent && c.n > 0 ? " cb-urgent-card" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                  {c.n > 0 ? (
-                    <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
-                  ) : (c.doneCheck && (
-                    <span style={{ position:"absolute", top:10, right:10, width:22, height:22, borderRadius:11, background:"#E6F7EF", color:"#00A86B", fontSize:13, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</span>
-                  ))}
+            {(() => {
+              // 区画見出し＋2箱ずつ（2026-07-22 役割区画化）。数字バッジ＝相手/自分を待たせている件数のみ
+              const hubBox = (c) => (
+                <button key={c.l} onClick={c.onClick || (()=>{ window.location.hash=c.h; })} className={"f-sans" + (c.urgent && c.n > 0 ? " cb-urgent-card" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+                  {c.n > 0 && <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
+                  {c.mark && <span style={{ position:"absolute", top:8, right:10, fontSize:18, lineHeight:1 }}>🌟</span>}
                   <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
                   <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+                  {c.sub && <span className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", lineHeight:1.4 }}>{c.sub}</span>}
                 </button>
-              ))}
-            </div>
+              );
+              const sec = (title, boxes) => (
+                <div key={title} style={{ marginTop:16 }}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>{title}</p>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>{boxes.map(hubBox)}</div>
+                </div>
+              );
+              return (<>
+                {sec("📌 いま", [
+                  { e:"✅", l:"きょうの仕事", h:"/profile/worker/approved", n:wHub.today },
+                  { e:"📨", l:"返事待ち",     h:"/profile/worker/applying", n:wAppCounts.applying },
+                ])}
+                {sec("🔎 次の仕事", [
+                  { e:"🔍", l:"さがす", h:"/search", sub:`きょう応募できる求人 ${wHub.searchOpen}件` },
+                  { e:"💚", l:"いいね", h:"/saved" },
+                ])}
+                {sec("📖 わたしの記録", [
+                  { e:"🌟", l:"わたしの実績", onClick:()=>{ setShowWAch(true); setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {} }, mark: wHub.reviewed > wSeenReviews },
+                  { e:"📅", l:"カレンダー", h:"/profile/worker/calendar" },
+                ])}
+              </>);
+            })()}
+            {showWAch && (
+              <div onClick={()=>setShowWAch(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+                <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
+                  <button onClick={()=>setShowWAch(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1 }}>✕</button>
+                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 14px" }}>🌟 わたしの実績</p>
+                  {wHub.reviewed > 0
+                    ? <WorkerTrustCard profile={wMini || {}} trust={wTrust} />
+                    : <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", lineHeight:1.9, padding:"28px 8px" }}>最初の仕事を終えると、ここに実績が刻まれます</p>}
+                </div>
+              </div>
+            )}
           </>
         ) : (
         <div className="profile-content">
@@ -8593,7 +8635,7 @@ function JobSearchMapView({ onRegister, me }) {
             {/* 承認の流れ（①プロフィール確認②判断③承認決定）のインフォグラフィック＝応募前に承認制であることを伝える */}
             <img src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます" style={{ display:"block", width:"100%", borderRadius:12 }} />
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"14px 0 0" }}>
-              応募はまだ採用ではありません。承認前であれば、応募中ページからいつでも取り消せます。
+              応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
             </p>
             <div style={{ display:"flex", gap:8, marginTop:18 }}>
               <button onClick={()=>setApplyConfirmOpen(false)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
@@ -11477,7 +11519,7 @@ function SavedJobsView({ me }) {
       {jobs.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
           <div style={{ fontSize:40, marginBottom:16 }}>♡</div>
-          <p className="f-sans" style={{ fontSize:14, color:"#717171" }}>気になる求人を♡で保存できます</p>
+          <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を💚しておくと、ここに並びます</p>
         </div>
       ) : (
         <div>
@@ -15126,6 +15168,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [favDone, setFavDone] = useState(null); // {workerId, nickname, avatar_url}
   const [favDetailOpen, setFavDetailOpen] = useState(false);
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
+  const [showRoster, setShowRoster] = useState(false); // 記録と予定：また呼びたいリスト箱→モーダル（2026-07-22）
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
     if (!completeDone) return;
@@ -15390,24 +15433,36 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               setTimeout(()=>{ setEmpTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_empTopBack", nv ? "1" : "0"); } catch {} return nv; }); setEmpTopAnim("pflip-in"); }, 400);
             }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:12 }}>
-            {[
-              { e:"🌱", l:"作成中",     n:dbDrafts.length,     h:"/profile/employer/drafts" },
-              { e:"📣", l:"公開中",     n:dbActive.length,     h:"/profile/employer/active" },
-              // 応募者：バッジは未完了（完了・見送り以外）のみ計上（2026-07-16）。全件数だと常時点灯して新しい要対応に気づけない
-              // 未承認あり＝赤バッジ＋浮遊アニメ／保険未チェックのみ＝赤影のみ
-              { e:"🤝", l:"応募者",     n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending },
-              { e:"📅", l:"カレンダー", n:0,                   h:"/profile/employer/calendar" },
-            ].map(c => (
-              <button key={c.l} onClick={()=>{ window.location.hash=c.h; }} className={"f-sans" + (c.urgent ? " cb-urgent-card" : c.still ? " cb-urgent-still" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                {c.n > 0 && (
-                  <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
-                )}
+          {(() => {
+            // 役割区画化（2026-07-22）：現行の箱を区画見出しで整理。数字バッジ＝要対応/当日のみ
+            const today = ymdLocal(new Date());
+            const jdm = {}; [...dbActive, ...dbExpired, ...dbDrafts].forEach(j => { jdm[j.job_number] = j; });
+            const todayCount = dbApplicants.filter(a => ["contracted","working"].includes(a.status) && jdm[a.job_number] && (() => { const j = jdm[a.job_number]; const s = j.date_start, e = j.date_end || j.date_start; return s && s <= today && today <= e; })()).length;
+            const eHubBox = (c) => (
+              <button key={c.l} onClick={c.onClick || (()=>{ window.location.hash=c.h; })} className={"f-sans" + (c.urgent ? " cb-urgent-card" : c.still ? " cb-urgent-still" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+                {c.n > 0 && <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
                 <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
                 <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
               </button>
-            ))}
-          </div>
+            );
+            const eSec = (title, boxes) => (
+              <div key={title} style={{ marginTop:16 }}>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>{title}</p>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>{boxes.map(eHubBox)}</div>
+              </div>
+            );
+            return (<>
+              {eSec("📌 いま", [
+                // 応募者：バッジは未完了（完了・見送り以外）のみ計上。未承認あり＝赤バッジ＋浮遊／保険未チェックのみ＝赤影
+                { e:"🤝", l:"応募者", n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending },
+                { e:"✅", l:"きょうの仕事", n:todayCount, h:"/profile/employer/calendar" },
+              ])}
+              {eSec("📋 求人の管理", [
+                { e:"🌱", l:"作成中", n:dbDrafts.length, h:"/profile/employer/drafts" },
+                { e:"📣", l:"公開中", n:dbActive.length, h:"/profile/employer/active" },
+              ])}
+            </>);
+          })()}
           <button onClick={onNewJob} className="f-sans cb-jump" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 赤影なしの飛ぶ動作（チャット未読アイコンと同じcb-jump・2026-07-19） */}
             <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
             <span>
@@ -15415,22 +15470,29 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
             </span>
           </button>
-          {rosterRows.length > 0 && (
-            <div className="f-sans" style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 12px" }}>
-                <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>❤️ また呼びたいリスト</p>
-                <button onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" className="f-sans" style={{ width:22, height:22, borderRadius:11, background: rosterInfoOpen ? "#00A86B" : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", border:"none", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</button>
-              </div>
-              {rosterInfoOpen && (
-                <p className="fade-in" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>一緒に働いたあと、あなたが「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとこの方たちにお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
-              )}
-              {/* アイコンのみ（2026-07-19・ニックネーム非表示）。タップで詳細モーダル（解除もそこから） */}
-              <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                {rosterRows.map(r => (
-                  <button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}>
-                    <Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} />
-                  </button>
-                ))}
+          <div style={{ marginTop:16 }}>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>📖 記録と予定</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <button onClick={()=>setShowRoster(true)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+                {rosterRows.length > 0 && <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{rosterRows.length}</span>}
+                <span style={{ fontSize:44, lineHeight:1 }}>❤️</span>
+                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>また呼びたいリスト</span>
+              </button>
+              <button onClick={()=>{ window.location.hash="/profile/employer/calendar"; }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+                <span style={{ fontSize:44, lineHeight:1 }}>📅</span>
+                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>カレンダー</span>
+              </button>
+            </div>
+          </div>
+          {showRoster && (
+            <div onClick={()=>setShowRoster(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+              <div onClick={e=>e.stopPropagation()} className="f-sans" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
+                <button onClick={()=>setShowRoster(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1 }}>✕</button>
+                <p style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 6px" }}>❤️ また呼びたいリスト</p>
+                <p style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>一緒に働いたあと「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
+                {rosterRows.length === 0
+                  ? <p style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px", lineHeight:1.8 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます</p>
+                  : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
               </div>
             </div>
           )}
@@ -16838,7 +16900,7 @@ const HELP_CONTENT = {
   faq: {
     num: "第6章", title: "困ったとき",
     items: [
-      { key:"faq-cancelApply",     label: "応募を取り消したい", body: "応募中タブから取り消せます。承認された後は、緊急連絡からご相談ください。" },
+      { key:"faq-cancelApply",     label: "応募を取り消したい", body: "返事待ちタブから取り消せます。承認された後は、緊急連絡からご相談ください。" },
       { key:"faq-noContact",       label: "承認されたのに連絡がない", body: "承認後の連絡はチャットで届きます。チャットを確認しても連絡がない場合は、お問い合わせ窓口までご連絡ください。" },
       { key:"faq-cantGo",          label: "当日行けなくなった", body: "チャット画面の「⚠️ 緊急連絡」ボタンから、遅れる・欠勤の連絡ができます。相手にすぐに通知されます。" },
       { key:"faq-noShowOrDiffer",  label: "農家が来ない・話が違う", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。通報した人が誰かは相手に伝わりません。" },
@@ -17888,7 +17950,7 @@ const subDest=useCallback(async d=>{
               に採用されました。
             </p>
             {[
-              { k:"emergency", l:"緊急連絡先", body:"当日行けない・遅れる時は、プロフィールの「チェック」ページにある「⚠️ 緊急連絡」から連絡できます。無断欠勤は記録に残るため、必ず連絡してください。" },
+              { k:"emergency", l:"緊急連絡先", body:"当日行けない・遅れる時は、プロフィールの「きょうの仕事」ページにある「⚠️ 緊急連絡」から連絡できます。無断欠勤は記録に残るため、必ず連絡してください。" },
               { k:"flow", l:"採用からの流れ", body:"作業日までにチャットで最終確認（集合場所・持ち物・時間）→ 当日作業 → 終了後に農家が完了処理をします。困ったことはチャットで相談してください。" },
               { k:"review", l:"評価とは？", body:"仕事を終えたあと、農家と働き手がお互いを記録する仕組みです。「また呼びたい」と評価されてお気に入り登録されると、その農家のリピート即決の対象になることがあります。" },
             ].map(r => (
