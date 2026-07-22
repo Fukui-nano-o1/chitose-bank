@@ -5142,6 +5142,7 @@ function ChatView({ applicationId, onBack }) {
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState(null);
   const [partner, setPartner] = useState(null); // { nickname, avatar_url }
+  const [partnerInitials, setPartnerInitials] = useState(""); // ニックネーム未設定時のアイコン用・メール頭文字2文字（2026-07-22）
   const [partnerWorkerId, setPartnerWorkerId] = useState(null); // 相手が働き手ならそのauth_id（アイコンタップでプレビュー・2026-07-19）
   const [partnerFarmerId, setPartnerFarmerId] = useState(null); // 相手が農家ならそのauth_id（アイコンタップで雇い手プレビュー・2026-07-19）
   // はじめる前の確認カード（⑦）
@@ -5254,6 +5255,8 @@ function ChatView({ applicationId, onBack }) {
           setPartnerFarmerId(iAmWorker ? app.farmer_id : null);
           const { data: pData } = await supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle();
           if (pData) setPartner(pData);
+          // ニックネーム未設定時のアイコン用に、相手のメール頭文字2文字（本体は伏せる）を取得（2026-07-22）
+          try { const { data: inits } = await supabase.rpc("my_chat_partner_initials"); if (inits && inits[partnerId]) setPartnerInitials(inits[partnerId]); } catch {}
           setIsWorkerSide(iAmWorker);
           // この相手との全応募（新しい順）。現役＝進行中（承認済み〜作業中）で最新→無ければ最新
           const { data: rel } = await supabase.from("applications")
@@ -5354,7 +5357,7 @@ function ChatView({ applicationId, onBack }) {
       {partner && (
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0 12px", borderBottom:"1px solid #EEE" }}>
           <span onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} style={{ flexShrink:0, cursor:"pointer" }}>
-            <Avatar url={partner.avatar_url} name={partner.nickname} size={36} />
+            <Avatar url={partner.avatar_url} name={partner.nickname || partnerInitials} size={36} />
           </span>
           <div style={{ flex:1, minWidth:0 }}>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
@@ -5511,7 +5514,7 @@ function ChatView({ applicationId, onBack }) {
               role="button"
               className="f-sans"
               style={{ alignSelf:"flex-start", maxWidth:"75%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 16px", display:"flex", alignItems:"center", gap:12, cursor: reportMode ? "default" : "pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
-              <Avatar url={partner?.avatar_url} name={partner?.nickname || "？"} size={48} />
+              <Avatar url={partner?.avatar_url} name={partner?.nickname || partnerInitials || "？"} size={48} />
               <div>
                 <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{(partner?.nickname || "働き手")}さん</p>
                 <p style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"4px 0 0", textDecoration:"underline" }}>プロフィールを見る →</p>
@@ -5660,6 +5663,7 @@ function ChatList() {
   const [dmText, setDmText] = useState("");
   const [dmSending, setDmSending] = useState(false);
   const [unreadMap, setUnreadMap] = useState({}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
+  const [initialsMap, setInitialsMap] = useState({}); // { partner_auth_id: メール頭文字2文字 }（ニックネーム未設定時のアイコン・2026-07-22）
   // プッシュ通知の状態（2026-07-19）：チャット一覧の上に「通知をオンにする」を出す
   const [pushSt, setPushSt] = useState(null); // 'unsupported'|'need-standalone'|'default'|'denied'|'granted'
   const [pushBusy, setPushBusy] = useState(false);
@@ -5680,6 +5684,11 @@ function ChatList() {
       try {
         const { data } = await supabase.rpc("my_unread_message_counts");
         if (data) setUnreadMap(data.by_application || {});
+      } catch {}
+      // ニックネーム未設定の相手のアイコン用に、メール頭文字2文字を取得（メール本体はサーバー側で伏せる・2026-07-22）
+      try {
+        const { data } = await supabase.rpc("my_chat_partner_initials");
+        if (data) setInitialsMap(data);
       } catch {}
     })();
   }, []);
@@ -5868,7 +5877,7 @@ function ChatList() {
                   border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
                 {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}
                 <span onClick={(e)=>{ e.stopPropagation(); if (a._role === "farmer") openWorkerPreview(a.worker_id); else openEmployerPreview(a.farmer_id); }} style={{ flexShrink:0 }}>
-                  <Avatar url={a.partnerAvatar} name={a.partnerName} size={40} />
+                  <Avatar url={a.partnerAvatar} name={a.partnerName || initialsMap[a._role === "worker" ? a.farmer_id : a.worker_id]} size={40} />
                 </span>
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
