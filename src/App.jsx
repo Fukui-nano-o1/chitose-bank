@@ -17850,12 +17850,19 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const [activeNotices, setActiveNotices] = useState(null);
   const showNoticesFor = async (trigger) => {
     try {
-      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on,image_url,show_every_time,repeat_chance").order("sort");
+      const { data } = await supabase.from("admin_notice_registry").select("id,name,body,audience,link_label,link_hash,trigger_on,image_url,show_every_time,repeat_chance,published,starts_at,ends_at").order("sort");
       if (!data || data.length === 0) return;
       let read = [];
       try { read = JSON.parse(localStorage.getItem("cb_readNotices") || "[]"); } catch {}
       const roleAud = !me ? ["all"] : me.isWorker ? ["all", "worker"] : ["all", "farmer"];
-      const fresh = data.filter(n => (n.trigger_on || "startup").split(",").map(s => s.trim()).includes(trigger)
+      // 公開中＋期間内だけを表示（2026-07-22）：管理者はRLSで下書き含む全行が返るため、フロントでも公開判定する。
+      // 一般ユーザーはRLSで既に公開分のみだが、二重に担保して下書きが漏れないようにする
+      const now = Date.now();
+      const isLive = (n) => n.published
+        && (!n.starts_at || now >= new Date(n.starts_at).getTime())
+        && (!n.ends_at || now <= new Date(n.ends_at).getTime());
+      const fresh = data.filter(n => isLive(n)
+        && (n.trigger_on || "startup").split(",").map(s => s.trim()).includes(trigger)
         && (!read.includes(n.id) || n.show_every_time || (n.repeat_chance > 0 && Math.random() * 100 < n.repeat_chance))
         && roleAud.includes(n.audience));
       if (fresh.length > 0) setActiveNotices(prev => (prev && prev.length ? prev : fresh)); // 表示中は上書きしない＝1回1件
