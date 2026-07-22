@@ -5357,6 +5357,27 @@ function ChatView({ applicationId, onBack }) {
   };
   const [activeAppId, setActiveAppId] = useState(applicationId);
   const [activeStatus, setActiveStatus] = useState(null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
+  const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
+  const [jobPickerOpen, setJobPickerOpen] = useState(false); // 上部の求人No.タップ→関係する求人の切替シート
+  // 現役応募を切り替える（状態＝採用/確認カード/保険/#N をその応募に合わせる）。求人ページ取得も行う
+  const applyActive = async (row) => {
+    if (!row) return;
+    setActiveAppId(row.id);
+    setActiveStatus(row.status);
+    setWorkerConfirmed(!!row.terms_confirmed_worker_at);
+    setFarmerConfirmed(!!row.terms_confirmed_farmer_at);
+    setInsurancePreparedAt(row.insurance_prepared_at);
+    setChatJobNumber(row.job_number ?? null);
+    setConfirmBoxOpen(false); setConfirmJob(null); setConfirmMeetingPlace(null); // 前の求人の残像を消す
+    if (row.job_number) {
+      try {
+        const { data: jobRow } = await supabase.from("jobs_public").select("*").eq("job_number", row.job_number).maybeSingle();
+        if (jobRow) setConfirmJob(mapJobPublicRow(jobRow));
+        const { data: mp } = await supabase.rpc('job_meeting_place', { p_job_number: row.job_number });
+        if (mp && mp.ok) setConfirmMeetingPlace(mp);
+      } catch {}
+    }
+  };
   const [deciding, setDeciding] = useState(false);
   const decideApplication = async (approve) => {
     if (deciding) return;
@@ -5436,21 +5457,9 @@ function ChatView({ applicationId, onBack }) {
             : null;
           const ids = relRows ? relRows.map(r => r.id) : [applicationId];
           setAppIds(ids);
+          setThreadApps(relRows || []);
           if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
-          if (active) {
-            setActiveAppId(active.id);
-            setActiveStatus(active.status);
-            setWorkerConfirmed(!!active.terms_confirmed_worker_at);
-            setFarmerConfirmed(!!active.terms_confirmed_farmer_at);
-            setInsurancePreparedAt(active.insurance_prepared_at);
-            setChatJobNumber(active.job_number ?? null);
-            if (active.job_number) {
-              const { data: jobRow } = await supabase.from("jobs_public").select("*").eq("job_number", active.job_number).maybeSingle();
-              if (jobRow) setConfirmJob(mapJobPublicRow(jobRow));
-              const { data: mp } = await supabase.rpc('job_meeting_place', { p_job_number: active.job_number });
-              if (mp && mp.ok) setConfirmMeetingPlace(mp);
-            }
-          }
+          if (active) await applyActive(active);
           load(ids);
           return;
         }
@@ -5530,7 +5539,14 @@ function ChatView({ applicationId, onBack }) {
           <div style={{ flex:1, minWidth:0 }}>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
             {chatJobNumber != null && (
-              <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0", userSelect:"text" }}>求人 #{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "・" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") : ""}</p>
+              threadApps.length > 1 ? (
+                // この相手と複数の求人でつながっている＝タップで求人No.を仕分け（切替）（2026-07-22）
+                <button onClick={()=>setJobPickerOpen(true)} className="f-sans" style={{ display:"inline-flex", alignItems:"center", gap:4, background:"none", border:"none", padding:0, margin:"2px 0 0", fontSize:11, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>
+                  求人 #{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "・" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") : ""}　▾ 他{threadApps.length - 1}件
+                </button>
+              ) : (
+                <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0", userSelect:"text" }}>求人 #{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "・" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") : ""}</p>
+              )
             )}
           </div>
           {/* コメント報告の入口（2026-07-19）：タップで報告モード＝問題のコメントを選べる */}
@@ -5539,6 +5555,34 @@ function ChatView({ applicationId, onBack }) {
       )}
       {reportMode && !reportTarget && (
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
+      )}
+
+      {/* 関係する求人の仕分けシート（2026-07-22）：上部の求人No.タップで、この相手と繋がる複数の求人を切替。
+          選ぶと現役応募が切り替わり、確認カード・採用状況・#N がその求人に合う（application_id統一の延長） */}
+      {jobPickerOpen && (
+        <div onClick={()=>setJobPickerOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>関係する求人</p>
+              <button onClick={()=>setJobPickerOpen(false)} aria-label="閉じる" style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer" }}>✕</button>
+            </div>
+            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px", lineHeight:1.6 }}>{partner?.nickname || "この相手"}さんとつながっている求人です。選ぶと、確認カード・採用状況がその求人に切り替わります。</p>
+            <div style={{ display:"grid", gap:8 }}>
+              {threadApps.map(r => {
+                const isActive = r.id === activeAppId;
+                return (
+                  <button key={r.id} onClick={()=>{ applyActive(r); setJobPickerOpen(false); }} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+                    <span style={{ minWidth:0 }}>
+                      <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>求人 #{r.job_number}</span>
+                      <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}</span>
+                    </span>
+                    {isActive && <span style={{ fontSize:12, fontWeight:700, color:"#00A86B", flexShrink:0 }}>表示中 ✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 求人コンテキストカード（2026-07-22・第8弾）：チャット最上部に固定（メッセージ欄の外＝スクロールしない）。
