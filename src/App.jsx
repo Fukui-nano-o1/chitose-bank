@@ -6888,7 +6888,7 @@ function WorkerApplications({ filter, me }) {
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[jobDates[a.job_number]?.crop, jobDates[a.job_number]?.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
-                {/* お仕事の流れ（応募→承認→打合せ・面接→採用→仕事→評価）を可視化（2026-07-19） */}
+                {/* お仕事の流れ（応募→承認→打合せ・面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-22） */}
                 {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={a} /></div>}
                 {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
                 {CHAT_ELIGIBLE_STATUSES.includes(a.status) && isWorkDayToday(jobDates[a.job_number]?.date_start, jobDates[a.job_number]?.date_end) && (
@@ -6936,13 +6936,14 @@ function WorkerApplications({ filter, me }) {
       </div>
     );
   };
-  // お仕事の流れ（2026-07-19）：応募→承認→打合せ・面接→採用→仕事→評価。各カードで現在地を可視化
-  const FLOW_STEPS = ["応募", "承認", "打合せ・面接", "採用", "仕事", "評価"];
+  // お仕事の流れ（2026-07-19／2026-07-22 完了報告を独立段に）：応募→承認→打合せ・面接→採用→仕事→完了報告→評価。各カードで現在地を可視化
+  const FLOW_STEPS = ["応募", "承認", "打合せ・面接", "採用", "仕事", "完了報告", "評価"];
   const flowState = (a) => {
     const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）
-    const worked = a.status === "completed";
-    const reviewed = !!a.worker_confirmed_end_at || (a.status === "completed" && a.attended === false);
-    const done = [true, true, bothConfirmed, bothConfirmed, worked, reviewed];
+    const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at; // 仕事（開始打刻）
+    const reported = a.status === "completed"; // 完了報告（作業完了が記録された）
+    const reviewed = !!a.worker_confirmed_end_at || (a.status === "completed" && a.attended === false); // 評価
+    const done = [true, true, bothConfirmed, bothConfirmed, started, reported, reviewed];
     return { done, active: done.findIndex(d => !d) };
   };
   const FlowBar = ({ a }) => {
