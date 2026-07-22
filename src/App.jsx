@@ -5779,6 +5779,16 @@ function ChatList() {
     return () => { cancelled = true; };
   }, []);
 
+  // 未読はトップに移動（2026-07-22）：未読のあるスレッドを先頭へ。未読同士・既読同士は新着順。
+  // unreadMapはリアルタイムで変わるので、rowsに焼き込まず描画時に並べ替える
+  const rowUnreadOf = (a) => (a._appIds || [a.id]).reduce((s, id) => s + (unreadMap[id] || 0), 0);
+  const sortedRows = [...rows].sort((x, y) => {
+    const ux = rowUnreadOf(x) > 0 ? 1 : 0;
+    const uy = rowUnreadOf(y) > 0 ? 1 : 0;
+    if (ux !== uy) return uy - ux;
+    return new Date(y.created_at) - new Date(x.created_at);
+  });
+
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0" }}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>チャット</h2>
@@ -5840,9 +5850,9 @@ function ChatList() {
         </div>
       ) : (
         <div style={{ display:"grid", gap:10 }}>
-          {rows.map(a => {
+          {sortedRows.map(a => {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
-            const rowUnread = (a._appIds || [a.id]).reduce((s, id) => s + (unreadMap[id] || 0), 0); // 相手との全応募の未読合算
+            const rowUnread = rowUnreadOf(a); // 相手との全応募の未読合算
             return (
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
                 className={"f-sans" + (rowUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
