@@ -224,6 +224,11 @@ const THIS_YEAR   = new Date().getFullYear();
 const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 // 管理者判定（届出後にゲートを外す際はここを変更する。保存・入力機能のゲートにも使用）
 const isAdmin = (user) => user?.email === ADMIN_EMAIL;
+// 役割カラー（第11弾・2026-07-22）：目印限定。働き手=橙／農家=緑。
+// ブランド緑のCTA（応募・承認等の主ボタン＝--mode-accent）は両モード共通のまま不変。塗るのは「今どっちか」の目印だけ。
+const ROLE_ORANGE = "#F76B1C";      // 働き手モードの目印色（枠・チップ背景・ナビ・アクセントバー）。白文字とのコントラストは緑CTAと同等
+const ROLE_ORANGE_INK = "#B54A0E";  // 小さい橙テキスト用の濃色（生成り背景でも読める・コントラスト約5:1）
+const ROLE_GREEN = "#00A86B";       // 農家モードの目印色（ブランド緑と同色）
 // account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
 const TERMS_VERSION = "v1-2026-07";
 const PRIVACY_VERSION = "v1-2026-07";
@@ -708,7 +713,7 @@ input:focus { outline: none; }
 }
 .app-header-mobile-tab .icon { font-size: 26px; line-height: 1; } /* 2026-07-14: 20px→26px(1.3倍)。バー高さ64pxは不変 */
 .app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
-.app-header-mobile-tab.active { color: #00A86B; font-weight: 600; }
+.app-header-mobile-tab.active { color: var(--role-accent, #00A86B); font-weight: 600; }
 /* ── モバイル☰の上部浮遊ボタン（2026-07-13 下部バーから移設。fixed＝スクロール追従。
    下部バーのcb-scroll-hide格納の影響を受けず常時表示） ── */
 .app-header-mobile-float { display: none; }
@@ -741,7 +746,7 @@ input:focus { outline: none; }
   padding: 0;
 }
 .app-header-mobile-float-btn .icon { font-size: 19px; line-height: 1; }
-.app-header-mobile-float-btn.active { color: #00A86B; }
+.app-header-mobile-float-btn.active { color: var(--role-accent, #00A86B); }
 /* 浮遊☰から開くメニューはボタンの真上に開く（2026-07-14: ボタンが左下配置になったため上開きに戻した）。
    下限=ボタンの直上で固定（bottom:100%）なので下部バーとは構造上重ならない。
    低い画面用にmax-heightで上方向のはみ出しも防止 */
@@ -8039,10 +8044,11 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
           if (pAnim === "pflip-out") return; // 連打ガード
           setPAnim("pflip-out");
           setTimeout(()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; setPAnim("pflip-in"); }, 400);
-        }} className="profile-employer-fab f-sans">
+        }} className="profile-employer-fab f-sans" style={{ background: pTab === "employer" ? ROLE_ORANGE : ROLE_GREEN }}>
+          {/* 切替先の役割の色名を予告表示（第11弾）：橙=働き手／緑=農家。FAB自体も切替先の色に灯す */}
           {pTab === "employer"
-            ? "🤝 働く（あなたの応募）"
-            : (hasEmployerSide ? "🌱 雇う（あなたの求人）" : "🌱 雇う")}
+            ? "⇄ 働き手（橙）に切替"
+            : (hasEmployerSide ? "⇄ 農家（緑）に切替" : "🌱 農家（緑）を作る")}
         </button>
       )}
       {/* 面の中身をkey={pTab}で包む：切替時に再マウント→pflip-in/fade-inが再生される */}
@@ -8056,7 +8062,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
               <button onClick={()=>{ if (wReview === "pending") return; window.location.hash="/profile/worker/profile"; }}
                 className={"f-sans" + (wTopAnim ? " " + wTopAnim : (wReview ? "" : wUnsetReq > 0 ? " cb-urgent-card" : wUnsetCount > 0 ? " cb-urgent-still" : ""))}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && wTopAnim === "pflip-in") setWTopAnim(""); }}
-                style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding: wReview ? "28px 20px 44px" : "28px 20px", cursor: wReview === "pending" ? "default" : "pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+                style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_ORANGE, borderRadius:24, padding: wReview ? "28px 20px 44px" : "28px 20px", cursor: wReview === "pending" ? "default" : "pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
                 {/* 審査帯（2026-07-19）：審査待ち=オレンジ帯＋タップ不能／修正依頼中=赤帯（タップで修正へ） */}
                 {wReview && (
                   <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"8px 12px", borderRadius:"0 0 24px 24px", background: wReview === "revision" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:13, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>
@@ -8072,7 +8078,8 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                     <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} />
                     <span>
                       <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>働き手</span>
+                      {/* 役割チップ（第11弾）：名前直下・大きめ・橙 */}
+                      <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:ROLE_ORANGE, borderRadius:20, padding:"3px 14px" }}>働き手</span>
                     </span>
                   </>
                 ) : (
@@ -8149,7 +8156,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
               };
               const sec = (title, boxes) => (
                 <div key={title} style={{ marginTop:16 }}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>{title}</p>
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>{title}</p>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>{boxes.map(hubBox)}</div>
                 </div>
               );
@@ -8163,7 +8170,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                   { e:"💚", l:"いいね", h:"/saved", desc:"気になる求人を💚で保存した一覧です。" },
                 ])}
                 <div style={{ marginTop:16 }}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>📖 わたしの記録</p>
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>📖 わたしの記録</p>
                   <button onClick={()=>{ setShowWAch(true); setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {} }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
                     {wHub.reviewed > wSeenReviews && <span style={{ position:"absolute", top:10, right:12, fontSize:18, lineHeight:1 }}>🌟</span>}
                     <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🌟</span>
@@ -15977,7 +15984,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             <button onClick={()=>{ if (empReview === "pending") return; window.location.hash="/profile/employer/profile"; }}
               className={"f-sans" + (empTopAnim ? " " + empTopAnim : (empReview ? "" : empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : ""))}
               onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && empTopAnim === "pflip-in") setEmpTopAnim(""); }}
-              style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:24, padding: empReview ? "28px 20px 44px" : "28px 20px", cursor: empReview === "pending" ? "default" : "pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+              style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding: empReview ? "28px 20px 44px" : "28px 20px", cursor: empReview === "pending" ? "default" : "pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
               {/* 審査帯（2026-07-19）：審査待ち=オレンジ帯＋タップ不能／修正依頼中=赤帯（タップで修正へ） */}
               {empReview && (
                 <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"8px 12px", borderRadius:"0 0 24px 24px", background: empReview === "revision" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:13, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>
@@ -15993,7 +16000,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
                   <span>
                     <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
-                    <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>農家</span>
+                    <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:ROLE_GREEN, borderRadius:20, padding:"3px 14px" }}>農家</span>
                   </span>
                 </>
               ) : (
@@ -16057,7 +16064,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             };
             const eSec = (title, boxes) => (
               <div key={title} style={{ marginTop:16 }}>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>{title}</p>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>{title}</p>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>{boxes.map(eHubBox)}</div>
               </div>
             );
@@ -16081,7 +16088,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             </span>
           </button>
           <div style={{ marginTop:16 }}>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>📖 記録</p>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>📖 記録</p>
             <div className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 12px" }}>
                 <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>❤️ また呼びたいリスト</p>
@@ -18655,7 +18662,7 @@ const subDest=useCallback(async d=>{
     : MOBILE_TABS;
 
   return(
-    <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent}}>
+    <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent,"--role-accent":(me && !empCtx) ? ROLE_ORANGE : ROLE_GREEN}}>
       <style>{CSS}</style>
 
       {/* 働き手/雇い手プレビューの全域ボックス（どの画面のアイコンからでもイベントで展開・2026-07-19） */}
