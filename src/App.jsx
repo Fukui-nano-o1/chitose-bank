@@ -7535,6 +7535,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   const [wTrust, setWTrust] = useState(null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
   const [wHub, setWHub] = useState({ today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
+  const [hubFlip, setHubFlip] = useState(null); // ？タップで反転して説明を出す箱のラベル（2026-07-22）
   const [showWAch, setShowWAch] = useState(false); // 🌟わたしの実績モーダル
   const [wSeenReviews, setWSeenReviews] = useState(() => { try { return parseInt(localStorage.getItem("cb_wSeenReviews") || "0", 10) || 0; } catch { return 0; } }); // 既読の評価件数（🌟は新着時のみ）
   useEffect(() => {
@@ -7697,15 +7698,23 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             </div>
             {(() => {
               // 区画見出し＋2箱ずつ（2026-07-22 役割区画化）。数字バッジ＝相手/自分を待たせている件数のみ
-              const hubBox = (c) => (
-                <button key={c.l} onClick={c.onClick || (()=>{ window.location.hash=c.h; })} className={"f-sans" + (c.urgent && c.n > 0 ? " cb-urgent-card" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
-                  {c.n > 0 && <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
-                  {c.mark && <span style={{ position:"absolute", top:8, right:10, fontSize:18, lineHeight:1 }}>🌟</span>}
-                  <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
-                  <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
-                  {c.sub && <span className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", lineHeight:1.4 }}>{c.sub}</span>}
+              const hubBox = (c) => {
+                const flipped = hubFlip === c.l;
+                return (
+                <button key={c.l} onClick={()=>{ if (flipped) { setHubFlip(null); return; } c.onClick ? c.onClick() : (window.location.hash=c.h); }} className={"f-sans" + (!flipped && c.urgent && c.n > 0 ? " cb-urgent-card" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, minHeight:132, boxSizing:"border-box" }}>
+                  {c.desc && <span onClick={(e)=>{ e.stopPropagation(); setHubFlip(flipped ? null : c.l); }} role="button" aria-label="説明" style={{ position:"absolute", top:8, right:8, zIndex:3, width:22, height:22, borderRadius:11, background: flipped ? "#00A86B" : "#F0F0F0", color: flipped ? "#fff" : "#999", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>？</span>}
+                  {flipped ? (
+                    <span className="f-sans pflip-in" style={{ fontSize:12, color:"#555", lineHeight:1.7, textAlign:"center", padding:"2px 8px" }}>{c.desc}</span>
+                  ) : (<>
+                    {c.n > 0 && <span style={{ position:"absolute", top:9, right:c.desc?34:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
+                    {c.mark && <span style={{ position:"absolute", top:8, right:c.desc?34:10, fontSize:18, lineHeight:1 }}>🌟</span>}
+                    <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
+                    <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+                    {c.sub && <span className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", lineHeight:1.4 }}>{c.sub}</span>}
+                  </>)}
                 </button>
-              );
+                );
+              };
               const sec = (title, boxes) => (
                 <div key={title} style={{ marginTop:16 }}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>{title}</p>
@@ -7714,12 +7723,12 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
               );
               return (<>
                 {sec("📌 いま", [
-                  { e:"✅", l:"きょうの仕事", h:"/profile/worker/approved", n:wHub.today, sub:"開始・終了の確認もここから" },
-                  { e:"📨", l:"返事待ち",     h:"/profile/worker/applying", n:wAppCounts.applying },
+                  { e:"✅", l:"きょうの仕事", h:"/profile/worker/approved", n:wHub.today, sub:"開始・終了の確認もここから", desc:"承認された仕事の、当日の予定です。開始・終了の打刻もここから。" },
+                  { e:"📨", l:"返事待ち",     h:"/profile/worker/applying", n:wAppCounts.applying, desc:"応募して、農家の返事を待っている求人です。作業日の前日までに結果が届きます。" },
                 ])}
                 {sec("🔎 次の仕事", [
-                  { e:"🔍", l:"さがす", h:"/search", sub:`きょう応募できる求人 ${wHub.searchOpen}件` },
-                  { e:"💚", l:"いいね", h:"/saved" },
+                  { e:"🔍", l:"さがす", h:"/search", sub:`きょう応募できる求人 ${wHub.searchOpen}件`, desc:"近くの募集中の求人をさがせます。気になったら応募できます。" },
+                  { e:"💚", l:"いいね", h:"/saved", desc:"気になる求人を💚で保存した一覧です。" },
                 ])}
                 <div style={{ marginTop:16 }}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>📖 わたしの記録</p>
@@ -15240,6 +15249,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [favDetailOpen, setFavDetailOpen] = useState(false);
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
   const [showRoster, setShowRoster] = useState(false); // 記録と予定：また呼びたいリスト箱→モーダル（2026-07-22）
+  const [eFlip, setEFlip] = useState(null); // 農家ハブ：？タップで反転して説明を出す箱のラベル（2026-07-22）
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
     if (!completeDone) return;
@@ -15509,14 +15519,22 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             const today = ymdLocal(new Date());
             const jdm = {}; [...dbActive, ...dbExpired, ...dbDrafts].forEach(j => { jdm[j.job_number] = j; });
             const todayCount = dbApplicants.filter(a => ["contracted","working"].includes(a.status) && jdm[a.job_number] && (() => { const j = jdm[a.job_number]; const s = j.date_start, e = j.date_end || j.date_start; return s && s <= today && today <= e; })()).length;
-            const eHubBox = (c) => (
-              <button key={c.l} onClick={c.onClick || (()=>{ window.location.hash=c.h; })} className={"f-sans" + (c.urgent ? " cb-urgent-card" : c.still ? " cb-urgent-still" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
-                {c.n > 0 && <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
-                <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
-                <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
-                {c.sub && <span className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", lineHeight:1.4 }}>{c.sub}</span>}
+            const eHubBox = (c) => {
+              const flipped = eFlip === c.l;
+              return (
+              <button key={c.l} onClick={()=>{ if (flipped) { setEFlip(null); return; } c.onClick ? c.onClick() : (window.location.hash=c.h); }} className={"f-sans" + (!flipped ? (c.urgent ? " cb-urgent-card" : c.still ? " cb-urgent-still" : "") : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, minHeight:132, boxSizing:"border-box" }}>
+                {c.desc && <span onClick={(e)=>{ e.stopPropagation(); setEFlip(flipped ? null : c.l); }} role="button" aria-label="説明" style={{ position:"absolute", top:8, right:8, zIndex:3, width:22, height:22, borderRadius:11, background: flipped ? "#00A86B" : "#F0F0F0", color: flipped ? "#fff" : "#999", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>？</span>}
+                {flipped ? (
+                  <span className="f-sans pflip-in" style={{ fontSize:12, color:"#555", lineHeight:1.7, textAlign:"center", padding:"2px 8px" }}>{c.desc}</span>
+                ) : (<>
+                  {c.n > 0 && <span style={{ position:"absolute", top:9, right:c.desc?34:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
+                  <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
+                  <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
+                  {c.sub && <span className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", lineHeight:1.4 }}>{c.sub}</span>}
+                </>)}
               </button>
-            );
+              );
+            };
             const eSec = (title, boxes) => (
               <div key={title} style={{ marginTop:16 }}>
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px" }}>{title}</p>
@@ -15526,12 +15544,12 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             return (<>
               {eSec("📌 いま", [
                 // 応募者：バッジは未完了（完了・見送り以外）のみ計上。未承認あり＝赤バッジ＋浮遊／保険未チェックのみ＝赤影
-                { e:"🤝", l:"応募者", n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending },
-                { e:"✅", l:"きょうの仕事", n:todayCount, h:"/profile/employer/calendar", sub:"開始・終了の確認もここから" },
+                { e:"🤝", l:"応募者", n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending, desc:"あなたの求人に応募した働き手の一覧。承認・打合せ・採用はここから。" },
+                { e:"✅", l:"きょうの仕事", n:todayCount, h:"/profile/employer/calendar", sub:"開始・終了の確認もここから", desc:"当日に確定した仕事の予定です。開始・終了の確認もここから。" },
               ])}
               {eSec("📋 求人の管理", [
-                { e:"🌱", l:"作成中", n:dbDrafts.length, h:"/profile/employer/drafts" },
-                { e:"📣", l:"公開中", n:dbActive.length, h:"/profile/employer/active" },
+                { e:"🌱", l:"作成中", n:dbDrafts.length, h:"/profile/employer/drafts", desc:"下書き・審査中の求人です。編集して掲載できます。" },
+                { e:"📣", l:"公開中", n:dbActive.length, h:"/profile/employer/active", desc:"いま公開している求人です。終了した求人もここに残ります。" },
               ])}
             </>);
           })()}
