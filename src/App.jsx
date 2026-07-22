@@ -1723,6 +1723,8 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
   // ・新規登録＝6桁コード認証→パスワード設定（view "otp"→"code"→"setpw"）
   //   パスワード未設定・忘れた既存の方も同じOTP経路で再設定できる（経路を増やさない）
   const [view,    setView]    = useState("login"); // login | otp | code | setpw
+  const [signupOpen, setSignupOpen] = useState(false); // 新規登録の開放（app_settings.signup_open・既定false=招待制）。ONにするのは運営（2026-07-21規約v2/プラポリv2で前提充足）
+  useEffect(() => { supabase.rpc("signup_open").then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
   const [email,   setEmail]   = useState("");
   const [pw,      setPw]      = useState("");
   const [pw2,     setPw2]     = useState("");
@@ -1769,7 +1771,7 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
 
   const requestCode = async () => {
     setSending(true); setErr("");
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: signupOpen } });
     setSending(false);
     if (error) {
       const isInviteOnly = /signup/i.test(error.message || "");
@@ -1821,7 +1823,7 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
           <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:8,letterSpacing:".04em" }}>
             {view === "login" ? "ログイン" : view === "setpw" ? "パスワードの設定" : "新規登録"}
           </div>
-          <p className="f-sans" style={{ fontSize:11,color:C.dim,lineHeight:1.7,marginBottom:24 }}>招待制で運営しています</p>
+          <p className="f-sans" style={{ fontSize:11,color:C.dim,lineHeight:1.7,marginBottom:24 }}>{signupOpen ? "メールアドレスで登録・ログインできます" : "招待制で運営しています"}</p>
 
           {view === "login" ? (
             /* ── 既存の方：メールアドレス＋パスワード ── */
@@ -5761,6 +5763,11 @@ const PR_PROMPTS = [
 ];
 // 働き手プロフィールQ&A：20問メニュー（4グループ）。答えた問いだけがpr_qaに残る＝義務ではない
 const WORKER_QA_QUESTIONS = [
+  { group:"⭐農家がよく見る質問", questions:[
+    "これまでの農作業の経験を教えてください",
+    "自分の強みはなんですか？",
+    "どのくらいの頻度で働きたいですか？",
+  ]},
   { group:"きっかけ・興味", questions:[
     "農業のバイトを始めたのはいつですか？",
     "農作業に興味を持ったきっかけは？",
@@ -6371,6 +6378,31 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </div>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に応募したとき、農家に伝わる自己紹介です。タップして入力できます。</p>
 
+      {/* はじめの3つガイド（2026-07-22）：空の時だけ上部に。①名前②顔写真③経験の質問1つ。タップで該当欄・埋まると✓ */}
+      {(() => {
+        const steps = [
+          { k:"nickname", l:"①お名前",        done: !!nickname.trim() },
+          { k:"avatar",   l:"②顔写真",        done: !!avatarUrl },
+          { k:"qa",       l:"③経験の質問を1つ", done: prQa.length > 0 },
+        ];
+        if (steps.every(s => s.done)) return null;
+        return (
+          <div className="f-sans" style={{ background:"#F0F7F4", border:"1px solid #00A86B33", borderRadius:16, padding:"16px", marginBottom:20 }}>
+            <p style={{ fontSize:14, fontWeight:800, color:"#00A86B", margin:"0 0 4px" }}>まずこの3つで応募できます</p>
+            <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この3つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
+            <div style={{ display:"grid", gap:8 }}>
+              {steps.map(s => (
+                <button key={s.k} onClick={()=>setEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?"#00A86B":"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+                  <span style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, background: s.done?"#00A86B":"#F0F0F0", color: s.done?"#fff":"#B0B0B0" }}>{s.done?"✓":""}</span>
+                  <span style={{ fontSize:14, fontWeight:700, color: s.done?"#00A86B":"#222", flex:1 }}>{s.l}</span>
+                  {!s.done && <span style={{ fontSize:12, color:"#00A86B", fontWeight:700, flexShrink:0 }}>入力する →</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ═══ ボックス格子（入口カードと同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         {[
@@ -6434,26 +6466,31 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {editBox==="nickname" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ニックネーム</label>
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>呼び名です。本名でなくてかまいません。</p>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：たき" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       </>)}
 
       {editBox==="residence" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>居住地</label>
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>通える範囲の確認に使われます。</p>
       <input value={residenceCity} onChange={e=>setResidenceCity(e.target.value)} placeholder="例：吉野川市（市町村まで）" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       </>)}
 
       {editBox==="transport" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>移動手段</label>
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>集合場所までの足の確認に使われます。</p>
       <LFPillSelect options={["車","バイク","自転車","公共交通"]} value={transport} onSelect={setTransport} />
       </>)}
 
       {editBox==="exp" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>農業就労の経験</label>
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>未経験でも大丈夫。正直に選んでください。</p>
       <LFPillSelect options={["未経験","経験あり"]} value={farmExperience} onSelect={setFarmExperience} />
       </>)}
 
       {editBox==="intensity" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>希望する作業の強さ</label>
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>力仕事もOKか、軽めがいいか、希望で選べます。</p>
       <LFPillSelect options={WORK_INTENSITY_OPTIONS} value={physicalLevel} onSelect={setPhysicalLevel} />
       </>)}
 
@@ -6491,6 +6528,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {editBox==="pr" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>自己紹介・PR</label>
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 8px", lineHeight:1.6 }}>承認の判断でいちばん読まれます。</p>
       <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
         {PR_PROMPTS.map((p, i) => (
           <button
@@ -8117,24 +8155,29 @@ function JobSearchMapView({ onRegister, me }) {
   // 応募確認ボックス（2026-07-18）：新規応募はボタン直送信でなく、内容確認のボックスを展開してから
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
   useEffect(() => { setApplyConfirmOpen(false); }, [selectedJob?.id]);
+  const [signupOpen, setSignupOpen] = useState(false); // 未ログイン画面の文言用（app_settings.signup_open・既定false=招待制）
+  useEffect(() => { supabase.rpc("signup_open").then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
   const applyBtnOnClick = myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (() => setApplyConfirmOpen(true));
 
   if (!me) {
     return (
-      <div style={{ textAlign:"center", padding:"80px 24px" }}>
+      <div style={{ textAlign:"center", padding:"40px 24px 80px" }}>
+        {/* 未ログイン時のトップの小バナー：インストール案内へ（2026-07-22） */}
+        <button onClick={()=>{ window.location.hash="/install"; }} className="f-sans" style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#E6F7EF", color:"#00A86B", border:"none", borderRadius:20, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer", marginBottom:32 }}>📲 アプリとして使えます →入れ方</button>
         <div style={{ fontSize:40, marginBottom:16 }}>🥦</div>
         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:8 }}>
-          ただいま招待制で運営しています
+          {signupOpen ? "chitose-bank へようこそ" : "ただいま招待制で運営しています"}
         </p>
         <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
-          求人の閲覧にはログインが必要です。<br/>
-          招待を受けた方は、招待メールのアドレスでログインしてください。
+          {signupOpen
+            ? <>求人の閲覧・応募にはログインが必要です。<br/>メールアドレスで登録できます。</>
+            : <>求人の閲覧にはログインが必要です。<br/>招待を受けた方は、招待メールのアドレスでログインしてください。</>}
         </p>
         <button onClick={onRegister} className="btn-primary"
           style={{ padding:"14px 40px", fontSize:14, borderRadius:12 }}>
-          ログイン
+          {signupOpen ? "登録・ログイン" : "ログイン"}
         </button>
       </div>
     );
@@ -16998,6 +17041,70 @@ function helpImagePathFromUrl(url) {
   return url.slice(idx + marker.length).split("?")[0];
 }
 
+// インストール案内（#/install・未ログインでも閲覧可・2026-07-22）：OS自動判定で手順を並べ、
+// 画像2枠（help_images: install-ios / install-android）は管理者がアップロードできる（ヘルプ画像スロット方式）
+function InstallGuide({ me }) {
+  const [images, setImages] = useState({});
+  const [uploadingSlot, setUploadingSlot] = useState(null);
+  const admin = isAdmin(me);
+  const ios = isIOS();
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from("help_images").select("slot_key,url").in("slot_key", ["install-ios","install-android"]);
+        if (data) { const m = {}; data.forEach(r => { m[r.slot_key] = r.url; }); setImages(m); }
+      } catch {}
+    })();
+  }, []);
+  const upload = async (slotKey, file) => {
+    if (!file || uploadingSlot) return;
+    setUploadingSlot(slotKey);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = slotKey + "." + ext;
+      const { error: upErr } = await supabase.storage.from("help-images").upload(path, file, { upsert: true });
+      if (upErr) { alert("アップロードに失敗しました：" + upErr.message); setUploadingSlot(null); return; }
+      const { data: urlData } = supabase.storage.from("help-images").getPublicUrl(path);
+      const url = (urlData?.publicUrl || "") + "?t=" + Date.now();
+      const { error: dbErr } = await supabase.from("help_images").upsert({ slot_key: slotKey, url, updated_at: new Date().toISOString() });
+      if (dbErr) { alert("保存に失敗しました：" + dbErr.message); setUploadingSlot(null); return; }
+      setImages(prev => ({ ...prev, [slotKey]: url }));
+    } catch { alert("アップロードに失敗しました。"); }
+    setUploadingSlot(null);
+  };
+  const slot = (slotKey, label, steps) => (
+    <div key={slotKey} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+      <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 12px" }}>{label}</p>
+      <ol className="f-sans" style={{ margin:"0 0 14px", paddingLeft:20, fontSize:14, color:"#333", lineHeight:1.9 }}>
+        {steps.map((s,i) => <li key={i}>{s}</li>)}
+      </ol>
+      {images[slotKey]
+        ? <img src={images[slotKey]} alt={label+"の手順"} style={{ width:"100%", borderRadius:12, display:"block" }} />
+        : <div className="f-sans" style={{ width:"100%", aspectRatio:"3 / 4", background:"#F5F5F5", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0", fontSize:13 }}>手順の画像（準備中）</div>}
+      {admin && (
+        <label className="f-sans" style={{ display:"inline-block", marginTop:10, fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>
+          {uploadingSlot===slotKey ? "アップロード中..." : (images[slotKey] ? "画像を差し替え" : "＋ 画像をアップロード")}
+          <input type="file" accept="image/*" style={{ display:"none" }} onChange={e => upload(slotKey, e.target.files?.[0])} />
+        </label>
+      )}
+    </div>
+  );
+  const iosSlot = slot("install-ios", "iPhone（Safari）", ["Safariでこのページを開く","下の共有ボタン（□に↑）をタップ","「ホーム画面に追加」を選ぶ","右上の「追加」をタップ"]);
+  const andSlot = slot("install-android", "Android（Chrome）", ["Chromeでこのページを開く","右上のメニュー（⋮）をタップ","「アプリをインストール」または「ホーム画面に追加」を選ぶ","「インストール」をタップ"]);
+  return (
+    <div style={{ maxWidth:560, margin:"0 auto", padding:"40px 16px 60px" }}>
+      <div style={{ textAlign:"center", marginBottom:28 }}>
+        <div style={{ fontSize:64, lineHeight:1, marginBottom:12 }}>🥦</div>
+        <h1 className="f-sans" style={{ fontSize:24, fontWeight:800, color:"#222", margin:"0 0 6px" }}>chitose-bankをアプリとして入れる</h1>
+        <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7, margin:0 }}>ホーム画面に追加すると、アプリのように開けて通知も受け取れます。</p>
+      </div>
+      <div style={{ display:"grid", gap:16 }}>
+        {ios ? <>{iosSlot}{andSlot}</> : <>{andSlot}{iosSlot}</>}
+      </div>
+    </div>
+  );
+}
+
 function HelpCenter({ me, onReportClick }) {
   const chapterFromHash = () => {
     const h = window.location.hash.replace(/^#\/?/, "");
@@ -17132,7 +17239,7 @@ function PresentationCreateCanvasPage() {
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","page-presentation-create-canvas"];
+  const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","page-presentation-create-canvas"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment") return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -18373,6 +18480,7 @@ const subDest=useCallback(async d=>{
           </div>
         )}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="install"&&<InstallGuide me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="page-presentation-create-canvas"&&<PresentationCreateCanvasPage />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
