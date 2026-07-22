@@ -6873,6 +6873,8 @@ function WorkerApplications({ filter, me }) {
   const [jobDates, setJobDates] = useState({}); // { [job_number]: {date_start, date_end} }
   const [loading, setLoading] = useState(true);
   const [punchingId, setPunchingId] = useState(null);
+  const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
+  const [pastOpen, setPastOpen] = useState(false); // 過去の応募（見送り・失効）の折りたたみ（第9弾）
   useEffect(() => {
     (async () => {
       try {
@@ -6883,11 +6885,23 @@ function WorkerApplications({ filter, me }) {
           setAllApps(data);
           const jobNumbers = [...new Set(data.map(a => a.job_number).filter(Boolean))];
           if (jobNumbers.length > 0) {
-            const { data: jobRows } = await supabase.from("jobs_public").select("job_number,date_start,date_end,crop,task,photos").in("job_number", jobNumbers);
+            const { data: jobRows } = await supabase.from("jobs_public").select("job_number,date_start,date_end,crop,task,photos,work_time,pay_type,hourly_wage,daily_wage,city,town").in("job_number", jobNumbers);
             const map = {};
             (jobRows || []).forEach(j => { map[j.job_number] = j; });
             setJobDates(map);
           }
+          // 農家の返答傾向（第9弾・2026-07-22）：返事待ち(applied)の各求人の農家について、信頼カードの返答速度を転用。
+          // employer_trust_info(avg_response_hours) を farmer_id ごとに引き、当日中/1日以内/2日以内のバケットで表示する
+          try {
+            const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
+            if (waitFarmerIds.length > 0) {
+              const entries = await Promise.all(waitFarmerIds.map(async fid => {
+                try { const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: fid }); return [fid, (t && t.ok) ? t.avg_response_hours : null]; }
+                catch { return [fid, null]; }
+              }));
+              setRespByFarmer(Object.fromEntries(entries));
+            }
+          } catch {}
           // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
           try {
             const pend = sessionStorage.getItem("cb_emergencyAppId");
@@ -7105,6 +7119,105 @@ function WorkerApplications({ filter, me }) {
       </div>
     );
   };
+  // ── 返事待ちページの役割強化（第9弾・2026-07-22）───────────────────────────
+  // 過去の応募（見送り・失効）：applyingタブの下に折りたたみで分離。現状statusは rejected（見送り）
+  const pastApps = allApps.filter(a => ["rejected", "expired", "canceled"].includes(a.status));
+  // 作業日の前日（date_start-1）を "YYYY-MM-DD" で返す
+  const dayBefore = (ymd) => {
+    if (!ymd) return null;
+    const [y, m, d] = ymd.split("-").map(Number);
+    const dt = new Date(y, m - 1, d); dt.setDate(dt.getDate() - 1);
+    const p = n => String(n).padStart(2, "0");
+    return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+  };
+  // 返答速度（時間）→ おおむねバケット。データ不足(null)・48h超は非表示
+  const respBucket = (hours) => hours == null ? null : hours <= 12 ? "当日中" : hours <= 24 ? "1日以内" : hours <= 48 ? "2日以内" : null;
+  // 返事待ちカード（応募中＝applied専用の再設計・上図の構成）
+  const WAIT_STEPS = ["応募", "農家が確認中", "結果"];
+  const renderWaitingCard = (a) => {
+    const job = jobDates[a.job_number] || {};
+    const title = [job.crop, job.task].filter(Boolean).join(" ") || "求人";
+    const town = [job.city, job.town].filter(Boolean).join("");
+    const wage = job.pay_type === "日給"
+      ? (Number(job.daily_wage) ? `日給${Number(job.daily_wage).toLocaleString()}円` : "")
+      : (Number(job.hourly_wage) ? `時給${Number(job.hourly_wage).toLocaleString()}円` : "");
+    const summary = [job.date_start ? calFmtDate(job.date_start) : "", job.work_time || "", wage, town].filter(Boolean).join("　");
+    const deadline = job.date_start ? calFmtDate(dayBefore(job.date_start)) : null;
+    const bucket = respBucket(respByFarmer[a.farmer_id]);
+    const activeIdx = 1; // 現在＝2段目（農家が確認中）
+    return (
+      <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px", background:"#fff" }}>
+        {/* 求人要約行（日付・時間帯・時給・町名。タップで求人詳細へ） */}
+        <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + a.job_number; }}
+          className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"none", border:"none", padding:0, cursor:"pointer" }}>
+          <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{title} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
+          <p style={{ fontSize:12, color:"#717171", margin:0, lineHeight:1.6 }}>{summary || `応募日 ${new Date(a.created_at).toLocaleDateString("ja-JP")}`}</p>
+        </button>
+        {/* 3段プログレス（応募→農家が確認中→結果・現在=2段目） */}
+        <div style={{ display:"flex", alignItems:"flex-start", margin:"14px 0 12px" }}>
+          {WAIT_STEPS.map((s, i) => {
+            const isDone = i < activeIdx; const isActive = i === activeIdx; const reached = isDone || isActive;
+            return (
+              <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
+                {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#00A86B" : "#E5E5E5" }} />}
+                <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
+                  background: isDone ? "#00A86B" : "#fff", border: isDone ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
+                  {isDone ? "✓" : ""}
+                </div>
+                <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#00A86B" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
+              </div>
+            );
+          })}
+        </div>
+        {/* 期限の約束（作業日の前日までに必ず結果が届く） */}
+        {deadline && (
+          <div style={{ background:"#FFF8E7", border:"1px solid #F5D98F", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", margin:0, lineHeight:1.7 }}>⏰ 遅くとも <b>{deadline}</b> までに必ず結果が届きます</p>
+            <p className="f-sans" style={{ fontSize:11, color:"#B08A2E", margin:"2px 0 0", lineHeight:1.6 }}>（返事がない場合も自動でお知らせします）</p>
+          </div>
+        )}
+        {/* 農家の返答傾向（信頼カードの返答速度を転用・データ不足時は非表示） */}
+        {bucket && (
+          <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", margin:"0 0 2px" }}>💬 この農家さんの返答：これまで おおむね{bucket}</p>
+        )}
+        {/* 応募を取り消す（小さくグレーで最下部へ降格） */}
+        <button onClick={()=>cancelApplication(a)} disabled={cancelingId===a.id} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:10, background:"none", border:"none", cursor:"pointer", fontSize:11, color:"#B0B0B0", textDecoration:"underline" }}>
+          {cancelingId===a.id ? "取り消し中..." : "応募を取り消す"}
+        </button>
+      </div>
+    );
+  };
+  // 待っている間にできること（カード群の下）
+  const waitingTodoBox = (
+    <div style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:14, padding:"14px 16px", marginTop:16 }}>
+      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 10px" }}>📎 待っている間にできること</p>
+      <button onClick={()=>{ window.location.hash = "/profile/worker/profile"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #DDEDE5", borderRadius:10, padding:"12px 14px", fontSize:13, fontWeight:700, color:"#00A86B", cursor:"pointer", marginBottom:8 }}>⭐農家がよく見る質問に答える →</button>
+      <button onClick={()=>{ window.location.hash = "/search"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #DDEDE5", borderRadius:10, padding:"12px 14px", fontSize:13, color:"#222", cursor:"pointer", lineHeight:1.6 }}>同じ日の別の求人にも応募できます <span style={{ color:"#00A86B", fontWeight:700 }}>→さがす</span></button>
+    </div>
+  );
+  // 過去の応募（見送り・失効）の折りたたみ
+  const pastAppsBlock = pastApps.length > 0 && (
+    <div style={{ marginTop:20 }}>
+      <button onClick={()=>setPastOpen(v=>!v)} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:"none", border:"none", padding:"8px 0", cursor:"pointer" }}>
+        <span style={{ fontSize:13, fontWeight:700, color:"#717171" }}>過去の応募（{pastApps.length}）</span>
+        <span style={{ fontSize:12, color:"#B0B0B0" }}>{pastOpen ? "閉じる ▲" : "見る ▼"}</span>
+      </button>
+      {pastOpen && (
+        <div style={{ display:"grid", gap:8, marginTop:8 }}>
+          {pastApps.map(a => {
+            const job = jobDates[a.job_number] || {};
+            return (
+              <div key={a.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, border:"1px solid #F0F0F0", borderRadius:10, padding:"10px 12px", background:"#FAFAFA" }}>
+                <span className="f-sans" style={{ fontSize:13, color:"#717171", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</span>
+                <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#999", background:"#F0F0F0", borderRadius:20, padding:"2px 10px", flexShrink:0 }}>{a.status === "rejected" ? "見送り" : "失効"}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+  // ─────────────────────────────────────────────────────────────────────────
   // お仕事の流れ（2026-07-19／2026-07-22 完了報告を独立段に）：応募→承認→打合せ・面接→採用→仕事→完了報告→評価。各カードで現在地を可視化
   const FLOW_STEPS = ["応募", "承認", "打合せ・面接", "採用", "仕事", "完了報告", "評価"];
   const flowState = (a) => {
@@ -7160,13 +7273,28 @@ function WorkerApplications({ filter, me }) {
       )}
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 0" }}>読み込み中...</p>
+      ) : filter !== "approved" ? (
+        // 返事待ちタブ（第9弾）：応募中カード（再設計）＋待っている間にできること＋過去の応募
+        (apps.length === 0 && pastApps.length === 0) ? (
+          <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
+            <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
+            <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
+            <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
+          </div>
+        ) : (
+          <>
+            {apps.length > 0 && <div style={{ display:"grid", gap:12 }}>{apps.map(a => renderWaitingCard(a))}</div>}
+            {waitingTodoBox}
+            {pastAppsBlock}
+          </>
+        )
       ) : apps.length === 0 ? (
         <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
           <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
-          <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>{filter === "approved" ? "仕事が決まると、ここに当日やることが出ます" : "いまは待つだけ。作業日の前日までに必ず結果が届きます"}</p>
-          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>{filter === "approved" ? "農家が承認すると、ここに表示されます。" : "「さがす」から求人に応募できます。"}</p>
+          <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>仕事が決まると、ここに当日やることが出ます</p>
+          <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>農家が承認すると、ここに表示されます。</p>
         </div>
-      ) : filter === "approved" ? (
+      ) : (
         // フロー可視化のため1列リスト（2026-07-19）：写真＋タイトル＋状態＋進捗ステッパー。タップでボトムシート
         <div style={{ display:"grid", gap:12 }}>
           {apps.map(a => {
@@ -7189,10 +7317,6 @@ function WorkerApplications({ filter, me }) {
               </button>
             );
           })}
-        </div>
-      ) : (
-        <div style={{ display:"grid", gap:12 }}>
-          {apps.map(a => renderAppCard(a))}
         </div>
       )}
 
