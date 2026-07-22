@@ -15542,7 +15542,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           // 単一グリッド内でgridColumn:1/-1の見出しが全幅で改行を作り、区切りとして機能する
           (() => {
             const order = []; const byJob = {};
-            dbApplicants.forEach(a => { const jn = a.job_number; if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
+            dbApplicants.forEach(a => { const jn = a.job_number; if (!jobInfoMap[jn]) return; /* 削除済み求人の孤児応募は出さない（2026-07-22） */ if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
             return order.flatMap(jn => {
               const info = jobInfoMap[jn] || {};
               const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
@@ -17546,12 +17546,25 @@ const loadNotifs=useCallback(async(farmerId)=>{
           if (a.status === "applied") cands.push({ a, role:"f", stage:"applied" });
           if (a.status === "completed") cands.push({ a, role:"f", stage:"worked" });
         });
-        const fresh = cands.find(c => !shown.includes(`${c.a.id}:${c.stage}:${c.role}`));
+        // 候補を順に確認：農家側は自分の求人(全status)をRLSで読めるので、行が無い＝削除済みの孤児応募
+        // → 存在しない求人の完了ボックスは出さずスキップ（既読に倒して次へ）。働き手側はjobsを読めないのでjobs_publicで題名解決（2026-07-22）
+        let fresh = null, jobRow = null;
+        for (const c of cands) {
+          const key = `${c.a.id}:${c.stage}:${c.role}`;
+          if (shown.includes(key)) continue;
+          if (c.role === "f") {
+            const { data } = await supabase.from("jobs").select("crop,task").eq("job_number", c.a.job_number).maybeSingle();
+            if (cancelled) return;
+            if (!data) { shown.push(key); try { localStorage.setItem("cb_stageShown", JSON.stringify(shown)); } catch {} continue; }
+            fresh = c; jobRow = data; break;
+          }
+          const { data } = await supabase.from("jobs_public").select("crop,task").eq("job_number", c.a.job_number).maybeSingle();
+          if (cancelled) return;
+          fresh = c; jobRow = data; break;
+        }
         if (!fresh) return;
-        const { data: job } = await supabase.from("jobs_public").select("crop,task").eq("job_number", fresh.a.job_number).maybeSingle();
-        if (cancelled) return;
-        const title = job ? [job.crop, job.task].filter(Boolean).join(" ") || `求人 #${fresh.a.job_number}` : `求人 #${fresh.a.job_number}`;
-        try { localStorage.setItem("cb_stageShown", JSON.stringify([...shown, `${fresh.a.id}:${fresh.stage}:${fresh.role}`])); } catch {}
+        const title = jobRow ? ([jobRow.crop, jobRow.task].filter(Boolean).join(" ") || `求人 #${fresh.a.job_number}`) : `求人 #${fresh.a.job_number}`;
+        try { localStorage.setItem("cb_stageShown", JSON.stringify([...new Set([...shown, `${fresh.a.id}:${fresh.stage}:${fresh.role}`])])); } catch {}
         const defs = {
           "w:approved": { emoji:"🎉", head:"承認されました！", body:`「${title}」に承認されました。打ち合わせ・面接をチャットで進めましょう。`, link:"チャットを開く →", hash:"/chat/" + fresh.a.id },
           "w:worked":   { emoji:"🌾", head:"お仕事おつかれさまでした", body:`農家が「${title}」の作業完了を記録しました。最後に、お互いを評価しましょう。`, link:"評価する →", hash:"/profile/worker/approved" },
