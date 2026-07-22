@@ -5417,7 +5417,14 @@ function ChatView({ applicationId, onBack }) {
             .eq(iAmWorker ? "farmer_id" : "worker_id", partnerId)
             .order("created_at", { ascending: false });
           const relRows = (rel && rel.length > 0) ? rel : null;
-          const active = relRows ? (relRows.find(r => CHAT_ELIGIBLE_STATUSES.includes(r.status)) || relRows[0]) : null;
+          // 現役＝開いた応募(applicationId)そのもの（2026-07-22 修正）。メッセージ履歴は相手ごとに束ねる(appIds)が、
+          // 状態（採用/確認カード/保険/#N・"勲章"）は開いた応募に固定する。以前は「相手との最新の応募」を現役にしていたため、
+          // 同じ相手に複数応募があると別の求人(例#1055)の状態が開いた求人(例#1053)に映っていた。見つからない時だけ従来の推定へ
+          const active = relRows
+            ? (relRows.find(r => r.id === applicationId)
+               || relRows.find(r => CHAT_ELIGIBLE_STATUSES.includes(r.status))
+               || relRows[0])
+            : null;
           const ids = relRows ? relRows.map(r => r.id) : [applicationId];
           setAppIds(ids);
           if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
