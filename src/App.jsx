@@ -15484,7 +15484,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           </div>
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 公開中パネル（メルカリ風・横3列） */}
-      {dbActive.length === 0 ? (
+      {(dbActive.length === 0 && dbExpired.length === 0) ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>{/* 空状態は作成中ページと全く同じ配置（2026-07-16） */}
             <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
             <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>公開中の求人はありません</p>
@@ -15492,14 +15492,15 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           </div>
         ) : (
           (() => {
-            // 審査中(pending)と公開中(open)をセクションで分離（2026-07-16）
-            const renderActiveJobCard = (d) => {
+            // 審査中(pending)と公開中(open)をセクションで分離（2026-07-16）。
+            // 終了（作業日程が過ぎた求人）も公開中ボックスに残す（2026-07-22）＝endedフラグで灰色帯「終了」
+            const renderActiveJobCard = (d, ended=false) => {
               const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
               return (
               <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                  <StatusRibbon label={d.status==="open" ? "公開中" : d.status==="draft" ? "一時非公開" : "審査中"} color={d.status==="open" ? "#00A86B" : d.status==="draft" ? "#757575" : "#C77700"} />
+                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
+                  <StatusRibbon label={ended ? "終了" : d.status==="open" ? "公開中" : d.status==="draft" ? "一時非公開" : "審査中"} color={ended ? "#9E9E9E" : d.status==="open" ? "#00A86B" : d.status==="draft" ? "#757575" : "#C77700"} />
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
               </div>
@@ -15507,12 +15508,15 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             };
             const open = dbActive.filter(d => d.status === "open");
             const unpub = dbActive.filter(d => d.status === "draft"); // 一時非公開（掲載歴あり）
+            const ended = dbExpired; // 作業日程が過ぎた求人＝終了（探すからは自動で外れるが、農家の公開中ボックスには残す）
             return (
               <>
                 {open.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 -2px" }}>公開中（{open.length}）</p>}
-                {open.map(renderActiveJobCard)}
+                {open.map(d => renderActiveJobCard(d))}
                 {unpub.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#757575", margin:"8px 0 -2px" }}>一時非公開（{unpub.length}）</p>}
-                {unpub.map(renderActiveJobCard)}
+                {unpub.map(d => renderActiveJobCard(d))}
+                {ended.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#9E9E9E", margin:"8px 0 -2px" }}>終了（{ended.length}）</p>}
+                {ended.map(d => renderActiveJobCard(d, true))}
               </>
             );
           })()
