@@ -15250,6 +15250,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
   const [showRoster, setShowRoster] = useState(false); // 記録と予定：また呼びたいリスト箱→モーダル（2026-07-22）
   const [eFlip, setEFlip] = useState(null); // 農家ハブ：？タップで反転して説明を出す箱のラベル（2026-07-22）
+  const [appFilter, setAppFilter] = useState("all"); // 応募者タブの状態フィルタ（2026-07-22）
+  const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者ページ下部「帯の意味」の説明ボックス開閉
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
     if (!completeDone) return;
@@ -15279,6 +15281,24 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
   const appRibbonLabel = (st) => st==="applied" ? "承認待ち" : st==="approved" ? "承認済み" : st==="rejected" ? "見送り" : st==="meeting" ? "打ち合わせ" : st==="interview" ? "面接" : st==="contracted" ? "契約" : st==="working" ? "作業中" : st==="completed" ? "完了" : st;
   const appRibbonColor = (st) => (st==="completed"||st==="rejected") ? "#9E9E9E" : (st==="applied"||st==="working") ? "#C77700" : "#00A86B";
+  // 応募者ページの状態フィルタ（2026-07-22）：上部タブ＝タップ＋横スワイプで切替
+  const APP_FILTERS = [
+    { k:"all",       l:"すべて",   match: () => true },
+    { k:"applied",   l:"承認待ち", match: (s) => s==="applied" },
+    { k:"active",    l:"進行中",   match: (s) => ["approved","meeting","interview","contracted","working"].includes(s) },
+    { k:"completed", l:"完了",     match: (s) => s==="completed" },
+  ];
+  const appSwipeRef = useRef(null);
+  const onAppSwipeStart = (e) => { appSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onAppSwipeEnd = (e) => {
+    const s = appSwipeRef.current; appSwipeRef.current = null;
+    if (!s) return;
+    const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
+    const idx = Math.max(0, APP_FILTERS.findIndex(f => f.k === appFilter));
+    const next = dx < 0 ? Math.min(APP_FILTERS.length - 1, idx + 1) : Math.max(0, idx - 1);
+    setAppFilter(APP_FILTERS[next].k);
+  };
   // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
   const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
   // 応募者の注意表示（2026-07-16）：未承認（承認待ち）＝赤影＋浮遊アニメ／保険未チェック＝赤影のみ（静止）
@@ -15696,7 +15716,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       </div>
       ) : (
-      <div style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
+      <div onTouchStart={jobTab==="applicants" ? onAppSwipeStart : undefined} onTouchEnd={jobTab==="applicants" ? onAppSwipeEnd : undefined} style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
@@ -15708,38 +15728,66 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
           </div>
         ) : (
-          // 応募者を求人毎に分ける（2026-07-19）：求人ごとに見出し（タップで求人プレビュー）→その求人の応募者カード。
-          // 単一グリッド内でgridColumn:1/-1の見出しが全幅で改行を作り、区切りとして機能する
+          // 応募者を求人毎に分ける（2026-07-19）。上部＝状態フィルタタブ（タップ＋横スワイプ）／下部＝帯の意味の説明（2026-07-22）
           (() => {
+            const shown = dbApplicants.filter(a => (APP_FILTERS.find(f => f.k === appFilter) || APP_FILTERS[0]).match(a.status));
             const order = []; const byJob = {};
-            dbApplicants.forEach(a => { const jn = a.job_number; if (!jobInfoMap[jn]) return; /* 削除済み求人の孤児応募は出さない（2026-07-22） */ if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
-            return order.flatMap(jn => {
-              const info = jobInfoMap[jn] || {};
-              const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
-              return [
-                <button key={`h-${jn}`} onClick={()=>setPreviewJob({ num: jn })} className="f-sans"
-                  style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 14px", cursor:"pointer", marginTop:2 }}>
-                  <span style={{ fontSize:14, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8" }}>#{jn}</span></span>
-                  <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 · 求人を見る →</span>
-                </button>,
-                ...byJob[jn].map(a => {
-                  const wp = workerProfiles[a.worker_id];
-                  return (
-                    <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
-                      className={"f-sans" + (a.status === "applied" ? " cb-urgent-card" : needsInsurance(a) ? " cb-urgent-still" : "")}
-                      style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                      <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-                        {wp?.avatar_url
-                          ? <img src={wp.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                          : <Avatar url={null} name={wp?.nickname || "？"} size={64} />}
-                        <StatusRibbon label={appRibbonLabel(a.status)} color={appRibbonColor(a.status)} />
+            shown.forEach(a => { const jn = a.job_number; if (!jobInfoMap[jn]) return; if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
+            const tabBar = (
+              <div key="app-tabs" style={{ gridColumn:"1/-1", display:"flex", gap:6, marginBottom:2, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+                {APP_FILTERS.map(f => (
+                  <button key={f.k} onClick={()=>setAppFilter(f.k)} className="f-sans" style={{ flex:"1 0 auto", padding:"8px 14px", borderRadius:20, border: appFilter===f.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: appFilter===f.k?800:600, color: appFilter===f.k?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>{f.l}</button>
+                ))}
+              </div>
+            );
+            const legend = (
+              <div key="app-legend" style={{ gridColumn:"1/-1", marginTop:14 }}>
+                <button onClick={()=>setAppLegendOpen(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:"#555" }}>帯（ステータス）の意味</span>
+                  <span style={{ fontSize:14, color:"#999" }}>{appLegendOpen ? "－" : "＋"}</span>
+                </button>
+                {appLegendOpen && (
+                  <div className="fade-in" style={{ marginTop:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"12px 14px", display:"grid", gap:10 }}>
+                    {[["承認待ち","#C77700","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["承認済み","#00A86B","承認した応募。チャットで打ち合わせ・面接に進みます"],["契約","#00A86B","打ち合わせ・面接を経て、双方が内容を確認した状態"],["作業中","#C77700","作業当日・進行中"],["完了","#9E9E9E","作業が終わった応募。お互いを評価できます"],["見送り","#9E9E9E","見送りにした応募"]].map(([l,c,d]) => (
+                      <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                        <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:c, color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{l}</span>
+                        <span className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.6 }}>{d}</span>
                       </div>
-                      <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: wp?.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "（名前未設定）"}</p>
-                    </button>
-                  );
-                })
-              ];
-            });
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+            const body = order.length === 0
+              ? [<p key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>この状態の応募者はいません</p>]
+              : order.flatMap(jn => {
+                  const info = jobInfoMap[jn] || {};
+                  const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
+                  return [
+                    <button key={`h-${jn}`} onClick={()=>setPreviewJob({ num: jn })} className="f-sans"
+                      style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 14px", cursor:"pointer", marginTop:2 }}>
+                      <span style={{ fontSize:14, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8" }}>#{jn}</span></span>
+                      <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 · 求人を見る →</span>
+                    </button>,
+                    ...byJob[jn].map(a => {
+                      const wp = workerProfiles[a.worker_id];
+                      return (
+                        <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
+                          className={"f-sans" + (a.status === "applied" ? " cb-urgent-card" : needsInsurance(a) ? " cb-urgent-still" : "")}
+                          style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                          <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                            {wp?.avatar_url
+                              ? <img src={wp.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                              : <Avatar url={null} name={wp?.nickname || "？"} size={64} />}
+                            <StatusRibbon label={appRibbonLabel(a.status)} color={appRibbonColor(a.status)} />
+                          </div>
+                          <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: wp?.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "（名前未設定）"}</p>
+                        </button>
+                      );
+                    })
+                  ];
+                });
+            return [tabBar, ...body, legend];
           })()
         )
       ) : jobTab==="expired" ? (
