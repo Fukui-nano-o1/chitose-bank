@@ -7813,7 +7813,7 @@ function JobCard({ job, variant, saved, onToggleSave }) {
       rel="noopener noreferrer"
       style={cardStyle}
     >
-      {typeof onToggleSave === "function" && (
+      {typeof onToggleSave === "function" && !(job.filled || job.expired) && (
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSave(job); }}
           aria-label={saved ? "いいねを解除" : "いいね"}
@@ -7825,8 +7825,8 @@ function JobCard({ job, variant, saved, onToggleSave }) {
           {saved ? "♥" : "♡"}
         </button>
       )}
-      {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16） */}
-      {job.isNew && <StatusRibbonLeft label="新着" color="#E24B4A" />}
+      {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16）。終了中（満員/期間終了）は出さない */}
+      {job.isNew && !(job.filled || job.expired) && <StatusRibbonLeft label="新着" color="#E24B4A" />}
       {/* 開始日チップ：写真右下（2026-07-16）。期間ものは「〜」付き */}
       {job.dateStartRaw && (
         <span className="f-sans" style={{ position:"absolute", top: photoHeight - 34, right:8, zIndex:2, padding:"4px 10px", borderRadius:20, background:"rgba(255,255,255,0.92)", color:"#222", fontSize:11, fontWeight:700, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>
