@@ -15569,7 +15569,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             </button>
           ))}
         </div>
-      ) : (
+      ) : jobTab==="calendar" ? null : (
         <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       )}
       {/* 作成中⇄公開中はページャー（2026-07-16）：文字・絵文字・ボタン・カードが指に追従して実際に横移動する */}
@@ -15729,10 +15729,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           })
         )
       ) : jobTab==="calendar" ? (
-        <div style={{ gridColumn:"1/-1", maxWidth:480, textAlign:"center", padding:"32px 0" }}>
-          <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:16, lineHeight:1.7 }}>あなたの求人の日程と、承認した働き手がいつ来るかは、カレンダーでまとめて確認できます。</p>
-          <button onClick={()=>{ window.location.hash = "/calendar"; }} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12 }}>カレンダーへ →</button>
-        </div>
+        <div style={{ gridColumn:"1/-1" }}><MyCalendar /></div>
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
           <div style={{ fontSize:44, marginBottom:14 }}>🌱</div>
