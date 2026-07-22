@@ -17351,6 +17351,15 @@ export default function App(){
     })();
     return () => { cancelled = true; };
   }, [me?.id, empCtx]);
+  // 下部ナビもモード切替で反転（プロフィールのカードフリップと同じpflip・2026-07-22）。初回マウントは回さない
+  const [navFlip, setNavFlip] = useState("");
+  const navFlipInit = useRef(true);
+  useEffect(() => {
+    if (navFlipInit.current) { navFlipInit.current = false; return; }
+    setNavFlip("pflip-in");
+    const t = setTimeout(() => setNavFlip(""), 450);
+    return () => clearTimeout(t);
+  }, [empCtx]);
   useEffect(() => {
     if (!me?.id) { setMeAvatar({ url:"", name:"", empUrl:"", empName:"" }); return; }
     let cancelled = false;
@@ -18270,7 +18279,7 @@ const subDest=useCallback(async d=>{
       {/* ── MOBILE BOTTOM NAV（5機能タブ。カレンダーが中央。☰は上部浮遊へ移設済み）
            新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
       {!(needsAccountHolder || openAccountForm) && <header className="app-header app-header-mobile">
-        <div className="app-header-mobile-tabs">
+        <div className={"app-header-mobile-tabs" + (navFlip ? " " + navFlip : "")}>
           {navTabs.map(t => {
             const cur = window.location.hash.replace(/^#\/?/, "");
             const isActive = t.hash
