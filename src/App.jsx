@@ -5146,6 +5146,12 @@ function ChatView({ applicationId, onBack }) {
   const [confirmingTerms, setConfirmingTerms] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
   const [confirmBoxOpen, setConfirmBoxOpen] = useState(false); // 求人内容確認をボックス展開（2026-07-19）
+  // 求人コンテキストカード（2026-07-22・第8弾）：チャット最上部に固定。スレッドが「何の話か」を常時知っている状態
+  const [ctxOpen, setCtxOpen] = useState(false);
+  // 定型文シート（2026-07-22・第8弾）：入力欄横の＋→役割別のテンプレをタップで挿入
+  const [tmplOpen, setTmplOpen] = useState(false);
+  // 既読（2026-07-22・第8弾）：相手（counterpart）のchat_reads最終既読時刻。自分の送信でこれ以前のものに「既読」
+  const [partnerReadAt, setPartnerReadAt] = useState(null);
   // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
   const [reportMode, setReportMode] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
@@ -5201,10 +5207,23 @@ function ChatView({ applicationId, onBack }) {
       // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session && (data || []).some(m => m.sender_id !== session.user.id && !m.read_at)) {
-          await supabase.from("messages").update({ read_at: new Date().toISOString() })
-            .in("application_id", scope).neq("sender_id", session.user.id).is("read_at", null);
-          window.dispatchEvent(new Event("cb:unreadRefresh"));
+        if (session) {
+          if ((data || []).some(m => m.sender_id !== session.user.id && !m.read_at)) {
+            await supabase.from("messages").update({ read_at: new Date().toISOString() })
+              .in("application_id", scope).neq("sender_id", session.user.id).is("read_at", null);
+            window.dispatchEvent(new Event("cb:unreadRefresh"));
+          }
+          // 既読トラッキング（2026-07-22・第8弾）：自分の最終既読時刻をchat_readsに刻む（相手側で「既読」表示に使われる）
+          const now = new Date().toISOString();
+          await supabase.from("chat_reads").upsert(
+            scope.map(id => ({ application_id: id, reader_id: session.user.id, last_read_at: now })),
+            { onConflict: "application_id,reader_id" }
+          );
+          // 相手の最終既読時刻を取得（counterpart select・当事者のみ読める）。自分の送信メッセージの「既読」判定に使う
+          const { data: pr } = await supabase.from("chat_reads")
+            .select("last_read_at").in("application_id", scope).neq("reader_id", session.user.id)
+            .order("last_read_at", { ascending: false }).limit(1).maybeSingle();
+          setPartnerReadAt(pr ? pr.last_read_at : null);
         }
       } catch {}
     } catch {}
@@ -5309,6 +5328,17 @@ function ChatView({ applicationId, onBack }) {
     } catch {}
     setSending(false);
   };
+  // 既読マーカー（2026-07-22・第8弾）：LINE式に、相手が読んだ自分の最新メッセージ1件にだけ「既読」を出す。
+  // partnerReadAt（相手の最終既読時刻）以前に送った自分のメッセージのうち、最後の1件のidを求める
+  const readMarkMsgId = (() => {
+    if (!partnerReadAt || !myId) return null;
+    const t = new Date(partnerReadAt).getTime();
+    let id = null;
+    for (const m of msgs) {
+      if (m.sender_id === myId && new Date(m.created_at).getTime() <= t) id = m.id;
+    }
+    return id;
+  })();
   return (
     <div className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
       <button onClick={onBack} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:13, cursor:"pointer", padding:"8px 0", textAlign:"left" }}>← 戻る</button>
@@ -5329,6 +5359,40 @@ function ChatView({ applicationId, onBack }) {
       )}
       {reportMode && !reportTarget && (
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
+      )}
+
+      {/* 求人コンテキストカード（2026-07-22・第8弾）：チャット最上部に固定（メッセージ欄の外＝スクロールしない）。
+          スレッドが「何の話か」を常時知っている状態にする。タップで確認状態・保険状態・求人ページリンクを展開 */}
+      {chatJobNumber != null && (
+        <div className="f-sans" style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, margin:"6px 0 2px", overflow:"hidden" }}>
+          <button onClick={()=>setCtxOpen(v=>!v)} style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"none", border:"none", padding:"10px 12px", cursor:"pointer" }}>
+            <span style={{ fontSize:18, flexShrink:0 }}>🌾</span>
+            <span style={{ flex:1, minWidth:0 }}>
+              <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>#{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "「" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") + "」" : ""}</span>
+              {confirmJob && (confirmJob.dateLabel || confirmJob.workTime) && (
+                <span style={{ display:"block", fontSize:11, color:"#7A9E8E", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[confirmJob.dateLabel, confirmJob.workTime].filter(Boolean).join("　")}</span>
+              )}
+            </span>
+            <span style={{ fontSize:12, color:"#7A9E8E", flexShrink:0 }}>{ctxOpen ? "閉じる ▲" : "詳細 ▼"}</span>
+          </button>
+          {ctxOpen && (
+            <div style={{ borderTop:"1px solid #E4F0EA", padding:"10px 12px", display:"grid", gap:8 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
+                <span style={{ fontSize:12, color:"#8AA79A", flexShrink:0 }}>内容の確認</span>
+                <span style={{ fontSize:12, fontWeight:700, color: workerConfirmed ? "#00A86B" : "#B0700F", textAlign:"right" }}>{workerConfirmed ? "✓ 相違なし済み" : "未確認"}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
+                <span style={{ fontSize:12, color:"#8AA79A", flexShrink:0 }}>採用</span>
+                <span style={{ fontSize:12, fontWeight:700, color: farmerConfirmed ? "#00A86B" : "#999", textAlign:"right" }}>{farmerConfirmed ? "✓ 採用決定済み" : "未決定"}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
+                <span style={{ fontSize:12, color:"#8AA79A", flexShrink:0 }}>保険の報告</span>
+                <span style={{ fontSize:12, fontWeight:700, color: insurancePreparedAt ? "#00A86B" : "#999", textAlign:"right" }}>{insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません"}</span>
+              </div>
+              <button onClick={()=>openJobBox(chatJobNumber)} style={{ marginTop:2, background:"none", border:"none", padding:0, fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer", textAlign:"left" }}>求人ページを見る →</button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* 求人内容の確認（⑦・働き手のみ）：チャットを占有せず、コンパクトなバー→タップでボックス展開（2026-07-19） */}
@@ -5425,6 +5489,10 @@ function ChatView({ applicationId, onBack }) {
           <div
             onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
             style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none" }} className="f-sans">{m.body}</div>
+          {/* 既読（2026-07-22・第8弾）：相手が読んだ自分の最新メッセージにだけ小さく表示 */}
+          {m.id === readMarkMsgId && (
+            <span className="f-sans" style={{ alignSelf:"flex-end", fontSize:10, color:"#B0B0B0", marginTop:-4 }}>既読</span>
+          )}
           {/* 応募の自動メッセージの直後（農家側のみ）：2通目として応募者のプロフィールカード＋
               「応募された求人を見る →」リンクを表示（2026-07-19）。旧文言（確認をお願いします）にも出すためstartsWithで判定 */}
           {!isWorkerSide && partnerWorkerId && m.sender_id !== myId && m.body.startsWith("あなたの求人に応募しました！") && (
@@ -5524,10 +5592,30 @@ function ChatView({ applicationId, onBack }) {
           </div>
         </div>
       ) : (
-      <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE" }}>
+      <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE", alignItems:"center" }}>
+        {/* 定型文（2026-07-22・第8弾）：＋で役割別テンプレシートを開く */}
+        <button onClick={()=>setTmplOpen(true)} aria-label="定型文" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
         <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") send(); }} placeholder="メッセージを入力" className="field f-sans" style={{ flex:1, fontSize:14 }} />
         <button onClick={send} disabled={sending} className="f-sans" style={{ padding:"10px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{sending?"...":"送信"}</button>
       </div>
+      )}
+
+      {/* 定型文シート（2026-07-22・第8弾）：役割別のテンプレをタップで入力欄に挿入（編集して送信可） */}
+      {tmplOpen && (
+        <div onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>定型文</p>
+              <button onClick={()=>setTmplOpen(false)} aria-label="閉じる" style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer" }}>✕</button>
+            </div>
+            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップで入力欄に入ります。送信前に編集できます。</p>
+            <div style={{ display:"grid", gap:8 }}>
+              {(isWorkerSide ? CHAT_TEMPLATES_WORKER : CHAT_TEMPLATES_FARMER).map(t => (
+                <button key={t} onClick={()=>{ setText(prev => prev.trim() ? (prev.replace(/\s*$/, "") + " " + t) : t); setTmplOpen(false); }} className="f-sans" style={{ textAlign:"left", background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#222", cursor:"pointer", lineHeight:1.6 }}>{t}</button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -5540,6 +5628,19 @@ const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","w
 // applied=応募直後から相手とチャットで繋がる（2026-07-19）。rejected=見送りの自動返信を読めるよう履歴として残す
 const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected"];
 const CHAT_STATUS_LABEL = { applied:"承認待ち", approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了", rejected:"見送り" };
+// 定型文（2026-07-22・第8弾）：チャット入力欄の＋から役割別に挿入。「何を書けばいいか分からない」摩擦を消す
+const CHAT_TEMPLATES_FARMER = [
+  "承認しました。日程のご相談をお願いします",
+  "集合場所と持ち物は確認カードのとおりです",
+  "当日はよろしくお願いします",
+  "その日は都合が悪くなりました。別の日はいかがですか",
+];
+const CHAT_TEMPLATES_WORKER = [
+  "はじめまして。よろしくお願いします",
+  "集合場所を教えてください",
+  "持ち物はこれで大丈夫ですか？",
+  "本日はありがとうございました",
+];
 function ChatList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
