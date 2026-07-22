@@ -5144,6 +5144,149 @@ const fmtJstShort = (ts) => {
   } catch { return String(ts).slice(5, 16).replace("T", " "); }
 };
 
+// 「仕事の内容」「質問」タブバー（第10弾・2026-07-22）：求人詳細・確認ページの写真下に置く
+function ContentQTabs({ value, onChange }) {
+  const tabs = [["content", "仕事の内容"], ["questions", "質問"]];
+  return (
+    <div style={{ display:"flex", gap:4, borderBottom:"1px solid #EEE", marginBottom:20 }}>
+      {tabs.map(([k, l]) => (
+        <button key={k} onClick={()=>onChange(k)} className="f-sans" style={{ flex:1, background:"none", border:"none", borderBottom: value===k ? "2px solid #00A86B" : "2px solid transparent", padding:"10px 0", fontSize:14, fontWeight:700, color: value===k ? "#00A86B" : "#999", cursor:"pointer", marginBottom:-1 }}>{l}</button>
+      ))}
+    </div>
+  );
+}
+
+// 求人Q&A（第10弾・2026-07-22）：求人詳細・応募前の確認ページの「質問」タブで使う公開Q&A。
+// 読み取りは job_questions を直接SELECT（RLS：hidden=false／当事者・管理者は全件）。
+// 書き込みは必ずRPC経由（ask_job_question / answer_job_question / admin_hide_question）。NG検査（電話/メール/URL拒否）はDB側。
+function JobQuestions({ jobNumber, me }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [myId, setMyId] = useState(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [ngMsg, setNgMsg] = useState("");
+  const [answerDraft, setAnswerDraft] = useState({}); // {id: 回答テキスト}
+  const [answeringId, setAnsweringId] = useState(null);
+  const [answerNg, setAnswerNg] = useState({}); // {id: NGメッセージ}
+  const [hidingId, setHidingId] = useState(null);
+  const admin = isAdmin(me);
+  const load = async () => {
+    try {
+      const { data } = await supabase.from("job_questions").select("*").eq("job_number", jobNumber).order("created_at", { ascending: false });
+      setRows(data || []);
+    } catch {}
+    setLoading(false);
+  };
+  useEffect(() => {
+    if (jobNumber == null) { setLoading(false); return; }
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setMyId(session.user.id);
+          // 自分の求人か（jobs owner select＝自分の行のみ返る。管理者は全件返るが farmer_id 一致で本人だけ true）
+          const { data: jrow } = await supabase.from("jobs").select("farmer_id").eq("job_number", jobNumber).maybeSingle();
+          setIsOwner(!!(jrow && jrow.farmer_id === session.user.id));
+        }
+      } catch {}
+      load();
+    })();
+  }, [jobNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+  const submitAsk = async () => {
+    const q = text.trim();
+    if (!q || sending) return;
+    setNgMsg(""); setSending(true);
+    try {
+      const { data, error } = await supabase.rpc("ask_job_question", { p_job: jobNumber, p_question: q });
+      if (error || !data?.ok) {
+        setNgMsg(data?.message || (data?.reason === "not_logged_in" ? "質問するにはログインが必要です。" : data?.reason === "own_job" ? "自分の求人には質問できません。" : data?.reason === "not_open" ? "この求人は現在公開されていません。" : "送信できませんでした。"));
+      } else { setText(""); await load(); }
+    } catch { setNgMsg("送信できませんでした。"); }
+    setSending(false);
+  };
+  const submitAnswer = async (id) => {
+    const ans = (answerDraft[id] || "").trim();
+    if (!ans || answeringId) return;
+    setAnswerNg(p => ({ ...p, [id]: "" })); setAnsweringId(id);
+    try {
+      const { data, error } = await supabase.rpc("answer_job_question", { p_id: id, p_answer: ans });
+      if (error || !data?.ok) setAnswerNg(p => ({ ...p, [id]: data?.message || "送信できませんでした。" }));
+      else { setAnswerDraft(p => ({ ...p, [id]: "" })); await load(); }
+    } catch { setAnswerNg(p => ({ ...p, [id]: "送信できませんでした。" })); }
+    setAnsweringId(null);
+  };
+  const toggleHide = async (id, hidden) => {
+    if (hidingId) return;
+    setHidingId(id);
+    try { const { data } = await supabase.rpc("admin_hide_question", { p_id: id, p_hidden: hidden }); if (data?.ok) await load(); } catch {}
+    setHidingId(null);
+  };
+  if (jobNumber == null) {
+    return <p className="f-sans" style={{ color:"#999", fontSize:13, padding:"16px 0", textAlign:"center" }}>公開後に、ここで働き手からの質問を受け付けます。</p>;
+  }
+  return (
+    <div className="f-sans">
+      {loading ? (
+        <p style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中...</p>
+      ) : (
+        <>
+          {rows.length === 0 ? (
+            <p style={{ color:"#999", fontSize:13, padding:"12px 0 20px", textAlign:"center" }}>まだ質問はありません。{!isOwner ? "気になることは、下から質問できます。" : ""}</p>
+          ) : (
+            <div style={{ display:"grid", gap:16, marginBottom:20 }}>
+              {rows.map(q => (
+                <div key={q.id} style={{ opacity: q.hidden ? 0.5 : 1 }}>
+                  <div style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
+                    <span style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"#EEF4F1", color:"#0B6B4F", fontWeight:800, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>Q</span>
+                    <div style={{ background:"#F2F5F4", borderRadius:"4px 14px 14px 14px", padding:"10px 14px", flex:1, minWidth:0 }}>
+                      <p style={{ fontSize:14, color:"#222", margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{q.question}</p>
+                      <p style={{ fontSize:10, color:"#B0B0B0", margin:"4px 0 0" }}>{fmtJstShort(q.created_at)}{q.hidden ? "・非表示中" : ""}</p>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:8, alignItems:"flex-start", marginTop:8, flexDirection:"row-reverse" }}>
+                    <span style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"#00A86B", color:"#fff", fontWeight:800, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>A</span>
+                    {q.answer ? (
+                      <div style={{ background:"#E6F7EF", borderRadius:"14px 4px 14px 14px", padding:"10px 14px", flex:1, minWidth:0 }}>
+                        <p style={{ fontSize:14, color:"#0B4A36", margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{q.answer}</p>
+                        <p style={{ fontSize:10, color:"#8FBFAB", margin:"4px 0 0", textAlign:"right" }}>{fmtJstShort(q.answered_at)}</p>
+                      </div>
+                    ) : isOwner ? (
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <textarea value={answerDraft[q.id] || ""} onChange={e=>setAnswerDraft(p=>({ ...p, [q.id]: e.target.value }))} placeholder="回答を入力（全員に公開されます）" rows={2} className="field f-sans" style={{ fontSize:13, resize:"vertical", marginBottom:6 }} />
+                        {answerNg[q.id] && <p style={{ fontSize:11, color:"#E24B4A", margin:"0 0 6px" }}>{answerNg[q.id]}</p>}
+                        <button onClick={()=>submitAnswer(q.id)} disabled={answeringId===q.id || !(answerDraft[q.id]||"").trim()} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(answeringId===q.id||!(answerDraft[q.id]||"").trim())?0.5:1 }}>{answeringId===q.id?"送信中...":"回答する"}</button>
+                      </div>
+                    ) : (
+                      <span style={{ background:"#F3F3F3", borderRadius:"14px 4px 14px 14px", padding:"8px 14px", fontSize:12, color:"#999" }}>回答待ち</span>
+                    )}
+                  </div>
+                  {admin && (
+                    <div style={{ textAlign:"right", marginTop:4 }}>
+                      <button onClick={()=>toggleHide(q.id, !q.hidden)} disabled={hidingId===q.id} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color: q.hidden ? "#00A86B" : "#B0B0B0", textDecoration:"underline", cursor:"pointer" }}>{q.hidden ? "再表示する" : "非表示にする"}</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {!isOwner && (
+            <div style={{ borderTop:"1px solid #EEE", paddingTop:14 }}>
+              <textarea value={text} onChange={e=>{ setText(e.target.value); setNgMsg(""); }} placeholder="この求人について質問する" rows={2} className="field f-sans" style={{ fontSize:14, resize:"vertical", marginBottom:6 }} />
+              {ngMsg && <p style={{ fontSize:12, color:"#E24B4A", margin:"0 0 6px" }}>{ngMsg}</p>}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+                <p style={{ fontSize:11, color:"#B0B0B0", margin:0, flex:1, lineHeight:1.5 }}>質問と回答は、この求人を見る全員に公開されます</p>
+                <button onClick={submitAsk} disabled={sending || !text.trim()} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", flexShrink:0, opacity:(sending||!text.trim())?0.5:1 }}>{sending?"送信中...":"質問する"}</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
@@ -8143,6 +8286,8 @@ function JobCard({ job, variant, saved, onToggleSave }) {
 
 function JobSearchMapView({ onRegister, me }) {
   const [selectedJob, setSelectedJob] = useState(null);
+  const [detailTab, setDetailTab] = useState("content"); // 求人詳細の「仕事の内容/質問」タブ（第10弾）
+  useEffect(() => { setDetailTab("content"); }, [selectedJob?.id]); // 別の求人を開いたら内容タブに戻す
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -8584,6 +8729,11 @@ function JobSearchMapView({ onRegister, me }) {
             );
           })()}
 
+          {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22） */}
+          <ContentQTabs value={detailTab} onChange={setDetailTab} />
+          {detailTab === "questions" ? (
+            <JobQuestions jobNumber={selectedJob.id} me={me} />
+          ) : (<>
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}</h2>
@@ -8914,6 +9064,7 @@ function JobSearchMapView({ onRegister, me }) {
               }}>⚑ この求人を報告する</button>
             </div>
           )}
+          </>)}
         </div>
       </>)}
 
@@ -9833,6 +9984,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [draftJobNumber, setDraftJobNumber] = useState(_editJobNumber ?? _draftInit?.job_number ?? null);
+  const [confTab, setConfTab] = useState("content"); // 確認ページの「仕事の内容/質問」タブ（第10弾）
   // 集合場所の復元元＝農家プロフィールの「作業場所」（2026-07-16・直近jobsからの復元は撤回）。未設定ならnull=ボタン非表示
   const [prevAddress, setPrevAddress] = useState(null);
   useEffect(() => {
@@ -11195,6 +11347,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                 );
               })()}
 
+              {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22） */}
+              <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} /></div>
+              {confTab === "questions" ? (
+                <div style={{ maxWidth:870, margin:"0 auto" }}><JobQuestions jobNumber={draftJobNumber} me={me} /></div>
+              ) : (<>
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}` : ""}</h2>
@@ -11440,6 +11597,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                   <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} />
                 </div>
               )}
+              </>)}
 
               {/* 農園紹介セクションはページから削除（2026-07-16）。内容は農家カードのアイコン・名前タップのボックスに集約 */}
 
@@ -13059,6 +13217,17 @@ function AdminTab({ onJump, onShowAccountForm }) {
   };
   const [reports, setReports] = useState([]); // 通報（job_reports）
   const [msgReports, setMsgReports] = useState([]); // チャットのコメント報告（message_reports・2026-07-19）
+  const [adminQuestions, setAdminQuestions] = useState([]); // 求人Q&A（job_questions・第10弾・非表示スイッチ）
+  const [qHidingId, setQHidingId] = useState(null);
+  const hideQuestion = async (id, hidden) => {
+    if (qHidingId) return;
+    setQHidingId(id);
+    try {
+      const { data } = await supabase.rpc("admin_hide_question", { p_id: id, p_hidden: hidden });
+      if (data?.ok) setAdminQuestions(prev => prev.map(q => q.id === id ? { ...q, hidden } : q));
+    } catch {}
+    setQHidingId(null);
+  };
   const [disputes, setDisputes] = useState([]); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
   const [prPublishing, setPrPublishing] = useState(null);
   // 自己紹介（働き手・審査待ち）への修正依頼（2026-07-19）：どこの何がどう問題かを選んで積み上げ→運営チャット＋メールをセット送信
@@ -13109,7 +13278,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re, ae, pj, wp, jr, av, la, mr] = await Promise.all([
+    const [fr, de, re, ae, pj, wp, jr, av, la, mr, jq] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
@@ -13120,6 +13289,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
       supabase.from("attendance_events").select("*").eq("kind","dispute_no_show").order("created_at",{ascending:false}),
       supabase.rpc("admin_list_accounts"),
       supabase.from("message_reports").select("*").order("created_at",{ascending:false}),
+      supabase.from("job_questions").select("*").order("created_at",{ascending:false}),
     ]);
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
@@ -13132,6 +13302,7 @@ function AdminTab({ onJump, onShowAccountForm }) {
     if (!av.error) setDisputes(av.data || []);
     if (!la.error && Array.isArray(la.data)) setAccounts(la.data); // {ok:false,reason:'not_admin'}時は配列でないため無視
     if (!mr.error) setMsgReports(mr.data || []);
+    if (!jq.error) setAdminQuestions(jq.data || []);
     setLoading(false);
   }, []);
 
@@ -13772,6 +13943,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"prs",      e:"📝", l:"自由記述",       n:pendingPrs.length + empPendingCount },
             { k:"reports",  e:"🚨", l:"通報",           n:openReports.length + openMsgReports.length },
             { k:"disputes", e:"⚖️", l:"欠勤異議",       n:disputes.length },
+            { k:"questions",e:"❓", l:"質問",           n:0 },
             { k:"contracts",e:"📄", l:"契約記録",       n:0 },
           ].map(c => (
             <button key={c.k} onClick={()=>setReviewSec(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
@@ -14051,6 +14223,32 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 10px" }}>応募ID：{String(r.application_id || "").slice(0, 8)}…　発言者：{String(r.sender_id_snapshot || "").slice(0, 8)}…　報告者：{String(r.reporter_id || "").slice(0, 8)}…</p>
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>resolveMsgReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        )}
+
+        {/* 求人への質問（job_questions・第10弾）：不適切なQ&Aを「非表示にする」で公開から外す */}
+        {reviewSec==="questions" && (
+        <div>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 6px" }}>求人への質問{adminQuestions.length > 0 ? `（${adminQuestions.length}）` : ""}</p>
+          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.7 }}>不適切な質問・回答は「非表示にする」で公開から外せます（本人・農家・運営には残ります）。</p>
+          <div style={{ display:"grid", gap:12 }}>
+            {adminQuestions.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>質問はありません</p>
+            ) : adminQuestions.map(q => (
+              <div key={q.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background: q.hidden ? "#FAFAFA" : "#fff", opacity: q.hidden ? 0.7 : 1 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>求人 #{q.job_number}{q.hidden ? "　（非表示中）" : ""}</p>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{q.created_at ? new Date(q.created_at).toLocaleString("ja-JP") : ""}</span>
+                </div>
+                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:"0 0 6px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>Q. {q.question}</p>
+                <p className="f-sans" style={{ fontSize:13, color: q.answer ? "#0B6B4F" : "#B0B0B0", lineHeight:1.7, margin:"0 0 10px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>A. {q.answer || "未回答"}</p>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>setPreviewJobNumber(q.job_number)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>求人を見る</button>
+                  <button onClick={()=>hideQuestion(q.id, !q.hidden)} disabled={qHidingId===q.id} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: q.hidden ? "#00A86B" : "#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qHidingId===q.id ? "..." : q.hidden ? "再表示する" : "非表示にする"}</button>
                 </div>
               </div>
             ))}
@@ -15285,6 +15483,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
+  const [qUnansweredMap, setQUnansweredMap] = useState({}); // { job_number: 未回答質問数 }（第10弾・求人カードのバッジ）
   const [dbExpired, setDbExpired] = useState([]); // 作業日程が過ぎた自分の求人（statusは持たず日付から導出・2026-07-16）
   const [dbApplicants, setDbApplicants] = useState([]);
   const [jobInfoMap, setJobInfoMap] = useState({}); // job_number→{crop,task}（応募者を求人毎に分ける見出し用・2026-07-19）
@@ -15351,6 +15550,16 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           setDbDrafts(allJobs.filter(j => ((j.status === "draft" && !j.opened_at) || j.status === "pending") && !isPast(j)));
           setDbActive(allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j)));
           setDbExpired(allJobs.filter(isPast));
+          // 未回答の質問数を集計（第10弾）：自分の求人の、回答なし・非表示でない質問
+          try {
+            const nums = allJobs.map(j => j.job_number);
+            if (nums.length > 0) {
+              const { data: qs } = await supabase.from("job_questions").select("job_number").is("answer", null).eq("hidden", false).in("job_number", nums);
+              const m = {};
+              (qs || []).forEach(q => { m[q.job_number] = (m[q.job_number] || 0) + 1; });
+              setQUnansweredMap(m);
+            }
+          } catch {}
         }
         const { data: appData, error: appErr } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
         if (!appErr && appData) {
@@ -15955,6 +16164,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
                   <StatusRibbon label={ended ? "終了" : d.status==="open" ? "公開中" : d.status==="draft" ? "一時非公開" : "審査中"} color={ended ? "#9E9E9E" : d.status==="open" ? "#00A86B" : d.status==="draft" ? "#757575" : "#C77700"} />
+                  {qUnansweredMap[d.job_number] > 0 && (
+                    <span className="f-sans" style={{ position:"absolute", top:6, right:6, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:20, padding:"2px 8px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>❓{qUnansweredMap[d.job_number]}</span>
+                  )}
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
               </div>
@@ -17271,6 +17483,8 @@ const HELP_CONTENT = {
       { key:"mails-repeatNewJob",      label: "M16　🌟また呼びたい農家さんの新求人", body: "いつ：あなたを「また呼びたい」に登録した農家さんが新しい求人を公開した時／誰に：指名リストの働き手" },
       { key:"mails-repeatInstant",       label: "M17　🌟即決で承認されました", body: "いつ：以前「また呼びたい」と評価してくれた農家さんの求人に応募し、選考なしで確定した時／誰に：働き手" },
       { key:"mails-repeatInstantFarmer", label: "M18　🌟リピート即決のお知らせ", body: "いつ：自分の求人の設定（また呼びたい即決）に基づいて自動承認が実行された時／誰に：農家" },
+      { key:"mails-jobQuestion",       label: "M22　求人に質問が届きました", body: "いつ：働き手があなたの求人に質問した時／誰に：農家／内容：回答は求人ページの「質問」タブからできます。回答は他の閲覧者にも公開され、同じ質問を減らせます" },
+      { key:"mails-jobQuestionAnswered", label: "M23　質問に回答がつきました", body: "いつ：あなたがした求人への質問に、農家が回答した時／誰に：質問した働き手／内容：回答は求人ページの「質問」タブで、その求人を見る全員に公開されます" },
     ],
   },
   info: {
@@ -17288,6 +17502,7 @@ const HELP_CONTENT = {
   faq: {
     num: "第6章", title: "困ったとき",
     items: [
+      { key:"faq-askBeforeApply",  label: "応募前に質問できますか", body: "求人ページの質問タブからどうぞ。回答は全員に公開されます。" },
       { key:"faq-cancelApply",     label: "応募を取り消したい", body: "返事待ちタブから取り消せます。承認された後は、緊急連絡からご相談ください。" },
       { key:"faq-noContact",       label: "承認されたのに連絡がない", body: "承認後の連絡はチャットで届きます。チャットを確認しても連絡がない場合は、お問い合わせ窓口までご連絡ください。" },
       { key:"faq-cantGo",          label: "当日行けなくなった", body: "チャット画面の「⚠️ 緊急連絡」ボタンから、遅れる・欠勤の連絡ができます。相手にすぐに通知されます。" },
