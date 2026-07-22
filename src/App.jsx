@@ -5135,6 +5135,15 @@ const Avatar = ({ url, name, size = 40 }) => url
       {(name||"？").replace(/\s/g,"").slice(0,2)}
     </div>;
 
+// timestamptz（UTC保存）を日本時間の「MM/DD HH:MM」で表示（2026-07-22）。
+// 以前は String(created_at).slice で生のUTC文字列を出していたため9時間ずれていた（運営DMの時刻ずれ）
+const fmtJstShort = (ts) => {
+  if (!ts) return "";
+  try {
+    return new Date(ts).toLocaleString("ja-JP", { timeZone:"Asia/Tokyo", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false });
+  } catch { return String(ts).slice(5, 16).replace("T", " "); }
+};
+
 function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
@@ -5848,7 +5857,7 @@ function ChatList() {
                 <div key={m.id} style={{ alignSelf: m.from_admin ? "flex-start" : "flex-end", maxWidth:"85%" }}>
                   {m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>🛡 運営</p>}
                   <div className="f-sans" style={{ background: m.from_admin ? "#F5F5F5" : "#00A86B", color: m.from_admin ? "#222" : "#fff", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={m.body} onNavigate={()=>setDmOpen(false)} /></div>
-                  <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "left" : "right" }}>{String(m.created_at).slice(5, 16).replace("T", " ")}</p>
+                  <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "left" : "right" }}>{fmtJstShort(m.created_at)}</p>
                 </div>
               ))}
             </div>
@@ -13335,7 +13344,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 <div key={m.id} style={{ alignSelf: m.from_admin ? "flex-end" : "flex-start", maxWidth:"85%" }}>
                   {!m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>{dmUser.name}</p>}
                   <div className="f-sans" style={{ background: m.from_admin ? "#00A86B" : "#F5F5F5", color: m.from_admin ? "#fff" : "#222", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={m.body} /></div>
-                  <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "right" : "left" }}>{String(m.created_at).slice(5, 16).replace("T", " ")}{m.from_admin && m.read_at ? "・既読" : ""}</p>
+                  <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "right" : "left" }}>{fmtJstShort(m.created_at)}{m.from_admin && m.read_at ? "・既読" : ""}</p>
                 </div>
               ))}
             </div>
