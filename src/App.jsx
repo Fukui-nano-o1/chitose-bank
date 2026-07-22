@@ -17558,6 +17558,11 @@ const loadNotifs=useCallback(async(farmerId)=>{
             if (!data) { shown.push(key); try { localStorage.setItem("cb_stageShown", JSON.stringify(shown)); } catch {} continue; }
             fresh = c; jobRow = data; break;
           }
+          // 働き手側：jobsをRLSで読めないので job_exists RPCで実在確認。削除済み(false)はスキップ＝
+          // 存在しない求人の完了ボックスを出さない。クローズ済み等(true・jobs_publicには無い)は題名フォールバックで表示（2026-07-22）
+          const { data: exists } = await supabase.rpc('job_exists', { p_job_number: c.a.job_number });
+          if (cancelled) return;
+          if (exists === false) { shown.push(key); try { localStorage.setItem("cb_stageShown", JSON.stringify(shown)); } catch {} continue; }
           const { data } = await supabase.from("jobs_public").select("crop,task").eq("job_number", c.a.job_number).maybeSingle();
           if (cancelled) return;
           fresh = c; jobRow = data; break;
