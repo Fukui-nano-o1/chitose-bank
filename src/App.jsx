@@ -15280,7 +15280,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
   const appRibbonLabel = (st) => st==="applied" ? "承認待ち" : st==="approved" ? "承認済み" : st==="rejected" ? "見送り" : st==="meeting" ? "打ち合わせ" : st==="interview" ? "面接" : st==="contracted" ? "契約" : st==="working" ? "作業中" : st==="completed" ? "完了" : st;
-  const appRibbonColor = (st) => (st==="completed"||st==="rejected") ? "#9E9E9E" : (st==="applied"||st==="working") ? "#C77700" : "#00A86B";
+  // 状態ごとに色を全て分ける（同色は混乱するため・2026-07-22）。帯・凡例の唯一のソース
+  const APP_COLORS = { applied:"#C77700", approved:"#00A86B", meeting:"#1E88E5", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E" };
+  const appRibbonColor = (st) => APP_COLORS[st] || "#00A86B";
   // 応募者ページの状態フィルタ（2026-07-22）：上部タブ＝タップ＋横スワイプで切替
   const APP_FILTERS = [
     { k:"all",       l:"すべて",   match: () => true },
@@ -15748,9 +15750,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                 </button>
                 {appLegendOpen && (
                   <div className="fade-in" style={{ marginTop:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"12px 14px", display:"grid", gap:10 }}>
-                    {[["承認待ち","#C77700","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["承認済み","#00A86B","承認した応募。チャットで打ち合わせ・面接に進みます"],["契約","#00A86B","打ち合わせ・面接を経て、双方が内容を確認した状態"],["作業中","#C77700","作業当日・進行中"],["完了","#9E9E9E","作業が終わった応募。お互いを評価できます"],["見送り","#9E9E9E","見送りにした応募"]].map(([l,c,d]) => (
+                    {[["applied","承認待ち","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["approved","承認済み","承認した応募。チャットで打ち合わせ・面接に進みます"],["meeting","打ち合わせ","チャットで打ち合わせ中"],["interview","面接","面接の段階"],["contracted","契約","双方が内容を確認し、採用が決まった状態"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"]].map(([st,l,d]) => (
                       <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
-                        <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:c, color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{l}</span>
+                        <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:APP_COLORS[st], color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{l}</span>
                         <span className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.6 }}>{d}</span>
                       </div>
                     ))}
