@@ -5100,7 +5100,18 @@ function mapJobPublicRow(j) {
     // 終了帯の判定（2026-07-21）：採用人数を満たした／作業日程が過ぎた。探すからは除外しない
     hiredCount: j.hired_count != null ? Number(j.hired_count) : 0,
     filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount),
-    expired: (() => { const end = j.date_end || j.date_start; return !!end && end < ymdLocal(new Date()); })(),
+    expired: (() => {
+      const end = j.date_end || j.date_start;
+      if (!end) return false;
+      const today = ymdLocal(new Date());
+      if (end < today) return true;
+      // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降＝終了）
+      if (end === today && j.work_time) {
+        const m = String(j.work_time).match(/〜\s*(\d{1,2}):(\d{2})/);
+        if (m) { const n = new Date(); if (n.getHours()*60 + n.getMinutes() > parseInt(m[1],10)*60 + parseInt(m[2],10)) return true; }
+      }
+      return false;
+    })(),
   };
 }
 
@@ -15048,11 +15059,21 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         // 自分の求人を一括取得し、日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
         // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い
         // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。固定列SELECTに入れ忘れると一時非公開が作成中へ落ちる
-        const { data: allJobs, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,opened_at").eq("farmer_id", session.user.id).order("job_number",{ascending:false});
+        const { data: allJobs, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,work_time,opened_at").eq("farmer_id", session.user.id).order("job_number",{ascending:false});
         if (!error && allJobs) {
           setJobInfoMap(Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task }])));
           const todayYmd = ymdLocal(new Date());
-          const isPast = (j) => { const end = j.date_end || j.date_start; return !!end && end < todayYmd; };
+          const isPast = (j) => {
+            const end = j.date_end || j.date_start;
+            if (!end) return false;
+            if (end < todayYmd) return true;
+            // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降）
+            if (end === todayYmd && j.work_time) {
+              const m = String(j.work_time).match(/〜\s*(\d{1,2}):(\d{2})/);
+              if (m) { const n = new Date(); if (n.getHours()*60 + n.getMinutes() > parseInt(m[1],10)*60 + parseInt(m[2],10)) return true; }
+            }
+            return false;
+          };
           // 一時非公開（status=draftだが掲載歴opened_atあり）は作成中でなく公開中タブに帯付きで残す（2026-07-16）
           const isUnpublished = (j) => j.status === "draft" && !!j.opened_at;
           // 作成中タブ＝作成中＋審査中／公開中タブ＝公開中＋一時非公開（2026-07-16たきと指定）
