@@ -174,7 +174,7 @@ const interactionStyleLabel = v => INTERACTION_STYLE_OPTIONS.find(o => o.value =
 // 運営憲章・利用規約・プライバシーはフッター3列に常設のため☰からは削除（二重掲載の解消・2026-07-14）
 const MENU_ITEMS = [
   { key:"chats",    label:"💬 チャット",   hash:"/chats",    auth:true  },
-  { key:"calendar", label:"📅 カレンダー", hash:"/calendar", auth:true  },
+  { key:"calendar", label:"📆 今日", hash:"/calendar", auth:true  },
   { key:"profile",  label:"プロフィール",  hash:"/profile",  auth:true  },
   { key:"login",    label:"ログイン",      hash:"/login",    auth:false, guestOnly:true },
 ];
@@ -186,7 +186,7 @@ const MOBILE_TABS = [
   { k:"search",   icon:"🔍", label:"さがす" },
   { k:"saved",    icon:"♡",  label:"いいね" },
   { k:"chats",    icon:"💬", label:"チャット" },
-  { k:"calendar", icon:"📅", label:"カレンダー" },
+  { k:"calendar", icon:"📆", label:"今日" },
   { k:"profile",  icon:"👤", label:"プロフィール" },
 ];
 // モバイル☰メニューの静的リンク項目（求人を出す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
@@ -7976,7 +7976,7 @@ const calFmtDate = (ymd) => { const [y,m,d] = ymd.split("-").map(Number); return
 // 紐づく求人の作業日程を予定表（アジェンダ）として表示。日付タップで該当日へスクロール＆ハイライト。
 // jobsテーブルを直接読むとRLS(owner select=farmer_idのみ)で相手方の求人が読めないため、
 // get_my_calendar_jobs（SECURITY DEFINER）経由で自分の当事者applicationsに紐づく行だけ取得する。
-function MyCalendar() {
+function MyCalendar({ backToToday }) {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState([]); // [{job_number,crop,task,work_time,town,date_start,date_end,application_id,application_status,partner_name}]
   const [cvYear, setCvYear] = useState(new Date().getFullYear());
@@ -8144,7 +8144,9 @@ function MyCalendar() {
 
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
-      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>カレンダー</h2>
+      {/* 「今日」の奥の画面（2026-07-24）：ナビ「今日」から来た時だけ、先頭に今日へ戻る導線を出す（プロフィール内蔵のカレンダーでは出さない） */}
+      {backToToday && <button onClick={()=>{ window.location.hash="/calendar"; }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 12px", display:"inline-flex", alignItems:"center", gap:6 }}>← 今日</button>}
+      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>{backToToday ? "月の予定" : "カレンダー"}</h2>
       {/* 下書きを進めませんか？ボックス（2026-07-19）：下書きカードタップ→保存済みステップから求人フロー再開。
           意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルと説明の間に横線・上限30px/下限フッター+40px・タイトル20/本文18） */}
       {draftPrompt && (
@@ -8265,6 +8267,155 @@ function MyCalendar() {
       )}
     </div>
   );
+}
+
+// #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。月カレンダーは奥（#/calendar/month）。
+// 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
+function TodayPage({ me, defaultRole }) {
+  const [loading, setLoading] = useState(true);
+  const [entries, setEntries] = useState([]);
+  const [hasWorker, setHasWorker] = useState(false);
+  const [hasFarmer, setHasFarmer] = useState(false);
+  const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const { data } = await supabase.rpc("get_my_calendar_jobs");
+        const rows = data || [];
+        if (cancelled) return;
+        setEntries(rows);
+        const [{ data: wp }, { count: jc }, { data: ep }] = await Promise.all([
+          supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
+          supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
+          supabase.from("employer_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
+        ]);
+        if (cancelled) return;
+        const w = !!wp || rows.some(e => e.my_role === "worker");
+        const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
+        setHasWorker(w); setHasFarmer(f);
+        // 既定ロールが持っていない側なら、持っている側へ寄せる
+        setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
+      } catch {}
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const todayYmd = ymdLocal(new Date());
+  const in7Ymd = ymdLocal(calAddDays(7));
+  const mine = entries.filter(e => e.my_role === role && e.relation === "application");
+  const todayJobs = mine
+    .filter(e => e.date_start && e.date_start <= todayYmd && todayYmd <= (e.date_end || e.date_start))
+    .sort((a, b) => (a.work_time || "").localeCompare(b.work_time || ""));
+  const upcoming = mine
+    .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
+    .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
+  const dual = hasWorker && hasFarmer;
+  const accent = role === "worker" ? ROLE_ORANGE : ROLE_GREEN;
+  const handshakeHash = role === "worker" ? "/profile/worker/approved" : "/profile/employer/applicants";
+
+  // きょうの仕事カード（#N・作物 作業・時間帯・相手＋行動ボタン）
+  const TodayCard = ({ e }) => {
+    const photo = e.photos && e.photos[0] ? (typeof e.photos[0] === "string" ? e.photos[0] : e.photos[0]?.url) : null;
+    const title = [e.crop, e.task].filter(Boolean).join(" ") || "求人";
+    const btn = (label, bg, fg, onClick, border) => (
+      <button onClick={onClick} className="f-sans" style={{ flex:"1 1 46%", minWidth:0, padding:"11px 8px", fontSize:13, fontWeight:700, background:bg, color:fg, border:border||"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{label}</button>
+    );
+    return (
+      <div style={{ border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:14, background:"#fff", overflow:"hidden" }}>
+        <div style={{ display:"flex", gap:12, padding:"14px 14px 10px", alignItems:"center" }}>
+          <div style={{ width:56, height:56, borderRadius:10, background:"#F7F7F7", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, overflow:"hidden" }}>
+            {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+          </div>
+          <div style={{ minWidth:0, flex:1 }}>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{e.job_number}</span></p>
+            {e.work_time && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>🕒 {e.work_time}</p>}
+            {e.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>👤 {e.partner_name}</p>}
+          </div>
+        </div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, padding:"0 14px 14px" }}>
+          {btn("確認カード", "#F7F7F7", "#222", () => { try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }, "1px solid #EBEBEB")}
+          {btn("開始・終了", accent, "#fff", () => { window.location.hash = handshakeHash; })}
+          {e.application_id && btn("⚠️ 緊急連絡", "#fff", "#C77700", () => { window.location.hash = "/emergency/" + e.application_id; }, "1px solid #FFB020")}
+          {e.application_id && btn("チャット", "#00A86B", "#fff", () => { window.location.hash = "/chat/" + e.application_id; })}
+        </div>
+      </div>
+    );
+  };
+
+  const UpcomingRow = ({ e }) => {
+    const label = e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start);
+    return (
+      <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }}
+        className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #F0F0F0", borderLeft:"3px solid " + accent, borderRadius:10, padding:"11px 12px", cursor:"pointer" }}>
+        <span style={{ minWidth:0, overflow:"hidden" }}>
+          <span style={{ display:"block", fontSize:13, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:11 }}>#{e.job_number}</span></span>
+          <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📅 {label}{e.work_time ? "　" + e.work_time : ""}{e.partner_name ? "　" + e.partner_name : ""}</span>
+        </span>
+        <span style={{ color:"#C8C8C8", fontSize:16, flexShrink:0 }}>›</span>
+      </button>
+    );
+  };
+
+  return (
+    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
+      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 14px" }}>📆 今日</h2>
+      {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示 */}
+      {dual && (
+        <div style={{ display:"flex", gap:8, marginBottom:18 }}>
+          {[{ k:"worker", l:"働き手", c:ROLE_ORANGE }, { k:"farmer", l:"農家", c:ROLE_GREEN }].map(t => (
+            <button key={t.k} onClick={()=>setRole(t.k)} className="f-sans" style={{
+              padding:"7px 16px", fontSize:13, fontWeight:700, borderRadius:20, cursor:"pointer",
+              background: role === t.k ? t.c : "#fff", color: role === t.k ? "#fff" : "#717171",
+              border: "1px solid " + (role === t.k ? t.c : "#EBEBEB"),
+            }}>{t.l}</button>
+          ))}
+        </div>
+      )}
+      {loading ? (
+        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+      ) : (<>
+        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>きょう</p>
+        {todayJobs.length > 0 ? (
+          <div style={{ display:"grid", gap:12, marginBottom:24 }}>
+            {todayJobs.map(e => <TodayCard key={e.application_id || e.job_number} e={e} />)}
+          </div>
+        ) : (
+          <div style={{ background:"#F7F7F7", borderRadius:14, padding:"28px 20px", textAlign:"center", marginBottom:24 }}>
+            <div style={{ fontSize:36, marginBottom:8 }}>☀️</div>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0 }}>きょうの仕事はありません</p>
+            {upcoming.length === 0 && (
+              <button onClick={()=>{ window.location.hash = "/search"; }} className="f-sans" style={{ marginTop:14, padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>求人をさがす →</button>
+            )}
+          </div>
+        )}
+        {upcoming.length > 0 && (
+          <div style={{ marginBottom:24 }}>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>つぎの予定（7日以内）</p>
+            <div style={{ display:"grid", gap:8 }}>
+              {upcoming.map(e => <UpcomingRow key={e.application_id || e.job_number} e={e} />)}
+            </div>
+          </div>
+        )}
+        <button onClick={()=>{ window.location.hash = "/calendar/month"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px", fontSize:14, fontWeight:700, color:"#222", cursor:"pointer" }}>📅 月の予定を見る →</button>
+      </>)}
+    </div>
+  );
+}
+
+// #/calendar の入口：既定は「今日」、奥（#/calendar/month）で月カレンダー（MyCalendar）。hashで切替
+function CalendarRouter({ me, defaultRole }) {
+  const isMonth = () => window.location.hash.replace(/^#\/?/, "") === "calendar/month";
+  const [month, setMonth] = useState(isMonth());
+  useEffect(() => {
+    const on = () => setMonth(isMonth());
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+  return month ? <MyCalendar backToToday /> : <TodayPage me={me} defaultRole={defaultRole} />;
 }
 
 function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
@@ -8517,8 +8668,8 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                 </div>
               );
               return (<>
+                {/* 「きょうの仕事」箱は撤去（2026-07-24・1機能1入口＝ナビ「📆今日」が唯一の入口）。📌いまは返事待ちのみ */}
                 {sec("📌 いま", [
-                  { e:<span style={{ color: ROLE_ORANGE, fontWeight:900 }}>{"✔︎"}</span>, l:"きょうの仕事", h:"/profile/worker/approved", n:wHub.today, sub:"開始・終了の確認もここから", desc:"承認された仕事の、当日の予定です。開始・終了の打刻もここから。" },
                   { e:"📨", l:"返事待ち",     h:"/profile/worker/applying", n:wAppCounts.applying, desc:"応募して、農家の返事を待っている求人です。作業日の前日までに結果が届きます。" },
                 ])}
                 {sec("🔎 次の仕事", [
@@ -16660,10 +16811,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               </div>
             );
             return (<>
+              {/* 「きょうの仕事」箱は撤去（2026-07-24・1機能1入口＝ナビ「📆今日」が唯一の入口）。📌いまは応募者のみ */}
               {eSec("📌 いま", [
                 // 応募者：バッジは未完了（完了・見送り以外）のみ計上。未承認あり＝赤バッジ＋浮遊／保険未チェックのみ＝赤影
                 { e:"🤝", l:"応募者", n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending, desc:"あなたの求人に応募した働き手の一覧。承認・打合せ・採用はここから。" },
-                { e:"✅", l:"きょうの仕事", n:todayCount, h:"/profile/employer/calendar", sub:"開始・終了の確認もここから", desc:"当日に確定した仕事の予定です。開始・終了の確認もここから。" },
               ])}
               {eSec("📋 求人の管理", [
                 { e:"🌱", l:"作成中", n:dbDrafts.length, h:"/profile/employer/drafts", desc:"下書き・審査中の求人です。編集して掲載できます。" },
@@ -18641,7 +18792,7 @@ function PresentationCreateCanvasPage() {
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","insurance","page-presentation-create-canvas"];
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment") return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment") return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; if (h === "calendar" || h.startsWith("calendar/")) return "calendar"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
@@ -18659,7 +18810,9 @@ export default function App(){
     const _subTabOfHelp = (tab === "help") && _curHash.startsWith("help/");
     // ボックス一覧ページのお知らせタブ(#/boxes/notices)を、tab同期で#/boxesに巻き戻さないよう保持
     const _subTabOfBoxes = (tab === "boxes") && _curHash.startsWith("boxes/");
-    if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && !_subTabOfAdmin && !_subTabOfHelp && !_subTabOfBoxes && window.location.hash !== target) window.location.hash = "/" + tab;
+    // 「今日」の奥の月カレンダー(#/calendar/month)を、tab同期で#/calendarに巻き戻さないよう保持（2026-07-24）
+    const _subTabOfCalendar = (tab === "calendar") && _curHash.startsWith("calendar/");
+    if (!_inFlow && !_subTabOfWork && !_subTabOfProfile && !_subTabOfAdmin && !_subTabOfHelp && !_subTabOfBoxes && !_subTabOfCalendar && window.location.hash !== target) window.location.hash = "/" + tab;
   }, [tab]);
   // 緊急連絡ディープリンク #/emergency/{application_id}（開始1時間前メールから直行・2026-07-16）
   // ログイン済み当事者→該当タブへ移動しモーダル自動展開（cb_emergencyAppId経由）。未ログイン→ログインへ（復帰用にcb_emergencyLink保存）
@@ -19514,7 +19667,7 @@ const subDest=useCallback(async d=>{
         { k:"emp-jobs",       icon:"📣", label:"求人",       hash:"/profile/employer/active" },
         { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: empPending },
         { k:"chats",          icon:"💬", label:"チャット" },
-        { k:"calendar",       icon:"📅", label:"カレンダー" },
+        { k:"calendar",       icon:"📆", label:"今日" },
         { k:"profile",        icon:"👤", label:"プロフィール" },
       ]
     : MOBILE_TABS;
@@ -19870,8 +20023,8 @@ const subDest=useCallback(async d=>{
           ? <SavedJobsView me={me} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>いいねを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="calendar"&&(me
-          ? <MyCalendar />
-          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>カレンダーを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+          ? <CalendarRouter me={me} defaultRole={empCtx ? "farmer" : "worker"} />
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>今日の予定を見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
