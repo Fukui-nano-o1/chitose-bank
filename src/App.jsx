@@ -5753,7 +5753,7 @@ function ChatView({ applicationId, onBack }) {
           <Fragment key={m.id}>
           <div
             onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
-            style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none" }} className="f-sans">{m.body}</div>
+            style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...((typeof m.body==="string" && m.body.startsWith("【面接の質問】")) ? { border: m.sender_id===myId ? "2px solid rgba(255,255,255,0.7)" : "2px solid #F5A623" } : {}) }} className="f-sans">{m.body}</div>
           {/* 既読（2026-07-22・第8弾）：相手が読んだ自分の最新メッセージにだけ小さく表示 */}
           {m.id === readMarkMsgId && (
             <span className="f-sans" style={{ alignSelf:"flex-end", fontSize:10, color:"#B0B0B0", marginTop:-4 }}>既読</span>
@@ -15609,6 +15609,13 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
   );
 }
 
+// 面接の質問集・初期テンプレ（2026-07-23）：コピーして使う形で提示（編集自由・押し付けない）
+const INTERVIEW_TEMPLATES = [
+  { title:"経験の確認", questions:["この作業の経験はありますか？", "一番近い経験を教えてください"] },
+  { title:"体と装備",   questions:["長靴・帽子はお持ちですか？", "暑さ・寒さの中の作業は大丈夫ですか？"] },
+  { title:"日程の確認", questions:["当日の集合時間に間に合いますか？", "連続の日程は可能ですか？"] },
+];
+
 function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
@@ -15636,6 +15643,60 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
     window.addEventListener("cb:employerHome", onEmployerHome);
     return () => window.removeEventListener("cb:employerHome", onEmployerHome);
   }, []);
+  // ── 面接の質問集（2026-07-23）：農家が質問セット(タイトル＋質問1〜5)を作り、応募者チャットに投函 ──
+  const [questionSets, setQuestionSets] = useState([]);
+  const [qMgrOpen, setQMgrOpen] = useState(false);      // 管理モーダル
+  const [qEditing, setQEditing] = useState(null);       // 編集中セット {id?, title, questions:[...]}（null=一覧）
+  const [qSaving, setQSaving] = useState(false);
+  const [sendQTarget, setSendQTarget] = useState(null); // 「質問を送る」対象の応募(a)
+  const [sendingQ, setSendingQ] = useState(false);
+  const loadQuestionSets = async () => {
+    if (!me?.id) { setQuestionSets([]); return; }
+    try {
+      const { data } = await supabase.from("farmer_question_sets").select("*").eq("farmer_id", me.id).order("created_at", { ascending: true });
+      setQuestionSets(data || []);
+    } catch {}
+  };
+  useEffect(() => { loadQuestionSets(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [me?.id]);
+  const saveQuestionSet = async () => {
+    if (!qEditing || !me?.id) return;
+    const title = (qEditing.title || "").trim();
+    const questions = (qEditing.questions || []).map(q => (q || "").trim()).filter(Boolean).slice(0, 5);
+    if (!title && questions.length === 0) { alert("タイトルか質問を入力してください"); return; }
+    setQSaving(true);
+    try {
+      if (qEditing.id) {
+        const { error } = await supabase.from("farmer_question_sets").update({ title, questions, updated_at: new Date().toISOString() }).eq("id", qEditing.id).eq("farmer_id", me.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("farmer_question_sets").insert({ farmer_id: me.id, title, questions });
+        if (error) throw error;
+      }
+      await loadQuestionSets();
+      setQEditing(null);
+    } catch (e) { alert("保存に失敗しました：" + (e?.message || "不明")); }
+    finally { setQSaving(false); }
+  };
+  const deleteQuestionSet = async (id) => {
+    if (!id || !confirm("この質問集を削除しますか？")) return;
+    try {
+      const { error } = await supabase.from("farmer_question_sets").delete().eq("id", id).eq("farmer_id", me.id);
+      if (error) throw error;
+      await loadQuestionSets();
+      setQEditing(null);
+    } catch (e) { alert("削除に失敗しました：" + (e?.message || "不明")); }
+  };
+  const sendInterviewQuestions = async (setId) => {
+    if (!sendQTarget || sendingQ) return;
+    setSendingQ(true);
+    try {
+      const { data, error } = await supabase.rpc("send_interview_questions", { p_application_id: sendQTarget.id, p_set_id: setId });
+      if (error || !data?.ok) { alert("送信に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); setSendingQ(false); return; }
+      const appId = sendQTarget.id;
+      setSendQTarget(null); setSendingQ(false);
+      if (confirm("チャットに質問を送りました。チャットを開きますか？")) window.location.hash = "/chat/" + appId;
+    } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); setSendingQ(false); }
+  };
   // 作成中⇄公開中ページャー（2026-07-16）：2枚のパネルを横並びにし、指に追従して実際に横移動させる。
   // 横ロック判定後はtrackのtransformを直接書く（state経由だと1フレーム遅れてカクつくため）。
   // 端（作成中で右・公開中で左）は1/3の抵抗。離した時に幅の1/4（最大80px）を超えていたらタブ確定
@@ -16127,6 +16188,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               {a._emergencySentAt && (
                 <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#C77700", margin:"0 0 8px", textAlign:"center" }}>⚠️ 連絡済み（{a._emergencySentAt}）</p>
               )}
+              {/* 面接の質問集をチャットに送る（2026-07-23・当事者=農家が自分の質問を送る。回答はチャットに残る） */}
+              {["applied","approved","meeting","interview","contracted"].includes(a.status) && (
+                <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer", marginBottom:8 }}>📋 質問を送る</button>
+              )}
               {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
               <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
       </div>
@@ -16245,6 +16310,14 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             <span>
               <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく求人を出す</span>
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
+            </span>
+          </button>
+          {/* 面接の質問集（2026-07-23）：応募者チャットに送る質問を用意 */}
+          <button onClick={()=>{ setQEditing(null); setQMgrOpen(true); }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📋</span>
+            <span>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>面接の質問集</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>聞きたいことをセットにして、応募者のチャットに送れます。回答もチャットに残ります。</span>
             </span>
           </button>
           <div style={{ marginTop:16 }}>
@@ -16730,6 +16803,99 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                     className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? "送信中..." : "送信する"}</button>
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ 面接の質問集 管理モーダル（2026-07-23）：セットの作成・編集・削除＋テンプレのコピー ═══ */}
+      {qMgrOpen && (
+        <div onClick={()=>{ setQMgrOpen(false); setQEditing(null); }} style={{ position:"fixed", inset:0, zIndex:10002, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom,0px) + 20px)", maxWidth:520, width:"100%", maxHeight:"88vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>{ setQMgrOpen(false); setQEditing(null); }} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>✕</button>
+            <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px", paddingRight:40 }}>📋 面接の質問集</h3>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 16px", lineHeight:1.6 }}>聞きたいことをセットにして保存し、応募者のチャットに送れます。回答もチャットに残ります。</p>
+
+            {qEditing === null ? (
+              <>
+                {questionSets.length > 0 && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:18 }}>
+                    {questionSets.map(s => (
+                      <button key={s.id} onClick={()=>setQEditing({ id:s.id, title:s.title || "", questions: (Array.isArray(s.questions) && s.questions.length ? [...s.questions] : [""]) })} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+                        <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{s.title || "無題の質問集"}</span>
+                        <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>質問{Array.isArray(s.questions) ? s.questions.length : 0}問</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>テンプレートからコピー（編集できます）</p>
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+                  {INTERVIEW_TEMPLATES.map(tpl => (
+                    <div key={tpl.title} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
+                      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{tpl.title}</p>
+                      <ul className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px", paddingLeft:18, lineHeight:1.7 }}>
+                        {tpl.questions.map((q,i) => <li key={i}>{q}</li>)}
+                      </ul>
+                      <button onClick={()=>setQEditing({ title: tpl.title, questions: [...tpl.questions] })} className="f-sans" style={{ background:"#E6F7EF", color:"#00A86B", border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>コピーして使う</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>setQEditing({ title:"", questions:[""] })} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px dashed #C8C8C8", borderRadius:12, padding:"12px", fontSize:14, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>＋ 自分で作る</button>
+              </>
+            ) : (
+              <>
+                <label className="f-sans" style={{ display:"block", fontSize:12, fontWeight:700, color:"#222", marginBottom:6 }}>タイトル</label>
+                <input value={qEditing.title} onChange={e=>setQEditing(prev=>({ ...prev, title:e.target.value }))} placeholder="例：経験の確認" className="field f-sans" style={{ fontSize:14, marginBottom:16 }} />
+                <label className="f-sans" style={{ display:"block", fontSize:12, fontWeight:700, color:"#222", marginBottom:6 }}>質問（最大5問）</label>
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:12 }}>
+                  {qEditing.questions.map((q,i) => (
+                    <div key={i} style={{ display:"flex", gap:8, alignItems:"center" }}>
+                      <span className="f-sans" style={{ fontSize:13, color:"#999", flexShrink:0, width:16 }}>{i+1}.</span>
+                      <input value={q} onChange={e=>setQEditing(prev=>({ ...prev, questions: prev.questions.map((x,j)=> j===i ? e.target.value : x) }))} placeholder={`質問${i+1}`} className="field f-sans" style={{ fontSize:14, flex:1 }} />
+                      {qEditing.questions.length > 1 && (
+                        <button onClick={()=>setQEditing(prev=>({ ...prev, questions: prev.questions.filter((_,j)=>j!==i) }))} aria-label="削除" className="f-sans" style={{ flexShrink:0, width:32, height:32, borderRadius:8, background:"#F5F5F5", border:"none", color:"#999", fontSize:16, cursor:"pointer" }}>×</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {qEditing.questions.length < 5 && (
+                  <button onClick={()=>setQEditing(prev=>({ ...prev, questions:[...prev.questions, ""] }))} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, marginBottom:16 }}>＋ 質問を追加</button>
+                )}
+                <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                  <button onClick={()=>setQEditing(null)} className="f-sans" style={{ flex:"0 0 auto", padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>戻る</button>
+                  <button onClick={saveQuestionSet} disabled={qSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qSaving ? "保存中..." : "保存する"}</button>
+                </div>
+                {qEditing.id && (
+                  <button onClick={()=>deleteQuestionSet(qEditing.id)} className="f-sans" style={{ width:"100%", marginTop:10, padding:"9px", fontSize:13, background:"none", color:"#E24B4A", border:"none", cursor:"pointer" }}>この質問集を削除</button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ 質問を送る（応募者カード「📋 質問を送る」→セット選択→send_interview_questions RPC・2026-07-23） ═══ */}
+      {sendQTarget && (
+        <div onClick={()=>{ if (!sendingQ) setSendQTarget(null); }} style={{ position:"fixed", inset:0, zIndex:10002, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom,0px) + 20px)", maxWidth:520, width:"100%", maxHeight:"80vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>{ if (!sendingQ) setSendQTarget(null); }} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>✕</button>
+            <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px", paddingRight:40 }}>📋 質問を送る</h3>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 16px", lineHeight:1.6 }}>選んだ質問集を、この応募者とのチャットに【面接の質問】として送ります。回答もチャットに残ります。</p>
+            {questionSets.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"12px 0" }}>
+                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:"0 0 16px" }}>まだ質問集がありません。</p>
+                <button onClick={()=>{ setSendQTarget(null); setQEditing(null); setQMgrOpen(true); }} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:10, padding:"11px 20px", fontSize:14, fontWeight:700, cursor:"pointer" }}>質問集を作る</button>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {questionSets.map(s => (
+                  <button key={s.id} disabled={sendingQ} onClick={()=>sendInterviewQuestions(s.id)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+                    <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{s.title || "無題の質問集"}</span>
+                    <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(Array.isArray(s.questions) ? s.questions : []).join(" / ") || "質問なし"}</span>
+                  </button>
+                ))}
+                {sendingQ && <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"4px 0 0" }}>送信中...</p>}
+              </div>
             )}
           </div>
         </div>
@@ -17697,6 +17863,7 @@ const HELP_CONTENT = {
     num: "第6章", title: "困ったとき",
     items: [
       { key:"faq-askBeforeApply",  label: "応募前に質問できますか", body: "求人ページの質問タブからどうぞ。回答は全員に公開されます。" },
+      { key:"faq-interview",       label: "面接はできますか", body: "農家は「面接の質問集」をチャットに送れます（プロフィールから作成・テンプレートのコピーも可）。回答もチャットに残るので、あとから見返せます。集合場所や持ち物の確認も、このチャットでやり取りできます。" },
       { key:"faq-cancelApply",     label: "応募を取り消したい", body: "返事待ちタブから取り消せます。承認された後は、緊急連絡からご相談ください。" },
       { key:"faq-noContact",       label: "承認されたのに連絡がない", body: "承認後の連絡はチャットで届きます。チャットを確認しても連絡がない場合は、お問い合わせ窓口までご連絡ください。" },
       { key:"faq-cantGo",          label: "当日行けなくなった", body: "チャット画面の「⚠️ 緊急連絡」ボタンから、遅れる・欠勤の連絡ができます。相手にすぐに通知されます。" },
