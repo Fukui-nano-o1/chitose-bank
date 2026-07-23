@@ -6502,9 +6502,12 @@ function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience }) {
       {okTrust && trust.want_again_workers > 0 && (
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>🌟また働きたい×{trust.want_again_workers}</p>
       )}
-      {okTrust && (
-        <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
-          受入実績：{trust.completed_hires > 0 ? `完了${trust.completed_hires}件` : "受け入れ実績はこれからです"}{onTapExperience ? " →" : ""}
+      {okTrust && trust.completed_hires > 0 && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>これまでに{trust.completed_hires}人を受け入れました</p>
+      )}
+      {okTrust && trust.open_jobs > 0 && (
+        <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapExperience ? "#00A86B" : "#717171", fontWeight: onTapExperience ? 600 : 400, margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
+          実績：{trust.open_jobs}件{onTapExperience ? " →" : ""}
         </p>
       )}
       {okTrust && (trust.member_since || trust.id_checked) && (
@@ -8425,9 +8428,10 @@ function JobSearchMapView({ onRegister, me }) {
   // 受け入れ実績タップ→この農家の過去の求人ボックス（2026-07-16）
   const [pastJobsOpen, setPastJobsOpen] = useState(false);
   const [pastJobs, setPastJobs] = useState(null); // null=読み込み中
+  const [pastJobsTab, setPastJobsTab] = useState("all"); // すべて/公開中/終了（2026-07-23）
   const [jobBackStack, setJobBackStack] = useState([]); // 過去求人から遷移した時の「前の求人」スタック
   const openPastJobs = async () => {
-    setPastJobsOpen(true); setPastJobs(null);
+    setPastJobsOpen(true); setPastJobs(null); setPastJobsTab("all");
     try {
       const { data } = await supabase.rpc("employer_public_jobs", { p_job_number: selectedJob.id });
       // 今見ている求人も含めて全公開求人を出す（2026-07-16）。審査中(pending)・下書きは
@@ -9378,13 +9382,42 @@ function JobSearchMapView({ onRegister, me }) {
                       <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>
                         {(empTrust?.ok && empTrust.completed_hires > 0) ? "過去に受け入れた求人は、掲載を終了しています" : "初めての求人です"}
                       </p>
-                    ) : (
+                    ) : (() => {
+                      // 求人を「終了（掲載日程が過ぎた）／公開中」で仕分けし、すべて/公開中/終了タブで絞る（2026-07-23）
+                      const today = ymdLocal(new Date());
+                      const withEnded = pastJobs.map(r => {
+                        const endYmd = r.date_end || r.date_start;
+                        return { r, ended: !!endYmd && endYmd < today };
+                      });
+                      const openList = withEnded.filter(x => !x.ended);
+                      const endedList = withEnded.filter(x => x.ended);
+                      const tabs = [
+                        { key:"all", label:"すべて", n: withEnded.length },
+                        { key:"open", label:"公開中", n: openList.length },
+                        { key:"ended", label:"終了", n: endedList.length },
+                      ];
+                      const shown = pastJobsTab === "open" ? openList : pastJobsTab === "ended" ? endedList : withEnded;
+                      return (
                       <>
+                      <div style={{ display:"flex", gap:6, marginBottom:14, borderBottom:"1px solid #EBEBEB" }}>
+                        {tabs.map(t => (
+                          <button key={t.key} onClick={()=>setPastJobsTab(t.key)} className="f-sans" style={{
+                            background:"none", border:"none", cursor:"pointer", padding:"6px 6px 10px",
+                            fontSize:13, fontWeight: pastJobsTab===t.key ? 700 : 500,
+                            color: pastJobsTab===t.key ? "#00A86B" : "#999",
+                            borderBottom: pastJobsTab===t.key ? "2px solid #00A86B" : "2px solid transparent",
+                            marginBottom:-1,
+                          }}>{t.label}{t.n > 0 ? ` ${t.n}` : ""}</button>
+                        ))}
+                      </div>
+                      {shown.length === 0 ? (
+                        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"28px 0" }}>
+                          {pastJobsTab==="ended" ? "終了した求人はありません" : pastJobsTab==="open" ? "公開中の求人はありません" : "求人がありません"}
+                        </p>
+                      ) : (
                       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-                        {pastJobs.map(r => {
+                        {shown.map(({ r, ended }) => {
                           const photo = r.photos && r.photos[0] ? (typeof r.photos[0] === "string" ? r.photos[0] : r.photos[0]?.url) : null;
-                          const endYmd = r.date_end || r.date_start;
-                          const ended = !!endYmd && endYmd < ymdLocal(new Date());
                           return (
                             <button key={r.job_number} onClick={()=>openPastJob(r)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
@@ -9396,14 +9429,10 @@ function JobSearchMapView({ onRegister, me }) {
                           );
                         })}
                       </div>
-                      {/* 一覧が今の求人だけの時の正直な注記（実績数と食い違って見えないように・2026-07-16） */}
-                      {pastJobs.length === 1 && pastJobs[0].job_number === selectedJob.id && (
-                        <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"14px 0 0" }}>
-                          {(empTrust?.ok && empTrust.completed_hires > 0) ? "過去に受け入れた求人は、掲載を終了しています" : "初めての求人です"}
-                        </p>
                       )}
                       </>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
               )}
