@@ -1023,6 +1023,7 @@ body:has(.chat-full) main { overflow: hidden !important; }
 .qset-full { position: fixed; inset: 0; z-index: 9000; background: #fff; display: flex; flex-direction: column; }
 body:has(.qset-full) .app-header-mobile,
 body:has(.qset-full) .app-header-mobile-float,
+body:has(.qset-full) .profile-employer-fab,
 body:has(.qset-full) .nav-coach { display: none !important; }
 body:has(.qset-full) .site-footer-fixed { display: none !important; }
 html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
