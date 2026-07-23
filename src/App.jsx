@@ -679,31 +679,6 @@ input:focus { outline: none; }
   body.cb-typing .app-header-mobile-float { display: none !important; }
 }
 
-/* ── 下部ナビの初回コーチマーク（第12弾・2026-07-23）：下部バー直上に薄い1行。タップで消える ── */
-.nav-coach { display: none; }
-@media (max-width: 768px) {
-  .nav-coach {
-    display: block;
-    position: fixed;
-    left: 0; right: 0; width: 100%;
-    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-    z-index: 50;
-    background: rgba(34,34,34,0.92);
-    color: #fff;
-    font-size: 12px;
-    text-align: center;
-    padding: 8px 12px;
-    border: none;
-    cursor: pointer;
-    font-family: 'Noto Sans JP', sans-serif;
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.14);
-    animation: cbToastIn .3s ease both;
-  }
-  body:has(.mobile-apply-bar) .nav-coach,
-  body:has(.chat-full) .nav-coach,
-  body.cb-typing .nav-coach { display: none !important; }
-}
-
 /* ── チャット縦最大化（2026-07-19）：mainの上余白を打ち消し、下部バー直上まで拡大。
    PCは従来の70vh。モバイルはsafe-area(ノッチ)+8pxを上端、下部バー64px+safe-bottomを下端に。
    100vhはiOSでURLバー分を含み過大なため、対応環境では100dvhで上書き ── */
@@ -18125,9 +18100,6 @@ export default function App(){
     window.addEventListener("cb:unreadRefresh", refresh);
     return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); };
   }, [me?.id, empCtx]);
-  // 下部ナビの初回コーチマーク（第12弾）：「← 左から順に、仕事の流れです」を1度だけ。タップで消える（localStorage既読）
-  const [navCoach, setNavCoach] = useState(() => { try { return !localStorage.getItem("cb_navCoachSeen"); } catch { return false; } });
-  const dismissNavCoach = () => { setNavCoach(false); try { localStorage.setItem("cb_navCoachSeen","1"); } catch {} };
   // 下部ナビもモード切替で反転（プロフィールのカードフリップと同じpflip・2026-07-22）。初回マウントは回さない
   const [navFlip, setNavFlip] = useState("");
   const navFlipInit = useRef(true);
@@ -19060,11 +19032,6 @@ const subDest=useCallback(async d=>{
           </div>
         )}
       </div>}
-
-      {/* 下部ナビ初回コーチマーク（第12弾）：ログイン済みの初回1度だけ。タップで消える（localStorage既読） */}
-      {me && navCoach && !(needsAccountHolder || openAccountForm) && (
-        <button className="f-sans nav-coach" onClick={dismissNavCoach}>← 左から順に、仕事の流れです</button>
-      )}
 
       {/* ── MOBILE BOTTOM NAV（5機能タブ。☰は上部浮遊へ移設済み・第12弾で時系列順に）
            新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
