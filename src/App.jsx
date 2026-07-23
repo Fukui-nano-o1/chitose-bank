@@ -5870,17 +5870,20 @@ const CHAT_TEMPLATES_WORKER = [
   "持ち物はこれで大丈夫ですか？",
   "本日はありがとうございました",
 ];
+// チャット一覧の直近スナップショット（2026-07-22）：チャットから戻った時にスピナーを出さず即表示し、
+// 裏で静かに更新する（リロード感の解消）。モジュールレベルなので再マウントをまたいで生き残る
+let CHAT_LIST_CACHE = null; // { rows, unreadMap, initialsMap }
 function ChatList() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState(() => CHAT_LIST_CACHE?.rows || []);
+  const [loading, setLoading] = useState(() => !CHAT_LIST_CACHE); // キャッシュがあれば最初からスピナーを出さない
   // 運営DM（2026-07-16）：チャット最上部の固定タブ。運営からのメッセージ閲覧＋返信（admin_messages・本人スレのみRLS）
   const [dmOpen, setDmOpen] = useState(false);
   const [dmMsgs, setDmMsgs] = useState([]);
   const [dmUnread, setDmUnread] = useState(0);
   const [dmText, setDmText] = useState("");
   const [dmSending, setDmSending] = useState(false);
-  const [unreadMap, setUnreadMap] = useState({}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
-  const [initialsMap, setInitialsMap] = useState({}); // { partner_auth_id: メール頭文字2文字 }（ニックネーム未設定時のアイコン・2026-07-22）
+  const [unreadMap, setUnreadMap] = useState(() => CHAT_LIST_CACHE?.unreadMap || {}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
+  const [initialsMap, setInitialsMap] = useState(() => CHAT_LIST_CACHE?.initialsMap || {}); // { partner_auth_id: メール頭文字2文字 }（ニックネーム未設定時のアイコン・2026-07-22）
   // プッシュ通知の状態（2026-07-19）：チャット一覧の上に「通知をオンにする」を出す
   const [pushSt, setPushSt] = useState(null); // 'unsupported'|'need-standalone'|'default'|'denied'|'granted'
   const [pushBusy, setPushBusy] = useState(false);
@@ -6013,6 +6016,10 @@ function ChatList() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // 一覧スナップショットの保存（2026-07-22）：初回ロード完了後、rows/未読/イニシャルが変わるたびキャッシュへ。
+  // チャットから戻った再マウントで即表示され、スピナー（リロード感）が出なくなる
+  useEffect(() => { if (!loading) CHAT_LIST_CACHE = { rows, unreadMap, initialsMap }; }, [rows, unreadMap, initialsMap, loading]);
 
   // 未読はトップに移動（2026-07-22）：未読のあるスレッドを先頭へ。未読同士・既読同士は新着順。
   // unreadMapはリアルタイムで変わるので、rowsに焼き込まず描画時に並べ替える
