@@ -5518,7 +5518,10 @@ function ChatView({ applicationId, onBack }) {
                || relRows.find(r => CHAT_ELIGIBLE_STATUSES.includes(r.status))
                || relRows[0])
             : null;
-          const ids = relRows ? relRows.map(r => r.id) : [applicationId];
+          // チャットは求人（応募）ごとに分ける（2026-07-23）：メッセージ履歴は開いた応募だけに限定する。
+          // 相手ごとに束ねると、求人ごとの terms_snapshot（契約内容）が混同する恐れがあるため。
+          // threadApps は「この相手の他の求人」への導線＋二重予約チェック用に残す（切替は各求人の別チャットへ遷移）。
+          const ids = [applicationId];
           setAppIds(ids);
           setThreadApps(relRows || []);
           if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
@@ -5654,10 +5657,11 @@ function ChatView({ applicationId, onBack }) {
           <div style={{ flex:1, minWidth:0, display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain" }}>
             {threadApps.map(r => {
               const isActive = r.id === activeAppId;
+              // 別の求人はその求人の別チャットへ遷移（求人ごとに分離・2026-07-23）
               return (
-                <button key={r.id} onClick={()=>applyActive(r)} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor:"pointer", minWidth:120 }}>
+                <button key={r.id} onClick={()=>{ if (!isActive) window.location.hash = "/chat/" + r.id; }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>求人 #{r.job_number}</span>
-                  <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}{isActive ? "・表示中" : ""}</span>
+                  <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}{isActive ? "・表示中" : "・開く"}</span>
                 </button>
               );
             })}
@@ -6128,16 +6132,9 @@ function ChatList() {
             };
           })
           .sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
-        // 相手ごとに1スレッド（2026-07-19たきと指示）：求人・応募ごとに分けず利用者で束ねる。
-        // 代表＝その相手との最新の応募（行タップの遷移先）。未読は束ねた全応募の合算で表示
-        const byPartner = new Map();
-        merged.forEach(a => {
-          const key = (a._role === "worker" ? a.farmer_id : a.worker_id) || a.id;
-          const g = byPartner.get(key);
-          if (!g) byPartner.set(key, { ...a, _appIds: [a.id], _count: 1 });
-          else { g._appIds.push(a.id); g._count += 1; }
-        });
-        setRows([...byPartner.values()]);
+        // 求人（応募）ごとに1スレッド（2026-07-23）：相手で束ねず、求人ごとに分ける。
+        // terms_snapshot（契約内容）の混同を防ぐため。未読・遷移先とも応募単位。
+        setRows(merged.map(a => ({ ...a, _appIds: [a.id], _count: 1 })));
       } catch {}
       setLoading(false);
     })();
@@ -6236,7 +6233,7 @@ function ChatList() {
                     {rowUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{rowUnread}</span>}
                     <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: (a.status === "completed" || a.status === "rejected") ? "#F3F3F3" : a.status === "applied" ? "#FFF4E0" : "#E6F7EF", color: (a.status === "completed" || a.status === "rejected") ? "#999" : a.status === "applied" ? "#C77700" : "#00A86B", flexShrink:0 }}>{CHAT_STATUS_LABEL[a.status] || a.status}</span>
                   </div>
-                  {title && <p style={{ fontSize:12, color:"#717171", margin:0 }}>{title}{a._count > 1 ? `　ほか${a._count - 1}件` : ""}</p>}
+                  <p style={{ fontSize:12, color:"#717171", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>求人 #{a.job_number}{title ? "　" + title : ""}</p>
                 </div>
               </button>
             );
