@@ -8546,7 +8546,7 @@ function TodayPage({ me, defaultRole }) {
           return (
             <div style={{ marginBottom:24 }}>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
-              <div style={{ display:"grid", gap:10 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:10 }}>
                 {myTodos.map(e => <TodoCard key={(e.application_id || ("j" + e.job_number)) + e.stage} e={e} />)}
               </div>
             </div>
@@ -8554,7 +8554,7 @@ function TodayPage({ me, defaultRole }) {
         })()}
         <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>きょうの仕事</p>
         {todayJobs.length > 0 ? (
-          <div style={{ display:"grid", gap:12, marginBottom:24 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:12, marginBottom:24 }}>
             {todayJobs.map(e => <TodayCard key={e.application_id || e.job_number} e={e} />)}
           </div>
         ) : (
@@ -8569,7 +8569,7 @@ function TodayPage({ me, defaultRole }) {
         {upcoming.length > 0 && (
           <div style={{ marginBottom:24 }}>
             <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>つぎの予定（7日以内）</p>
-            <div style={{ display:"grid", gap:8 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:8 }}>
               {upcoming.map(e => <UpcomingRow key={e.application_id || e.job_number} e={e} />)}
             </div>
           </div>
