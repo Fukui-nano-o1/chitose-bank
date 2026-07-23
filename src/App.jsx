@@ -8362,8 +8362,9 @@ function TodayPage({ me, defaultRole }) {
   const [hasFarmer, setHasFarmer] = useState(false);
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
   const [subMap, setSubMap] = useState({});   // application_id→{started_at,farmer_confirmed_start_at,status,insurance_prepared_at}（当日の行動の判定用）
-  const [insTodo, setInsTodo] = useState([]); // 保険未報告の承認済み応募（農家・引っ越し(2)）
+  const [todos, setTodos] = useState([]);     // やることフィード（my_todo_items・状態カードの単一ソース）
   const [confirming, setConfirming] = useState("");
+  const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -8374,16 +8375,14 @@ function TodayPage({ me, defaultRole }) {
         const rows = data || [];
         if (cancelled) return;
         setEntries(rows);
+        const { data: td } = await supabase.rpc("my_todo_items");
+        if (!cancelled) setTodos(td || []);
         // 当日の行動の判定用サブ状態＋保険未報告リスト
         const appIds = rows.filter(r => r.application_id).map(r => r.application_id);
         if (appIds.length) {
           const { data: subs } = await supabase.from("applications").select("id,started_at,farmer_confirmed_start_at,status,insurance_prepared_at,attended").in("id", appIds);
           if (!cancelled && subs) setSubMap(Object.fromEntries(subs.map(s => [s.id, s])));
         }
-        const { data: ins } = await supabase.from("applications")
-          .select("id,job_number,status,insurance_prepared_at")
-          .eq("farmer_id", session.user.id).in("status", ["approved","meeting","interview","contracted","working"]).is("insurance_prepared_at", null);
-        if (!cancelled) setInsTodo(ins || []);
         const [{ data: wp }, { count: jc }, { data: ep }] = await Promise.all([
           supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
@@ -8464,6 +8463,49 @@ function TodayPage({ me, defaultRole }) {
     );
   };
 
+  // ── やること（採配台）：状態カード。①②⑧=遷移／③〜⑦=直接実行（保険・開始確認はインライン、日程決定・完了/評価は既存モーダルへ橋渡し） ──
+  const removeTodo = (id, st) => setTodos(prev => prev.filter(t => !(t.application_id === id && t.stage === st)));
+  const TODO_META = {
+    revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
+    approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   nav: () => "/profile/employer/applicants" },
+    decide_dates:{ icon:"📅", title:"働く日を決める",       btn:"日を決める →",     flag:"cb_agreeAppId", to:"/profile/employer/applicants" },
+    insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance" },
+    confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start" },
+    complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants" },
+    review:      { icon:"⭐", title:"評価する",             btn:"評価する →",       flag:"cb_completeAppId", to:"/profile/employer/applicants" },
+    chat:        { icon:"💬", title:"未読メッセージ",       btn:"チャットを開く →", nav: e => "/chat/" + e.application_id },
+    w_waiting:   { icon:"📨", title:"返事待ち",             btn:"応募状況を見る →", nav: () => "/profile/worker/applying" },
+    w_confirm:   { icon:"📋", title:"求人内容を確認",       btn:"確認カードへ →",   nav: e => "/chat/" + e.application_id },
+    w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   nav: () => "/profile/worker/approved" },
+    w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved" },
+  };
+  const TodoCard = ({ e }) => {
+    const m = TODO_META[e.stage]; if (!m) return null;
+    const sub = [[e.crop, e.task].filter(Boolean).join(" "), e.job_number ? "#" + e.job_number : "", e.partner_name || ""].filter(Boolean).join("　");
+    const busy = confirming === (e.application_id || e.job_number) + e.stage;
+    const onClick = async () => {
+      if (m.nav) { window.location.hash = m.nav(e); return; }
+      if (m.flag) { try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
+      if (m.rpc) {
+        if (busy) return; setConfirming((e.application_id || e.job_number) + e.stage);
+        const { data, error } = await supabase.rpc(m.rpc, { p_application_id: e.application_id });
+        setConfirming("");
+        if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+        removeTodo(e.application_id, e.stage);
+      }
+    };
+    return (
+      <div style={{ border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px", display:"flex", alignItems:"center", gap:12 }}>
+        <span style={{ fontSize:22, flexShrink:0 }}>{m.icon}</span>
+        <div style={{ minWidth:0, flex:1 }}>
+          <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 2px" }}>{m.title}</p>
+          {sub && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</p>}
+        </div>
+        <button onClick={onClick} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"9px 14px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
+      </div>
+    );
+  };
+
   const UpcomingRow = ({ e }) => {
     const label = e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start);
     return (
@@ -8496,28 +8538,20 @@ function TodayPage({ me, defaultRole }) {
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
       ) : (<>
-        {/* 保険の準備の報告（引っ越し(2)）：未報告の承認済み応募がある限り表示。報告済みで消える。農家表示時のみ */}
-        {role === "farmer" && insTodo.length > 0 && (
-          <div style={{ background:"#FFF8E7", border:"1px solid #F5D98F", borderRadius:14, padding:"14px 16px", marginBottom:20 }}>
-            <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#8A6D1D", margin:"0 0 4px" }}>🛡 保険の準備の報告</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#B08A2E", margin:"0 0 12px", lineHeight:1.6 }}>採用した働き手に、保険の準備ができたことを報告できます（報告すると働き手にお知らせが届きます）。</p>
-            <div style={{ display:"grid", gap:8 }}>
-              {insTodo.map(a => (
-                <button key={a.id} disabled={confirming===a.id} onClick={async ()=>{
-                  if (confirming) return; setConfirming(a.id);
-                  const { data, error } = await supabase.rpc("confirm_insurance", { p_application_id: a.id });
-                  setConfirming("");
-                  if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-                  setInsTodo(prev => prev.filter(x => x.id !== a.id));
-                }} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #F5D98F", borderRadius:10, padding:"11px 12px", cursor:"pointer" }}>
-                  <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>求人 #{a.job_number}</span>
-                  <span style={{ fontSize:12, fontWeight:800, color:"#C77700", flexShrink:0 }}>{confirming===a.id ? "報告中..." : "☑ 準備したと報告"}</span>
-                </button>
-              ))}
+        {/* 【やること】採配台：状態カードを締切の近い順に。①②⑧=遷移／③〜⑦=直接実行。件数=今日タブのバッジ(todo)と一致 */}
+        {(() => {
+          const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (a.sort_key || "").localeCompare(b.sort_key || "") || (a.job_number || 0) - (b.job_number || 0));
+          if (myTodos.length === 0) return null;
+          return (
+            <div style={{ marginBottom:24 }}>
+              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
+              <div style={{ display:"grid", gap:10 }}>
+                {myTodos.map(e => <TodoCard key={(e.application_id || ("j" + e.job_number)) + e.stage} e={e} />)}
+              </div>
             </div>
-          </div>
-        )}
-        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>きょう</p>
+          );
+        })()}
+        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>きょうの仕事</p>
         {todayJobs.length > 0 ? (
           <div style={{ display:"grid", gap:12, marginBottom:24 }}>
             {todayJobs.map(e => <TodayCard key={e.application_id || e.job_number} e={e} />)}
@@ -8539,6 +8573,11 @@ function TodayPage({ me, defaultRole }) {
             </div>
           </div>
         )}
+        {/* 📝メモ（私的・端末内localStorage・本人のみ／DB非保存） */}
+        <div style={{ marginBottom:24 }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>📝 メモ</p>
+          <textarea value={memo} onChange={e=>{ setMemo(e.target.value); try { localStorage.setItem("cb_todayMemo", e.target.value); } catch {} }} placeholder="自分用のメモ（この端末だけに保存されます）" rows={3} className="field f-sans" style={{ width:"100%", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
+        </div>
         <button onClick={()=>{ window.location.hash = "/calendar/month"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px", fontSize:14, fontWeight:700, color:"#222", cursor:"pointer" }}>📅 月の予定を見る →</button>
       </>)}
     </div>
@@ -16549,6 +16588,15 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openCompleteModal(target);
             }
           } catch {}
+          // 働く日を決めるモーダルの着地（2026-07-24）：今日ページの「日を決める」から cb_agreeAppId 経由で自動展開
+          try {
+            const pendA = sessionStorage.getItem("cb_agreeAppId");
+            if (pendA) {
+              sessionStorage.removeItem("cb_agreeAppId");
+              const target = appData.find(x => x.id === pendA);
+              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) { setAgreeModal(target); setAgreeSel(Array.isArray(target.agreed_dates) ? target.agreed_dates.slice() : []); }
+            }
+          } catch {}
         }
       } catch {}
       setDraftsLoading(false);
@@ -19135,13 +19183,13 @@ export default function App(){
 
   // 下部ナビの宿題バッジ（第12弾・2026-07-23）：チャット未読スレッド／きょうの契約済み仕事／評価締切内未実施／差し戻し有無。
   // 1本のRPC(my_nav_badges)で取得。再計算＝起動・ページ遷移・既読等(cb:unreadRefresh)・モード切替。
-  const [navBadges, setNavBadges] = useState({ chat_threads:0, calendar_today:0, review_due:0, job_revision:0 });
+  const [navBadges, setNavBadges] = useState({ chat_threads:0, calendar_today:0, todo:0, review_due:0, job_revision:0 });
   useEffect(() => {
-    if (!me?.id) { setNavBadges({ chat_threads:0, calendar_today:0, review_due:0, job_revision:0 }); return; }
+    if (!me?.id) { setNavBadges({ chat_threads:0, calendar_today:0, todo:0, review_due:0, job_revision:0 }); return; }
     const refresh = async () => {
       try {
         const { data } = await supabase.rpc("my_nav_badges");
-        if (data) setNavBadges({ chat_threads:data.chat_threads||0, calendar_today:data.calendar_today||0, review_due:data.review_due||0, job_revision:data.job_revision||0 });
+        if (data) setNavBadges({ chat_threads:data.chat_threads||0, calendar_today:data.calendar_today||0, todo:data.todo||0, review_due:data.review_due||0, job_revision:data.job_revision||0 });
       } catch {}
     };
     refresh();
@@ -20111,7 +20159,7 @@ const subDest=useCallback(async d=>{
                   : safeTab === t.k);
             // 宿題バッジ（第12弾）：数字＝待たせている/自分の宿題の件数。求人(農家)の差し戻しのみ⚠フラグ
             const badge = t.k === "chats" ? (navBadges.chat_threads || 0)
-              : t.k === "calendar" ? (navBadges.calendar_today || 0)
+              : t.k === "calendar" ? (navBadges.todo || 0)
               : t.k === "profile" ? (navBadges.review_due || 0)
               : (t.badge || 0);
             const warn = t.k === "emp-jobs" && (navBadges.job_revision || 0) > 0;
