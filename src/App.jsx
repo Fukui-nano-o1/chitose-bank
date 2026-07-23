@@ -8403,6 +8403,20 @@ function JobSearchMapView({ onRegister, me }) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [detailTab, setDetailTab] = useState("content"); // 求人詳細の「仕事の内容/質問」タブ（第10弾）
   useEffect(() => { setDetailTab("content"); }, [selectedJob?.id]); // 別の求人を開いたら内容タブに戻す
+  // 自分の求人か（2026-07-22）：自分の求人には応募フッター（日給・応募ボタン）を出さない。
+  // jobsのRLS owner selectで自分の行だけ返る（他人の求人はnull＝false）
+  const [isOwnJob, setIsOwnJob] = useState(false);
+  useEffect(() => {
+    if (!selectedJob || !me) { setIsOwnJob(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("jobs").select("farmer_id").eq("job_number", selectedJob.id).maybeSingle();
+        if (!cancelled) setIsOwnJob(!!(data && data.farmer_id === me.id));
+      } catch { if (!cancelled) setIsOwnJob(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedJob?.id, me]);
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -9184,7 +9198,7 @@ function JobSearchMapView({ onRegister, me }) {
       </>)}
 
       {/* PC専用：下固定の応募バー（応募パネルが画面外に出たら表示。スマホはCSSでdisplay:none） */}
-      {selectedJob && showApplyBar && (
+      {selectedJob && showApplyBar && !isOwnJob && (
         <div className="pc-apply-bar" style={{
           position:"fixed", bottom:0, left:0, right:0, zIndex:500,
           background:"#fff", borderTop:"1px solid #EBEBEB",
@@ -9201,8 +9215,8 @@ function JobSearchMapView({ onRegister, me }) {
         </div>
       )}
 
-      {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS) */}
-      {selectedJob && (
+      {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS)。自分の求人には出さない（2026-07-22） */}
+      {selectedJob && !isOwnJob && (
         <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
           {/* 並び入れ替え（2026-07-16）：日給＋応募ボタンが上・注記が下 */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
