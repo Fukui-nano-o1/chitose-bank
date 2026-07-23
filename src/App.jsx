@@ -6328,6 +6328,26 @@ function yearMonthLabel(dateStr) {
 // 15秒カード（プレビュー最上部・農家側応募者カードで共通利用）。値が無い項目は非表示
 // onEditItem（任意）: 本人プレビュー用。渡すと各項目がタップ可能になり、対応する編集ボックスのキーを返す。
 // 農家側（応募者カード等）は渡さない＝従来どおり表示専用
+// 長文プレビュー：…で省略し、該当要素のタップで全文表示（雇い手/働き手プレビューの自己紹介など・2026-07-23）。
+// 親がボタン（カード全体タップ）でも展開できるよう、クリックは伝播を止める。
+function ExpandableText({ text, limit = 100, style }) {
+  const [open, setOpen] = useState(false);
+  const s = (text == null ? "" : String(text));
+  if (!s) return null;
+  const truncated = s.length > limit;
+  return (
+    <p
+      onClick={truncated ? (e) => { e.stopPropagation(); e.preventDefault(); setOpen(v => !v); } : undefined}
+      role={truncated ? "button" : undefined}
+      className="f-sans"
+      style={{ whiteSpace:"pre-wrap", ...style, ...(truncated ? { cursor:"pointer" } : {}) }}
+    >
+      {open || !truncated ? s : s.slice(0, limit) + "…"}
+      {truncated && <span style={{ color:"#00A86B", fontWeight:700 }}>{open ? "　閉じる" : "　もっと見る"}</span>}
+    </p>
+  );
+}
+
 function WorkerTrustCard({ profile, trust, onEditItem }) {
   if (!profile) return null;
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
@@ -6377,9 +6397,12 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
           ))}
         </div>
       )}
-      {profile.pr && (
-        <p {...tap("pr")} className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{profile.pr}</p>
-      )}
+      {profile.pr && (onEditItem ? (
+        <p {...tap("pr")} className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer" }}>{profile.pr}</p>
+      ) : (
+        // 閲覧時（プレビュー・応募者カード）は…で省略し、タップで全文（2026-07-23）
+        <ExpandableText text={profile.pr} limit={80} style={{ fontSize:13, color:"#222", margin:0 }} />
+      ))}
     </div>
   );
 }
@@ -8323,7 +8346,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                               {tags.map((t,i) => <span key={i} style={{ fontSize:11, color:"#717171", background:"#F0F7F4", borderRadius:20, padding:"3px 10px" }}>#{t}</span>)}
                             </div>
                           )}
-                          {pr && <p style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{pr.length > 100 ? pr.slice(0, 100) + "…" : pr}</p>}
+                          {pr && <ExpandableText text={pr} limit={100} style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }} />}
                         </>
                       );
                     })()}
@@ -16365,7 +16388,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                             {styleLabel && <span style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>🤝 {styleLabel}</span>}
                           </div>
                         )}
-                        {pr && <p style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{pr.length > 100 ? pr.slice(0, 100) + "…" : pr}</p>}
+                        {pr && <ExpandableText text={pr} limit={100} style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }} />}
                       </>
                     );
                   })()}
