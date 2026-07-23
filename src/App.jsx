@@ -6896,8 +6896,9 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         setRevTargets([]);
         if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
         if (stay === true) {
-          // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）
-          const nxt = nextUnfilledBox(editBox);
+          // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
+          // BOX_ORDER外のボックス（保険=ホームから開く移植分）は次へ送らず閉じる
+          const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
           if (nxt) setEditBox(nxt); else closeEditBox();
           setTimeout(() => setSaved(false), 2200);
         }
@@ -15342,7 +15343,8 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     } catch { alert("削除に失敗しました。"); }
     setUploading(false);
   };
-  const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|pr|perks|staff|intro|ask|style
+  // ホームの「🛡 保険の準備」から来た時は、その場で保険ボックスを開く（移植・2026-07-23）
+  const [editBox, setEditBox] = useState(() => { try { const b = sessionStorage.getItem("cb_empOpenBox"); if (b) { sessionStorage.removeItem("cb_empOpenBox"); return b; } } catch {} return null; });
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→FarmerProfilePreviewをモーダル展開
   const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復・働き手側と同構造）
   const closeEditBox = () => {
@@ -15350,10 +15352,11 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
-  const BOX_ORDER = ["avatar","nickname","place","perks","insurance","staff","intro","ask","style"];
+  // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
+  const BOX_ORDER = ["avatar","nickname","place","perks","staff","intro","ask","style"];
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!nickname.trim() : k === "place" ? !!placeCity.trim()
-    : k === "perks" ? perksOn.length > 0 : k === "insurance" ? insuranceItems.length > 0
+    : k === "perks" ? perksOn.length > 0
     : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
   );
@@ -15402,8 +15405,9 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
       if (!error) {
         setSaved(true);
         if (stay === true) {
-          // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）
-          const nxt = nextUnfilledBox(editBox);
+          // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
+          // BOX_ORDER外のボックス（保険=ホームから開く移植分）は次へ送らず閉じる
+          const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
           if (nxt) setEditBox(nxt); else closeEditBox();
           setTimeout(() => setSaved(false), 2200);
         }
@@ -15436,7 +15440,6 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           { k:"nickname", e:"✏️", l:"農園名",         req:true, v: nickname },
           { k:"place",    e:"📍", l:"作業場所",       req:true, v: [placePref, placeCity, placeTown].filter(Boolean).join("") },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
-          { k:"insurance",e:"🛡", l:"保険の準備",     v: insuranceItems.map(k => (INSURANCE_ITEMS.find(x=>x.k===k)||{}).chip).filter(Boolean).join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
@@ -16497,6 +16500,14 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             <span>
               <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>面接の質問集</span>
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>聞きたいことをセットにして、応募者のチャットに送れます。回答もチャットに残ります。</span>
+            </span>
+          </button>
+          {/* 保険の準備（2026-07-23・面接の質問集の下へ移植）：農家プロフィール編集の保険ボックスを開く */}
+          <button onClick={()=>{ try { sessionStorage.setItem("cb_empOpenBox","insurance"); } catch {} window.location.hash="/profile/employer/profile"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🛡</span>
+            <span>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>保険の準備</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>働き手のケガに備える保険の準備方針を、自己申告で表明できます。</span>
             </span>
           </button>
           <div style={{ marginTop:16 }}>
