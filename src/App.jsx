@@ -5555,10 +5555,7 @@ function ChatView({ applicationId, onBack }) {
       <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0 10px", borderBottom:"1px solid #EEE" }}>
         <button onClick={onBack} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 4px", flexShrink:0, lineHeight:1 }}>←</button>
         {partner ? (<>
-          <span onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} style={{ flexShrink:0, cursor:"pointer" }}>
-            <Avatar url={partner.avatar_url} name={partner.nickname || partnerInitials} size={36} ring={isWorkerSide ? ROLE_GREEN : ROLE_ORANGE} />
-          </span>
-          <p className="f-sans" style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{partner.nickname || "名前未設定"}さん</p>
+          <p onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} className="f-sans" style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer" }}>{partner.nickname || "名前未設定"}さん</p>
           <button onClick={()=>{ setReportMode(v=>!v); setReportTarget(null); }} className="f-sans" style={{ flexShrink:0, background: reportMode ? "#FDECEC" : "none", border:"1px solid " + (reportMode ? "#E24B4A" : "#EBEBEB"), borderRadius:20, padding:"6px 12px", fontSize:12, fontWeight:600, color: reportMode ? "#E24B4A" : "#717171", cursor:"pointer" }}>{reportMode ? "キャンセル" : "🚩 報告する"}</button>
         </>) : <span style={{ flex:1 }} />}
       </div>
