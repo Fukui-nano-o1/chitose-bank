@@ -1072,29 +1072,7 @@ html:has(.cb-preview-overlay), body:has(.cb-preview-overlay) { overflow: hidden;
   .qr-print-only { display: block !important; }
 }
 
-/* ── 開催期間カレンダー📅の浮遊ボタン（詳細=応募フッター右上／確認ページ=下部ナビ右上。両ページ同構造） ── */
-.calendar-fab {
-  position: fixed;
-  right: 16px;
-  z-index: 600;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #fff;
-  border: 1px solid #EBEBEB;
-  box-shadow: 0 2px 8px rgba(0,0,0,.15);
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-/* 詳細ページ用：応募フッター(スマホのみ)の右上に浮遊。PCは地図下カレンダーがあるので非表示 */
-.calendar-fab-detail { display: none; bottom: calc(96px + 10px + env(safe-area-inset-bottom, 0px)); } /* 応募フッター上端+10px・固定（2026-07-16） */
-@media (max-width: 759px) { .calendar-fab-detail { display: flex; } }
-/* 確認ページ用：下部ナビ(戻る/保存/掲載する)の右上に浮遊 */
-.calendar-fab-confirm { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+/* 開催期間カレンダー📅の浮遊ボタン（.calendar-fab*）は削除（2026-07-24・誰も展開しないため） */
 
 /* ── 求人詳細：←戻る／♡いいねの浮遊固定（同じ高さ・スクロール追従・2026-07-16） ── */
 .job-float-back, .job-float-like {
@@ -8755,7 +8733,6 @@ function JobSearchMapView({ onRegister, me }) {
   }, [selectedJob?.id, me]);
   const [dbJobs, setDbJobs] = useState(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [farmIntroOpen, setFarmIntroOpen] = useState(false); // 農園紹介モーダル（ページには代表よりのみ・タップで全文展開）
   const [farmTrustOpen, setFarmTrustOpen] = useState(false); // 信頼カードのボックス展開（2026-07-16）
   // 受け入れ実績タップ→この農家の過去の求人ボックス（2026-07-16）
@@ -9696,10 +9673,7 @@ function JobSearchMapView({ onRegister, me }) {
         </div>
       )}
 
-      {/* 開催期間カレンダー📅：応募フッター右上の浮遊ボタン（旧:フッター内。確認ページと同構造） */}
-      {selectedJob && selectedJob.dateStart && (
-        <button className="calendar-fab calendar-fab-detail" aria-label="開催期間カレンダーを見る" onClick={() => setShowCalendarModal(true)}>📅</button>
-      )}
+      {/* 開催期間カレンダー📅の浮遊ボタンは削除（2026-07-24・誰も展開しないため）。開催期間はPC地図下のカレンダー・主要情報カードで確認できる */}
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
       {dangerLightbox && (
@@ -9717,29 +9691,6 @@ function JobSearchMapView({ onRegister, me }) {
             display:"flex", alignItems:"center", justifyContent:"center",
           }}>✕</button>
           <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
-        </div>
-      )}
-
-      {/* 開催期間カレンダー（スマホ専用モーダル・フッター📅から開く） */}
-      {showCalendarModal && selectedJob.dateStart && (
-        <div onClick={() => setShowCalendarModal(false)} style={{
-          position:"fixed", inset:0, zIndex:10000,
-          background:"rgba(0,0,0,0.5)",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          padding:16, animation:"fadeIn .2s ease",
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background:"#fff", borderRadius:16, padding:20,
-            maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
-            position:"relative",
-          }}>
-            <button onClick={() => setShowCalendarModal(false)} style={{
-              position:"absolute", top:12, right:12,
-              width:36, height:36, borderRadius:"50%",
-              background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
-            }}>✕</button>
-            <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
-          </div>
         </div>
       )}
 
@@ -10464,7 +10415,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
     setPerkSaving(false);
   };
   const [confTrust, setConfTrust] = useState(null); // 確認ページ用：登録してからの月日など（employer_trust_info）
-  const [confCalOpen, setConfCalOpen] = useState(false); // 確認ページ用：📅浮遊ボタン→作業日程カレンダーモーダル（詳細ページと同構造）
   const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
   const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
   const [confTrustOpen, setConfTrustOpen] = useState(false); // 確認ページ用：信頼カードのボックス展開（2026-07-16）
@@ -12435,42 +12385,8 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         </div>
       )}
 
-      {/* 開催期間カレンダー📅：確認ページ下部ナビ右上の浮遊ボタン＋モーダル（求人詳細ページと同構造）。
-          詳細ページと違い日程未設定でも常に表示（農家の編集の場のため。モーダル内に日程入力への導線） */}
-      {/* 待遇編集・プロフィール編集ボックス展開中は非表示（2026-07-19）：ボックスは深い階層のため
-          z-indexだけでは📅（fixed）が上に重なって描画される（stacking context跨ぎ）。展開中は消すのが確実 */}
-      {isFarmer && step === 11 && !publishModal && !perksEditOpen && !confProfileOpen && (
-        <button className="calendar-fab calendar-fab-confirm" aria-label="作業日程カレンダーを見る" onClick={() => setConfCalOpen(true)}>📅</button>
-      )}
-      {confCalOpen && (
-        <div onClick={() => setConfCalOpen(false)} style={{
-          position:"fixed", inset:0, zIndex:10000,
-          background:"rgba(0,0,0,0.5)",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          padding:16, animation:"fadeIn .2s ease",
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background:"#fff", borderRadius:16, padding:20,
-            maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto",
-            position:"relative",
-          }}>
-            <button onClick={() => setConfCalOpen(false)} style={{
-              position:"absolute", top:12, right:12,
-              width:36, height:36, borderRadius:"50%",
-              background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
-            }}>✕</button>
-            {/* 編集可能カレンダー（step4と同じ選択ロジック：1タップ目=開始日・2タップ目=終了日） */}
-            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 4px", paddingRight:40 }}>作業日程</h3>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 4px" }}>日付をタップすると選び直せます（1回目＝開始日・2回目＝終了日）</p>
-            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color: jobDateStart ? "#00A86B" : "#B0B0B0", margin:"0 0 12px" }}>{jobDateLabel}</p>
-            <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={false} onSelect={(dt) => {
-              if (!jobDateStart || jobDateEnd) { setJobDateStart(dt); setJobDateEnd(null); }
-              else if (dt >= jobDateStart) { setJobDateEnd(dt); }
-              else { setJobDateStart(dt); setJobDateEnd(null); }
-            }} />
-          </div>
-        </div>
-      )}
+      {/* 開催期間カレンダー📅の浮遊ボタン＋モーダルは削除（2026-07-24・誰も展開しないため）。
+          作業日程は主要情報カードの「日程」行の編集リンク（→step4）で選び直せる */}
 
       {/* 下部ナビのバーは削除（2026-07-16）：戻る／次へは浮遊固定ボックス（スクロール追従）に。
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
