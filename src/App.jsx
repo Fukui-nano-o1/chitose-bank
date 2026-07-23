@@ -9109,6 +9109,12 @@ function JobSearchMapView({ onRegister, me }) {
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (() => setApplyConfirmOpen(true));
+  // 募集終了（2026-07-24）：設定した採用人数に達した（満員＝filled）／作業日程が過ぎた（expired）求人は
+  // 応募導線（下部フッター・応募ボタン）を出さない＝新規の募集を締め切る。
+  // ただし既に応募・承認・見送りの関係がある本人には、状況確認とチャット導線を残すため従来どおり表示する。
+  const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired));
+  const hideApply = recruitClosed && !myAppStatus;
+  const closedLabel = selectedJob?.filled ? "募集終了（満員）" : "募集期間終了";
 
   return (
     <div>
@@ -9411,13 +9417,13 @@ function JobSearchMapView({ onRegister, me }) {
 
               <div style={{ height:1, background:"#EBEBEB", margin:"0 0 16px" }} />
 
-              {/* CTAボタン */}
+              {/* CTAボタン（募集終了・未応募なら「募集終了」表示で押下不可） */}
               <button
-                onClick={applyBtnOnClick}
-                disabled={applying || applyBtnDisabled}
+                onClick={hideApply ? undefined : applyBtnOnClick}
+                disabled={hideApply || applying || applyBtnDisabled}
                 className="btn-primary f-sans"
-                style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14, ...applyBtnStyle }}
-              >{applyBtnLabel}</button>
+                style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14, ...(hideApply ? { background:"#EBEBEB", color:"#717171" } : applyBtnStyle) }}
+              >{hideApply ? closedLabel : applyBtnLabel}</button>
               <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
 
               {/* 補足文 */}
@@ -9559,8 +9565,8 @@ function JobSearchMapView({ onRegister, me }) {
         </div>
       </>)}
 
-      {/* PC専用：下固定の応募バー（応募パネルが画面外に出たら表示。スマホはCSSでdisplay:none） */}
-      {selectedJob && showApplyBar && !isOwnJob && (
+      {/* PC専用：下固定の応募バー（応募パネルが画面外に出たら表示。スマホはCSSでdisplay:none）。募集終了かつ未応募では非表示（2026-07-24） */}
+      {selectedJob && showApplyBar && !isOwnJob && !hideApply && (
         <div className="pc-apply-bar" style={{
           position:"fixed", bottom:0, left:0, right:0, zIndex:500,
           background:"#fff", borderTop:"1px solid #EBEBEB",
@@ -9577,8 +9583,9 @@ function JobSearchMapView({ onRegister, me }) {
         </div>
       )}
 
-      {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS)。自分の求人には出さない（2026-07-22） */}
-      {selectedJob && !isOwnJob && (
+      {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS)。自分の求人には出さない（2026-07-22）。
+          募集終了（満員／期間終了）かつ未応募の求人では、この日程・募集ボタンの下部フッター自体を非表示にする（2026-07-24） */}
+      {selectedJob && !isOwnJob && !hideApply && (
         <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
           {/* 並び入れ替え（2026-07-16）：日給＋応募ボタンが上・注記が下 */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
