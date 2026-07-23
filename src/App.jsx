@@ -681,14 +681,18 @@ input:focus { outline: none; }
 /* ── チャット縦最大化（2026-07-19）：mainの上余白を打ち消し、下部バー直上まで拡大。
    PCは従来の70vh。モバイルはsafe-area(ノッチ)+8pxを上端、下部バー64px+safe-bottomを下端に。
    100vhはiOSでURLバー分を含み過大なため、対応環境では100dvhで上書き ── */
-.chat-full { height: 70vh; }
+/* チャットは画面いっぱいの高さで、メッセージ欄だけがスクロール（単一スクロール・LINE式・2026-07-22）。
+   大画面（PC）でも縦をしっかり使う。ページ側のスクロールは body:has(.chat-full) で止める（下記） */
+.chat-full { height: calc(100vh - 140px); }
+@supports (height: 100dvh) { .chat-full { height: calc(100dvh - 140px); } }
 @media (max-width: 768px) {
+  /* 下部バー(64px)は表示中に隠れるので、その分もチャットに使う＝画面いっぱい */
   .chat-full {
     margin-top: calc(env(safe-area-inset-top, 0px) + 8px - 68px); /* mainのpadding-top 68pxを打ち消す */
-    height: calc(100vh - env(safe-area-inset-top, 0px) - 8px - 64px - env(safe-area-inset-bottom, 0px) - 8px);
+    height: calc(100vh - env(safe-area-inset-top, 0px) - 8px - env(safe-area-inset-bottom, 0px) - 8px);
   }
   @supports (height: 100dvh) {
-    .chat-full { height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px - 64px - env(safe-area-inset-bottom, 0px) - 8px); }
+    .chat-full { height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px - env(safe-area-inset-bottom, 0px) - 8px); }
   }
 }
 
@@ -979,6 +983,10 @@ input:focus { outline: none; }
   body:has(.chat-full) .app-header-mobile,
   body:has(.chat-full) .app-header-mobile-float { display: none !important; }
 }
+/* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
+   チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
+body:has(.chat-full) .site-footer-fixed { display: none !important; }
+body:has(.chat-full) { overflow: hidden; }
 
 /* ── 開催期間カレンダー📅の浮遊ボタン（詳細=応募フッター右上／確認ページ=下部ナビ右上。両ページ同構造） ── */
 .calendar-fab {
