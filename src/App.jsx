@@ -135,6 +135,17 @@ const farmHostQa = (e) => [
   { q:"休憩とお茶はどうしてる？", a: e.break_style },
 ].filter(x => x.a && x.a.trim());
 
+// 保険の準備・自己申告（2026-07-23）：農家プロフィールで方針を表明。運営は証書を確認しない。
+// considering=これから準備する は、表示チップでは「これから準備予定」にする。employer_profiles.insurance_items に key配列で保存。
+const INSURANCE_ITEMS = [
+  { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険" },
+  { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険" },
+  { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険" },
+  { k:"facility",        label:"農業施設・賠償責任保険",          chip:"施設・賠償責任保険" },
+  { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険" },
+  { k:"considering",     label:"これから準備する",               chip:"これから準備予定" },
+];
+
 // 作業中の関わり方（EmployerProfileEdit・FarmerTrustCard共通）
 const INTERACTION_STYLE_OPTIONS = [
   { value:"together", label:"一緒に作業する" },
@@ -6464,7 +6475,7 @@ function EmployerPreviewSheet() {
       (async () => {
         try {
           const [epRes, trustRes] = await Promise.all([
-            supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,staff_count,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,created_at").eq("auth_id", farmerId).maybeSingle(),
+            supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,staff_count,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,insurance_items,created_at").eq("auth_id", farmerId).maybeSingle(),
             supabase.rpc("employer_trust_info", { p_farmer_id: farmerId }),
           ]);
           setSt(prev => prev && prev.farmer_id === farmerId ? {
@@ -6677,6 +6688,18 @@ function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience }) {
               <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
             </div>
           ))}
+        </div>
+      )}
+      {/* 保険の準備（自己申告・2026-07-23）：選択ありの時だけチップ列＋注記。未選択なら欄ごと非表示（未記載表示は作らない） */}
+      {Array.isArray(profile.insurance_items) && profile.insurance_items.length > 0 && (
+        <div style={{ marginTop:12 }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
+            {profile.insurance_items.map(k => { const it = INSURANCE_ITEMS.find(x => x.k === k); return it ? (
+              <span key={k} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>🛡 {it.chip}</span>
+            ) : null; })}
+          </div>
+          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:0, lineHeight:1.5 }}>農家の自己申告です。運営が確認したものではありません。</p>
         </div>
       )}
     </div>
@@ -15192,6 +15215,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [alwaysDo, setAlwaysDo] = useState("");
   const [breakStyle, setBreakStyle] = useState("");
   const [interactionStyle, setInteractionStyle] = useState("");
+  const [insuranceItems, setInsuranceItems] = useState([]); // 保険の準備（自己申告・key配列・2026-07-23）
   const [introOpen, setIntroOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -15236,6 +15260,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           setAlwaysDo(tp.always_do ?? data.always_do ?? "");
           setBreakStyle(tp.break_style ?? data.break_style ?? "");
           setInteractionStyle(data.interaction_style ?? "");
+          setInsuranceItems(Array.isArray(data.insurance_items) ? data.insurance_items : []);
           // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
           const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || (data.staff_count != null && data.staff_count !== "") || data.unique_point || data.always_do || data.break_style || data.interaction_style);
           if (hasIntroContent) setIntroOpen(true);
@@ -15325,10 +15350,11 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
-  const BOX_ORDER = ["avatar","nickname","place","perks","staff","intro","ask","style"];
+  const BOX_ORDER = ["avatar","nickname","place","perks","insurance","staff","intro","ask","style"];
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!nickname.trim() : k === "place" ? !!placeCity.trim()
-    : k === "perks" ? perksOn.length > 0 : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
+    : k === "perks" ? perksOn.length > 0 : k === "insurance" ? insuranceItems.length > 0
+    : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
   );
   const nextUnfilledBox = (afterKey) => {
@@ -15365,6 +15391,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
         staff_count: staffCount === "" ? null : Number(staffCount),
         interaction_style: interactionStyle || null,
+        insurance_items: insuranceItems,
         texts_pending: textsPending,
         texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
         // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
@@ -15409,6 +15436,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           { k:"nickname", e:"✏️", l:"農園名",         req:true, v: nickname },
           { k:"place",    e:"📍", l:"作業場所",       req:true, v: [placePref, placeCity, placeTown].filter(Boolean).join("") },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
+          { k:"insurance",e:"🛡", l:"保険の準備",     v: insuranceItems.map(k => (INSURANCE_ITEMS.find(x=>x.k===k)||{}).chip).filter(Boolean).join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
@@ -15517,6 +15545,21 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         </div>
         <div><ToggleSwitch label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
+      </>)}
+
+      {editBox==="insurance" && (<>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>🛡 保険の準備（自己申告）</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。</p>
+      <div style={{ marginBottom:12, borderTop:"1px solid #EBEBEB" }}>
+        {INSURANCE_ITEMS.map((it, i) => (
+          <div key={it.k} style={{ borderBottom: i < INSURANCE_ITEMS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
+            <ToggleSwitch label={it.label} checked={insuranceItems.includes(it.k)} onChange={(v)=>setInsuranceItems(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
+          </div>
+        ))}
+      </div>
+      {insuranceItems.includes("considering") && (
+        <button onClick={()=>{ window.location.hash = "/help/faq"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, color:"#00A86B", fontSize:13, fontWeight:700, textDecoration:"underline", cursor:"pointer", marginBottom:12 }}>→ 1日保険の入り方（ヘルプ）</button>
+      )}
       </>)}
 
       {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を従業員数/農園紹介/問いかけ/関わり方の各ボックスに分割 */}
@@ -18012,7 +18055,7 @@ const HELP_CONTENT = {
       { key:"faq-wrongReview",     label: "評価を間違えた", body: "お問い合わせ窓口までご連絡ください。" },
       { key:"faq-profileHidden",   label: "自己紹介が表示されない", body: "自由記述の自己紹介は、運営の確認後に公開されます（最大2日）。確認中は、あなたのプレビューに「確認待ち」と表示されます。" },
       { key:"faq-withdraw",        label: "退会したい", body: "お問い合わせ窓口までご連絡ください。" },
-      { key:"faq-insuranceWho",    label: "保険は誰が掛けますか", body: "保険の準備は農家にお願いしています（1日傷害保険など・多くは前日までの加入が必要です）。農家が「保険を準備した」と報告すると、働き手にお知らせが届きます。お知らせは農家からの報告に基づくもので、運営が証書を確認するものではありません。気になる時は、チャットで保険の内容を気軽に確認してください。働き手自身が1日数百円の傷害保険に入ることもできます。" },
+      { key:"faq-insuranceWho",    label: "保険は誰が掛けますか", body: "保険の準備は農家にお願いしています（1日傷害保険など・多くは前日までの加入が必要です）。農家が「保険を準備した」と報告すると、働き手にお知らせが届きます。お知らせは農家からの報告に基づくもので、運営が証書を確認するものではありません。気になる時は、チャットで保険の内容を気軽に確認してください。働き手自身が1日数百円の傷害保険に入ることもできます。農家プロフィールで、保険の準備の方針を表明できます（自己申告）。" },
       { key:"faq-howToReport",     label: "通報のしかた", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。" },
       { key:"faq-howToDispute",    label: "異議申立のしかた", body: "欠勤記録の通知から72時間以内に、アプリから異議申立ができます。" },
       { key:"faq-contact",         label: "お問い合わせ", body: "t5fki6643qty@gmail.com までご連絡ください。苦情には遅滞なく対応します。" },
