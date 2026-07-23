@@ -770,9 +770,10 @@ input:focus { outline: none; }
   font-family: 'Noto Sans JP', sans-serif;
   padding: 0;
 }
-.app-header-mobile-tab .icon { font-size: 26px; line-height: 1; } /* 2026-07-14: 20px→26px(1.3倍)。バー高さ64pxは不変 */
+.app-header-mobile-tab .icon { font-size: 26px; line-height: 1; padding: 2px 14px; border-radius: 13px; background: transparent; transition: background .15s; } /* 2026-07-14: 20px→26px(1.3倍)。バー高さ64pxは不変 / 2026-07-24: 常時同サイズの角丸背景枠（非アクティブは透明）でレイアウト不変のままアクティブ時に役割色で塗る */
 .app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
 .app-header-mobile-tab.active { color: var(--role-accent, #00A86B); font-weight: 600; }
+.app-header-mobile-tab.active .icon { background: var(--role-accent-soft, rgba(0,168,107,0.13)); } /* 2026-07-24: アクティブのアイコン背景を役割色（働き手=橙／農家=緑）に統一 */
 /* ── モバイル☰の上部浮遊ボタン（2026-07-13 下部バーから移設。fixed＝スクロール追従。
    2026-07-24: 下部フッター・切替FABと同じくスクロール（cb-scroll-hide）で下へ格納する） ── */
 .app-header-mobile-float { display: none; }
@@ -19560,7 +19561,7 @@ const subDest=useCallback(async d=>{
     : MOBILE_TABS;
 
   return(
-    <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent,"--role-accent":(me && !empCtx) ? ROLE_ORANGE : ROLE_GREEN}}>
+    <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent,"--role-accent":(me && !empCtx) ? ROLE_ORANGE : ROLE_GREEN,"--role-accent-soft":(me && !empCtx) ? "rgba(247,107,28,0.15)" : "rgba(0,168,107,0.13)"}}>
       <style>{CSS}</style>
 
       {/* 働き手/雇い手プレビューの全域ボックス（どの画面のアイコンからでもイベントで展開・2026-07-19） */}
