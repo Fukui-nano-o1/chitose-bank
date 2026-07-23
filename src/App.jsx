@@ -16764,70 +16764,84 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               <AvailDatesChips value={a.available_dates} />
               {/* 働く日（確定済み・2026-07-24 追記3） */}
               <AgreedDatesRow value={a.agreed_dates} />
-              {/* 働く日を決める（期間求人・承認後）：来られる日をプリセット表示→農家がタップ確定。変更は同じボタンでやり直し */}
-              {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (() => {
+              {/* ── 主ボタン（1カード1主・進行状態で1本＝今日ページの主ボタン決定表と同じ思想・2026-07-24） ──
+                   applied→承認する／approved(期間・agreed無)→働く日を決める／日程済み・確認未→確認カード案内／確認済み以降→主無し */}
+              {(() => {
                 const info = jobInfoMap[a.job_number] || {};
                 const isPeriod = info.date_end && info.date_start && info.date_end !== info.date_start;
-                if (!isPeriod) return null;
-                return (
-                  <button onClick={()=>{ setAgreeModal(a); setAgreeSel(Array.isArray(a.agreed_dates) ? a.agreed_dates.slice() : []); }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:700, background: Array.isArray(a.agreed_dates)&&a.agreed_dates.length>0 ? "#fff" : "#00A86B", color: Array.isArray(a.agreed_dates)&&a.agreed_dates.length>0 ? "#00A86B" : "#fff", border: Array.isArray(a.agreed_dates)&&a.agreed_dates.length>0 ? "1px solid #00A86B" : "none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>📅 {Array.isArray(a.agreed_dates)&&a.agreed_dates.length>0 ? "働く日を変更する" : "働く日を決める"}</button>
-                );
+                const hasAgreed = Array.isArray(a.agreed_dates) && a.agreed_dates.length > 0;
+                const datesDecided = !isPeriod || hasAgreed;
+                const workerConfirmed = !!a.terms_confirmed_worker_at;
+                if (a.status === "applied") {
+                  // 承認する（主）＋見送る（従来位置・小さく誤タップ防止）
+                  return (
+                    <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+                      <button onClick={async ()=>{
+                        const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
+                        if (error || !data?.ok) { alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                        setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
+                      }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
+                      <button onClick={async ()=>{
+                        if (!confirm('この応募を見送りますか？')) return;
+                        const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
+                        if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                        setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
+                      }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
+                    </div>
+                  );
+                }
+                if (CHAT_ELIGIBLE_STATUSES.includes(a.status) && isPeriod && !hasAgreed) {
+                  return (
+                    <button onClick={()=>{ setAgreeModal(a); setAgreeSel(Array.isArray(a.agreed_dates) ? a.agreed_dates.slice() : []); }} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:10 }}>📅 働く日を決める</button>
+                  );
+                }
+                if (CHAT_ELIGIBLE_STATUSES.includes(a.status) && datesDecided && !workerConfirmed) {
+                  return (
+                    <div className="f-sans" style={{ background:"#FFF8E7", border:"1px solid #F5D98F", borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
+                      <p style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", margin:0, lineHeight:1.6 }}>⏳ 働き手の確認待ちです</p>
+                      <p style={{ fontSize:11, color:"#B08A2E", margin:"2px 0 0", lineHeight:1.6 }}>働き手が確認カードで日程・報酬などを確認すると、次に進みます。</p>
+                    </div>
+                  );
+                }
+                return null; // 確認済み以降＝主ボタン無し
               })()}
-              {a.status === "applied" && (
-                <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-                  <button onClick={async ()=>{
-                    const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
-                    if (error || !data?.ok) { alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                    setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
-                  }} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
-                  <button onClick={async ()=>{
-                    if (!confirm('この応募を見送りますか？')) return;
-                    const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
-                    if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                    setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
-                  }} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
-                </div>
-              )}
-              {/* 保険準備ボタン（承認済み以降） */}
-              {APPROVED_PLUS_STATUSES.includes(a.status) && (
-                a.insurance_prepared_at ? (
-                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 準備したと報告済み・働き手にお知らせしました</p>
-                ) : (
-                  <button onClick={async ()=>{
-                    const { data, error } = await supabase.rpc('confirm_insurance', { p_application_id: a.id });
-                    if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                    setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, insurance_prepared_at: new Date().toISOString()} : x));
-                  }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer", marginBottom:8 }}>☑ 保険を準備した</button>
-                )
-              )}
-              {/* 開始の握手（Part4） */}
-              {a.started_at && !a.farmer_confirmed_start_at && (
-                <button onClick={()=>confirmStart(a)} disabled={startConfirmingId===a.id} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer", marginBottom:8 }}>{startConfirmingId===a.id ? "..." : "✓ 開始を確認"}</button>
-              )}
+              {/* 状態メモ（確定済みの握手・保険・連絡は小さく残す） */}
               {a.farmer_confirmed_start_at && (
-                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>
-                  開始確認済み（{new Date(a.farmer_confirmed_start_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
-                </p>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#00A86B", margin:"0 0 6px" }}>✓ 開始確認済み（{new Date(a.farmer_confirmed_start_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）</p>
               )}
-              {/* 完了・評価（Part1） */}
-              {a.status === "completed" ? (
-                <p className="f-sans" style={{ fontSize:13, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px", textAlign:"center" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
-              ) : CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
-                <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>完了して評価する</button>
+              {a.status === "completed" && (
+                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 6px" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
               )}
-              {/* 緊急連絡（Part3・農家側） */}
-              {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
-                <button onClick={()=>openEmergencyModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer", marginBottom:8 }}>⚠️ 緊急連絡</button>
+              {a.insurance_prepared_at && (
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#00A86B", margin:"0 0 6px" }}>✓ 保険準備を報告済み</p>
               )}
               {a._emergencySentAt && (
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#C77700", margin:"0 0 8px", textAlign:"center" }}>⚠️ 連絡済み（{a._emergencySentAt}）</p>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#C77700", margin:"0 0 6px" }}>⚠️ 連絡済み（{a._emergencySentAt}）</p>
               )}
-              {/* 面接の質問集をチャットに送る（2026-07-23・当事者=農家が自分の質問を送る。回答はチャットに残る） */}
-              {["applied","approved","meeting","interview","contracted"].includes(a.status) && (
-                <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer", marginBottom:8 }}>📋 質問を送る</button>
-              )}
-              {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
-              <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>チャットを開く</button>
+              {/* ── 補助リンク行（格下げ・2026-07-24）：チャット・質問・保険報告は小さく。当日/事後の操作（開始確認・完了・緊急）も小リンク化。
+                   ※当日と事後の行動は本来「今日」ページへ集約する方針。完了/緊急のモーダルは当面ここに残し小さく格下げ（誤タップ防止・整理優先） ── */}
+              {(() => {
+                const info = jobInfoMap[a.job_number] || {};
+                const hasAgreed = Array.isArray(a.agreed_dates) && a.agreed_dates.length > 0;
+                const workDay = hasAgreed ? a.agreed_dates.includes(ymdLocal(new Date())) : isWorkDayToday(info.date_start, info.date_end);
+                const link = (label, color, onClick) => (
+                  <button onClick={onClick} className="f-sans" style={{ background:"none", border:"none", padding:"4px 0", fontSize:12, fontWeight:700, color, cursor:"pointer", textDecoration:"underline" }}>{label}</button>
+                );
+                return (
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:"2px 16px", marginTop:6, paddingTop:8, borderTop:"1px solid #F0F0F0" }}>
+                    {link("💬 チャット", "#00A86B", ()=>{ window.location.hash="/chat/"+a.id; })}
+                    {["applied","approved","meeting","interview","contracted"].includes(a.status) && link("📋 質問を送る", "#00A86B", ()=>setSendQTarget(a))}
+                    {APPROVED_PLUS_STATUSES.includes(a.status) && !a.insurance_prepared_at && link("🛡 保険を準備した", "#C77700", async ()=>{
+                      const { data, error } = await supabase.rpc('confirm_insurance', { p_application_id: a.id });
+                      if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, insurance_prepared_at: new Date().toISOString()} : x));
+                    })}
+                    {a.started_at && !a.farmer_confirmed_start_at && link(startConfirmingId===a.id ? "…" : "✓ 開始を確認", "#00A86B", ()=>confirmStart(a))}
+                    {CHAT_ELIGIBLE_STATUSES.includes(a.status) && workDay && link("✅ 完了して評価する", "#00A86B", ()=>openCompleteModal(a))}
+                    {CHAT_ELIGIBLE_STATUSES.includes(a.status) && link("⚠️ 緊急連絡", "#C77700", ()=>openEmergencyModal(a))}
+                  </div>
+                );
+              })()}
       </div>
     );
   };
