@@ -6225,7 +6225,7 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
+        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid " + ROLE_ORANGE, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
           <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
         </div>
         <div style={{ minWidth:0 }}>
@@ -6241,7 +6241,7 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
             <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{tenureLabel(trust.joined_at)}</span>
           )}
           {trust.verified_at && (
-            <span className="f-sans" style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
+            <span className="f-sans" style={{ fontSize:11, color:ROLE_ORANGE_INK, fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
           )}
         </div>
       )}
@@ -7103,7 +7103,7 @@ function WorkerProfilePreview({ me, onEdit, onEditItem }) {
             まだ勤務実績はありません。初回勤務後から、労働時間・作業・出勤状況が記録されます。
           </p>
           {wantAgainCount > 0 && (
-            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"10px 0 0" }}>🌟また呼びたい ×{wantAgainCount}</p>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:ROLE_ORANGE_INK, margin:"10px 0 0" }}>🧡また呼びたい ×{wantAgainCount}</p>
           )}
         </div>
       )}
