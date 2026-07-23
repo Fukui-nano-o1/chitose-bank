@@ -5358,7 +5358,6 @@ function ChatView({ applicationId, onBack }) {
   const [activeAppId, setActiveAppId] = useState(applicationId);
   const [activeStatus, setActiveStatus] = useState(null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
   const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
-  const [jobPickerOpen, setJobPickerOpen] = useState(false); // 上部の求人No.タップ→関係する求人の切替シート
   // 現役応募を切り替える（状態＝採用/確認カード/保険/#N をその応募に合わせる）。求人ページ取得も行う
   const applyActive = async (row) => {
     if (!row) return;
@@ -5552,59 +5551,41 @@ function ChatView({ applicationId, onBack }) {
   })();
   return (
     <div className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
-      <button onClick={onBack} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:13, cursor:"pointer", padding:"8px 0", textAlign:"left" }}>← 戻る</button>
-      {partner && (
-        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0 12px", borderBottom:"1px solid #EEE" }}>
+      {/* 上部フッター（LINE式・2026-07-22）：← / 名前さん / 報告する の1行ヘッダー。求人No.は下の帯へ移動 */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0 10px", borderBottom:"1px solid #EEE" }}>
+        <button onClick={onBack} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 4px", flexShrink:0, lineHeight:1 }}>←</button>
+        {partner ? (<>
           <span onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} style={{ flexShrink:0, cursor:"pointer" }}>
             <Avatar url={partner.avatar_url} name={partner.nickname || partnerInitials} size={36} ring={isWorkerSide ? ROLE_GREEN : ROLE_ORANGE} />
           </span>
-          <div style={{ flex:1, minWidth:0 }}>
-            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{partner.nickname || "名前未設定"}</p>
-            {chatJobNumber != null && (
-              threadApps.length > 1 ? (
-                // この相手と複数の求人でつながっている＝タップで求人No.を仕分け（切替）（2026-07-22）
-                <button onClick={()=>setJobPickerOpen(true)} className="f-sans" style={{ display:"inline-flex", alignItems:"center", gap:4, background:"none", border:"none", padding:0, margin:"2px 0 0", fontSize:11, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>
-                  求人 #{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "・" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") : ""}　▾ 他{threadApps.length - 1}件
-                </button>
-              ) : (
-                <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0", userSelect:"text" }}>求人 #{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "・" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") : ""}</p>
-              )
-            )}
-          </div>
-          {/* コメント報告の入口（2026-07-19）：タップで報告モード＝問題のコメントを選べる */}
+          <p className="f-sans" style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{partner.nickname || "名前未設定"}さん</p>
           <button onClick={()=>{ setReportMode(v=>!v); setReportTarget(null); }} className="f-sans" style={{ flexShrink:0, background: reportMode ? "#FDECEC" : "none", border:"1px solid " + (reportMode ? "#E24B4A" : "#EBEBEB"), borderRadius:20, padding:"6px 12px", fontSize:12, fontWeight:600, color: reportMode ? "#E24B4A" : "#717171", cursor:"pointer" }}>{reportMode ? "キャンセル" : "🚩 報告する"}</button>
+        </>) : <span style={{ flex:1 }} />}
+      </div>
+      {/* 求人No.ボックス（スワイプ＝横スクロール）＋同列に採用ボックス（LINE式の上部帯・2026-07-22） */}
+      {chatJobNumber != null && (
+        <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"10px 0 4px", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain" }}>
+          {threadApps.map(r => {
+            const isActive = r.id === activeAppId;
+            return (
+              <button key={r.id} onClick={()=>applyActive(r)} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor:"pointer", minWidth:120 }}>
+                <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>求人 #{r.job_number}</span>
+                <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}{isActive ? "・表示中" : ""}</span>
+              </button>
+            );
+          })}
+          {/* 採用ボックス（農家・進行中のみ・同列。スクロールして到達） */}
+          {!isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
+            farmerConfirmed ? (
+              <span className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#E6F7EF", color:"#00A86B", fontSize:13, fontWeight:700, borderRadius:12, padding:"8px 16px", whiteSpace:"nowrap" }}>✓ 採用決定済み{!workerConfirmed ? "（確認待ち）" : ""}</span>
+            ) : (
+              <button onClick={async ()=>{ if (confirmingTerms) return; const dup = await farmerDoubleBookingCheck(); const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : ""; if (window.confirm(warn + "この方の採用を決定しますか？\n打ち合わせ・面接はチャットで行い、決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : ""))) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ flexShrink:0, background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap", opacity: confirmingTerms ? 0.6 : 1 }}>{confirmingTerms ? "..." : "採用する"}</button>
+            )
+          )}
         </div>
       )}
       {reportMode && !reportTarget && (
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
-      )}
-
-      {/* 関係する求人の仕分けシート（2026-07-22）：上部の求人No.タップで、この相手と繋がる複数の求人を切替。
-          選ぶと現役応募が切り替わり、確認カード・採用状況・#N がその求人に合う（application_id統一の延長） */}
-      {jobPickerOpen && (
-        <div onClick={()=>setJobPickerOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>関係する求人</p>
-              <button onClick={()=>setJobPickerOpen(false)} aria-label="閉じる" style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer" }}>✕</button>
-            </div>
-            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px", lineHeight:1.6 }}>{partner?.nickname || "この相手"}さんとつながっている求人です。選ぶと、確認カード・採用状況がその求人に切り替わります。</p>
-            <div style={{ display:"grid", gap:8 }}>
-              {threadApps.map(r => {
-                const isActive = r.id === activeAppId;
-                return (
-                  <button key={r.id} onClick={()=>{ applyActive(r); setJobPickerOpen(false); }} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
-                    <span style={{ minWidth:0 }}>
-                      <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>求人 #{r.job_number}</span>
-                      <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}</span>
-                    </span>
-                    {isActive && <span style={{ fontSize:12, fontWeight:700, color:"#00A86B", flexShrink:0 }}>表示中 ✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* 求人コンテキストカード（2026-07-22・第8弾）：チャット最上部に固定（メッセージ欄の外＝スクロールしない）。
@@ -5715,19 +5696,7 @@ function ChatView({ applicationId, onBack }) {
       })()}
 
       <div ref={msgScrollRef} style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
-        {/* 採用するボタン（農家側・2026-07-19）：チャット右上に浮遊（sticky＝スクロールしても右上に留まる）。
-            凍結トリガー＝働き手の「はじめる前の確認」＋この採用タップの両方（confirm_terms・どちらか片方では凍結されない） */}
-        {confirmJob && !isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
-          <div style={{ position:"sticky", top:0, alignSelf:"flex-end", zIndex:5 }}>
-            {farmerConfirmed ? (
-              <span className="f-sans" style={{ display:"inline-block", background:"#E6F7EF", color:"#00A86B", fontSize:12, fontWeight:700, borderRadius:20, padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>✓ 採用決定済み{!workerConfirmed ? "（働き手の確認待ち）" : ""}</span>
-            ) : (
-              <button onClick={async ()=>{ if (confirmingTerms) return; const dup = await farmerDoubleBookingCheck(); const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : ""; if (window.confirm(warn + "この方の採用を決定しますか？\n打ち合わせ・面接はチャットで行い、決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : ""))) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:20, padding:"10px 18px", cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,0.35)", opacity: confirmingTerms ? 0.6 : 1 }}>
-                {confirmingTerms ? "..." : "採用する"}
-              </button>
-            )}
-          </div>
-        )}
+        {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
         {msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>打ち合わせや面接の連絡は、ここで行えます。</p>
         ) : msgs.map(m => (
