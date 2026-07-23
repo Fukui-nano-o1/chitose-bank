@@ -19604,16 +19604,15 @@ const subDest=useCallback(async d=>{
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定日：2026年7月5日</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／改定：2026年7月24日</p>
 
             <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
               {[
-                { id:"charter-preamble", l:"前文" },
-                { id:"charter-ch1", l:"第一章　視点" },
-                { id:"charter-ch2", l:"第二章　視野" },
-                { id:"charter-ch3", l:"第三章　視座" },
-                { id:"charter-ch4", l:"第四章　この憲章から導かれるもの" },
-                { id:"charter-ch5", l:"第五章　我々が約束すること" },
+                { id:"charter-ch1", l:"一、この場について" },
+                { id:"charter-ch2", l:"二、三つの原則" },
+                { id:"charter-ch3", l:"三、我々の仕事" },
+                { id:"charter-ch4", l:"四、双方に寄り添うこと" },
+                { id:"charter-ch5", l:"五、これからの仕組みについて" },
                 { id:"charter-def", l:"定義" },
               ].map(t => (
                 <button key={t.id} onClick={()=>{ document.getElementById(t.id)?.scrollIntoView({ behavior:"smooth", block:"start" }); }} className="f-sans" style={{ fontSize:17, fontWeight:600, color:"#00A86B", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer", padding:"14px 18px", textAlign:"left", width:"100%" }}>{t.l}</button>
@@ -19622,47 +19621,40 @@ const subDest=useCallback(async d=>{
 
             <div style={{ display:"grid", gap:28 }}>
 
-              <section id="charter-preamble" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>前文</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>日本の農業は、担い手不足という課題を抱えている。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、働き手※1と、認定農家※2が出会い、学びを通じてつながる場を運営する。</p>
-              </section>
-
               <section id="charter-ch1" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第一章　視点</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、利用者※3の側に立って判断する。</p>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>一、この場について</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、農家と働き手が出会い、働き、つながる場を運営する。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>はじめての人が経験を積み、頼れる担い手へ育っていける場であることを大切にする。</p>
               </section>
 
               <section id="charter-ch2" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第二章　視野</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>この場は、働き手が、認定農家から農業の実態を学ぶ場である。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、農業に関わろうとする全ての人を歓迎する。</p>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>二、三つの原則</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>1. 我々は、当事者どうしの連絡を制限しない。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>2. 我々は、雇用の成立に対する成功報酬を、現在も将来も受け取らない。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>3. 我々は、採用の判断に関与しない。誰を選ぶかは、農家と働き手が決める。</p>
               </section>
 
               <section id="charter-ch3" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第三章　視座</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、認定農家と働き手の双方に寄り添う立場で運営する。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、参入の間口を広く開く。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、この場で働く人の尊厳と安全を守る。</p>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>三、我々の仕事</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、場を整え、約束の記録を守り、法令に反する掲載を防ぐ。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>実績は、この場での働きの記録からだけ作られる。我々はそれを改変せず、飾らない。</p>
               </section>
 
               <section id="charter-ch4" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第四章　この憲章から導かれるもの</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、この視座に基づき、プライバシーポリシー・利用規約・個別規約を定め、これを守る。</p>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>四、双方に寄り添うこと</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、農家と働き手のどちらか一方の味方ではなく、双方に寄り添う立場で運営する。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>困りごとの窓口を常に開き、寄せられた声には必ず返事をする。</p>
               </section>
 
               <section id="charter-ch5" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>第五章　我々が約束すること</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、全ての運用を、この憲章に沿って行う。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、この憲章を、利用者の利益のために保つ。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、この憲章の改定を、利用者に事前に告知して行う。</p>
+                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>五、これからの仕組みについて</h2>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>農作業の委託・受託など、新しい仕組みをこの場に加えるときは、その約束をこの憲章に書き足してから始める。黙って変えることはしない。</p>
               </section>
 
               <section id="charter-def" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
                 <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>定義</h2>
-                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※1　働き手とは、認定農家のもとで農業を学ぶために本サービスを利用する者をいう。</p>
-                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※2　認定農家とは、運営が定めた基準を満たす農家をいう。基準の詳細は、個別規約に定める。</p>
-                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※3　利用者とは、本サービスに登録し、これを利用する全ての者をいう。</p>
+                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※　働き手とは、農作業に携わるために本サービスを利用する者をいう。</p>
+                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※　農家とは、農作業の求人を掲載する者をいう。</p>
               </section>
 
             </div>
