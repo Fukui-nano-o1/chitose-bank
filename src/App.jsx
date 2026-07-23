@@ -18464,14 +18464,21 @@ function InsurancePrepPage({ me }) {
   );
 }
 
-// 訪問者の玄関（#/visit・恒久URL・2026-07-24）：ロゴ＋一言＋規約/プラポリ＋「同意して見てみる」→#/search。
-// 同意はlocalStorageに記録し、再訪問・ログイン済みは玄関をスキップして#/searchへ直行。
+// 訪問者の玄関（#/visit・恒久URL・2026-07-24）：ロゴ＋一言＋規約/プラポリ＋「同意して見てみる」。
+// 同意はlocalStorageに記録し、再訪問・ログイン済みは玄関をスキップ。同意後は、全入口ゲートが退避した
+// 元の宛先（cb_visitReturn）へ戻す（無ければ#/searchへ）。
 function VisitEntrance({ me }) {
+  // 玄関に着いた時点で既に同意済み/ログイン済みなら、退避先（あれば）へ、無ければ検索へ直行
+  const nextDest = () => {
+    let dest = "/search";
+    try { const r = localStorage.getItem("cb_visitReturn"); if (r) dest = "/" + r; localStorage.removeItem("cb_visitReturn"); } catch {}
+    return dest;
+  };
   useEffect(() => {
     let consent = false; try { consent = localStorage.getItem("cb_visitConsent") === "1"; } catch {}
-    if (me || consent) { window.location.hash = "/search"; }
+    if (me || consent) { window.location.hash = nextDest(); }
   }, [me]);
-  const agree = () => { try { localStorage.setItem("cb_visitConsent", "1"); } catch {} window.location.hash = "/search"; };
+  const agree = () => { try { localStorage.setItem("cb_visitConsent", "1"); } catch {} window.location.hash = nextDest(); };
   return (
     <div style={{ maxWidth:520, margin:"0 auto", padding:"56px 20px 96px", textAlign:"center" }}>
       <img src="/favicon.svg" alt="chitose-bank" style={{ width:76, height:76, marginBottom:16 }} />
@@ -18781,6 +18788,28 @@ export default function App(){
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  // 訪問者の同意ゲート（2026-07-24）：未ログイン & cb_visitConsent 未記録のアクセスは、
+  // どの入口（QR・検索・直リンク）でも まず #/visit（同意の玄関）へ集約する。玄関は必ず一つ。
+  // 元の宛先は cb_visitReturn に退避し、同意後に VisitEntrance.agree が読んで元ページへ戻す。
+  // 例外＝玄関自身／法務ページ（規約・プラポリ・憲章）／認証系の機能リンク（login・account・emergency）。
+  //   これらは同意前でも到達できないと、玄関の導線（規約リンク）や会員の認証が壊れるため。
+  useEffect(() => {
+    const gate = async () => {
+      const raw = window.location.hash.replace(/^#\/?/, "");
+      const exempt = raw === "visit" || raw === "terms" || raw === "privacy" || raw === "charter"
+        || raw === "login" || raw === "account" || raw.startsWith("emergency/");
+      if (exempt) return;
+      let consent = false; try { consent = localStorage.getItem("cb_visitConsent") === "1"; } catch {}
+      if (consent) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return; // ログイン済み会員はゲート対象外（同意は訪問者のみの概念）
+      try { if (raw) localStorage.setItem("cb_visitReturn", raw); } catch {}
+      window.location.hash = "/visit";
+    };
+    gate();
+    window.addEventListener("hashchange", gate);
+    return () => window.removeEventListener("hashchange", gate);
   }, []);
   // #/account 直打ち（初回ロード）の認証チェック。hashchangeイベントは初回ロードでは発火しないため別途判定
   useEffect(() => {
