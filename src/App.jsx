@@ -6383,8 +6383,10 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
   ];
   // 📋自己申告に集約する本人申告：経験区分・経験のある作業・移動手段＋免許資格保険（🌟実績枠には絶対入れない）
   const declItems = [
+    // 経験の構造化申告（作物×作業（どのくらい））を先頭に（2026-07-23）
+    ...((Array.isArray(profile.experience_entries) ? profile.experience_entries : []).filter(e => e && (e.crop || "").trim()).map(e => ({ text: `${e.crop}×${e.task || ""}${e.duration ? `（${e.duration}）` : ""}`, k:"declared" }))),
     ...(profile.farm_experience ? [{ text:"🌾 " + profile.farm_experience, k:"exp" }] : []),
-    ...((Array.isArray(profile.experienced_tasks) ? profile.experienced_tasks : []).filter(Boolean).map(t => ({ text: t, k:"exp" }))),
+    ...((Array.isArray(profile.experienced_tasks) ? profile.experienced_tasks : []).filter(Boolean).map(t => ({ text: t, k:"declared" }))),
     ...(profile.transport ? [{ text:"🚗 " + profile.transport, k:"transport" }] : []),
     ...((Array.isArray(profile.self_declared) ? profile.self_declared : []).map(key => { const it = WORKER_DECLARATIONS.find(x => x.k === key); return it ? { text: it.chip, k:"declared" } : null; }).filter(Boolean)),
   ];
@@ -6761,6 +6763,8 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [interests, setInterests] = useState([]);
   const [languages, setLanguages] = useState([]);
   const [selfDeclared, setSelfDeclared] = useState([]); // できること・資格（自己申告・key配列・2026-07-23）
+  const [expEntries, setExpEntries] = useState([]); // 経験の構造化申告 {crop,task,duration}（最大5・2026-07-23）
+  const [experiencedTasks, setExperiencedTasks] = useState([]); // 旧「経験のある作業」＝その他の作業（残置・データ移行なし）
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -6785,6 +6789,8 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           setInterests(Array.isArray(data.interests) ? data.interests : []);
           setLanguages(Array.isArray(data.languages) ? data.languages : []);
           setSelfDeclared(Array.isArray(data.self_declared) ? data.self_declared : []);
+          setExpEntries(Array.isArray(data.experience_entries) ? data.experience_entries : []);
+          setExperiencedTasks(Array.isArray(data.experienced_tasks) ? data.experienced_tasks : []);
           // 修正依頼の指摘対象（2026-07-19）：該当ボックスに赤帯を出す。再提出（保存）で消える
           setRevTargets(Array.isArray(data.pr_revision_targets) ? data.pr_revision_targets : []);
         }
@@ -6907,7 +6913,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     k === "pr" ? !!pr.trim() : k === "nickname" ? !!nickname.trim() : k === "residence" ? !!residenceCity.trim()
     : k === "transport" ? !!transport : k === "exp" ? !!farmExperience : k === "intensity" ? !!physicalLevel
     : k === "interests" ? interests.length > 0 : k === "languages" ? languages.length > 0
-    : k === "declared" ? selfDeclared.length > 0 : k === "avatar" ? !!avatarUrl : prQa.length > 0
+    : k === "declared" ? (selfDeclared.length > 0 || expEntries.some(e => (e.crop||"").trim())) : k === "avatar" ? !!avatarUrl : prQa.length > 0
   );
   const nextUnfilledBox = (afterKey) => {
     const start = Math.max(0, BOX_ORDER.indexOf(afterKey));
@@ -6930,7 +6936,10 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         pr_pending: pr.trim(), pr_qa_pending: prQa, pr_submitted_at: new Date().toISOString(),
         pr_revision_targets: null, // 再提出＝修正依頼の赤帯を解除（2026-07-19）
         residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
-        interests, languages, self_declared: selfDeclared, updated_at: new Date().toISOString(),
+        interests, languages, self_declared: selfDeclared,
+        experience_entries: expEntries.map(e => ({ crop:(e.crop||"").trim(), task:e.task||"", duration:e.duration||"" })).filter(e => e.crop).slice(0, 5),
+        experienced_tasks: experiencedTasks,
+        updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) {
@@ -7001,7 +7010,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"intensity", e:"💪", l:"作業の強さ",   v: physicalLevel },
           { k:"interests", e:"🎨", l:"趣味",         v: interests.join("・") },
           { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
-          { k:"declared",  e:"📋", l:"できること・資格", v: selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip).filter(Boolean).join("・") },
+          { k:"declared",  e:"📋", l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
           { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
         ].map(b => {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
@@ -7112,8 +7121,34 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </>)}
 
       {editBox==="declared" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>📋 できること・資格（自己申告）</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>当てはまるものを選べます（複数可）。あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>📋 経験・できること（自己申告）</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
+
+      {/* 経験の構造化申告（作物×作業×どのくらい・最大5・2026-07-23） */}
+      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 6px" }}>経験（作物 × 作業 × どのくらい）</p>
+      <datalist id="cb-crop-opts">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
+      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:8 }}>
+        {expEntries.map((e, i) => (
+          <div key={i} style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center" }}>
+            <input list="cb-crop-opts" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))} placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:13, flex:"1 1 120px", minWidth:0, marginBottom:0 }} />
+            <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, flex:"1 1 90px", minWidth:0, marginBottom:0 }}>
+              <option value="">作業</option>
+              {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+            </select>
+            <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, flex:"1 1 110px", minWidth:0, marginBottom:0 }}>
+              <option value="">どのくらい</option>
+              {["少し","1〜2シーズン","3シーズン以上"].map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <button onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ flexShrink:0, width:30, height:30, borderRadius:8, background:"#F5F5F5", border:"none", color:"#999", fontSize:15, cursor:"pointer" }}>×</button>
+          </div>
+        ))}
+      </div>
+      {expEntries.length < 5 && (
+        <button onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, marginBottom:16 }}>＋ 経験を追加</button>
+      )}
+
+      {/* 免許・資格・保険方針 */}
+      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"4px 0 6px" }}>免許・資格・保険方針</p>
       <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
         {WORKER_DECLARATIONS.map((it, i) => (
           <div key={it.k} style={{ borderBottom: i < WORKER_DECLARATIONS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
@@ -7121,6 +7156,24 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           </div>
         ))}
       </div>
+
+      {/* その他の作業（旧「経験のある作業」＝experienced_tasksが既にある人だけ残置。空の人には構造化のみ・2026-07-23） */}
+      {experiencedTasks.length > 0 && (
+        <>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"4px 0 6px" }}>その他の作業</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
+            {[...new Set([...TASK_OPTIONS.map(t=>t.name), ...experiencedTasks])].map(v => {
+              const on = experiencedTasks.includes(v);
+              return (
+                <button key={v} type="button" onClick={()=>setExperiencedTasks(prev => on ? prev.filter(x=>x!==v) : [...prev, v])} className="f-sans" style={{
+                  padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+                  border:"1px solid " + (on ? "#00A86B" : "#EBEBEB"), background: on ? "#E6F7EF" : "#F7F7F7", color: on ? "#00A86B" : "#717171",
+                }}>{v}</button>
+              );
+            })}
+          </div>
+        </>
+      )}
       </>)}
 
       {editBox==="pr" && (<>
