@@ -5583,24 +5583,27 @@ function ChatView({ applicationId, onBack }) {
           <button onClick={()=>{ setReportMode(v=>!v); setReportTarget(null); }} className="f-sans" style={{ flexShrink:0, background: reportMode ? "#FDECEC" : "none", border:"1px solid " + (reportMode ? "#E24B4A" : "#EBEBEB"), borderRadius:20, padding:"6px 12px", fontSize:12, fontWeight:600, color: reportMode ? "#E24B4A" : "#717171", cursor:"pointer" }}>{reportMode ? "キャンセル" : "🚩 報告する"}</button>
         </>) : <span style={{ flex:1 }} />}
       </div>
-      {/* 求人No.ボックス（スワイプ＝横スクロール）＋同列に採用ボックス（LINE式の上部帯・2026-07-22） */}
+      {/* 求人No.はスワイプ（横スクロール）／採用するは固定（スクロールせず常に右に表示）（2026-07-22） */}
       {chatJobNumber != null && (
-        <div style={{ display:"flex", gap:8, overflowX:"auto", padding:"10px 0 4px", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain" }}>
-          {threadApps.map(r => {
-            const isActive = r.id === activeAppId;
-            return (
-              <button key={r.id} onClick={()=>applyActive(r)} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor:"pointer", minWidth:120 }}>
-                <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>求人 #{r.job_number}</span>
-                <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}{isActive ? "・表示中" : ""}</span>
-              </button>
-            );
-          })}
-          {/* 採用ボックス（農家・進行中のみ・同列。スクロールして到達） */}
+        <div style={{ display:"flex", gap:8, alignItems:"stretch", padding:"10px 0 4px" }}>
+          {/* 求人No.ボックス群：この枠だけが横スワイプ */}
+          <div style={{ flex:1, minWidth:0, display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain" }}>
+            {threadApps.map(r => {
+              const isActive = r.id === activeAppId;
+              return (
+                <button key={r.id} onClick={()=>applyActive(r)} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor:"pointer", minWidth:120 }}>
+                  <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>求人 #{r.job_number}</span>
+                  <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}{isActive ? "・表示中" : ""}</span>
+                </button>
+              );
+            })}
+          </div>
+          {/* 採用ボックス（農家・進行中のみ）：固定＝スクロールの外。常に右端に見える */}
           {!isWorkerSide && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
             farmerConfirmed ? (
               <span className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#E6F7EF", color:"#00A86B", fontSize:13, fontWeight:700, borderRadius:12, padding:"8px 16px", whiteSpace:"nowrap" }}>✓ 採用決定済み{!workerConfirmed ? "（確認待ち）" : ""}</span>
             ) : (
-              <button onClick={async ()=>{ if (confirmingTerms) return; const dup = await farmerDoubleBookingCheck(); const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : ""; if (window.confirm(warn + "この方の採用を決定しますか？\n打ち合わせ・面接はチャットで行い、決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : ""))) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ flexShrink:0, background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap", opacity: confirmingTerms ? 0.6 : 1 }}>{confirmingTerms ? "..." : "採用する"}</button>
+              <button onClick={async ()=>{ if (confirmingTerms) return; const dup = await farmerDoubleBookingCheck(); const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : ""; if (window.confirm(warn + "この方の採用を決定しますか？\n打ち合わせ・面接はチャットで行い、決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : ""))) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap", opacity: confirmingTerms ? 0.6 : 1 }}>{confirmingTerms ? "..." : "採用する"}</button>
             )
           )}
         </div>
