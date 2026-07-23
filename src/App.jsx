@@ -974,6 +974,10 @@ input:focus { outline: none; }
      二重にbottom:0で重ならないよう非表示にする（旧.bottom-tab-bar用ガードと同じ作法）。
      このdisplay:noneはスクロール連動の格納機構(下記cb-scroll-hide)より優先される。 */
   body:has(.mobile-apply-bar) .app-header-mobile { display: none; }
+  /* チャット表示中は下部バー・浮遊☰を隠す（2026-07-22・LINE式＝チャットに集中）。
+     ChatViewのルート .chat-full を目印に、詳細ページと同じ body:has() 方式で非表示にする */
+  body:has(.chat-full) .app-header-mobile,
+  body:has(.chat-full) .app-header-mobile-float { display: none !important; }
 }
 
 /* ── 開催期間カレンダー📅の浮遊ボタン（詳細=応募フッター右上／確認ページ=下部ナビ右上。両ページ同構造） ── */
