@@ -189,6 +189,7 @@ const MOBILE_TABS = [
 const MOBILE_MENU_ITEMS = [
   { key:"admin",   label:"⚙️ 管理",       hash:"/admin",   auth:false, adminOnly:true },
   { key:"boxes",   label:"🗂 ボックス一覧", hash:"/boxes",   auth:false, adminOnly:true },
+  { key:"qr",      label:"📇 QRコード",    hash:"/qr",      auth:false, adminOnly:true },
 ];
 
 // ══════════════════════════════════════════════════════════
@@ -1052,6 +1053,16 @@ html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; ove
 
 /* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23） */
 html:has(.cb-preview-overlay), body:has(.cb-preview-overlay) { overflow: hidden; height: 100%; overscroll-behavior: none; }
+
+/* QRコード印刷（#/qr・2026-07-24）：印刷時はQRエリアだけをA4中央に。サイト名・ひとことは印刷時のみ表示 */
+.qr-print-only { display: none; }
+@media print {
+  body * { visibility: hidden; }
+  .qr-print-area, .qr-print-area * { visibility: visible; }
+  .qr-print-area { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0; }
+  .qr-noprint { display: none !important; }
+  .qr-print-only { display: block !important; }
+}
 
 /* ── 開催期間カレンダー📅の浮遊ボタン（詳細=応募フッター右上／確認ページ=下部ナビ右上。両ページ同構造） ── */
 .calendar-fab {
@@ -8783,7 +8794,7 @@ function JobSearchMapView({ onRegister, me }) {
     setTimeout(() => { setReportDone(false); closeReportModal(); }, 1500);
   };
   useEffect(() => {
-    if (!me) return;
+    // 訪問者モード（2026-07-24）：jobs_publicはanon許可so未ログインでも公開面を読める
     (async () => {
       try {
         const { data, error } = await supabase.from("jobs_public").select("*").order("job_number",{ascending:false});
@@ -8809,7 +8820,7 @@ function JobSearchMapView({ onRegister, me }) {
     })();
   }, [me]);
   const toggleSave = async (job) => {
-    if (!me) return;
+    if (!me) { visitorGuide(); return; }
     const isSaved = savedIds.has(job.id);
     setSavedIds(prev => { const next = new Set(prev); isSaved ? next.delete(job.id) : next.add(job.id); return next; });
     const { error } = isSaved
@@ -9035,31 +9046,15 @@ function JobSearchMapView({ onRegister, me }) {
   useEffect(() => { setApplyConfirmOpen(false); }, [selectedJob?.id]);
   const [signupOpen, setSignupOpen] = useState(false); // 未ログイン画面の文言用（app_settings.signup_open・既定false=招待制）
   useEffect(() => { supabase.rpc("signup_open").then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
-  const applyBtnOnClick = myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
+  // 訪問者（未ログイン）が応募・いいね・投稿等をタップした時の案内（2026-07-24・隠さず案内する）
+  const visitorGuide = () => {
+    alert(signupOpen ? "登録すると応募できます。登録画面へ進みます。" : "現在は招待制です。招待を受けた方は招待メールのアドレスでログインしてください。");
+    window.location.hash = "/login";
+  };
+  const applyBtnOnClick = !me ? visitorGuide
+    : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (() => setApplyConfirmOpen(true));
-
-  if (!me) {
-    return (
-      <div style={{ textAlign:"center", padding:"40px 24px 80px" }}>
-        {/* 未ログイン時のトップの小バナー：インストール案内へ（2026-07-22） */}
-        <button onClick={()=>{ window.location.hash="/install"; }} className="f-sans" style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#E6F7EF", color:"#00A86B", border:"none", borderRadius:20, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer", marginBottom:32 }}>📲 アプリとして使えます →入れ方</button>
-        <div style={{ fontSize:40, marginBottom:16 }}>🥦</div>
-        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:8 }}>
-          {signupOpen ? "chitose-bank へようこそ" : "ただいま招待制で運営しています"}
-        </p>
-        <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
-          {signupOpen
-            ? <>求人の閲覧・応募にはログインが必要です。<br/>メールアドレスで登録できます。</>
-            : <>求人の閲覧にはログインが必要です。<br/>招待を受けた方は、招待メールのアドレスでログインしてください。</>}
-        </p>
-        <button onClick={onRegister} className="btn-primary"
-          style={{ padding:"14px 40px", fontSize:14, borderRadius:12 }}>
-          {signupOpen ? "登録・ログイン" : "ログイン"}
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -18288,6 +18283,47 @@ function helpImagePathFromUrl(url) {
   return url.slice(idx + marker.length).split("?")[0];
 }
 
+// 訪問者の玄関（#/visit・恒久URL・2026-07-24）：ロゴ＋一言＋規約/プラポリ＋「同意して見てみる」→#/search。
+// 同意はlocalStorageに記録し、再訪問・ログイン済みは玄関をスキップして#/searchへ直行。
+function VisitEntrance({ me }) {
+  useEffect(() => {
+    let consent = false; try { consent = localStorage.getItem("cb_visitConsent") === "1"; } catch {}
+    if (me || consent) { window.location.hash = "/search"; }
+  }, [me]);
+  const agree = () => { try { localStorage.setItem("cb_visitConsent", "1"); } catch {} window.location.hash = "/search"; };
+  return (
+    <div style={{ maxWidth:520, margin:"0 auto", padding:"56px 20px 96px", textAlign:"center" }}>
+      <img src="/favicon.svg" alt="chitose-bank" style={{ width:76, height:76, marginBottom:16 }} />
+      <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", margin:"0 0 10px" }}>chitose-bank</h1>
+      <p className="f-sans" style={{ fontSize:16, color:"#555", lineHeight:1.9, margin:"0 0 30px" }}>農家と働き手が直接つながる、農作業の求人サイトです。</p>
+      <div style={{ display:"flex", justifyContent:"center", gap:20, marginBottom:26 }}>
+        <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans" style={{ background:"none", border:"none", color:"#00A86B", fontSize:14, fontWeight:600, textDecoration:"underline", cursor:"pointer", padding:0 }}>利用規約</button>
+        <button onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans" style={{ background:"none", border:"none", color:"#00A86B", fontSize:14, fontWeight:600, textDecoration:"underline", cursor:"pointer", padding:0 }}>プライバシーポリシー</button>
+      </div>
+      <button onClick={agree} className="btn-primary f-sans" style={{ width:"100%", maxWidth:320, padding:"16px", fontSize:16, fontWeight:700, borderRadius:14 }}>同意して見てみる</button>
+      <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"14px auto 0", maxWidth:340, lineHeight:1.8 }}>「同意して見てみる」を押すと、利用規約とプライバシーポリシーに同意したものとします。求人の閲覧ができます（応募・登録は会員のみ）。</p>
+    </div>
+  );
+}
+
+// 管理者用QRコードページ（#/qr・2026-07-24）：焼き込み済みの静的QR(public/visit-qr.svg)を表示。実行時生成しない。
+function VisitorQRPage() {
+  const url = "https://chitose-bank.com/#/visit";
+  return (
+    <div style={{ maxWidth:520, margin:"0 auto", padding:"40px 20px 96px", textAlign:"center" }}>
+      <h1 className="f-sans qr-noprint" style={{ fontSize:24, fontWeight:800, color:"#222", margin:"0 0 12px" }}>📇 QRコード</h1>
+      <p className="f-sans qr-noprint" style={{ fontSize:12, color:"#C77700", background:"#FFF7E6", border:"1px solid #FFE0A3", borderRadius:10, padding:"10px 12px", margin:"0 0 22px", lineHeight:1.8, textAlign:"left" }}>このQRは印刷物に配布済み。画像とURLは永久に変更しないこと（恒久URL /#/visit）。</p>
+      <div className="qr-print-area">
+        <img src="/visit-qr.svg" alt="訪問者用QRコード" style={{ width:"min(72vw, 320px)", height:"auto", imageRendering:"pixelated", display:"block", margin:"0 auto" }} />
+        <p className="f-mono" style={{ fontSize:14, color:"#222", margin:"16px 0 0", wordBreak:"break-all" }}>{url}</p>
+        <p className="f-sans qr-print-only" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"26px 0 4px" }}>chitose-bank</p>
+        <p className="f-sans qr-print-only" style={{ fontSize:14, color:"#555", margin:0 }}>農家と働き手が直接つながる、農作業の求人サイトです。</p>
+      </div>
+      <button onClick={()=>window.print()} className="btn-primary f-sans qr-noprint" style={{ marginTop:26, padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:12 }}>🖨 印刷</button>
+    </div>
+  );
+}
+
 // インストール案内（#/install・未ログインでも閲覧可・2026-07-22）：OS自動判定で手順を並べ、
 // 画像2枠（help_images: install-ios / install-android）は管理者がアップロードできる（ヘルプ画像スロット方式）
 function InstallGuide({ me }) {
@@ -18486,7 +18522,7 @@ function PresentationCreateCanvasPage() {
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","page-presentation-create-canvas"];
+  const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","page-presentation-create-canvas"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment") return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -19318,14 +19354,22 @@ const subDest=useCallback(async d=>{
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
   // 部屋番号(TAB_URL_KEYS)にある部屋は全て到達可（避難部屋含む・骨格④）。資格の無い部屋と迷子はsearchへ
   const safeTab = TAB_URL_KEYS.includes(tab)
-    ? (((tab === "admin" || tab === "boxes") && !isAdmin(me)) || (tab === "plan" && !me) ? "search" : tab)
+    ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || (tab === "plan" && !me) ? "search" : tab)
     : "search";
 
   // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「さがす・いいね」を「📣求人・🤝応募者」に差し替え。
   // 後半3つ（カレンダー・チャット・プロフィール）は両モード共通。未ログインは現行のまま（empNav=false）
   const empNav = !!(me && empCtx);
+  // 訪問者版3タブ（未ログイン・2026-07-24）：さがす／入れ方／登録・ログイン
+  const visitorNav = [
+    { k:"search",  icon:"🔍", label:"さがす" },
+    { k:"install", icon:"📲", label:"入れ方", hash:"/install" },
+    { k:"login",   icon:"🔑", label:"登録・ログイン", hash:"/login" },
+  ];
   // 農家：求人→応募者→チャット(③約束する)→カレンダー(④当日)→プロフィール（第12弾・時系列。働き手と文法統一）
-  const navTabs = empNav
+  const navTabs = !me
+    ? visitorNav
+    : empNav
     ? [
         { k:"emp-jobs",       icon:"📣", label:"求人",       hash:"/profile/employer/active" },
         { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: empPending },
@@ -19806,6 +19850,8 @@ const subDest=useCallback(async d=>{
         )}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="install"&&<InstallGuide me={me} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="visit"&&<VisitEntrance me={me} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="qr"&&isAdmin(me)&&<VisitorQRPage />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="page-presentation-create-canvas"&&<PresentationCreateCanvasPage />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}

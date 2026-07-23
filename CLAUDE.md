@@ -1291,3 +1291,11 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
 【追加DBマイグレーション（repo同梱・apply済み）】20260722141500_chat_partner_initials／20260722143457_job_questions_v2（写経）／20260722160000_calendar_my_role／20260722170000_notify_message_no_throttle。
 【安全確認】同一求人×同一働き手はUNIQUE制約(job_number,worker_id)で二重応募不可。連続応募＝別求人への応募。
 ━━━ ここまで ━━━
+
+━━━ 2026-07-24 恒久URL：/#/visit — 絶対遵守 ━━━
+- https://chitose-bank.com/#/visit は印刷物（QRコード）に焼かれた恒久URL。
+  改名・転用・削除を禁ずる。ルート文字列・QR画像(public/visit-qr.svg)・遷移先の意味を永久に変えない。
+- /#/visit は訪問者の玄関（未ログイン）：ロゴ＋一言＋規約/プラポリ＋「同意して見てみる」→#/search。
+  同意はlocalStorage(cb_visitConsent)に記録し、再訪問は玄関をスキップして#/searchへ直行。
+- QRは実行時生成しない（静的資産 public/visit-qr.svg を同梱）。画像とURLは永久に変更しないこと。
+━━━ ここまで ━━━
