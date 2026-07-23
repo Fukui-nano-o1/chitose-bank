@@ -8359,8 +8359,9 @@ function JobCard({ job, variant, saved, onToggleSave }) {
       )}
       {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16）。終了中（満員/期間終了）は出さない */}
       {job.isNew && !(job.filled || job.expired) && <StatusRibbonLeft label="新着" color="#E24B4A" />}
-      {/* 開始日チップ：写真右下（2026-07-16）。期間ものは「〜」付き */}
-      {job.dateStartRaw && (
+      {/* 開始日チップ：写真右下（2026-07-16）。期間ものは「〜」付き。
+          関連(related)カードは概要を写真に重ねるため、日付は下部オーバーレイ内に出す（2026-07-23） */}
+      {isList && job.dateStartRaw && (
         <span className="f-sans" style={{ position:"absolute", top: photoHeight - 34, right:8, zIndex:2, padding:"4px 10px", borderRadius:20, background:"rgba(255,255,255,0.92)", color:"#222", fontSize:11, fontWeight:700, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>
           {dateRangeLabel(job.dateStartRaw)}{job.dateEndRaw && job.dateEndRaw !== job.dateStartRaw ? "〜" : ""}
         </span>
@@ -8381,17 +8382,29 @@ function JobCard({ job, variant, saved, onToggleSave }) {
           {cropIcon}
         </div>
       )}
-      <div style={{ padding: isList ? "12px 4px 0" : "4px 2px 0" }}>
-        <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom: isList?4:0 }}>
-          <p className="f-sans" style={{ fontSize: isList?17:13, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
-          <span className="f-sans" style={{ fontSize: isList?12:9, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{job.region}</span>
-          <span className="f-sans" style={{ fontSize:10, color:"#C8C8C8", flexShrink:0, whiteSpace:"nowrap" }}>#{job.id}</span>
+      {/* 概要：list=写真の下／related=写真の上に黒半透明グラデで重ねる（2026-07-23） */}
+      <div style={ isList ? { padding:"12px 4px 0" } : {
+        position:"absolute", left:0, right:0, bottom:0, zIndex:2, pointerEvents:"none",
+        padding:"34px 12px 12px", borderRadius:`0 0 ${photoRadius}px ${photoRadius}px`,
+        background:"linear-gradient(to top, rgba(0,0,0,0.82), rgba(0,0,0,0.18) 58%, rgba(0,0,0,0))",
+      }}>
+        <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom: isList?4:3 }}>
+          <p className="f-sans" style={{ fontSize: isList?17:14, fontWeight: isList?600:700, color: isList?"#222":"#fff", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow: isList?"none":"0 1px 3px rgba(0,0,0,0.6)" }}>{job.crop} {job.task}</p>
+          <span className="f-sans" style={{ fontSize: isList?12:10, color: isList?"#B0B0B0":"rgba(255,255,255,0.88)", flexShrink:0, whiteSpace:"nowrap", textShadow: isList?"none":"0 1px 2px rgba(0,0,0,0.6)" }}>{job.region}</span>
+          <span className="f-sans" style={{ fontSize:10, color: isList?"#C8C8C8":"rgba(255,255,255,0.7)", flexShrink:0, whiteSpace:"nowrap" }}>#{job.id}</span>
         </div>
-        <p className="f-mono" style={{ fontSize: isList?16:12, fontWeight:700, color:"#00A86B", margin:0 }}>
-          {payLabel(job)}
-        </p>
+        <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:8 }}>
+          <p className="f-mono" style={{ fontSize: isList?16:13, fontWeight: isList?700:800, color: isList?"#00A86B":"#fff", margin:0, textShadow: isList?"none":"0 1px 3px rgba(0,0,0,0.6)" }}>
+            {payLabel(job)}
+          </p>
+          {!isList && job.dateStartRaw && (
+            <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.92)", flexShrink:0, whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>
+              {dateRangeLabel(job.dateStartRaw)}{job.dateEndRaw && job.dateEndRaw !== job.dateStartRaw ? "〜" : ""}
+            </span>
+          )}
+        </div>
         {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
-          <div style={{ display:"flex", gap:4, marginTop:4, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", gap:4, marginTop: isList?4:6, flexWrap:"wrap" }}>
             {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}>🌱 はじめてOK</span>}
             {job.experiencedPreferred && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#1A56C5", background:"#E8F0FE", padding:"2px 8px", borderRadius:20 }}>💪 経験者優遇</span>}
             {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"2px 8px", borderRadius:20 }}>🌟 リピート即決</span>}
