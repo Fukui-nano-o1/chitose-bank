@@ -15487,7 +15487,6 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [alwaysDo, setAlwaysDo] = useState("");
   const [breakStyle, setBreakStyle] = useState("");
   const [interactionStyle, setInteractionStyle] = useState("");
-  const [insuranceItems, setInsuranceItems] = useState([]); // 保険の準備（自己申告・key配列・2026-07-23）
   const [introOpen, setIntroOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -15532,7 +15531,6 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
           setAlwaysDo(tp.always_do ?? data.always_do ?? "");
           setBreakStyle(tp.break_style ?? data.break_style ?? "");
           setInteractionStyle(data.interaction_style ?? "");
-          setInsuranceItems(Array.isArray(data.insurance_items) ? data.insurance_items : []);
           // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
           const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || (data.staff_count != null && data.staff_count !== "") || data.unique_point || data.always_do || data.break_style || data.interaction_style);
           if (hasIntroContent) setIntroOpen(true);
@@ -15615,7 +15613,7 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
     setUploading(false);
   };
   // ホームの「🛡 保険の準備」から来た時は、その場で保険ボックスを開く（移植・2026-07-23）
-  const [editBox, setEditBox] = useState(() => { try { const b = sessionStorage.getItem("cb_empOpenBox"); if (b) { sessionStorage.removeItem("cb_empOpenBox"); return b; } } catch {} return null; });
+  const [editBox, setEditBox] = useState(null);
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→FarmerProfilePreviewをモーダル展開
   const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復・働き手側と同構造）
   const closeEditBox = () => {
@@ -15665,7 +15663,6 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
         staff_count: staffCount === "" ? null : Number(staffCount),
         interaction_style: interactionStyle || null,
-        insurance_items: insuranceItems,
         texts_pending: textsPending,
         texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
         // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
@@ -15819,21 +15816,6 @@ function EmployerProfileEdit({ me, onDone, onCancel }) {
         </div>
         <div><ToggleSwitch label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
-      </>)}
-
-      {editBox==="insurance" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>🛡 保険の準備（自己申告）</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。</p>
-      <div style={{ marginBottom:12, borderTop:"1px solid #EBEBEB" }}>
-        {INSURANCE_ITEMS.map((it, i) => (
-          <div key={it.k} style={{ borderBottom: i < INSURANCE_ITEMS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
-            <ToggleSwitch label={it.label} checked={insuranceItems.includes(it.k)} onChange={(v)=>setInsuranceItems(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
-          </div>
-        ))}
-      </div>
-      {insuranceItems.includes("considering") && (
-        <button onClick={()=>{ window.location.hash = "/help/faq"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, color:"#00A86B", fontSize:13, fontWeight:700, textDecoration:"underline", cursor:"pointer", marginBottom:12 }}>→ 1日保険の入り方（ヘルプ）</button>
-      )}
       </>)}
 
       {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を従業員数/農園紹介/問いかけ/関わり方の各ボックスに分割 */}
@@ -16773,8 +16755,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>聞きたいことをセットにして、応募者のチャットに送れます。回答もチャットに残ります。</span>
             </span>
           </button>
-          {/* 保険の準備（2026-07-23・面接の質問集の下へ移植）：農家プロフィール編集の保険ボックスを開く */}
-          <button onClick={()=>{ try { sessionStorage.setItem("cb_empOpenBox","insurance"); } catch {} window.location.hash="/profile/employer/profile"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+          {/* 保険の準備（2026-07-24・専用ページ#/insuranceへ遷移） */}
+          <button onClick={()=>{ window.location.hash="/insurance"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
             <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🛡</span>
             <span>
               <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>保険の準備</span>
@@ -18426,6 +18408,61 @@ function helpImagePathFromUrl(url) {
   return url.slice(idx + marker.length).split("?")[0];
 }
 
+// 🛡 保険の準備（自己申告）専用ページ（#/insurance・2026-07-24）：農家プロフィール編集の箱から独立ページへ。
+// employer_profiles.insurance_items を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
+function InsurancePrepPage({ me }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const { data } = await supabase.from("employer_profiles").select("insurance_items").eq("auth_id", session.user.id).maybeSingle();
+        setItems(Array.isArray(data?.insurance_items) ? data.insurance_items : []);
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+  const save = async () => {
+    if (saving) return;
+    setSaving(true); setSaved(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSaving(false); return; }
+      const { error } = await supabase.from("employer_profiles").upsert({ auth_id: session.user.id, insurance_items: items, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      setSaving(false);
+      if (error) { alert("保存に失敗しました：" + error.message); return; }
+      setSaved(true); setTimeout(()=>setSaved(false), 2000);
+    } catch { setSaving(false); alert("保存に失敗しました"); }
+  };
+  return (
+    <div className="help-edge" style={{ maxWidth:560, margin:"0 auto", padding:"24px 4px 96px" }}>
+      <button onClick={()=>{ window.location.hash="/profile/employer"; }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 14px", display:"inline-flex", alignItems:"center", gap:6 }}>← プロフィールへ</button>
+      <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</h1>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。</p>
+      {loading ? (
+        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+      ) : (<>
+        <div style={{ borderTop:"1px solid #EBEBEB", marginBottom:16 }}>
+          {INSURANCE_ITEMS.map((it, i) => (
+            <div key={it.k} style={{ borderBottom: i < INSURANCE_ITEMS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
+              <ToggleSwitch label={it.label} checked={items.includes(it.k)} onChange={(v)=>setItems(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
+            </div>
+          ))}
+        </div>
+        {items.includes("considering") && (
+          <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, color:"#00A86B", fontSize:13, fontWeight:700, textDecoration:"underline", cursor:"pointer", marginBottom:16 }}>→ 1日保険の入り方（ヘルプ）</button>
+        )}
+        <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : "保存する"}</button>
+        {saved && <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:12 }}>保存しました ✓</p>}
+      </>)}
+    </div>
+  );
+}
+
 // 訪問者の玄関（#/visit・恒久URL・2026-07-24）：ロゴ＋一言＋規約/プラポリ＋「同意して見てみる」→#/search。
 // 同意はlocalStorageに記録し、再訪問・ログイン済みは玄関をスキップして#/searchへ直行。
 function VisitEntrance({ me }) {
@@ -18665,7 +18702,7 @@ function PresentationCreateCanvasPage() {
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","page-presentation-create-canvas"];
+  const TAB_URL_KEYS = ["board","input","plan","admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","insurance","page-presentation-create-canvas"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment") return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -19497,7 +19534,7 @@ const subDest=useCallback(async d=>{
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
   // 部屋番号(TAB_URL_KEYS)にある部屋は全て到達可（避難部屋含む・骨格④）。資格の無い部屋と迷子はsearchへ
   const safeTab = TAB_URL_KEYS.includes(tab)
-    ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || (tab === "plan" && !me) ? "search" : tab)
+    ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || ((tab === "plan" || tab === "insurance") && !me) ? "search" : tab)
     : "search";
 
   // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「さがす・いいね」を「📣求人・🤝応募者」に差し替え。
@@ -19994,6 +20031,7 @@ const subDest=useCallback(async d=>{
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="install"&&<InstallGuide me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="visit"&&<VisitEntrance me={me} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="insurance"&&me&&<InsurancePrepPage me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="qr"&&isAdmin(me)&&<VisitorQRPage />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="page-presentation-create-canvas"&&<PresentationCreateCanvasPage />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="privacy"&&(
