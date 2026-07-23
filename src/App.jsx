@@ -157,6 +157,10 @@ const WORKER_DECLARATIONS = [
   { k:"self_insurance",  label:"自分で傷害保険に加入している", chip:"傷害保険に加入" },
 ];
 
+// きっかけアンケート（初回いいね時・2026-07-24）：Q1どこで知ったか（単一）、Q2どう使いたいか（複数）
+const SURVEY_SOURCES = ["定例会・イベントで", "知人・家族の紹介", "冊子・チラシのQRから", "SNS・ネット検索", "農家さんから聞いた", "その他"];
+const SURVEY_REASONS = ["収入を得たい", "農業を経験してみたい", "繁忙期の人手がほしい", "地域の人とつながりたい", "空いた時間を活かしたい", "その他"];
+
 // 作業中の関わり方（EmployerProfileEdit・FarmerTrustCard共通）
 const INTERACTION_STYLE_OPTIONS = [
   { value:"together", label:"一緒に作業する" },
@@ -8810,6 +8814,25 @@ function JobSearchMapView({ onRegister, me }) {
   // ── いいね（お気に入り）：saved_jobs（本人のみRLS）。job_number(=job.id)をキーに管理 ──
   const [savedIds, setSavedIds] = useState(new Set());
   const [likeDone, setLikeDone] = useState(null); // 初いいねボックス（2026-07-19）：各求人の最初のいいねで1回だけ展開（localStorage cb_likeBoxShown）
+  // きっかけアンケート（初回いいね時・2026-07-24）：未回答ユーザーの最初のいいね前に1度だけ聞く
+  const [surveyAnswered, setSurveyAnswered] = useState(null); // null=未取得 / true / false
+  const [surveyJob, setSurveyJob] = useState(null); // アンケート表示中に保留するいいね対象
+  const [surveySource, setSurveySource] = useState("");
+  const [surveySourceOther, setSurveySourceOther] = useState("");
+  const [surveyReasons, setSurveyReasons] = useState([]);
+  const [surveyReasonOther, setSurveyReasonOther] = useState("");
+  const [surveySaving, setSurveySaving] = useState(false);
+  useEffect(() => {
+    if (!me) { setSurveyAnswered(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("user_onboarding_survey").select("auth_id").eq("auth_id", me.id).maybeSingle();
+        if (!cancelled) setSurveyAnswered(!!data);
+      } catch { if (!cancelled) setSurveyAnswered(true); } // 取得失敗時はゲートしない（コア動作＝いいねを止めない）
+    })();
+    return () => { cancelled = true; };
+  }, [me]);
   useEffect(() => {
     if (!me) { setSavedIds(new Set()); return; }
     (async () => {
@@ -8819,8 +8842,8 @@ function JobSearchMapView({ onRegister, me }) {
       } catch {}
     })();
   }, [me]);
-  const toggleSave = async (job) => {
-    if (!me) { visitorGuide(); return; }
+  // 実いいね処理（アンケートゲート通過後・解除時に呼ぶ）
+  const performSave = async (job) => {
     const isSaved = savedIds.has(job.id);
     setSavedIds(prev => { const next = new Set(prev); isSaved ? next.delete(job.id) : next.add(job.id); return next; });
     const { error } = isSaved
@@ -8837,6 +8860,33 @@ function JobSearchMapView({ onRegister, me }) {
         }
       } catch { setLikeDone(job); }
     }
+  };
+  const toggleSave = async (job) => {
+    if (!me) { visitorGuide(); return; }
+    const isSaved = savedIds.has(job.id);
+    // 未回答ユーザーの「最初のいいね」の前にきっかけアンケート（追加時のみ・解除時は出さない・2026-07-24）
+    if (!isSaved && surveyAnswered === false) { setSurveyJob(job); return; }
+    performSave(job);
+  };
+  const toggleSurveyReason = (v) => setSurveyReasons(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
+  const submitSurvey = async () => {
+    if (surveySaving || !me) return;
+    if (!surveySource) { alert("Q1をひとつ選んでください"); return; }
+    setSurveySaving(true);
+    try {
+      const { error } = await supabase.from("user_onboarding_survey").insert({
+        auth_id: me.id,
+        source: surveySource,
+        source_other: surveySource === "その他" ? (surveySourceOther.trim() || null) : null,
+        reasons: surveyReasons,
+        reason_other: surveyReasons.includes("その他") ? (surveyReasonOther.trim() || null) : null,
+      });
+      if (error && error.code !== "23505") { alert("送信に失敗しました：" + error.message); setSurveySaving(false); return; }
+      setSurveyAnswered(true);
+      const job = surveyJob;
+      setSurveyJob(null); setSurveySaving(false);
+      if (job) performSave(job); // ★元のいいねを自動で完了させる
+    } catch (e) { alert("送信に失敗しました"); setSurveySaving(false); }
   };
   useEffect(() => {
     const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
@@ -9565,6 +9615,38 @@ function JobSearchMapView({ onRegister, me }) {
         </div>
       )}
 
+      {/* きっかけアンケート（初回いいね時・2026-07-24）：スキップ導線なし（10秒・一度きり・いいね限定のゲート）。
+          応募・Q&A・チャットには絶対にゲートを置かない＝コア動作は永久に無料通行 */}
+      {surveyJob && (
+        <div style={{ position:"fixed", inset:0, zIndex:10050, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+          <div className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"22px 20px", maxWidth:460, width:"100%", maxHeight:"88vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>はじめてのいいねの前に</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 18px", lineHeight:1.7 }}>10秒だけ教えてください。今後の運営の参考にします。</p>
+
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>Q1. このサイトをどこで知りましたか？</p>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom: surveySource==="その他" ? 8 : 18 }}>
+              {SURVEY_SOURCES.map(s => (
+                <button key={s} onClick={()=>setSurveySource(s)} className="f-sans" style={{ padding:"8px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer", border:"1px solid "+(surveySource===s?"#00A86B":"#EBEBEB"), background: surveySource===s?"#E6F7EF":"#F7F7F7", color: surveySource===s?"#00A86B":"#717171" }}>{s}</button>
+              ))}
+            </div>
+            {surveySource==="その他" && (
+              <input value={surveySourceOther} onChange={e=>setSurveySourceOther(e.target.value)} placeholder="よければ一言（任意）" className="field f-sans" style={{ fontSize:14, marginBottom:18 }} />
+            )}
+
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>Q2. どんなふうに使いたいですか？（複数選択可）</p>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom: surveyReasons.includes("その他") ? 8 : 20 }}>
+              {SURVEY_REASONS.map(s => (
+                <button key={s} onClick={()=>toggleSurveyReason(s)} className="f-sans" style={{ padding:"8px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer", border:"1px solid "+(surveyReasons.includes(s)?"#00A86B":"#EBEBEB"), background: surveyReasons.includes(s)?"#E6F7EF":"#F7F7F7", color: surveyReasons.includes(s)?"#00A86B":"#717171" }}>{s}</button>
+              ))}
+            </div>
+            {surveyReasons.includes("その他") && (
+              <input value={surveyReasonOther} onChange={e=>setSurveyReasonOther(e.target.value)} placeholder="よければ一言（任意）" className="field f-sans" style={{ fontSize:14, marginBottom:20 }} />
+            )}
+
+            <button onClick={submitSurvey} disabled={surveySaving || !surveySource} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12, opacity:(surveySaving||!surveySource)?0.5:1 }}>{surveySaving ? "送信中..." : "送信していいねする"}</button>
+          </div>
+        </div>
+      )}
       {/* 初いいねボックス（2026-07-19）：各求人の最初のいいねで1回だけ展開。
           意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・本文18・リンク18）。
           求人カードに❤️が付く動作（cb-heart-pop）＋「いいね一覧を見る →」リンク */}
@@ -13557,6 +13639,61 @@ function AdminBoxRegistryPage() {
   );
 }
 
+// 📊きっかけ集計（管理者・2026-07-24）：source/reasonsの件数棒＋自由記述一覧。RLS survey admin selectで全件読める。
+function SurveyStats() {
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from("user_onboarding_survey").select("*").order("created_at", { ascending: false });
+        setRows(data || []);
+      } catch { setRows([]); }
+    })();
+  }, []);
+  if (rows === null) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中...</p>;
+  const total = rows.length;
+  const countBy = (opts, pick) => opts.map(o => ({ label:o, n: rows.filter(r => pick(r, o)).length }));
+  const sourceCounts = countBy(SURVEY_SOURCES, (r,o) => r.source === o);
+  const reasonCounts = countBy(SURVEY_REASONS, (r,o) => Array.isArray(r.reasons) && r.reasons.includes(o));
+  const maxS = Math.max(1, ...sourceCounts.map(x=>x.n));
+  const maxR = Math.max(1, ...reasonCounts.map(x=>x.n));
+  const freeTexts = rows.flatMap(r => [
+    ...(r.source_other && r.source_other.trim() ? [{ tag:"どこで", t:r.source_other.trim() }] : []),
+    ...(r.reason_other && r.reason_other.trim() ? [{ tag:"使い方", t:r.reason_other.trim() }] : []),
+  ]);
+  const Bar = ({ label, n, max }) => (
+    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+      <span className="f-sans" style={{ fontSize:12, color:"#444", width:130, flexShrink:0, textAlign:"right" }}>{label}</span>
+      <div style={{ flex:1, background:"#F0F0F0", borderRadius:6, height:18, overflow:"hidden" }}>
+        <div style={{ width: `${Math.round(n/max*100)}%`, minWidth: n>0?6:0, height:"100%", background:"#00A86B" }} />
+      </div>
+      <span className="f-mono" style={{ fontSize:12, color:"#222", width:28, flexShrink:0 }}>{n}</span>
+    </div>
+  );
+  return (
+    <div>
+      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 12px" }}>回答 {total}件</p>
+      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>Q1. どこで知ったか</p>
+      {sourceCounts.map(x => <Bar key={x.label} label={x.label} n={x.n} max={maxS} />)}
+      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"18px 0 8px" }}>Q2. どう使いたいか（複数可）</p>
+      {reasonCounts.map(x => <Bar key={x.label} label={x.label} n={x.n} max={maxR} />)}
+      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"18px 0 8px" }}>自由記述（その他の一言）</p>
+      {freeTexts.length === 0 ? (
+        <p className="f-sans" style={{ fontSize:12, color:"#999", margin:0 }}>まだありません</p>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          {freeTexts.map((f, i) => (
+            <div key={i} style={{ background:"#F7F7F7", borderRadius:8, padding:"8px 10px" }}>
+              <span className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#00A86B", marginRight:6 }}>{f.tag}</span>
+              <span className="f-sans" style={{ fontSize:13, color:"#222" }}>{f.t}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminTab({ onJump, onShowAccountForm }) {
   const [sub, setSub] = useState("jobs"); // "jobs" | "account" | "other"（審査をデフォルトタブに）
   const [reviewSec, setReviewSec] = useState(null); // 審査タブ内の選択: null=ボックス格子 | jobs|accounts|prs|reports|disputes|contracts
@@ -14029,6 +14166,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"flow",    e:"🧭", l:"求人フロー" },
             { k:"legacy",  e:"📦", l:"旧事業データ" },
             { k:"system",  e:"⚙️", l:"システム" },
+            { k:"survey",  e:"📊", l:"きっかけ" },
             { k:"boxlist", e:"🗂", l:"ボックス一覧" },
             { k:"notices", e:"📢", l:"お知らせ一覧" },
             { k:"consign", e:"🚩", l:"委託 準備室" },
@@ -14048,10 +14186,12 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               <button onClick={()=>setOtherBox(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
               <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>
-                {otherBox==="pages" ? "📄 主要ページ" : otherBox==="flow" ? "🧭 求人フロー" : otherBox==="legacy" ? "📦 旧事業データ" : "⚙️ システム"}
+                {otherBox==="pages" ? "📄 主要ページ" : otherBox==="flow" ? "🧭 求人フロー" : otherBox==="legacy" ? "📦 旧事業データ" : otherBox==="survey" ? "📊 きっかけ" : "⚙️ システム"}
               </p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
+
+              {otherBox==="survey" && <SurveyStats />}
 
               {otherBox==="pages" && (<>
                 <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>開発: 画面ジャンプ</p>
