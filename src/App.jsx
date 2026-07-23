@@ -6370,7 +6370,7 @@ function ExpandableText({ text, limit = 100, style }) {
   );
 }
 
-function WorkerTrustCard({ profile, trust, onEditItem }) {
+function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare }) {
   if (!profile) return null;
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
   // 移動手段・経験区分は本人申告なので📋自己申告ブロックへ集約（2026-07-23）。バッジ列は希望条件（作業の強さ）のみ
@@ -6445,7 +6445,8 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
         </div>
       )}
       {/* ── 📋 自己申告ブロック（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。実績の下に置く（2026-07-23） ── */}
-      {declItems.length > 0 && (
+      {/* 本人のわたしの実績モーダルではハブのカードに移植済みso非表示。農家の応募者カードでは表示 */}
+      {!hideSelfDeclare && declItems.length > 0 && (
         <div style={{ marginTop:12, background:"#F6F8FC", border:"1px solid #E1E8F2", borderRadius:12, padding:"12px 14px" }}>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#3A5570", margin:"0 0 8px" }}>📋 自己申告</p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
@@ -6891,7 +6892,8 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     } catch { alert("削除に失敗しました。"); }
     setUploading(false);
   };
-  const [editBox, setEditBox] = useState(null); // ボックス格子の編集モーダル: avatar|nickname|residence|transport|exp|intensity|interests|languages|pr|qa
+  // ハブの「📋 経験・できること」カードから来た時は、その場でそのボックスを開く（2026-07-23）
+  const [editBox, setEditBox] = useState(() => { try { const b = sessionStorage.getItem("cb_wkOpenBox"); if (b) { sessionStorage.removeItem("cb_wkOpenBox"); return b; } } catch {} return null; }); // avatar|nickname|residence|transport|exp|intensity|interests|languages|declared|pr|qa
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→WorkerProfilePreviewをモーダル展開
   const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復）
   // 承認ポップアップ「プレビューを見る🔗」からの着地：編集ページを開いた直後にプレビューを自動展開
@@ -8536,6 +8538,29 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                       <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>完了 {wHub.completed}回　🌟 {wHub.wantAgain}　作業 {wHub.hours}時間</span>
                     </span>
                   </button>
+                  {/* 📋 経験・できること（自己申告）：わたしの実績の下へ（2026-07-23）。タップで編集ボックスを開く */}
+                  {(() => {
+                    const chips = wMini ? [
+                      ...((Array.isArray(wMini.experience_entries) ? wMini.experience_entries : []).filter(e => e && (e.crop||"").trim()).map(e => `${e.crop}×${e.task||""}${e.duration ? `（${e.duration}）` : ""}`)),
+                      ...(wMini.farm_experience ? ["🌾 " + wMini.farm_experience] : []),
+                      ...((Array.isArray(wMini.experienced_tasks) ? wMini.experienced_tasks : []).filter(Boolean)),
+                      ...(wMini.transport ? ["🚗 " + wMini.transport] : []),
+                      ...((Array.isArray(wMini.self_declared) ? wMini.self_declared : []).map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip).filter(Boolean)),
+                    ] : [];
+                    return (
+                      <button onClick={()=>{ try { sessionStorage.setItem("cb_wkOpenBox","declared"); } catch {} window.location.hash="/profile/worker/profile"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#F6F8FC", border:"1px solid #E1E8F2", borderRadius:20, padding:"16px", cursor:"pointer", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", display:"block" }}>
+                        <span className="f-sans" style={{ display:"block", fontSize:15, fontWeight:800, color:"#3A5570", marginBottom: chips.length ? 8 : 4 }}>📋 経験・できること（自己申告）</span>
+                        {chips.length > 0 ? (<>
+                          <span style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
+                            {chips.map((c,i) => <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px" }}>{c}</span>)}
+                          </span>
+                          <span className="f-sans" style={{ display:"block", fontSize:10, color:"#A0A8B4", lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。タップして編集</span>
+                        </>) : (
+                          <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", lineHeight:1.6 }}>作物×作業の経験や、免許・資格を登録できます。タップして登録 →</span>
+                        )}
+                      </button>
+                    );
+                  })()}
                 </div>
               </>);
             })()}
@@ -8545,7 +8570,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                   <button onClick={()=>setShowWAch(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1 }}>✕</button>
                   <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 14px" }}>🌟 わたしの実績</p>
                   {wHub.reviewed > 0
-                    ? <WorkerTrustCard profile={wMini || {}} trust={wTrust} />
+                    ? <WorkerTrustCard profile={wMini || {}} trust={wTrust} hideSelfDeclare />
                     : <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", lineHeight:1.9, padding:"28px 8px" }}>最初の仕事を終えると、ここに実績が刻まれます</p>}
                 </div>
               </div>
