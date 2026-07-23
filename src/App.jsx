@@ -5657,9 +5657,10 @@ function ChatView({ applicationId, onBack }) {
           <div style={{ flex:1, minWidth:0, display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain" }}>
             {threadApps.map(r => {
               const isActive = r.id === activeAppId;
-              // 別の求人はその求人の別チャットへ遷移（求人ごとに分離・2026-07-23）
+              // 別の求人はその求人の別チャットへ遷移（求人ごとに分離・2026-07-23）。
+              // replaceで履歴を積まない＝←（戻る）が求人切替の履歴を辿らず、ちゃんとチャットから出る
               return (
-                <button key={r.id} onClick={()=>{ if (!isActive) window.location.hash = "/chat/" + r.id; }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
+                <button key={r.id} onClick={()=>{ if (!isActive) window.location.replace("#/chat/" + r.id); }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>求人 #{r.job_number}</span>
                   <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}{isActive ? "・表示中" : "・開く"}</span>
                 </button>
