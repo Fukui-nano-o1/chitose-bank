@@ -146,6 +146,17 @@ const INSURANCE_ITEMS = [
   { k:"considering",     label:"これから準備する",               chip:"これから準備予定" },
 ];
 
+// 働き手の「できること・資格（自己申告）」（2026-07-23）：worker_profiles.self_declared に key配列で保存。
+// 免許・資格・保険方針のみ。身体属性（体力等）に類する項目は絶対に追加しない（CLAUDE.mdルール・今後も）。
+const WORKER_DECLARATIONS = [
+  { k:"license_car",     label:"普通自動車免許",             chip:"普通自動車免許" },
+  { k:"license_special", label:"大型・特殊など上位の運転免許", chip:"上位運転免許" },
+  { k:"forklift",        label:"フォークリフト運転技能",      chip:"フォークリフト" },
+  { k:"brush_cutter",    label:"刈払機（草刈機）の取扱",       chip:"刈払機" },
+  { k:"machinery",       label:"農業機械の操作（トラクター等）", chip:"農業機械の操作" },
+  { k:"self_insurance",  label:"自分で傷害保険に加入している", chip:"傷害保険に加入" },
+];
+
 // 作業中の関わり方（EmployerProfileEdit・FarmerTrustCard共通）
 const INTERACTION_STYLE_OPTIONS = [
   { value:"together", label:"一緒に作業する" },
@@ -6414,6 +6425,29 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
         // 閲覧時（プレビュー・応募者カード）は…で省略し、タップで全文（2026-07-23）
         <ExpandableText text={profile.pr} limit={80} style={{ fontSize:13, color:"#222", margin:0 }} />
       ))}
+      {/* ── 📋 自己申告ブロック（免許・資格・保険方針。ご本人の申告・運営未確認）。実績とは枠・背景を分離（2026-07-23） ── */}
+      {Array.isArray(profile.self_declared) && profile.self_declared.length > 0 && (
+        <div style={{ marginTop:12, background:"#F6F8FC", border:"1px solid #E1E8F2", borderRadius:12, padding:"12px 14px" }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#3A5570", margin:"0 0 8px" }}>📋 自己申告</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
+            {profile.self_declared.map(k => { const it = WORKER_DECLARATIONS.find(x => x.k === k); return it ? (
+              <span key={k} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px" }}>{it.chip}</span>
+            ) : null; })}
+          </div>
+          <p className="f-sans" style={{ fontSize:10, color:"#A0A8B4", margin:0, lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。</p>
+        </div>
+      )}
+      {/* ── 🌟 実績ブロック（このサイトの台帳のみ。自己申告チップはこの枠に絶対に入れない）（2026-07-23） ── */}
+      {trust?.ok && ((trust.completed_count || 0) > 0 || (trust.want_again_count || 0) > 0 || (trust.total_hours || 0) > 0) && (
+        <div style={{ marginTop:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px" }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#0B6B4F", margin:"0 0 8px" }}>🌟 実績（このサイトの記録）</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:14 }}>
+            <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>完了 {trust.completed_count || 0}回</span>
+            {(trust.want_again_count || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>🌟 また働きたい {trust.want_again_count}</span>}
+            {(trust.total_hours || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>作業 {trust.total_hours}時間</span>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6720,6 +6754,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [physicalLevel, setPhysicalLevel] = useState("");
   const [interests, setInterests] = useState([]);
   const [languages, setLanguages] = useState([]);
+  const [selfDeclared, setSelfDeclared] = useState([]); // できること・資格（自己申告・key配列・2026-07-23）
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -6743,6 +6778,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           setPhysicalLevel(data.physical_level || "");
           setInterests(Array.isArray(data.interests) ? data.interests : []);
           setLanguages(Array.isArray(data.languages) ? data.languages : []);
+          setSelfDeclared(Array.isArray(data.self_declared) ? data.self_declared : []);
           // 修正依頼の指摘対象（2026-07-19）：該当ボックスに赤帯を出す。再提出（保存）で消える
           setRevTargets(Array.isArray(data.pr_revision_targets) ? data.pr_revision_targets : []);
         }
@@ -6860,12 +6896,12 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16）
-  const BOX_ORDER = ["avatar","nickname","pr","residence","transport","exp","intensity","interests","languages","qa"];
+  const BOX_ORDER = ["avatar","nickname","pr","residence","transport","exp","intensity","interests","languages","declared","qa"];
   const boxFilled = (k) => (
     k === "pr" ? !!pr.trim() : k === "nickname" ? !!nickname.trim() : k === "residence" ? !!residenceCity.trim()
     : k === "transport" ? !!transport : k === "exp" ? !!farmExperience : k === "intensity" ? !!physicalLevel
     : k === "interests" ? interests.length > 0 : k === "languages" ? languages.length > 0
-    : k === "avatar" ? !!avatarUrl : prQa.length > 0
+    : k === "declared" ? selfDeclared.length > 0 : k === "avatar" ? !!avatarUrl : prQa.length > 0
   );
   const nextUnfilledBox = (afterKey) => {
     const start = Math.max(0, BOX_ORDER.indexOf(afterKey));
@@ -6888,7 +6924,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         pr_pending: pr.trim(), pr_qa_pending: prQa, pr_submitted_at: new Date().toISOString(),
         pr_revision_targets: null, // 再提出＝修正依頼の赤帯を解除（2026-07-19）
         residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
-        interests, languages, updated_at: new Date().toISOString(),
+        interests, languages, self_declared: selfDeclared, updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) {
@@ -6959,6 +6995,7 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"intensity", e:"💪", l:"作業の強さ",   v: physicalLevel },
           { k:"interests", e:"🎨", l:"趣味",         v: interests.join("・") },
           { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
+          { k:"declared",  e:"📋", l:"できること・資格", v: selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip).filter(Boolean).join("・") },
           { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
         ].map(b => {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
@@ -7064,6 +7101,18 @@ function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
             background: languages.includes(v) ? "#E6F7EF" : "#F7F7F7",
             color: languages.includes(v) ? "#00A86B" : "#717171",
           }}>{v}</button>
+        ))}
+      </div>
+      </>)}
+
+      {editBox==="declared" && (<>
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>📋 できること・資格（自己申告）</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>当てはまるものを選べます（複数可）。あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
+      <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
+        {WORKER_DECLARATIONS.map((it, i) => (
+          <div key={it.k} style={{ borderBottom: i < WORKER_DECLARATIONS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
+            <ToggleSwitch label={it.label} checked={selfDeclared.includes(it.k)} onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
+          </div>
         ))}
       </div>
       </>)}
