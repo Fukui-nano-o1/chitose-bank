@@ -5441,6 +5441,7 @@ function ChatView({ applicationId, onBack }) {
   const [activeAppId, setActiveAppId] = useState(applicationId);
   const [activeStatus, setActiveStatus] = useState(null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
   const [activeAvail, setActiveAvail] = useState(null); // 現役応募の来られる日（期間求人・文脈カードで表示・2026-07-24）
+  const [activeAgreed, setActiveAgreed] = useState(null); // 現役応募の働く日（確定・文脈カード/確認カードで表示・2026-07-24 追記3）
   const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
   // 現役応募を切り替える（状態＝採用/確認カード/保険/#N をその応募に合わせる）。求人ページ取得も行う
   const applyActive = async (row) => {
@@ -5448,6 +5449,7 @@ function ChatView({ applicationId, onBack }) {
     setActiveAppId(row.id);
     setActiveStatus(row.status);
     setActiveAvail(row.available_dates ?? null);
+    setActiveAgreed(row.agreed_dates ?? null);
     setWorkerConfirmed(!!row.terms_confirmed_worker_at);
     setFarmerConfirmed(!!row.terms_confirmed_farmer_at);
     setInsurancePreparedAt(row.insurance_prepared_at);
@@ -5533,7 +5535,7 @@ function ChatView({ applicationId, onBack }) {
           setIsWorkerSide(iAmWorker);
           // この相手との全応募（新しい順）。現役＝進行中（承認済み〜作業中）で最新→無ければ最新
           const { data: rel } = await supabase.from("applications")
-            .select("id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at,available_dates")
+            .select("id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at,available_dates,agreed_dates")
             .eq(iAmWorker ? "worker_id" : "farmer_id", session.user.id)
             .eq(iAmWorker ? "farmer_id" : "worker_id", partnerId)
             .order("created_at", { ascending: false });
@@ -5725,8 +5727,9 @@ function ChatView({ applicationId, onBack }) {
           </button>
           {ctxOpen && (
             <div style={{ borderTop:"1px solid #E4F0EA", padding:"10px 12px", display:"grid", gap:8 }}>
-              {/* 来られる日（期間求人・応募者が宣言した日程＝すり合わせの起点・2026-07-24） */}
+              {/* 来られる日（応募者が宣言）／働く日（農家が確定）＝すり合わせの起点と完結・2026-07-24 */}
               <AvailDatesChips value={activeAvail} fs={11} />
+              <AgreedDatesRow value={activeAgreed} fs={11} />
               <div style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
                 <span style={{ fontSize:12, color:"#8AA79A", flexShrink:0 }}>内容の確認</span>
                 <span style={{ fontSize:12, fontWeight:700, color: workerConfirmed ? "#00A86B" : "#B0700F", textAlign:"right" }}>{workerConfirmed ? "✓ 相違なし済み" : "未確認"}</span>
@@ -5763,6 +5766,8 @@ function ChatView({ applicationId, onBack }) {
       {confirmBoxOpen && confirmJob && isWorkerSide && !workerConfirmed && (() => {
         const rows = [
           { label:"日程",     value: disp(confirmJob.dateLabel) },
+          // 働く日（農家が確定・2026-07-24 追記3）：期間求人で確定済みの時だけ確認対象に含める
+          ...(Array.isArray(activeAgreed) && activeAgreed.length > 0 ? [{ label:"働く日", value: activeAgreed.slice().sort().map(d => calFmtDate(d)).join("・") }] : []),
           { label:"時間",     value: disp(confirmJob.workTime) },
           { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中...",
             mapUrl: confirmMeetingPlace?.full_address ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(confirmMeetingPlace.full_address) : null },
@@ -7598,6 +7603,7 @@ function WorkerApplications({ filter, me }) {
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[jobDates[a.job_number]?.crop, jobDates[a.job_number]?.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
                 <AvailDatesChips value={a.available_dates} />
+                <AgreedDatesRow value={a.agreed_dates} />
                 {/* お仕事の流れ（応募→承認→打合せ・面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-22） */}
                 {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={a} /></div>}
                 {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
@@ -7980,6 +7986,29 @@ const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includ
 const CALENDAR_WD = ["日","月","火","水","木","金","土"];
 const calAddDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
 const calFmtDate = (ymd) => { const [y,m,d] = ymd.split("-").map(Number); return `${m}/${d}(${CALENDAR_WD[new Date(y, m-1, d).getDay()]})`; };
+// 期間内の日付を "YYYY-MM-DD" 配列で列挙（開始〜終了・両端含む）
+const daysBetweenYmd = (startYmd, endYmd) => {
+  if (!startYmd) return [];
+  const [ys, ms, ds] = startYmd.split("-").map(Number);
+  const start = new Date(ys, ms - 1, ds);
+  const end = endYmd ? new Date(endYmd + "T00:00:00") : start;
+  const out = []; let g = 0;
+  for (let d = new Date(start); d <= end && g < 400; d.setDate(d.getDate() + 1), g++) out.push(ymdLocal(d));
+  return out;
+};
+// 働く日（確定）行（応募者カード・返事待ちカード・チャット文脈カード・確認カード共用・2026-07-24）。
+// value＝applications.agreed_dates：["YYYY-MM-DD",...]（農家が確定した働く日・濃い緑）／null（未確定=非表示）
+function AgreedDatesRow({ value, fs = 12 }) {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  return (
+    <div className="f-sans" style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", margin:"0 0 8px" }}>
+      <span style={{ fontSize:fs, color:"#0B6B4F", fontWeight:700 }}>📅 働く日</span>
+      {value.slice().sort().map(d => (
+        <span key={d} style={{ fontSize:fs, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:20, padding:"3px 10px" }}>{calFmtDate(d)}</span>
+      ))}
+    </div>
+  );
+}
 // 来られる日チップ（応募者カード・返事待ちカード・チャット文脈カード共用・2026-07-24）。
 // value＝applications.available_dates：'any'（期間中いつでもOK・緑）／["YYYY-MM-DD",...]（特定日・列挙）／null（単日=非表示）
 function AvailDatesChips({ value, fs = 12 }) {
@@ -8336,8 +8365,11 @@ function TodayPage({ me, defaultRole }) {
   const todayYmd = ymdLocal(new Date());
   const in7Ymd = ymdLocal(calAddDays(7));
   const mine = entries.filter(e => e.my_role === role && e.relation === "application");
+  // 当日判定（2026-07-24 追記3）：agreed_dates（確定した働く日）があれば当日∈agreed_dates、無ければ従来の期間判定
+  const hasAgreed = (e) => Array.isArray(e.agreed_dates) && e.agreed_dates.length > 0;
+  const isTodayJob = (e) => e.date_start && (hasAgreed(e) ? e.agreed_dates.includes(todayYmd) : (e.date_start <= todayYmd && todayYmd <= (e.date_end || e.date_start)));
   const todayJobs = mine
-    .filter(e => e.date_start && e.date_start <= todayYmd && todayYmd <= (e.date_end || e.date_start))
+    .filter(isTodayJob)
     .sort((a, b) => (a.work_time || "").localeCompare(b.work_time || ""));
   const upcoming = mine
     .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
@@ -16323,6 +16355,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   const [dbDrafts, setDbDrafts] = useState([]);
   const [dbActive, setDbActive] = useState([]);
+  // 働く日を決める（2026-07-24 追記3）：期間求人・承認後、農家が働く日を確定する。agreeModal=対象の応募／agreeSel=選択中
+  const [agreeModal, setAgreeModal] = useState(null);
+  const [agreeSel, setAgreeSel] = useState([]);
+  const [agreeSaving, setAgreeSaving] = useState(false);
   const [qUnansweredMap, setQUnansweredMap] = useState({}); // { job_number: 未回答質問数 }（第10弾・求人カードのバッジ）
   const [dbExpired, setDbExpired] = useState([]); // 作業日程が過ぎた自分の求人（statusは持たず日付から導出・2026-07-16）
   const [dbApplicants, setDbApplicants] = useState([]);
@@ -16371,7 +16407,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。固定列SELECTに入れ忘れると一時非公開が作成中へ落ちる
         const { data: allJobs, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,work_time,opened_at").eq("farmer_id", session.user.id).order("job_number",{ascending:false});
         if (!error && allJobs) {
-          setJobInfoMap(Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task }])));
+          setJobInfoMap(Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end }])));
           const todayYmd = ymdLocal(new Date());
           const isPast = (j) => {
             const end = j.date_end || j.date_start;
@@ -16726,6 +16762,17 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
               {/* 来られる日（期間求人・すり合わせの起点・2026-07-24） */}
               <AvailDatesChips value={a.available_dates} />
+              {/* 働く日（確定済み・2026-07-24 追記3） */}
+              <AgreedDatesRow value={a.agreed_dates} />
+              {/* 働く日を決める（期間求人・承認後）：来られる日をプリセット表示→農家がタップ確定。変更は同じボタンでやり直し */}
+              {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (() => {
+                const info = jobInfoMap[a.job_number] || {};
+                const isPeriod = info.date_end && info.date_start && info.date_end !== info.date_start;
+                if (!isPeriod) return null;
+                return (
+                  <button onClick={()=>{ setAgreeModal(a); setAgreeSel(Array.isArray(a.agreed_dates) ? a.agreed_dates.slice() : []); }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:700, background: Array.isArray(a.agreed_dates)&&a.agreed_dates.length>0 ? "#fff" : "#00A86B", color: Array.isArray(a.agreed_dates)&&a.agreed_dates.length>0 ? "#00A86B" : "#fff", border: Array.isArray(a.agreed_dates)&&a.agreed_dates.length>0 ? "1px solid #00A86B" : "none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>📅 {Array.isArray(a.agreed_dates)&&a.agreed_dates.length>0 ? "働く日を変更する" : "働く日を決める"}</button>
+                );
+              })()}
               {a.status === "applied" && (
                 <div style={{ display:"flex", gap:8, marginBottom:8 }}>
                   <button onClick={async ()=>{
@@ -17193,6 +17240,45 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
       })()}
 
       {/* 完了・評価モーダル（Part1） */}
+      {/* 働く日を決めるモーダル（2026-07-24 追記3）：来られる日をプリセット→農家がタップ選択→set_agreed_dates */}
+      {agreeModal && (() => {
+        const info = jobInfoMap[agreeModal.job_number] || {};
+        const av = agreeModal.available_dates;
+        // 候補＝働き手の来られる日（配列）。いつでもOK("any")や未宣言は求人の全期間
+        const candidates = Array.isArray(av) && av.length > 0 ? av.slice().sort() : daysBetweenYmd(info.date_start, info.date_end);
+        return (
+          <div onClick={()=>{ if (!agreeSaving) { setAgreeModal(null); setAgreeSel([]); } }} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e=>e.stopPropagation()} className="f-sans" style={{ background:"#fff", borderRadius:16, padding:22, maxWidth:440, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
+              <p style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px" }}>📅 働く日を決める</p>
+              <p style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>
+                {Array.isArray(av) ? "働き手が「来られる日」に選んだ日から確定します。" : "働き手は「期間中いつでもOK」です。働く日を選んで確定します。"}
+                働き手にお知らせが届きます（変更したら再送されます）。
+              </p>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:18 }}>
+                {candidates.map(d => {
+                  const on = agreeSel.includes(d);
+                  return (
+                    <button key={d} onClick={()=>setAgreeSel(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d])} style={{ padding:"9px 12px", fontSize:13, fontWeight:700, borderRadius:20, cursor:"pointer", background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{calFmtDate(d)}</button>
+                  );
+                })}
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={()=>{ if (!agreeSaving) { setAgreeModal(null); setAgreeSel([]); } }} style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>やめる</button>
+                <button disabled={agreeSaving || agreeSel.length===0} onClick={async ()=>{
+                  if (agreeSel.length===0) return;
+                  setAgreeSaving(true);
+                  const dates = [...agreeSel].sort();
+                  const { data, error } = await supabase.rpc("set_agreed_dates", { p_application_id: agreeModal.id, p_dates: dates });
+                  setAgreeSaving(false);
+                  if (error || !data?.ok) { alert("確定に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); return; }
+                  setDbApplicants(prev => prev.map(x => x.id===agreeModal.id ? { ...x, agreed_dates: dates } : x));
+                  setAgreeModal(null); setAgreeSel([]);
+                }} className="btn-primary" style={{ flex:2, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (agreeSaving || agreeSel.length===0) ? 0.5 : 1, cursor: agreeSel.length===0 ? "not-allowed" : "pointer" }}>{agreeSaving ? "確定中..." : `この日で確定する${agreeSel.length>0 ? `（${agreeSel.length}日）` : ""}`}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {completeModalApp && (
         <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
