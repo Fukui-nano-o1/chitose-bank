@@ -1019,6 +1019,14 @@ body:has(.chat-full) .site-footer-fixed { display: none !important; }
 html:has(.chat-full), body:has(.chat-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 body:has(.chat-full) main { overflow: hidden !important; }
 
+/* 面接の質問集：フルページ表示（下部ナビ・浮遊☰・フッターを隠す＝チャットと同方式・2026-07-23） */
+.qset-full { position: fixed; inset: 0; z-index: 9000; background: #fff; display: flex; flex-direction: column; }
+body:has(.qset-full) .app-header-mobile,
+body:has(.qset-full) .app-header-mobile-float,
+body:has(.qset-full) .nav-coach { display: none !important; }
+body:has(.qset-full) .site-footer-fixed { display: none !important; }
+html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
+
 /* ── 開催期間カレンダー📅の浮遊ボタン（詳細=応募フッター右上／確認ページ=下部ナビ右上。両ページ同構造） ── */
 .calendar-fab {
   position: fixed;
@@ -16810,10 +16818,13 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
 
       {/* ═══ 面接の質問集 管理モーダル（2026-07-23）：セットの作成・編集・削除＋テンプレのコピー ═══ */}
       {qMgrOpen && (
-        <div onClick={()=>{ setQMgrOpen(false); setQEditing(null); }} style={{ position:"fixed", inset:0, zIndex:10002, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom,0px) + 20px)", maxWidth:520, width:"100%", maxHeight:"88vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <button onClick={()=>{ setQMgrOpen(false); setQEditing(null); }} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>✕</button>
-            <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px", paddingRight:40 }}>📋 面接の質問集</h3>
+        <div className="qset-full">
+          {/* トップバー：←（編集中は一覧へ／一覧ならページを閉じる）＋タイトル */}
+          <div style={{ display:"flex", alignItems:"center", gap:6, padding:"calc(env(safe-area-inset-top,0px) + 12px) 12px 12px", borderBottom:"1px solid #EBEBEB", flexShrink:0 }}>
+            <button onClick={()=>{ if (qEditing) setQEditing(null); else setQMgrOpen(false); }} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", fontSize:24, lineHeight:1, cursor:"pointer", color:"#222", padding:"2px 8px" }}>←</button>
+            <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:0 }}>📋 面接の質問集</h3>
+          </div>
+          <div className="f-sans" style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", maxWidth:560, width:"100%", margin:"0 auto", padding:"16px 16px calc(env(safe-area-inset-bottom,0px) + 24px)", boxSizing:"border-box" }}>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 16px", lineHeight:1.6 }}>聞きたいことをセットにして保存し、応募者のチャットに送れます。回答もチャットに残ります。</p>
 
             {qEditing === null ? (
