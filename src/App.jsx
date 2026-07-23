@@ -9042,7 +9042,6 @@ function JobSearchMapView({ onRegister, me }) {
                 {/* 危険な場所 */}
                 {(selectedJob.dangerPlaces && selectedJob.dangerPlaces.length > 0) && (
                   <>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な場所</p>
                     <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
                       {selectedJob.dangerPlaces.map((place, i) => {
                         const placePhotos = place.photos || [];
@@ -9057,7 +9056,6 @@ function JobSearchMapView({ onRegister, me }) {
                 {/* 危険な作業 */}
                 {(selectedJob.dangerTasks && selectedJob.dangerTasks.length > 0) && (
                   <>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な作業</p>
                     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                       {selectedJob.dangerTasks.map((task, i) => {
                         const taskPhotos = task.photos || [];
@@ -11759,7 +11757,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     </div>
                     {jobDangerPlaces.some(p => p.label) && (
                       <>
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な場所</p>
                         <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
                           {jobDangerPlaces.filter(p => p.label).map((place, i) => (
                             <DangerItem key={i} icon={place.icon} label={place.label} desc={place.desc} photos={place.photos} />
@@ -11769,7 +11766,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
                     )}
                     {jobDangerTasks.some(t => t.label) && (
                       <>
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な作業</p>
                         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                           {jobDangerTasks.filter(t => t.label).map((task, i) => (
                             <DangerItem key={i} icon={task.icon} label={task.label} desc={task.desc} photos={task.photos} />
@@ -12469,7 +12465,6 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
             {(job.dangerPlaces && job.dangerPlaces.length > 0) && (
               <>
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な場所</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
                   {job.dangerPlaces.map((place, i) => {
                     const placePhotos = place.photos || [];
@@ -12483,7 +12478,6 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 
             {(job.dangerTasks && job.dangerTasks.length > 0) && (
               <>
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:12, letterSpacing:".06em", textAlign:"center" }}>危険な作業</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                   {job.dangerTasks.map((task, i) => {
                     const taskPhotos = task.photos || [];
