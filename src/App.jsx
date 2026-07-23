@@ -6318,7 +6318,7 @@ const WORKER_QA_QUESTIONS = [
 // 特定の問いにだけ入力例を添える（回数・バッジ・星ではなく「作業の中身」を書いてもらう誘導）。
 // キーは質問文そのもの。未定義の問いはプレースホルダなし
 const WORKER_QA_PLACEHOLDERS = {
-  "これまでにどんな農作業の経験がありますか？（他のサービスや手伝いでの経験も、作業の内容で教えてください）": "ナスの収穫と袋詰めを2シーズン。朝の市場出しも手伝いました",
+  "これまでにどんな農作業の経験がありますか？（他のサービスや手伝いでの経験も、作業の内容で教えてください）": "ナスの収穫と袋詰めを2シーズン。タイミーで倉庫の仕分けもしていました",
 };
 
 // 15秒カード用プリセット（2026-07-14たきと判断でCLAUDE.md許可リストに追加。詳細はCLAUDE.md参照）
@@ -6373,14 +6373,20 @@ function ExpandableText({ text, limit = 100, style }) {
 function WorkerTrustCard({ profile, trust, onEditItem }) {
   if (!profile) return null;
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
+  // 移動手段・経験区分は本人申告なので📋自己申告ブロックへ集約（2026-07-23）。バッジ列は希望条件（作業の強さ）のみ
   const badges = [
-    profile.transport && { icon:"🚗", text: profile.transport, k:"transport" },
-    profile.farm_experience && { icon:"🌾", text: profile.farm_experience, k:"exp" },
     profile.physical_level && { icon:"💪", text: profile.physical_level, k:"intensity" },
   ].filter(Boolean);
   const tags = [
     ...(profile.interests || []).map(t => ({ t, k:"interests" })),
     ...(profile.languages || []).map(t => ({ t, k:"languages" })),
+  ];
+  // 📋自己申告に集約する本人申告：経験区分・経験のある作業・移動手段＋免許資格保険（🌟実績枠には絶対入れない）
+  const declItems = [
+    ...(profile.farm_experience ? [{ text:"🌾 " + profile.farm_experience, k:"exp" }] : []),
+    ...((Array.isArray(profile.experienced_tasks) ? profile.experienced_tasks : []).filter(Boolean).map(t => ({ text: t, k:"exp" }))),
+    ...(profile.transport ? [{ text:"🚗 " + profile.transport, k:"transport" }] : []),
+    ...((Array.isArray(profile.self_declared) ? profile.self_declared : []).map(key => { const it = WORKER_DECLARATIONS.find(x => x.k === key); return it ? { text: it.chip, k:"declared" } : null; }).filter(Boolean)),
   ];
   return (
     <div>
@@ -6425,14 +6431,14 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
         // 閲覧時（プレビュー・応募者カード）は…で省略し、タップで全文（2026-07-23）
         <ExpandableText text={profile.pr} limit={80} style={{ fontSize:13, color:"#222", margin:0 }} />
       ))}
-      {/* ── 📋 自己申告ブロック（免許・資格・保険方針。ご本人の申告・運営未確認）。実績とは枠・背景を分離（2026-07-23） ── */}
-      {Array.isArray(profile.self_declared) && profile.self_declared.length > 0 && (
+      {/* ── 📋 自己申告ブロック（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。実績とは枠・背景を分離（2026-07-23） ── */}
+      {declItems.length > 0 && (
         <div style={{ marginTop:12, background:"#F6F8FC", border:"1px solid #E1E8F2", borderRadius:12, padding:"12px 14px" }}>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#3A5570", margin:"0 0 8px" }}>📋 自己申告</p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
-            {profile.self_declared.map(k => { const it = WORKER_DECLARATIONS.find(x => x.k === k); return it ? (
-              <span key={k} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px" }}>{it.chip}</span>
-            ) : null; })}
+            {declItems.map((it, i) => (
+              <span key={i} {...tap(it.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.text}</span>
+            ))}
           </div>
           <p className="f-sans" style={{ fontSize:10, color:"#A0A8B4", margin:0, lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。</p>
         </div>
