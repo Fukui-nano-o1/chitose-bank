@@ -16007,6 +16007,10 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   // ── 面接の質問集（2026-07-23）：農家が質問セット(タイトル＋質問1〜5)を作り、応募者チャットに投函 ──
   const [questionSets, setQuestionSets] = useState([]);
   const [qMgrOpen, setQMgrOpen] = useState(false);      // 管理モーダル
+  const qMgrScrollY = useRef(0);                        // 質問集を開く直前のハブのスクロール位置（閉じたら元の場所へ戻す・2026-07-24）
+  // 質問集フルページ(.qset-full)は body{overflow:hidden;height:100%} で開くため、閉じるとハブ先頭へ飛ぶ。開く前の位置を控えて復元する
+  const openQMgr = () => { qMgrScrollY.current = window.scrollY; setQEditing(null); setQMgrOpen(true); };
+  const closeQMgr = () => { const y = qMgrScrollY.current; setQMgrOpen(false); requestAnimationFrame(() => window.scrollTo(0, y)); };
   const [qEditing, setQEditing] = useState(null);       // 編集中セット {id?, title, questions:[...]}（null=一覧）
   const [qSaving, setQSaving] = useState(false);
   const [sendQTarget, setSendQTarget] = useState(null); // 「質問を送る」対象の応募(a)
@@ -16675,15 +16679,15 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             </span>
           </button>
           {/* 面接の質問集（2026-07-23）：応募者チャットに送る質問を用意 */}
-          <button onClick={()=>{ setQEditing(null); setQMgrOpen(true); }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+          <button onClick={openQMgr} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
             <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📋</span>
             <span>
               <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>面接の質問集</span>
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>聞きたいことをセットにして、応募者のチャットに送れます。回答もチャットに残ります。</span>
             </span>
           </button>
-          {/* 保険の準備（2026-07-24・専用ページ#/insuranceへ遷移） */}
-          <button onClick={()=>{ window.location.hash="/insurance"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+          {/* 保険の準備（2026-07-24・専用ページ#/insuranceへ遷移）。アプリ内遷移の目印を残し、戻るは history.back で元の場所（スクロール位置）へ復帰させる */}
+          <button onClick={()=>{ try{ sessionStorage.setItem("cb_insFromApp","1"); }catch{} window.location.hash="/insurance"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
             <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🛡</span>
             <span>
               <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>保険の準備</span>
@@ -17183,7 +17187,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
         <div className="qset-full">
           {/* トップバー：←（編集中は一覧へ／一覧ならページを閉じる）＋タイトル */}
           <div style={{ display:"flex", alignItems:"center", gap:6, padding:"calc(env(safe-area-inset-top,0px) + 12px) 12px 12px", borderBottom:"1px solid #EBEBEB", flexShrink:0 }}>
-            <button onClick={()=>{ if (qEditing) setQEditing(null); else setQMgrOpen(false); }} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", fontSize:24, lineHeight:1, cursor:"pointer", color:"#222", padding:"2px 8px" }}>←</button>
+            <button onClick={()=>{ if (qEditing) setQEditing(null); else closeQMgr(); }} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", fontSize:24, lineHeight:1, cursor:"pointer", color:"#222", padding:"2px 8px" }}>←</button>
             <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:0 }}>📋 面接の質問集</h3>
           </div>
           <div className="f-sans" style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", maxWidth:560, width:"100%", margin:"0 auto", padding:"16px 16px calc(env(safe-area-inset-bottom,0px) + 24px)", boxSizing:"border-box" }}>
@@ -17257,7 +17261,7 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             {questionSets.length === 0 ? (
               <div style={{ textAlign:"center", padding:"12px 0" }}>
                 <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:"0 0 16px" }}>まだ質問集がありません。</p>
-                <button onClick={()=>{ setSendQTarget(null); setQEditing(null); setQMgrOpen(true); }} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:10, padding:"11px 20px", fontSize:14, fontWeight:700, cursor:"pointer" }}>質問集を作る</button>
+                <button onClick={()=>{ qMgrScrollY.current=window.scrollY; setSendQTarget(null); setQEditing(null); setQMgrOpen(true); }} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:10, padding:"11px 20px", fontSize:14, fontWeight:700, cursor:"pointer" }}>質問集を作る</button>
               </div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -18367,7 +18371,7 @@ function InsurancePrepPage({ me }) {
   };
   return (
     <div className="help-edge" style={{ maxWidth:560, margin:"0 auto", padding:"24px 4px 96px" }}>
-      <button onClick={()=>{ window.location.hash="/profile/employer"; }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 14px", display:"inline-flex", alignItems:"center", gap:6 }}>← プロフィールへ</button>
+      <button onClick={()=>{ let fromApp=false; try{ fromApp=sessionStorage.getItem("cb_insFromApp")==="1"; sessionStorage.removeItem("cb_insFromApp"); }catch{} if (fromApp && window.history.length>1) window.history.back(); else window.location.hash="/profile/employer"; }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 14px", display:"inline-flex", alignItems:"center", gap:6 }}>← 戻る</button>
       <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</h1>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。</p>
       {loading ? (
