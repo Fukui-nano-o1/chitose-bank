@@ -686,13 +686,16 @@ input:focus { outline: none; }
 .chat-full { height: calc(100vh - 140px); }
 @supports (height: 100dvh) { .chat-full { height: calc(100dvh - 140px); } }
 @media (max-width: 768px) {
+  /* チャット表示中はmainを全面に使い、チャットを画面いっぱいに＝＋/入力/送信が最下部（空白なし・2026-07-22）。
+     メッセージ欄(flex:1 minHeight:0)が中で伸縮スクロールし、入力バーは常に一番下 */
+  body:has(.chat-full) main { padding: 0 !important; }
   .chat-full {
-    margin-top: calc(env(safe-area-inset-top, 0px) + 8px - 68px); /* mainのpadding-top 68pxを打ち消す */
-    height: calc(100vh - env(safe-area-inset-top, 0px) - 8px - 64px - env(safe-area-inset-bottom, 0px) - 8px);
+    margin: 0;
+    height: 100vh;
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 12px calc(env(safe-area-inset-bottom, 0px) + 6px);
+    box-sizing: border-box;
   }
-  @supports (height: 100dvh) {
-    .chat-full { height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px - 64px - env(safe-area-inset-bottom, 0px) - 8px); }
-  }
+  @supports (height: 100dvh) { .chat-full { height: 100dvh; } }
 }
 
 /* ── モバイル下部バー最終形：☰（アイコンのみ・コンパクト）＋5機能タブ（さがす／いいね／カレンダー／チャット／プロフィール） ── */
