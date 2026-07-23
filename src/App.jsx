@@ -6431,7 +6431,18 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
         // 閲覧時（プレビュー・応募者カード）は…で省略し、タップで全文（2026-07-23）
         <ExpandableText text={profile.pr} limit={80} style={{ fontSize:13, color:"#222", margin:0 }} />
       ))}
-      {/* ── 📋 自己申告ブロック（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。実績とは枠・背景を分離（2026-07-23） ── */}
+      {/* ── 🌟 実績ブロック（このサイトの台帳のみ。自己申告チップはこの枠に絶対に入れない）。自己申告より上に置く（2026-07-23） ── */}
+      {trust?.ok && ((trust.completed_count || 0) > 0 || (trust.want_again_count || 0) > 0 || (trust.total_hours || 0) > 0) && (
+        <div style={{ marginTop:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px" }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#0B6B4F", margin:"0 0 8px" }}>🌟 実績（このサイトの記録）</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:14 }}>
+            <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>完了 {trust.completed_count || 0}回</span>
+            {(trust.want_again_count || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>🌟 また働きたい {trust.want_again_count}</span>}
+            {(trust.total_hours || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>作業 {trust.total_hours}時間</span>}
+          </div>
+        </div>
+      )}
+      {/* ── 📋 自己申告ブロック（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。実績の下に置く（2026-07-23） ── */}
       {declItems.length > 0 && (
         <div style={{ marginTop:12, background:"#F6F8FC", border:"1px solid #E1E8F2", borderRadius:12, padding:"12px 14px" }}>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#3A5570", margin:"0 0 8px" }}>📋 自己申告</p>
@@ -6441,17 +6452,6 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
             ))}
           </div>
           <p className="f-sans" style={{ fontSize:10, color:"#A0A8B4", margin:0, lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。</p>
-        </div>
-      )}
-      {/* ── 🌟 実績ブロック（このサイトの台帳のみ。自己申告チップはこの枠に絶対に入れない）（2026-07-23） ── */}
-      {trust?.ok && ((trust.completed_count || 0) > 0 || (trust.want_again_count || 0) > 0 || (trust.total_hours || 0) > 0) && (
-        <div style={{ marginTop:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px" }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#0B6B4F", margin:"0 0 8px" }}>🌟 実績（このサイトの記録）</p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:14 }}>
-            <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>完了 {trust.completed_count || 0}回</span>
-            {(trust.want_again_count || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>🌟 また働きたい {trust.want_again_count}</span>}
-            {(trust.total_hours || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>作業 {trust.total_hours}時間</span>}
-          </div>
         </div>
       )}
     </div>
