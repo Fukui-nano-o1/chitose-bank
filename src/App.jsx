@@ -6225,8 +6225,8 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
-          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
+        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid " + ROLE_ORANGE, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
+          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} ring={ROLE_ORANGE} />
         </div>
         <div style={{ minWidth:0 }}>
           <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{profile.nickname || "名前未設定"}</p>
@@ -6241,7 +6241,7 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
             <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{tenureLabel(trust.joined_at)}</span>
           )}
           {trust.verified_at && (
-            <span className="f-sans" style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
+            <span className="f-sans" style={{ fontSize:11, color:ROLE_ORANGE_INK, fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
           )}
         </div>
       )}
@@ -6255,7 +6255,7 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
       {tags.length > 0 && (
         <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
           {tags.map((x,i) => (
-            <span key={i} {...tap(x.k)} className="f-sans" style={{ fontSize:11, color:"#717171", background:"#F0F7F4", borderRadius:20, padding:"3px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>#{x.t}</span>
+            <span key={i} {...tap(x.k)} className="f-sans" style={{ fontSize:11, color:"#717171", background:"#FFF3EC", borderRadius:20, padding:"3px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>#{x.t}</span>
           ))}
         </div>
       )}
