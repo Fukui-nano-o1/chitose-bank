@@ -6225,7 +6225,7 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid " + ROLE_ORANGE, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
+        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
           <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
         </div>
         <div style={{ minWidth:0 }}>
@@ -6241,7 +6241,7 @@ function WorkerTrustCard({ profile, trust, onEditItem }) {
             <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{tenureLabel(trust.joined_at)}</span>
           )}
           {trust.verified_at && (
-            <span className="f-sans" style={{ fontSize:11, color:ROLE_ORANGE_INK, fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
+            <span className="f-sans" style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
           )}
         </div>
       )}
@@ -7103,7 +7103,7 @@ function WorkerProfilePreview({ me, onEdit, onEditItem }) {
             まだ勤務実績はありません。初回勤務後から、労働時間・作業・出勤状況が記録されます。
           </p>
           {wantAgainCount > 0 && (
-            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:ROLE_ORANGE_INK, margin:"10px 0 0" }}>🧡また呼びたい ×{wantAgainCount}</p>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"10px 0 0" }}>🌟また呼びたい ×{wantAgainCount}</p>
           )}
         </div>
       )}
@@ -8156,7 +8156,7 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                     {wUnsetCount > 0 && (
                       <span style={{ position:"absolute", top:12, right:52, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{wUnsetCount}</span>
                     )}
-                    <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} />
+                    <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} ring={ROLE_ORANGE} />
                     <span>
                       <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
                       {/* 役割チップ（第11弾）：名前直下・大きめ・橙 */}
@@ -8243,12 +8243,12 @@ function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
               );
               return (<>
                 {sec("📌 いま", [
-                  { e:"✅", l:"きょうの仕事", h:"/profile/worker/approved", n:wHub.today, sub:"開始・終了の確認もここから", desc:"承認された仕事の、当日の予定です。開始・終了の打刻もここから。" },
+                  { e:<span style={{ color: ROLE_ORANGE, fontWeight:900 }}>{"✔︎"}</span>, l:"きょうの仕事", h:"/profile/worker/approved", n:wHub.today, sub:"開始・終了の確認もここから", desc:"承認された仕事の、当日の予定です。開始・終了の打刻もここから。" },
                   { e:"📨", l:"返事待ち",     h:"/profile/worker/applying", n:wAppCounts.applying, desc:"応募して、農家の返事を待っている求人です。作業日の前日までに結果が届きます。" },
                 ])}
                 {sec("🔎 次の仕事", [
                   { e:"🔍", l:"さがす", h:"/search", sub:`きょう応募できる求人 ${wHub.searchOpen}件`, desc:"近くの募集中の求人をさがせます。気になったら応募できます。" },
-                  { e:"💚", l:"いいね", h:"/saved", desc:"気になる求人を💚で保存した一覧です。" },
+                  { e:"🧡", l:"いいね", h:"/saved", desc:"気になる求人を🧡で保存した一覧です。" },
                 ])}
                 <div style={{ marginTop:16 }}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>📖 わたしの記録</p>
