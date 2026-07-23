@@ -5608,8 +5608,9 @@ function ChatView({ applicationId, onBack }) {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.from("farmer_question_sets").select("*").eq("farmer_id", myId).order("created_at", { ascending: true });
-        if (!cancelled) setChatQSets(data || []);
+        // 初回はデフォルト3種を用意してから読み込む（準備しておく・2026-07-23）
+        const list = await ensureDefaultQuestionSets(myId);
+        if (!cancelled) setChatQSets(list);
       } catch { if (!cancelled) setChatQSets([]); }
     })();
     return () => { cancelled = true; };
@@ -15705,6 +15706,26 @@ const INTERVIEW_TEMPLATES = [
   { title:"体と装備",   questions:["長靴・帽子はお持ちですか？", "暑さ・寒さの中の作業は大丈夫ですか？"] },
   { title:"日程の確認", questions:["当日の集合時間に間に合いますか？", "連続の日程は可能ですか？"] },
 ];
+// 面接の質問集を初回だけデフォルト3種で用意する（2026-07-23）。返り値＝現在のセット一覧（created_at昇順）。
+// 一度でも用意/保有したら端末ローカルに印を付け、以後は自動投入しない＝「全部消した人」に押し付けない。
+async function ensureDefaultQuestionSets(uid) {
+  const fetchList = async () => {
+    const { data } = await supabase.from("farmer_question_sets").select("*").eq("farmer_id", uid).order("created_at", { ascending: true });
+    return data || [];
+  };
+  let list = await fetchList();
+  const key = "cb_qsetsSeeded_" + uid;
+  let seeded = false;
+  try { seeded = !!localStorage.getItem(key); } catch {}
+  if (list.length === 0 && !seeded) {
+    try {
+      await supabase.from("farmer_question_sets").insert(INTERVIEW_TEMPLATES.map(t => ({ farmer_id: uid, title: t.title, questions: t.questions })));
+      list = await fetchList();
+    } catch {}
+  }
+  try { localStorage.setItem(key, "1"); } catch {}
+  return list;
+}
 
 function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
@@ -15743,8 +15764,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
   const loadQuestionSets = async () => {
     if (!me?.id) { setQuestionSets([]); return; }
     try {
-      const { data } = await supabase.from("farmer_question_sets").select("*").eq("farmer_id", me.id).order("created_at", { ascending: true });
-      setQuestionSets(data || []);
+      // 初回はデフォルト3種を用意してから読み込む（準備しておく・2026-07-23）
+      const list = await ensureDefaultQuestionSets(me.id);
+      setQuestionSets(list);
     } catch {}
   };
   useEffect(() => { loadQuestionSets(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [me?.id]);
