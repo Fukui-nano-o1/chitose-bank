@@ -5421,6 +5421,13 @@ function ChatView({ applicationId, onBack }) {
               .in("application_id", scope).neq("sender_id", session.user.id).is("read_at", null);
             window.dispatchEvent(new Event("cb:unreadRefresh"));
           }
+          // 一覧キャッシュの未読も即クリア（既読化と同時＝一覧に戻った時に未読が一瞬残らない・2026-07-22）
+          if (CHAT_LIST_CACHE && CHAT_LIST_CACHE.unreadMap) {
+            const um = { ...CHAT_LIST_CACHE.unreadMap };
+            let changed = false;
+            scope.forEach(id => { if (um[id]) { delete um[id]; changed = true; } });
+            if (changed) CHAT_LIST_CACHE = { ...CHAT_LIST_CACHE, unreadMap: um };
+          }
           // 既読トラッキング（2026-07-22・第8弾）：自分の最終既読時刻をchat_readsに刻む（相手側で「既読」表示に使われる）
           const now = new Date().toISOString();
           await supabase.from("chat_reads").upsert(
