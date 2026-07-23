@@ -155,11 +155,12 @@ const MENU_ITEMS = [
 
 // モバイル下部バー：☰(左端・アイコンのみ)＋5機能タブ。カレンダーが中央に来る並び。
 // ☰の中身：求人を出す・使い方・この画面を報告・管理・ログアウト（2026-07-14最終形）。
+// 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→いいね→チャット(③約束する)→カレンダー(④当日)→プロフィール
 const MOBILE_TABS = [
   { k:"search",   icon:"🔍", label:"さがす" },
   { k:"saved",    icon:"♡",  label:"いいね" },
-  { k:"calendar", icon:"📅", label:"カレンダー" },
   { k:"chats",    icon:"💬", label:"チャット" },
+  { k:"calendar", icon:"📅", label:"カレンダー" },
   { k:"profile",  icon:"👤", label:"プロフィール" },
 ];
 // モバイル☰メニューの静的リンク項目（求人を出す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
@@ -676,6 +677,31 @@ input:focus { outline: none; }
   /* 入力中（キーボード表示中）は下部バー・浮遊☰を隠す（2026-07-19）。入力欄と被らせない */
   body.cb-typing .app-header-mobile,
   body.cb-typing .app-header-mobile-float { display: none !important; }
+}
+
+/* ── 下部ナビの初回コーチマーク（第12弾・2026-07-23）：下部バー直上に薄い1行。タップで消える ── */
+.nav-coach { display: none; }
+@media (max-width: 768px) {
+  .nav-coach {
+    display: block;
+    position: fixed;
+    left: 0; right: 0; width: 100%;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    z-index: 50;
+    background: rgba(34,34,34,0.92);
+    color: #fff;
+    font-size: 12px;
+    text-align: center;
+    padding: 8px 12px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.14);
+    animation: cbToastIn .3s ease both;
+  }
+  body:has(.mobile-apply-bar) .nav-coach,
+  body:has(.chat-full) .nav-coach,
+  body.cb-typing .nav-coach { display: none !important; }
 }
 
 /* ── チャット縦最大化（2026-07-19）：mainの上余白を打ち消し、下部バー直上まで拡大。
@@ -18088,6 +18114,26 @@ export default function App(){
     })();
     return () => { cancelled = true; };
   }, [me?.id, empCtx]);
+
+  // 下部ナビの宿題バッジ（第12弾・2026-07-23）：チャット未読スレッド／きょうの契約済み仕事／評価締切内未実施／差し戻し有無。
+  // 1本のRPC(my_nav_badges)で取得。再計算＝起動・ページ遷移・既読等(cb:unreadRefresh)・モード切替。
+  const [navBadges, setNavBadges] = useState({ chat_threads:0, calendar_today:0, review_due:0, job_revision:0 });
+  useEffect(() => {
+    if (!me?.id) { setNavBadges({ chat_threads:0, calendar_today:0, review_due:0, job_revision:0 }); return; }
+    const refresh = async () => {
+      try {
+        const { data } = await supabase.rpc("my_nav_badges");
+        if (data) setNavBadges({ chat_threads:data.chat_threads||0, calendar_today:data.calendar_today||0, review_due:data.review_due||0, job_revision:data.job_revision||0 });
+      } catch {}
+    };
+    refresh();
+    window.addEventListener("hashchange", refresh);
+    window.addEventListener("cb:unreadRefresh", refresh);
+    return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); };
+  }, [me?.id, empCtx]);
+  // 下部ナビの初回コーチマーク（第12弾）：「← 左から順に、仕事の流れです」を1度だけ。タップで消える（localStorage既読）
+  const [navCoach, setNavCoach] = useState(() => { try { return !localStorage.getItem("cb_navCoachSeen"); } catch { return false; } });
+  const dismissNavCoach = () => { setNavCoach(false); try { localStorage.setItem("cb_navCoachSeen","1"); } catch {} };
   // 下部ナビもモード切替で反転（プロフィールのカードフリップと同じpflip・2026-07-22）。初回マウントは回さない
   const [navFlip, setNavFlip] = useState("");
   const navFlipInit = useRef(true);
@@ -18791,12 +18837,13 @@ const subDest=useCallback(async d=>{
   // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「さがす・いいね」を「📣求人・🤝応募者」に差し替え。
   // 後半3つ（カレンダー・チャット・プロフィール）は両モード共通。未ログインは現行のまま（empNav=false）
   const empNav = !!(me && empCtx);
+  // 農家：求人→応募者→チャット(③約束する)→カレンダー(④当日)→プロフィール（第12弾・時系列。働き手と文法統一）
   const navTabs = empNav
     ? [
         { k:"emp-jobs",       icon:"📣", label:"求人",       hash:"/profile/employer/active" },
         { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: empPending },
-        { k:"calendar",       icon:"📅", label:"カレンダー" },
         { k:"chats",          icon:"💬", label:"チャット" },
+        { k:"calendar",       icon:"📅", label:"カレンダー" },
         { k:"profile",        icon:"👤", label:"プロフィール" },
       ]
     : MOBILE_TABS;
@@ -19020,7 +19067,12 @@ const subDest=useCallback(async d=>{
         )}
       </div>}
 
-      {/* ── MOBILE BOTTOM NAV（5機能タブ。カレンダーが中央。☰は上部浮遊へ移設済み）
+      {/* 下部ナビ初回コーチマーク（第12弾）：ログイン済みの初回1度だけ。タップで消える（localStorage既読） */}
+      {me && navCoach && !(needsAccountHolder || openAccountForm) && (
+        <button className="f-sans nav-coach" onClick={dismissNavCoach}>← 左から順に、仕事の流れです</button>
+      )}
+
+      {/* ── MOBILE BOTTOM NAV（5機能タブ。☰は上部浮遊へ移設済み・第12弾で時系列順に）
            新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
       {!(needsAccountHolder || openAccountForm) && <header className="app-header app-header-mobile">
         <div className={"app-header-mobile-tabs" + (navFlip ? " " + navFlip : "")}>
@@ -19031,7 +19083,12 @@ const subDest=useCallback(async d=>{
               : (t.k === "profile"
                   ? (empNav ? (cur === "profile/employer" || cur === "profile") : safeTab === "profile")
                   : safeTab === t.k);
-            const badge = t.k === "chats" ? chatUnread : (t.badge || 0);
+            // 宿題バッジ（第12弾）：数字＝待たせている/自分の宿題の件数。求人(農家)の差し戻しのみ⚠フラグ
+            const badge = t.k === "chats" ? (navBadges.chat_threads || 0)
+              : t.k === "calendar" ? (navBadges.calendar_today || 0)
+              : t.k === "profile" ? (navBadges.review_due || 0)
+              : (t.badge || 0);
+            const warn = t.k === "emp-jobs" && (navBadges.job_revision || 0) > 0;
             return (
             <button key={t.k}
               onClick={() => {
@@ -19052,10 +19109,13 @@ const subDest=useCallback(async d=>{
                 setTab(t.k); window.location.hash = "/" + t.k;
               }}
               className={"app-header-mobile-tab" + (isActive ? " active" : "")}>
-              <span className={"icon" + (t.k === "chats" && chatUnread > 0 ? " cb-jump" : "")} style={{ position:"relative" }}>
+              <span className={"icon" + (t.k === "chats" && (navBadges.chat_threads || 0) > 0 ? " cb-jump" : "")} style={{ position:"relative" }}>
                 {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} /> : t.icon}
                 {badge > 0 && (
                   <span style={{ position:"absolute", top:-4, right:-10, minWidth:16, height:16, borderRadius:8, background:"#E24B4A", color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px", pointerEvents:"none" }}>{badge > 99 ? "99+" : badge}</span>
+                )}
+                {warn && (
+                  <span aria-label="差し戻しあり" style={{ position:"absolute", top:-6, right:-10, fontSize:13, lineHeight:1, pointerEvents:"none", filter:"drop-shadow(0 1px 1px rgba(0,0,0,0.25))" }}>⚠️</span>
                 )}
               </span>
               <span className="label">{t.label}</span>
