@@ -5373,6 +5373,11 @@ function ChatView({ applicationId, onBack }) {
   const [ctxOpen, setCtxOpen] = useState(false);
   // 定型文シート（2026-07-22・第8弾）：入力欄横の＋→役割別のテンプレをタップで挿入
   const [tmplOpen, setTmplOpen] = useState(false);
+  // ＋シートのタブ（2026-07-23）：定型文 / 質問集（質問集は農家側のみ）。スワイプで切替
+  const [tmplTab, setTmplTab] = useState("phrase");
+  const [chatQSets, setChatQSets] = useState(null); // 農家の面接の質問集（null=未読込）
+  const [qSending, setQSending] = useState(false);
+  const tmplSwipe = useRef(null); // ＋シートの横スワイプ判定
   // 既読（2026-07-22・第8弾）：相手（counterpart）のchat_reads最終既読時刻。自分の送信でこれ以前のものに「既読」
   const [partnerReadAt, setPartnerReadAt] = useState(null);
   // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
@@ -5596,6 +5601,29 @@ function ChatView({ applicationId, onBack }) {
       if (!error) { setText(""); await load(); }
     } catch {}
     setSending(false);
+  };
+  // ＋シートの質問集タブ（2026-07-23）：農家が自分の面接の質問集をチャットに投函（回答はチャットに残る）
+  useEffect(() => {
+    if (!tmplOpen || isWorkerSide || !myId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("farmer_question_sets").select("*").eq("farmer_id", myId).order("created_at", { ascending: true });
+        if (!cancelled) setChatQSets(data || []);
+      } catch { if (!cancelled) setChatQSets([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [tmplOpen, isWorkerSide, myId]);
+  const sendQSetToChat = async (setId) => {
+    if (qSending) return;
+    setQSending(true);
+    try {
+      const { data, error } = await supabase.rpc("send_interview_questions", { p_application_id: activeAppId, p_set_id: setId });
+      if (error || !data?.ok) { alert("送信に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); setQSending(false); return; }
+      setQSending(false); setTmplOpen(false);
+      await load();
+      try { window.dispatchEvent(new Event("cb:unreadRefresh")); } catch {}
+    } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); setQSending(false); }
   };
   // 既読マーカー（2026-07-22・第8弾）：LINE式に、相手が読んだ自分の最新メッセージ1件にだけ「既読」を出す。
   // partnerReadAt（相手の最終既読時刻）以前に送った自分のメッセージのうち、最後の1件のidを求める
@@ -5868,29 +5896,82 @@ function ChatView({ applicationId, onBack }) {
       ) : (
       <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE", alignItems:"center" }}>
         {/* 定型文（2026-07-22・第8弾）：＋で役割別テンプレシートを開く */}
-        <button onClick={()=>setTmplOpen(true)} aria-label="定型文" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
+        <button onClick={()=>{ setTmplTab("phrase"); setTmplOpen(true); }} aria-label="定型文・質問集" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
         <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") send(); }} placeholder="メッセージを入力" className="field f-sans" style={{ flex:1, fontSize:14 }} />
         <button onClick={send} disabled={sending} className="f-sans" style={{ padding:"10px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{sending?"...":"送信"}</button>
       </div>
       )}
 
-      {/* 定型文シート（2026-07-22・第8弾）：役割別のテンプレをタップで入力欄に挿入（編集して送信可） */}
-      {tmplOpen && (
-        <div onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>定型文</p>
-              <button onClick={()=>setTmplOpen(false)} aria-label="閉じる" style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer" }}>✕</button>
-            </div>
+      {/* ＋シート（2026-07-22 第8弾→2026-07-23 タブ化）：定型文／質問集をタブ＋スワイプで切替。
+          定型文＝タップで入力欄に挿入（編集して送信可）／質問集＝タップでチャットに投函（農家のみ・回答は残る） */}
+      {tmplOpen && (() => {
+        const phrasePanel = (
+          <>
             <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップで入力欄に入ります。送信前に編集できます。</p>
             <div style={{ display:"grid", gap:8 }}>
               {(isWorkerSide ? CHAT_TEMPLATES_WORKER : CHAT_TEMPLATES_FARMER).map(t => (
                 <button key={t} onClick={()=>{ setText(prev => prev.trim() ? (prev.replace(/\s*$/, "") + " " + t) : t); setTmplOpen(false); }} className="f-sans" style={{ textAlign:"left", background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#222", cursor:"pointer", lineHeight:1.6 }}>{t}</button>
               ))}
             </div>
+          </>
+        );
+        const qsetPanel = (
+          <>
+            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップでチャットに【面接の質問】として送ります。回答もチャットに残ります。</p>
+            {chatQSets === null ? (
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中...</p>
+            ) : chatQSets.length === 0 ? (
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 8px", lineHeight:1.7 }}>まだ質問集がありません。<br/>プロフィールの「📋 面接の質問集」から作成できます。</p>
+            ) : (
+              <div style={{ display:"grid", gap:8 }}>
+                {chatQSets.map(s => (
+                  <button key={s.id} disabled={qSending} onClick={()=>sendQSetToChat(s.id)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+                    <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{s.title || "無題の質問集"}</span>
+                    <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(Array.isArray(s.questions) ? s.questions : []).join(" / ") || "質問なし"}</span>
+                  </button>
+                ))}
+                {qSending && <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"4px 0 0" }}>送信中...</p>}
+              </div>
+            )}
+          </>
+        );
+        return (
+        <div onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            {isWorkerSide ? (
+              /* 働き手側：定型文のみ（質問集は農家の機能） */
+              <>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>定型文</p>
+                  <button onClick={()=>setTmplOpen(false)} aria-label="閉じる" style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer" }}>✕</button>
+                </div>
+                {phrasePanel}
+              </>
+            ) : (
+              /* 農家側：定型文／質問集のタブ＋スワイプ */
+              <>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                  <div style={{ display:"flex", gap:6 }}>
+                    {[{ k:"phrase", l:"定型文" }, { k:"qset", l:"質問集" }].map(t => (
+                      <button key={t.k} onClick={()=>setTmplTab(t.k)} className="f-sans" style={{ background:"none", border:"none", cursor:"pointer", padding:"4px 2px 8px", fontSize:15, fontWeight: tmplTab===t.k ? 800 : 600, color: tmplTab===t.k ? "#00A86B" : "#999", borderBottom: tmplTab===t.k ? "2px solid #00A86B" : "2px solid transparent" }}>{t.l}</button>
+                    ))}
+                  </div>
+                  <button onClick={()=>setTmplOpen(false)} aria-label="閉じる" style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer" }}>✕</button>
+                </div>
+                <div style={{ overflow:"hidden" }}
+                  onTouchStart={e=>{ tmplSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+                  onTouchEnd={e=>{ const s = tmplSwipe.current; tmplSwipe.current = null; if (!s) return; const dx = e.changedTouches[0].clientX - s.x; const dy = e.changedTouches[0].clientY - s.y; if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return; if (dx < 0) setTmplTab("qset"); else setTmplTab("phrase"); }}>
+                  <div style={{ display:"flex", width:"200%", transform: tmplTab==="phrase" ? "translateX(0%)" : "translateX(-50%)", transition:"transform .25s ease" }}>
+                    <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:4 }}>{phrasePanel}</div>
+                    <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:4 }}>{qsetPanel}</div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
