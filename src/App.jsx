@@ -774,7 +774,7 @@ input:focus { outline: none; }
 .app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
 .app-header-mobile-tab.active { color: var(--role-accent, #00A86B); font-weight: 600; }
 /* ── モバイル☰の上部浮遊ボタン（2026-07-13 下部バーから移設。fixed＝スクロール追従。
-   下部バーのcb-scroll-hide格納の影響を受けず常時表示） ── */
+   2026-07-24: 下部フッター・切替FABと同じくスクロール（cb-scroll-hide）で下へ格納する） ── */
 .app-header-mobile-float { display: none; }
 @media (max-width: 768px) {
   .app-header-mobile-float {
@@ -787,9 +787,12 @@ input:focus { outline: none; }
     /* 2026-07-16: iOS WebKitでスクロール中(下部バーのtransform格納中)に☰の再描画が
        置き去りになり画面に固定されない事象への対処。自前の合成レイヤーに昇格させる。
        transformは自要素なのでfixedの基準は壊れない（壊すのは祖先のtransform） */
-    transform: translateZ(0);
+    transform: translate3d(0, 0, 0);
     will-change: transform;
+    transition: transform .25s ease;
   }
+  /* スクロール連動の自動格納（2026-07-24）：下部バー(cb-scroll-hide)と同じタイミングで下へ隠す */
+  body.cb-scroll-hide .app-header-mobile-float { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
   body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
 }
