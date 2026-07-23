@@ -686,13 +686,12 @@ input:focus { outline: none; }
 .chat-full { height: calc(100vh - 140px); }
 @supports (height: 100dvh) { .chat-full { height: calc(100dvh - 140px); } }
 @media (max-width: 768px) {
-  /* 下部バー(64px)は表示中に隠れるので、その分もチャットに使う＝画面いっぱい */
   .chat-full {
     margin-top: calc(env(safe-area-inset-top, 0px) + 8px - 68px); /* mainのpadding-top 68pxを打ち消す */
-    height: calc(100vh - env(safe-area-inset-top, 0px) - 8px - env(safe-area-inset-bottom, 0px) - 8px);
+    height: calc(100vh - env(safe-area-inset-top, 0px) - 8px - 64px - env(safe-area-inset-bottom, 0px) - 8px);
   }
   @supports (height: 100dvh) {
-    .chat-full { height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px - env(safe-area-inset-bottom, 0px) - 8px); }
+    .chat-full { height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px - 64px - env(safe-area-inset-bottom, 0px) - 8px); }
   }
 }
 
@@ -986,7 +985,10 @@ input:focus { outline: none; }
 /* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
    チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
 body:has(.chat-full) .site-footer-fixed { display: none !important; }
-body:has(.chat-full) { overflow: hidden; }
+/* ページ側（html/body/main）を動かさない＝スクロールはチャットのメッセージ欄だけに統一。
+   スクロールはhtml(documentElement)で起きるため、bodyだけでなくhtmlも止める（2026-07-22 再修正） */
+html:has(.chat-full), body:has(.chat-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
+body:has(.chat-full) main { overflow: hidden !important; }
 
 /* ── 開催期間カレンダー📅の浮遊ボタン（詳細=応募フッター右上／確認ページ=下部ナビ右上。両ページ同構造） ── */
 .calendar-fab {
@@ -5704,7 +5706,7 @@ function ChatView({ applicationId, onBack }) {
         );
       })()}
 
-      <div ref={msgScrollRef} style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
+      <div ref={msgScrollRef} style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
         {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
         {msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>打ち合わせや面接の連絡は、ここで行えます。</p>
