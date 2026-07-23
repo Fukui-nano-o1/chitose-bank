@@ -4980,6 +4980,10 @@ function CalendarView({ start, end, readOnly = false, onSelect }) {
         })}
       </div>
       {!readOnly && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>終了日を選ばない場合は、1日募集として扱います</p>}
+      {/* 期間募集の予告（2026-07-24）：農家に仕組みを先に伝える。終了日ありの期間求人の時だけ表示 */}
+      {!readOnly && end && start && ymdLocal(end) !== ymdLocal(start) && (
+        <p className="f-sans" style={{ fontSize:11, color:"#0B6B4F", background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:8, padding:"8px 10px", marginTop:8, lineHeight:1.6 }}>期間で募集すると、応募者が「来られる日」を選んで応募します。</p>
+      )}
     </div>
   );
 }
@@ -5436,12 +5440,14 @@ function ChatView({ applicationId, onBack }) {
   };
   const [activeAppId, setActiveAppId] = useState(applicationId);
   const [activeStatus, setActiveStatus] = useState(null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
+  const [activeAvail, setActiveAvail] = useState(null); // 現役応募の来られる日（期間求人・文脈カードで表示・2026-07-24）
   const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
   // 現役応募を切り替える（状態＝採用/確認カード/保険/#N をその応募に合わせる）。求人ページ取得も行う
   const applyActive = async (row) => {
     if (!row) return;
     setActiveAppId(row.id);
     setActiveStatus(row.status);
+    setActiveAvail(row.available_dates ?? null);
     setWorkerConfirmed(!!row.terms_confirmed_worker_at);
     setFarmerConfirmed(!!row.terms_confirmed_farmer_at);
     setInsurancePreparedAt(row.insurance_prepared_at);
@@ -5527,7 +5533,7 @@ function ChatView({ applicationId, onBack }) {
           setIsWorkerSide(iAmWorker);
           // この相手との全応募（新しい順）。現役＝進行中（承認済み〜作業中）で最新→無ければ最新
           const { data: rel } = await supabase.from("applications")
-            .select("id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at")
+            .select("id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at,available_dates")
             .eq(iAmWorker ? "worker_id" : "farmer_id", session.user.id)
             .eq(iAmWorker ? "farmer_id" : "worker_id", partnerId)
             .order("created_at", { ascending: false });
@@ -5719,6 +5725,8 @@ function ChatView({ applicationId, onBack }) {
           </button>
           {ctxOpen && (
             <div style={{ borderTop:"1px solid #E4F0EA", padding:"10px 12px", display:"grid", gap:8 }}>
+              {/* 来られる日（期間求人・応募者が宣言した日程＝すり合わせの起点・2026-07-24） */}
+              <AvailDatesChips value={activeAvail} fs={11} />
               <div style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
                 <span style={{ fontSize:12, color:"#8AA79A", flexShrink:0 }}>内容の確認</span>
                 <span style={{ fontSize:12, fontWeight:700, color: workerConfirmed ? "#00A86B" : "#B0700F", textAlign:"right" }}>{workerConfirmed ? "✓ 相違なし済み" : "未確認"}</span>
@@ -7589,6 +7597,7 @@ function WorkerApplications({ filter, me }) {
                 <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[jobDates[a.job_number]?.crop, jobDates[a.job_number]?.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+                <AvailDatesChips value={a.available_dates} />
                 {/* お仕事の流れ（応募→承認→打合せ・面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-22） */}
                 {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={a} /></div>}
                 {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
@@ -7971,6 +7980,26 @@ const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includ
 const CALENDAR_WD = ["日","月","火","水","木","金","土"];
 const calAddDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
 const calFmtDate = (ymd) => { const [y,m,d] = ymd.split("-").map(Number); return `${m}/${d}(${CALENDAR_WD[new Date(y, m-1, d).getDay()]})`; };
+// 来られる日チップ（応募者カード・返事待ちカード・チャット文脈カード共用・2026-07-24）。
+// value＝applications.available_dates：'any'（期間中いつでもOK・緑）／["YYYY-MM-DD",...]（特定日・列挙）／null（単日=非表示）
+function AvailDatesChips({ value, fs = 12 }) {
+  if (!value) return null;
+  const any = value === "any";
+  const dates = Array.isArray(value) ? value : [];
+  if (!any && dates.length === 0) return null;
+  return (
+    <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", margin:"0 0 8px" }}>
+      <span className="f-sans" style={{ fontSize:fs, color:"#717171", fontWeight:600 }}>来られる日</span>
+      {any ? (
+        <span className="f-sans" style={{ fontSize:fs, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:20, padding:"3px 10px" }}>いつでもOK</span>
+      ) : (
+        dates.slice().sort().map(d => (
+          <span key={d} className="f-sans" style={{ fontSize:fs, fontWeight:700, color:"#0B6B4F", background:"#E6F7EE", border:"1px solid #CDE9DD", borderRadius:20, padding:"3px 10px" }}>{calFmtDate(d)}</span>
+        ))
+      )}
+    </div>
+  );
+}
 
 // #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
 // 紐づく求人の作業日程を予定表（アジェンダ）として表示。日付タップで該当日へスクロール＆ハイライト。
@@ -9109,9 +9138,10 @@ function JobSearchMapView({ onRegister, me }) {
   const doApply = async () => {
     setApplying(true);
     try {
-      const { data, error } = await supabase.rpc("apply_to_job", { p_job_number: selectedJob.id });
+      const { data, error } = await supabase.rpc("apply_to_job", { p_job_number: selectedJob.id, p_available_dates: applyAvailRef.current });
       setApplying(false);
       if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
+      if (data && data.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return; }
       if (data && data.ok) {
         try { if (data.already) sessionStorage.setItem("cb_applyAlready","1"); else sessionStorage.removeItem("cb_applyAlready"); } catch {}
         window.location.hash = "/apply/done";
@@ -9228,7 +9258,21 @@ function JobSearchMapView({ onRegister, me }) {
   // 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照）
   // 応募確認ボックス（2026-07-18）：新規応募はボタン直送信でなく、内容確認のボックスを展開してから
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
-  useEffect(() => { setApplyConfirmOpen(false); }, [selectedJob?.id]);
+  // 応募時の来られる日宣言（2026-07-24）：期間求人（date_end有り・単日でない）だけ、応募シートで日程を選ぶ。
+  // applyAvailRefに最終値（"any"／日付配列／null）を同期的に入れてからhandleApply＝ゲート往復でも保持できる
+  const [applyDates, setApplyDates] = useState([]); // 選択中の特定日（"YYYY-MM-DD"）
+  const applyAvailRef = useRef(null);
+  useEffect(() => { setApplyConfirmOpen(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);
+  const isPeriodJob = !!(selectedJob && selectedJob.dateEndRaw && selectedJob.dateEndRaw !== selectedJob.dateStartRaw);
+  // 期間内の日付を "YYYY-MM-DD" 配列で列挙（開始〜終了・両端含む）
+  const periodDays = (() => {
+    if (!isPeriodJob) return [];
+    const out = []; const [ys, ms, ds] = selectedJob.dateStartRaw.split("-").map(Number);
+    const start = new Date(ys, ms - 1, ds); const end = new Date(selectedJob.dateEndRaw + "T00:00:00");
+    let guard = 0;
+    for (let d = new Date(start); d <= end && guard < 400; d.setDate(d.getDate() + 1), guard++) out.push(ymdLocal(d));
+    return out;
+  })();
   const [signupOpen, setSignupOpen] = useState(false); // 未ログイン画面の文言用（app_settings.signup_open・既定false=招待制）
   useEffect(() => { supabase.rpc("signup_open").then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
   // 訪問者（未ログイン）が応募・いいね・投稿等をタップした時の案内（2026-07-24・隠さず案内する）
@@ -9749,10 +9793,34 @@ function JobSearchMapView({ onRegister, me }) {
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"14px 0 0" }}>
               応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
             </p>
-            <div style={{ display:"flex", gap:8, marginTop:18 }}>
-              <button onClick={()=>setApplyConfirmOpen(false)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
-              <button onClick={()=>{ setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applying ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
-            </div>
+            {isPeriodJob ? (
+              /* 期間求人：来られる日を宣言してから応募（いつでもOK=1タップ／特定日=複数選択） */
+              <div style={{ marginTop:18 }}>
+                <div style={{ height:1, background:"#E5E5E5", margin:"0 0 16px" }} />
+                <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>来られる日を選んでください</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>この求人は期間募集です。来られる日を農家に伝えてから応募します。</p>
+                {/* ⭕ 期間中いつでもOK＝1タップで即応募 */}
+                <button onClick={()=>{ applyAvailRef.current = "any"; setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="f-sans" style={{ width:"100%", padding:"16px", fontSize:16, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:14, cursor:"pointer", marginBottom:16, opacity: applying ? 0.6 : 1 }}>⭕ 期間中いつでもOK</button>
+                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"0 0 12px" }}>または、来られる日を選ぶ</p>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+                  {periodDays.map(d => {
+                    const on = applyDates.includes(d);
+                    return (
+                      <button key={d} onClick={()=>setApplyDates(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d])} className="f-sans" style={{ padding:"9px 12px", fontSize:13, fontWeight:700, borderRadius:20, cursor:"pointer", background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{calFmtDate(d)}</button>
+                    );
+                  })}
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={()=>setApplyConfirmOpen(false)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
+                  <button onClick={()=>{ if (applyDates.length===0) return; applyAvailRef.current = [...applyDates].sort(); setApplyConfirmOpen(false); handleApply(); }} disabled={applying || applyDates.length===0} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (applying || applyDates.length===0) ? 0.5 : 1, cursor: applyDates.length===0 ? "not-allowed" : "pointer" }}>{applying ? "送信中..." : `この日程で応募する${applyDates.length>0 ? `（${applyDates.length}日）` : ""}`}</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", gap:8, marginTop:18 }}>
+                <button onClick={()=>setApplyConfirmOpen(false)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
+                <button onClick={()=>{ applyAvailRef.current = null; setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applying ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -16655,7 +16723,9 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
                   </button>
                 );
               })()}
-              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:12 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+              {/* 来られる日（期間求人・すり合わせの起点・2026-07-24） */}
+              <AvailDatesChips value={a.available_dates} />
               {a.status === "applied" && (
                 <div style={{ display:"flex", gap:8, marginBottom:8 }}>
                   <button onClick={async ()=>{
