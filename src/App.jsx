@@ -5661,7 +5661,7 @@ function ChatView({ applicationId, onBack }) {
               // replaceで履歴を積まない＝←（戻る）が求人切替の履歴を辿らず、ちゃんとチャットから出る
               return (
                 <button key={r.id} onClick={()=>{ if (!isActive) window.location.replace("#/chat/" + r.id); }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
-                  <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>求人 #{r.job_number}</span>
+                  <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>#{r.job_number}</span>
                   <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}{isActive ? "・表示中" : "・開く"}</span>
                 </button>
               );
