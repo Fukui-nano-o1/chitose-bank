@@ -1360,3 +1360,13 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
 DBオブジェクト（dests・records・BoardTab系SECURITY DEFINER関数・RLS）＝DB後始末は別途判断。
 【/#/visit・regi等の恒久URLは無関係・不変】
 ━━━ ここまで ━━━
+
+━━━ 2026-07-24 分割3-A完了：AdminTab系の別ファイル化 ━━━
+components/admin/ 新設：AdminTab.jsx(1,821)／ConsignmentRoom.jsx(454)／AdminBoxRegistryPage.jsx(215)。
+共有ヘルパーを lib/utils へ追加：C(カラーパレット)・uid・toKatakana/toHiragana・MONTHS・cn・man・SURVEY_SOURCES/REASONS。
+LinkifiedText は components/ui へ。App.jsx 14,147→11,620行（分割累計 20,605→11,620・▲44%）。
+残り：3-B（周辺ページ：LoginScreen/AccountHolderForm/WorkerApplications/ChatList/ProfileModal/
+OnboardingModal/WorkerProfileEdit/EmployerProfileEdit）→ 3-C（JobSearchMapView/FarmerDashboard/
+ProfileHub/LandingFlowの巨大4ページ・1ファイル=1ページで中身は原則そのまま移す）。
+━━━ ここまで ━━━
+
