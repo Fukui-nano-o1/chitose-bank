@@ -196,3 +196,19 @@ export function tenureLabel(dateStr) {
   if (rem === 0) return `${years}年`;
   return `${years}年${rem}ヶ月`;
 }
+
+// 未入力の表示は必ずこの関数を通す。記号を変えたい場合はここだけ変更する
+export const EMPTY_MARK = "ー";
+export const disp = (v) => {
+  if (v === null || v === undefined) return EMPTY_MARK;
+  const s = String(v).trim();
+  return s === "" ? EMPTY_MARK : s;
+};
+
+// 最寄り駅からの移動時間ラベル。「駅」の有無を正規化して「○○駅から◯分」に統一（求人詳細・農家プレビュー共通）
+export function stationLabel(station, commute) {
+  const s = (station || "").trim();
+  if (!s) return commute || "";
+  const withEki = s.endsWith("駅") ? s : s + "駅";
+  return `${withEki}から${commute || ""}`.trim();
+}

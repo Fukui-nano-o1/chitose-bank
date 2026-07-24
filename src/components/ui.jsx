@@ -1,5 +1,5 @@
 // 汎用UIアトム（分割・段階2後半・2026-07-24）：リボン帯・長文の省略表示。
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
 export function StatusRibbon({ label, color }) {
@@ -81,3 +81,90 @@ export const Avatar = ({ url, name, size = 40, ring, bg }) => {
         {(name||"？").replace(/\s/g,"").slice(0,2)}
       </div>;
 };
+
+// ── Carousel ─────────────────────────────────────────────────
+export function Carousel({ children, style, className, wrapperStyle, onScroll, scrollerRef }) {
+  const ref = useRef(null);
+  const [atLeft, setAtLeft] = useState(true);
+  const [atRight, setAtRight] = useState(true);
+
+  const updatePos = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setAtLeft(el.scrollLeft <= 1);
+    setAtRight(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    return () => window.removeEventListener('resize', updatePos);
+  }, [updatePos]);
+
+  useEffect(() => { updatePos(); });
+
+  const scroll = dir => ref.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
+
+  const handleScroll = e => { updatePos(); onScroll && onScroll(e); };
+
+  const btnStyle = {
+    position:'absolute', top:'50%', transform:'translateY(-50%)',
+    width:36, height:36, borderRadius:'50%',
+    background:'#fff', border:'1px solid #EBEBEB',
+    boxShadow:'0 2px 4px rgba(0,0,0,0.1)',
+    cursor:'pointer', fontSize:18,
+    display:'flex', alignItems:'center', justifyContent:'center',
+    zIndex:2, padding:0, lineHeight:1,
+  };
+
+  return (
+    <div style={{ position:'relative', ...wrapperStyle }}>
+      {!atLeft && (
+        <button onClick={() => scroll(-1)} className="f-sans"
+          style={{ ...btnStyle, left:-16 }}>‹</button>
+      )}
+      {/* touchAction:pan-x pan-y（2026-07-16）：横ドラッグ=カルーセル／縦ドラッグ=ページスクロールに変換。
+          最初の指の向きでブラウザが軸を1つに確定するため、斜めに両方動く事故は起きない */}
+      <div ref={(el)=>{ ref.current = el; if (scrollerRef) scrollerRef.current = el; }} className={className} style={{ touchAction:"pan-x pan-y", overscrollBehaviorX:"contain", overflowY:"hidden", ...style }} onScroll={handleScroll}>
+        {children}
+      </div>
+      {!atRight && (
+        <button onClick={() => scroll(1)} className="f-sans"
+          style={{ ...btnStyle, right:-16 }}>›</button>
+      )}
+    </div>
+  );
+}
+
+// ── AdminTab ─────────────────────────────────────────────────
+// はじめてOK・リピート即決バッジ（2026-07-17）：タップで1〜2行の説明コメントを展開（もう一度タップで閉じる）。
+// 詳細・確認・プレビューの3画面共通。flexWrap行内でコメント(width:100%)が次の行に折り返して出る構造
+const JOB_FLAG_INFO = {
+  beginner: { icon:"🌱", label:"はじめてOK",   bg:"#E6F7EF", fg:"#00A86B", desc:"農業がはじめての方も歓迎の求人です。経験がなくても応募できます。" },
+  expert:   { icon:"💪", label:"経験者優遇",   bg:"#E8F0FE", fg:"#1A56C5", desc:"農作業の経験がある方を優先したい求人です。経験の浅い方も応募はできます。承認するかどうかは農家が判断します。" },
+  repeat:   { icon:"🌟", label:"リピート即決", bg:"#FFF8E7", fg:"#8A6D1D", desc:"以前この農家で働き、農家が「また呼びたい」とお気に入り登録した方だけが、再応募すると自動で承認されます（承認は採用ではありません。採用は打ち合わせ・面接のあとに決まります）。" },
+};
+
+export function JobFlagBadges({ beginner, expert, repeat }) {
+  const [open, setOpen] = useState(null); // "beginner"|"expert"|"repeat"|null
+  const keys = [beginner && "beginner", expert && "expert", repeat && "repeat"].filter(Boolean);
+  if (keys.length === 0) return null;
+  return (
+    <>
+      {keys.map(k => {
+        const b = JOB_FLAG_INFO[k];
+        return (
+          <button key={k} onClick={()=>setOpen(o => (o === k ? null : k))} className="f-sans"
+            style={{ fontSize:12, fontWeight:700, color:b.fg, background:b.bg, padding:"4px 12px", borderRadius:20, border:"none", cursor:"pointer" }}>
+            {b.icon} {b.label} {open === k ? "▴" : "▾"}
+          </button>
+        );
+      })}
+      {open && (
+        <span className="f-sans fade-in" style={{ display:"block", width:"100%", fontSize:12, color:JOB_FLAG_INFO[open].fg, background:JOB_FLAG_INFO[open].bg, borderRadius:10, padding:"8px 12px", lineHeight:1.6 }}>
+          {JOB_FLAG_INFO[open].desc}
+        </span>
+      )}
+    </>
+  );
+}

@@ -1,9 +1,10 @@
 import { supabase } from "./lib/supabase";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel } from "./lib/utils";
+import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar } from "./components/ui";
+import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges } from "./components/ui";
 import { CalendarView } from "./components/CalendarView";
 import { JobCard } from "./components/JobCard";
+import { JobLocationMap } from "./components/JobLocationMap";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 import { ToggleSwitch } from "./components/ToggleSwitch";
@@ -71,13 +72,6 @@ const peekApplyReturn  = () => { try { return localStorage.getItem(APPLY_RETURN_
 const setApplyReturn   = (n) => { try { localStorage.setItem(APPLY_RETURN_KEY, String(n)); } catch {} };
 const clearApplyReturn = () => { try { localStorage.removeItem(APPLY_RETURN_KEY); } catch {} };
 
-// 未入力の表示は必ずこの関数を通す。記号を変えたい場合はここだけ変更する
-const EMPTY_MARK = "ー";
-const disp = (v) => {
-  if (v === null || v === undefined) return EMPTY_MARK;
-  const s = String(v).trim();
-  return s === "" ? EMPTY_MARK : s;
-};
 
 // 国土地理院 住所検索API（APIキー不要・無料）
 // 町域レベルの重心を返す。番地を渡してはならない。
@@ -1630,59 +1624,6 @@ function MarketChart({ marketStats, visibleCrops, activeMetrics }) {
   );
 }
 
-// ── Carousel ─────────────────────────────────────────────────
-function Carousel({ children, style, className, wrapperStyle, onScroll, scrollerRef }) {
-  const ref = useRef(null);
-  const [atLeft, setAtLeft] = useState(true);
-  const [atRight, setAtRight] = useState(true);
-
-  const updatePos = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    setAtLeft(el.scrollLeft <= 1);
-    setAtRight(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
-  }, []);
-
-  useEffect(() => {
-    updatePos();
-    window.addEventListener('resize', updatePos);
-    return () => window.removeEventListener('resize', updatePos);
-  }, [updatePos]);
-
-  useEffect(() => { updatePos(); });
-
-  const scroll = dir => ref.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
-
-  const handleScroll = e => { updatePos(); onScroll && onScroll(e); };
-
-  const btnStyle = {
-    position:'absolute', top:'50%', transform:'translateY(-50%)',
-    width:36, height:36, borderRadius:'50%',
-    background:'#fff', border:'1px solid #EBEBEB',
-    boxShadow:'0 2px 4px rgba(0,0,0,0.1)',
-    cursor:'pointer', fontSize:18,
-    display:'flex', alignItems:'center', justifyContent:'center',
-    zIndex:2, padding:0, lineHeight:1,
-  };
-
-  return (
-    <div style={{ position:'relative', ...wrapperStyle }}>
-      {!atLeft && (
-        <button onClick={() => scroll(-1)} className="f-sans"
-          style={{ ...btnStyle, left:-16 }}>‹</button>
-      )}
-      {/* touchAction:pan-x pan-y（2026-07-16）：横ドラッグ=カルーセル／縦ドラッグ=ページスクロールに変換。
-          最初の指の向きでブラウザが軸を1つに確定するため、斜めに両方動く事故は起きない */}
-      <div ref={(el)=>{ ref.current = el; if (scrollerRef) scrollerRef.current = el; }} className={className} style={{ touchAction:"pan-x pan-y", overscrollBehaviorX:"contain", overflowY:"hidden", ...style }} onScroll={handleScroll}>
-        {children}
-      </div>
-      {!atRight && (
-        <button onClick={() => scroll(1)} className="f-sans"
-          style={{ ...btnStyle, right:-16 }}>›</button>
-      )}
-    </div>
-  );
-}
 
 // ── BoardTab ─────────────────────────────────────────────────
 function BoardTab({ farmers, destApproved, records, userLevel = 2, onLogin, me, onGoPlan, onShowConstitution, onShowTerms, onShowPrivacy }) {
@@ -3837,13 +3778,6 @@ function calcMaxPay(job) {
 
 
 
-// 最寄り駅からの移動時間ラベル。「駅」の有無を正規化して「○○駅から◯分」に統一（求人詳細・農家プレビュー共通）
-function stationLabel(station, commute) {
-  const s = (station || "").trim();
-  if (!s) return commute || "";
-  const withEki = s.endsWith("駅") ? s : s + "駅";
-  return `${withEki}から${commute || ""}`.trim();
-}
 
 // 承認され当事者間のやり取りが可能になった段階以降のapplications.status一覧（completed含む）
 const APPROVED_PLUS_STATUSES = ["approved","meeting","interview","contracted","working","completed"];
@@ -8486,81 +8420,6 @@ function buildGoogleMapsUrl(region) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
-// 集合場所の地図。円のみを描き、ピンは立てない。
-// 座標は町域レベルの重心であり、番地は特定できない。
-function JobLocationMap({ lat, lng, radius, label }) {
-  const ref = useRef(null);
-  const mapRef = useRef(null);
-
-  useEffect(() => {
-    try {
-      if (!ref.current) return;
-      if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
-
-      const r = Number.isFinite(radius) && radius > 0 ? radius : 800;
-
-      // 操作を全て無効化する。位置を示すための図であり、地図アプリではない。
-      // モバイルでのスクロール奪取を構造的に防ぐ。
-      const map = L.map(ref.current, {
-        dragging: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false,
-        touchZoom: false,
-        boxZoom: false,
-        keyboard: false,
-        zoomControl: false,
-        attributionControl: true,
-      });
-      mapRef.current = map;
-      map.setView([lat, lng], 14, { animate: false });
-
-      L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
-        attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">国土地理院</a>',
-        maxZoom: 18,
-      }).addTo(map);
-
-      L.circle([lat, lng], {
-        radius: r,
-        color: "#00A86B",
-        weight: 2,
-        fillColor: "#00A86B",
-        fillOpacity: 0.15,
-      }).addTo(map);
-
-      // animate:false＝ズームアニメ中に地図が破棄されると _leaflet_pos クラッシュ（2026-07-16真っ暗事故）が起きるため必須
-      map.fitBounds(L.latLng(lat, lng).toBounds(r * 2), { padding: [16, 16], animate: false });
-    } catch (e) {
-      console.error("JobLocationMap:", e);
-    }
-
-    return () => { try { mapRef.current?.remove(); } catch {} mapRef.current = null; };
-  }, [lat, lng, radius]);
-
-  if (lat == null || lng == null) {
-    return (
-      <div className="f-sans" style={{ padding:"24px", textAlign:"center", background:"#F7F7F7", borderRadius:12, fontSize:13, color:"#717171" }}>
-        地図は準備中です
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {/* position:relative+zIndex:0でLeaflet内部のz-index(400〜1000)をこのボックス内に閉じ込める。
-          無いと掲載前確認モーダル等(z-index:200)を地図が突き抜けて覆う（2026-07-14修正） */}
-      <div style={{ position:"relative" }}>
-        <div ref={ref} style={{ width:"100%", height:"clamp(240px, 42vw, 420px)", borderRadius:12, overflow:"hidden", border:"1px solid #EBEBEB", position:"relative", zIndex:0 }} />
-        {/* 注記は地図の高さの中央にオーバーレイ（2026-07-16） */}
-        <span className="f-sans" style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%, -50%)", zIndex:1, pointerEvents:"none", background:"rgba(255,255,255,0.92)", borderRadius:20, padding:"6px 14px", fontSize:11, fontWeight:600, color:"#717171", whiteSpace:"nowrap", boxShadow:"0 1px 4px rgba(0,0,0,0.12)" }}>本名・詳細住所は公開しません。</span>
-      </div>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
-        {label ? label + "のおおよその範囲です。" : "おおよその範囲です。"}
-        正確な集合場所は、応募を承認した方にのみお伝えします
-      </p>
-    </div>
-  );
-}
 
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
@@ -11234,37 +11093,6 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
 // 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
 const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い","差別的な条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","表現が不明瞭","写真が不適切","その他"];
 
-// ── AdminTab ─────────────────────────────────────────────────
-// はじめてOK・リピート即決バッジ（2026-07-17）：タップで1〜2行の説明コメントを展開（もう一度タップで閉じる）。
-// 詳細・確認・プレビューの3画面共通。flexWrap行内でコメント(width:100%)が次の行に折り返して出る構造
-const JOB_FLAG_INFO = {
-  beginner: { icon:"🌱", label:"はじめてOK",   bg:"#E6F7EF", fg:"#00A86B", desc:"農業がはじめての方も歓迎の求人です。経験がなくても応募できます。" },
-  expert:   { icon:"💪", label:"経験者優遇",   bg:"#E8F0FE", fg:"#1A56C5", desc:"農作業の経験がある方を優先したい求人です。経験の浅い方も応募はできます。承認するかどうかは農家が判断します。" },
-  repeat:   { icon:"🌟", label:"リピート即決", bg:"#FFF8E7", fg:"#8A6D1D", desc:"以前この農家で働き、農家が「また呼びたい」とお気に入り登録した方だけが、再応募すると自動で承認されます（承認は採用ではありません。採用は打ち合わせ・面接のあとに決まります）。" },
-};
-function JobFlagBadges({ beginner, expert, repeat }) {
-  const [open, setOpen] = useState(null); // "beginner"|"expert"|"repeat"|null
-  const keys = [beginner && "beginner", expert && "expert", repeat && "repeat"].filter(Boolean);
-  if (keys.length === 0) return null;
-  return (
-    <>
-      {keys.map(k => {
-        const b = JOB_FLAG_INFO[k];
-        return (
-          <button key={k} onClick={()=>setOpen(o => (o === k ? null : k))} className="f-sans"
-            style={{ fontSize:12, fontWeight:700, color:b.fg, background:b.bg, padding:"4px 12px", borderRadius:20, border:"none", cursor:"pointer" }}>
-            {b.icon} {b.label} {open === k ? "▴" : "▾"}
-          </button>
-        );
-      })}
-      {open && (
-        <span className="f-sans fade-in" style={{ display:"block", width:"100%", fontSize:12, color:JOB_FLAG_INFO[open].fg, background:JOB_FLAG_INFO[open].bg, borderRadius:10, padding:"8px 12px", lineHeight:1.6 }}>
-          {JOB_FLAG_INFO[open].desc}
-        </span>
-      )}
-    </>
-  );
-}
 
 // お知らせ規定（2026-07-17追加）：タイトルとリンクは頭文字から順に1文字ずつ上へジャンプし、
 // 尻の文字まで届いたら約2秒おいて先頭からループする。
