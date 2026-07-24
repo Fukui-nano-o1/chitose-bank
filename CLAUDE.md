@@ -1330,8 +1330,11 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
 【段階2・後半進行中（2026-07-24〜・所有権=クロードチャット側）】切り出し済み追加：
   components/ui.jsx(StatusRibbon/StatusRibbonLeft/ExpandableText/DangerItem/Avatar※bg含む現行props)／
   components/CalendarView.jsx。payLabel は lib/utils へ。App.jsx 19059行→18863行
+【段階2・後半つづき（2026-07-24）】JobCardセット完了：dateRangeLabel/mapJobPublicRow/CROP_OPTIONS→lib/utils、
+  components/JobCard.jsx、components/SavedJobsView.jsx。lintゲートがJobCardのCROP_OPTIONS未定義参照を
+  検出→即修正（ゲートの狙いどおり動作）。App.jsx 18863行→約18650行
 【段階2・残り】MyCalendar（AdminJobPreview依存so後回し＝循環import回避）／ChatView（大物・依存多）／
-  SavedJobsView（JobCard+mapJobPublicRow依存so、JobCard切り出しとセットで）／WorkerTrustCard系 など。手順＝①部品の依存をgrepで洗う
+  WorkerTrustCard系 など。手順＝①部品の依存をgrepで洗う
   ②新ファイルへ移動+export ③App.jsxにimport ④build(lintゲート) ⑤commit。1部品=1コミット厳守
 【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
   相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認
