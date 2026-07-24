@@ -1336,7 +1336,12 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
 【段階2・後半つづき2（2026-07-24）】信頼カード完了：components/TrustCards.jsx
   (WorkerTrustCard/FarmerTrustCard)。付随ヘルパー(WORKER_DECLARATIONS/yearMonthLabel/farmHostQa/
   INTERACTION_STYLE_OPTIONS/interactionStyleLabel/tenureLabel)はlib/utilsへ。App.jsx→約18420行
-【段階2・残り】MyCalendar（AdminJobPreview依存so後回し＝循環import回避）／ChatView（大物・依存多）。手順＝①部品の依存をgrepで洗う
+【大物①完了（2026-07-24・4コミット）】AdminJobPreview(371行)→components/AdminJobPreview.jsx、
+  MyCalendar(296行)→components/MyCalendar.jsx（AdminJobPreviewを正方向import＝循環なし）。
+  前提依存も整理：disp/EMPTY_MARK/stationLabel/CALENDAR_STATUS_LABEL/COLOR→lib/utils、
+  Carousel/JobFlagBadges(+JOB_FLAG_INFO)/NoticeJumpText(+NOTICE_JUMP_WAVE)→components/ui、
+  JobLocationMap→components/JobLocationMap.jsx。App.jsx→約17300行
+【段階2・残り】ChatView（大物・依存多・最後の1つ）。手順＝①部品の依存をgrepで洗う
   ②新ファイルへ移動+export ③App.jsxにimport ④build(lintゲート) ⑤commit。1部品=1コミット厳守
 【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
   相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認
