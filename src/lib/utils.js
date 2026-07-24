@@ -243,3 +243,65 @@ export const CHAT_TEMPLATES_WORKER = [
 // きっかけアンケート（初回いいね時・2026-07-24）：Q1どこで知ったか（単一）、Q2どう使いたいか（複数）
 export const SURVEY_SOURCES = ["定例会・イベントで", "知人・家族の紹介", "冊子・チラシのQRから", "SNS・ネット検索", "農家さんから聞いた", "その他"];
 export const SURVEY_REASONS = ["収入を得たい", "農業を経験してみたい", "繁忙期の人手がほしい", "地域の人とつながりたい", "空いた時間を活かしたい", "その他"];
+
+// カラーパレット（旧デザインシステム・App全域とadmin系で使用）
+// ══════════════════════════════════════════════════════════
+// DESIGN SYSTEM — 「台帳の美学」
+// 和紙と墨、金泥で書かれた帳簿を現代に翻訳する
+// ══════════════════════════════════════════════════════════
+export const C = {
+  // ── New design system ──
+  bg:           "#FFFFFF",
+  bgSoft:       "#F7F7F7",
+  card:         "#FFFFFF",
+  text:         "#222222",
+  textSub:      "#717171",
+  textLight:    "#B0B0B0",
+  border:       "#EBEBEB",
+  accent:       "#00A86B",
+  accentLight:  "#E6F7EF",
+  danger:       "#E24B4A",
+  dangerLight:  "#FCEBEB",
+  warning:      "#F5A623",
+  warningLight: "#FEF3E2",
+  // ── Semantic aliases (backwards compat) ──
+  gold:    "#F5A623",
+  goldLt:  "#F7B84B",
+  goldPl:  "#FEF3E2",
+  goldDim: "#B87A1A",
+  bamboo:  "#00A86B",
+  bambooL: "#2DC28A",
+  bambooPl:"#E6F7EF",
+  shu:     "#E24B4A",
+  shuPl:   "#FCEBEB",
+  ink:     "#222222",
+  mid:     "#717171",
+  dim:     "#717171",
+  ghost:   "#B0B0B0",
+  rule:    "#EBEBEB",
+  ruleD:   "#EBEBEB",
+  // ── Deprecated dark colors → light equivalents ──
+  void:    "#F7F7F7",
+  deep:    "#FFFFFF",
+  bark:    "#222222",
+  shadow:  "#F7F7F7",
+  washi:   "#FFFFFF",
+  cream:   "#FFFFFF",
+  ivory:   "#F7F7F7",
+  pale:    "#F7F7F7",
+};
+
+export function uid(){ return Math.random().toString(36).slice(2,9); }
+
+export function toKatakana(str) {
+  return str.replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+}
+
+export function toHiragana(str) {
+  return str.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
+
+// 月ラベル・数値表記（cn=桁区切り・man=万表記）
+export const MONTHS    = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+export const cn  = n => Math.round(n).toLocaleString("ja-JP");
+export const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/1000)/10).toFixed(1)+"万":cn(a); };
