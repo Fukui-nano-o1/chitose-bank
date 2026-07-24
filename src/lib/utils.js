@@ -52,3 +52,8 @@ export const INSURANCE_ITEMS = [
   { k:"considering",     label:"これから準備する",               chip:"これから準備予定" },
 ];
 
+
+// 役割カラー（第11弾）：目印限定。働き手=橙／農家=緑。ブランド緑CTAは不変
+export const ROLE_ORANGE = "#F76B1C";      // 働き手モードの目印色（枠・チップ背景・ナビ・アクセントバー）。白文字とのコントラストは緑CTAと同等
+export const ROLE_ORANGE_INK = "#B54A0E";  // 小さい橙テキスト用の濃色（生成り背景でも読める・コントラスト約5:1）
+export const ROLE_GREEN = "#00A86B";       // 農家モードの目印色（ブランド緑と同色）
