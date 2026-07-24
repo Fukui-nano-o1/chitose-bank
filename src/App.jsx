@@ -4,6 +4,7 @@ import { ToggleSwitch } from "./components/ToggleSwitch";
 import { CSS } from "./appStyles";
 import { ContentQTabs, JobQuestions } from "./components/JobQuestions";
 import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/VisitAndInsurance";
+import { AgreedDatesRow, AvailDatesChips } from "./components/DateChips";
 
 // ── プッシュ通知（Web Push・2026-07-19）───────────────────────────
 // iOSは「ホーム画面に追加したPWA（standalone）」のみ対応。Safariタブでは購読不可。
@@ -6849,34 +6850,6 @@ function WorkerApplications({ filter, me }) {
 
 const CALENDAR_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
 const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includes(s) ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="completed" ? {bg:"#F3F3F3",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"});
-// 働く日（確定）行（応募者カード・返事待ちカード・チャット文脈カード・確認カード共用・2026-07-24）。
-// value＝applications.agreed_dates：["YYYY-MM-DD",...]（農家が確定した働く日・濃い緑）／null（未確定=非表示）
-function AgreedDatesRow({ value, fs = 12 }) {
-  if (!Array.isArray(value) || value.length === 0) return null;
-  return (
-    <div className="f-sans" style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", margin:"0 0 8px" }}>
-      <span style={{ fontSize:fs, color:"#0B6B4F", fontWeight:700 }}>📅 働く日</span>
-      {value.slice().sort().map(d => (
-        <span key={d} style={{ fontSize:fs, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:20, padding:"3px 10px" }}>{calFmtDate(d)}</span>
-      ))}
-    </div>
-  );
-}
-// 来られる日チップ（応募者カード・返事待ちカード・チャット文脈カード共用・2026-07-24）。
-// value＝applications.available_dates：["YYYY-MM-DD",...]（特定日・列挙）のみ表示。
-// 'any'（期間中いつでもOK）は非表示（2026-07-24たきと指示：全期間working前提so表示不要）。null（単日）も非表示
-function AvailDatesChips({ value, fs = 12 }) {
-  const dates = Array.isArray(value) ? value : [];
-  if (dates.length === 0) return null;
-  return (
-    <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", margin:"0 0 8px" }}>
-      <span className="f-sans" style={{ fontSize:fs, color:"#717171", fontWeight:600 }}>来られる日</span>
-      {dates.slice().sort().map(d => (
-        <span key={d} className="f-sans" style={{ fontSize:fs, fontWeight:700, color:"#0B6B4F", background:"#E6F7EE", border:"1px solid #CDE9DD", borderRadius:20, padding:"3px 10px" }}>{calFmtDate(d)}</span>
-      ))}
-    </div>
-  );
-}
 
 // #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
 // 紐づく求人の作業日程を予定表（アジェンダ）として表示。日付タップで該当日へスクロール＆ハイライト。
