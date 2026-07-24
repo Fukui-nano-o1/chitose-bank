@@ -216,3 +216,25 @@ export function stationLabel(station, commute) {
 // カレンダーの応募状態ラベル/色（MyCalendar・今日ページ系で共用）
 export const CALENDAR_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
 export const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includes(s) ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="completed" ? {bg:"#F3F3F3",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"});
+
+// ── チャット定数（ChatView・応募者カード・今日ページ等で共用） ──
+// チャット可能な段階（承認以降）のapplicationsを一覧表示。自分がworker/farmerどちらの当事者でも拾う
+export const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","working"];
+// チャット一覧の表示対象（2026-07-19）：完了後もスレッドを残す＝履歴として双方の確認が取れる状態を保つ。
+// 打刻・緊急連絡など「進行中だけの操作」の判定はCHAT_ELIGIBLE_STATUSESのまま変えない
+// applied=応募直後から相手とチャットで繋がる（2026-07-19）。rejected=見送りの自動返信を読めるよう履歴として残す
+export const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected"];
+export const CHAT_STATUS_LABEL = { applied:"承認待ち", approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了", rejected:"見送り" };
+// 定型文（2026-07-22・第8弾）：チャット入力欄の＋から役割別に挿入。「何を書けばいいか分からない」摩擦を消す
+export const CHAT_TEMPLATES_FARMER = [
+  "承認しました。日程のご相談をお願いします",
+  "集合場所と持ち物は確認カードのとおりです",
+  "当日はよろしくお願いします",
+  "その日は都合が悪くなりました。別の日はいかがですか",
+];
+export const CHAT_TEMPLATES_WORKER = [
+  "はじめまして。よろしくお願いします",
+  "集合場所を教えてください",
+  "持ち物はこれで大丈夫ですか？",
+  "本日はありがとうございました",
+];

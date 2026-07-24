@@ -1,5 +1,6 @@
 import { supabase } from "./lib/supabase";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR } from "./lib/utils";
+import { openEmployerPreview, openWorkerPreview } from "./lib/previewBus";
+import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_STATUS_LABEL, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
 import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText } from "./components/ui";
 import { CalendarView } from "./components/CalendarView";
@@ -4534,26 +4535,6 @@ function ChatView({ applicationId, onBack }) {
   );
 }
 
-// チャット可能な段階（承認以降）のapplicationsを一覧表示。自分がworker/farmerどちらの当事者でも拾う
-const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","working"];
-// チャット一覧の表示対象（2026-07-19）：完了後もスレッドを残す＝履歴として双方の確認が取れる状態を保つ。
-// 打刻・緊急連絡など「進行中だけの操作」の判定はCHAT_ELIGIBLE_STATUSESのまま変えない
-// applied=応募直後から相手とチャットで繋がる（2026-07-19）。rejected=見送りの自動返信を読めるよう履歴として残す
-const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected"];
-const CHAT_STATUS_LABEL = { applied:"承認待ち", approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了", rejected:"見送り" };
-// 定型文（2026-07-22・第8弾）：チャット入力欄の＋から役割別に挿入。「何を書けばいいか分からない」摩擦を消す
-const CHAT_TEMPLATES_FARMER = [
-  "承認しました。日程のご相談をお願いします",
-  "集合場所と持ち物は確認カードのとおりです",
-  "当日はよろしくお願いします",
-  "その日は都合が悪くなりました。別の日はいかがですか",
-];
-const CHAT_TEMPLATES_WORKER = [
-  "はじめまして。よろしくお願いします",
-  "集合場所を教えてください",
-  "持ち物はこれで大丈夫ですか？",
-  "本日はありがとうございました",
-];
 // チャット一覧の直近スナップショット（2026-07-22）：チャットから戻った時にスピナーを出さず即表示し、
 // 裏で静かに更新する（リロード感の解消）。モジュールレベルなので再マウントをまたいで生き残る
 let CHAT_LIST_CACHE = null; // { rows, unreadMap, initialsMap }
@@ -4898,15 +4879,6 @@ function MyReviewsOfWorker({ workerId }) {
   );
 }
 
-// 働き手プレビューの全域ボックス（2026-07-19）：どの画面の働き手アイコンからでも
-// openWorkerPreview(worker_id) で展開できる。中身はまた呼びたいリスト詳細と同じ
-// （WorkerTrustCard＋Q&A＋あなたの評価）。Appルートに1つだけマウントし、イベントで開く
-// 雇い手プレビューの全域ボックス（2026-07-19）：どの画面の雇い手アイコンからでも
-// openEmployerPreview(farmer_id) で展開できる。中身は農園紹介モーダルと同系
-// （FarmerTrustCard＋待遇バッジ＋農園紹介のお題）。取得列は公開用に限定（place_*住所・texts_pendingは読まない）
-function openEmployerPreview(farmerId) {
-  if (farmerId) window.dispatchEvent(new CustomEvent("cb:openEmployerPreview", { detail: farmerId }));
-}
 function EmployerPreviewSheet() {
   const [st, setSt] = useState(null); // {farmer_id, loading, profile, trust}
   useEffect(() => {
@@ -4971,9 +4943,6 @@ function EmployerPreviewSheet() {
   );
 }
 
-function openWorkerPreview(workerId) {
-  if (workerId) window.dispatchEvent(new CustomEvent("cb:openWorkerPreview", { detail: workerId }));
-}
 // アバターのアップロード（通信断耐性・2026-07-19）：iOS Safariでは応答だけ失われて「Load failed」に
 // なっても実際にはサーバー保存済みのことがある（実事例：2026-07-19 働き手アイコン）。
 // 1回リトライ→それでも失敗なら実物の存在確認で救済する。呼び出し前に旧ファイルは掃除済みの前提
