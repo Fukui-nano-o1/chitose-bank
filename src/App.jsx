@@ -6751,6 +6751,12 @@ function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpe
           公開中：{trust.open_jobs}件{onTapOpenJobs ? " →" : ""}
         </p>
       )}
+      {/* 受け入れ中＝進行中求人への応募の現在地（応募→承認→採用）。集計値のみ・誰かは出さない */}
+      {okTrust && (trust.active_applied || 0) > 0 && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>
+          受け入れ中：応募{trust.active_applied}件・承認{trust.active_approved || 0}件・採用{trust.active_hired || 0}人
+        </p>
+      )}
       {okTrust && (trust.ended_jobs || 0) > 0 && (
         <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapExperience ? "#00A86B" : "#717171", fontWeight: onTapExperience ? 600 : 400, margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
           実績：{trust.ended_jobs}件{onTapExperience ? " →" : ""}
