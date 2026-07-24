@@ -57,3 +57,6 @@ export const INSURANCE_ITEMS = [
 export const ROLE_ORANGE = "#F76B1C";      // 働き手モードの目印色（枠・チップ背景・ナビ・アクセントバー）。白文字とのコントラストは緑CTAと同等
 export const ROLE_ORANGE_INK = "#B54A0E";  // 小さい橙テキスト用の濃色（生成り背景でも読める・コントラスト約5:1）
 export const ROLE_GREEN = "#00A86B";       // 農家モードの目印色（ブランド緑と同色）
+
+// 給与表示ラベル（時給/日給）。JobSearchMapView・FarmerDashboard共通
+export function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`; }

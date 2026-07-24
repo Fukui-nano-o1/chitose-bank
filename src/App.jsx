@@ -1,6 +1,7 @@
 import { supabase } from "./lib/supabase";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN } from "./lib/utils";
+import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
+import { StatusRibbon, StatusRibbonLeft, ExpandableText } from "./components/ui";
 import { ToggleSwitch } from "./components/ToggleSwitch";
 import { CSS } from "./appStyles";
 import { ContentQTabs, JobQuestions } from "./components/JobQuestions";
@@ -3971,26 +3972,6 @@ function CalendarView({ start, end, readOnly = false, onSelect }) {
   );
 }
 
-// 給与表示ラベル（時給/日給）。JobSearchMapView・FarmerDashboard共通
-function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`; }
-
-// メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
-function StatusRibbon({ label, color }) {
-  return (
-    <div style={{ position:"absolute", top:0, right:0, width:64, height:64, overflow:"hidden", pointerEvents:"none" }}>
-      <span className="f-sans" style={{ position:"absolute", top:12, right:-30, transform:"rotate(45deg)", width:110, textAlign:"center", background:color, color:"#fff", fontSize:10, fontWeight:800, padding:"3px 0", boxShadow:"0 1px 4px rgba(0,0,0,0.25)" }}>{label}</span>
-    </div>
-  );
-}
-
-// 左上帯（新着用・2026-07-16）：StatusRibbonの左右反転版。白文字・赤帯で使用
-function StatusRibbonLeft({ label, color }) {
-  return (
-    <div style={{ position:"absolute", top:0, left:0, width:64, height:64, overflow:"hidden", pointerEvents:"none", zIndex:2 }}>
-      <span className="f-sans" style={{ position:"absolute", top:12, left:-30, transform:"rotate(-45deg)", width:110, textAlign:"center", background:color, color:"#fff", fontSize:10, fontWeight:800, padding:"3px 0", boxShadow:"0 1px 4px rgba(0,0,0,0.25)" }}>{label}</span>
-    </div>
-  );
-}
 
 // 危険項目の表示（詳細・確認・プレビュー共通・2026-07-16）：
 // タイトル=写真の上・説明=写真の内部（1枚目にグラデ帯）・全て中央配置。写真なしは⚠️色ボックス内に説明
@@ -5213,25 +5194,6 @@ function yearMonthLabel(dateStr) {
 // 15秒カード（プレビュー最上部・農家側応募者カードで共通利用）。値が無い項目は非表示
 // onEditItem（任意）: 本人プレビュー用。渡すと各項目がタップ可能になり、対応する編集ボックスのキーを返す。
 // 農家側（応募者カード等）は渡さない＝従来どおり表示専用
-// 長文プレビュー：…で省略し、該当要素のタップで全文表示（雇い手/働き手プレビューの自己紹介など・2026-07-23）。
-// 親がボタン（カード全体タップ）でも展開できるよう、クリックは伝播を止める。
-function ExpandableText({ text, limit = 100, style }) {
-  const [open, setOpen] = useState(false);
-  const s = (text == null ? "" : String(text));
-  if (!s) return null;
-  const truncated = s.length > limit;
-  return (
-    <p
-      onClick={truncated ? (e) => { e.stopPropagation(); e.preventDefault(); setOpen(v => !v); } : undefined}
-      role={truncated ? "button" : undefined}
-      className="f-sans"
-      style={{ whiteSpace:"pre-wrap", ...style, ...(truncated ? { cursor:"pointer" } : {}) }}
-    >
-      {open || !truncated ? s : s.slice(0, limit) + "…"}
-      {truncated && <span style={{ color:"#00A86B", fontWeight:700 }}>{open ? "　閉じる" : "　もっと見る"}</span>}
-    </p>
-  );
-}
 
 function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare }) {
   if (!profile) return null;
