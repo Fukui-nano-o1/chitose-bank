@@ -6724,7 +6724,7 @@ function WorkerPreviewSheet() {
 // 農家版15秒カード（WorkerTrustCardの鏡写し）。trustはemployer_trust_info/job_employer_trust_infoの返り値
 // onEditItem（任意）: 本人プレビュー用。渡すと各項目がタップ可能になり、対応する編集ボックスのキー
 // (avatar/nickname/style/ask)を返す。働き手側（求人詳細等）は渡さない＝従来どおり表示専用
-function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience }) {
+function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs }) {
   if (!profile) return null;
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
   const cur = onEditItem ? { cursor:"pointer" } : {};
@@ -6745,9 +6745,15 @@ function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience }) {
       {okTrust && trust.completed_hires > 0 && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>これまでに{trust.completed_hires}人を受け入れました</p>
       )}
+      {/* 公開中＝いま募集している求人（→公開中タブ）／実績＝日程が終了した求人（→過去の実績タブ）。混同させない（2026-07-24） */}
       {okTrust && trust.open_jobs > 0 && (
+        <p onClick={onTapOpenJobs || undefined} role={onTapOpenJobs ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapOpenJobs ? "#00A86B" : "#717171", fontWeight: onTapOpenJobs ? 600 : 400, margin:"0 0 6px", ...(onTapOpenJobs ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
+          公開中：{trust.open_jobs}件{onTapOpenJobs ? " →" : ""}
+        </p>
+      )}
+      {okTrust && (trust.ended_jobs || 0) > 0 && (
         <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapExperience ? "#00A86B" : "#717171", fontWeight: onTapExperience ? 600 : 400, margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
-          実績：{trust.open_jobs}件{onTapExperience ? " →" : ""}
+          実績：{trust.ended_jobs}件{onTapExperience ? " →" : ""}
         </p>
       )}
       {okTrust && (trust.member_since || trust.id_checked) && (
@@ -9077,8 +9083,9 @@ function JobSearchMapView({ onRegister, me }) {
   const [pastJobs, setPastJobs] = useState(null); // null=読み込み中
   const [pastJobsTab, setPastJobsTab] = useState("all"); // すべて/公開中/終了（2026-07-23）
   const [jobBackStack, setJobBackStack] = useState([]); // 過去求人から遷移した時の「前の求人」スタック
-  const openPastJobs = async () => {
-    setPastJobsOpen(true); setPastJobs(null); setPastJobsTab("all");
+  const openPastJobs = async (tab) => {
+    // tab: "open"（公開中→から）/"ended"（実績→から）/未指定は"all"。イベントオブジェクト混入ガード付き
+    setPastJobsOpen(true); setPastJobs(null); setPastJobsTab(typeof tab === "string" ? tab : "all");
     try {
       const { data } = await supabase.rpc("employer_public_jobs", { p_job_number: selectedJob.id });
       // 今見ている求人も含めて全公開求人を出す（2026-07-16）。審査中(pending)・下書きは
@@ -10103,7 +10110,7 @@ function JobSearchMapView({ onRegister, me }) {
               {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16） */}
               {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
-                  <FarmerTrustCard profile={empEmployer} trust={empTrust} onTapExperience={openPastJobs} />
+                  <FarmerTrustCard profile={empEmployer} trust={empTrust} onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")} />
                 </div>
               )}
               {/* 過去の求人ボックス（受け入れ実績タップで展開・公開中/終了の帯・タップで詳細へ） */}
@@ -10130,7 +10137,7 @@ function JobSearchMapView({ onRegister, me }) {
                       const tabs = [
                         { key:"all", label:"すべて", n: withEnded.length },
                         { key:"open", label:"公開中", n: openList.length },
-                        { key:"ended", label:"終了", n: endedList.length },
+                        { key:"ended", label:"過去の実績", n: endedList.length },
                       ];
                       const shown = pastJobsTab === "open" ? openList : pastJobsTab === "ended" ? endedList : withEnded;
                       return (
@@ -10148,7 +10155,7 @@ function JobSearchMapView({ onRegister, me }) {
                       </div>
                       {shown.length === 0 ? (
                         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"28px 0" }}>
-                          {pastJobsTab==="ended" ? "終了した求人はありません" : pastJobsTab==="open" ? "公開中の求人はありません" : "求人がありません"}
+                          {pastJobsTab==="ended" ? "まだ過去の実績はありません" : pastJobsTab==="open" ? "公開中の求人はありません" : "求人がありません"}
                         </p>
                       ) : (
                       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
