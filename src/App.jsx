@@ -470,7 +470,8 @@ function LoginScreen({ farmers, onLogin, onGoRegister }) {
 
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
 
-  // 認証成功後の共通処理。既存プロフィールを確認するだけ。作らない・書き換えない（登録は#/roleの役割選択経由のみ・骨格⑥）
+  // 認証成功後の共通処理。既存プロフィールを確認するだけ。作らない・書き換えない。
+  // 役割選択ページ(#/role)は撤廃済み＝役割は聞かないアクションベース設計（farmers行あり→農家／無し→最小形の働き手me）
   const completeLogin = async (user) => {
     const normalizedEmail = (user?.email || email).trim().toLowerCase();
     const { data: farmer } = await supabase
