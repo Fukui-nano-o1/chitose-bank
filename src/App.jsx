@@ -9116,7 +9116,16 @@ function JobSearchMapView({ onRegister, me }) {
         const { data, error } = await supabase.from("jobs_public").select("*").order("job_number",{ascending:false});
         if (!error && data) {
           const mapped = data.map(mapJobPublicRow);
-          setDbJobs(mapped);
+          // 並び順（2026-07-24たきと指示）：一覧・その他の求人はランダム。新着（掲載3日以内）は
+          // この端末で「初めて見る時だけ」上位に配置（cb_seenNewJobsに既読記録＝二度目からは通常のランダム枠）。
+          // シャッフルは読み込み時に1回＝表示中に並びが飛ばない
+          const shuffleArr = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+          let seen = []; try { seen = JSON.parse(localStorage.getItem("cb_seenNewJobs") || "[]"); } catch {}
+          const seenSet = new Set(seen);
+          const freshNew = mapped.filter(j => j.isNew && !seenSet.has(j.id));
+          const rest = mapped.filter(j => !(j.isNew && !seenSet.has(j.id)));
+          setDbJobs([...shuffleArr(freshNew), ...shuffleArr(rest)]);
+          if (freshNew.length) { try { localStorage.setItem("cb_seenNewJobs", JSON.stringify([...seen, ...freshNew.map(j => j.id)].slice(-300))); } catch {} }
         }
       } catch {}
     })();
