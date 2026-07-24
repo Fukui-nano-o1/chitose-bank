@@ -1,7 +1,7 @@
 import { supabase } from "./lib/supabase";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel } from "./lib/utils";
+import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges } from "./components/ui";
+import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText } from "./components/ui";
 import { CalendarView } from "./components/CalendarView";
 import { JobCard } from "./components/JobCard";
 import { JobLocationMap } from "./components/JobLocationMap";
@@ -6297,8 +6297,6 @@ function WorkerApplications({ filter, me }) {
   );
 }
 
-const CALENDAR_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
-const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includes(s) ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="completed" ? {bg:"#F3F3F3",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"});
 
 // #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
 // 紐づく求人の作業日程を予定表（アジェンダ）として表示。日付タップで該当日へスクロール＆ハイライト。
@@ -10722,18 +10720,6 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
 
 
 
-// お知らせ規定（2026-07-17追加）：タイトルとリンクは頭文字から順に1文字ずつ上へジャンプし、
-// 尻の文字まで届いたら約2秒おいて先頭からループする。
-// 尻までの到達時間は文字数によらず固定0.9s＝タイトルとリンクで同じ（周期も共通so波とループが同期する）
-const NOTICE_JUMP_WAVE = 0.9;
-function NoticeJumpText({ text }) {
-  const chars = Array.from(String(text || ""));
-  const dur = NOTICE_JUMP_WAVE + 2.5; // 走破0.9s＋ジャンプ＋約2秒の休止
-  const denom = Math.max(1, chars.length - 1);
-  return chars.map((ch, i) => (
-    <span key={i} style={{ display:"inline-block", whiteSpace:"pre", animation:`cbCharJump ${dur}s ease-in-out ${(i / denom) * NOTICE_JUMP_WAVE}s infinite` }}>{ch}</span>
-  ));
-}
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。

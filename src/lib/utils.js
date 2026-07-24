@@ -212,3 +212,7 @@ export function stationLabel(station, commute) {
   const withEki = s.endsWith("駅") ? s : s + "駅";
   return `${withEki}から${commute || ""}`.trim();
 }
+
+// カレンダーの応募状態ラベル/色（MyCalendar・今日ページ系で共用）
+export const CALENDAR_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
+export const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includes(s) ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="completed" ? {bg:"#F3F3F3",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"});

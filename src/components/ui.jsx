@@ -168,3 +168,16 @@ export function JobFlagBadges({ beginner, expert, repeat }) {
     </>
   );
 }
+
+export const NOTICE_JUMP_WAVE = 0.9;
+// お知らせ規定（2026-07-17追加）：タイトルとリンクは頭文字から順に1文字ずつ上へジャンプし、
+// 尻の文字まで届いたら約2秒おいて先頭からループする。
+// 尻までの到達時間は文字数によらず固定0.9s＝タイトルとリンクで同じ（周期も共通so波とループが同期する）
+export function NoticeJumpText({ text }) {
+  const chars = Array.from(String(text || ""));
+  const dur = NOTICE_JUMP_WAVE + 2.5; // 走破0.9s＋ジャンプ＋約2秒の休止
+  const denom = Math.max(1, chars.length - 1);
+  return chars.map((ch, i) => (
+    <span key={i} style={{ display:"inline-block", whiteSpace:"pre", animation:`cbCharJump ${dur}s ease-in-out ${(i / denom) * NOTICE_JUMP_WAVE}s infinite` }}>{ch}</span>
+  ));
+}
