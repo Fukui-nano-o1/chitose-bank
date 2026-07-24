@@ -1,5 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+import { supabase } from "./lib/supabase";
 
 // ── プッシュ通知（Web Push・2026-07-19）───────────────────────────
 // iOSは「ホーム画面に追加したPWA（standalone）」のみ対応。Safariタブでは購読不可。
