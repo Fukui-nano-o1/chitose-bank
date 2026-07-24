@@ -10736,6 +10736,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
   const [jobSaving, setJobSaving] = useState(false);
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
   const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
+  // 掲載前の日程ガード（2026-07-24）：日程未設定のまま掲載に進ませない（終了求人コピー→日程空で複製、の受け皿）
+  const openPublish = () => {
+    if (!jobDateStart) { alert("作業日程が未設定です。「日程」から新しい日を選んでから掲載してください。"); setReturnToConfirm(true); setStep(4); return; }
+    setPublishModal(true);
+  };
   const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
   const [confProfileOpen, setConfProfileOpen] = useState(false); // 農家プロ未入力時：カードタップで編集ボックス展開（2026-07-16）
   // 待遇の求人ごと変更（2026-07-18）：確認ページの待遇タップで編集ボックス。
@@ -12804,7 +12809,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {isFarmer && step === 11 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
-              <button onClick={() => setPublishModal(true)} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
+              <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
             </div>
           )}
         </div>
@@ -12833,7 +12838,7 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
           {isFarmer && step === 11 && (
             <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10 }}>
               <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
-              <button onClick={() => setPublishModal(true)} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
+              <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
             </div>
           )}
         </>)
@@ -17462,6 +17467,8 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
           onCopyJob={async ()=>{
             const { data, error } = await supabase.rpc("copy_job", { p_job_number: previewJob.num });
             if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+            // 元の日程が過ぎていた場合は空で複製される（終了扱い防止・2026-07-24）。選び直しを案内
+            if (data.dates_cleared) alert("コピーしました。元の作業日程は終了しているため空にしています。確認ページの「日程」から新しい日を選んでください。");
             setPreviewJob(null);
             window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
           }} />
