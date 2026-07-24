@@ -12872,8 +12872,9 @@ function SavedJobsView({ me }) {
 // JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
 // 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
 // mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
-function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onResumeJob, onDeleteJob, onUnpublishJob }) {
+function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onResumeJob, onDeleteJob, onUnpublishJob, onCopyJob }) {
   const [confirmUnpub, setConfirmUnpub] = useState(false); // 一時非公開の確認ボックス（2026-07-16）
+  const [copying, setCopying] = useState(false); // 求人コピー中（2026-07-24）
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -12969,6 +12970,10 @@ function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestR
                 <button onClick={onDeleteJob} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>🗑 削除</button>
               )}
             </div>
+          )}
+          {/* この求人をコピーして新しい下書きを作る（2026-07-24）：過去の求人の内容を流用 */}
+          {onCopyJob && (
+            <button onClick={async ()=>{ if (copying) return; setCopying(true); try { await onCopyJob(); } finally { setCopying(false); } }} disabled={copying} className="f-sans" style={{ width:"100%", marginTop:8, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor: copying ? "default" : "pointer", opacity: copying ? 0.6 : 1 }}>{copying ? "コピー中..." : "📋 この求人をコピーして新規作成"}</button>
           )}
         </div>
       ) : (
@@ -17432,7 +17437,13 @@ function FarmerDashboard({ onNewJob, onResume, me }) {
             // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
             setDbActive(prev => prev.map(d => d.job_number === previewJob.num ? { ...d, status: "draft" } : d));
             setPreviewJob(null);
-          } : undefined} />
+          } : undefined}
+          onCopyJob={async ()=>{
+            const { data, error } = await supabase.rpc("copy_job", { p_job_number: previewJob.num });
+            if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+            setPreviewJob(null);
+            window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
+          }} />
       )}
 
       {/* お気に入り登録しました！ボックス（2026-07-19）：働き手アイコンに❤️が付く動作・説明は1文×2・詳細は展開 */}
