@@ -1322,8 +1322,13 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
   CALENDAR_WD/calAddDays/calFmtDate/daysBetweenYmd）。React/DOM/supabase非依存の層のみ置く
 ・src/appStyles.js … CSS文字列(1004行)。<style>{CSS}</style>の注入方式は不変
 ・App.jsx: 20605行→19609行。ESLint(no-undef)ゲートで参照解決を機械確認しながら1抽出=1コミット
-【段階2・未着手】独立部品を1個ずつ切り出す：TodayPage/MyCalendar/ChatView/JobQuestions/
-  InsurancePrepPage/VisitEntrance/CalendarView/AvailDatesChips系 など。手順＝①部品の依存をgrepで洗う
+【段階2・前半完了（2026-07-24・5コミット）】src/components/ に切り出し済み：
+  JobQuestions.jsx(ContentQTabs+JobQuestions)／ToggleSwitch.jsx／VisitAndInsurance.jsx
+  (InsurancePrepPage+VisitEntrance+VisitorQRPage)／DateChips.jsx(AgreedDatesRow+AvailDatesChips)／
+  TodayPage.jsx。定数はlib/utilsへ追加：INSURANCE_ITEMS・ROLE_ORANGE/ROLE_ORANGE_INK/ROLE_GREEN。
+  App.jsx 19609行→約19000行
+【段階2・残り】MyCalendar（AdminJobPreview依存so後回し＝循環import回避）／ChatView（大物・依存多）／
+  CalendarView／SavedJobsView など。手順＝①部品の依存をgrepで洗う
   ②新ファイルへ移動+export ③App.jsxにimport ④build(lintゲート) ⑤commit。1部品=1コミット厳守
 【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
   相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認
