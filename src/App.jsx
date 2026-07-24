@@ -1,4 +1,5 @@
 import { supabase } from "./lib/supabase";
+import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd } from "./lib/utils";
 
 // ── プッシュ通知（Web Push・2026-07-19）───────────────────────────
 // iOSは「ホーム画面に追加したPWA（standalone）」のみ対応。Safariタブでは購読不可。
@@ -248,9 +249,6 @@ const SEED_FARMERS = [];
 const SEED_DESTS = [];
 
 const THIS_YEAR   = new Date().getFullYear();
-const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
-// 管理者判定（届出後にゲートを外す際はここを変更する。保存・入力機能のゲートにも使用）
-const isAdmin = (user) => user?.email === ADMIN_EMAIL;
 // 役割カラー（第11弾・2026-07-22）：目印限定。働き手=橙／農家=緑。
 // ブランド緑のCTA（応募・承認等の主ボタン＝--mode-accent）は両モード共通のまま不変。塗るのは「今どっちか」の目印だけ。
 const ROLE_ORANGE = "#F76B1C";      // 働き手モードの目印色（枠・チップ背景・ナビ・アクセントバー）。白文字とのコントラストは緑CTAと同等
@@ -341,8 +339,6 @@ const cn  = n => Math.round(n).toLocaleString("ja-JP");
 const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/1000)/10).toFixed(1)+"万":cn(a); };
 function uid(){ return Math.random().toString(36).slice(2,9); }
 // 日付キー（YYYY-MM-DD）はローカル整形で統一する。toISOString().slice(0,10)は
-// UTC変換を経るため、JST等UTC+の地域では日付が前日にズレる（date_start保存バグの原因）
-const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
 
 function toKatakana(str) {
@@ -5048,14 +5044,6 @@ function stationLabel(station, commute) {
 const APPROVED_PLUS_STATUSES = ["approved","meeting","interview","contracted","working","completed"];
 
 // 今日がdateStart〜dateEnd（dateEndなければdateStart単日）の範囲内か。日付のみで比較（時刻無視）
-function isWorkDayToday(dateStart, dateEnd) {
-  if (!dateStart) return false;
-  const fmt = d => { const dt = new Date(d); return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0"); };
-  const todayStr = fmt(new Date());
-  const startStr = fmt(dateStart);
-  const endStr = dateEnd ? fmt(dateEnd) : startStr;
-  return todayStr >= startStr && todayStr <= endStr;
-}
 
 // 評価モーダルの「はい/いいえ」2択ピル。reviews.want_again等のbool列と1対1で対応
 function YesNoPill({ label, value, onChange }) {
@@ -5223,12 +5211,6 @@ const Avatar = ({ url, name, size = 40, ring, bg }) => {
 
 // timestamptz（UTC保存）を日本時間の「MM/DD HH:MM」で表示（2026-07-22）。
 // 以前は String(created_at).slice で生のUTC文字列を出していたため9時間ずれていた（運営DMの時刻ずれ）
-const fmtJstShort = (ts) => {
-  if (!ts) return "";
-  try {
-    return new Date(ts).toLocaleString("ja-JP", { timeZone:"Asia/Tokyo", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false });
-  } catch { return String(ts).slice(5, 16).replace("T", " "); }
-};
 
 // 「仕事の内容」「質問」タブバー（第10弾・2026-07-22）：求人詳細・確認ページの写真下に置く
 function ContentQTabs({ value, onChange }) {
@@ -8029,19 +8011,6 @@ function WorkerApplications({ filter, me }) {
 
 const CALENDAR_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
 const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includes(s) ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="completed" ? {bg:"#F3F3F3",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"});
-const CALENDAR_WD = ["日","月","火","水","木","金","土"];
-const calAddDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
-const calFmtDate = (ymd) => { const [y,m,d] = ymd.split("-").map(Number); return `${m}/${d}(${CALENDAR_WD[new Date(y, m-1, d).getDay()]})`; };
-// 期間内の日付を "YYYY-MM-DD" 配列で列挙（開始〜終了・両端含む）
-const daysBetweenYmd = (startYmd, endYmd) => {
-  if (!startYmd) return [];
-  const [ys, ms, ds] = startYmd.split("-").map(Number);
-  const start = new Date(ys, ms - 1, ds);
-  const end = endYmd ? new Date(endYmd + "T00:00:00") : start;
-  const out = []; let g = 0;
-  for (let d = new Date(start); d <= end && g < 400; d.setDate(d.getDate() + 1), g++) out.push(ymdLocal(d));
-  return out;
-};
 // 働く日（確定）行（応募者カード・返事待ちカード・チャット文脈カード・確認カード共用・2026-07-24）。
 // value＝applications.agreed_dates：["YYYY-MM-DD",...]（農家が確定した働く日・濃い緑）／null（未確定=非表示）
 function AgreedDatesRow({ value, fs = 12 }) {
