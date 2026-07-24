@@ -9936,16 +9936,16 @@ function JobSearchMapView({ onRegister, me }) {
       {selectedJob && !isOwnJob && !hideApply && (
         <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
           {/* 並び入れ替え（2026-07-16）：日給＋応募ボタンが上・注記が下 */}
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
-            <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button
-                onClick={applyBtnOnClick}
-                disabled={applying || applyBtnDisabled}
-                className="btn-primary f-sans"
-                style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
-              >{applyBtnLabel}</button>
-            </div>
+          {/* バランス修正（2026-07-24）：報酬は1行固定(flexShrink:0)・ボタンは残り幅(flex:1)で長いラベル
+              （「承認されました — チャットを開く」等）は2行に折り返す＝画面から見切れない */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+            <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222", flexShrink:0, whiteSpace:"nowrap" }}>{payLabel(selectedJob)}</span>
+            <button
+              onClick={applyBtnOnClick}
+              disabled={applying || applyBtnDisabled}
+              className="btn-primary f-sans"
+              style={{ flex:1, minWidth:0, padding:"12px 12px", fontSize:14, fontWeight:700, borderRadius:14, lineHeight:1.35, textAlign:"center", ...applyBtnStyle }}
+            >{applyBtnLabel}</button>
           </div>
           <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
             応募しても即採用ではなく、面接後に決まります
