@@ -5210,12 +5210,12 @@ function mapJobPublicRow(j) {
 // 共通アバター部品：写真あり→円形サムネ／写真なし→緑丸＋頭文字2字。
 // 全画面（ヘッダー・応募者カード・チャット・求人詳細の紹介・プロフィール）でこれに統一する。
 // ring（任意）：アイコンに役割色の枠を付ける（チャットで使用・働き手=橙／雇い手=緑・第11弾）
-const Avatar = ({ url, name, size = 40, ring }) => {
+const Avatar = ({ url, name, size = 40, ring, bg }) => {
   const ringStyle = ring ? { border: "2px solid " + ring, boxSizing: "border-box" } : {};
   return url
     ? <img src={url} alt="" width={size} height={size}
         style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", flexShrink:0, ...ringStyle }} />
-    : <div style={{ width:size, height:size, borderRadius:"50%", background: ring || "#00A86B",
+    : <div style={{ width:size, height:size, borderRadius:"50%", background: bg || ring || "#00A86B",
         color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",
         fontSize:size*0.38, fontWeight:700, flexShrink:0, ...ringStyle }}>
         {(name||"？").replace(/\s/g,"").slice(0,2)}
@@ -20083,7 +20083,7 @@ const subDest=useCallback(async d=>{
                      padding:"6px 8px 6px 12px", fontFamily:"inherit" }}>
             <span style={{ fontSize:14, lineHeight:1 }}>☰</span>
             <span style={{ width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-              <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={28} />
+              <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={28} bg={empCtx ? ROLE_GREEN : ROLE_ORANGE} />
             </span>
           </button>
 
@@ -20217,7 +20217,7 @@ const subDest=useCallback(async d=>{
               }}
               className={"app-header-mobile-tab" + (isActive ? " active" : "")}>
               <span className={"icon" + (t.k === "chats" && (navBadges.chat_threads || 0) > 0 ? " cb-jump" : "")} style={{ position:"relative" }}>
-                {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} /> : t.icon}
+                {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} bg={empCtx ? ROLE_GREEN : ROLE_ORANGE} /> : t.icon}
                 {badge > 0 && (
                   <span style={{ position:"absolute", top:-4, right:-10, minWidth:16, height:16, borderRadius:8, background:"#E24B4A", color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px", pointerEvents:"none" }}>{badge > 99 ? "99+" : badge}</span>
                 )}
