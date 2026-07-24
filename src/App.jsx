@@ -8036,22 +8036,17 @@ function AgreedDatesRow({ value, fs = 12 }) {
   );
 }
 // 来られる日チップ（応募者カード・返事待ちカード・チャット文脈カード共用・2026-07-24）。
-// value＝applications.available_dates：'any'（期間中いつでもOK・緑）／["YYYY-MM-DD",...]（特定日・列挙）／null（単日=非表示）
+// value＝applications.available_dates：["YYYY-MM-DD",...]（特定日・列挙）のみ表示。
+// 'any'（期間中いつでもOK）は非表示（2026-07-24たきと指示：全期間working前提so表示不要）。null（単日）も非表示
 function AvailDatesChips({ value, fs = 12 }) {
-  if (!value) return null;
-  const any = value === "any";
   const dates = Array.isArray(value) ? value : [];
-  if (!any && dates.length === 0) return null;
+  if (dates.length === 0) return null;
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", margin:"0 0 8px" }}>
       <span className="f-sans" style={{ fontSize:fs, color:"#717171", fontWeight:600 }}>来られる日</span>
-      {any ? (
-        <span className="f-sans" style={{ fontSize:fs, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:20, padding:"3px 10px" }}>いつでもOK</span>
-      ) : (
-        dates.slice().sort().map(d => (
-          <span key={d} className="f-sans" style={{ fontSize:fs, fontWeight:700, color:"#0B6B4F", background:"#E6F7EE", border:"1px solid #CDE9DD", borderRadius:20, padding:"3px 10px" }}>{calFmtDate(d)}</span>
-        ))
-      )}
+      {dates.slice().sort().map(d => (
+        <span key={d} className="f-sans" style={{ fontSize:fs, fontWeight:700, color:"#0B6B4F", background:"#E6F7EE", border:"1px solid #CDE9DD", borderRadius:20, padding:"3px 10px" }}>{calFmtDate(d)}</span>
+      ))}
     </div>
   );
 }
