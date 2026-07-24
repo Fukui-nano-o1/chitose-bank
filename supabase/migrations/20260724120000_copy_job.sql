@@ -1,7 +1,7 @@
 -- 過去の求人をコピー（2026-07-24）：自分の既存求人の内容を新しい下書き(status='draft')として複製する。
 -- 本人限定（farmer_id=auth.uid()）。メタ（id/job_number/created_at/status/opened_at/revision_requested_at）はリセット。
 -- 内容列（作物・作業・場所・報酬・写真・危険箇所・日程等）はそのままコピー。
--- draft_step=1 で複製し、編集ウィザードを頭から通して編集・調整できるようにする（確認ページ直行だと編集導線が分かりにくいため）。
+-- draft_step=11 で複製し、コピー直後は確認ページへ遷移する（入力情報は編集フローの復元で埋まる・たきと指定）。
 create or replace function public.copy_job(p_job_number integer)
  returns json
  language plpgsql
@@ -25,7 +25,7 @@ begin
     full_pay_guarantee, beginner_ok, instant_approve_repeat, experienced_preferred, perks
   ) values (
     v_uid, 'draft',
-    v_src.crop, v_src.task, v_src.zip, v_src.prefecture, v_src.city, v_src.address, v_src.town, v_src.date_label, v_src.date_start, v_src.date_end, 1,
+    v_src.crop, v_src.task, v_src.zip, v_src.prefecture, v_src.city, v_src.address, v_src.town, v_src.date_label, v_src.date_start, v_src.date_end, 11,
     v_src.headcount, v_src.pay_type, v_src.hourly_wage, v_src.daily_wage, v_src.work_time, v_src.break_time, v_src.nearest_station, v_src.commute_time,
     v_src.job_exp, v_src.notes, v_src.belongings, v_src.cautions, v_src.danger_places, v_src.danger_tasks, v_src.photos,
     v_src.lat, v_src.lng, v_src.geocoded_from, v_src.geo_radius_m,
