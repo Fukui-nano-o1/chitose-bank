@@ -19473,7 +19473,7 @@ export default function App(){
       await sSet("yw_records",{});
       await sSet("yw_pres_v3",true);
     }
-  　const fp=await sGet("yw_farmers_pend")||[];
+    const fp=await sGet("yw_farmers_pend")||[];
     const { data: dbDestsOk } = await supabase.from('dests').select('*').eq('status', 'approved');
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
     const { data: dbDestsPend } = await supabase.from('dests').select('*').eq('status', 'pending');
@@ -19896,7 +19896,7 @@ const subDest=useCallback(async d=>{
     await savF([...farmers,farmer]);await savFP(farmPend.filter(x=>x.id!==id));
   },[farmPend,farmers,savF,savFP]);
   const rejFarmer=useCallback(async id=>{await savFP(farmPend.filter(x=>x.id!==id));},[farmPend,savFP]);
-　const appDest=useCallback(async id=>{
+  const appDest=useCallback(async id=>{
     const d=destPend.find(x=>x.id===id);if(!d)return;
     await supabase.from('dests').update({ status: 'approved' }).eq('id', id);
     await savDA([...destOk,{...d,status:"approved"}]);await savDP(destPend.filter(x=>x.id!==id));
