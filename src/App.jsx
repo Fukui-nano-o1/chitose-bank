@@ -10952,8 +10952,11 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
         setJobDateStart(data.date_start ? new Date(data.date_start) : null);
         setJobDateEnd(data.date_end ? new Date(data.date_end) : null);
         setJobCount(data.headcount != null ? String(data.headcount) : "");
+        setFarmerPayType(data.pay_type ?? ""); // 報酬方式（時給/日給）も復元（2026-07-24・コピー/再開で欠けていた）
         setHourlyWageInput(data.hourly_wage ?? "");
         setDailyWageInput(data.daily_wage ?? "");
+        // 勤務時間（"H:MM〜H:MM"）を start/end に復元（2026-07-24・コピー/再開で欠けていた）
+        { const wt = String(data.work_time ?? "").match(/(\d{1,2}):(\d{2})\D+(\d{1,2}):(\d{2})/); if (wt) { setStartHour(wt[1]); setStartMinute(wt[2]); setEndHour(wt[3]); setEndMinute(wt[4]); } }
         setBreakTime(data.break_time ?? "");
         setNearestStation(data.nearest_station ?? "");
         setCommuteTime(data.commute_time ?? "");
