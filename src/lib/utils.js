@@ -60,3 +60,80 @@ export const ROLE_GREEN = "#00A86B";       // 農家モードの目印色（ブ�
 
 // 給与表示ラベル（時給/日給）。JobSearchMapView・FarmerDashboard共通
 export function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`; }
+
+// 日程ラベル（確認ページのjobDateLabelと同一仕様・2026-07-16）：
+// 年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
+export function dateRangeLabel(startStr, endStr) {
+  if (!startStr) return "";
+  const parse = (s) => { const [y, m, d] = String(s).slice(0, 10).split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+  const WD = ["日","月","火","水","木","金","土"];
+  const fmt = (d, opts = {}) => {
+    const w = WD[d.getDay()];
+    if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
+    if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${w}）`;
+  };
+  const start = parse(startStr);
+  const end = endStr ? parse(endStr) : start;
+  const thisYear = new Date().getFullYear();
+  const inYear = start.getFullYear() === thisYear && end.getFullYear() === thisYear;
+  if (start.toDateString() === end.toDateString()) return fmt(start, { omitYear: inYear });
+  const sameMonth = inYear && start.getMonth() === end.getMonth();
+  return `${fmt(start, { omitYear: inYear })} 〜 ${fmt(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
+}
+
+// jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
+// さがす一覧・求人詳細・管理者プレビューで共通利用
+export function mapJobPublicRow(j) {
+  return {
+    id: j.job_number,
+    crop: j.crop || "",
+    task: j.task || "",
+    // date_start/date_endから確認ページと同じ仕様で組み立て。日付列が無い旧データは保存済みラベルへフォールバック
+    dateLabel: dateRangeLabel(j.date_start, j.date_end) || (j.date_label || ""),
+    dateStartRaw: j.date_start || "",
+    dateEndRaw: j.date_end || "",
+    // 新着＝掲載（status→open遷移）から3日間（2026-07-16・jobs.opened_atはDBトリガーが刻む）
+    isNew: !!j.opened_at && (Date.now() - new Date(j.opened_at).getTime()) < 3 * 24 * 60 * 60 * 1000,
+    payType: j.pay_type === "日給" ? "daily" : "hourly",
+    pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
+    town: j.town || "",
+    region: [j.prefecture, j.city, j.town].filter(Boolean).join("") || "",
+    experience: j.job_exp || "", // 必要経験の選択式は撤回（2026-07-18）。旧求人の保存値のみ表示・未入力はdispで「ー」
+    icon: "🌾",
+    lat:    j.lat != null ? Number(j.lat) : null,
+    lng:    j.lng != null ? Number(j.lng) : null,
+    radius: j.geo_radius_m != null ? Number(j.geo_radius_m) : null,
+    count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
+    nearestStation: j.nearest_station || "", workTime: j.work_time || "",
+    breakTime: j.break_time || "",
+    commuteTime: j.commute_time || "", jobBody: j.notes || "",
+    cautions: j.cautions || "",
+    wanted: "", items: j.belongings || "",
+    payTiming: "", payMethod: "",
+    dateStart: j.date_start ? new Date(j.date_start) : null,
+    dateEnd: j.date_end ? new Date(j.date_end) : null,
+    dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
+    dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
+    fullPayGuarantee: !!j.full_pay_guarantee,
+    beginnerOk: !!j.beginner_ok,
+    instantApproveRepeat: !!j.instant_approve_repeat,
+    perks: j.perks || null, // この求人だけの待遇上書き（NULL=農家プロフィールの待遇・2026-07-18）
+    experiencedPreferred: !!j.experienced_preferred,
+    // 終了帯の判定（2026-07-21）：採用人数を満たした／作業日程が過ぎた。探すからは除外しない
+    hiredCount: j.hired_count != null ? Number(j.hired_count) : 0,
+    filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount),
+    expired: (() => {
+      const end = j.date_end || j.date_start;
+      if (!end) return false;
+      const today = ymdLocal(new Date());
+      if (end < today) return true;
+      // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降＝終了）
+      if (end === today && j.work_time) {
+        const m = String(j.work_time).match(/〜\s*(\d{1,2}):(\d{2})/);
+        if (m) { const n = new Date(); if (n.getHours()*60 + n.getMinutes() > parseInt(m[1],10)*60 + parseInt(m[2],10)) return true; }
+      }
+      return false;
+    })(),
+  };
+}
