@@ -5315,6 +5315,15 @@ function JobQuestions({ jobNumber, me }) {
   }
   return (
     <div className="f-sans">
+      {/* 質問の説明（2026-07-24たきと指示）：タブを開いた時に仕組みを先に伝える。農家本人と働き手で文面を出し分け */}
+      <div style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
+        <p style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 4px" }}>💬 この求人の公開Q&A</p>
+        <p style={{ fontSize:12, color:"#5B7B6D", margin:0, lineHeight:1.7 }}>
+          {isOwner
+            ? "働き手からの質問がここに届きます。回答はこの求人を見る全員に公開され、同じ質問を減らせます。"
+            : "応募前に気になることを質問できます。農家の回答は、この求人を見る全員に公開されます。個人情報や連絡先は書かないでください。"}
+        </p>
+      </div>
       {loading ? (
         <p style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中...</p>
       ) : (
@@ -12240,7 +12249,9 @@ function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded =
               {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22） */}
               <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} /></div>
               {confTab === "questions" ? (
-                <div style={{ maxWidth:870, margin:"0 auto" }}><JobQuestions jobNumber={draftJobNumber} me={me} /></div>
+                /* LandingFlow内に me は存在しない（未定義参照＝ReferenceErrorで画面真っ白の原因だった・2026-07-24修正）。
+                   meはisAdmin判定（運営の非表示スイッチ）専用so未指定でよい。農家本人の回答UIはJobQuestions内のsession判定(isOwner)が担う */
+                <div style={{ maxWidth:870, margin:"0 auto" }}><JobQuestions jobNumber={draftJobNumber} /></div>
               ) : (<>
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
