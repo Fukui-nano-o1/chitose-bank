@@ -40,3 +40,15 @@ export const daysBetweenYmd = (startYmd, endYmd) => {
   for (let d = new Date(start); d <= end && g < 400; d.setDate(d.getDate() + 1), g++) out.push(ymdLocal(d));
   return out;
 };
+
+// 保険の準備・自己申告（2026-07-23）：農家プロフィールで方針を表明。運営は証書を確認しない。
+// considering=これから準備する は、表示チップでは「これから準備予定」にする。employer_profiles.insurance_items に key配列で保存。
+export const INSURANCE_ITEMS = [
+  { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険" },
+  { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険" },
+  { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険" },
+  { k:"facility",        label:"農業施設・賠償責任保険",          chip:"施設・賠償責任保険" },
+  { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険" },
+  { k:"considering",     label:"これから準備する",               chip:"これから準備予定" },
+];
+

@@ -1,5 +1,6 @@
 import { supabase } from "./lib/supabase";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd } from "./lib/utils";
+import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS } from "./lib/utils";
+import { ToggleSwitch } from "./components/ToggleSwitch";
 import { CSS } from "./appStyles";
 import { ContentQTabs, JobQuestions } from "./components/JobQuestions";
 
@@ -136,17 +137,6 @@ const farmHostQa = (e) => [
   { q:"働きに来た人に、いつもしていること", a: e.always_do },
   { q:"休憩とお茶はどうしてる？", a: e.break_style },
 ].filter(x => x.a && x.a.trim());
-
-// 保険の準備・自己申告（2026-07-23）：農家プロフィールで方針を表明。運営は証書を確認しない。
-// considering=これから準備する は、表示チップでは「これから準備予定」にする。employer_profiles.insurance_items に key配列で保存。
-const INSURANCE_ITEMS = [
-  { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険" },
-  { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険" },
-  { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険" },
-  { k:"facility",        label:"農業施設・賠償責任保険",          chip:"施設・賠償責任保険" },
-  { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険" },
-  { k:"considering",     label:"これから準備する",               chip:"これから準備予定" },
-];
 
 // 働き手の「できること・資格（自己申告）」（2026-07-23）：worker_profiles.self_declared に key配列で保存。
 // 免許・資格・保険方針のみ。身体属性（体力等）に類する項目は絶対に追加しない（CLAUDE.mdルール・今後も）。
@@ -14607,32 +14597,6 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
 
 
 // ── FarmerDashboard（農家モードのお仕事タブ＝求人ダッシュボード・ガワ） ──
-function ToggleSwitch({ checked, onChange, label }) {
-  return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0" }}>
-      <span className="f-sans" style={{ fontSize:14, color:"#222" }}>{label}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        onClick={() => onChange(!checked)}
-        style={{
-          width:48, height:28, borderRadius:14, flexShrink:0,
-          border:"none", padding:3, cursor:"pointer",
-          background: checked ? "#00A86B" : "#CCC",
-          transition:"background .15s",
-        }}
-      >
-        <div style={{
-          width:22, height:22, borderRadius:"50%", background:"#fff",
-          transform: checked ? "translateX(20px)" : "translateX(0px)",
-          transition:"transform .15s",
-        }} />
-      </button>
-    </div>
-  );
-}
 function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState(""); // 紹介・PRボックスは廃止（2026-07-16）。既存データ保全のためstateと保存は温存
