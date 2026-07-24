@@ -1,0 +1,179 @@
+// 信頼カード（分割・段階2後半・2026-07-24）：働き手/雇い手の与信情報カード。プレビュー・応募者カード・確認ページで共用。
+import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, interactionStyleLabel, tenureLabel } from "../lib/utils";
+import { ExpandableText, Avatar } from "./ui";
+
+export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare }) {
+  if (!profile) return null;
+  const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
+  // 移動手段・経験区分は本人申告なので📋自己申告ブロックへ集約（2026-07-23）。バッジ列は希望条件（作業の強さ）のみ
+  const badges = [
+    profile.physical_level && { icon:"💪", text: profile.physical_level, k:"intensity" },
+  ].filter(Boolean);
+  const tags = [
+    ...(profile.interests || []).map(t => ({ t, k:"interests" })),
+    ...(profile.languages || []).map(t => ({ t, k:"languages" })),
+  ];
+  // 📋自己申告に集約する本人申告：経験区分・経験のある作業・移動手段＋免許資格保険（🌟実績枠には絶対入れない）
+  const declItems = [
+    // 経験の構造化申告（作物×作業（どのくらい））を先頭に（2026-07-23）
+    ...((Array.isArray(profile.experience_entries) ? profile.experience_entries : []).filter(e => e && (e.crop || "").trim()).map(e => ({ text: `${e.crop}×${e.task || ""}${e.duration ? `（${e.duration}）` : ""}`, k:"declared" }))),
+    ...(profile.farm_experience ? [{ text:"🌾 " + profile.farm_experience, k:"exp" }] : []),
+    ...((Array.isArray(profile.experienced_tasks) ? profile.experienced_tasks : []).filter(Boolean).map(t => ({ text: t, k:"declared" }))),
+    ...(profile.transport ? [{ text:"🚗 " + profile.transport, k:"transport" }] : []),
+    ...((Array.isArray(profile.self_declared) ? profile.self_declared : []).map(key => { const it = WORKER_DECLARATIONS.find(x => x.k === key); return it ? { text: it.chip, k:"declared" } : null; }).filter(Boolean)),
+  ];
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid " + ROLE_ORANGE, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
+          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} ring={ROLE_ORANGE} />
+        </div>
+        <div style={{ minWidth:0 }}>
+          <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{profile.nickname || "名前未設定"}</p>
+          {profile.residence_city && (
+            <p {...tap("residence")} className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", ...(onEditItem ? { cursor:"pointer" } : {}) }}>📍{profile.residence_city}</p>
+          )}
+        </div>
+      </div>
+      {(trust?.joined_at || trust?.verified_at) && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:10 }}>
+          {trust.joined_at && (
+            <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{tenureLabel(trust.joined_at)}</span>
+          )}
+          {trust.verified_at && (
+            <span className="f-sans" style={{ fontSize:11, color:ROLE_ORANGE_INK, fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
+          )}
+        </div>
+      )}
+      {badges.length > 0 && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
+          {badges.map((b,i) => (
+            <span key={i} {...tap(b.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{b.icon} {b.text}</span>
+          ))}
+        </div>
+      )}
+      {tags.length > 0 && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
+          {tags.map((x,i) => (
+            <span key={i} {...tap(x.k)} className="f-sans" style={{ fontSize:11, color:"#717171", background:"#FFF3EC", borderRadius:20, padding:"3px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>#{x.t}</span>
+          ))}
+        </div>
+      )}
+      {profile.pr && (onEditItem ? (
+        <p {...tap("pr")} className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer" }}>{profile.pr}</p>
+      ) : (
+        // 閲覧時（プレビュー・応募者カード）は…で省略し、タップで全文（2026-07-23）
+        <ExpandableText text={profile.pr} limit={80} style={{ fontSize:13, color:"#222", margin:0 }} />
+      ))}
+      {/* ── 🌟 実績ブロック（このサイトの台帳のみ。自己申告チップはこの枠に絶対に入れない）。自己申告より上に置く（2026-07-23） ── */}
+      {trust?.ok && ((trust.completed_count || 0) > 0 || (trust.want_again_count || 0) > 0 || (trust.total_hours || 0) > 0) && (
+        <div style={{ marginTop:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px" }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#0B6B4F", margin:"0 0 8px" }}>🌟 実績（このサイトの記録）</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:14 }}>
+            <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>完了 {trust.completed_count || 0}回</span>
+            {(trust.want_again_count || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>🌟 また働きたい {trust.want_again_count}</span>}
+            {(trust.total_hours || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>作業 {trust.total_hours}時間</span>}
+          </div>
+        </div>
+      )}
+      {/* ── 📋 自己申告ブロック（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。実績の下に置く（2026-07-23） ── */}
+      {/* 本人のわたしの実績モーダルではハブのカードに移植済みso非表示。農家の応募者カードでは表示 */}
+      {!hideSelfDeclare && declItems.length > 0 && (
+        <div style={{ marginTop:12, background:"#F6F8FC", border:"1px solid #E1E8F2", borderRadius:12, padding:"12px 14px" }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#3A5570", margin:"0 0 8px" }}>📋 自己申告</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
+            {declItems.map((it, i) => (
+              <span key={i} {...tap(it.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.text}</span>
+            ))}
+          </div>
+          <p className="f-sans" style={{ fontSize:10, color:"#A0A8B4", margin:0, lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 農家版15秒カード（WorkerTrustCardの鏡写し）。trustはemployer_trust_info/job_employer_trust_infoの返り値
+// onEditItem（任意）: 本人プレビュー用。渡すと各項目がタップ可能になり、対応する編集ボックスのキー
+// (avatar/nickname/style/ask)を返す。働き手側（求人詳細等）は渡さない＝従来どおり表示専用
+export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs }) {
+  if (!profile) return null;
+  const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
+  const cur = onEditItem ? { cursor:"pointer" } : {};
+  const qa = farmHostQa(profile);
+  const styleLabel = interactionStyleLabel(profile.interaction_style);
+  const okTrust = !!(trust && trust.ok);
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...cur }}>
+          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
+        </div>
+        <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, minWidth:0, ...cur }}>{profile.nickname ? profile.nickname + "さん" : "農園名未設定"}</p>
+      </div>
+      {okTrust && trust.want_again_workers > 0 && (
+        <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>🌟また働きたい×{trust.want_again_workers}</p>
+      )}
+      {okTrust && trust.completed_hires > 0 && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>これまでに{trust.completed_hires}人を受け入れました</p>
+      )}
+      {/* 公開中＝いま募集している求人（→公開中タブ）／実績＝日程が終了した求人（→過去の実績タブ）。混同させない（2026-07-24） */}
+      {okTrust && trust.open_jobs > 0 && (
+        <p onClick={onTapOpenJobs || undefined} role={onTapOpenJobs ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapOpenJobs ? "#00A86B" : "#717171", fontWeight: onTapOpenJobs ? 600 : 400, margin:"0 0 6px", ...(onTapOpenJobs ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
+          公開中：{trust.open_jobs}件{onTapOpenJobs ? " →" : ""}
+        </p>
+      )}
+      {/* 受け入れ中＝進行中求人への応募の現在地（応募→承認→採用）。集計値のみ・誰かは出さない */}
+      {okTrust && (trust.active_applied || 0) > 0 && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>
+          受け入れ中：応募{trust.active_applied}件・承認{trust.active_approved || 0}件・採用{trust.active_hired || 0}人
+        </p>
+      )}
+      {okTrust && (trust.ended_jobs || 0) > 0 && (
+        <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapExperience ? "#00A86B" : "#717171", fontWeight: onTapExperience ? 600 : 400, margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
+          実績：{trust.ended_jobs}件{onTapExperience ? " →" : ""}
+        </p>
+      )}
+      {okTrust && (trust.member_since || trust.id_checked) && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:6 }}>
+          {trust.member_since && (
+            <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{trust.member_since}から</span>
+          )}
+          {trust.id_checked && (
+            <span className="f-sans" style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み</span>
+          )}
+        </div>
+      )}
+      {okTrust && trust.avg_response_hours != null && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>応募への返答：平均{trust.avg_response_hours}時間</p>
+      )}
+      {styleLabel && (
+        <div style={{ marginBottom:10 }}>
+          <span {...tap("style")} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...cur }}>🤝 {styleLabel}</span>
+        </div>
+      )}
+      {qa.length > 0 && (
+        <div {...tap("ask")} style={{ display:"grid", gap:10, marginTop:4, ...cur }}>
+          {qa.map(({ q, a }) => (
+            <div key={q}>
+              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* 保険の準備（自己申告・2026-07-23）：選択ありの時だけチップ列＋注記。未選択なら欄ごと非表示（未記載表示は作らない） */}
+      {Array.isArray(profile.insurance_items) && profile.insurance_items.length > 0 && (
+        <div style={{ marginTop:12 }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
+            {profile.insurance_items.map(k => { const it = INSURANCE_ITEMS.find(x => x.k === k); return it ? (
+              <span key={k} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>🛡 {it.chip}</span>
+            ) : null; })}
+          </div>
+          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:0, lineHeight:1.5 }}>農家の自己申告です。運営が確認したものではありません。</p>
+        </div>
+      )}
+    </div>
+  );
+}

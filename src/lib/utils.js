@@ -149,3 +149,50 @@ export const CROP_OPTIONS = [
   { name:"ブドウ",   icon:"🍇" },
   { name:"リンゴ",   icon:"🍎" },
 ];
+
+// 働き手の「できること・資格（自己申告）」（2026-07-23）：worker_profiles.self_declared に key配列で保存。
+// 免許・資格・保険方針のみ。身体属性（体力等）に類する項目は絶対に追加しない（CLAUDE.mdルール・今後も）。
+export const WORKER_DECLARATIONS = [
+  { k:"license_car",     label:"普通自動車免許",             chip:"普通自動車免許" },
+  { k:"license_special", label:"大型・特殊など上位の運転免許", chip:"上位運転免許" },
+  { k:"forklift",        label:"フォークリフト運転技能",      chip:"フォークリフト" },
+  { k:"brush_cutter",    label:"刈払機（草刈機）の取扱",       chip:"刈払機" },
+  { k:"machinery",       label:"農業機械の操作（トラクター等）", chip:"農業機械の操作" },
+  { k:"self_insurance",  label:"自分で傷害保険に加入している", chip:"傷害保険に加入" },
+];
+
+// 「✓ 本人確認済み（YYYY年M月）」用
+export function yearMonthLabel(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月`;
+}
+
+// 雇い手ホスト3問（FarmerTrustCard・求人詳細・雇い手プレビュー共通。記入済みの問いのみ返す）
+export const farmHostQa = (e) => [
+  { q:"うちの畑・農園のユニークなところ", a: e.unique_point },
+  { q:"働きに来た人に、いつもしていること", a: e.always_do },
+  { q:"休憩とお茶はどうしてる？", a: e.break_style },
+].filter(x => x.a && x.a.trim());
+
+// 作業中の関わり方（EmployerProfileEdit・FarmerTrustCard共通）
+export const INTERACTION_STYLE_OPTIONS = [
+  { value:"together", label:"一緒に作業する" },
+  { value:"explain_then_leave", label:"最初に説明して任せる" },
+  { value:"on_call", label:"必要な時だけ声かけ" },
+];
+export const interactionStyleLabel = v => INTERACTION_STYLE_OPTIONS.find(o => o.value === v)?.label || "";
+
+// 「chitose-bank利用〇年〇ヶ月」用。開始日からの経過を年月で返す
+export function tenureLabel(dateStr) {
+  const start = new Date(dateStr);
+  const now = new Date();
+  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  if (now.getDate() < start.getDate()) months--;
+  if (months < 0) months = 0;
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (years === 0 && rem === 0) return "今月から";
+  if (years === 0) return `${rem}ヶ月`;
+  if (rem === 0) return `${years}年`;
+  return `${years}年${rem}ヶ月`;
+}
