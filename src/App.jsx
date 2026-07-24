@@ -8432,7 +8432,8 @@ function TodayPage({ me, defaultRole }) {
           <div style={{ minWidth:0, flex:1 }}>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{e.job_number}</span></p>
             {e.work_time && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>🕒 {e.work_time}</p>}
-            {/* 今日ページには相手の名前を出さない（2026-07-24修正）。相手は求人詳細・チャットで確認 */}
+            {/* A案：農家タブ＝働き手名を表示（自分の応募者）。働き手タブ＝相手名は出さない */}
+            {role === "farmer" && e.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>👤 {e.partner_name}</p>}
           </div>
         </div>
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, padding:"0 14px 14px" }}>
@@ -8481,8 +8482,9 @@ function TodayPage({ me, defaultRole }) {
   };
   const TodoCard = ({ e }) => {
     const m = TODO_META[e.stage]; if (!m) return null;
-    // 今日ページには相手の名前を一切出さない（求人情報のみ）。相手（農家/働き手）は求人詳細・チャットで確認する（2026-07-24修正）
-    const sub = [[e.crop, e.task].filter(Boolean).join(" "), e.job_number ? "#" + e.job_number : ""].filter(Boolean).join("　");
+    // A案（2026-07-24たきと確定）：農家タブ＝自分の応募者so働き手名を出す（どの応募者ぶんか区別できる）。
+    // 働き手タブ＝相手（農家）名は出さない（求人詳細・チャットで確認）
+    const sub = [[e.crop, e.task].filter(Boolean).join(" "), e.job_number ? "#" + e.job_number : "", role === "farmer" ? (e.partner_name || "") : ""].filter(Boolean).join("　");
     const busy = confirming === (e.application_id || e.job_number) + e.stage;
     const onClick = async () => {
       if (m.nav) { window.location.hash = m.nav(e); return; }
@@ -8514,7 +8516,7 @@ function TodayPage({ me, defaultRole }) {
         className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #F0F0F0", borderLeft:"3px solid " + accent, borderRadius:10, padding:"11px 12px", cursor:"pointer" }}>
         <span style={{ minWidth:0, overflow:"hidden" }}>
           <span style={{ display:"block", fontSize:13, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:11 }}>#{e.job_number}</span></span>
-          <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📅 {label}{e.work_time ? "　" + e.work_time : ""}</span>
+          <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📅 {label}{e.work_time ? "　" + e.work_time : ""}{role === "farmer" && e.partner_name ? "　" + e.partner_name : ""}</span>
         </span>
         <span style={{ color:"#C8C8C8", fontSize:16, flexShrink:0 }}>›</span>
       </button>
