@@ -9088,16 +9088,24 @@ function JobSearchMapView({ onRegister, me }) {
   const [pastJobsOpen, setPastJobsOpen] = useState(false);
   const [pastJobs, setPastJobs] = useState(null); // null=読み込み中
   const [pastJobsTab, setPastJobsTab] = useState("all"); // すべて/公開中/終了（2026-07-23）
+  const [pastJobsFocus, setPastJobsFocus] = useState(null); // タップした求人（job_number）。先頭に移動して概要を展開（2026-07-24）
+  const [pastJobsCounts, setPastJobsCounts] = useState({}); // { job_number: {applied, approved, hired} }（集計値のみ）
   const [jobBackStack, setJobBackStack] = useState([]); // 過去求人から遷移した時の「前の求人」スタック
   const openPastJobs = async (tab) => {
     // tab: "open"（公開中→から）/"ended"（実績→から）/未指定は"all"。イベントオブジェクト混入ガード付き
     setPastJobsOpen(true); setPastJobs(null); setPastJobsTab(typeof tab === "string" ? tab : "all");
+    setPastJobsFocus(null); setPastJobsCounts({});
     try {
       const { data } = await supabase.rpc("employer_public_jobs", { p_job_number: selectedJob.id });
       // 今見ている求人も含めて全公開求人を出す（2026-07-16）。審査中(pending)・下書きは
       // 運営承認ゲート（憲法5条）前のため含めない——承認されれば自動でここに並ぶ
       setPastJobs(data || []);
     } catch { setPastJobs([]); }
+    // 求人ごとの応募・承認・採用人数（展開概要用・失敗しても「ー」表示になるだけ）
+    try {
+      const { data: cnts } = await supabase.rpc("employer_public_job_counts", { p_job_number: selectedJob.id });
+      if (cnts) setPastJobsCounts(cnts);
+    } catch {}
   };
   const openPastJob = (row) => {
     if (row.job_number === selectedJob.id) { setPastJobsOpen(false); setFarmIntroOpen(false); return; } // 今の求人ならボックスを閉じるだけ
@@ -10146,11 +10154,15 @@ function JobSearchMapView({ onRegister, me }) {
                         { key:"ended", label:"過去の実績", n: endedList.length },
                       ];
                       const shown = pastJobsTab === "open" ? openList : pastJobsTab === "ended" ? endedList : withEnded;
+                      // タップした求人を最前列へ移動し、概要をタブ内で展開（2026-07-24）
+                      const focusIdx = pastJobsFocus != null ? shown.findIndex(x => x.r.job_number === pastJobsFocus) : -1;
+                      const ordered = focusIdx >= 0 ? [shown[focusIdx], ...shown.slice(0, focusIdx), ...shown.slice(focusIdx + 1)] : shown;
+                      const fmtCnt = (v) => (v > 0 ? `${v}人` : "ー"); // なければ「ー」で統一
                       return (
                       <>
                       <div style={{ display:"flex", gap:6, marginBottom:14, borderBottom:"1px solid #EBEBEB" }}>
                         {tabs.map(t => (
-                          <button key={t.key} onClick={()=>setPastJobsTab(t.key)} className="f-sans" style={{
+                          <button key={t.key} onClick={()=>{ setPastJobsTab(t.key); setPastJobsFocus(null); }} className="f-sans" style={{
                             background:"none", border:"none", cursor:"pointer", padding:"6px 6px 10px",
                             fontSize:13, fontWeight: pastJobsTab===t.key ? 700 : 500,
                             color: pastJobsTab===t.key ? "#00A86B" : "#999",
@@ -10165,10 +10177,36 @@ function JobSearchMapView({ onRegister, me }) {
                         </p>
                       ) : (
                       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-                        {shown.map(({ r, ended }) => {
+                        {ordered.map(({ r, ended }) => {
                           const photo = r.photos && r.photos[0] ? (typeof r.photos[0] === "string" ? r.photos[0] : r.photos[0]?.url) : null;
+                          const isFocus = focusIdx >= 0 && r.job_number === pastJobsFocus;
+                          if (isFocus) {
+                            // 展開概要カード：最前列（グリッド全幅）。人数は集計値のみ・0は「ー」
+                            const c = pastJobsCounts[r.job_number] || {};
+                            return (
+                              <div key={r.job_number} style={{ gridColumn:"1 / -1", position:"relative", background:"#F7F7F7", borderRadius:12, padding:10, display:"flex", gap:10, alignItems:"flex-start" }}>
+                                <button onClick={()=>setPastJobsFocus(null)} aria-label="閉じる" style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:"50%", background:"#fff", border:"none", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                                <div style={{ width:84, height:84, borderRadius:10, overflow:"hidden", flexShrink:0, background:"#EBEBEB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
+                                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
+                                </div>
+                                <div style={{ flex:1, minWidth:0, paddingRight:24 }}>
+                                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                                    {[r.crop, r.task].filter(Boolean).join(" ") || ("求人 #" + r.job_number)}
+                                    {pastJobsTab === "all" && <span className="f-sans" style={{ fontSize:10, fontWeight:600, color: ended ? "#9E9E9E" : "#00A86B", marginLeft:6 }}>{ended ? "終了" : "公開中"}</span>}
+                                  </p>
+                                  {r.date_label && <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 6px" }}>{r.date_label}</p>}
+                                  <p className="f-sans" style={{ fontSize:12, color:"#222", margin:"0 0 8px" }}>
+                                    応募 {fmtCnt(c.applied)}・承認 {fmtCnt(c.approved)}・採用 {fmtCnt(c.hired)}
+                                  </p>
+                                  <button onClick={()=>openPastJob(r)} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                                    {r.job_number === selectedJob.id ? "この求人を見ています" : "求人ページを見る →"}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
                           return (
-                            <button key={r.job_number} onClick={()=>openPastJob(r)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#F7F7F7", border:"none", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
+                            <button key={r.job_number} onClick={()=>setPastJobsFocus(r.job_number)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#F7F7F7", border:"none", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
                                 {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
                                 {/* 状態帯は「すべて」タブでのみ表示。公開中/過去の実績タブは絞り込み済みで帯が冗長（2026-07-24） */}
