@@ -1299,3 +1299,16 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
   同意はlocalStorage(cb_visitConsent)に記録し、再訪問は玄関をスキップして#/searchへ直行。
 - QRは実行時生成しない（静的資産 public/visit-qr.svg を同梱）。画像とURLは永久に変更しないこと。
 ━━━ ここまで ━━━
+
+━━━ 2026-07-24 本番公開：招待制解除（signup_open=true）━━━
+【運営判断の記録】たきと指示「招待制を解除する。今晩から本番だ」により実施。
+前提充足：2026-07-21 規約v2/プラポリv2本番実装（以後signup_openの操作は運営判断・CLAUDE.md既定）。
+【実装＝1点ゲート】am_i_account_allowed() を「signup_open() OR 招待リスト照合」に変更
+（migration: 20260724150000_signup_open_general_release）。RLS(account_holders own_insert)と
+フロントのisAllowed判定は両方この関数を見るso、サーバー・画面が同時に切り替わる。
+・開放：app_settings.signup_open='true'（2026-07-24 execute_sqlで実施済み・現在ON）
+・キルスイッチ：signup_open='false' に1行UPDATEで即・招待制へ復帰（デプロイ不要）
+【維持されている別ゲート】third_party_publish_allowed='false' のまま＝第三者（他の農家）の
+求人公開は受理通知書到着まで機構的に不可（trg_block_third_party_open）。一般ユーザーは
+登録・応募・下書き保存まで可、掲載は運営審査＋トリガーの二重壁が従来どおり効いている。
+━━━ ここまで ━━━
