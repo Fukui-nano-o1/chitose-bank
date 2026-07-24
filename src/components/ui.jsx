@@ -181,3 +181,16 @@ export function NoticeJumpText({ text }) {
     <span key={i} style={{ display:"inline-block", whiteSpace:"pre", animation:`cbCharJump ${dur}s ease-in-out ${(i / denom) * NOTICE_JUMP_WAVE}s infinite` }}>{ch}</span>
   ));
 }
+
+// DM本文のURLをタップ可能なリンクにする（2026-07-19）：修正依頼の「▶ 修正はこちら」等。
+// chitose-bank.comの#リンクはアプリ内遷移（hash変更・リロードなし）、外部URLは新規タブ。
+// onNavigate＝アプリ内リンクを踏んだ時に呼ぶ（DMポップアップを閉じる用）
+export function LinkifiedText({ text, onNavigate }) {
+  const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
+  return parts.map((p, i) => {
+    if (!/^https?:\/\//.test(p)) return p;
+    const m = p.match(/^https?:\/\/(?:www\.)?chitose-bank\.com\/(#\/[^\s]*)$/);
+    if (m) return <a key={i} href={m[1]} onClick={()=>{ if (typeof onNavigate === "function") onNavigate(); }} style={{ color:"inherit", fontWeight:700, textDecoration:"underline" }}>{p}</a>;
+    return <a key={i} href={p} target="_blank" rel="noopener noreferrer" style={{ color:"inherit", fontWeight:700, textDecoration:"underline" }}>{p}</a>;
+  });
+}

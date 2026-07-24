@@ -2,9 +2,9 @@ import { supabase } from "./lib/supabase";
 import { openEmployerPreview, openWorkerPreview } from "./lib/previewBus";
 import { chatCache } from "./lib/chatCache";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "./lib/questionSets";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_STATUS_LABEL, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER } from "./lib/utils";
+import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_STATUS_LABEL, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText } from "./components/ui";
+import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText, LinkifiedText } from "./components/ui";
 import { CalendarView } from "./components/CalendarView";
 import { JobCard } from "./components/JobCard";
 import { JobLocationMap } from "./components/JobLocationMap";
@@ -141,9 +141,6 @@ const farmIntroTopics = (e) => [
 
 
 
-// きっかけアンケート（初回いいね時・2026-07-24）：Q1どこで知ったか（単一）、Q2どう使いたいか（複数）
-const SURVEY_SOURCES = ["定例会・イベントで", "知人・家族の紹介", "冊子・チラシのQRから", "SNS・ネット検索", "農家さんから聞いた", "その他"];
-const SURVEY_REASONS = ["収入を得たい", "農業を経験してみたい", "繁忙期の人手がほしい", "地域の人とつながりたい", "空いた時間を活かしたい", "その他"];
 
 
 // ハンバーガーメニュー（PC）。項目の追加・削除はこの配列を編集するだけでよい。
@@ -1058,7 +1055,6 @@ function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivac
   );
 }
 
-// ── RegisterScreen
 
 
 
@@ -1631,18 +1627,6 @@ async function uploadAvatarResilient(folder, blob) {
     } catch {}
   }
   return err;
-}
-// DM本文のURLをタップ可能なリンクにする（2026-07-19）：修正依頼の「▶ 修正はこちら」等。
-// chitose-bank.comの#リンクはアプリ内遷移（hash変更・リロードなし）、外部URLは新規タブ。
-// onNavigate＝アプリ内リンクを踏んだ時に呼ぶ（DMポップアップを閉じる用）
-function LinkifiedText({ text, onNavigate }) {
-  const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
-  return parts.map((p, i) => {
-    if (!/^https?:\/\//.test(p)) return p;
-    const m = p.match(/^https?:\/\/(?:www\.)?chitose-bank\.com\/(#\/[^\s]*)$/);
-    if (m) return <a key={i} href={m[1]} onClick={()=>{ if (typeof onNavigate === "function") onNavigate(); }} style={{ color:"inherit", fontWeight:700, textDecoration:"underline" }}>{p}</a>;
-    return <a key={i} href={p} target="_blank" rel="noopener noreferrer" style={{ color:"inherit", fontWeight:700, textDecoration:"underline" }}>{p}</a>;
-  });
 }
 function WorkerPreviewSheet() {
   const [st, setSt] = useState(null); // {worker_id, loading, profile, trust}
