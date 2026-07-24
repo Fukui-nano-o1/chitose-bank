@@ -1341,7 +1341,12 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
   前提依存も整理：disp/EMPTY_MARK/stationLabel/CALENDAR_STATUS_LABEL/COLOR→lib/utils、
   Carousel/JobFlagBadges(+JOB_FLAG_INFO)/NoticeJumpText(+NOTICE_JUMP_WAVE)→components/ui、
   JobLocationMap→components/JobLocationMap.jsx。App.jsx→約17300行
-【段階2・残り】ChatView（大物・依存多・最後の1つ）。手順＝①部品の依存をgrepで洗う
+【大物②完了（2026-07-24・3コミット）＝段階2すべて完了】ChatView(668行)→components/ChatView.jsx。
+  共有依存の整理：CHAT定数5点→lib/utils／open*Preview→lib/previewBus.js／CHAT_LIST_CACHE→lib/chatCache.js
+  （box方式＝ESM再代入不可対応・一覧⇄スレッドの未読キャッシュ共有維持）／INTERVIEW_TEMPLATES+
+  ensureDefaultQuestionSets→lib/questionSets.js。App.jsx→約16800行（累計▲約3800行）
+【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
+  相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認手順＝①部品の依存をgrepで洗う
   ②新ファイルへ移動+export ③App.jsxにimport ④build(lintゲート) ⑤commit。1部品=1コミット厳守
 【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
   相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認
