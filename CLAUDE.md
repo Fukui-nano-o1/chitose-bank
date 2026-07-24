@@ -1312,3 +1312,19 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
 求人公開は受理通知書到着まで機構的に不可（trg_block_third_party_open）。一般ユーザーは
 登録・応募・下書き保存まで可、掲載は運営審査＋トリガーの二重壁が従来どおり効いている。
 ━━━ ここまで ━━━
+
+━━━ 2026-07-24 ファイル分割・開始（段階1完了）— 端末またぎ必読 ━━━
+【目的】App.jsx(2万行)の役割別分割。二頭運転の衝突減・CC編集の安全化・ESLintゲートとの併用。
+【所有権ルール】分割作業中は App.jsx を触る手を1本に固定（たきと宣言で交代）。
+【段階1・完了（2026-07-24・3コミット）】
+・src/lib/supabase.js … supabaseクライアント（全ファイル共通の単一クライアント。他所でcreateClientしない）
+・src/lib/utils.js … 純粋ヘルパー＋定数（ADMIN_EMAIL/isAdmin/ymdLocal/isWorkDayToday/fmtJstShort/
+  CALENDAR_WD/calAddDays/calFmtDate/daysBetweenYmd）。React/DOM/supabase非依存の層のみ置く
+・src/appStyles.js … CSS文字列(1004行)。<style>{CSS}</style>の注入方式は不変
+・App.jsx: 20605行→19609行。ESLint(no-undef)ゲートで参照解決を機械確認しながら1抽出=1コミット
+【段階2・未着手】独立部品を1個ずつ切り出す：TodayPage/MyCalendar/ChatView/JobQuestions/
+  InsurancePrepPage/VisitEntrance/CalendarView/AvailDatesChips系 など。手順＝①部品の依存をgrepで洗う
+  ②新ファイルへ移動+export ③App.jsxにimport ④build(lintゲート) ⑤commit。1部品=1コミット厳守
+【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
+  相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認
+━━━ ここまで ━━━
