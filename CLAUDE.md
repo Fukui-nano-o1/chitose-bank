@@ -1351,3 +1351,12 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
 【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
   相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認
 ━━━ ここまで ━━━
+
+━━━ 2026-07-24 分割3-A：旧遺物の削除（たきと方針＝削除・リスク上昇時は撤回）━━━
+【削除済み（コードのみ・git履歴から復元可能）】公開ボード(BoardTab/MarketChart/FarmerCard)・
+データ入力(InputTab)・五年計画(FiveYearPlanTab)の全UIと board/input/plan ルート、
+デッドコード(RegisterScreen/COST_TEMPLATES/subReg)。App.jsx 16,855→14,159行。
+【残置＝触っていないもの】farmers/farmPend等のstate・データ読込（AdminTab承認機能と共有）／
+DBオブジェクト（dests・records・BoardTab系SECURITY DEFINER関数・RLS）＝DB後始末は別途判断。
+【/#/visit・regi等の恒久URLは無関係・不変】
+━━━ ここまで ━━━
