@@ -704,7 +704,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
             </div>
           </div>
-          <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
+          {/* 「期限切れの求人を見る」リンクは削除（2026-07-25たきと指示）。ページ自体(/profile/employer/expired)はURL直打ちで到達可 */}
         </>
       ) : (
       <>
