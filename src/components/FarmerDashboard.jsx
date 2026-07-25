@@ -930,20 +930,22 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                           <span style={{ fontSize:14, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8", fontWeight:700 }}>#{jn}</span></span>
                           <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 →</span>
                         </button>
+                        {/* アイコンのみ・中央配置（2026-07-25たきと指示）：箱装飾なし。少人数なら中央、溢れたら横スクロール（max-content＋margin auto） */}
                         <div onTouchStart={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
-                          style={{ display:"flex", gap:12, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
+                          style={{ overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
+                          <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>
                           {byJob[jn].map(a => {
                             const wp = workerProfiles[a.worker_id];
                             return (
-                              <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
-                                className={"f-sans" + (a.status === "applied" ? " cb-urgent-card" : needsInsurance(a) ? " cb-urgent-still" : "")}
-                                style={{ flexShrink:0, width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", borderRadius:12 }}>
+                              <button key={a.id} onClick={()=>setSheetApplicantId(a.id)} className="f-sans"
+                                style={{ flexShrink:0, width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                                 <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(a)} />
-                                <span style={{ display:"block", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
+                                <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
                                 <span style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(a), marginTop:1 }}>{appRibbonLabel(a)}</span>
                               </button>
                             );
                           })}
+                          </div>
                         </div>
                       </div>
                     </div>
