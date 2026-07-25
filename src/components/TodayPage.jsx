@@ -64,40 +64,68 @@ export function TodayPage({ me, defaultRole }) {
     .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
   const dual = hasWorker && hasFarmer;
   // 横スワイプで働き手⇄農家（雇い手）を切替（両役持ちのみ・2026-07-25）。
-  // 「動いている動作」：指に追従してコンテンツが横に付いてくる→離すと確定側へスライドイン／不成立なら戻る。
-  // 縦スクロールと誤爆しないよう、横が縦より明確に大きい時だけ追従・発火
-  const touchRef = useRef(null);
-  const [dragX, setDragX] = useState(0);      // ドラッグ中の追従量（px・減衰済み）
-  const [dragging, setDragging] = useState(false);
+  // なめらか化（同日改修）：①追従はsetStateせずDOMのtransformを直接書く（毎フレーム再レンダーを排除）
+  // ②ジェスチャ開始8pxで縦/横を1回だけ判定する方向ロック（縦と誤認識しない）
+  // ③容器にtouch-action:pan-y＋横ロック中はpreventDefault（縦スクロールとの奪い合いを断つ。ReactのonTouchMoveは
+  //   passiveでpreventDefault不可のため、ネイティブリスナーを{passive:false}で張る）
+  const rootRef = useRef(null);
+  const contentRef = useRef(null);
+  const gestureRef = useRef(null); // { x, y, lock:'h'|'v'|null }
+  const roleRef = useRef(role); roleRef.current = role;
+  const dualRef = useRef(dual); dualRef.current = dual;
   const [slideDir, setSlideDir] = useState(0); // 切替後のスライドイン方向（1=右から・-1=左から）
   const [slideKey, setSlideKey] = useState(0); // key更新でアニメを再生
   const switchRole = (target) => {
-    if (target === role) return;
+    if (target === roleRef.current) return;
     setSlideDir(target === "farmer" ? 1 : -1); // タブ並び：左=働き手・右=農家
     setSlideKey(k => k + 1);
     setRole(target);
   };
-  const onTouchStart = (ev) => { const t = ev.touches && ev.touches[0]; if (t) touchRef.current = { x: t.clientX, y: t.clientY }; };
-  const onTouchMove = (ev) => {
-    const s = touchRef.current; if (!dual || !s) return;
-    const t = ev.touches && ev.touches[0]; if (!t) return;
-    const dx = t.clientX - s.x, dy = t.clientY - s.y;
-    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+  const switchRoleRef = useRef(switchRole); switchRoleRef.current = switchRole;
+  useEffect(() => {
+    const el = rootRef.current; if (!el) return;
+    const onStart = (ev) => { const t = ev.touches[0]; if (t) gestureRef.current = { x: t.clientX, y: t.clientY, lock: null }; };
+    const onMove = (ev) => {
+      const g = gestureRef.current; if (!g || !dualRef.current) return;
+      const t = ev.touches[0]; if (!t) return;
+      const dx = t.clientX - g.x, dy = t.clientY - g.y;
+      if (!g.lock) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // 8px動くまで判定保留
+        g.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";  // 1ジェスチャ1回だけ軸を確定
+      }
+      if (g.lock !== "h") return; // 縦確定＝以後ノータッチ（ブラウザのスクロールに完全に譲る）
+      ev.preventDefault();
+      const c = contentRef.current; if (!c) return;
       const target = dx < 0 ? "farmer" : "worker";
-      const damp = target === role ? 0.12 : 0.35; // 行き先が無い方向は強い抵抗（端の感触）
-      setDragging(true);
-      setDragX(Math.max(-90, Math.min(90, dx * damp)));
-    }
-  };
-  const onTouchEnd = (ev) => {
-    const s = touchRef.current; touchRef.current = null;
-    setDragging(false);
-    if (!dual || !s) { setDragX(0); return; }
-    const t = ev.changedTouches && ev.changedTouches[0]; if (!t) { setDragX(0); return; }
-    const dx = t.clientX - s.x, dy = t.clientY - s.y;
-    if (Math.abs(dx) >= 60 && Math.abs(dx) >= Math.abs(dy) * 1.5) switchRole(dx < 0 ? "farmer" : "worker");
-    setDragX(0); // 不成立ならtransitionで元位置へ戻る（スナップバック）
-  };
+      const damp = target === roleRef.current ? 0.12 : 0.4; // 行き先が無い方向は強い抵抗（端の感触）
+      c.style.transition = "none";
+      c.style.transform = `translateX(${Math.max(-100, Math.min(100, dx * damp))}px)`;
+    };
+    const onEnd = (ev) => {
+      const g = gestureRef.current; gestureRef.current = null;
+      if (!g || g.lock !== "h") return;
+      const c = contentRef.current;
+      const t = ev.changedTouches && ev.changedTouches[0];
+      const dx = t ? t.clientX - g.x : 0;
+      const target = dx < 0 ? "farmer" : "worker";
+      if (Math.abs(dx) >= 50 && target !== roleRef.current) {
+        if (c) { c.style.transition = ""; c.style.transform = ""; }
+        switchRoleRef.current(target); // key更新で新コンテンツがスライドイン
+        return;
+      }
+      if (c) { c.style.transition = "transform .2s ease"; c.style.transform = ""; } // スナップバック
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, []);
   const accent = role === "worker" ? ROLE_ORANGE : ROLE_GREEN;
   const handshakeHash = role === "worker" ? "/profile/worker/approved" : "/profile/employer/applicants";
 
@@ -257,7 +285,7 @@ export function TodayPage({ me, defaultRole }) {
   };
 
   return (
-    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden" }} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+    <div ref={rootRef} style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden", touchAction:"pan-y" }}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 14px" }}>📆 今日</h2>
       {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示 */}
       {dual && (
@@ -271,10 +299,8 @@ export function TodayPage({ me, defaultRole }) {
           ))}
         </div>
       )}
-      {/* 役割コンテンツ：ドラッグ中は指に追従（transition切り）、離すとスナップバック。切替成立時はkey更新でスライドイン再生 */}
-      <div key={slideKey} style={{
-        transform: dragX ? `translateX(${dragX}px)` : "none",
-        transition: dragging ? "none" : "transform .25s ease",
+      {/* 役割コンテンツ：ドラッグ追従はcontentRefへのtransform直書き（再レンダーなし）。切替成立時はkey更新でスライドイン再生 */}
+      <div key={slideKey} ref={contentRef} style={{
         animation: slideDir ? `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` : undefined,
       }}>
       {loading ? (
