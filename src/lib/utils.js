@@ -311,3 +311,14 @@ export const THIS_YEAR = new Date().getFullYear();
 // account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
 export const TERMS_VERSION = "v1-2026-07";
 export const PRIVACY_VERSION = "v1-2026-07";
+
+// 分割3-B（2026-07-25）：App.jsxから移動（LandingFlow・WorkerProfileEditで共用）
+export // 作業リスト（アイコン無し・文字だけカード。増やすときはここに1行足すだけ）
+const TASK_OPTIONS = [
+  { name:"収穫",     icon:"" },
+  { name:"定植",     icon:"" },
+  { name:"選果",     icon:"" },
+  { name:"農薬散布", icon:"" },
+  { name:"草刈り",   icon:"" },
+  { name:"袋かけ",   icon:"" },
+];

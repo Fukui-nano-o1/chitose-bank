@@ -194,3 +194,18 @@ export function LinkifiedText({ text, onNavigate }) {
     return <a key={i} href={p} target="_blank" rel="noopener noreferrer" style={{ color:"inherit", fontWeight:700, textDecoration:"underline" }}>{p}</a>;
   });
 }
+
+// 分割3-B（2026-07-25）：App.jsxから移動。ピル型の単一選択（LandingFlow・WorkerProfileEditで共用）
+export function LFPillSelect({ options, value, onSelect }) {
+  return (
+    <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
+      {options.map(o => (
+        <button key={o} onClick={() => onSelect(o)} className="f-sans" style={{
+          padding:"7px 14px", borderRadius:20, fontSize:12, cursor:"pointer", fontWeight:600, border:"2px solid",
+          borderColor: value===o ? "#00A86B" : "#EBEBEB",
+          background: value===o ? "#E6F7EF" : "#fff", color: value===o ? "#00A86B" : "#222",
+        }}>{o}</button>
+      ))}
+    </div>
+  );
+}
