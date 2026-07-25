@@ -171,6 +171,8 @@ export function TodayPage({ me, defaultRole }) {
   const todayJobs = mine
     .filter(isTodayJob)
     .sort((a, b) => (a.work_time || "").localeCompare(b.work_time || ""));
+  // きょうの仕事→やること統合（2026-07-25たきと指示）：独立セクションを分解し、stage="today"としてやることの箱に合流
+  const todayItems = todayJobs.map(e => ({ ...e, stage: "today" }));
   const upcoming = mine
     .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
     .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
@@ -240,40 +242,13 @@ export function TodayPage({ me, defaultRole }) {
   }, []);
   const accent = role === "worker" ? ROLE_ORANGE : ROLE_GREEN;
 
-  // きょうの仕事カード（#N・作物 作業・時間帯・相手）＝当日の現場情報ハブ。
-  // 案A（2026-07-25たきと確定）：行動（開始確認・完了評価・打刻）は「やること」に一本化し、
-  // このカードは確認カード・緊急連絡・チャットのみ（1機能1入口。同じ操作の入口を2箇所に置かない）
-  const TodayCard = ({ e }) => {
-    const photo = e.photos && e.photos[0] ? (typeof e.photos[0] === "string" ? e.photos[0] : e.photos[0]?.url) : null;
-    const title = [e.crop, e.task].filter(Boolean).join(" ") || "求人";
-    const btn = (label, bg, fg, onClick, border) => (
-      <button onClick={onClick} className="f-sans" style={{ flex:"1 1 46%", minWidth:0, padding:"11px 8px", fontSize:13, fontWeight:700, background:bg, color:fg, border:border||"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{label}</button>
-    );
-    return (
-      <div style={{ border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:14, background:"#fff", overflow:"hidden" }}>
-        <div style={{ display:"flex", gap:12, padding:"14px 14px 10px", alignItems:"center" }}>
-          <div style={{ width:56, height:56, borderRadius:10, background:"#F7F7F7", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, overflow:"hidden" }}>
-            {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-          </div>
-          <div style={{ minWidth:0, flex:1 }}>
-            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{e.job_number}</span></p>
-            {e.work_time && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>🕒 {e.work_time}</p>}
-            {/* A案：農家タブ＝働き手名を表示（自分の応募者）。働き手タブ＝相手名は出さない */}
-            {role === "farmer" && e.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>👤 {e.partner_name}</p>}
-          </div>
-        </div>
-        <div style={{ display:"flex", flexWrap:"wrap", gap:8, padding:"0 14px 14px" }}>
-          {btn("確認カード", "#F7F7F7", "#222", () => { try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }, "1px solid #EBEBEB")}
-          {e.application_id && btn("⚠️ 緊急連絡", "#fff", "#C77700", () => { window.location.hash = "/emergency/" + e.application_id; }, "1px solid #FFB020")}
-          {e.application_id && btn("チャット", "#00A86B", "#fff", () => { window.location.hash = "/chat/" + e.application_id; })}
-        </div>
-      </div>
-    );
-  };
+  // TodayCardコンポーネントは削除（2026-07-25統合）：役割はstage="today"の行（チャット主ボタン・⚠️緊急連絡・求人チップ）へ
 
   // ── やること（採配台）：状態カード。①②⑧=遷移／③〜⑦=直接実行（保険・開始確認はインライン、日程決定・完了/評価は既存モーダルへ橋渡し） ──
   const removeTodo = (id, st) => setTodos(prev => prev.filter(t => !(t.application_id === id && t.stage === st)));
   const TODO_META = {
+    // きょうの仕事（2026-07-25統合）：当日の現場ハブ。主ボタン=チャット（応募なし求人は求人ページ）。⚠️緊急連絡は行内の補助ボタン
+    today:       { icon:"🌾", title:"きょうの仕事",         btn:"チャット →",       nav: e => e.application_id ? "/chat/" + e.application_id : "/work/job/" + e.job_number },
     revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
     approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   nav: () => "/profile/employer/applicants" },
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
@@ -310,12 +285,13 @@ export function TodayPage({ me, defaultRole }) {
   const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接の質問", revision: "求人の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review", "chat"],
-    worker: ["w_interview", "w_start", "w_review", "chat"],
+    farmer: ["today", "revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review", "chat"],
+    worker: ["today", "w_interview", "w_start", "w_review", "chat"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
     if (!pageStage) return;
+    if (pageStage === "today") return; // きょうの仕事は両役共通＝現在の役割のまま
     const pr = TODO_STAGE_CATALOG.worker.includes(pageStage) ? "worker" : "farmer";
     if (role !== pr) setRole(pr);
   }, [pageStage, role]);
@@ -371,7 +347,7 @@ export function TodayPage({ me, defaultRole }) {
     const onTapBox = () => {
       if (!n) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
       // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。それ以外は用件の専用ページへ
-      if (n === 1 && (m.nav || m.flag)) { runTodo(m, items[0]); return; }
+      if (n === 1 && (m.nav || m.flag) && stage !== "today") { runTodo(m, items[0]); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (
@@ -397,7 +373,7 @@ export function TodayPage({ me, defaultRole }) {
         <div style={{ display:"grid", gap:8 }}>
           {items.map(t => {
             const busy = confirming === (t.application_id || t.job_number) + t.stage;
-            const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" ")].filter(Boolean).join(" ");
+            const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" "), (stage === "today" && t.work_time) ? "🕒" + t.work_time : ""].filter(Boolean).join(" ");
             return (
               <div key={todoKey(t)} style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
                 {role === "farmer" && t.partner_name ? (
@@ -409,6 +385,9 @@ export function TodayPage({ me, defaultRole }) {
                 {/* 求人チップはタップで求人ページへ（確認前に内容を見られる） */}
                 {jobChip && <button onClick={()=>{ if (!t.job_number) return; try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>{jobChip}</button>}
                 <span style={{ flex:1 }} />
+                {stage === "today" && t.application_id && (
+                  <button onClick={()=>{ window.location.hash = "/emergency/" + t.application_id; }} aria-label="緊急連絡" className="f-sans" style={{ flexShrink:0, padding:"8px 10px", fontSize:12, fontWeight:700, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:9, cursor:"pointer" }}>⚠️</button>
+                )}
                 <button onClick={()=>runTodo(m, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 12px", fontSize:12, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
               </div>
             );
@@ -435,7 +414,7 @@ export function TodayPage({ me, defaultRole }) {
   // ── 用件の専用ページ（#/calendar/todo/{stage}）：ボックスタップの行き先。←で今日へ戻る ──
   if (pageStage && TODO_META[pageStage]) {
     const pm = TODO_META[pageStage];
-    const pItems = todos.filter(t => t.stage === pageStage);
+    const pItems = pageStage === "today" ? todayItems : todos.filter(t => t.stage === pageStage);
     return (
       <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 16px" }}>
@@ -489,6 +468,7 @@ export function TodayPage({ me, defaultRole }) {
           const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
           // 用件（stage）ごとに1箱へ集約。該当ありは最新順で上位、該当なしもカタログ順で常時表示（薄表示・タップ不可）
           const activeOrder = []; const byStage = new Map();
+          if (todayItems.length) { byStage.set("today", todayItems); activeOrder.push("today"); } // きょうの仕事は常に先頭
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
           const catalog = TODO_STAGE_CATALOG[role] || [];
           const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
@@ -501,18 +481,11 @@ export function TodayPage({ me, defaultRole }) {
             </div>
           );
         })()}
-        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>きょうの仕事</p>
-        {todayJobs.length > 0 ? (
-          <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:12, marginBottom:24 }}>
-            {todayJobs.map(e => <TodayCard key={e.application_id || e.job_number} e={e} />)}
-          </div>
-        ) : (
-          <div style={{ background:"#F7F7F7", borderRadius:14, padding:"28px 20px", textAlign:"center", marginBottom:24 }}>
-            <div style={{ fontSize:36, marginBottom:8 }}>☀️</div>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0 }}>きょうの仕事はありません</p>
-            {upcoming.length === 0 && (
-              <button onClick={()=>{ window.location.hash = "/search"; }} className="f-sans" style={{ marginTop:14, padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>求人をさがす →</button>
-            )}
+        {/* きょうの仕事の独立セクションは廃止（2026-07-25たきと指示）：stage="today"としてやることの箱へ統合。
+            仕事がない日の「求人をさがす」導線だけ残す */}
+        {todayJobs.length === 0 && upcoming.length === 0 && (
+          <div style={{ textAlign:"center", marginBottom:24 }}>
+            <button onClick={()=>{ window.location.hash = "/search"; }} className="f-sans" style={{ padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>求人をさがす →</button>
           </div>
         )}
         {upcoming.length > 0 && (
