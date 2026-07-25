@@ -161,8 +161,8 @@ export function ChatList() {
   });
 
   return (
-    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0" }}>
-      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>チャット</h2>
+    <div style={{ maxWidth:600, margin:"0 auto", padding:"5px 0 8px" }}>{/* 上余白はmainの10px＋ここ5px＝15px固定（2026-07-25たきと指示） */}
+      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 14px" }}>チャット</h2>
       {/* 通知をオンにする案内（2026-07-19）：未許可かつ対応環境のみ。granted/denied/未対応では出さない */}
       {!pushDismissed && (pushSt === "default" || pushSt === "need-standalone") && (
         <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
@@ -177,14 +177,12 @@ export function ChatList() {
           <button onClick={()=>{ setPushDismissed(true); try{localStorage.setItem("cb_pushBannerDismissed","1");}catch{} }} aria-label="閉じる" style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,0.06)", border:"none", fontSize:12, cursor:"pointer", color:"#5B7B6D" }}>✕</button>
         </div>
       )}
-      {/* 運営DMタブ（2026-07-16）：常に最上部。未読は赤バッジ */}
-      <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className={"f-sans" + (dmUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer", marginBottom:10 }}>
-        <span style={{ width:40, height:40, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>🛡</span>
-        <div style={{ flex:1, minWidth:0 }}>
-          <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>chitose-bank運営</p>
-          <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{dmMsgs.length > 0 ? dmMsgs[dmMsgs.length - 1].body : "運営からのお知らせ・連絡はこちら"}</p>
-        </div>
-        {dmUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0 }}>{dmUnread}</span>}
+      {/* 運営チャット＝下部フッター上の浮遊ボックス（2026-07-25たきと指示・一覧の最上部行から移設） */}
+      <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className={"f-sans" + (dmUnread > 0 ? " cb-urgent-card" : "")}
+        style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
+        <span style={{ fontSize:18, lineHeight:1 }}>🛡</span>
+        <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>運営チャット</span>
+        {dmUnread > 0 && <span style={{ minWidth:20, height:20, borderRadius:10, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{dmUnread}</span>}
       </button>
       {/* 運営DMスレッド（ポップアップ0.8秒・✕/背景で閉じる） */}
       {dmOpen && (
