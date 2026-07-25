@@ -30,8 +30,6 @@ export function ChatView({ applicationId, onBack }) {
   const [confirmingTerms, setConfirmingTerms] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
   const [confirmBoxOpen, setConfirmBoxOpen] = useState(false); // 求人内容確認をボックス展開（2026-07-19）
-  // 求人コンテキストカード（2026-07-22・第8弾）：チャット最上部に固定。スレッドが「何の話か」を常時知っている状態
-  const [ctxOpen, setCtxOpen] = useState(false);
   // 定型文シート（2026-07-22・第8弾）：入力欄横の＋→役割別のテンプレをタップで挿入
   const [tmplOpen, setTmplOpen] = useState(false);
   // ＋シートのタブ（2026-07-23）：定型文 / 質問集（質問集は農家側のみ）。スワイプで切替
@@ -353,42 +351,8 @@ export function ChatView({ applicationId, onBack }) {
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
       )}
 
-      {/* 求人コンテキストカード（2026-07-22・第8弾）：チャット最上部に固定（メッセージ欄の外＝スクロールしない）。
-          スレッドが「何の話か」を常時知っている状態にする。タップで確認状態・保険状態・求人ページリンクを展開 */}
-      {chatJobNumber != null && (
-        <div className="f-sans" style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, margin:"6px 0 2px", overflow:"hidden" }}>
-          <button onClick={()=>setCtxOpen(v=>!v)} style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"none", border:"none", padding:"10px 12px", cursor:"pointer" }}>
-            <span style={{ fontSize:18, flexShrink:0 }}>🌾</span>
-            <span style={{ flex:1, minWidth:0 }}>
-              <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>#{chatJobNumber}{confirmJob && (confirmJob.crop || confirmJob.task) ? "「" + [confirmJob.crop, confirmJob.task].filter(Boolean).join(" ") + "」" : ""}</span>
-              {confirmJob && (confirmJob.dateLabel || confirmJob.workTime) && (
-                <span style={{ display:"block", fontSize:11, color:"#7A9E8E", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[confirmJob.dateLabel, confirmJob.workTime].filter(Boolean).join("　")}</span>
-              )}
-            </span>
-            <span style={{ fontSize:12, color:"#7A9E8E", flexShrink:0 }}>{ctxOpen ? "閉じる ▲" : "詳細 ▼"}</span>
-          </button>
-          {ctxOpen && (
-            <div style={{ borderTop:"1px solid #E4F0EA", padding:"10px 12px", display:"grid", gap:8 }}>
-              {/* 来られる日（応募者が宣言）／働く日（農家が確定）＝すり合わせの起点と完結・2026-07-24 */}
-              <AvailDatesChips value={activeAvail} fs={11} />
-              <AgreedDatesRow value={activeAgreed} fs={11} />
-              <div style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
-                <span style={{ fontSize:12, color:"#8AA79A", flexShrink:0 }}>内容の確認</span>
-                <span style={{ fontSize:12, fontWeight:700, color: workerConfirmed ? "#00A86B" : "#B0700F", textAlign:"right" }}>{workerConfirmed ? "✓ 相違なし済み" : "未確認"}</span>
-              </div>
-              <div style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
-                <span style={{ fontSize:12, color:"#8AA79A", flexShrink:0 }}>採用</span>
-                <span style={{ fontSize:12, fontWeight:700, color: farmerConfirmed ? "#00A86B" : "#999", textAlign:"right" }}>{farmerConfirmed ? "✓ 採用決定済み" : "未決定"}</span>
-              </div>
-              <div style={{ display:"flex", justifyContent:"space-between", gap:12 }}>
-                <span style={{ fontSize:12, color:"#8AA79A", flexShrink:0 }}>保険の報告</span>
-                <span style={{ fontSize:12, fontWeight:700, color: insurancePreparedAt ? "#00A86B" : "#999", textAlign:"right" }}>{insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません"}</span>
-              </div>
-              <button onClick={()=>openJobBox(chatJobNumber)} style={{ marginTop:2, background:"none", border:"none", padding:0, fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer", textAlign:"left" }}>求人ページを見る →</button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* 求人コンテキストカード（#N「作物 作業」＋確認/採用/保険/求人リンクの展開）は削除（2026-07-25たきと指示）。
+          求人番号は上部の#N求人ボックス帯・確認/採用の行動は今日のやることに集約済みのため重複だった */}
 
       {/* 求人内容の確認（⑦・働き手のみ）：チャットを占有せず、コンパクトなバー→タップでボックス展開（2026-07-19） */}
       {/* 確認済みはチャットメッセージ「✓ 求人内容を確認しました」として残る（2026-07-19）ので、
