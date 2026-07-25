@@ -1462,6 +1462,9 @@ export default function App(){
       await sSet("yw_pres_v3",true);
     }
     const fp=await sGet("yw_farmers_pend")||[];
+    // 起動フェイルセーフ（2026-07-25）：ネットワークが刺さってもUIを人質にしない。4秒でloadedを強制的に立て、
+    // 画面（骨格）を先に出す。セッション復元は裏で続き、完了した時点でme等が後から埋まる
+    const loadedFailsafe = setTimeout(() => setLoaded(true), 4000);
     // 起動の並列化（2026-07-25）：直列5往復（dests×2→停止チェック→farmers→records）を並列2バッチに圧縮。
     // 停止チェックがmeの設定より先に判定される順序は不変（結果の適用順で担保）
     const [{ data: { session } }, destsOkRes, destsPendRes] = await Promise.all([
@@ -1484,7 +1487,7 @@ export default function App(){
       ]);
       // 停止／追放チェック（2026-07-19）：ログイン封鎖(banned_until)が効くまでの猶予（既存トークン最大1h）を塞ぐ。
       // 停止中なら即サインアウトして制限画面へ（meはセットしない）
-      if (moddedRes?.data) { setBlockedAccount(true); try { await supabase.auth.signOut(); } catch {} setLoaded(true); return; }
+      if (moddedRes?.data) { setBlockedAccount(true); try { await supabase.auth.signOut(); } catch {} clearTimeout(loadedFailsafe); setLoaded(true); return; }
       const { data: dbFarmer } = farmerRes;
       if (dbFarmer) {
         const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, status: dbFarmer.status, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
@@ -1507,7 +1510,7 @@ export default function App(){
       }
     }
     setFarmers(f);setFarmPend(fp);setDestOk(da);setDestPend(dp);setRecs(r);
-    setBadgeCnt(fp.length+dp.length);setLoaded(true);
+    setBadgeCnt(fp.length+dp.length);clearTimeout(loadedFailsafe);setLoaded(true);
   })();},[]);
 
   const savF=useCallback(async f=>{setFarmers(f);await sSet("yw_farmers",f);},[]);
