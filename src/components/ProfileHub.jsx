@@ -73,6 +73,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const [wHub, setWHub] = useState({ today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
   const [hubFlip, setHubFlip] = useState(null); // ？タップで反転して説明を出す箱のラベル（2026-07-22）
   const [showWAch, setShowWAch] = useState(false); // 🌟わたしの実績モーダル
+  const [wSeekFlip, setWSeekFlip] = useState(false); // 「新しく求職を出す」カードの反転（届出受理待ちの案内・2026-07-25）
   const [wSeenReviews, setWSeenReviews] = useState(() => { try { return parseInt(localStorage.getItem("cb_wSeenReviews") || "0", 10) || 0; } catch { return 0; } }); // 既読の評価件数（🌟は新着時のみ）
   useEffect(() => {
     if (wTab !== "home") return; // 入口に戻るたびに再取得（編集後のバッジ・スニペット鮮度を担保）
@@ -264,6 +265,33 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                     「返事待ち」「さがす」「いいね」箱も撤去（2026-07-25たきと指示）：
                     さがす・いいねは下部ナビに常設＝入口の重複。返事待ちは相方のアクション待ちで
                     プロフィール入口に置く用事ではない（応募状況ページ #/profile/worker/applying は存続） */}
+                {/* 新しく求職を出す（2026-07-25たきと指示・農家の「新しく求人を出す」と同構造のワイドカード）。
+                    ★法務境界（CLAUDE.md絶対遵守）：求職者情報の公開・逆オファーは特定募集情報等提供の
+                    届出受理＋設計審査まで実装禁止。本カードはプレースホルダーのみ＝機能・入力・保存なし。
+                    タップで反転し「届出の受理を確認しています」を明記する */}
+                <div style={{ perspective:800, marginTop:12 }}>
+                  <button onClick={()=>setWSeekFlip(v=>!v)} className="f-sans" aria-label="新しく求職を出す（準備中）" style={{
+                    position:"relative", width:"100%", background:"transparent", border:"none", padding:0, cursor:"pointer",
+                    transformStyle:"preserve-3d", transition:"transform .5s", transform: wSeekFlip ? "rotateY(180deg)" : "none", textAlign:"left",
+                  }}>
+                    {/* 表面 */}
+                    <span style={{ display:"flex", alignItems:"center", gap:14, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
+                      <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
+                      <span>
+                        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく求職を出す</span>
+                        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>働ける日や得意な作業を載せて、農家からの声かけを待てます。</span>
+                      </span>
+                    </span>
+                    {/* 裏面（タップで反転） */}
+                    <span style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", gap:14, background:"#FFF8EF", border:"1px solid #F0E1CC", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", transform:"rotateY(180deg)", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
+                      <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>⏳</span>
+                      <span>
+                        <span className="f-sans" style={{ display:"block", fontSize:15, fontWeight:800, color:"#8A5A00" }}>準備中です</span>
+                        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#8A5A00", marginTop:2, lineHeight:1.6 }}>届出の受理を確認しています。確認でき次第、使えるようになります。</span>
+                      </span>
+                    </span>
+                  </button>
+                </div>
                 <div style={{ marginTop:16 }}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>📖 わたしの記録</p>
                   <button onClick={()=>{ setShowWAch(true); setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {} }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
