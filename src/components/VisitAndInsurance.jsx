@@ -66,8 +66,9 @@ export function InsurancePrepPage({ me }) {
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
       ) : (<>
         <div style={{ borderTop:"1px solid #EBEBEB", marginBottom:16 }}>
-          {INSURANCE_ITEMS.map((it, i) => (
-            <div key={it.k} style={{ borderBottom: i < INSURANCE_ITEMS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
+          {/* これから準備する選択中は他の保険行を非表示（2026-07-25たきと指示・排他を見た目でも表現）。OFFに戻すと全行復活 */}
+          {(items.includes("considering") ? INSURANCE_ITEMS.filter(it => it.k === "considering") : INSURANCE_ITEMS).map((it, i, arr) => (
+            <div key={it.k} style={{ borderBottom: i < arr.length - 1 ? "1px solid #EBEBEB" : "none" }}>
               <ToggleSwitch label={it.label} checked={items.includes(it.k)} onChange={(v)=>toggleItem(it.k, v)} />
               {items.includes(it.k) && (
                 <div style={{ padding:"0 2px 12px" }}>
