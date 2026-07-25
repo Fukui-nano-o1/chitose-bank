@@ -691,10 +691,13 @@ html:has(.cb-preview-overlay), body:has(.cb-preview-overlay) { overflow: hidden;
   .job-detail-more-jobs { margin-bottom: 4px !important; }
 }
 
-/* ── 求人詳細（スマホ専用）：本文末尾に下部応募フッター分の余白を確保（隠れ防止） ── */
+/* ── 求人詳細（スマホ専用）：末尾（この求人を報告する）とフッターの間を20pxに（2026-07-25たきと指示）。
+   従来は main90px＋本文110px＋フッターmargin40pxが積み重なり約240pxの空白になっていた。
+   詳細表示中だけ :has で main・フッター側の余白を打ち消し、間隔を20pxに一本化 ── */
 @media (max-width: 759px) {
-  /* 2026-07-16: 末尾（この求人を報告する）と下部応募フッターの間を約20pxに（応募フッター約90px+20px） */
-  .job-detail-body-mobile { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+  .job-detail-body-mobile { padding-bottom: 0; }
+  body:has(.job-detail-body-mobile) main { padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
+  body:has(.job-detail-body-mobile) .site-footer-fixed { margin-top: 0; }
 }
 
 /* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */
