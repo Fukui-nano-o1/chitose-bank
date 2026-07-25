@@ -203,7 +203,7 @@ export function TodayPage({ me, defaultRole }) {
   // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（求人チップで識別）
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
   const [todoOpenStage, setTodoOpenStage] = useState(null); // 展開中の用件（親に保持＝内側定義によるstate消失を回避）
-  const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接の質問" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
+  const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接の質問", revision: "求人の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review", "chat"],
