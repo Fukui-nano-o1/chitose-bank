@@ -578,7 +578,8 @@ export function ChatView({ applicationId, onBack }) {
       )}
 
       {/* 採用するボタンはチャット右上の浮遊に移設（2026-07-19・上のsticky）。下部の常駐ブロックは廃止 */}
-      {(!isWorkerSide && activeStatus === "applied") ? (
+      {/* 失効した求人（2026-07-25たきと指示）：入力バーごと非表示＝送信不可。空いた分メッセージ領域(flex:1)が自動で広がる */}
+      {activeStatus === "expired" ? null : (!isWorkerSide && activeStatus === "applied") ? (
         /* 承認待ちの間、農家の入力欄は一時的に承認/見送るボタンへ（2026-07-19）。判断後は通常の入力欄に戻る */
         <div style={{ padding:"12px 0", borderTop:"1px solid #EEE" }}>
           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px", textAlign:"center" }}>応募が届いています。アイコンからプロフィールを確認して判断してください</p>
