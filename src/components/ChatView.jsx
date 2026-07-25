@@ -36,6 +36,12 @@ export function ChatView({ applicationId, onBack }) {
   const [tmplOpen, setTmplOpen] = useState(false);
   // ＋シートのタブ（2026-07-23）：定型文 / 質問集（質問集は農家側のみ）。スワイプで切替
   const [tmplTab, setTmplTab] = useState("phrase");
+  // 今日のやること「面接の質問を送る」からの着地（2026-07-25）：フラグがあれば質問集シートを自動で開く（農家側のみ）
+  const wantQSetRef = useRef(false);
+  useEffect(() => { try { if (sessionStorage.getItem("cb_openQSet")) { sessionStorage.removeItem("cb_openQSet"); wantQSetRef.current = true; } } catch {} }, []);
+  useEffect(() => {
+    if (wantQSetRef.current && myId && !isWorkerSide) { wantQSetRef.current = false; setTmplTab("qset"); setTmplOpen(true); }
+  }, [myId, isWorkerSide]);
   const [chatQSets, setChatQSets] = useState(null); // 農家の面接の質問集（null=未読込）
   const [qSending, setQSending] = useState(false);
   const [dateSel, setDateSel] = useState([]); // ＋シート「候補日を送る」で選択中の候補日（農家→働き手・2026-07-24）
