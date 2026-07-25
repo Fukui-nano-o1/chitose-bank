@@ -44,12 +44,13 @@ export const daysBetweenYmd = (startYmd, endYmd) => {
 // 保険の準備・自己申告（2026-07-23）：農家プロフィールで方針を表明。運営は証書を確認しない。
 // considering=これから準備する は、表示チップでは「これから準備予定」にする。employer_profiles.insurance_items に key配列で保存。
 export const INSURANCE_ITEMS = [
+  // これから準備する＝先頭・排他（2026-07-25たきと指示）。選ぶと他の保険の選択・ひとことはリセットされる
+  { k:"considering",     label:"これから準備する",               chip:"これから準備予定",   icon:"🌱" },
   { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険",   icon:"🗓" },
   { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険",     icon:"☂️" },
   { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険",           icon:"🏥" },
   { k:"facility",        label:"農業施設・賠償責任保険",          chip:"施設・賠償責任保険", icon:"🏠" },
   { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険",           icon:"🚗" },
-  { k:"considering",     label:"これから準備する",               chip:"これから準備予定",   icon:"🌱" },
 ];
 
 // 保険種類ごとの運営用意の定型説明（2026-07-25）。求人の「保険」タブで各項目をタップした時、
