@@ -235,7 +235,8 @@ export function TodayPage({ me, defaultRole }) {
     review:      { icon:"⭐", title:"評価する",             btn:"評価する →",       flag:"cb_completeAppId", to:"/profile/employer/applicants" },
     chat:        { icon:"💬", title:"未読メッセージ",       btn:"チャットを開く →", nav: e => "/chat/" + e.application_id },
     w_waiting:   { icon:"📨", title:"返事待ち",             btn:"応募状況を見る →", nav: () => "/profile/worker/applying" },
-    w_confirm:   { icon:"📋", title:"求人内容の確認",       btn:"✓ 確認した",       terms:true }, // チャットの確認カードから移設。内容は求人チップのタップで閲覧
+    // w_confirm（求人内容の確認）は廃止（2026-07-25たきと指示）：内容を確認した上で応募するのが前提。
+    // 応募INSERT時にterms_confirmed_worker_atをDBトリガーが自動記録。日程の申請（チャットの候補日）は残す
     w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
     w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   nav: () => "/profile/worker/approved" },
     w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved" },
@@ -256,7 +257,7 @@ export function TodayPage({ me, defaultRole }) {
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review", "chat"],
-    worker: ["w_waiting", "w_confirm", "w_interview", "w_start", "w_review", "chat"],
+    worker: ["w_waiting", "w_interview", "w_start", "w_review", "chat"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
@@ -300,21 +301,6 @@ export function TodayPage({ me, defaultRole }) {
       if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
       // 採用が決まったら「面接の質問」の用事も同時に消える（採用前限定の段のため）
       setTodos(prev => prev.filter(t => !(t.application_id === e.application_id && (t.stage === "hire" || t.stage === "interview"))));
-      return;
-    }
-    // 求人内容の確認（働き手・チャットの確認カードから移設）：確認ダイアログ→confirm_terms→確認済みの報告をチャットへ残す
-    if (m.terms) {
-      if (confirming) return;
-      if (!window.confirm(`#${e.job_number} の求人内容（報酬・日程・場所）を確認しましたか？\n（求人名のチップをタップすると内容を見られます）`)) return;
-      setConfirming(busyKey);
-      const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: e.application_id });
-      if (error || !data?.ok) { setConfirming(""); alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) await supabase.from("messages").insert({ application_id: e.application_id, sender_id: session.user.id, body: "✓ 求人内容を確認しました。よろしくお願いします。" });
-      } catch {}
-      setConfirming("");
-      removeTodo(e.application_id, e.stage);
       return;
     }
     if (m.rpc) {
