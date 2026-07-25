@@ -175,8 +175,7 @@ export function TodayPage({ me, defaultRole }) {
   // 確認カード（現場情報）／緊急連絡（当日の遅刻・欠勤・中止）／きょうのチャット（相手との連絡）
   const tCard = todayJobs.map(e => ({ ...e, stage: "t_card" }));
   const tEmergency = todayJobs.filter(e => e.application_id).map(e => ({ ...e, stage: "t_emergency" }));
-  const tChat = todayJobs.filter(e => e.application_id).map(e => ({ ...e, stage: "t_chat" }));
-  const todayStageItems = (st) => st === "t_card" ? tCard : st === "t_emergency" ? tEmergency : st === "t_chat" ? tChat : null;
+  const todayStageItems = (st) => st === "t_card" ? tCard : st === "t_emergency" ? tEmergency : null; // t_chatは削除（2026-07-25）
   const upcoming = mine
     .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
     .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
@@ -254,7 +253,8 @@ export function TodayPage({ me, defaultRole }) {
     // きょうの仕事の分解（2026-07-25）：役割ごとの箱。1件なら即遷移（各箱の機能が単一so迷いなし）
     t_card:      { icon:"📋", title:"確認カード",           btn:"確認カード →",     nav: e => { try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} return "/work/job/" + e.job_number; } },
     t_emergency: { icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id },
-    t_chat:      { icon:"💬", title:"きょうのチャット",     btn:"チャット →",       nav: e => "/chat/" + e.application_id },
+    // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
+    // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
     revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
     approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   nav: () => "/profile/employer/applicants" },
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
@@ -267,7 +267,6 @@ export function TodayPage({ me, defaultRole }) {
     confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start" },
     complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants" },
     review:      { icon:"⭐", title:"評価する",             btn:"評価する →",       flag:"cb_completeAppId", to:"/profile/employer/applicants" },
-    chat:        { icon:"💬", title:"未読メッセージ",       btn:"チャットを開く →", nav: e => "/chat/" + e.application_id },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
     // w_confirm（求人内容の確認）は廃止（2026-07-25たきと指示）：内容を確認した上で応募するのが前提。
@@ -291,8 +290,8 @@ export function TodayPage({ me, defaultRole }) {
   const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["t_card", "t_emergency", "t_chat", "revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review", "chat"],
-    worker: ["t_card", "t_emergency", "t_chat", "w_interview", "w_start", "w_review", "chat"],
+    farmer: ["t_card", "t_emergency", "revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review"],
+    worker: ["t_card", "t_emergency", "w_interview", "w_start", "w_review"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
@@ -471,7 +470,7 @@ export function TodayPage({ me, defaultRole }) {
           const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
           // 用件（stage）ごとに1箱へ集約。該当ありは最新順で上位、該当なしもカタログ順で常時表示（薄表示・タップ不可）
           const activeOrder = []; const byStage = new Map();
-          [["t_card", tCard], ["t_emergency", tEmergency], ["t_chat", tChat]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭
+          [["t_card", tCard], ["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chatは削除・2026-07-25）
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
           const catalog = TODO_STAGE_CATALOG[role] || [];
           const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
