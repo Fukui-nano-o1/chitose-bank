@@ -28,6 +28,7 @@ import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/Vi
 import { AgreedDatesRow, AvailDatesChips } from "./components/DateChips";
 
 import { isIOS, syncAppBadge } from "./lib/push";
+import { uploadAvatarResilient } from "./lib/avatarUpload";
 
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
@@ -678,26 +679,6 @@ function EmployerPreviewSheet() {
   );
 }
 
-// アバターのアップロード（通信断耐性・2026-07-19）：iOS Safariでは応答だけ失われて「Load failed」に
-// なっても実際にはサーバー保存済みのことがある（実事例：2026-07-19 働き手アイコン）。
-// 1回リトライ→それでも失敗なら実物の存在確認で救済する。呼び出し前に旧ファイルは掃除済みの前提
-// （フォルダにavatar.jpgが残っていれば今回のアップロードの実物と判断できる）
-async function uploadAvatarResilient(folder, blob) {
-  const path = folder + "/avatar.jpg";
-  const attempt = async () => (await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })).error;
-  let err = await attempt();
-  if (err) {
-    await new Promise(r => setTimeout(r, 800));
-    err = await attempt();
-  }
-  if (err) {
-    try {
-      const { data: files, error: listErr } = await supabase.storage.from('avatars').list(folder);
-      if (!listErr && (files || []).some(f => f.name === 'avatar.jpg')) err = null;
-    } catch {}
-  }
-  return err;
-}
 function WorkerPreviewSheet() {
   const [st, setSt] = useState(null); // {worker_id, loading, profile, trust}
   useEffect(() => {
