@@ -24,6 +24,24 @@ export function InsurancePrepPage({ me }) {
       setLoading(false);
     })();
   }, []);
+  // トグルの排他ルール（2026-07-25たきと指示）：「これから準備する」は他の保険と両立しない。
+  // 選ぶと他の選択・ひとことが消えるため、消えるものがある時だけ警告を一度出してからリセットする
+  const toggleItem = (k, v) => {
+    if (k === "considering" && v) {
+      const losing = items.some(x => x !== "considering") || Object.keys(notes).some(x => x !== "considering" && (notes[x] || "").trim());
+      if (losing && !window.confirm("「これから準備する」を選ぶと、他の保険の選択と入力したひとことはリセットされます。よろしいですか？")) return;
+      setItems(["considering"]);
+      setNotes(prev => (prev.considering ? { considering: prev.considering } : {}));
+      return;
+    }
+    if (v && items.includes("considering")) {
+      // 実際の保険を選んだら「これから準備する」は自動で外れる（排他の逆向き・こちらは失うものが無いので警告なし）
+      setItems([k]);
+      setNotes(prev => { const n = { ...prev }; delete n.considering; return n; });
+      return;
+    }
+    setItems(prev => v ? [...new Set([...prev, k])] : prev.filter(x => x !== k));
+  };
   const save = async () => {
     if (saving) return;
     setSaving(true); setSaved(false);
@@ -50,7 +68,7 @@ export function InsurancePrepPage({ me }) {
         <div style={{ borderTop:"1px solid #EBEBEB", marginBottom:16 }}>
           {INSURANCE_ITEMS.map((it, i) => (
             <div key={it.k} style={{ borderBottom: i < INSURANCE_ITEMS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
-              <ToggleSwitch label={it.label} checked={items.includes(it.k)} onChange={(v)=>setItems(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
+              <ToggleSwitch label={it.label} checked={items.includes(it.k)} onChange={(v)=>toggleItem(it.k, v)} />
               {items.includes(it.k) && (
                 <div style={{ padding:"0 2px 12px" }}>
                   <textarea
