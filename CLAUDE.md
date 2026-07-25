@@ -1450,3 +1450,12 @@ ChatView採用ボックスの確認文言。DBのstatus値・遷移ロジック�
 働き手FlowBarも7段（応募→承認→面接→採用→仕事→完了報告→評価）に。
 appPhaseKeyの採用段キーは'contracted'（色は既存の契約テール#00897B）。
 ━━━ ここまで ━━━
+
+━━━ 2026-07-25 lintゲート増強：react/jsx-no-undef（#/admin真っ白事件）━━━
+・事件：管理タブ審査ボックスで真っ白。原因＝3-A切り出し時のAdminTabのStatusRibbon import漏れ
+  （app_errorsログ「Can't find variable: StatusRibbon」で即特定。エラー監視が機能した初の実戦）
+・穴：ESLint本体のno-undefは**JSXコンポーネント参照を検出しない**（<Foo/>はスルー・変数参照のみ検出）。
+  分割中の検出実績は全部非JSX識別子だった
+・対策：eslint-plugin-react導入＋react/jsx-no-undef=error（本命3つ目）。全ファイル掃射で
+  同種の潜在バグをもう1件検出（AdminBoxRegistryPageのNoticeJumpText import漏れ＝#/boxesも真っ白だったはず）。両方修正済み
+━━━ ここまで ━━━

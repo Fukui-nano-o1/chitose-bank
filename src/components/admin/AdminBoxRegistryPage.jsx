@@ -1,6 +1,7 @@
 // ボックス一覧（#/boxes・管理者専用・分割3-Aで切り出し2026-07-24）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { NoticeJumpText } from "../ui";
 
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（🗂ボックス台帳 ⇄ 📢お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替

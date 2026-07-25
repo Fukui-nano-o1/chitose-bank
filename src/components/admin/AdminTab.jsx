@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { isAdmin, ADMIN_EMAIL, ymdLocal, fmtJstShort, disp, EMPTY_MARK, SURVEY_SOURCES, SURVEY_REASONS, CROP_OPTIONS, dateRangeLabel, C, uid, toKatakana, toHiragana, MONTHS, cn, man } from "../../lib/utils";
-import { Avatar, LinkifiedText, NoticeJumpText } from "../ui";
+import { Avatar, LinkifiedText, NoticeJumpText, StatusRibbon } from "../ui";
 import { ToggleSwitch } from "../ToggleSwitch";
 import { AdminJobPreview } from "../AdminJobPreview";
 import { AdminBoxRegistryPage } from "./AdminBoxRegistryPage";

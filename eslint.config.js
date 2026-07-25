@@ -1,6 +1,7 @@
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
+import react from 'eslint-plugin-react'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 // ESLint方針（2026-07-24たきと指示「まずESLintだけ入れる」）：
@@ -30,8 +31,12 @@ export default defineConfig([
         sourceType: 'module',
       },
     },
+    plugins: { react },
     rules: {
       'no-undef': 'error',
+      // ③ jsx-no-undef … JSXコンポーネントの未定義参照（例：<StatusRibbon/>のimport漏れ→#/admin真っ白・2026-07-25）。
+      //   ESLint本体のno-undefはJSX識別子を見ないため、この専用ルールが必須（本命3つ目）
+      'react/jsx-no-undef': 'error',
       'react-hooks/rules-of-hooks': 'error',
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipJSXText: true, skipComments: true }],
