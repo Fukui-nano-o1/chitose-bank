@@ -1269,19 +1269,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     ))}
                   </div>
                 )}
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>テンプレートからコピー（編集できます）</p>
-                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
-                  {INTERVIEW_TEMPLATES.map(tpl => (
-                    <div key={tpl.title} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
-                      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{tpl.title}</p>
-                      <ul className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px", paddingLeft:18, lineHeight:1.7 }}>
-                        {tpl.questions.map((q,i) => <li key={i}>{q}</li>)}
-                      </ul>
-                      <button onClick={()=>setQEditing({ title: tpl.title, questions: [...tpl.questions] })} className="f-sans" style={{ background:"#E6F7EF", color:"#00A86B", border:"none", borderRadius:8, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>コピーして使う</button>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={()=>setQEditing({ title:"", questions:[""] })} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px dashed #C8C8C8", borderRadius:12, padding:"12px", fontSize:14, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>＋ 自分で作る</button>
+                {/* テンプレ区画は削除（2026-07-25たきと指示）：＋自分で作るを押した時、未使用テンプレの内容を
+                    デフォルト値として入力欄に表示する方式に（編集・上書き保存可能）。全テンプレ使用済みなら白紙 */}
+                <button onClick={()=>{
+                  const used = new Set(questionSets.map(s => s.title));
+                  const tpl = INTERVIEW_TEMPLATES.find(t => !used.has(t.title));
+                  setQEditing(tpl ? { title: tpl.title, questions: [...tpl.questions] } : { title:"", questions:[""] });
+                }} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px dashed #C8C8C8", borderRadius:12, padding:"12px", fontSize:14, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>＋ 自分で作る</button>
               </>
             ) : (
               <>
