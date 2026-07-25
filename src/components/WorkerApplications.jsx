@@ -377,14 +377,15 @@ export function WorkerApplications({ filter, me }) {
     </div>
   );
   // ─────────────────────────────────────────────────────────────────────────
-  // お仕事の流れ（2026-07-19／2026-07-22 完了報告を独立段に）：応募→承認→打合せ・面接→採用→仕事→完了報告→評価。各カードで現在地を可視化
-  const FLOW_STEPS = ["応募", "承認", "打合せ・面接", "採用", "仕事", "完了報告", "評価"];
+  // お仕事の流れ（2026-07-19／2026-07-22 完了報告を独立段に／2026-07-25 順序訂正）：
+  // 応募→承認→面接→採用→打合せ→仕事→完了報告→評価。面接は承認直後・打合せは採用後（作業日などのすり合わせ）。各カードで現在地を可視化
+  const FLOW_STEPS = ["応募", "承認", "面接", "採用", "打合せ", "仕事", "完了報告", "評価"];
   const flowState = (a) => {
-    const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）
-    const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at; // 仕事（開始打刻）
+    const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
+    const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at; // 仕事（開始打刻）＝打合せも済んだ扱い
     const reported = a.status === "completed"; // 完了報告（作業完了が記録された）
     const reviewed = !!a.worker_confirmed_end_at || (a.status === "completed" && a.attended === false); // 評価
-    const done = [true, true, bothConfirmed, bothConfirmed, started, reported, reviewed];
+    const done = [true, true, bothConfirmed, bothConfirmed, started, started, reported, reviewed];
     return { done, active: done.findIndex(d => !d) };
   };
   const FlowBar = ({ a }) => {

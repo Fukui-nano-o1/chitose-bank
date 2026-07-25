@@ -898,7 +898,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 </button>
                 {appLegendOpen && (
                   <div className="fade-in" style={{ marginTop:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"12px 14px", display:"grid", gap:10 }}>
-                    {[["applied","承認待ち","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["approved","承認済み","承認した応募。チャットで打ち合わせ・面接に進みます"],["meeting","打ち合わせ","チャットで打ち合わせ中"],["interview","面接","面接の段階"],["contracted","契約","双方が内容を確認し、採用が決まった状態"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"],["expired","失効","承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募"]].map(([st,l,d]) => (
+                    {/* 順序訂正（2026-07-25たきと指示）：応募→承認→面接→採用→打合せ→仕事→評価。面接は承認直後・打合せは採用後 */}
+                    {[["applied","承認待ち","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["approved","承認済み","承認した応募。チャットで面接に進みます"],["interview","面接","チャットで面接中。採用するかを決めます"],["contracted","契約","双方が内容を確認し、採用が決まった状態"],["meeting","打ち合わせ","採用後、作業日などをチャットで打ち合わせ中"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"],["expired","失効","承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募"]].map(([st,l,d]) => (
                       <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
                         <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:APP_COLORS[st], color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{l}</span>
                         <span className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.6 }}>{d}</span>
