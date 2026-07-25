@@ -229,3 +229,36 @@ export function YesNoPill({ label, value, onChange }) {
     </div>
   );
 }
+
+// 分割3-C（2026-07-25）：App.jsxから移動（LandingFlow・App双方で使用）
+// ── DEV バッジ（原因特定用・確認後削除） ─────────────────────
+const DEV_V = "2026-06-04";
+
+function isAdminDebugEnabled() {
+  try {
+    return localStorage.getItem("cb_admin_debug") === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function DevBadge({ label }) {
+  if (!isAdminDebugEnabled()) return null;
+
+  return (
+    <div style={{
+      position:"fixed",
+      top:8,
+      left:8,
+      zIndex:99999,
+      background:"#111",
+      color:"#fff",
+      fontSize:11,
+      padding:"4px 8px",
+      borderRadius:999,
+      pointerEvents:"none",
+    }}>
+      DEV: {label} v{DEV_V}
+    </div>
+  );
+}

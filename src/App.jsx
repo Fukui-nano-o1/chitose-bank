@@ -4,7 +4,7 @@ import { chatCache } from "./lib/chatCache";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "./lib/questionSets";
 import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_STATUS_LABEL, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION, TASK_OPTIONS, WORKER_EMERGENCY_KINDS, FARMER_EMERGENCY_KINDS, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText, LinkifiedText, LFPillSelect, YesNoPill } from "./components/ui";
+import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText, LinkifiedText, LFPillSelect, YesNoPill, DevBadge } from "./components/ui";
 import { CalendarView } from "./components/CalendarView";
 import { JobCard } from "./components/JobCard";
 import { JobLocationMap } from "./components/JobLocationMap";
@@ -142,37 +142,6 @@ function buildMeFromAccountHolder(session, ah) {
   return { id: session.user.id, name: ah.full_name, email: session.user.email || null, viaAccountHolder: true };
 }
 
-// ── DEV バッジ（原因特定用・確認後削除） ─────────────────────
-const DEV_V = "2026-06-04";
-
-function isAdminDebugEnabled() {
-  try {
-    return localStorage.getItem("cb_admin_debug") === "1";
-  } catch {
-    return false;
-  }
-}
-
-function DevBadge({ label }) {
-  if (!isAdminDebugEnabled()) return null;
-
-  return (
-    <div style={{
-      position:"fixed",
-      top:8,
-      left:8,
-      zIndex:99999,
-      background:"#111",
-      color:"#fff",
-      fontSize:11,
-      padding:"4px 8px",
-      borderRadius:999,
-      pointerEvents:"none",
-    }}>
-      DEV: {label} v{DEV_V}
-    </div>
-  );
-}
 
 // ── エラー監視ユーティリティ ──────────────────────────────────
 function getSessionId() {
