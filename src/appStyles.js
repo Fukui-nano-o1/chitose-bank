@@ -393,6 +393,9 @@ input:focus { outline: none; }
   }
   /* スクロール連動の自動格納（2026-07-24）：下部バー(cb-scroll-hide)と同じタイミングで下へ隠す */
   body.cb-scroll-hide .app-header-mobile-float { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
+  /* 運営チャットの浮遊ボックス（2026-07-25）：☰浮遊ボタンと同じ作法でスクロール中は下へ格納 */
+  .cb-admin-chat-fab { transform: translate3d(0, 0, 0); will-change: transform; transition: transform .25s ease; }
+  body.cb-scroll-hide .cb-admin-chat-fab { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
   body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
 }

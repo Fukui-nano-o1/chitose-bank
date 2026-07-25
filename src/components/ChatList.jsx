@@ -178,7 +178,7 @@ export function ChatList() {
         </div>
       )}
       {/* 運営チャット＝下部フッター上の浮遊ボックス（2026-07-25たきと指示・一覧の最上部行から移設） */}
-      <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className={"f-sans" + (dmUnread > 0 ? " cb-urgent-card" : "")}
+      <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className={"f-sans cb-admin-chat-fab" + (dmUnread > 0 ? " cb-urgent-card" : "")}
         style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
         <span style={{ fontSize:18, lineHeight:1 }}>🛡</span>
         <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>運営チャット</span>
