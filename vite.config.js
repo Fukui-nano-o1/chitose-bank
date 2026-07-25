@@ -24,6 +24,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // heic2anyは写真選択時にだけ動的読込される1.35MBのチャンク。precacheに入れると
+        // デプロイのたび全員が裏で再取得してしまうため除外（必要時にネットワークから読む・2026-07-25）
+        globIgnores: ['**/heic2any-*.js'],
         // 新デプロイのSWをすぐ有効化・即座にページを掌握（autoUpdateの実体）
         clientsClaim: true,
         skipWaiting: true,

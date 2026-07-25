@@ -1,6 +1,6 @@
 // 集合場所のおおよその範囲マップ（Leaflet・円のみ・分割で切り出し2026-07-24）：求人詳細・確認ページ・プレビュー共用。
 import { useEffect, useRef } from "react";
-import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 // 集合場所の地図。円のみを描き、ピンは立てない。
 // 座標は町域レベルの重心であり、番地は特定できない。
@@ -9,6 +9,12 @@ export function JobLocationMap({ lat, lng, radius, label }) {
   const mapRef = useRef(null);
 
   useEffect(() => {
+    // Leafletは動的import（2026-07-25）：初期バンドルから地図ライブラリを外し、地図を表示する画面で初めて読み込む
+    let cancelled = false;
+    (async () => {
+    let L;
+    try { L = (await import("leaflet")).default; } catch (e) { console.error("leaflet load:", e); return; }
+    if (cancelled) return;
     try {
       if (!ref.current) return;
       if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
@@ -49,8 +55,9 @@ export function JobLocationMap({ lat, lng, radius, label }) {
     } catch (e) {
       console.error("JobLocationMap:", e);
     }
+    })();
 
-    return () => { try { mapRef.current?.remove(); } catch {} mapRef.current = null; };
+    return () => { cancelled = true; try { mapRef.current?.remove(); } catch {} mapRef.current = null; };
   }, [lat, lng, radius]);
 
   if (lat == null || lng == null) {

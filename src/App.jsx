@@ -43,8 +43,6 @@ import { peekApplyReturn, setApplyReturn, clearApplyReturn } from "./lib/applyRe
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 
 
 
