@@ -438,7 +438,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 応募者ページの状態フィルタ（2026-07-22）：上部タブ＝タップ＋横スワイプで切替
   const APP_FILTERS = [
     { k:"all",       l:"すべて",   match: () => true },
-    { k:"applied",   l:"承認待ち", match: (s) => s==="applied" },
+    { k:"applied",   l:"応募中",   match: (s) => s==="applied" },
     { k:"active",    l:"進行中",   match: (s) => ["approved","meeting","interview","contracted","working"].includes(s) },
     { k:"completed", l:"完了",     match: (s) => s==="completed" },
   ];
