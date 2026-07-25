@@ -695,7 +695,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               {/* 「きょうの仕事」箱は撤去（2026-07-24・1機能1入口＝ナビ「📆今日」が唯一の入口）。📌いまは応募者のみ */}
               {eSec("📌 いま", [
                 // 応募者：バッジは未完了（完了・見送り以外）のみ計上。未承認あり＝赤バッジ＋浮遊／保険未チェックのみ＝赤影
-                { e:"🤝", l:"応募者", n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending, desc:"あなたの求人に応募した働き手の一覧。承認・打合せ・採用はここから。" },
+                { e:"🤝", l:"応募者", n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending, desc:"あなたの求人に応募した働き手の一覧。承認・面接・採用はここから。" },
               ])}
               {eSec("📋 求人の管理", [
                 { e:"🌱", l:"作成中", n:dbDrafts.length, h:"/profile/employer/drafts", desc:"下書き・審査中の求人です。編集して掲載できます。" },
@@ -897,8 +897,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 </button>
                 {appLegendOpen && (
                   <div className="fade-in" style={{ marginTop:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"12px 14px", display:"grid", gap:10 }}>
-                    {/* 順序訂正（2026-07-25たきと指示）：応募→承認→面接→採用→打合せ→仕事→評価。帯はリアルタイムの「〇〇中」表記 */}
-                    {[["applied","承認待ち","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["interview","面接中","承認した応募。チャットで面接し、採用するかを決めます"],["meeting","打ち合わせ中","採用が決まった応募。作業日などをチャットで打ち合わせます"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"],["expired","失効","承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募"]].map(([st,l,d]) => (
+                    {/* 帯は5段＋終端（2026-07-25たきと指示）：応募中→面接中→採用→作業中→完了。すべて農家のアクションで進む */}
+                    {[["applied","応募中","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["interview","面接中","承認した応募。チャットで面接し、採用するかを決めます"],["contracted","採用","採用が決まった応募。作業日などの連絡はチャットで"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"],["expired","失効","承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募"]].map(([st,l,d]) => (
                       <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
                         <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:APP_PHASE_COLOR[st], color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{l}</span>
                         <span className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.6 }}>{d}</span>

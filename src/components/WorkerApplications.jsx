@@ -181,7 +181,7 @@ export function WorkerApplications({ filter, me }) {
     if (filter === "approved") return ["approved","meeting","interview","contracted","working","completed"].includes(a.status);
     return a.status !== "rejected";
   });
-  // リアルタイム表記（2026-07-25）：応募中以外は今の段階「〇〇中」を出す（appPhaseKeyで面接中/打ち合わせ中を分岐）
+  // リアルタイム帯（2026-07-25）：応募中→面接中→採用→作業中→完了（appPhaseKeyで導出）
   const label = (a) => a.status==="applied" ? "応募中" : (APP_PHASE_LABEL[appPhaseKey(a)] || a.status);
   const color = (s) => s==="approved"||s==="contracted"||s==="working" ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="rejected" ? {bg:"#F3F3F3",fg:"#999"} : {bg:"#FFF4E0",fg:"#C77700"};
   // 承認済みタブのグリッド用（農家の作成中ページと同設計・2026-07-16）
@@ -211,7 +211,7 @@ export function WorkerApplications({ filter, me }) {
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
                 <AvailDatesChips value={a.available_dates} />
                 <AgreedDatesRow value={a.agreed_dates} />
-                {/* お仕事の流れ（応募→承認→打合せ・面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-22） */}
+                {/* お仕事の流れ（応募→承認→面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-25） */}
                 {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={a} /></div>}
                 {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
                 {CHAT_ELIGIBLE_STATUSES.includes(a.status) && isWorkDayToday(jobDates[a.job_number]?.date_start, jobDates[a.job_number]?.date_end) && (
@@ -378,15 +378,15 @@ export function WorkerApplications({ filter, me }) {
     </div>
   );
   // ─────────────────────────────────────────────────────────────────────────
-  // お仕事の流れ（2026-07-19／2026-07-22 完了報告を独立段に／2026-07-25 順序訂正）：
-  // 応募→承認→面接→採用→打合せ→仕事→完了報告→評価。面接は承認直後・打合せは採用後（作業日などのすり合わせ）。各カードで現在地を可視化
-  const FLOW_STEPS = ["応募", "承認", "面接", "採用", "打合せ", "仕事", "完了報告", "評価"];
+  // お仕事の流れ（2026-07-19／2026-07-22 完了報告を独立段に／2026-07-25 順序訂正・打合せ段は削除）：
+  // 応募→承認→面接→採用→仕事→完了報告→評価。面接は承認直後。「打合せ」はトリガーを定義できないため段として置かない。各カードで現在地を可視化
+  const FLOW_STEPS = ["応募", "承認", "面接", "採用", "仕事", "完了報告", "評価"];
   const flowState = (a) => {
     const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
-    const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at; // 仕事（開始打刻）＝打合せも済んだ扱い
+    const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at; // 仕事（開始打刻）
     const reported = a.status === "completed"; // 完了報告（作業完了が記録された）
     const reviewed = !!a.worker_confirmed_end_at || (a.status === "completed" && a.attended === false); // 評価
-    const done = [true, true, bothConfirmed, bothConfirmed, started, started, reported, reviewed];
+    const done = [true, true, bothConfirmed, bothConfirmed, started, reported, reviewed];
     return { done, active: done.findIndex(d => !d) };
   };
   const FlowBar = ({ a }) => {
