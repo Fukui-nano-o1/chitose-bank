@@ -916,12 +916,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   const info = jobInfoMap[jn] || {};
                   const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
                   const photo = info.photos && info.photos[0] ? (typeof info.photos[0] === "string" ? info.photos[0] : info.photos[0]?.url) : null;
+                  // 期限切れ求人はボックス全体を暗くして見せる（2026-07-25たきと指示）：終了日(無ければ開始日)が昨日以前
+                  const jobEnd = info.date_end || info.date_start;
+                  const jobExpired = !!jobEnd && jobEnd < ymdLocal(new Date());
                   return (
-                    <div key={`job-${jn}`} style={{ gridColumn:"1/-1", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2 }}>
+                    <div key={`job-${jn}`} style={{ gridColumn:"1/-1", display:"flex", alignItems:"stretch", background: jobExpired ? "#EEEEEE" : "#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, opacity: jobExpired ? 0.6 : 1 }}>
                       {/* 左：求人のトップ写真（タップで求人を見る） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る"
                         style={{ flexShrink:0, width:92, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, overflow:"hidden" }}>
-                        {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                        {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobExpired ? "grayscale(70%)" : "none" }} /> : "🌱"}
                       </button>
                       {/* 右：タイトル・No.＋応募者アイコンスワイプ */}
                       <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px" }}>
@@ -931,8 +934,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                           <span style={{ flex:1, minWidth:0, display:"flex", alignItems:"baseline", gap:6 }}>
                             <span style={{ fontSize:14, fontWeight:700, color:"#222", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</span>
                             <span style={{ fontSize:11, color:"#C8C8C8", fontWeight:700, flexShrink:0 }}>#{jn}</span>
+                            {jobExpired && <span style={{ flexShrink:0, fontSize:10, fontWeight:700, color:"#fff", background:"#9E9E9E", borderRadius:6, padding:"2px 7px" }}>期限切れ</span>}
                           </span>
-                          <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 →</span>
+                          <span style={{ fontSize:11, color: jobExpired ? "#999" : "#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 →</span>
                         </button>
                         {/* アイコンのみ・中央配置（2026-07-25たきと指示）：箱装飾なし。少人数なら中央、溢れたら横スクロール（max-content＋margin auto） */}
                         <div onTouchStart={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
