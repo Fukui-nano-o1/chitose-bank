@@ -1459,3 +1459,16 @@ appPhaseKeyの採用段キーは'contracted'（色は既存の契約テール#00
 ・対策：eslint-plugin-react導入＋react/jsx-no-undef=error（本命3つ目）。全ファイル掃射で
   同種の潜在バグをもう1件検出（AdminBoxRegistryPageのNoticeJumpText import漏れ＝#/boxesも真っ白だったはず）。両方修正済み
 ━━━ ここまで ━━━
+
+━━━ 2026-07-25 法務記録：+workerアカウントの自己募集扱い登録 ━━━
+・#1052（farmer=t5fki6643qty+worker@gmail.com）の公開がtrg_block_third_party_openに正しくブロックされた。
+　受理通知書は未着＝third_party_publish_allowedはfalseのまま維持（グローバル解禁はしていない）。
+・判断：+workerはたきと本人の別ログイン＝雇用主は運営者本人＝実態は自己募集（仲介規制対象外・
+　2026-07-13記録の原則「運営者本人が雇用主として出す自己募集は対象外」に基づく）。
+・実施：app_adminsに+workerのauth_id(a5792314…)を登録（自己募集判定を通すため）。
+　副作用に注意：app_adminsは①自己募集判定②管理者通知メールの宛先③admin_preview_job等の
+　管理RPC権限も兼ねる＝+workerも管理者権限を持つ（同一人物の別ログインなので実害なしと判断）。
+　本物の第三者農家をこの方法で通すのは絶対禁止（それは届出受理後のフラグで行う）。
+・受理通知書到着後：third_party_publish_allowed='true'に1行UPDATE（従来どおり）。
+　+workerのapp_admins行は不要になったら削除してよい。
+━━━ ここまで ━━━
