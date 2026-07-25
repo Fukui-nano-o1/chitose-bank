@@ -237,7 +237,8 @@ export const appPhaseKey = (a) => {
   return hired ? "contracted" : "interview";
 };
 export const APP_PHASE_LABEL = { applied:"応募中", interview:"面接中", contracted:"採用", working:"作業中", completed:"完了", rejected:"見送り", expired:"失効" };
-export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#795548" };
+// expiredは黒＝失効カードの黒オーバーレイと同色（2026-07-25。失効は応募の段階でなく求人の締め切りとして表示する）
+export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#111111" };
 // 定型文（2026-07-22・第8弾）：チャット入力欄の＋から役割別に挿入。「何を書けばいいか分からない」摩擦を消す
 export const CHAT_TEMPLATES_FARMER = [
   "承認しました。日程のご相談をお願いします",
