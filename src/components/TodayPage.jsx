@@ -1,5 +1,5 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
 import { Avatar } from "./ui";
@@ -63,6 +63,19 @@ export function TodayPage({ me, defaultRole }) {
     .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
     .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
   const dual = hasWorker && hasFarmer;
+  // 横スワイプで働き手⇄農家（雇い手）を切替（両役持ちのみ・2026-07-25）。
+  // 縦スクロールと誤爆しないよう「横60px以上かつ横が縦の1.5倍以上」の時だけ発火
+  const touchRef = useRef(null);
+  const onTouchStart = (ev) => { const t = ev.touches && ev.touches[0]; if (t) touchRef.current = { x: t.clientX, y: t.clientY }; };
+  const onTouchEnd = (ev) => {
+    const s = touchRef.current; touchRef.current = null;
+    if (!dual || !s) return;
+    const t = ev.changedTouches && ev.changedTouches[0]; if (!t) return;
+    const dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    // タブの並び（左=働き手・右=農家）に合わせる：左スワイプ=右のタブ（農家）へ、右スワイプ=働き手へ
+    setRole(dx < 0 ? "farmer" : "worker");
+  };
   const accent = role === "worker" ? ROLE_ORANGE : ROLE_GREEN;
   const handshakeHash = role === "worker" ? "/profile/worker/approved" : "/profile/employer/applicants";
 
@@ -222,7 +235,7 @@ export function TodayPage({ me, defaultRole }) {
   };
 
   return (
-    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
+    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 14px" }}>📆 今日</h2>
       {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示 */}
       {dual && (
