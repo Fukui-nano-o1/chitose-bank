@@ -265,8 +265,9 @@ export function TodayPage({ me, defaultRole }) {
     hire:        { icon:"🤝", title:"採用する",             btn:"採用する",         hire:true },
     insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance" },
     confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start" },
+    // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
+    // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
     complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants" },
-    review:      { icon:"⭐", title:"評価する",             btn:"評価する →",       flag:"cb_completeAppId", to:"/profile/employer/applicants" },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
     // w_confirm（求人内容の確認）は廃止（2026-07-25たきと指示）：内容を確認した上で応募するのが前提。
@@ -290,7 +291,7 @@ export function TodayPage({ me, defaultRole }) {
   const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["t_card", "t_emergency", "revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review"],
+    farmer: ["t_card", "t_emergency", "revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete"],
     worker: ["t_card", "t_emergency", "w_interview", "w_start", "w_review"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
