@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
-import { CROP_OPTIONS, TASK_OPTIONS, WORKER_DECLARATIONS } from "../lib/utils";
+import { WORKER_DECLARATIONS } from "../lib/utils"; // CROP/TASK_OPTIONSは経験ページ（WorkerExperiencePage）へ移設済み
 import { Avatar, LFPillSelect } from "./ui";
 import { WorkerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -208,7 +208,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     setUploading(false);
   };
   // ハブの「📋 経験・できること」カードから来た時は、その場でそのボックスを開く（2026-07-23）
-  const [editBox, setEditBox] = useState(() => { try { const b = sessionStorage.getItem("cb_wkOpenBox"); if (b) { sessionStorage.removeItem("cb_wkOpenBox"); return b; } } catch {} return null; }); // avatar|nickname|residence|transport|exp|intensity|interests|languages|declared|pr|qa
+  const [editBox, setEditBox] = useState(() => { try { const b = sessionStorage.getItem("cb_wkOpenBox"); if (b) { sessionStorage.removeItem("cb_wkOpenBox"); return b === "declared" ? null : b; } } catch {} return null; }); // avatar|nickname|residence|transport|exp|intensity|interests|languages|pr|qa（declaredは#/experienceへ移設済み・旧フラグは無視）
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→WorkerProfilePreviewをモーダル展開
   const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復）
   // 承認ポップアップ「プレビューを見る🔗」からの着地：編集ページを開いた直後にプレビューを自動展開
@@ -225,7 +225,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16）
-  const BOX_ORDER = ["avatar","nickname","pr","residence","transport","exp","intensity","interests","languages","declared","qa"];
+  const BOX_ORDER = ["avatar","nickname","pr","residence","transport","exp","intensity","interests","languages","qa"]; // declaredは専用ページ#/experienceへ移設（2026-07-25）＝自動展開ループから除外
   const boxFilled = (k) => (
     k === "pr" ? !!pr.trim() : k === "nickname" ? !!nickname.trim() : k === "residence" ? !!residenceCity.trim()
     : k === "transport" ? !!transport : k === "exp" ? !!farmExperience : k === "intensity" ? !!physicalLevel
@@ -330,7 +330,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
           const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
           return (
-          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+          <button key={b.k} onClick={()=>{ if (b.k === "declared") { try { sessionStorage.setItem("cb_expFromApp","1"); } catch {} window.location.hash = "/experience"; return; } setEditBox(b.k); }} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
             {revFlagged && (
               <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:1, padding:"5px 6px", borderRadius:"0 0 20px 20px", background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>⚠️ 修正のお願い</span>
             )}
@@ -434,61 +434,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </div>
       </>)}
 
-      {editBox==="declared" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>📋 経験・できること（自己申告）</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
-
-      {/* 経験の構造化申告（作物×作業×どのくらい・最大5・2026-07-23） */}
-      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 6px" }}>経験（作物 × 作業 × どのくらい）</p>
-      <datalist id="cb-crop-opts">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
-      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:8 }}>
-        {expEntries.map((e, i) => (
-          <div key={i} style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center" }}>
-            <input list="cb-crop-opts" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))} placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:13, flex:"1 1 120px", minWidth:0, marginBottom:0 }} />
-            <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, flex:"1 1 90px", minWidth:0, marginBottom:0 }}>
-              <option value="">作業</option>
-              {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-            </select>
-            <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, flex:"1 1 110px", minWidth:0, marginBottom:0 }}>
-              <option value="">どのくらい</option>
-              {["少し","1〜2シーズン","3シーズン以上"].map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <button onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ flexShrink:0, width:30, height:30, borderRadius:8, background:"#F5F5F5", border:"none", color:"#999", fontSize:15, cursor:"pointer" }}>×</button>
-          </div>
-        ))}
-      </div>
-      {expEntries.length < 5 && (
-        <button onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, marginBottom:16 }}>＋ 経験を追加</button>
-      )}
-
-      {/* 免許・資格・保険方針 */}
-      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"4px 0 6px" }}>免許・資格・保険方針</p>
-      <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
-        {WORKER_DECLARATIONS.map((it, i) => (
-          <div key={it.k} style={{ borderBottom: i < WORKER_DECLARATIONS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
-            <ToggleSwitch label={it.label} checked={selfDeclared.includes(it.k)} onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
-          </div>
-        ))}
-      </div>
-
-      {/* その他の作業（旧「経験のある作業」＝experienced_tasksが既にある人だけ残置。空の人には構造化のみ・2026-07-23） */}
-      {experiencedTasks.length > 0 && (
-        <>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"4px 0 6px" }}>その他の作業</p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
-            {[...new Set([...TASK_OPTIONS.map(t=>t.name), ...experiencedTasks])].map(v => {
-              const on = experiencedTasks.includes(v);
-              return (
-                <button key={v} type="button" onClick={()=>setExperiencedTasks(prev => on ? prev.filter(x=>x!==v) : [...prev, v])} className="f-sans" style={{
-                  padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
-                  border:"1px solid " + (on ? "#00A86B" : "#EBEBEB"), background: on ? "#E6F7EF" : "#F7F7F7", color: on ? "#00A86B" : "#717171",
-                }}>{v}</button>
-              );
-            })}
-          </div>
-        </>
-      )}
-      </>)}
+      {/* 経験・できること（declared）のモーダル編集は廃止（2026-07-25たきと指示）：
+          専用ページ #/experience（WorkerExperiencePage）へ移設。ボックスタップで遷移する */}
 
       {editBox==="pr" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>自己紹介・PR</label>
