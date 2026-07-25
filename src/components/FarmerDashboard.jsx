@@ -751,7 +751,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
-                  <StatusRibbon label={d.status === "pending" ? "審査中" : "作成中"} color={d.status === "pending" ? "#C77700" : "#8A6D1D"} />
+                  {/* タブ名（作成中）と同じ帯は出さない（2026-07-25たきと指示・重複排除）。タブと違う状態＝審査中だけ帯を出す */}
+                  {d.status === "pending" && <StatusRibbon label="審査中" color="#C77700" />}
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
               </button>
@@ -789,7 +790,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
-                  <StatusRibbon label={ended ? "終了" : d.status==="open" ? "公開中" : d.status==="draft" ? "一時非公開" : "審査中"} color={ended ? "#9E9E9E" : d.status==="open" ? "#00A86B" : d.status==="draft" ? "#757575" : "#C77700"} />
+                  {/* タブ名（公開中）と同じ帯は出さない（2026-07-25たきと指示・重複排除）。タブと違う状態＝終了・一時非公開・審査中だけ帯を出す */}
+                  {!(d.status === "open" && !ended) && <StatusRibbon label={ended ? "終了" : d.status==="draft" ? "一時非公開" : "審査中"} color={ended ? "#9E9E9E" : d.status==="draft" ? "#757575" : "#C77700"} />}
                   {qUnansweredMap[d.job_number] > 0 && (
                     <span className="f-sans" style={{ position:"absolute", top:6, right:6, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:20, padding:"2px 8px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>❓{qUnansweredMap[d.job_number]}</span>
                   )}
