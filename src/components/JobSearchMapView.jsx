@@ -8,6 +8,7 @@ import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, JobQuestions } from "./JobQuestions";
+import { InsurancePanel } from "./InsurancePanel";
 import { FarmerTrustCard } from "./TrustCards";
 
 // ── JobSearchMapView ────────────────────────────────────────
@@ -567,9 +568,11 @@ export function JobSearchMapView({ onRegister, me }) {
           })()}
 
           {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22） */}
-          <ContentQTabs value={detailTab} onChange={setDetailTab} />
+          <ContentQTabs value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(empEmployer?.insurance_items) && empEmployer.insurance_items.length > 0} />
           {detailTab === "questions" ? (
             <JobQuestions jobNumber={selectedJob.id} me={me} />
+          ) : (detailTab === "insurance" && Array.isArray(empEmployer?.insurance_items) && empEmployer.insurance_items.length > 0) ? (
+            <InsurancePanel employer={empEmployer} />
           ) : (<>
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>

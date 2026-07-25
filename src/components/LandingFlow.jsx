@@ -8,6 +8,7 @@ import { Avatar, DangerItem, JobFlagBadges, LFPillSelect, DevBadge } from "./ui"
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, JobQuestions } from "./JobQuestions";
+import { InsurancePanel } from "./InsurancePanel";
 import { FarmerTrustCard } from "./TrustCards";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { JobSearchMapView } from "./JobSearchMapView";
@@ -1949,11 +1950,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               })()}
 
               {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22） */}
-              <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} /></div>
+              <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} showInsurance={Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0} /></div>
               {confTab === "questions" ? (
                 /* LandingFlow内に me は存在しない（未定義参照＝ReferenceErrorで画面真っ白の原因だった・2026-07-24修正）。
                    meはisAdmin判定（運営の非表示スイッチ）専用so未指定でよい。農家本人の回答UIはJobQuestions内のsession判定(isOwner)が担う */
                 <div style={{ maxWidth:870, margin:"0 auto" }}><JobQuestions jobNumber={draftJobNumber} /></div>
+              ) : (confTab === "insurance" && Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0) ? (
+                <div style={{ maxWidth:870, margin:"0 auto" }}><InsurancePanel employer={confEmployer} /></div>
               ) : (<>
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
