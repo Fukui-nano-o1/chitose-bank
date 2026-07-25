@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { chatCache } from "../lib/chatCache";
 import { openEmployerPreview, openWorkerPreview } from "../lib/previewBus";
 import { pushStatus, enablePush } from "../lib/push";
-import { fmtJstShort, ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL } from "../lib/utils";
+import { fmtJstShort, ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
 import { Avatar, LinkifiedText } from "./ui";
 
 // チャット一覧の直近スナップショット（2026-07-22）：チャットから戻った時にスピナーを出さず即表示し、
@@ -236,7 +236,8 @@ export function ChatList() {
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
                     <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
                     {rowUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{rowUnread}</span>}
-                    <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: (a.status === "completed" || a.status === "rejected") ? "#F3F3F3" : a.status === "applied" ? "#FFF4E0" : "#E6F7EF", color: (a.status === "completed" || a.status === "rejected") ? "#999" : a.status === "applied" ? "#C77700" : "#00A86B", flexShrink:0 }}>{APP_PHASE_LABEL[appPhaseKey(a)] || a.status}</span>
+                    {/* 帯統一（2026-07-25たきと指示）：応募者リストと同じ段階色（APP_PHASE_COLOR）のチップ。凡例と同じ地色＋白文字 */}
+                    <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: APP_PHASE_COLOR[appPhaseKey(a)] || "#999", color:"#fff", flexShrink:0 }}>{APP_PHASE_LABEL[appPhaseKey(a)] || a.status}</span>
                   </div>
                   <p style={{ fontSize:12, color:"#717171", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>求人 #{a.job_number}{title ? "　" + title : ""}</p>
                 </div>
