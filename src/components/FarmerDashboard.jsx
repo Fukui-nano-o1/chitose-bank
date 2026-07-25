@@ -664,45 +664,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               setTimeout(()=>{ setEmpTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_empTopBack", nv ? "1" : "0"); } catch {} return nv; }); setEmpTopAnim("pflip-in"); }, 400);
             }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
           </div>
-          {(() => {
-            // 役割区画化（2026-07-22）：現行の箱を区画見出しで整理。数字バッジ＝要対応/当日のみ
-            const today = ymdLocal(new Date());
-            const jdm = {}; [...dbActive, ...dbExpired, ...dbDrafts].forEach(j => { jdm[j.job_number] = j; });
-            const todayCount = dbApplicants.filter(a => ["contracted","working"].includes(a.status) && jdm[a.job_number] && (() => { const j = jdm[a.job_number]; const s = j.date_start, e = j.date_end || j.date_start; return s && s <= today && today <= e; })()).length;
-            const eHubBox = (c) => {
-              const flipped = eFlip === c.l;
-              return (
-              <button key={c.l} onClick={()=>{ if (flipped) { setEFlip(null); return; } c.onClick ? c.onClick() : (window.location.hash=c.h); }} className={"f-sans" + (!flipped ? (c.urgent ? " cb-urgent-card" : c.still ? " cb-urgent-still" : "") : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, minHeight:132, boxSizing:"border-box" }}>
-                {c.desc && <span onClick={(e)=>{ e.stopPropagation(); setEFlip(flipped ? null : c.l); }} role="button" aria-label="説明" style={{ position:"absolute", top:8, right:8, zIndex:3, width:22, height:22, borderRadius:11, background: flipped ? "#00A86B" : "#F0F0F0", color: flipped ? "#fff" : "#999", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>？</span>}
-                {flipped ? (
-                  <span className="f-sans pflip-in" style={{ fontSize:12, color:"#555", lineHeight:1.7, textAlign:"center", padding:"2px 8px" }}>{c.desc}</span>
-                ) : (<>
-                  {c.n > 0 && <span style={{ position:"absolute", top:9, right:c.desc?34:10, minWidth:22, height:22, borderRadius:11, background: c.urgent ? "#E24B4A" : "#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
-                  <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
-                  <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
-                  {c.sub && <span className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", lineHeight:1.4 }}>{c.sub}</span>}
-                </>)}
-              </button>
-              );
-            };
-            const eSec = (title, boxes) => (
-              <div key={title} style={{ marginTop:16 }}>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>{title}</p>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>{boxes.map(eHubBox)}</div>
-              </div>
-            );
-            return (<>
-              {/* 「きょうの仕事」箱は撤去（2026-07-24・1機能1入口＝ナビ「📆今日」が唯一の入口）。📌いまは応募者のみ */}
-              {eSec("📌 いま", [
-                // 応募者：バッジは未完了（完了・見送り以外）のみ計上。未承認あり＝赤バッジ＋浮遊／保険未チェックのみ＝赤影
-                { e:"🤝", l:"応募者", n:dbApplicants.filter(a => !isApplicantDone(a)).length, h:"/profile/employer/applicants", urgent:hasUnapprovedApplicant, still:hasInsurancePending, desc:"あなたの求人に応募した働き手の一覧。承認・面接・採用はここから。" },
-              ])}
-              {eSec("📋 求人の管理", [
-                { e:"🌱", l:"作成中", n:dbDrafts.length, h:"/profile/employer/drafts", desc:"下書き・審査中の求人です。編集して掲載できます。" },
-                { e:"📣", l:"公開中", n:dbActive.length, h:"/profile/employer/active", desc:"いま公開している求人です。終了した求人もここに残ります。" },
-              ])}
-            </>);
-          })()}
+          {/* 入口カード（📌いま=応募者／📋求人の管理=作成中・公開中）は削除（2026-07-25たきと指示）。
+              各ページへの入口は下部フッター（応募者タブ・求人タブ）に一本化。URL直打ち(/profile/employer/*)は従来どおり生きている */}
           <button onClick={onNewJob} className="f-sans cb-jump" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 赤影なしの飛ぶ動作（チャット未読アイコンと同じcb-jump・2026-07-19） */}
             <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
             <span>
@@ -741,22 +704,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
             </div>
           </div>
-          <button onClick={()=>{ window.location.hash="/profile/employer/expired"; }} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", fontSize:13, color:"#717171", textDecoration:"underline", cursor:"pointer" }}>期限切れの求人を見る</button>
+          {/* 「期限切れの求人を見る」リンクは削除（2026-07-25たきと指示）。ページ自体(/profile/employer/expired)はURL直打ちで到達可 */}
         </>
       ) : (
       <>
-      {/* 戻る／求人を出す：同じ高さの浮遊固定ボックス（スクロール追従・2026-07-16・働き手側の戻ると同じ意匠）。
-          hashが既に/profile/employerの場合(保存後遷移等)はhashchangeが発火しないため、stateも直接homeへ */}
-      <button onClick={()=>{ setJobTab("home"); window.location.hash="/profile/employer"; }} className="f-sans job-float-back" style={{
-        display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
-        fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-      }}>← 農家プロ</button>
-      <button onClick={onNewJob} className="f-sans job-float-like" style={{
-        display:"flex", alignItems:"center", gap:6, background:"#00A86B", border:"none", borderRadius:20,
-        fontSize:13, fontWeight:700, color:"#fff", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-      }}>＋ 求人を出す</button>
-      {/* 浮遊ボックスとタブ・見出しが重ならないためのスペーサー（ノッチ端末はsafe-area分も確保） */}
-      <div aria-hidden="true" style={{ height:"calc(48px + env(safe-area-inset-top, 0px))" }} />
+      {/* 浮遊の「← 農家プロ」「＋ 求人を出す」ボックスは削除（2026-07-25たきと指示）。
+          戻りは下部ナビのプロフィールタブ、求人作成は入口カードの「📝新しく求人を出す」と☰メニューが担う */}
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
       {/* 作成中⇄公開中は上部タブで行き来できる（2026-07-16）。入口ボックスはそれぞれ自分のページ（hash）を開く */}
       {(jobTab==="draft" || jobTab==="active") ? (
@@ -798,7 +751,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
-                  <StatusRibbon label={d.status === "pending" ? "審査中" : "作成中"} color={d.status === "pending" ? "#C77700" : "#8A6D1D"} />
+                  {/* タブ名（作成中）と同じ帯は出さない（2026-07-25たきと指示・重複排除）。タブと違う状態＝審査中だけ帯を出す */}
+                  {d.status === "pending" && <StatusRibbon label="審査中" color="#C77700" />}
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
               </button>
@@ -836,7 +790,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
-                  <StatusRibbon label={ended ? "終了" : d.status==="open" ? "公開中" : d.status==="draft" ? "一時非公開" : "審査中"} color={ended ? "#9E9E9E" : d.status==="open" ? "#00A86B" : d.status==="draft" ? "#757575" : "#C77700"} />
+                  {/* タブ名（公開中）と同じ帯は出さない（2026-07-25たきと指示・重複排除）。タブと違う状態＝終了・一時非公開・審査中だけ帯を出す */}
+                  {!(d.status === "open" && !ended) && <StatusRibbon label={ended ? "終了" : d.status==="draft" ? "一時非公開" : "審査中"} color={ended ? "#9E9E9E" : d.status==="draft" ? "#757575" : "#C77700"} />}
                   {qUnansweredMap[d.job_number] > 0 && (
                     <span className="f-sans" style={{ position:"absolute", top:6, right:6, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:20, padding:"2px 8px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>❓{qUnansweredMap[d.job_number]}</span>
                   )}
