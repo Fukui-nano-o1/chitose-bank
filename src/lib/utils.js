@@ -322,3 +322,9 @@ const TASK_OPTIONS = [
   { name:"草刈り",   icon:"" },
   { name:"袋かけ",   icon:"" },
 ];
+
+// 分割3-B（2026-07-25）：App.jsxから移動
+
+// 緊急連絡の種別選択肢（当事者ごとに異なる）。attendance_events.kindのCHECK制約と対応
+export const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }, { v:"no_show_report", l:"👻 現地に相手がいません・連絡がつきません" }];
+export const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }, { v:"no_show_report", l:"👻 現地に相手がいません・連絡がつきません" }];

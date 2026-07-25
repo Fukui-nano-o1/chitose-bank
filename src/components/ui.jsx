@@ -209,3 +209,23 @@ export function LFPillSelect({ options, value, onSelect }) {
     </div>
   );
 }
+
+// 分割3-B（2026-07-25）：App.jsxから移動。評価・完了報告モーダルで共用
+
+// 評価モーダルの「はい/いいえ」2択ピル。reviews.want_again等のbool列と1対1で対応
+export function YesNoPill({ label, value, onChange }) {
+  return (
+    <div style={{ marginBottom:12 }}>
+      <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", marginBottom:6 }}>{label}</p>
+      <div style={{ display:"flex", gap:8 }}>
+        {[["はい",true],["いいえ",false]].map(([l,v]) => (
+          <button key={l} type="button" onClick={()=>onChange(v)} className="f-sans" style={{
+            flex:1, padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
+            borderColor: value===v ? "#00A86B" : "#EBEBEB",
+            background: value===v ? "#E6F7EF" : "#fff", color: value===v ? "#00A86B" : "#222",
+          }}>{l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
