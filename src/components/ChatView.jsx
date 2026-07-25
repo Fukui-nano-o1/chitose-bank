@@ -310,6 +310,9 @@ export function ChatView({ applicationId, onBack }) {
     }
     return id;
   })();
+  // 終了したチャット（2026-07-25たきと指示）：失効・完了は同じ設計＝薄暗い幕＋中央ラベル・
+  // スクロール閲覧可・入力バー非表示。ラベル色は帯の既定（APP_PHASE_COLOR expired=#111/completed=#607D8B）
+  const chatClosed = activeStatus === "expired" || activeStatus === "completed";
   return (
     <div className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
       {/* 上部フッター（LINE式・2026-07-22）：← / 名前さん / 報告する の1行ヘッダー。求人No.は下の帯へ移動 */}
@@ -469,11 +472,10 @@ export function ChatView({ applicationId, onBack }) {
           </Fragment>
         ))}
       </div>
-      {activeStatus === "expired" && (
+      {chatClosed && (
         <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, pointerEvents:"none", zIndex:5 }}>
-          {/* ラベルの黒＝APP_PHASE_COLOR.expired(#111)と同色（失効は求人の締め切りとして表示する既定に合わせる） */}
-          <span className="f-sans" style={{ background:"#111", color:"#fff", fontSize:14, fontWeight:800, padding:"8px 24px", borderRadius:20 }}>失効中</span>
-          <span className="f-sans" style={{ color:"#fff", fontSize:12, fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.6)" }}>この求人の募集期間は終了しました</span>
+          <span className="f-sans" style={{ background: activeStatus === "expired" ? "#111" : "#607D8B", color:"#fff", fontSize:14, fontWeight:800, padding:"8px 24px", borderRadius:20 }}>{activeStatus === "expired" ? "失効中" : "完了"}</span>
+          <span className="f-sans" style={{ color:"#fff", fontSize:12, fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.6)" }}>{activeStatus === "expired" ? "この求人の募集期間は終了しました" : "この仕事は完了しました"}</span>
         </div>
       )}
       </div>
@@ -542,8 +544,8 @@ export function ChatView({ applicationId, onBack }) {
       )}
 
       {/* 採用するボタンはチャット右上の浮遊に移設（2026-07-19・上のsticky）。下部の常駐ブロックは廃止 */}
-      {/* 失効した求人（2026-07-25たきと指示）：入力バーごと非表示＝送信不可。空いた分メッセージ領域(flex:1)が自動で広がる */}
-      {activeStatus === "expired" ? null : (!isWorkerSide && activeStatus === "applied") ? (
+      {/* 失効・完了した求人（2026-07-25たきと指示）：入力バーごと非表示＝送信不可。空いた分メッセージ領域(flex:1)が自動で広がる */}
+      {chatClosed ? null : (!isWorkerSide && activeStatus === "applied") ? (
         /* 承認待ちの間、農家の入力欄は一時的に承認/見送るボタンへ（2026-07-19）。判断後は通常の入力欄に戻る */
         <div style={{ padding:"12px 0", borderTop:"1px solid #EEE" }}>
           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px", textAlign:"center" }}>応募が届いています。アイコンからプロフィールを確認して判断してください</p>
