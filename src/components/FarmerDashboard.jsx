@@ -194,7 +194,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。固定列SELECTに入れ忘れると一時非公開が作成中へ落ちる
         const { data: allJobs, error } = await supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,work_time,opened_at").eq("farmer_id", session.user.id).order("job_number",{ascending:false});
         if (!error && allJobs) {
-          setJobInfoMap(Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end }])));
+          setJobInfoMap(Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos }])));
           const todayYmd = ymdLocal(new Date());
           const isPast = (j) => {
             const end = j.date_end || j.date_start;
@@ -910,32 +910,44 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             );
             const body = order.length === 0
               ? [<p key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>この状態の応募者はいません</p>]
-              : order.flatMap(jn => {
+              : order.map(jn => {
+                  // 求人カード化（2026-07-25たきと指示）：左＝トップ写真／右＝タイトル・No.／その下に応募者アイコンの横スワイプ列。
+                  // アイコン列のtouchはstopPropagationで親のフィルタ切替スワイプと分離する
                   const info = jobInfoMap[jn] || {};
                   const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
-                  return [
-                    <button key={`h-${jn}`} onClick={()=>setPreviewJob({ num: jn })} className="f-sans"
-                      style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 14px", cursor:"pointer", marginTop:2 }}>
-                      <span style={{ fontSize:14, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8" }}>#{jn}</span></span>
-                      <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 · 求人を見る →</span>
-                    </button>,
-                    ...byJob[jn].map(a => {
-                      const wp = workerProfiles[a.worker_id];
-                      return (
-                        <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
-                          className={"f-sans" + (a.status === "applied" ? " cb-urgent-card" : needsInsurance(a) ? " cb-urgent-still" : "")}
-                          style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                          <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-                            {wp?.avatar_url
-                              ? <img src={wp.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                              : <Avatar url={null} name={wp?.nickname || "？"} size={64} />}
-                            <StatusRibbon label={appRibbonLabel(a)} color={appRibbonColor(a)} />
-                          </div>
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: wp?.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "（名前未設定）"}</p>
+                  const photo = info.photos && info.photos[0] ? (typeof info.photos[0] === "string" ? info.photos[0] : info.photos[0]?.url) : null;
+                  return (
+                    <div key={`job-${jn}`} style={{ gridColumn:"1/-1", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2 }}>
+                      {/* 左：求人のトップ写真（タップで求人を見る） */}
+                      <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る"
+                        style={{ flexShrink:0, width:92, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, overflow:"hidden" }}>
+                        {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                      </button>
+                      {/* 右：タイトル・No.＋応募者アイコンスワイプ */}
+                      <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px" }}>
+                        <button onClick={()=>setPreviewJob({ num: jn })} className="f-sans"
+                          style={{ display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"none", border:"none", padding:0, cursor:"pointer" }}>
+                          <span style={{ fontSize:14, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8", fontWeight:700 }}>#{jn}</span></span>
+                          <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 →</span>
                         </button>
-                      );
-                    })
-                  ];
+                        <div onTouchStart={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
+                          style={{ display:"flex", gap:12, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
+                          {byJob[jn].map(a => {
+                            const wp = workerProfiles[a.worker_id];
+                            return (
+                              <button key={a.id} onClick={()=>setSheetApplicantId(a.id)}
+                                className={"f-sans" + (a.status === "applied" ? " cb-urgent-card" : needsInsurance(a) ? " cb-urgent-still" : "")}
+                                style={{ flexShrink:0, width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", borderRadius:12 }}>
+                                <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(a)} />
+                                <span style={{ display:"block", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
+                                <span style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(a), marginTop:1 }}>{appRibbonLabel(a)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
                 });
             return [tabBar, ...body, legend];
           })()
