@@ -1390,13 +1390,20 @@ export default function App(){
   // 最下部付近（残り64px以内）では方向に関係なく常に格納＝フッターがバーに隠れない。
   // iOSのバウンスが上スクロール扱いになりバーが復帰してフッターを覆う問題への対処。
   // チャット画面(chatAppId)は入力欄との干渉を避けるため対象外。求人詳細の応募フッター
-  // (.mobile-apply-bar)はこのクラスの対象外＝CSS側で触れていないので常時表示のまま。
+  // (.mobile-apply-bar)はcb-scroll-hideの対象外＝スクロール中は常時表示。ただし最下部から
+  // 50px以内では cb-at-bottom クラスで下へ格納する（フッターのサポート等が読める・2026-07-25）。
   useEffect(() => {
-    if (chatAppId) { document.body.classList.remove('cb-scroll-hide'); document.body.classList.remove('cb-dir-down'); return; }
+    if (chatAppId) { document.body.classList.remove('cb-scroll-hide'); document.body.classList.remove('cb-dir-down'); document.body.classList.remove('cb-at-bottom'); return; }
     let lastY = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
       const diff = y - lastY;
+      // 最下部からの残り距離（cb-at-bottom判定と下の格納判定で共用）
+      const fromBottom = document.documentElement.scrollHeight - window.innerHeight - y;
+      // 求人詳細の応募フッター格納用（2026-07-25たきと指示）：最下部から50px以内で目印クラス。
+      // y>40ガード＝スクロール余地のない短いページで付きっぱなしになる事故を防ぐ
+      if (fromBottom <= 50 && y > 40) document.body.classList.add('cb-at-bottom');
+      else document.body.classList.remove('cb-at-bottom');
       // トグル用の方向クラス：最下部の強制格納(下限)は適用しない（2026-07-16撤廃）。純粋に方向だけで出入り
       if (diff > 30) document.body.classList.add('cb-dir-down');
       else if (diff < -10) document.body.classList.remove('cb-dir-down');
@@ -1404,7 +1411,6 @@ export default function App(){
       // 最下部からの残り距離。64px以内=常に格納。180px以内=バウンス吸収帯（強フリックの
       // 跳ね返りやSafariツールバー伸縮で一瞬上向き判定になっても復帰させず状態維持）。
       // 180pxを超えて上に戻したときだけ通常の方向判定に戻る。
-      const fromBottom = document.documentElement.scrollHeight - window.innerHeight - y;
       if (fromBottom <= 64) { document.body.classList.add('cb-scroll-hide'); lastY = y; return; }
       if (fromBottom <= 180) { lastY = y; return; }
       if (diff > 30) { document.body.classList.add('cb-scroll-hide'); lastY = y; }
@@ -1416,6 +1422,7 @@ export default function App(){
       window.removeEventListener('scroll', onScroll);
       document.body.classList.remove('cb-scroll-hide');
       document.body.classList.remove('cb-dir-down');
+      document.body.classList.remove('cb-at-bottom');
     };
   }, [chatAppId]);
 
