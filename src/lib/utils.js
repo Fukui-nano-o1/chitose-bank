@@ -305,3 +305,9 @@ export function toHiragana(str) {
 export const MONTHS    = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 export const cn  = n => Math.round(n).toLocaleString("ja-JP");
 export const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/1000)/10).toFixed(1)+"万":cn(a); };
+
+// 今年（西暦）。就農年数表示・生年選択肢・フッターコピーライトで共用
+export const THIS_YEAR = new Date().getFullYear();
+// account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
+export const TERMS_VERSION = "v1-2026-07";
+export const PRIVACY_VERSION = "v1-2026-07";
