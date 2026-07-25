@@ -12,7 +12,8 @@ import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 import { AdminJobPreview } from "./components/AdminJobPreview";
 import { MyCalendar } from "./components/MyCalendar";
-import { ChatView } from "./components/ChatView";
+// ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
+const ChatView = lazy(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
 import { ChatList } from "./components/ChatList";
 import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
@@ -25,10 +26,10 @@ import { JobSearchMapView } from "./components/JobSearchMapView";
 import { MyReviewsOfWorker } from "./components/MyReviewsOfWorker";
 import { FarmerDashboard } from "./components/FarmerDashboard";
 import { ProfileHub } from "./components/ProfileHub";
-import { LandingFlow } from "./components/LandingFlow";
-import { AdminTab } from "./components/admin/AdminTab";
-import { ConsignmentRoom } from "./components/admin/ConsignmentRoom";
-import { AdminBoxRegistryPage } from "./components/admin/AdminBoxRegistryPage";
+const LandingFlow = lazy(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
+const AdminTab = lazy(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
+const ConsignmentRoom = lazy(() => import("./components/admin/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
+const AdminBoxRegistryPage = lazy(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));
 import { ToggleSwitch } from "./components/ToggleSwitch";
 import { CSS } from "./appStyles";
 import { ContentQTabs, JobQuestions } from "./components/JobQuestions";
@@ -40,7 +41,7 @@ import { isIOS, syncAppBadge } from "./lib/push";
 import { uploadAvatarResilient } from "./lib/avatarUpload";
 import { peekApplyReturn, setApplyReturn, clearApplyReturn } from "./lib/applyReturn";
 
-import { useState, useEffect, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 
@@ -519,8 +520,8 @@ function buildGoogleMapsUrl(region) {
 // ── LaborTab ─────────────────────────────────────────────────
 // 表示中タブ：「人手確保」(tab==="labor") → <LaborTab> が直接レンダリングされる
 function LaborTab({ farmersCount, onLogin }) {
-  return <LandingFlow embedded farmersCount={farmersCount} initialRole="farmer"
-    onComplete={()=>{}} onSkip={onLogin} onLogin={onLogin} />;
+  return <Suspense fallback={null}><LandingFlow embedded farmersCount={farmersCount} initialRole="farmer"
+    onComplete={()=>{}} onSkip={onLogin} onLogin={onLogin} /></Suspense>;
 }
 
 
@@ -2278,7 +2279,7 @@ const subDest=useCallback(async d=>{
             window.location.hash="/login";
           }} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)} />
         ) : chatAppId ? (
-          <ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} />
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} /></Suspense>
         ) : showApplyDone ? (
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
             <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
@@ -2328,8 +2329,8 @@ const subDest=useCallback(async d=>{
               const ret = peekApplyReturn();
               if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
             }}/>)}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<ConsignmentRoom/>}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&<AdminTab
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ConsignmentRoom/></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
@@ -2344,8 +2345,8 @@ const subDest=useCallback(async d=>{
               window.location.hash = (dj.step >= 1 && dj.step <= 11) ? "/work/new/" + dj.step : "/work/new";
             } else { setTab(t); }
           }}
-          onShowAccountForm={() => setNeedsAccountHolder(true)}/>}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="boxes"&&isAdmin(me)&&<AdminBoxRegistryPage/>}
+          onShowAccountForm={() => setNeedsAccountHolder(true)}/></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="boxes"&&isAdmin(me)&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><AdminBoxRegistryPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
@@ -2514,28 +2515,28 @@ const subDest=useCallback(async d=>{
       <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
 
       {!me&&showLanding&&(
-        <LandingFlow
+        <Suspense fallback={null}><LandingFlow
           onComplete={()=>setShowLanding(false)}
           onSkip={()=>{setShowLanding(false);setTab("search");}}
           onLogin={()=>{setShowLanding(false);setTab("login");}}
-        />
+        /></Suspense>
       )}
       {me&&showJobPost&&(
-        <LandingFlow
+        <Suspense fallback={null}><LandingFlow
           initialRole="farmer"
           onComplete={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onStepChange={(s)=>{ if(window.location.hash.replace(/^#\/?/,"").startsWith("work/new")) window.location.hash="/work/new/"+s; }}
           initialStep={(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^work\/new\/(\d+)$/); return m?parseInt(m[1],10):undefined; })()}
-        />
+        /></Suspense>
       )}
       {me&&showDevJump&&(
-        <LandingFlow
+        <Suspense fallback={null}><LandingFlow
           onComplete={()=>setShowDevJump(false)}
           onSkip={()=>setShowDevJump(false)}
           onLogin={()=>setShowDevJump(false)}
-        />
+        /></Suspense>
       )}
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
       {showConstitution&&<DataConstitution onClose={()=>setShowConstitution(false)}/>}
