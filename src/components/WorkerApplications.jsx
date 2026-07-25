@@ -3,6 +3,7 @@ import { useState, useEffect, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL } from "../lib/utils";
 import { YesNoPill } from "./ui";
+import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 
 export function WorkerApplications({ filter, me }) {
@@ -206,7 +207,7 @@ export function WorkerApplications({ filter, me }) {
     const c = color(a.status);
     return (
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-                <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a)}</div>
+                <div onClick={()=>openPhaseInfo(appPhaseKey(a))} role="button" style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg, cursor:"pointer" }}>{label(a)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[jobDates[a.job_number]?.crop, jobDates[a.job_number]?.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
                 <AvailDatesChips value={a.available_dates} />

@@ -12,3 +12,8 @@ export function openEmployerPreview(farmerId) {
 export function openWorkerPreview(workerId) {
   if (workerId) window.dispatchEvent(new CustomEvent("cb:openWorkerPreview", { detail: workerId }));
 }
+// 段階の説明シート（2026-07-25）：どのステータス表示からでも openPhaseInfo(段階キー) で説明を開く。
+// 受け手（PhaseInfoSheet）はcomponents/uiにあり、App.jsxに1つだけマウント
+export function openPhaseInfo(phaseKey) {
+  if (phaseKey) window.dispatchEvent(new CustomEvent("cb:openPhaseInfo", { detail: phaseKey }));
+}

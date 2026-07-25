@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
   CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER } from "../lib/utils";
-import { openEmployerPreview, openWorkerPreview } from "../lib/previewBus";
+import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { chatCache } from "../lib/chatCache";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar } from "./ui";
@@ -336,7 +336,7 @@ export function ChatView({ applicationId, onBack }) {
                 <button key={r.id} onClick={()=>{ if (!isActive) window.location.replace("#/chat/" + r.id); }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>#{r.job_number}</span>
                   {/* 帯統一（2026-07-25）：段階名は応募者リストと同じ段階色で表示 */}
-                  <span style={{ display:"block", fontSize:11, marginTop:2 }}><span style={{ color: APP_PHASE_COLOR[appPhaseKey(r)] || "#999", fontWeight:700 }}>{APP_PHASE_LABEL[appPhaseKey(r)] || r.status}</span><span style={{ color:"#999" }}>{isActive ? "・表示中" : "・開く"}</span></span>
+                  <span style={{ display:"block", fontSize:11, marginTop:2 }}><span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(r)); }} role="button" style={{ color: APP_PHASE_COLOR[appPhaseKey(r)] || "#999", fontWeight:700, cursor:"pointer" }}>{APP_PHASE_LABEL[appPhaseKey(r)] || r.status}</span><span style={{ color:"#999" }}>{isActive ? "・表示中" : "・開く"}</span></span>
                 </button>
               );
             })}

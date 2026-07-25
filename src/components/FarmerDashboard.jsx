@@ -1,7 +1,7 @@
 // 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告・緊急連絡）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { openWorkerPreview } from "../lib/previewBus";
+import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
 import { Avatar, ExpandableText, StatusRibbon, YesNoPill, NoticeJumpText } from "./ui";
@@ -914,7 +914,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                                 style={{ flexShrink:0, width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                                 <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(phaseA)} />
                                 <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
-                                <span style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(phaseA), marginTop:1 }}>{appRibbonLabel(phaseA)}</span>
+                                <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(phaseA)); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(phaseA), marginTop:1, cursor:"pointer" }}>{appRibbonLabel(phaseA)}</span>
                               </button>
                             );
                           })}

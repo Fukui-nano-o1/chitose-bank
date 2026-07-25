@@ -1,5 +1,6 @@
 // 汎用UIアトム（分割・段階2後半・2026-07-24）：リボン帯・長文の省略表示。
 import { useState, useEffect, useRef, useCallback } from "react";
+import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC } from "../lib/utils";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
 export function StatusRibbon({ label, color }) {
@@ -259,6 +260,27 @@ export function DevBadge({ label }) {
       pointerEvents:"none",
     }}>
       DEV: {label} v{DEV_V}
+    </div>
+  );
+}
+
+// 段階の説明シート（2026-07-25たきと指示）：ステータス（帯・チップ・段階ラベル）のタップで、
+// その段階の説明を画面下シートで展開。openPhaseInfo（lib/previewBus）で開き、どこタップでも閉じる。
+// App.jsxに1つだけマウント（プレビューシートと同じ常駐方式）
+export function PhaseInfoSheet() {
+  const [pk, setPk] = useState(null);
+  useEffect(() => {
+    const f = (e) => setPk(e.detail || null);
+    window.addEventListener("cb:openPhaseInfo", f);
+    return () => window.removeEventListener("cb:openPhaseInfo", f);
+  }, []);
+  if (!pk || !APP_PHASE_LABEL[pk]) return null;
+  return (
+    <div onClick={()=>setPk(null)} style={{ position:"fixed", inset:0, zIndex:9800, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .15s ease" }}>
+      <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"16px 16px 0 0", padding:"20px 20px calc(env(safe-area-inset-bottom, 0px) + 24px)", maxWidth:560, width:"100%", boxSizing:"border-box" }}>
+        <span className="f-sans" style={{ display:"inline-block", background:APP_PHASE_COLOR[pk] || "#999", color:"#fff", fontSize:12, fontWeight:800, borderRadius:8, padding:"4px 14px", marginBottom:10 }}>{APP_PHASE_LABEL[pk]}</span>
+        <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:0 }}>{APP_PHASE_DESC[pk] || ""}</p>
+      </div>
     </div>
   );
 }

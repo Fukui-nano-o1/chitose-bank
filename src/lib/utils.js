@@ -251,6 +251,17 @@ export const appPhaseKey = (a) => {
 };
 export const APP_PHASE_LABEL = { applied:"応募中", interview:"面接中", contracted:"採用", working:"作業中", completed:"完了", rejected:"見送り", expired:"失効" };
 // expiredは黒＝失効カードの黒オーバーレイと同色（2026-07-25。失効は応募の段階でなく求人の締め切りとして表示する）
+// 段階の説明（2026-07-25たきと指示「ステータスタップで説明を展開」）：帯・チップ・凡例の説明の唯一のソース。
+// タップ→PhaseInfoSheet（components/ui）で表示。文面は両役割から読める中立の言い回しにする
+export const APP_PHASE_DESC = {
+  applied:    "応募が届いた状態。農家がプロフィールを見て、承認するか見送るかを決めます",
+  interview:  "承認された応募。チャットで面接し、農家が採用するかを決めます",
+  contracted: "採用が決まった応募。作業日などの連絡はチャットで行います",
+  working:    "作業当日・進行中です",
+  completed:  "作業が終わった応募。お互いを評価できます",
+  rejected:   "見送りになった応募です",
+  expired:    "承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募です",
+};
 export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#111111" };
 // 定型文（2026-07-22・第8弾）：チャット入力欄の＋から役割別に挿入。「何を書けばいいか分からない」摩擦を消す
 export const CHAT_TEMPLATES_FARMER = [

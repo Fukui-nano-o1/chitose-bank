@@ -4,7 +4,7 @@ import { chatCache } from "./lib/chatCache";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "./lib/questionSets";
 import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION, TASK_OPTIONS, WORKER_EMERGENCY_KINDS, FARMER_EMERGENCY_KINDS, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText, LinkifiedText, LFPillSelect, YesNoPill, DevBadge } from "./components/ui";
+import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText, LinkifiedText, LFPillSelect, YesNoPill, DevBadge, PhaseInfoSheet } from "./components/ui";
 import { CalendarView } from "./components/CalendarView";
 import { JobCard } from "./components/JobCard";
 import { JobLocationMap } from "./components/JobLocationMap";
@@ -2027,6 +2027,7 @@ const subDest=useCallback(async d=>{
       )}
       <WorkerPreviewSheet />
       <EmployerPreviewSheet />
+      <PhaseInfoSheet />
 
       {/* ── プロフィール承認の「お帰りなさい」ポップアップ（起動時1回・ボックス展開） ── */}
       {welcomeApproved && (
