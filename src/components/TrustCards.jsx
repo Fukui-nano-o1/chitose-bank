@@ -1,5 +1,5 @@
 // 信頼カード（分割・段階2後半・2026-07-24）：働き手/雇い手の与信情報カード。プレビュー・応募者カード・確認ページで共用。
-import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, interactionStyleLabel, tenureLabel } from "../lib/utils";
+import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, interactionStyleLabel, tenureLabel, normalizeInsuranceItems } from "../lib/utils";
 import { ExpandableText, Avatar } from "./ui";
 
 export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare }) {
@@ -167,7 +167,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         <div style={{ marginTop:12 }}>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
-            {profile.insurance_items.map(k => { const it = INSURANCE_ITEMS.find(x => x.k === k); return it ? (
+            {normalizeInsuranceItems(profile.insurance_items).map(k => { const it = INSURANCE_ITEMS.find(x => x.k === k); return it ? (
               <span key={k} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>🛡 {it.chip}</span>
             ) : null; })}
           </div>

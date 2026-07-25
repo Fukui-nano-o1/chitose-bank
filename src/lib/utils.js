@@ -53,6 +53,13 @@ export const INSURANCE_ITEMS = [
   { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険",           icon:"🚗" },
 ];
 
+// 保険申告の排他ガード（2026-07-25たきと指示）：「これから準備する(considering)」は実際の保険と両立しない。
+// 編集UIは排他済みだが、排他化以前の旧データが両方持つ場合があるため、表示側では実際の保険を優先しconsideringを落とす
+export const normalizeInsuranceItems = (items) => {
+  const arr = Array.isArray(items) ? items : [];
+  return arr.some(k => k !== "considering") ? arr.filter(k => k !== "considering") : arr;
+};
+
 // 保険種類ごとの運営用意の定型説明（2026-07-25）。求人の「保険」タブで各項目をタップした時、
 // この定型説明＋農家の自由記述メモ（insurance_notes）を並べて出す。運営が保証する文ではなく、
 // 保険の一般的な性質の説明にとどめる（自己申告の注記は別途表示）。

@@ -6,11 +6,11 @@
 // 自己申告の注記（緑の説明箱）はカードの下に置く（2026-07-25たきと指示で下へ移植）。
 // employer は job_employer_profile RPC（詳細）／本人の employer_profiles 行（確認）どちらの形でも可。
 import { useState } from "react";
-import { INSURANCE_ITEMS, INSURANCE_DESC } from "../lib/utils";
+import { INSURANCE_ITEMS, INSURANCE_DESC, normalizeInsuranceItems } from "../lib/utils";
 
 export function InsurancePanel({ employer }) {
   const [flip, setFlip] = useState(null); // 裏返し中の項目キー（同時に1枚だけ）
-  const items = Array.isArray(employer?.insurance_items) ? employer.insurance_items : [];
+  const items = normalizeInsuranceItems(employer?.insurance_items); // 旧データの「considering＋実保険」同居を表示側でも排他
   const notes = (employer && typeof employer.insurance_notes === "object" && employer.insurance_notes) || {};
 
   if (items.length === 0) {
