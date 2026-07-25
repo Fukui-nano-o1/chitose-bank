@@ -1,5 +1,5 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
 import { Avatar } from "./ui";
@@ -131,62 +131,70 @@ export function TodayPage({ me, defaultRole }) {
     w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   nav: () => "/profile/worker/approved" },
     w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved" },
   };
-  // アクションボックス（2026-07-25）：同じ用件（stage）を1箱に集約。右上=放置数バッジ、
-  // 中央=選択中の対象（#N 作物 作業＋働き手アバター・ニックネーム）、下部=対象働き手の小アイコン（横スワイプで切替）。
-  // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（アイコン列は求人チップで代替）
+  // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
+  // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
+  // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（求人チップで識別）
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
-  const [todoSel, setTodoSel] = useState({}); // stage → 選択中のtodoKey（選択stateは親に持つ＝内側コンポーネント定義によるstate消失を回避）
+  const [todoOpenStage, setTodoOpenStage] = useState(null); // 展開中の用件（親に保持＝内側定義によるstate消失を回避）
+  const TODO_BOX_LABEL = { insurance: "保険の報告" }; // ボックス用の短縮ラベル（未定義はm.titleのまま）
+  const runTodo = async (m, e) => {
+    const busyKey = (e.application_id || e.job_number) + e.stage;
+    if (m.nav) { window.location.hash = m.nav(e); return; }
+    if (m.flag) { try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
+    if (m.rpc) {
+      if (confirming) return; setConfirming(busyKey);
+      const { data, error } = await supabase.rpc(m.rpc, { p_application_id: e.application_id });
+      setConfirming("");
+      if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+      removeTodo(e.application_id, e.stage);
+    }
+  };
   const TodoStageBox = ({ stage, items }) => {
     const m = TODO_META[stage]; if (!m) return null;
-    const e = items.find(t => todoKey(t) === todoSel[stage]) || items[0];
-    const showPartner = role === "farmer" && !!e.partner_name;
-    const jobChip = [e.job_number ? "#" + e.job_number : "", [e.crop, e.task].filter(Boolean).join(" ")].filter(Boolean).join(" ");
-    const busy = confirming === (e.application_id || e.job_number) + e.stage;
-    const onClick = async () => {
-      if (m.nav) { window.location.hash = m.nav(e); return; }
-      if (m.flag) { try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
-      if (m.rpc) {
-        if (busy) return; setConfirming((e.application_id || e.job_number) + e.stage);
-        const { data, error } = await supabase.rpc(m.rpc, { p_application_id: e.application_id });
-        setConfirming("");
-        if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-        removeTodo(e.application_id, e.stage);
-      }
+    const open = todoOpenStage === stage;
+    const onTapBox = () => {
+      // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。実行系（RPC）は誤タップ防止のため必ず展開してボタンで実行
+      if (items.length === 1 && (m.nav || m.flag)) { runTodo(m, items[0]); return; }
+      setTodoOpenStage(prev => prev === stage ? null : stage);
     };
     return (
-      <div style={{ border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px" }}>
-        {/* ヘッダー：用件＋右上に放置数 */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-          <p className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:14, fontWeight:800, color:"#222", margin:0, minWidth:0, flex:1 }}>
-            <span style={{ fontSize:18 }}>{m.icon}</span>
-            <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.title}</span>
-          </p>
-          <span className="f-sans" aria-label={"残り" + items.length + "件"} style={{ flexShrink:0, minWidth:20, height:20, borderRadius:10, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{items.length}</span>
+      <button onClick={onTapBox} className="f-sans" style={{
+        position:"relative", background:"#fff", border:"1px solid " + (open ? accent : "#EBEBEB"), borderRadius:18,
+        padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+      }}>
+        <span aria-label={"残り" + items.length + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{items.length}</span>
+        <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>{m.icon}</span>
+        <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{TODO_BOX_LABEL[stage] || m.title}</span>
+      </button>
+    );
+  };
+  // 展開パネル：タップしたボックスの対象一覧（1行=誰・どの求人・実行ボタン）
+  const TodoStagePanel = ({ stage, items }) => {
+    const m = TODO_META[stage]; if (!m) return null;
+    return (
+      <div style={{ gridColumn:"1 / -1", border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px" }}>
+        <p className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px" }}>
+          <span style={{ fontSize:16 }}>{m.icon}</span>{TODO_BOX_LABEL[stage] || m.title}
+        </p>
+        <div style={{ display:"grid", gap:8 }}>
+          {items.map(t => {
+            const busy = confirming === (t.application_id || t.job_number) + t.stage;
+            const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" ")].filter(Boolean).join(" ");
+            return (
+              <div key={todoKey(t)} style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                {role === "farmer" && t.partner_name ? (
+                  <>
+                    <Avatar url={t.partner_avatar} name={t.partner_name} size={28} bg={ROLE_ORANGE} />
+                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flexShrink:1, minWidth:0 }}>{t.partner_name}さん</span>
+                  </>
+                ) : null}
+                {jobChip && <span className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{jobChip}</span>}
+                <span style={{ flex:1 }} />
+                <button onClick={()=>runTodo(m, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 12px", fontSize:12, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
+              </div>
+            );
+          })}
         </div>
-        {/* 選択中の対象：どの求人の誰か */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, minWidth:0 }}>
-          {showPartner && <Avatar url={e.partner_avatar} name={e.partner_name} size={24} bg={ROLE_ORANGE} />}
-          {showPartner && <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.partner_name}さん</span>}
-          {jobChip && <span className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{jobChip}</span>}
-        </div>
-        {/* アクションバー（全幅・選択中の対象に対して実行） */}
-        <button onClick={onClick} disabled={busy} className="f-sans" style={{ display:"block", width:"100%", padding:"11px 8px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
-        {/* 下部：対象の切替列（働き手の小アイコン・横スワイプ）。複数件の時のみ */}
-        {items.length > 1 && (
-          <div style={{ display:"flex", gap:8, marginTop:10, overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:2 }}>
-            {items.map(t => {
-              const k = todoKey(t); const isSel = k === todoKey(e);
-              return (
-                <button key={k} onClick={()=>setTodoSel(prev => ({ ...prev, [stage]: k }))} aria-label={t.partner_name || ("#" + t.job_number)}
-                  style={{ flexShrink:0, background:"none", border:"none", padding:0, cursor:"pointer", opacity: isSel ? 1 : 0.45 }}>
-                  {role === "farmer" && t.partner_name
-                    ? <Avatar url={t.partner_avatar} name={t.partner_name} size={28} ring={isSel ? accent : undefined} bg={ROLE_ORANGE} />
-                    : <span className="f-sans" style={{ display:"inline-block", fontSize:11, fontWeight:700, color: isSel ? "#fff" : "#717171", background: isSel ? accent : "#F7F7F7", borderRadius:8, padding:"6px 8px" }}>#{t.job_number}</span>}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
     );
   };
@@ -225,16 +233,22 @@ export function TodayPage({ me, defaultRole }) {
       ) : (<>
         {/* 【やること】採配台：状態カードを締切の近い順に。①②⑧=遷移／③〜⑦=直接実行。件数=今日タブのバッジ(todo)と一致 */}
         {(() => {
-          const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (a.sort_key || "").localeCompare(b.sort_key || "") || (a.job_number || 0) - (b.job_number || 0));
+          // 最新順（sort_keyの新しい順・同日なら求人番号の新しい順）
+          const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
           if (myTodos.length === 0) return null;
-          // 用件（stage）ごとに1箱へ集約（アクションボックス・出現順を維持）
+          // 用件（stage）ごとに1箱へ集約（箱の並びも最新順＝各用件の最新アイテム順）
           const stageOrder = []; const byStage = new Map();
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); stageOrder.push(t.stage); } byStage.get(t.stage).push(t); });
           return (
             <div style={{ marginBottom:24 }}>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
-              <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:10 }}>
-                {stageOrder.map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st)} />)}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
+                {stageOrder.map(st => (
+                  <Fragment key={st}>
+                    <TodoStageBox stage={st} items={byStage.get(st)} />
+                    {todoOpenStage === st && <TodoStagePanel stage={st} items={byStage.get(st)} />}
+                  </Fragment>
+                ))}
               </div>
             </div>
           );
