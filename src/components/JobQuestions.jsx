@@ -4,8 +4,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { isAdmin, fmtJstShort } from "../lib/utils";
 // 「仕事の内容」「質問」タブバー（第10弾・2026-07-22）：求人詳細・確認ページの写真下に置く
-export function ContentQTabs({ value, onChange }) {
-  const tabs = [["content", "仕事の内容"], ["questions", "質問"]];
+export function ContentQTabs({ value, onChange, showInsurance }) {
+  // 保険タブは農家が保険を自己申告している求人でだけ出す（未申告なら従来の2タブのまま）
+  const tabs = showInsurance
+    ? [["content", "仕事の内容"], ["insurance", "🛡保険"], ["questions", "質問"]]
+    : [["content", "仕事の内容"], ["questions", "質問"]];
   return (
     <div style={{ display:"flex", gap:4, borderBottom:"1px solid #EEE", marginBottom:20 }}>
       {tabs.map(([k, l]) => (

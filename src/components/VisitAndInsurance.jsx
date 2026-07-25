@@ -8,6 +8,7 @@ import { ToggleSwitch } from "./ToggleSwitch";
 // employer_profiles.insurance_items を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
 export function InsurancePrepPage({ me }) {
   const [items, setItems] = useState([]);
+  const [notes, setNotes] = useState({}); // { key: 農家の自由記述メモ }。求人の🛡保険タブで定型説明の下に出す
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -16,8 +17,9 @@ export function InsurancePrepPage({ me }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        const { data } = await supabase.from("employer_profiles").select("insurance_items").eq("auth_id", session.user.id).maybeSingle();
+        const { data } = await supabase.from("employer_profiles").select("insurance_items,insurance_notes").eq("auth_id", session.user.id).maybeSingle();
         setItems(Array.isArray(data?.insurance_items) ? data.insurance_items : []);
+        setNotes((data?.insurance_notes && typeof data.insurance_notes === "object") ? data.insurance_notes : {});
       } catch {}
       setLoading(false);
     })();
@@ -28,7 +30,10 @@ export function InsurancePrepPage({ me }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
-      const { error } = await supabase.from("employer_profiles").upsert({ auth_id: session.user.id, insurance_items: items, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      // メモは「選択中の項目」の空でないものだけ保存（外した項目のメモは残さない＝表示と保存の一致）
+      const prunedNotes = {};
+      items.forEach(k => { const t = (notes[k] || "").trim(); if (t) prunedNotes[k] = t; });
+      const { error } = await supabase.from("employer_profiles").upsert({ auth_id: session.user.id, insurance_items: items, insurance_notes: prunedNotes, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       setSaving(false);
       if (error) { alert("保存に失敗しました：" + error.message); return; }
       setSaved(true); setTimeout(()=>setSaved(false), 2000);
@@ -38,7 +43,7 @@ export function InsurancePrepPage({ me }) {
     <div className="help-edge" style={{ maxWidth:560, margin:"0 auto", padding:"24px 4px 96px" }}>
       <button onClick={()=>{ let fromApp=false; try{ fromApp=sessionStorage.getItem("cb_insFromApp")==="1"; sessionStorage.removeItem("cb_insFromApp"); }catch{} if (fromApp && window.history.length>1) window.history.back(); else window.location.hash="/profile/employer"; }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 14px", display:"inline-flex", alignItems:"center", gap:6 }}>← 戻る</button>
       <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</h1>
-      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。</p>
+      <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。選んだ項目には、働き手向けのひとことを添えられます（任意）。</p>
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
       ) : (<>
@@ -46,6 +51,19 @@ export function InsurancePrepPage({ me }) {
           {INSURANCE_ITEMS.map((it, i) => (
             <div key={it.k} style={{ borderBottom: i < INSURANCE_ITEMS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
               <ToggleSwitch label={it.label} checked={items.includes(it.k)} onChange={(v)=>setItems(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
+              {items.includes(it.k) && (
+                <div style={{ padding:"0 2px 12px" }}>
+                  <textarea
+                    value={notes[it.k] || ""}
+                    onChange={e=>setNotes(prev => ({ ...prev, [it.k]: e.target.value }))}
+                    placeholder="働き手へのひとこと（任意・例：加入している保険会社や補償の範囲など）"
+                    rows={2}
+                    maxLength={300}
+                    className="field f-sans"
+                    style={{ fontSize:13, resize:"vertical", width:"100%", boxSizing:"border-box" }}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
