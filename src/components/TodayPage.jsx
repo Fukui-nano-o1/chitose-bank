@@ -3,6 +3,72 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
 import { Avatar } from "./ui";
+// 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
+// ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
+//   textareaのフォーカス・下書きが消える（LandingFlowのフォーカス消失バグと同族）
+function InterviewReplyPanel({ items, accent, onAnswered }) {
+  const [questions, setQuestions] = useState({}); // application_id → 最新の【面接の質問】本文
+  const [drafts, setDrafts] = useState({});       // application_id → 入力中の回答
+  const [sending, setSending] = useState("");
+  const idsKey = items.map(t => t.application_id).filter(Boolean).join(",");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const ids = idsKey ? idsKey.split(",") : [];
+        if (!ids.length) return;
+        const { data } = await supabase.from("messages")
+          .select("application_id,body,created_at").in("application_id", ids)
+          .like("body", "【面接の質問】%").order("created_at", { ascending: true });
+        if (cancelled || !data) return;
+        const q = {}; data.forEach(m => { q[m.application_id] = m.body; }); // 昇順で上書き＝各応募の最新が残る
+        setQuestions(q);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [idsKey]);
+  const send = async (t) => {
+    const body = (drafts[t.application_id] || "").trim();
+    if (!body || sending) return;
+    setSending(t.application_id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSending(""); return; }
+      const { error } = await supabase.from("messages").insert({ application_id: t.application_id, sender_id: session.user.id, body });
+      if (error) { alert("送信に失敗しました：" + error.message); setSending(""); return; }
+      setSending("");
+      setDrafts(prev => ({ ...prev, [t.application_id]: "" }));
+      onAnswered(t.application_id);
+    } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); setSending(""); }
+  };
+  return (
+    <div style={{ gridColumn:"1 / -1", border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px" }}>
+      <p className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px" }}>
+        <span style={{ fontSize:16 }}>✍️</span>面接の回答 <span style={{ fontSize:11, fontWeight:600, color:"#999" }}>ここで返事できます（返事はチャットにも残ります）</span>
+      </p>
+      <div style={{ display:"grid", gap:14 }}>
+        {items.map(t => (
+          <div key={t.application_id} style={{ display:"grid", gap:8 }}>
+            <button onClick={()=>{ if (!t.job_number) return; try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }}
+              className="f-sans" style={{ justifySelf:"start", fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>
+              {[t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" ")].filter(Boolean).join(" ")}
+            </button>
+            <p className="f-sans" style={{ fontSize:12, color:"#222", lineHeight:1.7, background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>
+              {questions[t.application_id] || "質問を読み込み中..."}
+            </p>
+            <textarea rows={3} value={drafts[t.application_id] || ""} onChange={ev => setDrafts(prev => ({ ...prev, [t.application_id]: ev.target.value }))}
+              placeholder="回答を入力（そのまま相手に届きます）" className="field f-sans" style={{ width:"100%", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
+            <button onClick={()=>send(t)} disabled={sending === t.application_id || !(drafts[t.application_id] || "").trim()}
+              className="f-sans" style={{ justifySelf:"end", padding:"9px 16px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", opacity: (sending === t.application_id || !(drafts[t.application_id] || "").trim()) ? 0.5 : 1 }}>
+              {sending === t.application_id ? "..." : "返事を送る"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。月カレンダーは奥（#/calendar/month）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
@@ -195,6 +261,7 @@ export function TodayPage({ me, defaultRole }) {
     chat:        { icon:"💬", title:"未読メッセージ",       btn:"チャットを開く →", nav: e => "/chat/" + e.application_id },
     w_waiting:   { icon:"📨", title:"返事待ち",             btn:"応募状況を見る →", nav: () => "/profile/worker/applying" },
     w_confirm:   { icon:"📋", title:"求人内容の確認",       btn:"✓ 確認した",       terms:true }, // チャットの確認カードから移設。内容は求人チップのタップで閲覧
+    w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
     w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   nav: () => "/profile/worker/approved" },
     w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved" },
   };
@@ -207,7 +274,7 @@ export function TodayPage({ me, defaultRole }) {
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review", "chat"],
-    worker: ["w_waiting", "w_confirm", "w_start", "w_review", "chat"],
+    worker: ["w_waiting", "w_confirm", "w_interview", "w_start", "w_review", "chat"],
   };
   // 採用時の二重予約チェック（ChatViewから移植・2026-07-25）：同じ働き手が自分の別の進行中求人で日程重複していないか
   const hireDoubleBookingCheck = async (e) => {
@@ -378,7 +445,9 @@ export function TodayPage({ me, defaultRole }) {
                   return (
                     <Fragment key={st}>
                       <TodoStageBox stage={st} items={items} />
-                      {todoOpenStage === st && items.length > 0 && <TodoStagePanel stage={st} items={items} />}
+                      {todoOpenStage === st && items.length > 0 && (st === "w_interview"
+                        ? <InterviewReplyPanel items={items} accent={accent} onAnswered={(id)=>removeTodo(id, "w_interview")} />
+                        : <TodoStagePanel stage={st} items={items} />)}
                     </Fragment>
                   );
                 })}
