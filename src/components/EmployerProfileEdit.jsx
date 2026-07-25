@@ -258,13 +258,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
-      {/* 右上に保存・プレビュー（2026-07-14・働き手編集ページと同一構造）。プレビューはモーダル展開 */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:4 }}>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>雇い手プロフィール</p>
-        <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-          <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
-          <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, borderRadius:10 }}>{saving ? "保存中..." : "保存"}</button>
-        </div>
+      {/* 見出し「雇い手プロフィール」とページ全体の保存ボタンは削除（2026-07-25たきと指示・保存は各ボックスのモーダル内に一本化）。プレビューのみ残す */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:8, marginBottom:4 }}>
+        <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
       </div>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人に掲載したとき、働き手に伝わる紹介です。タップして入力できます。</p>
 
