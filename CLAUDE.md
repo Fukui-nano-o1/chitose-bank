@@ -1400,3 +1400,22 @@ Parsing errorで即検出→push前に修復。閉じ`}`の欠落／取り残し
 両方ともダッシュボード操作＝PC必要。完了後、未招待メールでの新規登録一巡（訂正版手順・
 役割選択ページは無い）→手順3直後にauthログ即診断（ベースライン: 11users/最終7/22/新規0）
 ━━━ ここまで ━━━
+
+━━━ 2026-07-25 分割3-C完了：巨大4ページの別ファイル化＝App.jsx分割プロジェクト完了（20,605→2,559行・▲88%）━━━
+【切り出し済み（1ページ=1コミット・各buildゲート通過）】
+・components/JobSearchMapView.jsx（1,290行・さがす一覧＋求人詳細＋応募パネル。専用calcMaxPay同居）
+・components/FarmerDashboard.jsx（1,360行・農家お仕事タブ。専用APPROVED_PLUS_STATUSES同居）
+・components/ProfileHub.jsx（368行・プロフィールタブ両役割入口）
+・components/LandingFlow.jsx（2,545行・求人作成フロー全体。専用ヘルパー
+  geocodeTown/compressImage/normalizePhotos/dangerHasSecond/LF系UI部品/ALLOWED_PREFECTURES/
+  validateMinWage 同居。LF系UI部品のモジュールレベル定義維持を冒頭コメントに明記）
+・components/MyReviewsOfWorker.jsx（職安法対応コメントごと・本人限定RLSの評価記録）
+【共有層へ移動】lib/applyReturn.js（応募戻り先localStorage）／lib/utilsへ farmIntroTopics・perkBadges／
+components/uiへ DevBadge
+【残るApp.jsx（2,559行）＝配線層】タブ切替・URLルーティング・セッション復元・me構築・
+オーバーレイ管理・ヘッダー/下部ナビ・WorkerPreviewSheet/EmployerPreviewSheet・ヘルプ・利用規約表示。
+これ以上の分割は必要になったときに
+【メモ】buildGoogleMapsUrl（App.jsx内）は参照ゼロのデッドコード。次の掃除で削除候補
+【検証状態】build+lint+grepまで（新ルール準拠）。実機目視は未実施→次回まとめて：
+さがす一覧・求人詳細・応募／農家お仕事タブ／プロフィールタブ／求人作成フロー一巡（3-B分と合わせて）
+━━━ ここまで ━━━
