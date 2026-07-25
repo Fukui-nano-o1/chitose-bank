@@ -318,7 +318,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         {[
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16・農家プロと同じ規則）
           // 配置（2026-07-16）：アイコン・ニックネーム／アイコンの下に自己紹介。任意は農家プロと同じ系統順（条件系→属性→問いかけ系が最後）
-          { k:"avatar",    e:"🖼️", l:"アイコン",     req:true, v: avatarUrl ? "設定済み" : "" },
+          { k:"avatar",    e:"🖼️", l:"アイコン",     v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
           { k:"nickname",  e:"✏️", l:"ニックネーム", req:true, v: nickname },
           { k:"pr",        e:"📝", l:"自己紹介",     req:true, v: pr },
           { k:"residence", e:"📍", l:"居住地",       v: residenceCity },
