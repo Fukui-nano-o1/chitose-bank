@@ -272,7 +272,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         {[
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16）
-          { k:"avatar",   e:"🖼️", l:"ロゴ・アイコン", req:true, v: avatarUrl ? "設定済み" : "" },
+          { k:"avatar",   e:"🖼️", l:"ロゴ・アイコン", v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
           { k:"nickname", e:"✏️", l:"農園名",         req:true, v: nickname },
           { k:"place",    e:"📍", l:"作業場所",       req:true, v: [placePref, placeCity, placeTown].filter(Boolean).join("") },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
