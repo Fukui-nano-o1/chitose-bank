@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
-  CHAT_ELIGIBLE_STATUSES, CHAT_STATUS_LABEL, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER } from "../lib/utils";
+  CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER } from "../lib/utils";
 import { openEmployerPreview, openWorkerPreview } from "../lib/previewBus";
 import { chatCache } from "../lib/chatCache";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
@@ -328,7 +328,7 @@ export function ChatView({ applicationId, onBack }) {
               return (
                 <button key={r.id} onClick={()=>{ if (!isActive) window.location.replace("#/chat/" + r.id); }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>#{r.job_number}</span>
-                  <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{CHAT_STATUS_LABEL[r.status] || r.status}{isActive ? "・表示中" : "・開く"}</span>
+                  <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{APP_PHASE_LABEL[appPhaseKey(r)] || r.status}{isActive ? "・表示中" : "・開く"}</span>
                 </button>
               );
             })}

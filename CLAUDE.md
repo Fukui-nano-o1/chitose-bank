@@ -1429,3 +1429,16 @@ B層（取引）の芯の順序を訂正：応募 →〔承認〕→ 面接 →�
 ChatView採用ボックスの確認文言。DBのstatus値・遷移ロジックは不変（meeting/interviewは
 現状どこからも書き込まれない表示用ステータス）。
 ━━━ ここまで ━━━
+
+━━━ 2026-07-25 帯のリアルタイム化（たきと指示）━━━
+帯・ステータスチップは「〇〇済み」でなく今の段階「〇〇中」を表示する。
+・実装：lib/utils に appPhaseKey(a)/APP_PHASE_LABEL/APP_PHASE_COLOR を新設＝帯の唯一のソース。
+  statusだけでは面接中/打ち合わせ中を区別できない（採用はterms_confirmed_*_atで管理・
+  contracted/meeting/interviewは書き込まれない表示用値）ため、応募行から導出：
+  applied=承認待ち／承認〜採用前=面接中(紫#8E24AA)／採用後〜開始前=打ち合わせ中(青#1E88E5)／
+  working=作業中／completed=完了／rejected=見送り／expired=失効
+・反映：農家応募者カード帯＋凡例(7行に整理)／働き手応募カードのチップ・帯／チャット一覧・
+  チャット内求人ボックスのチップ。CHAT_STATUS_LABELは廃止（appPhase系に一本化）。
+  CALENDAR_STATUS_LABELはRPCがterms時刻を返さないため静的マップのまま「中」表記に更新
+  （approvedは面接中で代表）。DBは不変。
+━━━ ここまで ━━━

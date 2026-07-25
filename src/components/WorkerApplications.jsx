@@ -1,7 +1,7 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。働き手の応募状況ページ（FlowBar7段・評価モーダル・緊急連絡）。
 import { useState, useEffect, Fragment } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS } from "../lib/utils";
+import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL } from "../lib/utils";
 import { YesNoPill } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 
@@ -181,7 +181,8 @@ export function WorkerApplications({ filter, me }) {
     if (filter === "approved") return ["approved","meeting","interview","contracted","working","completed"].includes(a.status);
     return a.status !== "rejected";
   });
-  const label = (s) => s==="applied" ? "応募中" : s==="approved" ? "承認されました" : s==="rejected" ? "見送り" : s==="meeting" ? "打ち合わせ" : s==="interview" ? "面接" : s==="contracted" ? "契約" : s==="working" ? "作業中" : s==="completed" ? "完了" : s;
+  // リアルタイム表記（2026-07-25）：応募中以外は今の段階「〇〇中」を出す（appPhaseKeyで面接中/打ち合わせ中を分岐）
+  const label = (a) => a.status==="applied" ? "応募中" : (APP_PHASE_LABEL[appPhaseKey(a)] || a.status);
   const color = (s) => s==="approved"||s==="contracted"||s==="working" ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="rejected" ? {bg:"#F3F3F3",fg:"#999"} : {bg:"#FFF4E0",fg:"#C77700"};
   // 承認済みタブのグリッド用（農家の作成中ページと同設計・2026-07-16）
   const [sheetAppId, setSheetAppId] = useState(null); // タップした応募のボトムシート
@@ -192,7 +193,7 @@ export function WorkerApplications({ filter, me }) {
       if (!a.worker_confirmed_end_at) return "評価待ち";
       return "完了";
     }
-    return a.status === "approved" ? "承認済み" : label(a.status);
+    return label(a);
   };
   const ribbonColor = (a) => {
     if (a.status === "completed") return (a.attended === false || a.worker_confirmed_end_at) ? "#9E9E9E" : "#E24B4A";
@@ -205,7 +206,7 @@ export function WorkerApplications({ filter, me }) {
     const c = color(a.status);
     return (
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-                <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a.status)}</div>
+                <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg }}>{label(a)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[jobDates[a.job_number]?.crop, jobDates[a.job_number]?.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
                 <AvailDatesChips value={a.available_dates} />

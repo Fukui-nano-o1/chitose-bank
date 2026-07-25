@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
 import { Avatar, ExpandableText, StatusRibbon, YesNoPill } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { AdminJobPreview } from "./AdminJobPreview";
@@ -431,11 +431,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
-  const appRibbonLabel = (st) => st==="applied" ? "承認待ち" : st==="approved" ? "承認済み" : st==="rejected" ? "見送り" : st==="meeting" ? "打ち合わせ" : st==="interview" ? "面接" : st==="contracted" ? "契約" : st==="working" ? "作業中" : st==="completed" ? "完了" : st==="expired" ? "失効" : st;
-  // 状態ごとに色を全て分ける（同色は混乱するため・2026-07-22）。帯・凡例の唯一のソース
-  // expired（失効）＝判断がないまま作業開始日を迎えた応募をcron（expire_stale_applications）が自動で閉じたもの
-  const APP_COLORS = { applied:"#C77700", approved:"#00A86B", meeting:"#1E88E5", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#795548" };
-  const appRibbonColor = (st) => APP_COLORS[st] || "#00A86B";
+  // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
+  // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
+  const appRibbonLabel = (a) => APP_PHASE_LABEL[appPhaseKey(a)] || a.status;
+  const appRibbonColor = (a) => APP_PHASE_COLOR[appPhaseKey(a)] || "#00A86B";
   // 応募者ページの状態フィルタ（2026-07-22）：上部タブ＝タップ＋横スワイプで切替
   const APP_FILTERS = [
     { k:"all",       l:"すべて",   match: () => true },
@@ -537,7 +536,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     return (
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
               <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:badgeColor.bg, color:badgeColor.fg }}>
-                {appRibbonLabel(a.status)}
+                {appRibbonLabel(a)}
               </div>
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
@@ -898,10 +897,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 </button>
                 {appLegendOpen && (
                   <div className="fade-in" style={{ marginTop:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"12px 14px", display:"grid", gap:10 }}>
-                    {/* 順序訂正（2026-07-25たきと指示）：応募→承認→面接→採用→打合せ→仕事→評価。面接は承認直後・打合せは採用後 */}
-                    {[["applied","承認待ち","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["approved","承認済み","承認した応募。チャットで面接に進みます"],["interview","面接","チャットで面接中。採用するかを決めます"],["contracted","契約","双方が内容を確認し、採用が決まった状態"],["meeting","打ち合わせ","採用後、作業日などをチャットで打ち合わせ中"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"],["expired","失効","承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募"]].map(([st,l,d]) => (
+                    {/* 順序訂正（2026-07-25たきと指示）：応募→承認→面接→採用→打合せ→仕事→評価。帯はリアルタイムの「〇〇中」表記 */}
+                    {[["applied","承認待ち","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["interview","面接中","承認した応募。チャットで面接し、採用するかを決めます"],["meeting","打ち合わせ中","採用が決まった応募。作業日などをチャットで打ち合わせます"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"],["expired","失効","承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募"]].map(([st,l,d]) => (
                       <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
-                        <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:APP_COLORS[st], color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{l}</span>
+                        <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:APP_PHASE_COLOR[st], color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{l}</span>
                         <span className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.6 }}>{d}</span>
                       </div>
                     ))}
@@ -930,7 +929,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                             {wp?.avatar_url
                               ? <img src={wp.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                               : <Avatar url={null} name={wp?.nickname || "？"} size={64} />}
-                            <StatusRibbon label={appRibbonLabel(a.status)} color={appRibbonColor(a.status)} />
+                            <StatusRibbon label={appRibbonLabel(a)} color={appRibbonColor(a)} />
                           </div>
                           <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: wp?.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "（名前未設定）"}</p>
                         </button>

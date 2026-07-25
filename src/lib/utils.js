@@ -214,7 +214,8 @@ export function stationLabel(station, commute) {
 }
 
 // カレンダーの応募状態ラベル/色（MyCalendar・今日ページ系で共用）
-export const CALENDAR_STATUS_LABEL = { approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了" };
+// リアルタイム表記（2026-07-25）。カレンダーRPCはterms確認時刻を返さないため、approvedは面接中（採用前の代表段階）で表示
+export const CALENDAR_STATUS_LABEL = { approved:"面接中", meeting:"打ち合わせ中", interview:"面接中", contracted:"打ち合わせ中", working:"作業中", completed:"完了" };
 export const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"].includes(s) ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="completed" ? {bg:"#F3F3F3",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"});
 
 // ── チャット定数（ChatView・応募者カード・今日ページ等で共用） ──
@@ -224,7 +225,17 @@ export const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contrac
 // 打刻・緊急連絡など「進行中だけの操作」の判定はCHAT_ELIGIBLE_STATUSESのまま変えない
 // applied=応募直後から相手とチャットで繋がる（2026-07-19）。rejected=見送りの自動返信を読めるよう履歴として残す
 export const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected"];
-export const CHAT_STATUS_LABEL = { applied:"承認待ち", approved:"承認済み", meeting:"打ち合わせ", interview:"面接", contracted:"契約", working:"作業中", completed:"完了", rejected:"見送り" };
+// リアルタイム帯（2026-07-25たきと指示）：帯は「〇〇済み」でなく、いま何の段階かの「〇〇中」を出す。
+// statusだけでは面接中/打ち合わせ中を区別できない（採用はterms確認時刻で管理・contracted/meeting/interviewは書き込まれない）ため、
+// 応募行(a)から段階キーを導出する：承認〜採用前＝面接中／採用（双方確認）後〜開始前＝打ち合わせ中
+export const appPhaseKey = (a) => {
+  const st = a?.status;
+  if (["applied","rejected","expired","completed","working"].includes(st)) return st;
+  const hired = !!(a?.terms_confirmed_worker_at && a?.terms_confirmed_farmer_at);
+  return hired ? "meeting" : "interview";
+};
+export const APP_PHASE_LABEL = { applied:"承認待ち", interview:"面接中", meeting:"打ち合わせ中", working:"作業中", completed:"完了", rejected:"見送り", expired:"失効" };
+export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", meeting:"#1E88E5", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#795548" };
 // 定型文（2026-07-22・第8弾）：チャット入力欄の＋から役割別に挿入。「何を書けばいいか分からない」摩擦を消す
 export const CHAT_TEMPLATES_FARMER = [
   "承認しました。日程のご相談をお願いします",
