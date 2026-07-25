@@ -1,7 +1,7 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
+import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, CHAT_ELIGIBLE_STATUSES, mapJobPublicRow, payLabel } from "../lib/utils";
 import { Avatar } from "./ui";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
@@ -10,6 +10,19 @@ function InterviewReplyPanel({ items, accent, onAnswered }) {
   const [questions, setQuestions] = useState({}); // application_id → 最新の【面接の質問】本文
   const [drafts, setDrafts] = useState({});       // application_id → 入力中の回答
   const [sending, setSending] = useState("");
+  const [jobOpen, setJobOpen] = useState({});     // application_id → 該当求人ボックスの展開状態（2026-07-25たきと指示）
+  const [jobInfo, setJobInfo] = useState({});     // job_number → mapJobPublicRow整形済み（null=取得失敗・undefined=未取得）
+  const toggleJob = async (t) => {
+    if (!t.job_number) return;
+    const next = !jobOpen[t.application_id];
+    setJobOpen(prev => ({ ...prev, [t.application_id]: next }));
+    if (next && !(t.job_number in jobInfo)) {
+      try {
+        const { data } = await supabase.from("jobs_public").select("*").eq("job_number", t.job_number).maybeSingle();
+        setJobInfo(prev => ({ ...prev, [t.job_number]: data ? mapJobPublicRow(data) : null }));
+      } catch { setJobInfo(prev => ({ ...prev, [t.job_number]: null })); }
+    }
+  };
   const idsKey = items.map(t => t.application_id).filter(Boolean).join(",");
   useEffect(() => {
     let cancelled = false;
@@ -49,10 +62,50 @@ function InterviewReplyPanel({ items, accent, onAnswered }) {
       <div style={{ display:"grid", gap:14 }}>
         {items.map(t => (
           <div key={t.application_id} style={{ display:"grid", gap:8 }}>
-            <button onClick={()=>{ if (!t.job_number) return; try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }}
+            {/* 求人チップ：タップでその場に求人ボックスを展開（2026-07-25たきと指示。ページ遷移はボックス内リンクに退避） */}
+            <button onClick={()=>toggleJob(t)}
               className="f-sans" style={{ justifySelf:"start", fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>
-              {[t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" ")].filter(Boolean).join(" ")}
+              {[t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" ")].filter(Boolean).join(" ")}{jobOpen[t.application_id] ? " ▲" : " ▼"}
             </button>
+            {jobOpen[t.application_id] && (
+              <div style={{ border:"1px solid #EBEBEB", borderRadius:12, background:"#FAFAFA", overflow:"hidden" }}>
+                {!(t.job_number in jobInfo) ? (
+                  <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", padding:"14px 0", margin:0 }}>読み込み中...</p>
+                ) : jobInfo[t.job_number] ? (() => {
+                  const j = jobInfo[t.job_number];
+                  const photo = j.photos && j.photos[0] ? (typeof j.photos[0] === "string" ? j.photos[0] : j.photos[0]?.url) : null;
+                  return (
+                    <>
+                      <div style={{ display:"flex", gap:10, padding:"10px 12px 8px", alignItems:"center" }}>
+                        <div style={{ width:48, height:48, borderRadius:8, background:"#F0F0F0", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, overflow:"hidden" }}>
+                          {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                        </div>
+                        <div style={{ minWidth:0 }}>
+                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || "求人"}</p>
+                          {j.region && <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"2px 0 0" }}>📍 {j.region}</p>}
+                        </div>
+                      </div>
+                      <div style={{ padding:"0 12px 10px", display:"grid", gap:3 }}>
+                        {[["日程", j.dateLabel], ["勤務時間", j.workTime], ["休憩", j.breakTime], ["報酬", j.pay ? payLabel(j) : ""], ["人数", j.count]].filter(r => r[1]).map(r => (
+                          <div key={r[0]} style={{ display:"flex", gap:10 }}>
+                            <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0, width:52 }}>{r[0]}</span>
+                            <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, minWidth:0 }}>{r[1]}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }}
+                        className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", background:"#fff", border:"none", borderTop:"1px solid #EBEBEB", padding:"9px", fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>求人ページを見る →</button>
+                    </>
+                  );
+                })() : (
+                  <div style={{ padding:"12px" }}>
+                    <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 8px", textAlign:"center" }}>求人情報を取得できませんでした。</p>
+                    <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }}
+                      className="f-sans" style={{ display:"block", margin:"0 auto", background:"none", border:"none", fontSize:12, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>求人ページを見る →</button>
+                  </div>
+                )}
+              </div>
+            )}
             <p className="f-sans" style={{ fontSize:12, color:"#222", lineHeight:1.7, background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>
               {questions[t.application_id] || "質問を読み込み中..."}
             </p>
@@ -234,7 +287,8 @@ export function TodayPage({ me, defaultRole }) {
     complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants" },
     review:      { icon:"⭐", title:"評価する",             btn:"評価する →",       flag:"cb_completeAppId", to:"/profile/employer/applicants" },
     chat:        { icon:"💬", title:"未読メッセージ",       btn:"チャットを開く →", nav: e => "/chat/" + e.application_id },
-    w_waiting:   { icon:"📨", title:"返事待ち",             btn:"応募状況を見る →", nav: () => "/profile/worker/applying" },
+    // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
+    // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
     // w_confirm（求人内容の確認）は廃止（2026-07-25たきと指示）：内容を確認した上で応募するのが前提。
     // 応募INSERT時にterms_confirmed_worker_atをDBトリガーが自動記録。日程の申請（チャットの候補日）は残す
     w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
@@ -257,7 +311,7 @@ export function TodayPage({ me, defaultRole }) {
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review", "chat"],
-    worker: ["w_waiting", "w_interview", "w_start", "w_review", "chat"],
+    worker: ["w_interview", "w_start", "w_review", "chat"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
