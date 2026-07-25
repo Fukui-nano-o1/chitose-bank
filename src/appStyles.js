@@ -1003,4 +1003,8 @@ html:has(.cb-preview-overlay), body:has(.cb-preview-overlay) { overflow: hidden;
   font-weight: 600;
   letter-spacing: .04em;
 }
+
+/* 今日ページ：役割スワイプ切替のスライドイン（2026-07-25）。右から=cbSlideInR／左から=cbSlideInL */
+@keyframes cbSlideInR { from { transform: translateX(64px); opacity: .35; } to { transform: none; opacity: 1; } }
+@keyframes cbSlideInL { from { transform: translateX(-64px); opacity: .35; } to { transform: none; opacity: 1; } }
 `;
