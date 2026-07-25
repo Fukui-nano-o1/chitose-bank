@@ -611,7 +611,9 @@ input:focus { outline: none; }
   display: block;
 }
 
-/* ── 求人詳細（スマホ専用）：下部応募フッター。応募ボタンは常時見せる（格納対象外） ── */
+/* ── 求人詳細（スマホ専用）：下部応募フッター。スクロール中は常時表示（cb-scroll-hide対象外）。
+   ただし最下部から50px以内（body.cb-at-bottom・App.jsxのスクロールハンドラが付与）では
+   下へ格納し、フッター（サポート等）が読めるようにする（2026-07-25たきと指示） ── */
 .mobile-apply-bar {
   display: none;
 }
@@ -628,7 +630,9 @@ input:focus { outline: none; }
     align-items: stretch;
     justify-content: flex-start;
     gap: 4px;
+    transition: transform 0.25s ease;
   }
+  body.cb-at-bottom .mobile-apply-bar { transform: translateY(105%); }
   /* 求人詳細ページでは下部タブバーを完全非表示にし、下部応募フッターと二重に重ならないようにする
      （両方ともbottom:0のため。2026-07-14: タブバーのtop→bottom移設で新たに必要になったガード） */
   body:has(.mobile-apply-bar) .bottom-tab-bar { display: none; }
@@ -691,10 +695,13 @@ html:has(.cb-preview-overlay), body:has(.cb-preview-overlay) { overflow: hidden;
   .job-detail-more-jobs { margin-bottom: 4px !important; }
 }
 
-/* ── 求人詳細（スマホ専用）：本文末尾に下部応募フッター分の余白を確保（隠れ防止） ── */
+/* ── 求人詳細（スマホ専用）：末尾（この求人を報告する）とフッターの間を20pxに（2026-07-25たきと指示）。
+   従来は main90px＋本文110px＋フッターmargin40pxが積み重なり約240pxの空白になっていた。
+   詳細表示中だけ :has で main・フッター側の余白を打ち消し、間隔を20pxに一本化 ── */
 @media (max-width: 759px) {
-  /* 2026-07-16: 末尾（この求人を報告する）と下部応募フッターの間を約20pxに（応募フッター約90px+20px） */
-  .job-detail-body-mobile { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+  .job-detail-body-mobile { padding-bottom: 0; }
+  body:has(.job-detail-body-mobile) main { padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
+  body:has(.job-detail-body-mobile) .site-footer-fixed { margin-top: 0; }
 }
 
 /* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */
