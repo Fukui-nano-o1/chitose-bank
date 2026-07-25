@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
+import { Avatar } from "./ui";
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。月カレンダーは奥（#/calendar/month）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
@@ -132,9 +133,12 @@ export function TodayPage({ me, defaultRole }) {
   };
   const TodoCard = ({ e }) => {
     const m = TODO_META[e.stage]; if (!m) return null;
-    // A案（2026-07-24たきと確定）：農家タブ＝自分の応募者so働き手名を出す（どの応募者ぶんか区別できる）。
+    // A案（2026-07-24たきと確定）：農家タブ＝自分の応募者so働き手を出す（誰の用事か区別できる）。
     // 働き手タブ＝相手（農家）名は出さない（求人詳細・チャットで確認）
-    const sub = [[e.crop, e.task].filter(Boolean).join(" "), e.job_number ? "#" + e.job_number : "", role === "farmer" ? (e.partner_name || "") : ""].filter(Boolean).join("　");
+    // 2026-07-25：働き手のアバター＋ニックネームを1行目に、求人チップ（#N 作物 作業）を右肩に、
+    // アクションは全幅バーで最下段に——「どの求人の誰を対象にした用事か」を1枚で判断できる配置
+    const showPartner = role === "farmer" && !!e.partner_name;
+    const jobChip = [e.job_number ? "#" + e.job_number : "", [e.crop, e.task].filter(Boolean).join(" ")].filter(Boolean).join(" ");
     const busy = confirming === (e.application_id || e.job_number) + e.stage;
     const onClick = async () => {
       if (m.nav) { window.location.hash = m.nav(e); return; }
@@ -148,13 +152,23 @@ export function TodayPage({ me, defaultRole }) {
       }
     };
     return (
-      <div style={{ border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px", display:"flex", alignItems:"center", gap:12 }}>
-        <span style={{ fontSize:22, flexShrink:0 }}>{m.icon}</span>
-        <div style={{ minWidth:0, flex:1 }}>
-          <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 2px" }}>{m.title}</p>
-          {sub && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</p>}
+      <div style={{ border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px" }}>
+        {/* 1行目：誰（働き手アバター＋ニックネーム）・どの求人（#N 作物 作業） */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+          {showPartner ? (
+            <span style={{ display:"flex", alignItems:"center", gap:8, minWidth:0, flex:1 }}>
+              <Avatar url={e.partner_avatar} name={e.partner_name} size={30} bg={ROLE_ORANGE} />
+              <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.partner_name}さん</span>
+            </span>
+          ) : <span style={{ flex:1 }} />}
+          {jobChip && <span className="f-sans" style={{ flexShrink:0, maxWidth: showPartner ? "55%" : "100%", fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{jobChip}</span>}
         </div>
-        <button onClick={onClick} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"9px 14px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
+        {/* 2行目：何をするか */}
+        <p className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:14, fontWeight:800, color:"#222", margin:"0 0 10px" }}>
+          <span style={{ fontSize:18 }}>{m.icon}</span>{m.title}
+        </p>
+        {/* 3行目：アクションバー（全幅） */}
+        <button onClick={onClick} disabled={busy} className="f-sans" style={{ display:"block", width:"100%", padding:"11px 8px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
       </div>
     );
   };
