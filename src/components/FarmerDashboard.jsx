@@ -927,7 +927,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px" }}>
                         <button onClick={()=>setPreviewJob({ num: jn })} className="f-sans"
                           style={{ display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"none", border:"none", padding:0, cursor:"pointer" }}>
-                          <span style={{ fontSize:14, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8", fontWeight:700 }}>#{jn}</span></span>
+                          {/* No.は必ず明記（2026-07-25たきと指示）：タイトルだけ「…」で省略し、#No.は省略対象から分離して常時表示 */}
+                          <span style={{ flex:1, minWidth:0, display:"flex", alignItems:"baseline", gap:6 }}>
+                            <span style={{ fontSize:14, fontWeight:700, color:"#222", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</span>
+                            <span style={{ fontSize:11, color:"#C8C8C8", fontWeight:700, flexShrink:0 }}>#{jn}</span>
+                          </span>
                           <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 →</span>
                         </button>
                         {/* アイコンのみ・中央配置（2026-07-25たきと指示）：箱装飾なし。少人数なら中央、溢れたら横スクロール（max-content＋margin auto） */}
