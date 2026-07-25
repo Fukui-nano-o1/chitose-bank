@@ -137,6 +137,11 @@ export function TodayPage({ me, defaultRole }) {
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
   const [todoOpenStage, setTodoOpenStage] = useState(null); // 展開中の用件（親に保持＝内側定義によるstate消失を回避）
   const TODO_BOX_LABEL = { insurance: "保険の報告" }; // ボックス用の短縮ラベル（未定義はm.titleのまま）
+  // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ）
+  const TODO_STAGE_CATALOG = {
+    farmer: ["revision", "approve", "confirm_start", "complete", "insurance", "review", "chat"],
+    worker: ["w_waiting", "w_confirm", "w_start", "w_review", "chat"],
+  };
   const runTodo = async (m, e) => {
     const busyKey = (e.application_id || e.job_number) + e.stage;
     if (m.nav) { window.location.hash = m.nav(e); return; }
@@ -151,18 +156,21 @@ export function TodayPage({ me, defaultRole }) {
   };
   const TodoStageBox = ({ stage, items }) => {
     const m = TODO_META[stage]; if (!m) return null;
+    const n = items.length;
     const open = todoOpenStage === stage;
     const onTapBox = () => {
+      if (!n) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
       // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。実行系（RPC）は誤タップ防止のため必ず展開してボタンで実行
-      if (items.length === 1 && (m.nav || m.flag)) { runTodo(m, items[0]); return; }
+      if (n === 1 && (m.nav || m.flag)) { runTodo(m, items[0]); return; }
       setTodoOpenStage(prev => prev === stage ? null : stage);
     };
     return (
-      <button onClick={onTapBox} className="f-sans" style={{
+      <button onClick={onTapBox} disabled={!n} className="f-sans" style={{
         position:"relative", background:"#fff", border:"1px solid " + (open ? accent : "#EBEBEB"), borderRadius:18,
-        padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+        padding:"24px 10px 18px", textAlign:"center", cursor: n ? "pointer" : "default", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+        opacity: n ? 1 : 0.45,
       }}>
-        <span aria-label={"残り" + items.length + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{items.length}</span>
+        {n > 0 && <span aria-label={"残り" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>}
         <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>{m.icon}</span>
         <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{TODO_BOX_LABEL[stage] || m.title}</span>
       </button>
@@ -235,20 +243,24 @@ export function TodayPage({ me, defaultRole }) {
         {(() => {
           // 最新順（sort_keyの新しい順・同日なら求人番号の新しい順）
           const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
-          if (myTodos.length === 0) return null;
-          // 用件（stage）ごとに1箱へ集約（箱の並びも最新順＝各用件の最新アイテム順）
-          const stageOrder = []; const byStage = new Map();
-          myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); stageOrder.push(t.stage); } byStage.get(t.stage).push(t); });
+          // 用件（stage）ごとに1箱へ集約。該当ありは最新順で上位、該当なしもカタログ順で常時表示（薄表示・タップ不可）
+          const activeOrder = []; const byStage = new Map();
+          myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
+          const catalog = TODO_STAGE_CATALOG[role] || [];
+          const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
           return (
             <div style={{ marginBottom:24 }}>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
-                {stageOrder.map(st => (
-                  <Fragment key={st}>
-                    <TodoStageBox stage={st} items={byStage.get(st)} />
-                    {todoOpenStage === st && <TodoStagePanel stage={st} items={byStage.get(st)} />}
-                  </Fragment>
-                ))}
+                {stageOrder.map(st => {
+                  const items = byStage.get(st) || [];
+                  return (
+                    <Fragment key={st}>
+                      <TodoStageBox stage={st} items={items} />
+                      {todoOpenStage === st && items.length > 0 && <TodoStagePanel stage={st} items={items} />}
+                    </Fragment>
+                  );
+                })}
               </div>
             </div>
           );
