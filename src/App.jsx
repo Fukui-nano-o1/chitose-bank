@@ -40,6 +40,7 @@ import { AgreedDatesRow, AvailDatesChips } from "./components/DateChips";
 import { isIOS, syncAppBadge } from "./lib/push";
 import { uploadAvatarResilient } from "./lib/avatarUpload";
 import { peekApplyReturn, setApplyReturn, clearApplyReturn } from "./lib/applyReturn";
+import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
 
 import { useState, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
@@ -1192,10 +1193,13 @@ export default function App(){
   const [destPend,setDestPend]=useState([]);
   const [recs,setRecs]=useState({});
   const [publicFarmerCount,setPublicFarmerCount]=useState(null);
-  const [loaded,setLoaded]=useState(false);
+  // スナップショット起動（2026-07-25本命）：前回のmeがあればネットワーク0本で即・ログイン済み骨格を描く。
+  // セッション復元は従来どおり裏で走り、本物のme/停止判定/ログアウト検知で後から上書きされる
+  const [loaded,setLoaded]=useState(() => !!snapGet("me"));
   const [badgeCnt,setBadgeCnt]=useState(0);
-  const [me,setMe]=useState(null);
+  const [me,setMe]=useState(() => snapGet("me"));
   const [blockedAccount,setBlockedAccount]=useState(false); // 停止／追放されたアカウントの制限画面（2026-07-19）
+  useEffect(() => { if (me?.id) snapSet("me", me); }, [me]);
   // ヘッダー（PC・モバイル下部バー）共通のアバター表示規則（2026-07-14改）：
   // 働き手=worker_profiles／雇い手空間(#/profile/employer*)の表示中=employer_profiles でアイコンを分ける。
   // 取得はme.id変化と雇い手空間の出入り(empCtx)ごと。編集画面での変更はonAvatarChangeで即時反映（マージ更新）。
@@ -1479,6 +1483,7 @@ export default function App(){
 
     let f = [];
     const r = {};
+    if (!session) { setMe(null); clearSnapshots(); } // セッション消滅（期限切れ・別端末ログアウト）→スナップショットの残像を消す
     if (session) {
       const [moddedRes, farmerRes, recsRes] = await Promise.all([
         supabase.rpc('is_account_moderated', { p_uid: session.user.id }).catch(() => ({ data: null })),
@@ -1487,7 +1492,7 @@ export default function App(){
       ]);
       // 停止／追放チェック（2026-07-19）：ログイン封鎖(banned_until)が効くまでの猶予（既存トークン最大1h）を塞ぐ。
       // 停止中なら即サインアウトして制限画面へ（meはセットしない）
-      if (moddedRes?.data) { setBlockedAccount(true); try { await supabase.auth.signOut(); } catch {} clearTimeout(loadedFailsafe); setLoaded(true); return; }
+      if (moddedRes?.data) { setBlockedAccount(true); clearSnapshots(); try { await supabase.auth.signOut(); } catch {} clearTimeout(loadedFailsafe); setLoaded(true); return; }
       const { data: dbFarmer } = farmerRes;
       if (dbFarmer) {
         const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, status: dbFarmer.status, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
@@ -1773,6 +1778,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setMe(null);
+    clearSnapshots(); // 前回画面の残像（me等）を残さない
     window.location.hash = "/search"; // reload前に直接書く（setTabの予約はreloadに間に合わない）
     /* 検証中：本来はsetShowLanding(true)。完成後に戻す */
     localStorage.removeItem('sb-aegwepgtmwcnwzybpgsh-auth-token');
