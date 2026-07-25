@@ -465,6 +465,9 @@ export function ChatView({ applicationId, onBack }) {
         );
       })()}
 
+      {/* 失効した求人のチャット（2026-07-25たきと指示）：メッセージ領域を薄暗くし中央に「失効中」ラベル。
+          オーバーレイはpointerEvents:noneなので背後のチャットは従来どおりスクロール・閲覧できる（履歴保全と整合） */}
+      <div style={{ flex:1, minHeight:0, position:"relative", display:"flex", flexDirection:"column" }}>
       <div ref={msgScrollRef} style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
         {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
         {msgs.length === 0 ? (
@@ -501,6 +504,14 @@ export function ChatView({ applicationId, onBack }) {
           )}
           </Fragment>
         ))}
+      </div>
+      {activeStatus === "expired" && (
+        <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, pointerEvents:"none", zIndex:5 }}>
+          {/* ラベルの黒＝APP_PHASE_COLOR.expired(#111)と同色（失効は求人の締め切りとして表示する既定に合わせる） */}
+          <span className="f-sans" style={{ background:"#111", color:"#fff", fontSize:14, fontWeight:800, padding:"8px 24px", borderRadius:20 }}>失効中</span>
+          <span className="f-sans" style={{ color:"#fff", fontSize:12, fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.6)" }}>この求人の募集期間は終了しました</span>
+        </div>
+      )}
       </div>
       {/* コメント報告ボックス（2026-07-19）：該当コメントの引用＋どう問題かの選択＋補足→送信で運営に届く */}
       {reportTarget && (
