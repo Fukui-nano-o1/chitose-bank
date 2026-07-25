@@ -285,18 +285,18 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ flexShrink:0, padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
       </div>
 
-      {/* はじめの3つガイド（2026-07-22）：空の時だけ上部に。①名前②顔写真③経験の質問1つ。タップで該当欄・埋まると✓ */}
+      {/* はじめの2つガイド（2026-07-25改・顔写真は義務化解除済みのため削除）：空の時だけ上部に。
+          ①名前②経験の質問1つ＝応募時のサーバーゲート（apply_to_job・apply_profile_gate=true）と同一条件 */}
       {(() => {
         const steps = [
           { k:"nickname", l:"①お名前",        done: !!nickname.trim() },
-          { k:"avatar",   l:"②顔写真",        done: !!avatarUrl },
-          { k:"qa",       l:"③経験の質問を1つ", done: prQa.length > 0 },
+          { k:"qa",       l:"②経験の質問を1つ", done: prQa.length > 0 },
         ];
         if (steps.every(s => s.done)) return null;
         return (
           <div className="f-sans" style={{ background:"#F0F7F4", border:"1px solid #00A86B33", borderRadius:16, padding:"16px", marginBottom:20 }}>
-            <p style={{ fontSize:14, fontWeight:800, color:"#00A86B", margin:"0 0 4px" }}>まずこの3つで応募できます</p>
-            <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この3つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
+            <p style={{ fontSize:14, fontWeight:800, color:"#00A86B", margin:"0 0 4px" }}>まずこの2つで応募できます</p>
+            <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この2つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
             <div style={{ display:"grid", gap:8 }}>
               {steps.map(s => (
                 <button key={s.k} onClick={()=>setEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?"#00A86B":"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
