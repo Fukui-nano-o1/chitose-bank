@@ -511,14 +511,6 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
   }, []);
   if (loading) return <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
   const isEmpty = !data || (!data.nickname && !data.pr && !data.avatar_url);
-  const perks = data ? [
-    { on: data.has_transport, label: `🚗送迎あり${data.transport_area ? "（" + data.transport_area + "）" : ""}` },
-    { on: data.has_parking, label: `🅿️駐車場あり${data.parking_capacity ? "（" + data.parking_capacity + "台）" : ""}` },
-    { on: data.has_commute_allowance, label: `💰通勤手当あり${data.commute_allowance_detail ? "（" + data.commute_allowance_detail + "）" : ""}` },
-    { on: data.has_bonus, label: "🎁賞与あり" },
-    { on: data.employer_pays_supplies, label: "🎒持ち物は農家負担" },
-    { on: data.accessory_ok, label: "💍アクセサリーOK" },
-  ].filter(p => p.on) : [];
   const topics = data ? [
     { label:"就農するまで", body: data.intro_path },
     { label:"いま楽しいこと", body: data.intro_joy },
@@ -531,32 +523,12 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
   const hasTrustCard = data ? (qa.length > 0 || !!data.interaction_style || !!(trust && trust.ok)) : false;
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>雇い手プロフィール</p>
-      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>求人詳細で、働き手にこのように表示されます。</p>
-      {isEmpty ? (
+      {/* 上部カード（説明文・アバター・農園名・代表より抜粋・待遇バッジ）は削除（2026-07-25たきと指示）。
+          代表よりは下の農園紹介の先頭カードに移植。待遇は実際の求人詳細ではタイトル下バッジ（perkBadges）で出るため情報の欠落なし */}
+      {isEmpty && (
         <div style={{ textAlign:"center", padding:"32px 20px", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:20 }} className="f-sans">
           <div style={{ fontSize:32, marginBottom:10 }}>🧑‍🌾</div>
           <p style={{ fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>まだプロフィールがありません。紹介を書くと、働き手に安心して応募してもらいやすくなります。</p>
-        </div>
-      ) : (
-        <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", marginBottom:20 }}>
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", marginBottom: perks.length ? 14 : 0 }}>
-            <div onClick={onEditItem ? ()=>onEditItem("avatar") : undefined} role={onEditItem ? "button" : undefined} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", marginBottom:8, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
-              <Avatar url={data.avatar_url} name={data.nickname} size={56} />
-            </div>
-            <p onClick={onEditItem ? ()=>onEditItem("nickname") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{data.nickname || "農園名未設定"}</p>
-            {/* 旧・自己PR枠は代表より（owner_comment）に差し替え（2026-07-16）。タップで農園紹介ボックスを編集 */}
-            {comment && (
-              <p onClick={onEditItem ? ()=>onEditItem("intro") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, overflowWrap:"break-word", wordBreak:"break-word", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{comment.length > 100 ? comment.slice(0, 100) + "…" : comment}</p>
-            )}
-          </div>
-          {perks.length > 0 && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-              {perks.map((p, i) => (
-                <span key={i} onClick={onEditItem ? ()=>onEditItem("perks") : undefined} role={onEditItem ? "button" : undefined} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#00A86B", background:"#E6F7EF", padding:"5px 12px", borderRadius:20, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{p.label}</span>
-              ))}
-            </div>
-          )}
         </div>
       )}
       {(topics.length > 0 || comment || hasTrustCard) && (
@@ -569,9 +541,10 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
               <FarmerTrustCard profile={data} trust={trust} onEditItem={onEditItem} />
             </div>
           )}
-          {topics.length > 0 && (
+          {/* 代表より（owner_comment）は農園紹介の先頭カードに移植（2026-07-25たきと指示） */}
+          {(topics.length > 0 || comment) && (
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%,280px), 1fr))", gap:16, marginBottom:0 }}>
-              {topics.map((t, i) => (
+              {[...(comment ? [{ label:"代表より", body: comment }] : []), ...topics].map((t, i) => (
                 <div key={i} onClick={onEditItem ? ()=>onEditItem("intro") : undefined} role={onEditItem ? "button" : undefined} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>
                   <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
                   <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
@@ -579,7 +552,6 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
               ))}
             </div>
           )}
-          {/* 下部の代表よりカードは削除（2026-07-16）：名前下に移設したため重複回避 */}
         </div>
       )}
       {/* 「編集する」ボタンは削除（2026-07-16）：項目タップ編集に一本化 */}
