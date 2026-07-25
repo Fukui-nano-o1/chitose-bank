@@ -948,12 +948,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                           <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>
                           {byJob[jn].map(a => {
                             const wp = workerProfiles[a.worker_id];
+                            // 失効応募のアイコンは「失効当時の状態」で表示（2026-07-25たきと指示）。失効はappliedからのみ発生（cron）＝応募中。
+                            // 失効の事実はカード全体の黒「失効」オーバーレイが担う（アイコン側に失効ラベルは出さない）
+                            const phaseA = a.status === "expired" ? { ...a, status: "applied" } : a;
                             return (
                               <button key={a.id} onClick={()=>setSheetApplicantId(a.id)} className="f-sans"
                                 style={{ flexShrink:0, width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
-                                <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(a)} />
+                                <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(phaseA)} />
                                 <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
-                                <span style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(a), marginTop:1 }}>{appRibbonLabel(a)}</span>
+                                <span style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(phaseA), marginTop:1 }}>{appRibbonLabel(phaseA)}</span>
                               </button>
                             );
                           })}
