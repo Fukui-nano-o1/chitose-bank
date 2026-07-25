@@ -260,14 +260,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                 </div>
               );
               return (<>
-                {/* 「きょうの仕事」箱は撤去（2026-07-24・1機能1入口＝ナビ「📆今日」が唯一の入口）。📌いまは返事待ちのみ */}
-                {sec("📌 いま", [
-                  { e:"📨", l:"返事待ち",     h:"/profile/worker/applying", n:wAppCounts.applying, desc:"応募して、農家の返事を待っている求人です。作業日の前日までに結果が届きます。" },
-                ])}
-                {sec("🔎 次の仕事", [
-                  { e:"🔍", l:"さがす", h:"/search", sub:`きょう応募できる求人 ${wHub.searchOpen}件`, desc:"近くの募集中の求人をさがせます。気になったら応募できます。" },
-                  { e:"🧡", l:"いいね", h:"/saved", desc:"気になる求人を🧡で保存した一覧です。" },
-                ])}
+                {/* 「きょうの仕事」箱は撤去（2026-07-24・1機能1入口）。
+                    「返事待ち」「さがす」「いいね」箱も撤去（2026-07-25たきと指示）：
+                    さがす・いいねは下部ナビに常設＝入口の重複。返事待ちは相方のアクション待ちで
+                    プロフィール入口に置く用事ではない（応募状況ページ #/profile/worker/applying は存続） */}
                 <div style={{ marginTop:16 }}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>📖 わたしの記録</p>
                   <button onClick={()=>{ setShowWAch(true); setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {} }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
