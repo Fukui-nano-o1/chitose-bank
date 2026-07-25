@@ -871,7 +871,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   // アイコン列のtouchはstopPropagationで親のフィルタ切替スワイプと分離する
                   const info = jobInfoMap[jn] || {};
                   const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
-                  const photo = info.photos && info.photos[0] ? (typeof info.photos[0] === "string" ? info.photos[0] : info.photos[0]?.url) : null;
+                  // 表示は軽量サムネ優先（2026-07-25）：thumbが無い旧写真は原寸URLへフォールバック
+                  const p0 = info.photos && info.photos[0];
+                  const photo = p0 ? (typeof p0 === "string" ? p0 : (p0.thumb || p0.url)) : null;
                   // 終端求人の暗幕設計（2026-07-25たきと指示・完了も失効と同じ設計）：
                   // 日程が過ぎた求人は、完了記録あり＝「完了」／なし＝「失効」の暗幕＋中央ラベル＋タップ無反応
                   const jobEnd = info.date_end || info.date_start;
@@ -888,7 +890,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       {/* 左：求人のトップ写真（タップで求人を見る） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る"
                         style={{ flexShrink:0, width:92, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, overflow:"hidden" }}>
-                        {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
+                        {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
                       </button>
                       {/* 右：タイトル・No.＋応募者アイコンスワイプ */}
                       <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px" }}>

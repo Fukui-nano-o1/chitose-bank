@@ -1419,7 +1419,16 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                                       const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
                             if (upErr) throw upErr;
                             const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                            if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "" });
+                            // 軽量サムネ（2026-07-25たきと指示「画質荒くてもいいからすぐ」）：320px/品質0.5を同時生成。
+                            // 一覧・応募者ページ等の小さい表示はこちらを読む（原寸の1/10以下）。失敗しても本体は成立（thumbなし）
+                            let thumbUrl = "";
+                            try {
+                              const thumbFile = await compressImage(file, 320, 0.5);
+                              const thumbPath = 'thumb_' + path;
+                              const { error: thErr } = await supabase.storage.from('job-photos').upload(thumbPath, thumbFile, { contentType: thumbFile.type || undefined });
+                              if (!thErr) { const { data: thUrl } = supabase.storage.from('job-photos').getPublicUrl(thumbPath); thumbUrl = thUrl?.publicUrl || ""; }
+                            } catch {}
+                            if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "", ...(thumbUrl ? { thumb: thumbUrl } : {}) });
                           } catch (err) {
                             console.error('photo upload failed', file.name, err);
                           }
@@ -1455,7 +1464,16 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                                       const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
                             if (upErr) throw upErr;
                             const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                            if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "" });
+                            // 軽量サムネ（2026-07-25たきと指示「画質荒くてもいいからすぐ」）：320px/品質0.5を同時生成。
+                            // 一覧・応募者ページ等の小さい表示はこちらを読む（原寸の1/10以下）。失敗しても本体は成立（thumbなし）
+                            let thumbUrl = "";
+                            try {
+                              const thumbFile = await compressImage(file, 320, 0.5);
+                              const thumbPath = 'thumb_' + path;
+                              const { error: thErr } = await supabase.storage.from('job-photos').upload(thumbPath, thumbFile, { contentType: thumbFile.type || undefined });
+                              if (!thErr) { const { data: thUrl } = supabase.storage.from('job-photos').getPublicUrl(thumbPath); thumbUrl = thUrl?.publicUrl || ""; }
+                            } catch {}
+                            if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "", ...(thumbUrl ? { thumb: thumbUrl } : {}) });
                           } catch (err) {
                             console.error('photo upload failed', file.name, err);
                           }
