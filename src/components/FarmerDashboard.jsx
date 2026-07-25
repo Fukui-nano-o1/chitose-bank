@@ -1249,13 +1249,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       {/* ═══ 面接の質問集 管理モーダル（2026-07-23）：セットの作成・編集・削除＋テンプレのコピー ═══ */}
       {qMgrOpen && (
         <div className="qset-full">
-          {/* トップバー：←（編集中は一覧へ／一覧ならページを閉じる）＋タイトル */}
-          <div style={{ display:"flex", alignItems:"center", gap:6, padding:"calc(env(safe-area-inset-top,0px) + 12px) 12px 12px", borderBottom:"1px solid #EBEBEB", flexShrink:0 }}>
-            <button onClick={()=>{ if (qEditing) setQEditing(null); else closeQMgr(); }} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", fontSize:24, lineHeight:1, cursor:"pointer", color:"#222", padding:"2px 8px" }}>←</button>
-            <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:0 }}>📋 面接の質問集</h3>
-          </div>
-          <div className="f-sans" style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", maxWidth:560, width:"100%", margin:"0 auto", padding:"16px 16px calc(env(safe-area-inset-bottom,0px) + 24px)", boxSizing:"border-box" }}>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 16px", lineHeight:1.6 }}>聞きたいことをセットにして保存し、応募者のチャットに送れます。回答もチャットに残ります。</p>
+          {/* 見出しまわりは保険の準備ページと同じ構造（2026-07-25たきと指示）：小さい「← 戻る」→絵文字付き見出し→グレー説明文 */}
+          <div className="f-sans" style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", maxWidth:560, width:"100%", margin:"0 auto", padding:"calc(env(safe-area-inset-top,0px) + 24px) 20px calc(env(safe-area-inset-bottom,0px) + 96px)", boxSizing:"border-box" }}>
+            <button onClick={()=>{ if (qEditing) setQEditing(null); else closeQMgr(); }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 14px", display:"inline-flex", alignItems:"center", gap:6 }}>← 戻る</button>
+            <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>📋 面接の質問集</h1>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>聞きたいことをセットにして保存し、応募者のチャットに送れます。回答もチャットに残ります。</p>
 
             {qEditing === null ? (
               <>
