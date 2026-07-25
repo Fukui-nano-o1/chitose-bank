@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
+import { Avatar } from "./ui";
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。月カレンダーは奥（#/calendar/month）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
@@ -130,11 +131,16 @@ export function TodayPage({ me, defaultRole }) {
     w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   nav: () => "/profile/worker/approved" },
     w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved" },
   };
-  const TodoCard = ({ e }) => {
-    const m = TODO_META[e.stage]; if (!m) return null;
-    // A案（2026-07-24たきと確定）：農家タブ＝自分の応募者so働き手名を出す（どの応募者ぶんか区別できる）。
-    // 働き手タブ＝相手（農家）名は出さない（求人詳細・チャットで確認）
-    const sub = [[e.crop, e.task].filter(Boolean).join(" "), e.job_number ? "#" + e.job_number : "", role === "farmer" ? (e.partner_name || "") : ""].filter(Boolean).join("　");
+  // アクションボックス（2026-07-25）：同じ用件（stage）を1箱に集約。右上=放置数バッジ、
+  // 中央=選択中の対象（#N 作物 作業＋働き手アバター・ニックネーム）、下部=対象働き手の小アイコン（横スワイプで切替）。
+  // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（アイコン列は求人チップで代替）
+  const todoKey = (t) => t.application_id || ("j" + t.job_number);
+  const [todoSel, setTodoSel] = useState({}); // stage → 選択中のtodoKey（選択stateは親に持つ＝内側コンポーネント定義によるstate消失を回避）
+  const TodoStageBox = ({ stage, items }) => {
+    const m = TODO_META[stage]; if (!m) return null;
+    const e = items.find(t => todoKey(t) === todoSel[stage]) || items[0];
+    const showPartner = role === "farmer" && !!e.partner_name;
+    const jobChip = [e.job_number ? "#" + e.job_number : "", [e.crop, e.task].filter(Boolean).join(" ")].filter(Boolean).join(" ");
     const busy = confirming === (e.application_id || e.job_number) + e.stage;
     const onClick = async () => {
       if (m.nav) { window.location.hash = m.nav(e); return; }
@@ -148,13 +154,39 @@ export function TodayPage({ me, defaultRole }) {
       }
     };
     return (
-      <div style={{ border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px", display:"flex", alignItems:"center", gap:12 }}>
-        <span style={{ fontSize:22, flexShrink:0 }}>{m.icon}</span>
-        <div style={{ minWidth:0, flex:1 }}>
-          <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 2px" }}>{m.title}</p>
-          {sub && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</p>}
+      <div style={{ border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px" }}>
+        {/* ヘッダー：用件＋右上に放置数 */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+          <p className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:14, fontWeight:800, color:"#222", margin:0, minWidth:0, flex:1 }}>
+            <span style={{ fontSize:18 }}>{m.icon}</span>
+            <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{m.title}</span>
+          </p>
+          <span className="f-sans" aria-label={"残り" + items.length + "件"} style={{ flexShrink:0, minWidth:20, height:20, borderRadius:10, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{items.length}</span>
         </div>
-        <button onClick={onClick} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"9px 14px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
+        {/* 選択中の対象：どの求人の誰か */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, minWidth:0 }}>
+          {showPartner && <Avatar url={e.partner_avatar} name={e.partner_name} size={24} bg={ROLE_ORANGE} />}
+          {showPartner && <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.partner_name}さん</span>}
+          {jobChip && <span className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{jobChip}</span>}
+        </div>
+        {/* アクションバー（全幅・選択中の対象に対して実行） */}
+        <button onClick={onClick} disabled={busy} className="f-sans" style={{ display:"block", width:"100%", padding:"11px 8px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
+        {/* 下部：対象の切替列（働き手の小アイコン・横スワイプ）。複数件の時のみ */}
+        {items.length > 1 && (
+          <div style={{ display:"flex", gap:8, marginTop:10, overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:2 }}>
+            {items.map(t => {
+              const k = todoKey(t); const isSel = k === todoKey(e);
+              return (
+                <button key={k} onClick={()=>setTodoSel(prev => ({ ...prev, [stage]: k }))} aria-label={t.partner_name || ("#" + t.job_number)}
+                  style={{ flexShrink:0, background:"none", border:"none", padding:0, cursor:"pointer", opacity: isSel ? 1 : 0.45 }}>
+                  {role === "farmer" && t.partner_name
+                    ? <Avatar url={t.partner_avatar} name={t.partner_name} size={28} ring={isSel ? accent : undefined} bg={ROLE_ORANGE} />
+                    : <span className="f-sans" style={{ display:"inline-block", fontSize:11, fontWeight:700, color: isSel ? "#fff" : "#717171", background: isSel ? accent : "#F7F7F7", borderRadius:8, padding:"6px 8px" }}>#{t.job_number}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -195,11 +227,14 @@ export function TodayPage({ me, defaultRole }) {
         {(() => {
           const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (a.sort_key || "").localeCompare(b.sort_key || "") || (a.job_number || 0) - (b.job_number || 0));
           if (myTodos.length === 0) return null;
+          // 用件（stage）ごとに1箱へ集約（アクションボックス・出現順を維持）
+          const stageOrder = []; const byStage = new Map();
+          myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); stageOrder.push(t.stage); } byStage.get(t.stage).push(t); });
           return (
             <div style={{ marginBottom:24 }}>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
               <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:10 }}>
-                {myTodos.map(e => <TodoCard key={(e.application_id || ("j" + e.job_number)) + e.stage} e={e} />)}
+                {stageOrder.map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st)} />)}
               </div>
             </div>
           );
