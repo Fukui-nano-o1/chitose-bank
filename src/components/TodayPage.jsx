@@ -1,7 +1,7 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
 import { Avatar } from "./ui";
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。月カレンダーは奥（#/calendar/month）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
@@ -184,13 +184,17 @@ export function TodayPage({ me, defaultRole }) {
     approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   nav: () => "/profile/employer/applicants" },
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
     // 日程変更が必要な時だけ応募者ページの働く日モーダル（set_agreed_dates・cb_agreeAppId着地は温存）で行う
+    // interview/hire（2026-07-25たきと指示）：チャットの質問集シート・採用ボタンを今日のリストへ移設。
+    // チャットは「アクションの報告（自動送信）＋直接やりとりが必要な時だけ」の最小役割に寄せていく
+    interview:   { icon:"❓", title:"面接の質問を送る",     btn:"質問を送る →",     qset:true },
+    hire:        { icon:"🤝", title:"採用する",             btn:"採用する",         hire:true },
     insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance" },
     confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start" },
     complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants" },
     review:      { icon:"⭐", title:"評価する",             btn:"評価する →",       flag:"cb_completeAppId", to:"/profile/employer/applicants" },
     chat:        { icon:"💬", title:"未読メッセージ",       btn:"チャットを開く →", nav: e => "/chat/" + e.application_id },
     w_waiting:   { icon:"📨", title:"返事待ち",             btn:"応募状況を見る →", nav: () => "/profile/worker/applying" },
-    w_confirm:   { icon:"📋", title:"求人内容を確認",       btn:"確認カードへ →",   nav: e => "/chat/" + e.application_id },
+    w_confirm:   { icon:"📋", title:"求人内容の確認",       btn:"✓ 確認した",       terms:true }, // チャットの確認カードから移設。内容は求人チップのタップで閲覧
     w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   nav: () => "/profile/worker/approved" },
     w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved" },
   };
@@ -199,16 +203,65 @@ export function TodayPage({ me, defaultRole }) {
   // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（求人チップで識別）
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
   const [todoOpenStage, setTodoOpenStage] = useState(null); // 展開中の用件（親に保持＝内側定義によるstate消失を回避）
-  const TODO_BOX_LABEL = { insurance: "保険の報告" }; // ボックス用の短縮ラベル（未定義はm.titleのまま）
-  // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ）
+  const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接の質問", revision: "求人の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
+  // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["revision", "approve", "confirm_start", "complete", "insurance", "review", "chat"],
+    farmer: ["revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete", "review", "chat"],
     worker: ["w_waiting", "w_confirm", "w_start", "w_review", "chat"],
+  };
+  // 採用時の二重予約チェック（ChatViewから移植・2026-07-25）：同じ働き手が自分の別の進行中求人で日程重複していないか
+  const hireDoubleBookingCheck = async (e) => {
+    try {
+      if (!e.partner_id || !e.job_number || !e.date_start) return null;
+      const { data: { session } } = await supabase.auth.getSession(); if (!session) return null;
+      const { data: apps } = await supabase.from("applications")
+        .select("job_number,status").eq("farmer_id", session.user.id).eq("worker_id", e.partner_id).neq("job_number", e.job_number);
+      const others = (apps || []).filter(a => CHAT_ELIGIBLE_STATUSES.includes(a.status) && a.job_number != null);
+      if (!others.length) return null;
+      const { data: jrows } = await supabase.from("jobs").select("job_number,date_start,date_end").in("job_number", [...new Set(others.map(a => a.job_number))]);
+      const curEnd = e.date_end || e.date_start;
+      for (const j of jrows || []) {
+        if (!j.date_start) continue;
+        const jEnd = j.date_end || j.date_start;
+        if (e.date_start <= jEnd && j.date_start <= curEnd) return j.job_number;
+      }
+    } catch {}
+    return null;
   };
   const runTodo = async (m, e) => {
     const busyKey = (e.application_id || e.job_number) + e.stage;
     if (m.nav) { window.location.hash = m.nav(e); return; }
     if (m.flag) { try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
+    // 面接の質問（チャットからの移設）：チャットに着地して質問集シートを自動で開く（回答は面接の証跡としてチャットに残る）
+    if (m.qset) { try { sessionStorage.setItem("cb_openQSet", "1"); } catch {} window.location.hash = "/chat/" + e.application_id; return; }
+    // 採用する（チャットの採用ボタンの移設）：二重予約警告＋確認→confirm_terms。採用通知はDBトリガーが自動送信
+    if (m.hire) {
+      if (confirming) return; setConfirming(busyKey);
+      const dup = await hireDoubleBookingCheck(e);
+      const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : "";
+      if (!window.confirm(warn + `${e.partner_name ? e.partner_name + "さん" : "この方"}を #${e.job_number} に採用しますか？\n面接を終えてから決定してください。`)) { setConfirming(""); return; }
+      const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: e.application_id });
+      setConfirming("");
+      if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+      // 採用が決まったら「面接の質問」の用事も同時に消える（採用前限定の段のため）
+      setTodos(prev => prev.filter(t => !(t.application_id === e.application_id && (t.stage === "hire" || t.stage === "interview"))));
+      return;
+    }
+    // 求人内容の確認（働き手・チャットの確認カードから移設）：確認ダイアログ→confirm_terms→確認済みの報告をチャットへ残す
+    if (m.terms) {
+      if (confirming) return;
+      if (!window.confirm(`#${e.job_number} の求人内容（報酬・日程・場所）を確認しましたか？\n（求人名のチップをタップすると内容を見られます）`)) return;
+      setConfirming(busyKey);
+      const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: e.application_id });
+      if (error || !data?.ok) { setConfirming(""); alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) await supabase.from("messages").insert({ application_id: e.application_id, sender_id: session.user.id, body: "✓ 求人内容を確認しました。よろしくお願いします。" });
+      } catch {}
+      setConfirming("");
+      removeTodo(e.application_id, e.stage);
+      return;
+    }
     if (m.rpc) {
       if (confirming) return; setConfirming(busyKey);
       const { data, error } = await supabase.rpc(m.rpc, { p_application_id: e.application_id });
@@ -259,7 +312,8 @@ export function TodayPage({ me, defaultRole }) {
                     <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flexShrink:1, minWidth:0 }}>{t.partner_name}さん</span>
                   </>
                 ) : null}
-                {jobChip && <span className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{jobChip}</span>}
+                {/* 求人チップはタップで求人ページへ（確認前に内容を見られる） */}
+                {jobChip && <button onClick={()=>{ if (!t.job_number) return; try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>{jobChip}</button>}
                 <span style={{ flex:1 }} />
                 <button onClick={()=>runTodo(m, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 12px", fontSize:12, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
               </div>
