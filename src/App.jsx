@@ -1462,22 +1462,30 @@ export default function App(){
       await sSet("yw_pres_v3",true);
     }
     const fp=await sGet("yw_farmers_pend")||[];
-    const { data: dbDestsOk } = await supabase.from('dests').select('*').eq('status', 'approved');
+    // 起動の並列化（2026-07-25）：直列5往復（dests×2→停止チェック→farmers→records）を並列2バッチに圧縮。
+    // 停止チェックがmeの設定より先に判定される順序は不変（結果の適用順で担保）
+    const [{ data: { session } }, destsOkRes, destsPendRes] = await Promise.all([
+      supabase.auth.getSession(),
+      supabase.from('dests').select('*').eq('status', 'approved'),
+      supabase.from('dests').select('*').eq('status', 'pending'),
+    ]);
+    const dbDestsOk = destsOkRes.data;
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
-    const { data: dbDestsPend } = await supabase.from('dests').select('*').eq('status', 'pending');
+    const dbDestsPend = destsPendRes.data;
     const dp = dbDestsPend ? dbDestsPend.map(d => ({ id: d.id, name: d.name, status: d.status, submittedBy: d.submitted_by })) : [];
 
-    const { data: { session } } = await supabase.auth.getSession();
     let f = [];
     const r = {};
     if (session) {
+      const [moddedRes, farmerRes, recsRes] = await Promise.all([
+        supabase.rpc('is_account_moderated', { p_uid: session.user.id }).catch(() => ({ data: null })),
+        supabase.from('farmers').select('*').eq('email', session.user.email).single(),
+        supabase.from('records').select('*').eq('farmer_id', session.user.id),
+      ]);
       // 停止／追放チェック（2026-07-19）：ログイン封鎖(banned_until)が効くまでの猶予（既存トークン最大1h）を塞ぐ。
       // 停止中なら即サインアウトして制限画面へ（meはセットしない）
-      try {
-        const { data: modded } = await supabase.rpc('is_account_moderated', { p_uid: session.user.id });
-        if (modded) { setBlockedAccount(true); try { await supabase.auth.signOut(); } catch {} setLoaded(true); return; }
-      } catch {}
-      const { data: dbFarmer } = await supabase.from('farmers').select('*').eq('email', session.user.email).single();
+      if (moddedRes?.data) { setBlockedAccount(true); try { await supabase.auth.signOut(); } catch {} setLoaded(true); return; }
+      const { data: dbFarmer } = farmerRes;
       if (dbFarmer) {
         const loggedIn = { id: dbFarmer.auth_id || dbFarmer.id, name: dbFarmer.name, email: dbFarmer.email, status: dbFarmer.status, joinedYear: dbFarmer.joined_year, prefecture: dbFarmer.prefecture || "", municipality: dbFarmer.municipality || "", planned_crops: dbFarmer.planned_crops || [], experience_tier: dbFarmer.experience_tier || "", farming_type: dbFarmer.farming_type || "", area_tan: dbFarmer.area_tan || "", sales_channels: dbFarmer.sales_channels || [], avatar_url: dbFarmer.avatar_url || "" };
         f = [loggedIn];
@@ -1489,7 +1497,7 @@ export default function App(){
         // account_holders未登録ならneedsAccountHolderゲートが後段で①フォームを自動表示する。
         setMe({ id: session.user.id, email: session.user.email || "", name: "", isWorker: true });
       }
-      const { data: dbRecs } = await supabase.from('records').select('*').eq('farmer_id', session.user.id);
+      const { data: dbRecs } = recsRes;
       if (dbRecs) {
         dbRecs.forEach(rec => {
           const k = `${rec.farmer_id}_${rec.year}_${rec.month}`;
