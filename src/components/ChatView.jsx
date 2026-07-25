@@ -570,7 +570,9 @@ export function ChatView({ applicationId, onBack }) {
             ) : chatQSets.length === 0 ? (
               <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 8px", lineHeight:1.7 }}>まだ質問集がありません。<br/>プロフィールの「📋 面接の質問集」から作成できます。</p>
             ) : (
-              <div style={{ display:"grid", gap:8 }}>
+              /* minmax(0,1fr)：nowrapの質問プレビューがmin-content幅で列を押し広げ、カードが画面右へ
+                 はみ出すのを防ぐ（auto列はnowrap長文の幅まで育つ・2026-07-25修正）。ellipsisはこれで効く */
+              <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:8 }}>
                 {chatQSets.map(s => (
                   <button key={s.id} disabled={qSending} onClick={()=>sendQSetToChat(s.id)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
                     <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{s.title || "無題の質問集"}</span>
