@@ -328,3 +328,28 @@ const TASK_OPTIONS = [
 // 緊急連絡の種別選択肢（当事者ごとに異なる）。attendance_events.kindのCHECK制約と対応
 export const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }, { v:"no_show_report", l:"👻 現地に相手がいません・連絡がつきません" }];
 export const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }, { v:"no_show_report", l:"👻 現地に相手がいません・連絡がつきません" }];
+
+// 分割3-C（2026-07-25）：App.jsxから移動（求人詳細・確認ページ・プレビューシートで共用）
+
+// 農園紹介のお題一覧（求人詳細・確認ページ共通。記入済みのお題のみ返す）
+export const farmIntroTopics = (e) => [
+  { label:"就農するまで", body: e.intro_path },
+  { label:"いま楽しいこと", body: e.intro_joy },
+  { label:"どんな作物を、どんな想いで", body: e.intro_crops },
+  { label:"職場の雰囲気", body: e.intro_atmosphere },
+  { label:"初めての人へのメッセージ", body: e.intro_message },
+].filter(t => t.body && t.body.trim());
+
+// 待遇バッジ（タイトル下用・2026-07-16）：employer_profilesのONの項目だけ短いラベルで返す。
+// 確認ページ・詳細ページで共通。OFFの項目は出さない（ダミー禁止）
+export function perkBadges(ep) {
+  if (!ep) return [];
+  return [
+    ep.has_transport && "🚐 送迎あり",
+    ep.has_parking && "🅿️ 駐車場",
+    ep.has_commute_allowance && "🚃 通勤手当",
+    ep.has_bonus && "🎁 賞与",
+    ep.employer_pays_supplies && ("🧤 持ち物は農家負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "")),
+    ep.accessory_ok && "💍 アクセサリーOK",
+  ].filter(Boolean);
+}

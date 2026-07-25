@@ -2,7 +2,7 @@ import { supabase } from "./lib/supabase";
 import { openEmployerPreview, openWorkerPreview } from "./lib/previewBus";
 import { chatCache } from "./lib/chatCache";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "./lib/questionSets";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_STATUS_LABEL, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION, TASK_OPTIONS, WORKER_EMERGENCY_KINDS, FARMER_EMERGENCY_KINDS } from "./lib/utils";
+import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_STATUS_LABEL, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION, TASK_OPTIONS, WORKER_EMERGENCY_KINDS, FARMER_EMERGENCY_KINDS, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
 import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText, LinkifiedText, LFPillSelect, YesNoPill } from "./components/ui";
 import { CalendarView } from "./components/CalendarView";
@@ -32,6 +32,7 @@ import { AgreedDatesRow, AvailDatesChips } from "./components/DateChips";
 
 import { isIOS, syncAppBadge } from "./lib/push";
 import { uploadAvatarResilient } from "./lib/avatarUpload";
+import { peekApplyReturn, setApplyReturn, clearApplyReturn } from "./lib/applyReturn";
 
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
@@ -39,10 +40,6 @@ import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-const APPLY_RETURN_KEY = 'applyReturnJob';
-const peekApplyReturn  = () => { try { return localStorage.getItem(APPLY_RETURN_KEY); } catch { return null; } };
-const setApplyReturn   = (n) => { try { localStorage.setItem(APPLY_RETURN_KEY, String(n)); } catch {} };
-const clearApplyReturn = () => { try { localStorage.removeItem(APPLY_RETURN_KEY); } catch {} };
 
 
 // 国土地理院 住所検索API（APIキー不要・無料）
@@ -95,15 +92,6 @@ async function geocodeTown(prefecture, city, town) {
     clearTimeout(timer);
   }
 }
-
-// 農園紹介のお題一覧（求人詳細・確認ページ共通。記入済みのお題のみ返す）
-const farmIntroTopics = (e) => [
-  { label:"就農するまで", body: e.intro_path },
-  { label:"いま楽しいこと", body: e.intro_joy },
-  { label:"どんな作物を、どんな想いで", body: e.intro_crops },
-  { label:"職場の雰囲気", body: e.intro_atmosphere },
-  { label:"初めての人へのメッセージ", body: e.intro_message },
-].filter(t => t.body && t.body.trim());
 
 
 
@@ -461,19 +449,6 @@ async function compressImage(file, maxSide = 1600, quality = 0.8) {
   } catch { return file; }
 }
 
-// 待遇バッジ（タイトル下用・2026-07-16）：employer_profilesのONの項目だけ短いラベルで返す。
-// 確認ページ・詳細ページで共通。OFFの項目は出さない（ダミー禁止）
-function perkBadges(ep) {
-  if (!ep) return [];
-  return [
-    ep.has_transport && "🚐 送迎あり",
-    ep.has_parking && "🅿️ 駐車場",
-    ep.has_commute_allowance && "🚃 通勤手当",
-    ep.has_bonus && "🎁 賞与",
-    ep.employer_pays_supplies && ("🧤 持ち物は農家負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "")),
-    ep.accessory_ok && "💍 アクセサリーOK",
-  ].filter(Boolean);
-}
 
 // 写真配列の正規化（2026-07-16）：旧形式（"url"文字列）が混ざると確認ページ等の p.url が
 // undefined になり真っ白なスライドが出るため、復元・再開の境界で必ず {url, caption} に揃える。
