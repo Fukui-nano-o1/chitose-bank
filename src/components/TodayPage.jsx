@@ -77,7 +77,6 @@ export function TodayPage({ me, defaultRole }) {
   const [hasWorker, setHasWorker] = useState(false);
   const [hasFarmer, setHasFarmer] = useState(false);
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
-  const [subMap, setSubMap] = useState({});   // application_id→{started_at,farmer_confirmed_start_at,status,insurance_prepared_at}（当日の行動の判定用）
   const [todos, setTodos] = useState([]);     // やることフィード（my_todo_items・状態カードの単一ソース）
   const [confirming, setConfirming] = useState("");
   const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
@@ -93,12 +92,6 @@ export function TodayPage({ me, defaultRole }) {
         setEntries(rows);
         const { data: td } = await supabase.rpc("my_todo_items");
         if (!cancelled) setTodos(td || []);
-        // 当日の行動の判定用サブ状態＋保険未報告リスト
-        const appIds = rows.filter(r => r.application_id).map(r => r.application_id);
-        if (appIds.length) {
-          const { data: subs } = await supabase.from("applications").select("id,started_at,farmer_confirmed_start_at,status,insurance_prepared_at,attended").in("id", appIds);
-          if (!cancelled && subs) setSubMap(Object.fromEntries(subs.map(s => [s.id, s])));
-        }
         const [{ data: wp }, { count: jc }, { data: ep }] = await Promise.all([
           supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
@@ -193,9 +186,10 @@ export function TodayPage({ me, defaultRole }) {
     };
   }, []);
   const accent = role === "worker" ? ROLE_ORANGE : ROLE_GREEN;
-  const handshakeHash = role === "worker" ? "/profile/worker/approved" : "/profile/employer/applicants";
 
-  // きょうの仕事カード（#N・作物 作業・時間帯・相手＋行動ボタン）
+  // きょうの仕事カード（#N・作物 作業・時間帯・相手）＝当日の現場情報ハブ。
+  // 案A（2026-07-25たきと確定）：行動（開始確認・完了評価・打刻）は「やること」に一本化し、
+  // このカードは確認カード・緊急連絡・チャットのみ（1機能1入口。同じ操作の入口を2箇所に置かない）
   const TodayCard = ({ e }) => {
     const photo = e.photos && e.photos[0] ? (typeof e.photos[0] === "string" ? e.photos[0] : e.photos[0]?.url) : null;
     const title = [e.crop, e.task].filter(Boolean).join(" ") || "求人";
@@ -217,25 +211,6 @@ export function TodayPage({ me, defaultRole }) {
         </div>
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, padding:"0 14px 14px" }}>
           {btn("確認カード", "#F7F7F7", "#222", () => { try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }, "1px solid #EBEBEB")}
-          {/* 当日の主操作（引っ越し(3)）：農家＝開始確認→完了して評価する（今日ページの決定表どおり）。働き手＝自分の打刻ページへ */}
-          {role === "farmer" ? (() => {
-            const sub = subMap[e.application_id] || {};
-            if (sub.status === "completed") return <span className="f-sans" style={{ flex:"1 1 46%", textAlign:"center", padding:"11px 8px", fontSize:12, fontWeight:700, color: sub.attended===false ? "#E24B4A" : "#00A86B" }}>{sub.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</span>;
-            if (sub.started_at && !sub.farmer_confirmed_start_at) {
-              return btn(confirming===e.application_id ? "…" : "✓ 開始を確認", accent, "#fff", async () => {
-                if (confirming) return; setConfirming(e.application_id);
-                const { data, error } = await supabase.rpc("confirm_start", { p_application_id: e.application_id });
-                setConfirming("");
-                if (error || !data?.ok) { alert("確認できませんでした：" + (data?.reason || error?.message || "不明")); return; }
-                setSubMap(prev => ({ ...prev, [e.application_id]: { ...(prev[e.application_id]||{}), farmer_confirmed_start_at: new Date().toISOString() } }));
-              });
-            }
-            // 終了打刻後（開始確認済み）＝完了して評価する。応募者ページの完了モーダルへ橋渡し（cb_completeAppId）
-            if (sub.farmer_confirmed_start_at) {
-              return btn("✅ 完了して評価する", accent, "#fff", () => { try { sessionStorage.setItem("cb_completeAppId", e.application_id); } catch {} window.location.hash = "/profile/employer/applicants"; });
-            }
-            return btn("応募者ページ", "#F7F7F7", "#222", () => { window.location.hash = handshakeHash; }, "1px solid #EBEBEB");
-          })() : btn("開始・終了", accent, "#fff", () => { window.location.hash = handshakeHash; })}
           {e.application_id && btn("⚠️ 緊急連絡", "#fff", "#C77700", () => { window.location.hash = "/emergency/" + e.application_id; }, "1px solid #FFB020")}
           {e.application_id && btn("チャット", "#00A86B", "#fff", () => { window.location.hash = "/chat/" + e.application_id; })}
         </div>
