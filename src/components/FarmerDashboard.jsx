@@ -871,20 +871,23 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   const info = jobInfoMap[jn] || {};
                   const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
                   const photo = info.photos && info.photos[0] ? (typeof info.photos[0] === "string" ? info.photos[0] : info.photos[0]?.url) : null;
-                  // 失効求人（終了日(無ければ開始日)が昨日以前）：黒の暗幕＋中央「失効」を最前面・タップ無反応（2026-07-25たきと指示）
+                  // 終端求人の暗幕設計（2026-07-25たきと指示・完了も失効と同じ設計）：
+                  // 日程が過ぎた求人は、完了記録あり＝「完了」／なし＝「失効」の暗幕＋中央ラベル＋タップ無反応
                   const jobEnd = info.date_end || info.date_start;
-                  const jobExpired = !!jobEnd && jobEnd < ymdLocal(new Date());
+                  const jobPast = !!jobEnd && jobEnd < ymdLocal(new Date());
+                  const jobCompleted = jobPast && byJob[jn].some(a => a.status === "completed");
+                  const jobExpired = jobPast && !jobCompleted;
                   return (
-                    <div key={`job-${jn}`} style={{ gridColumn:"1/-1", position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobExpired ? "none" : undefined }}>
-                      {jobExpired && (
+                    <div key={`job-${jn}`} style={{ gridColumn:"1/-1", position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
+                      {jobPast && (
                         <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <span className="f-sans" style={{ background:"#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>失効</span>
+                          <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
                         </div>
                       )}
                       {/* 左：求人のトップ写真（タップで求人を見る） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る"
                         style={{ flexShrink:0, width:92, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, overflow:"hidden" }}>
-                        {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobExpired ? "grayscale(70%)" : "none" }} /> : "🌱"}
+                        {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
                       </button>
                       {/* 右：タイトル・No.＋応募者アイコンスワイプ */}
                       <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px" }}>
