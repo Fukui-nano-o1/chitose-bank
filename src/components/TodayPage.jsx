@@ -64,17 +64,39 @@ export function TodayPage({ me, defaultRole }) {
     .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
   const dual = hasWorker && hasFarmer;
   // 横スワイプで働き手⇄農家（雇い手）を切替（両役持ちのみ・2026-07-25）。
-  // 縦スクロールと誤爆しないよう「横60px以上かつ横が縦の1.5倍以上」の時だけ発火
+  // 「動いている動作」：指に追従してコンテンツが横に付いてくる→離すと確定側へスライドイン／不成立なら戻る。
+  // 縦スクロールと誤爆しないよう、横が縦より明確に大きい時だけ追従・発火
   const touchRef = useRef(null);
+  const [dragX, setDragX] = useState(0);      // ドラッグ中の追従量（px・減衰済み）
+  const [dragging, setDragging] = useState(false);
+  const [slideDir, setSlideDir] = useState(0); // 切替後のスライドイン方向（1=右から・-1=左から）
+  const [slideKey, setSlideKey] = useState(0); // key更新でアニメを再生
+  const switchRole = (target) => {
+    if (target === role) return;
+    setSlideDir(target === "farmer" ? 1 : -1); // タブ並び：左=働き手・右=農家
+    setSlideKey(k => k + 1);
+    setRole(target);
+  };
   const onTouchStart = (ev) => { const t = ev.touches && ev.touches[0]; if (t) touchRef.current = { x: t.clientX, y: t.clientY }; };
+  const onTouchMove = (ev) => {
+    const s = touchRef.current; if (!dual || !s) return;
+    const t = ev.touches && ev.touches[0]; if (!t) return;
+    const dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      const target = dx < 0 ? "farmer" : "worker";
+      const damp = target === role ? 0.12 : 0.35; // 行き先が無い方向は強い抵抗（端の感触）
+      setDragging(true);
+      setDragX(Math.max(-90, Math.min(90, dx * damp)));
+    }
+  };
   const onTouchEnd = (ev) => {
     const s = touchRef.current; touchRef.current = null;
-    if (!dual || !s) return;
-    const t = ev.changedTouches && ev.changedTouches[0]; if (!t) return;
+    setDragging(false);
+    if (!dual || !s) { setDragX(0); return; }
+    const t = ev.changedTouches && ev.changedTouches[0]; if (!t) { setDragX(0); return; }
     const dx = t.clientX - s.x, dy = t.clientY - s.y;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    // タブの並び（左=働き手・右=農家）に合わせる：左スワイプ=右のタブ（農家）へ、右スワイプ=働き手へ
-    setRole(dx < 0 ? "farmer" : "worker");
+    if (Math.abs(dx) >= 60 && Math.abs(dx) >= Math.abs(dy) * 1.5) switchRole(dx < 0 ? "farmer" : "worker");
+    setDragX(0); // 不成立ならtransitionで元位置へ戻る（スナップバック）
   };
   const accent = role === "worker" ? ROLE_ORANGE : ROLE_GREEN;
   const handshakeHash = role === "worker" ? "/profile/worker/approved" : "/profile/employer/applicants";
@@ -235,13 +257,13 @@ export function TodayPage({ me, defaultRole }) {
   };
 
   return (
-    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden" }} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 14px" }}>📆 今日</h2>
       {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示 */}
       {dual && (
         <div style={{ display:"flex", gap:8, marginBottom:18 }}>
           {[{ k:"worker", l:"働き手", c:ROLE_ORANGE }, { k:"farmer", l:"農家", c:ROLE_GREEN }].map(t => (
-            <button key={t.k} onClick={()=>setRole(t.k)} className="f-sans" style={{
+            <button key={t.k} onClick={()=>switchRole(t.k)} className="f-sans" style={{
               padding:"7px 16px", fontSize:13, fontWeight:700, borderRadius:20, cursor:"pointer",
               background: role === t.k ? t.c : "#fff", color: role === t.k ? "#fff" : "#717171",
               border: "1px solid " + (role === t.k ? t.c : "#EBEBEB"),
@@ -249,6 +271,12 @@ export function TodayPage({ me, defaultRole }) {
           ))}
         </div>
       )}
+      {/* 役割コンテンツ：ドラッグ中は指に追従（transition切り）、離すとスナップバック。切替成立時はkey更新でスライドイン再生 */}
+      <div key={slideKey} style={{
+        transform: dragX ? `translateX(${dragX}px)` : "none",
+        transition: dragging ? "none" : "transform .25s ease",
+        animation: slideDir ? `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` : undefined,
+      }}>
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
       ) : (<>
@@ -307,6 +335,7 @@ export function TodayPage({ me, defaultRole }) {
         </div>
         <button onClick={()=>{ window.location.hash = "/calendar/month"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px", fontSize:14, fontWeight:700, color:"#222", cursor:"pointer" }}>📅 月の予定を見る →</button>
       </>)}
+      </div>
     </div>
   );
 }
