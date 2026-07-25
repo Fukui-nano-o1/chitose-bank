@@ -431,9 +431,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
-  const appRibbonLabel = (st) => st==="applied" ? "承認待ち" : st==="approved" ? "承認済み" : st==="rejected" ? "見送り" : st==="meeting" ? "打ち合わせ" : st==="interview" ? "面接" : st==="contracted" ? "契約" : st==="working" ? "作業中" : st==="completed" ? "完了" : st;
+  const appRibbonLabel = (st) => st==="applied" ? "承認待ち" : st==="approved" ? "承認済み" : st==="rejected" ? "見送り" : st==="meeting" ? "打ち合わせ" : st==="interview" ? "面接" : st==="contracted" ? "契約" : st==="working" ? "作業中" : st==="completed" ? "完了" : st==="expired" ? "失効" : st;
   // 状態ごとに色を全て分ける（同色は混乱するため・2026-07-22）。帯・凡例の唯一のソース
-  const APP_COLORS = { applied:"#C77700", approved:"#00A86B", meeting:"#1E88E5", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E" };
+  // expired（失効）＝判断がないまま作業開始日を迎えた応募をcron（expire_stale_applications）が自動で閉じたもの
+  const APP_COLORS = { applied:"#C77700", approved:"#00A86B", meeting:"#1E88E5", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#795548" };
   const appRibbonColor = (st) => APP_COLORS[st] || "#00A86B";
   // 応募者ページの状態フィルタ（2026-07-22）：上部タブ＝タップ＋横スワイプで切替
   const APP_FILTERS = [
@@ -531,12 +532,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
   // 応募者カード本体（ボトムシートで表示。承認/見送り・保険・開始確認・完了評価・緊急連絡・チャットの操作込み）
   const renderApplicantCard = (a) => {
-    const badgeColor = a.status==="approved" ? {bg:"#E6F7EF",fg:"#00A86B"} : a.status==="rejected" ? {bg:"#F5F5F5",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"};
+    const badgeColor = a.status==="approved" ? {bg:"#E6F7EF",fg:"#00A86B"} : (a.status==="rejected" || a.status==="expired") ? {bg:"#F5F5F5",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"};
     const wp = workerProfiles[a.worker_id];
     return (
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
               <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:badgeColor.bg, color:badgeColor.fg }}>
-                {a.status==="applied" ? "承認待ち" : a.status==="approved" ? "承認済み" : a.status==="rejected" ? "見送り" : a.status}
+                {appRibbonLabel(a.status)}
               </div>
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
@@ -897,7 +898,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 </button>
                 {appLegendOpen && (
                   <div className="fade-in" style={{ marginTop:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"12px 14px", display:"grid", gap:10 }}>
-                    {[["applied","承認待ち","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["approved","承認済み","承認した応募。チャットで打ち合わせ・面接に進みます"],["meeting","打ち合わせ","チャットで打ち合わせ中"],["interview","面接","面接の段階"],["contracted","契約","双方が内容を確認し、採用が決まった状態"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"]].map(([st,l,d]) => (
+                    {[["applied","承認待ち","応募が届いた状態。プロフィールを見て、承認するか見送るかを決めます"],["approved","承認済み","承認した応募。チャットで打ち合わせ・面接に進みます"],["meeting","打ち合わせ","チャットで打ち合わせ中"],["interview","面接","面接の段階"],["contracted","契約","双方が内容を確認し、採用が決まった状態"],["working","作業中","作業当日・進行中"],["completed","完了","作業が終わった応募。お互いを評価できます"],["rejected","見送り","見送りにした応募"],["expired","失効","承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募"]].map(([st,l,d]) => (
                       <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
                         <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:APP_COLORS[st], color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{l}</span>
                         <span className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.6 }}>{d}</span>
