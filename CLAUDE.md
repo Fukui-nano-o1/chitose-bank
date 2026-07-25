@@ -1370,3 +1370,33 @@ OnboardingModal/WorkerProfileEdit/EmployerProfileEdit）→ 3-C（JobSearchMapVi
 ProfileHub/LandingFlowの巨大4ページ・1ファイル=1ページで中身は原則そのまま移す）。
 ━━━ ここまで ━━━
 
+
+━━━ 2026-07-25 分割3-B完了：周辺ページ8部品の別ファイル化（App.jsx 11,620→8,178行）━━━
+【切り出し済み（1部品=1コミット・各buildゲート通過）】
+・components/ChatList.jsx（チャット一覧＋運営DM＋通知オンバナー）
+・components/LoginScreen.jsx（メールOTP＋パスワード認証）
+・components/AccountHolderForm.jsx（新規登録①・招待制ゲート/規約同意バージョン記録は不変）
+・components/ProfileModal.jsx（＋専用のCROP_EMOJIS/getDefaultAvatar同居）
+・components/OnboardingModal.jsx（＋専用のPREFECTURES/作物名正規化一式/OB_SALES_CHANNELS同居）
+・components/EmployerProfileEdit.jsx（＋専用のFarmerProfilePreview同居）
+・components/WorkerProfileEdit.jsx（＋専用のWorkerProfilePreview/PR_PROMPTS/Q&A20問/選択肢定数同居）
+・components/WorkerApplications.jsx（応募状況ページ・FlowBar7段・評価/緊急連絡）
+【共有層へ移動】lib/push.js（Web Push一式：pushStatus/enablePush/syncAppBadge/isIOS）／
+lib/avatarUpload.js（uploadAvatarResilient）／lib/utils へ THIS_YEAR・TERMS_VERSION・PRIVACY_VERSION・
+TASK_OPTIONS・WORKER/FARMER_EMERGENCY_KINDS／components/ui へ LFPillSelect・YesNoPill
+【教訓】python cutの行indexは切る直前に毎回再計測する（今回オフバイワン2回。いずれもlintゲートが
+Parsing errorで即検出→push前に修復。閉じ`}`の欠落／取り残しが典型症状）
+【残り＝3-C】巨大4ページ：JobSearchMapView→FarmerDashboard→ProfileHub→LandingFlow（最後）。
+1ファイル=1ページ・中身は原則そのまま。着手前に git pull と所有権確認
+【検証状態】build+lint+grepまで（新ルール準拠）。実機目視は未実施→次回まとめて：
+チャット一覧／ログイン／プロフィール編集（働き手・雇い手）／応募状況／初期設定モーダル
+━━━ ここまで ━━━
+
+━━━ 2026-07-25 保留メモ：本番公開の残り2点（たきとのPC作業待ち）━━━
+アプリ層の招待制は解除済み（signup_open=true）だが、新規登録は現在も物理的に不可。原因2つ：
+1. Brevo SMTP復旧が未完了（Resend死亡→移行中）：DNS認証→Brevoで緑確認→SMTPキーを
+   Supabase Auth設定に入れる→送信テスト
+2. Supabase Auth「Allow new users to sign up」がOFF（422 Signups not allowed）→ダッシュボードでON
+両方ともダッシュボード操作＝PC必要。完了後、未招待メールでの新規登録一巡（訂正版手順・
+役割選択ページは無い）→手順3直後にauthログ即診断（ベースライン: 11users/最終7/22/新規0）
+━━━ ここまで ━━━
