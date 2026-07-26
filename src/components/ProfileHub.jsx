@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
-import { ymdLocal, yearMonthLabel, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
-import { Avatar, ExpandableText } from "./ui";
+import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
+import { Avatar } from "./ui";
 import { MyCalendar } from "./MyCalendar";
 import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
@@ -184,47 +184,26 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                   </>
                 ) : (
                   <div className="f-sans" style={{ width:"100%", textAlign:"left" }}>
-                    {/* 信頼スタッツ（登録日・本人確認・リピート率）。本人限定RPC由来＝自分にだけ見える（2026-07-16） */}
-                    {wTrust && (
-                      <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 12px", marginBottom:10, paddingBottom:10, borderBottom:"1px solid #F5F5F5" }}>
-                        {wTrust.joined_at && (
-                          <span style={{ fontSize:11, color:"#717171" }}>📅 登録 {yearMonthLabel(wTrust.joined_at)}</span>
+                    {/* プレビューの統一（2026-07-26たきと指示）：裏面も本物のプレビュー
+                        （WorkerPreviewSheet＝農家が見る構造：WorkerTrustCard＋Q&A）と同一にする。
+                        trustは本人限定RPC(my_worker_trust_stats)＝worker_trust_infoと同形so そのまま渡せる */}
+                    {wMini ? (
+                      <>
+                        <WorkerTrustCard profile={wMini} trust={wTrust} />
+                        {Array.isArray(wMini.pr_qa) && wMini.pr_qa.length > 0 && (
+                          <div style={{ display:"grid", gap:10, marginTop:16 }}>
+                            {wMini.pr_qa.map(({ q, a }) => (
+                              <div key={q}>
+                                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+                                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                        {wTrust.verified_at
-                          ? <span style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(wTrust.verified_at)}）</span>
-                          : <span style={{ fontSize:11, color:"#999" }}>本人確認 未</span>}
-                        {wTrust.reviewed_count > 0
-                          ? <span style={{ fontSize:11, color:"#222", fontWeight:600 }}>🔁 リピート率 {Math.round(wTrust.want_again_count / wTrust.reviewed_count * 100)}%（また呼びたい {wTrust.want_again_count}/{wTrust.reviewed_count}件）</span>
-                          : <span style={{ fontSize:11, color:"#999" }}>🔁 リピート率 —（評価はまだありません）</span>}
-                      </div>
+                      </>
+                    ) : (
+                      <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>
                     )}
-                    {(() => {
-                      const badges = [
-                        wMini?.transport && "🚗 " + wMini.transport,
-                        wMini?.farm_experience && "🌾 " + wMini.farm_experience,
-                        wMini?.physical_level && "💪 " + wMini.physical_level,
-                      ].filter(Boolean);
-                      const tags = [...(wMini?.interests || []), ...(wMini?.languages || [])];
-                      const pr = (wMini?.pr || "").trim();
-                      const hasAny = wMini && (wMini.residence_city || badges.length || tags.length || pr);
-                      if (!hasAny) return <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>;
-                      return (
-                        <>
-                          {wMini.residence_city && <p style={{ fontSize:12, color:"#717171", margin:"0 0 8px" }}>📍{wMini.residence_city}</p>}
-                          {badges.length > 0 && (
-                            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
-                              {badges.map((b,i) => <span key={i} style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>{b}</span>)}
-                            </div>
-                          )}
-                          {tags.length > 0 && (
-                            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
-                              {tags.map((t,i) => <span key={i} style={{ fontSize:11, color:"#717171", background:"#F0F7F4", borderRadius:20, padding:"3px 10px" }}>#{t}</span>)}
-                            </div>
-                          )}
-                          {pr && <ExpandableText text={pr} limit={100} style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }} />}
-                        </>
-                      );
-                    })()}
                   </div>
                 )}
               </button>
