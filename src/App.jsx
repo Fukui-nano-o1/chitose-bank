@@ -1206,28 +1206,18 @@ export default function App(){
   const [meAvatar,setMeAvatar]=useState({ url:"", name:"", empUrl:"", empName:"" });
   const isEmpCtxHash = () => window.location.hash.replace(/^#\/?/, "").startsWith("profile/employer");
   const [empCtx, setEmpCtx] = useState(() => { try { const s = localStorage.getItem("cb_empCtx"); return s !== null ? s === "1" : isEmpCtxHash(); } catch { return false; } });
-  const [empPending, setEmpPending] = useState(0); // 農家モードの下部ナビ「🤝応募者」バッジ＝返事待ち（status=applied）件数
-  useEffect(() => {
-    if (!me?.id || !empCtx) { setEmpPending(0); return; }
-    let cancelled = false;
-    (async () => {
-      try {
-        const { count } = await supabase.from("applications").select("id", { count:"exact", head:true }).eq("farmer_id", me.id).eq("status","applied");
-        if (!cancelled) setEmpPending(count || 0);
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [me?.id, empCtx]);
+  // 「🤝応募者」バッジは navBadges.applicants_pending（未対応の応募＝跳ねるアイコンと同数）に一本化（2026-07-26）。
+  // 旧・独自の status='applied' 件数カウントは廃止＝バッジとアイコンで数が食い違う原因だった
 
   // 下部ナビの宿題バッジ（第12弾・2026-07-23）：チャット未読スレッド／きょうの契約済み仕事／評価締切内未実施／差し戻し有無。
   // 1本のRPC(my_nav_badges)で取得。再計算＝起動・ページ遷移・既読等(cb:unreadRefresh)・モード切替。
-  const [navBadges, setNavBadges] = useState({ chat_threads:0, calendar_today:0, todo:0, review_due:0, job_revision:0 });
+  const [navBadges, setNavBadges] = useState({ chat_threads:0, calendar_today:0, todo:0, applicants_pending:0, review_due:0, job_revision:0 });
   useEffect(() => {
-    if (!me?.id) { setNavBadges({ chat_threads:0, calendar_today:0, todo:0, review_due:0, job_revision:0 }); return; }
+    if (!me?.id) { setNavBadges({ chat_threads:0, calendar_today:0, todo:0, applicants_pending:0, review_due:0, job_revision:0 }); return; }
     const refresh = async () => {
       try {
         const { data } = await supabase.rpc("my_nav_badges");
-        if (data) setNavBadges({ chat_threads:data.chat_threads||0, calendar_today:data.calendar_today||0, todo:data.todo||0, review_due:data.review_due||0, job_revision:data.job_revision||0 });
+        if (data) setNavBadges({ chat_threads:data.chat_threads||0, calendar_today:data.calendar_today||0, todo:data.todo||0, applicants_pending:data.applicants_pending||0, review_due:data.review_due||0, job_revision:data.job_revision||0 });
       } catch {}
     };
     refresh();
@@ -1991,7 +1981,7 @@ const subDest=useCallback(async d=>{
     : empNav
     ? [
         { k:"emp-jobs",       icon:"📣", label:"求人",       hash:"/profile/employer/active" },
-        { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: empPending },
+        { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: navBadges.applicants_pending },
         { k:"chats",          icon:"💬", label:"チャット" },
         { k:"calendar",       icon:"📆", label:"今日" },
         { k:"profile",        icon:"👤", label:"プロフィール" },
