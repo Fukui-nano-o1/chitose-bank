@@ -445,7 +445,7 @@ export function TodayPage({ me, defaultRole }) {
 
   return (
     <div ref={rootRef} style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden", touchAction:"pan-y" }}>
-      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 14px" }}>📆 今日</h2>
+      {/* 見出し「📆 今日」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示すため冗長 */}
       {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示 */}
       {dual && (
         <div style={{ display:"flex", gap:8, marginBottom:18 }}>
