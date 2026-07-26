@@ -89,12 +89,14 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
   // document.bodyへポータル（2026-07-19）：呼び出し元の祖先（AdminTabの.appear等）がtransformを
   // 保持していると、その要素がposition:fixedの基準になり全画面に広がらない（審査プレビューが途中で切れる不具合）。
   // bodyへ出せばfixedの基準が確実にビューポートになる
+  // cb-lock-scroll＝展開中は背後のページを固定し、下部バー・浮遊☰も隠す（2026-07-26たきと指示）
   return createPortal(
-    <div onClick={ownerView ? onClose : undefined} style={ownerView
+    <div onClick={ownerView ? onClose : undefined} className="cb-lock-scroll" style={ownerView
       ? { position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }
       : { position:"fixed", inset:0, zIndex:9000, background:"#fff", overflowY:"auto" }}>
+    {/* 下部バーを隠すso画面下端まで伸ばす（角丸は上だけ・セーフエリアは内側の下パディングで確保） */}
     <div onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
-      ? { position:"absolute", left:0, right:0, bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", top:"6vh", background:"#fff", borderRadius:20, display:"flex", flexDirection:"column", overflow:"hidden" }
+      ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
       : undefined}>
       {/* 上部バー：管理者=審査バー／農家本人=✕(戻る)＋再開・削除（ボトムシートのヘッダー） */}
       {ownerView ? (
@@ -135,7 +137,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       </div>
       )}
 
-      <div style={ownerView ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" } : undefined}>
+      <div style={ownerView ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" } : undefined}>
       <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading && (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>読み込み中...</p>
