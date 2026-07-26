@@ -880,16 +880,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                           <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
                         </div>
                       )}
-                      {/* 左：求人のトップ写真＋その下にタイトル・No.（2026-07-26たきと指示：右上から写真の下へ移植）。
+                      {/* 左：求人のトップ写真。タイトル・No.は写真の下部に重ね、暗いグラデーション越しに
+                          写真が透ける（2026-07-26たきと指示・求人カードのカバー写真と同じ作法）。
                           No.は必ず明記＝タイトルだけ「…」で省略し、#No.は別行で常時表示。タップで求人を見る */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
-                        style={{ flexShrink:0, width:104, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#fff", cursor:"pointer", display:"flex", flexDirection:"column", textAlign:"left" }}>
-                        <span style={{ width:"100%", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, overflow:"hidden" }}>
-                          {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
-                        </span>
-                        <span style={{ display:"block", padding:"6px 8px 8px", minWidth:0 }}>
-                          <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</span>
-                          <span style={{ display:"block", fontSize:11, color:"#C8C8C8", fontWeight:700, marginTop:1 }}>#{jn}</span>
+                        style={{ flexShrink:0, width:104, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                        {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
+                        <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
+                          <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
+                          <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{jn}</span>
                         </span>
                       </button>
                       {/* 右：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
