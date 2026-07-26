@@ -120,6 +120,51 @@ function InterviewReplyPanel({ items, accent, onAnswered }) {
   );
 }
 
+// 新着の応募のお祝いパネル（2026-07-26たきと指示）：応募は祝い事。おめでとう文言＋「応募者 ----→ 求人」の対応行。
+// 初展開（その応募をはじめて見た時）だけ花びらが舞う（見た応募IDはlocalStorage cb_celebratedAppsに記録＝再訪では舞わない）。
+// ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされ花びらが途切れる
+function NewApplicantsPanel({ items, onTap }) {
+  const [petals, setPetals] = useState(false);
+  useEffect(() => {
+    try {
+      const seen = new Set(JSON.parse(localStorage.getItem("cb_celebratedApps") || "[]"));
+      if (items.some(t => t.application_id && !seen.has(t.application_id))) {
+        setPetals(true);
+        items.forEach(t => { if (t.application_id) seen.add(t.application_id); });
+        localStorage.setItem("cb_celebratedApps", JSON.stringify([...seen].slice(-200)));
+      }
+    } catch { setPetals(true); }
+  }, []);
+  return (
+    <div style={{ position:"relative", border:"1px solid #EBEBEB", borderRadius:12, background:"#fff", padding:"18px 14px" }}>
+      {petals && (
+        <div aria-hidden style={{ position:"absolute", inset:0, overflow:"hidden", pointerEvents:"none", borderRadius:12 }}>
+          {Array.from({ length: 14 }).map((_, i) => (
+            <span key={i} style={{ position:"absolute", top:-24, left: ((i * 29 + 7) % 96) + "%", fontSize: 13 + (i % 3) * 4, opacity:0, animation: `cbPetalFall ${1.9 + (i % 5) * 0.25}s ease-in ${(i % 7) * 0.13}s forwards` }}>🌸</span>
+          ))}
+        </div>
+      )}
+      <style>{`@keyframes cbPetalFall{0%{transform:translateY(0) rotate(0deg);opacity:0}12%{opacity:1}100%{transform:translateY(360px) rotate(230deg);opacity:0}}`}</style>
+      <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>🎉 おめでとうございます！</p>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 16px" }}>あなたの求人に新しい応募が届きました。タップして確認しましょう。</p>
+      <div style={{ display:"grid", gap:10 }}>
+        {items.map(t => (
+          <button key={t.application_id} onClick={()=>onTap(t)} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, width:"100%", background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:12, padding:"12px 10px", cursor:"pointer", minWidth:0 }}>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flexShrink:0, maxWidth:72 }}>
+              <Avatar url={t.partner_avatar} name={t.partner_name} size={40} bg={ROLE_ORANGE} />
+              <span className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#222", maxWidth:72, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.partner_name ? t.partner_name + "さん" : "応募者"}</span>
+            </div>
+            <span aria-hidden className="f-sans" style={{ flexShrink:0, fontSize:13, fontWeight:700, color:"#00A86B", letterSpacing:1 }}>----→</span>
+            <span className="f-sans" style={{ minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:13, fontWeight:700, color:"#222", background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"9px 12px" }}>
+              {[t.crop, t.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontSize:11 }}>#{t.job_number}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。月カレンダーは奥（#/calendar/month）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
@@ -254,9 +299,9 @@ export function TodayPage({ me, defaultRole }) {
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
     revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
-    // 新着の応募（2026-07-26たきと指示）：中間ページを挟まず応募者ページへ直行し、「応募中」フィルタで着地
-    // ＝どの求人に誰が応募したかを応募者ページの求人カード設計（写真＋タイトル＋#No.＋アイコン列）でそのまま見せる
-    approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   direct:true, nav: () => { try { sessionStorage.setItem("cb_appFilter", "applied"); } catch {} return "/profile/employer/applicants"; } },
+    // 新着の応募（2026-07-26たきと指示・同日改定）：タップでお祝いパネル（NewApplicantsPanel）を展開。
+    // 行タップで応募者ページへ「応募中」フィルタ着地＝どの求人に誰が応募したかを応募者ページの求人カード設計で見せる
+    approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   expand:true, nav: () => { try { sessionStorage.setItem("cb_appFilter", "applied"); } catch {} return "/profile/employer/applicants"; } },
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
     // 日程変更が必要な時だけ応募者ページの働く日モーダル（set_agreed_dates・cb_agreeAppId着地は温存）で行う
     // interview/hire（2026-07-25たきと指示）：チャットの質問集シート・採用ボタンを今日のリストへ移設。
@@ -355,9 +400,9 @@ export function TodayPage({ me, defaultRole }) {
     const n = items.length;
     const onTapBox = () => {
       if (!n) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
-      // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。direct指定は件数に関わらず直行
-      // （新着の応募＝応募者ページが一覧の役目を果たすため中間ページ不要・2026-07-26）。それ以外は用件の専用ページへ
-      if ((n === 1 || m.direct) && (m.nav || m.flag)) { runTodo(m, items[0]); return; }
+      // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。expand指定は件数に関わらず専用ページを展開
+      // （新着の応募＝お祝いパネルを必ず見せる・2026-07-26）。それ以外は用件の専用ページへ
+      if (n === 1 && (m.nav || m.flag) && !m.expand) { runTodo(m, items[0]); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (
@@ -437,6 +482,8 @@ export function TodayPage({ me, defaultRole }) {
             <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
             <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0 }}>{answeredDone ? "送信完了しました。" : "この用事はいまありません"}</p>
           </div>
+        ) : pageStage === "approve" ? (
+          <NewApplicantsPanel items={pItems} onTap={(t)=>runTodo(TODO_META.approve, t)} />
         ) : pageStage === "w_interview" ? (
           <InterviewReplyPanel items={pItems} accent={accent} onAnswered={(id)=>{ removeTodo(id, "w_interview"); setAnsweredDone(true); }} />
         ) : (
