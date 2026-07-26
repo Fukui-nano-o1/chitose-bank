@@ -647,6 +647,13 @@ input:focus { outline: none; }
      ChatViewのルート .chat-full を目印に、詳細ページと同じ body:has() 方式で非表示にする */
   body:has(.chat-full) .app-header-mobile,
   body:has(.chat-full) .app-header-mobile-float { display: none !important; }
+  /* プレビューボックス展開中も下部バー・浮遊☰を隠す（2026-07-26たきと指示）＝ボックスに集中。
+     オーバーレイ(z-index 9000〜)の下に残る低z-index要素が暗幕越しに透けるのを止める。
+     対象＝働き手/雇い手プレビュー(.cb-preview-overlay)とスクロール固定ボックス(.cb-lock-scroll) */
+  body:has(.cb-preview-overlay) .app-header-mobile,
+  body:has(.cb-preview-overlay) .app-header-mobile-float,
+  body:has(.cb-lock-scroll) .app-header-mobile,
+  body:has(.cb-lock-scroll) .app-header-mobile-float { display: none !important; }
 }
 /* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
    チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
