@@ -665,8 +665,11 @@ body:has(.qset-full) .nav-coach { display: none !important; }
 body:has(.qset-full) .site-footer-fixed { display: none !important; }
 html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
-/* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23） */
-html:has(.cb-preview-overlay), body:has(.cb-preview-overlay) { overflow: hidden; height: 100%; overscroll-behavior: none; }
+/* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。
+   .cb-lock-scroll＝同じ効果の汎用クラス（2026-07-26たきと指示）。ボックス/シートを全画面で被せる
+   オーバーレイに付けると、背後のページが動かずボックス内だけがスクロールする */
+html:has(.cb-preview-overlay), body:has(.cb-preview-overlay),
+html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
 /* QRコード印刷（#/qr・2026-07-24）：印刷時はQRエリアだけをA4中央に。サイト名・ひとことは印刷時のみ表示 */
 .qr-print-only { display: none; }
