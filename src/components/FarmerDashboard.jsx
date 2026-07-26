@@ -299,9 +299,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: appData } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at", { ascending: false });
         if (!appData) return;
         setDbApplicants(appData);
-<<<<<<< Updated upstream
         loadQSentIds(appData.map(x => x.id));
-=======
         // 自分が書いた評価（お仕事の流れバーの「評価」段の判定）。RLS「review select own」で自分の行のみ返る
         try {
           const doneIds = appData.filter(a => a.status === "completed").map(a => a.id);
@@ -310,7 +308,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             setReviewedAppIds(new Set((rv || []).map(r => r.application_id)));
           } else setReviewedAppIds(new Set());
         } catch {}
->>>>>>> Stashed changes
         // 新しく増えた応募者のプロフィールも補充
         const missing = [...new Set(appData.map(a => a.worker_id).filter(Boolean))].filter(id => !workerProfiles[id]);
         if (missing.length > 0) {
