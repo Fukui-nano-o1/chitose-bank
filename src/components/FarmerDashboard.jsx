@@ -879,25 +879,23 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                           <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
                         </div>
                       )}
-                      {/* 左：求人のトップ写真（タップで求人を見る） */}
-                      <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る"
-                        style={{ flexShrink:0, width:92, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, overflow:"hidden" }}>
-                        {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
+                      {/* 左：求人のトップ写真＋その下にタイトル・No.（2026-07-26たきと指示：右上から写真の下へ移植）。
+                          No.は必ず明記＝タイトルだけ「…」で省略し、#No.は別行で常時表示。タップで求人を見る */}
+                      <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
+                        style={{ flexShrink:0, width:104, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#fff", cursor:"pointer", display:"flex", flexDirection:"column", textAlign:"left" }}>
+                        <span style={{ width:"100%", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, overflow:"hidden" }}>
+                          {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
+                        </span>
+                        <span style={{ display:"block", padding:"6px 8px 8px", minWidth:0 }}>
+                          <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</span>
+                          <span style={{ display:"block", fontSize:11, color:"#C8C8C8", fontWeight:700, marginTop:1 }}>#{jn}</span>
+                        </span>
                       </button>
-                      {/* 右：タイトル・No.＋応募者アイコンスワイプ */}
-                      <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px" }}>
-                        <button onClick={()=>setPreviewJob({ num: jn })} className="f-sans"
-                          style={{ display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"none", border:"none", padding:0, cursor:"pointer" }}>
-                          {/* No.は必ず明記（2026-07-25たきと指示）：タイトルだけ「…」で省略し、#No.は省略対象から分離して常時表示 */}
-                          <span style={{ flex:1, minWidth:0, display:"flex", alignItems:"baseline", gap:6 }}>
-                            <span style={{ fontSize:14, fontWeight:700, color:"#222", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</span>
-                            <span style={{ fontSize:11, color:"#C8C8C8", fontWeight:700, flexShrink:0 }}>#{jn}</span>
-                          </span>
-                          <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 →</span>
-                        </button>
+                      {/* 右：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
+                      <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center" }}>
                         {/* アイコンのみ・中央配置（2026-07-25たきと指示）：箱装飾なし。少人数なら中央、溢れたら横スクロール（max-content＋margin auto） */}
                         <div onTouchStart={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
-                          style={{ overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
+                          style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingBottom:2 }}>
                           <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>
                           {byJob[jn].map(a => {
                             const wp = workerProfiles[a.worker_id];
