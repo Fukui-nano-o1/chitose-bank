@@ -603,8 +603,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               {a.status === "completed" && (
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
               )}
-              {/* 常時表示：チャットを開く */}
-              <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+              {/* 常時表示：チャットを開く／📋 質問を送る（2026-07-26たきと指示で復活）。
+                  今日ページの「面接の質問」用件は初回の催促so1度送ると消える。ここは何度でも使える恒久の入口。
+                  表示条件は send_interview_questions RPC が許すステータスに合わせる（作業中・完了・見送り・失効では出さない） */}
+              <div style={{ display:"flex", gap:8 }}>
+                {["applied","approved","meeting","interview","contracted"].includes(a.status) && (
+                  <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>📋 質問を送る</button>
+                )}
+                <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+              </div>
       </div>
     );
   };
