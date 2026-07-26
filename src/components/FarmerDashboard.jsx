@@ -415,6 +415,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [showRoster, setShowRoster] = useState(false); // 記録と予定：また呼びたいリスト箱→モーダル（2026-07-22）
   const [eFlip, setEFlip] = useState(null); // 農家ハブ：？タップで反転して説明を出す箱のラベル（2026-07-22）
   const [appFilter, setAppFilter] = useState("all"); // 応募者タブの状態フィルタ（2026-07-22）
+  // 今日ページ「新着の応募」からの着地（2026-07-26）：フラグがあれば指定フィルタ（応募中）で開く。読んだら消す
+  useEffect(() => {
+    if (jobTab !== "applicants") return;
+    try {
+      const f = sessionStorage.getItem("cb_appFilter");
+      if (f) { sessionStorage.removeItem("cb_appFilter"); if (["all","applied","active","completed"].includes(f)) setAppFilter(f); }
+    } catch {}
+  }, [jobTab]);
   const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者ページ下部「帯の意味」の説明ボックス開閉
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {

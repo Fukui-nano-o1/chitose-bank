@@ -254,7 +254,9 @@ export function TodayPage({ me, defaultRole }) {
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
     revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
-    approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   nav: () => "/profile/employer/applicants" },
+    // 新着の応募（2026-07-26たきと指示）：中間ページを挟まず応募者ページへ直行し、「応募中」フィルタで着地
+    // ＝どの求人に誰が応募したかを応募者ページの求人カード設計（写真＋タイトル＋#No.＋アイコン列）でそのまま見せる
+    approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   direct:true, nav: () => { try { sessionStorage.setItem("cb_appFilter", "applied"); } catch {} return "/profile/employer/applicants"; } },
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
     // 日程変更が必要な時だけ応募者ページの働く日モーダル（set_agreed_dates・cb_agreeAppId着地は温存）で行う
     // interview/hire（2026-07-25たきと指示）：チャットの質問集シート・採用ボタンを今日のリストへ移設。
@@ -353,8 +355,9 @@ export function TodayPage({ me, defaultRole }) {
     const n = items.length;
     const onTapBox = () => {
       if (!n) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
-      // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。それ以外は用件の専用ページへ
-      if (n === 1 && (m.nav || m.flag)) { runTodo(m, items[0]); return; }
+      // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。direct指定は件数に関わらず直行
+      // （新着の応募＝応募者ページが一覧の役目を果たすため中間ページ不要・2026-07-26）。それ以外は用件の専用ページへ
+      if ((n === 1 || m.direct) && (m.nav || m.flag)) { runTodo(m, items[0]); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (
