@@ -369,13 +369,11 @@ export function TodayPage({ me, defaultRole }) {
     );
   };
   // 展開パネル：タップしたボックスの対象一覧（1行=誰・どの求人・実行ボタン）
+  // ボックス内タイトル・左端の役割色バーは廃止（2026-07-26たきと指示：見出しはページヘッダーが担う・属性分け不要）
   const TodoStagePanel = ({ stage, items }) => {
     const m = TODO_META[stage]; if (!m) return null;
     return (
-      <div style={{ gridColumn:"1 / -1", border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px" }}>
-        <p className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px" }}>
-          <span style={{ fontSize:16 }}>{m.icon}</span>{TODO_BOX_LABEL[stage] || m.title}
-        </p>
+      <div style={{ gridColumn:"1 / -1", border:"1px solid #EBEBEB", borderRadius:12, background:"#fff", padding:"12px 14px" }}>
         <div style={{ display:"grid", gap:8 }}>
           {items.map(t => {
             const busy = confirming === (t.application_id || t.job_number) + t.stage;
@@ -383,10 +381,11 @@ export function TodayPage({ me, defaultRole }) {
             return (
               <div key={todoKey(t)} style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
                 {role === "farmer" && t.partner_name ? (
-                  <>
-                    <Avatar url={t.partner_avatar} name={t.partner_name} size={28} bg={ROLE_ORANGE} />
-                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flexShrink:1, minWidth:0 }}>{t.partner_name}さん</span>
-                  </>
+                  /* ニックネームはアイコンの下（2026-07-26たきと指示） */
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flexShrink:0, maxWidth:64 }}>
+                    <Avatar url={t.partner_avatar} name={t.partner_name} size={36} bg={ROLE_ORANGE} />
+                    <span className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#222", maxWidth:64, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.partner_name}さん</span>
+                  </div>
                 ) : null}
                 {/* 求人チップはタップで求人ページへ（確認前に内容を見られる） */}
                 {jobChip && <button onClick={()=>{ if (!t.job_number) return; try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>{jobChip}</button>}
@@ -425,7 +424,7 @@ export function TodayPage({ me, defaultRole }) {
           <h2 className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:18, fontWeight:800, color:"#222", margin:0, flex:1, minWidth:0 }}>
             <span style={{ fontSize:20 }}>{pm.icon}</span>{TODO_BOX_LABEL[pageStage] || pm.title}
           </h2>
-          {pItems.length > 0 && <span className="f-sans" style={{ minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{pItems.length}</span>}
+          {/* 件数バッジは廃止（2026-07-26たきと指示：ページ内で通知は不要。件数は今日ページのボックスが示す） */}
         </div>
         {loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
