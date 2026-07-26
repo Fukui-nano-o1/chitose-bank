@@ -552,18 +552,25 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
   // 応募者カード本体（ボトムシートで表示。承認/見送り・保険・開始確認・完了評価・緊急連絡・チャットの操作込み）
   const renderApplicantCard = (a) => {
-    const badgeColor = a.status==="approved" ? {bg:"#E6F7EF",fg:"#00A86B"} : (a.status==="rejected" || a.status==="expired") ? {bg:"#F5F5F5",fg:"#717171"} : {bg:"#FFF4E0",fg:"#C77700"};
+    // 旧・独自のチップ配色(badgeColor)は廃止（2026-07-26）：現在地バナーが段階色APP_PHASE_COLORを使う
     const wp = workerProfiles[a.worker_id];
     return (
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-              <div style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:6, background:badgeColor.bg, color:badgeColor.fg }}>
-                {appRibbonLabel(a)}
-              </div>
-              {/* いまの段階の説明を既定で表示（2026-07-26たきと指示）。文面はAPP_PHASE_DESC＝帯・凡例・
-                  タップ説明と同じ唯一のソースso、言い回しが枝分かれしない */}
-              {APP_PHASE_DESC[appPhaseKey(a)] && (
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 10px" }}>{APP_PHASE_DESC[appPhaseKey(a)]}</p>
-              )}
+              {/* 現在地バナー（2026-07-26たきと指示）：ステータスと説明を1つの帯にまとめる。
+                  色は段階色（APP_PHASE_COLOR）を左バーと見出しに、背景はその薄色（+"14"＝約8%不透明）。
+                  文面はAPP_PHASE_DESC＝帯・凡例・タップ説明と同じ唯一のソースso言い回しが枝分かれしない */}
+              {(() => {
+                const pk = appPhaseKey(a);
+                const c = APP_PHASE_COLOR[pk] || "#717171";
+                return (
+                  <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{appRibbonLabel(a)}</p>
+                    {APP_PHASE_DESC[pk] && (
+                      <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[pk]}</p>
+                    )}
+                  </div>
+                );
+              })()}
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
