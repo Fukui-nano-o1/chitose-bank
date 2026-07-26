@@ -13,7 +13,26 @@ import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 import { AdminJobPreview } from "./components/AdminJobPreview";
 import { MyCalendar } from "./components/MyCalendar";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
-const ChatView = lazy(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
+// チャンク取りこぼしの自己修復（2026-07-26・チャットで画面が真っ暗になる不具合の根治）：
+// 新デプロイでチャンク名（ハッシュ）が変わるため、古いページを握ったままの端末は旧チャンクを
+// 404で取りに行き「Importing a module script failed」で失敗する。Suspenseのfallbackはnullso
+// 何も描画されず画面が暗いまま固まる。失敗を捕まえて1度だけ再読込し、新しいビルドを取りに行く。
+// ※関数宣言（巻き上げあり）にすること：下のconst定義より前に実行されるためconstだとTDZで落ちる
+function lazyChunk(factory) {
+  return lazy(() => factory()
+    .then(m => { try { sessionStorage.removeItem("cb_chunkReload"); } catch {} return m; })
+    .catch(err => {
+      // 1セッション1回まで（無限リロード防止）。2回目以降は素直に失敗させる
+      try {
+        if (!sessionStorage.getItem("cb_chunkReload")) {
+          sessionStorage.setItem("cb_chunkReload", "1");
+          window.location.reload();
+        }
+      } catch {}
+      throw err;
+    }));
+}
+const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
 import { ChatList } from "./components/ChatList";
 import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
@@ -26,10 +45,10 @@ import { JobSearchMapView } from "./components/JobSearchMapView";
 import { MyReviewsOfWorker } from "./components/MyReviewsOfWorker";
 import { FarmerDashboard } from "./components/FarmerDashboard";
 import { ProfileHub } from "./components/ProfileHub";
-const LandingFlow = lazy(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
-const AdminTab = lazy(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
-const ConsignmentRoom = lazy(() => import("./components/admin/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
-const AdminBoxRegistryPage = lazy(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));
+const LandingFlow = lazyChunk(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
+const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
+const ConsignmentRoom = lazyChunk(() => import("./components/admin/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
+const AdminBoxRegistryPage = lazyChunk(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));
 import { ToggleSwitch } from "./components/ToggleSwitch";
 import { CSS } from "./appStyles";
 import { ContentQTabs, JobQuestions } from "./components/JobQuestions";
