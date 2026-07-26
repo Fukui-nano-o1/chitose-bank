@@ -284,6 +284,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
+        // 未対応（＝こちらの番）の応募を、やること・バッジと同じ単一ソース my_todo_items から導出（2026-07-26たきと指示）。
+        // hireは除外：承認後ずっと出続ける段so、質問送信後の「働き手の回答待ち」でも跳ね続けてしまう。
+        // 除外すると流れが正しく出る＝承認直後はinterview(質問を送る)で跳ね、送ったら静止（働き手の番）、
+        // 働き手が答えるとchat(未読)で再び跳ねる。やることリスト側のhireはそのまま（表示だけの調整）
+        try {
+          const { data: td } = await supabase.rpc("my_todo_items");
+          setTodoAppIds(new Set((td || [])
+            .filter(t => t.my_role === "farmer" && t.application_id && t.stage !== "hire")
+            .map(t => t.application_id)));
+        } catch {}
         const { data: appData } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at", { ascending: false });
         if (!appData) return;
         setDbApplicants(appData);
@@ -433,6 +443,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
+  const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   const appRibbonLabel = (a) => APP_PHASE_LABEL[appPhaseKey(a)] || a.status;
@@ -905,7 +916,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                             return (
                               <button key={a.id} onClick={()=>setSheetApplicantId(a.id)} className="f-sans"
                                 style={{ flexShrink:0, width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
-                                <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(phaseA)} />
+                                {/* 未対応（農家の番）のアイコンだけ跳ねる。働き手のアクション待ちは静止（2026-07-26たきと指示） */}
+                                <span className={!jobPast && todoAppIds.has(a.id) ? "cb-jump" : undefined} style={{ display:"block", lineHeight:0 }}>
+                                  <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(phaseA)} />
+                                </span>
                                 <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
                                 <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(phaseA)); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(phaseA), marginTop:1, cursor:"pointer" }}>{appRibbonLabel(phaseA)}</span>
                               </button>
