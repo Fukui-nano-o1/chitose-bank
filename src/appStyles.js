@@ -716,8 +716,11 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   body:has(.job-detail-body-mobile) main { padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
   body:has(.job-detail-body-mobile) .site-footer-fixed { margin-top: 0; }
   /* 応募者ページの上空白を15px丁度に（2026-07-26たきと指示）：main側の上余白10pxを打ち消し、
-     コンテナ自身の padding-top:15px だけを残す（求人詳細と同じ body:has() 方式） */
-  body:has(.emp-applicants-page) main { padding-top: 0 !important; }
+     コンテナ自身の padding-top:15px だけを残す（求人詳細と同じ body:has() 方式）。
+     下も同様：「帯（ステータス）の意味」の下〜フッターの間を20pxに一本化する
+     （コンテナ側の下80pxは0にしてあるso、ここのpadding-bottomがそのまま間隔になる） */
+  body:has(.emp-applicants-page) main { padding-top: 0 !important; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
+  body:has(.emp-applicants-page) .site-footer-fixed { margin-top: 0; }
 }
 
 /* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */

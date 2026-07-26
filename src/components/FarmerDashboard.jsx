@@ -611,7 +611,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   return (
     // 入口(home)は余白を持たない＝働き手入口と開始位置・下端が完全一致（外側のプロフィールwrapperが32px/4pxを提供）
     // サブページの上空白は15px固定（2026-07-25応募者→2026-07-26求人タブも・たきと指示で全サブページ統一）
-    <div className={jobTab === "applicants" ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : "15px 0 80px" }}>
+    // 応募者ページは下余白もCSS側(20px)へ一本化するso、コンテナ自身の下80pxは持たせない（2026-07-26たきと指示）
+    <div className={jobTab === "applicants" ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : jobTab === "applicants" ? "15px 0 0" : "15px 0 80px" }}>
       {jobTab === "home" ? (
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
