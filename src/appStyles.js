@@ -647,6 +647,13 @@ input:focus { outline: none; }
      ChatViewのルート .chat-full を目印に、詳細ページと同じ body:has() 方式で非表示にする */
   body:has(.chat-full) .app-header-mobile,
   body:has(.chat-full) .app-header-mobile-float { display: none !important; }
+  /* プレビューボックス展開中も下部バー・浮遊☰を隠す（2026-07-26たきと指示）＝ボックスに集中。
+     オーバーレイ(z-index 9000〜)の下に残る低z-index要素が暗幕越しに透けるのを止める。
+     対象＝働き手/雇い手プレビュー(.cb-preview-overlay)とスクロール固定ボックス(.cb-lock-scroll) */
+  body:has(.cb-preview-overlay) .app-header-mobile,
+  body:has(.cb-preview-overlay) .app-header-mobile-float,
+  body:has(.cb-lock-scroll) .app-header-mobile,
+  body:has(.cb-lock-scroll) .app-header-mobile-float { display: none !important; }
 }
 /* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
    チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
@@ -665,8 +672,11 @@ body:has(.qset-full) .nav-coach { display: none !important; }
 body:has(.qset-full) .site-footer-fixed { display: none !important; }
 html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
-/* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23） */
-html:has(.cb-preview-overlay), body:has(.cb-preview-overlay) { overflow: hidden; height: 100%; overscroll-behavior: none; }
+/* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。
+   .cb-lock-scroll＝同じ効果の汎用クラス（2026-07-26たきと指示）。ボックス/シートを全画面で被せる
+   オーバーレイに付けると、背後のページが動かずボックス内だけがスクロールする */
+html:has(.cb-preview-overlay), body:has(.cb-preview-overlay),
+html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
 /* QRコード印刷（#/qr・2026-07-24）：印刷時はQRエリアだけをA4中央に。サイト名・ひとことは印刷時のみ表示 */
 .qr-print-only { display: none; }
@@ -705,6 +715,12 @@ html:has(.cb-preview-overlay), body:has(.cb-preview-overlay) { overflow: hidden;
   .job-detail-body-mobile { padding-bottom: 0; }
   body:has(.job-detail-body-mobile) main { padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
   body:has(.job-detail-body-mobile) .site-footer-fixed { margin-top: 0; }
+  /* 応募者ページの上空白を15px丁度に（2026-07-26たきと指示）：main側の上余白10pxを打ち消し、
+     コンテナ自身の padding-top:15px だけを残す（求人詳細と同じ body:has() 方式）。
+     下も同様：「帯（ステータス）の意味」の下〜フッターの間を20pxに一本化する
+     （コンテナ側の下80pxは0にしてあるso、ここのpadding-bottomがそのまま間隔になる） */
+  body:has(.emp-applicants-page) main { padding-top: 0 !important; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
+  body:has(.emp-applicants-page) .site-footer-fixed { margin-top: 0; }
 }
 
 /* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */

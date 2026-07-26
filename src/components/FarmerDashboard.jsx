@@ -284,6 +284,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
+        // 未対応（＝こちらの番）の応募を、やること・バッジと同じ単一ソース my_todo_items から導出（2026-07-26たきと指示）。
+        // hireは除外：承認後ずっと出続ける段so、質問送信後の「働き手の回答待ち」でも跳ね続けてしまう。
+        // 除外すると流れが正しく出る＝承認直後はinterview(質問を送る)で跳ね、送ったら静止（働き手の番）、
+        // 働き手が答えるとchat(未読)で再び跳ねる。やることリスト側のhireはそのまま（表示だけの調整）
+        try {
+          const { data: td } = await supabase.rpc("my_todo_items");
+          setTodoAppIds(new Set((td || [])
+            .filter(t => t.my_role === "farmer" && t.application_id && t.stage !== "hire")
+            .map(t => t.application_id)));
+        } catch {}
         const { data: appData } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at", { ascending: false });
         if (!appData) return;
         setDbApplicants(appData);
@@ -433,6 +443,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
+  const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   const appRibbonLabel = (a) => APP_PHASE_LABEL[appPhaseKey(a)] || a.status;
@@ -600,7 +611,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   return (
     // 入口(home)は余白を持たない＝働き手入口と開始位置・下端が完全一致（外側のプロフィールwrapperが32px/4pxを提供）
     // サブページの上空白は15px固定（2026-07-25応募者→2026-07-26求人タブも・たきと指示で全サブページ統一）
-    <div style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : "15px 0 80px" }}>
+    // 応募者ページは下余白もCSS側(20px)へ一本化するso、コンテナ自身の下80pxは持たせない（2026-07-26たきと指示）
+    <div className={jobTab === "applicants" ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : jobTab === "applicants" ? "15px 0 0" : "15px 0 80px" }}>
       {jobTab === "home" ? (
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
@@ -717,7 +729,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </button>
           ))}
         </div>
-      ) : jobTab==="calendar" ? null : (
+      ) : (jobTab==="calendar" || jobTab==="applicants") ? null : (
+        /* 応募者ページの見出し「応募者」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示す */
         <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       )}
       {/* 作成中⇄公開中はページャー（2026-07-16）：文字・絵文字・ボタン・カードが指に追従して実際に横移動する */}
@@ -879,25 +892,24 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                           <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
                         </div>
                       )}
-                      {/* 左：求人のトップ写真（タップで求人を見る） */}
-                      <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る"
-                        style={{ flexShrink:0, width:92, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, overflow:"hidden" }}>
+                      {/* 左：求人のトップ写真。タイトル・No.は写真の下部に重ね、暗いグラデーション越しに
+                          写真が透ける（2026-07-26たきと指示・求人カードのカバー写真と同じ作法）。
+                          No.は必ず明記＝タイトルだけ「…」で省略し、#No.は別行で常時表示。タップで求人を見る */}
+                      <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
+                        style={{ flexShrink:0, width:104, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
                         {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
+                        <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
+                          <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
+                          <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{jn}</span>
+                        </span>
                       </button>
-                      {/* 右：タイトル・No.＋応募者アイコンスワイプ */}
-                      <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px" }}>
-                        <button onClick={()=>setPreviewJob({ num: jn })} className="f-sans"
-                          style={{ display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"none", border:"none", padding:0, cursor:"pointer" }}>
-                          {/* No.は必ず明記（2026-07-25たきと指示）：タイトルだけ「…」で省略し、#No.は省略対象から分離して常時表示 */}
-                          <span style={{ flex:1, minWidth:0, display:"flex", alignItems:"baseline", gap:6 }}>
-                            <span style={{ fontSize:14, fontWeight:700, color:"#222", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</span>
-                            <span style={{ fontSize:11, color:"#C8C8C8", fontWeight:700, flexShrink:0 }}>#{jn}</span>
-                          </span>
-                          <span style={{ fontSize:11, color:"#00A86B", fontWeight:700, flexShrink:0 }}>{byJob[jn].length}名 →</span>
-                        </button>
+                      {/* 右：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
+                      <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center" }}>
                         {/* アイコンのみ・中央配置（2026-07-25たきと指示）：箱装飾なし。少人数なら中央、溢れたら横スクロール（max-content＋margin auto） */}
                         <div onTouchStart={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
-                          style={{ overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
+                          /* overflowX:autoは縦も切り取る（CSSの規則：片軸がautoならvisibleはautoになる）so、
+                             ジャンプ(-5px)が上で欠ける。paddingTopで跳ねる分の逃げを確保（2026-07-26たきと報告） */
+                          style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
                           <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>
                           {byJob[jn].map(a => {
                             const wp = workerProfiles[a.worker_id];
@@ -907,7 +919,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                             return (
                               <button key={a.id} onClick={()=>setSheetApplicantId(a.id)} className="f-sans"
                                 style={{ flexShrink:0, width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
-                                <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(phaseA)} />
+                                {/* 未対応（農家の番）のアイコンだけ跳ねる。働き手のアクション待ちは静止（2026-07-26たきと指示） */}
+                                <span className={!jobPast && todoAppIds.has(a.id) ? "cb-jump" : undefined} style={{ display:"block", lineHeight:0 }}>
+                                  <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(phaseA)} />
+                                </span>
                                 <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
                                 <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(phaseA)); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(phaseA), marginTop:1, cursor:"pointer" }}>{appRibbonLabel(phaseA)}</span>
                               </button>
@@ -972,13 +987,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       {(() => {
         const live = dbApplicants.find(x => x.id === sheetApplicantId);
         if (!live) return null;
+        // cb-lock-scroll＝展開中は背後のページを固定し、スクロールをシート内だけにする（2026-07-26たきと指示）
         return (
-          <div onClick={()=>setSheetApplicantId(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          <div onClick={()=>setSheetApplicantId(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
               <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
                 <button onClick={()=>setSheetApplicantId(null)} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
               </div>
-              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
+              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
                 {renderApplicantCard(live)}
               </div>
             </div>
@@ -994,7 +1010,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         // 候補＝働き手の来られる日（配列）。いつでもOK("any")や未宣言は求人の全期間
         const candidates = Array.isArray(av) && av.length > 0 ? av.slice().sort() : daysBetweenYmd(info.date_start, info.date_end);
         return (
-          <div onClick={()=>{ if (!agreeSaving) { setAgreeModal(null); setAgreeSel([]); } }} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={()=>{ if (!agreeSaving) { setAgreeModal(null); setAgreeSel([]); } }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
             <div onClick={e=>e.stopPropagation()} className="f-sans" style={{ background:"#fff", borderRadius:16, padding:22, maxWidth:440, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
               <p style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px" }}>📅 働く日を決める</p>
               <p style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>
@@ -1027,7 +1043,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         );
       })()}
       {completeModalApp && (
-        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
             {completeStep === "attend" ? (
               <>
@@ -1097,7 +1113,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
       {/* お気に入り登録しました！ボックス（2026-07-19）：働き手アイコンに❤️が付く動作・説明は1文×2・詳細は展開 */}
       {favDone && (
-        <div onClick={()=>setFavDone(null)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
+        <div onClick={()=>setFavDone(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
             <button onClick={()=>setFavDone(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 18px" }}>お気に入り登録しました！</p>
@@ -1122,7 +1138,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       )}
       {/* また呼びたいリスト：働き手詳細モーダル（アイコンタップで展開・応募者カードと同じ表示部品） */}
       {rosterDetail && (
-        <div onClick={()=>setRosterDetail(null)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div onClick={()=>setRosterDetail(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <button onClick={()=>setRosterDetail(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>働き手の詳細</p>
@@ -1156,7 +1172,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
       {/* 評価登録完了モーダル（評価送信後の控え） */}
       {completeDone && (
-        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <button onClick={()=>setCompleteDone(null)} aria-label="戻る" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 16px" }}>☑️ 評価登録完了</p>
@@ -1196,7 +1212,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
       {/* 緊急連絡モーダル（Part3・農家側） */}
       {emergencyModalApp && (
-        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
             {emergencySent ? (
               <>
@@ -1307,7 +1323,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
       {/* ═══ 質問を送る（応募者カード「📋 質問を送る」→セット選択→send_interview_questions RPC・2026-07-23） ═══ */}
       {sendQTarget && (
-        <div onClick={()=>{ if (!sendingQ) setSendQTarget(null); }} style={{ position:"fixed", inset:0, zIndex:10002, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
+        <div onClick={()=>{ if (!sendingQ) setSendQTarget(null); }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10002, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom,0px) + 20px)", maxWidth:520, width:"100%", maxHeight:"80vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <button onClick={()=>{ if (!sendingQ) setSendQTarget(null); }} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>✕</button>
             <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px", paddingRight:40 }}>📋 質問を送る</h3>
