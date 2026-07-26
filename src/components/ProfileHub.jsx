@@ -290,8 +290,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                       ...(wMini.transport ? ["🚗 " + wMini.transport] : []),
                       ...((Array.isArray(wMini.self_declared) ? wMini.self_declared : []).map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip).filter(Boolean)),
                     ] : [];
+                    // ボックスは他と同じ白・グレー枠（2026-07-26たきと指示）。チップ（タグ）の青は残す
                     return (
-                      {/* ボックスは他と同じ白・グレー枠（2026-07-26たきと指示）。チップ（タグ）の青は残す */}
                       <button onClick={()=>{ try { sessionStorage.setItem("cb_expFromApp","1"); } catch {} window.location.hash="/experience"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"16px", cursor:"pointer", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", display:"block" }}>
                         <span className="f-sans" style={{ display:"block", fontSize:15, fontWeight:800, color:"#222", marginBottom: chips.length ? 8 : 4 }}>📋 経験・できること（自己申告）</span>
                         {chips.length > 0 ? (<>
