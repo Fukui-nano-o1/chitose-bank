@@ -21,6 +21,16 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const [sending, setSending] = useState(false);
   const [err,     setErr]     = useState("");
   const [shk,     setShk]     = useState(false);
+  const [showPw,  setShowPw]  = useState(false); // パスワードの表示切替（👁タップ）。画面が変わったらモザイクに戻す
+  useEffect(() => { setShowPw(false); }, [view]);
+  // パスワード欄の右端に置く👁ボタン（表示中は🙈）。inputはpaddingRightで重なりを避ける
+  const eyeBtn = (
+    <button type="button" onClick={()=>setShowPw(v=>!v)} tabIndex={-1}
+      aria-label={showPw ? "パスワードを隠す" : "パスワードを表示する"}
+      style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", fontSize:16, cursor:"pointer", padding:4, lineHeight:1 }}>
+      {showPw ? "🙈" : "👁"}
+    </button>
+  );
 
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
 
@@ -125,10 +135,13 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
               </div>
               <div style={{ marginBottom:20 }}>
                 <label className="lbl f-sans">パスワード</label>
-                <input className={`field f-sans ${shk?"shake":""}`} type="password" placeholder="パスワード" autoComplete="current-password"
-                  value={pw}
-                  onChange={e=>{setPw(e.target.value);setErr("");}}
-                  onKeyDown={e=>e.key==="Enter"&&email.trim()&&pw&&!sending&&passwordLogin()}/>
+                <div style={{ position:"relative" }}>
+                  <input className={`field f-sans ${shk?"shake":""}`} type={showPw?"text":"password"} placeholder="パスワード" autoComplete="current-password"
+                    value={pw} style={{ paddingRight:44 }}
+                    onChange={e=>{setPw(e.target.value);setErr("");}}
+                    onKeyDown={e=>e.key==="Enter"&&email.trim()&&pw&&!sending&&passwordLogin()}/>
+                  {eyeBtn}
+                </div>
                 {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
               </div>
               <button className="btn-primary" style={{ width:"100%" }}
@@ -218,16 +231,22 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
               </div>
               <div style={{ marginBottom:16 }}>
                 <label className="lbl f-sans">パスワード（8文字以上）</label>
-                <input className="field f-sans" type="password" autoComplete="new-password" placeholder="8文字以上"
-                  value={pw} autoFocus
-                  onChange={e=>{setPw(e.target.value);setErr("");}}/>
+                <div style={{ position:"relative" }}>
+                  <input className="field f-sans" type={showPw?"text":"password"} autoComplete="new-password" placeholder="8文字以上"
+                    value={pw} autoFocus style={{ paddingRight:44 }}
+                    onChange={e=>{setPw(e.target.value);setErr("");}}/>
+                  {eyeBtn}
+                </div>
               </div>
               <div style={{ marginBottom:20 }}>
                 <label className="lbl f-sans">パスワード（確認用）</label>
-                <input className={`field f-sans ${shk?"shake":""}`} type="password" autoComplete="new-password" placeholder="もう一度入力"
-                  value={pw2}
-                  onChange={e=>{setPw2(e.target.value);setErr("");}}
-                  onKeyDown={e=>e.key==="Enter"&&pw&&pw2&&!sending&&submitPassword()}/>
+                <div style={{ position:"relative" }}>
+                  <input className={`field f-sans ${shk?"shake":""}`} type={showPw?"text":"password"} autoComplete="new-password" placeholder="もう一度入力"
+                    value={pw2} style={{ paddingRight:44 }}
+                    onChange={e=>{setPw2(e.target.value);setErr("");}}
+                    onKeyDown={e=>e.key==="Enter"&&pw&&pw2&&!sending&&submitPassword()}/>
+                  {eyeBtn}
+                </div>
                 {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
               </div>
               <button className="btn-primary" style={{ width:"100%" }}
