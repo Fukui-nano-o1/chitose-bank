@@ -1502,7 +1502,10 @@ export default function App(){
     }
     if (session) {
       const [moddedRes, farmerRes, recsRes] = await Promise.all([
-        supabase.rpc('is_account_moderated', { p_uid: session.user.id }).catch(() => ({ data: null })),
+        // supabase.rpc()の戻りはthenableだがPromiseではない＝.catchが存在せず、直に繋ぐと
+        // 「.catch is not a function」で起動処理ごと落ちる（2026-07-26・応募者ページ白画面の原因）。
+        // Promise.resolveで本物のPromiseに包んでから握る
+        Promise.resolve(supabase.rpc('is_account_moderated', { p_uid: session.user.id })).catch(() => ({ data: null })),
         supabase.from('farmers').select('*').eq('email', session.user.email).single(),
         supabase.from('records').select('*').eq('farmer_id', session.user.id),
       ]);
