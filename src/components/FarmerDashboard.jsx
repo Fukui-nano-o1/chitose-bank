@@ -98,6 +98,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       if (error || !data?.ok) { alert("送信に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); setSendingQ(false); return; }
       const appId = sendQTarget.id;
       setSendQTarget(null); setSendingQ(false);
+      setQSentAppIds(prev => new Set(prev).add(appId)); // 初面接後＝シートのボタンが「採用する」に切り替わる
       if (confirm("チャットに質問を送りました。チャットを開きますか？")) window.location.hash = "/chat/" + appId;
     } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); setSendingQ(false); }
   };
@@ -229,6 +230,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: appData, error: appErr } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
         if (!appErr && appData) {
           setDbApplicants(appData);
+          loadQSentIds(appData.map(x => x.id));
           const workerIds = [...new Set(appData.map(a => a.worker_id).filter(Boolean))];
           if (workerIds.length > 0) {
             const { data: wpData, error: wpErr } = await supabase.from("worker_profiles").select("*").in("auth_id", workerIds);
@@ -297,6 +299,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: appData } = await supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at", { ascending: false });
         if (!appData) return;
         setDbApplicants(appData);
+        loadQSentIds(appData.map(x => x.id));
         // 新しく増えた応募者のプロフィールも補充
         const missing = [...new Set(appData.map(a => a.worker_id).filter(Boolean))].filter(id => !workerProfiles[id]);
         if (missing.length > 0) {
@@ -451,6 +454,43 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
+  // 面接の質問を一度でも送った応募ID（interview_question_sends・農家本人select可）。
+  // シートのボタン出し分け「初面接後=採用する」の判定に使用（2026-07-26たきと指示）
+  const [qSentAppIds, setQSentAppIds] = useState(() => new Set());
+  const loadQSentIds = async (appIds) => {
+    try {
+      if (!appIds.length) return;
+      const { data: iqs } = await supabase.from("interview_question_sends").select("application_id").in("application_id", appIds);
+      setQSentAppIds(new Set((iqs || []).map(r => r.application_id)));
+    } catch {}
+  };
+  // 採用する（応募者シート・2026-07-26）：今日ページ・チャットの採用と同じconfirm_terms＋二重予約警告
+  const hireApplicant = async (a, nickname) => {
+    let dup = null;
+    try {
+      const { data: apps } = await supabase.from("applications").select("job_number,status").eq("farmer_id", me.id).eq("worker_id", a.worker_id).neq("job_number", a.job_number);
+      const others = (apps || []).filter(x => CHAT_ELIGIBLE_STATUSES.includes(x.status) && x.job_number != null);
+      if (others.length) {
+        const nums = [...new Set([a.job_number, ...others.map(x => x.job_number)])];
+        const { data: jrows } = await supabase.from("jobs").select("job_number,date_start,date_end").in("job_number", nums);
+        const cur = (jrows || []).find(j => j.job_number === a.job_number);
+        if (cur?.date_start) {
+          const curEnd = cur.date_end || cur.date_start;
+          for (const j of jrows || []) {
+            if (j.job_number === a.job_number || !j.date_start) continue;
+            const jEnd = j.date_end || j.date_start;
+            if (cur.date_start <= jEnd && j.date_start <= curEnd) { dup = j.job_number; break; }
+          }
+        }
+      }
+    } catch {}
+    const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : "";
+    if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。`)) return;
+    const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id });
+    if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    // 働き手側のterms_confirmed_worker_atは応募時にDBトリガーが自動記録済みso、農家側の時刻だけ足せば帯・ボタンがcontractedへ進む
+    setDbApplicants(prev => prev.map(x => x.id === a.id ? { ...x, terms_confirmed_farmer_at: x.terms_confirmed_farmer_at || new Date().toISOString() } : x));
+  };
   const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
@@ -595,36 +635,44 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <AvailDatesChips value={a.available_dates} />
               {/* 働く日（確定済み・2026-07-24 追記3） */}
               <AgreedDatesRow value={a.agreed_dates} />
-              {/* ── 応募者カードは「承認」と「チャット」に純化（2026-07-24 最終版）。当日・事後の行動は今日ページ、道具はチャットの＋へ引っ越し ── */}
-              {/* 主ボタン：承認する（applied時のみ）＋見送る（従来位置・小さく誤タップ防止）。承認＝宣言日程の受け入れ（DB側でagreed_dates自動転写） */}
-              {a.status === "applied" && (
-                <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-                  <button onClick={async ()=>{
-                    const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
-                    if (error || !data?.ok) { alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                    setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
-                  }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
-                  <button onClick={async ()=>{
-                    if (!confirm('この応募を見送りますか？')) return;
-                    const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
-                    if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                    setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
-                  }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
-                </div>
-              )}
               {/* 状態メモ（進行の記録は小さく残す・操作は今日ページ） */}
               {a.status === "completed" && (
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
               )}
-              {/* 常時表示：チャットを開く／📋 質問を送る（2026-07-26たきと指示で復活）。
-                  今日ページの「面接の質問」用件は初回の催促so1度送ると消える。ここは何度でも使える恒久の入口。
-                  表示条件は send_interview_questions RPC が許すステータスに合わせる（作業中・完了・見送り・失効では出さない） */}
-              <div style={{ display:"flex", gap:8 }}>
-                {["applied","approved","meeting","interview","contracted"].includes(a.status) && (
-                  <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>📋 質問を送る</button>
-                )}
-                <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
-              </div>
+              {/* ── ボタンは段階で出し分け（2026-07-26たきと指示）：
+                  応募中＝見送る／承認する → 承認後（質問未送信）＝質問を送る／チャットを開く →
+                  初面接後（質問送信済み）＝質問を送る／採用する → 採用後＝チャットを開く。
+                  段階はappPhaseKey（帯と同じ唯一のソース）＋interview_question_sends（質問送信履歴）で判定 ── */}
+              {(() => {
+                const phase = appPhaseKey(a);
+                const chatBtn = (
+                  <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+                );
+                if (phase === "applied") return (
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={async ()=>{
+                      if (!confirm('この応募を見送りますか？')) return;
+                      const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
+                      if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
+                    }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
+                    <button onClick={async ()=>{
+                      const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
+                      if (error || !data?.ok) { alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
+                    }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
+                  </div>
+                );
+                if (phase === "interview") return (
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>📋 質問を送る</button>
+                    {qSentAppIds.has(a.id)
+                      ? <button onClick={()=>hireApplicant(a, wp?.nickname)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する</button>
+                      : chatBtn}
+                  </div>
+                );
+                return <div style={{ display:"flex", gap:8 }}>{chatBtn}</div>;
+              })()}
       </div>
     );
   };
