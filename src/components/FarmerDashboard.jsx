@@ -3,13 +3,13 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
+import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, perkBadges } from "../lib/utils";
 import { Avatar, ExpandableText, StatusRibbon, YesNoPill, NoticeJumpText } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
-import { WorkerTrustCard } from "./TrustCards";
+import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 
 // 承認され当事者間のやり取りが可能になった段階以降のapplications.status一覧（completed含む）
@@ -155,6 +155,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [draftsLoading, setDraftsLoading] = useState(true);
   const [profileMode, setProfileMode] = useState("preview");
   const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
+  const [empTrust, setEmpTrust] = useState(null); // 名刺カード裏面＝本物のプレビュー（FarmerTrustCard）用の信頼情報
   const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   // 未設定の項目数（編集ページの8ボックス基準）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
@@ -181,6 +182,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setDraftsLoading(false); return; }
         const { data: epMini } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(); // トップボックス裏面プレビュー用に全列（2026-07-16）
+        try { const { data: tI } = await supabase.rpc('employer_trust_info', { p_farmer_id: session.user.id }); setEmpTrust(tI && tI.ok ? tI : null); } catch {}
         if (epMini) setEmpMini(epMini);
         const { data: rosterData } = await supabase.from("repeat_roster").select("worker_id,created_at").eq("farmer_id", session.user.id).order("created_at",{ascending:false});
         if (rosterData && rosterData.length > 0) {
@@ -629,32 +631,22 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 </>
               ) : (
                 <div className="f-sans" style={{ width:"100%", textAlign:"left" }}>
-                  {(() => {
-                    const perks = empMini ? [
-                      { on: empMini.has_transport, label: "🚗送迎あり" },
-                      { on: empMini.has_parking, label: "🅿️駐車場あり" },
-                      { on: empMini.has_commute_allowance, label: "💰通勤手当あり" },
-                      { on: empMini.has_bonus, label: "🎁賞与あり" },
-                      { on: empMini.employer_pays_supplies, label: "🎒持ち物は農家負担" },
-                      { on: empMini.accessory_ok, label: "💍アクセサリーOK" },
-                    ].filter(p => p.on) : [];
-                    const pr = (empMini?.pr || "").trim();
-                    const styleLabel = interactionStyleLabel(empMini?.interaction_style);
-                    const hasAny = pr || perks.length || styleLabel;
-                    if (!hasAny) return <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>;
-                    {/* 並び：タブ（待遇・関わり方のチップ）が上部→下に自己紹介（2026-07-16） */}
-                    return (
-                      <>
-                        {(perks.length > 0 || styleLabel) && (
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
-                            {perks.map((p,i) => <span key={i} style={{ fontSize:12, fontWeight:600, color:"#00A86B", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>{p.label}</span>)}
-                            {styleLabel && <span style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>🤝 {styleLabel}</span>}
-                          </div>
-                        )}
-                        {pr && <ExpandableText text={pr} limit={100} style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }} />}
-                      </>
-                    );
-                  })()}
+                  {/* プレビューの統一（2026-07-25たきと指示）：裏面も本物のプレビュー
+                      （EmployerPreviewSheet＝働き手が見る構造：FarmerTrustCard＋待遇チップ）と同一にする */}
+                  {empMini ? (
+                    <>
+                      <FarmerTrustCard profile={empMini} trust={empTrust} />
+                      {perkBadges(empMini).length > 0 && (
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
+                          {perkBadges(empMini).map(b => (
+                            <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>
+                  )}
                 </div>
               )}
             </button>
