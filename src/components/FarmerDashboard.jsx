@@ -906,7 +906,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center" }}>
                         {/* アイコンのみ・中央配置（2026-07-25たきと指示）：箱装飾なし。少人数なら中央、溢れたら横スクロール（max-content＋margin auto） */}
                         <div onTouchStart={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
-                          style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingBottom:2 }}>
+                          /* overflowX:autoは縦も切り取る（CSSの規則：片軸がautoならvisibleはautoになる）so、
+                             ジャンプ(-5px)が上で欠ける。paddingTopで跳ねる分の逃げを確保（2026-07-26たきと報告） */
+                          style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
                           <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>
                           {byJob[jn].map(a => {
                             const wp = workerProfiles[a.worker_id];
