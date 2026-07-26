@@ -446,14 +446,17 @@ export function TodayPage({ me, defaultRole }) {
   return (
     <div ref={rootRef} style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden", touchAction:"pan-y" }}>
       {/* 見出し「📆 今日」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示すため冗長 */}
-      {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示 */}
+      {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示。
+          構造は求人タブ（作成中⇄公開中）と同型＝横幅いっぱい均等・白地・選択中は太枠＋太字
+          （2026-07-26たきと指示）。枠色のみ役割カラー（目印限定の既定・黒でなく橙/緑） */}
       {dual && (
-        <div style={{ display:"flex", gap:8, marginBottom:18 }}>
+        <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
           {[{ k:"worker", l:"働き手", c:ROLE_ORANGE }, { k:"farmer", l:"農家", c:ROLE_GREEN }].map(t => (
             <button key={t.k} onClick={()=>switchRole(t.k)} className="f-sans" style={{
-              padding:"7px 16px", fontSize:13, fontWeight:700, borderRadius:20, cursor:"pointer",
-              background: role === t.k ? t.c : "#fff", color: role === t.k ? "#fff" : "#717171",
-              border: "1px solid " + (role === t.k ? t.c : "#EBEBEB"),
+              flex:1, padding:"11px 0", borderRadius:12, cursor:"pointer", background:"#fff",
+              border: role === t.k ? "2px solid " + t.c : "1px solid #EBEBEB",
+              fontSize:14, fontWeight: role === t.k ? 800 : 600,
+              color: role === t.k ? t.c : "#999",
             }}>{t.l}</button>
           ))}
         </div>
