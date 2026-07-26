@@ -55,10 +55,8 @@ function InterviewReplyPanel({ items, accent, onAnswered }) {
     } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); setSending(""); }
   };
   return (
-    <div style={{ gridColumn:"1 / -1", border:"1px solid #EBEBEB", borderLeft:"4px solid " + accent, borderRadius:12, background:"#fff", padding:"12px 14px" }}>
-      <p className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px" }}>
-        <span style={{ fontSize:16 }}>✍️</span>面接の回答 <span style={{ fontSize:11, fontWeight:600, color:"#999" }}>ここで返事できます（返事はチャットにも残ります）</span>
-      </p>
+    <div style={{ gridColumn:"1 / -1", border:"1px solid #EBEBEB", borderRadius:12, background:"#fff", padding:"12px 14px" }}>
+      {/* ボックス内タイトル・左端の役割色バーは廃止（2026-07-26たきと指示：見出しはページヘッダーが担う。TodoStagePanelと同じ整理） */}
       <div style={{ display:"grid", gap:14 }}>
         {items.map(t => (
           <div key={t.application_id} style={{ display:"grid", gap:8 }}>
