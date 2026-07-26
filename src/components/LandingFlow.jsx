@@ -3,6 +3,7 @@
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { compressImage } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges } from "../lib/utils";
 import { Avatar, DangerItem, JobFlagBadges, LFPillSelect, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
@@ -64,25 +65,7 @@ async function geocodeTown(prefecture, city, town) {
   }
 }
 
-// アップロード前のクライアント圧縮（2026-07-16）：長辺1600px・JPEG品質0.8に縮小する。
-// 原寸4MB級の写真が確認ページ等で「白いまま読み込み待ち」になる問題と、転送量（egress）対策の両方。
-// 圧縮に失敗したら原本をそのまま返す（古いブラウザ等でも壊れない）
-async function compressImage(file, maxSide = 1600, quality = 0.8) {
-  try {
-    if (!file || !file.type || !file.type.startsWith("image/")) return file;
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-    if (scale >= 1 && file.size < 600 * 1024) return file; // 十分小さい画像は無加工
-    const w = Math.max(1, Math.round(bitmap.width * scale));
-    const h = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
-    const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", quality));
-    if (!blob || blob.size >= file.size) return file; // 逆に大きくなったら原本
-    return new File([blob], (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
-  } catch { return file; }
-}
+// compressImage（アップロード前のクライアント圧縮）は lib/image.js へ移動（2026-07-26・ヘルプのスクショと共用化）
 
 // 写真配列の正規化（2026-07-16）：旧形式（"url"文字列）が混ざると確認ページ等の p.url が
 // undefined になり真っ白なスライドが出るため、復元・再開の境界で必ず {url, caption} に揃える。

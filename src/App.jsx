@@ -58,6 +58,7 @@ import { AgreedDatesRow, AvailDatesChips } from "./components/DateChips";
 
 import { isIOS, syncAppBadge } from "./lib/push";
 import { uploadAvatarResilient } from "./lib/avatarUpload";
+import { compressImage } from "./lib/image";
 import { peekApplyReturn, setApplyReturn, clearApplyReturn } from "./lib/applyReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
 
@@ -927,9 +928,11 @@ function InstallGuide({ me }) {
     if (!file || uploadingSlot) return;
     setUploadingSlot(slotKey);
     try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      // スクショは原寸1〜3MB級so長辺1280px・品質0.75に圧縮してから上げる（表示幅760pxの約1.7倍=Retina十分・2026-07-26）
+      const upFile = await compressImage(file, 1280, 0.75);
+      const ext = (upFile.name.split(".").pop() || "jpg").toLowerCase();
       const path = slotKey + "." + ext;
-      const { error: upErr } = await supabase.storage.from("help-images").upload(path, file, { upsert: true });
+      const { error: upErr } = await supabase.storage.from("help-images").upload(path, upFile, { upsert: true });
       if (upErr) { alert("アップロードに失敗しました：" + upErr.message); setUploadingSlot(null); return; }
       const { data: urlData } = supabase.storage.from("help-images").getPublicUrl(path);
       const url = (urlData?.publicUrl || "") + "?t=" + Date.now();
@@ -946,7 +949,7 @@ function InstallGuide({ me }) {
         {steps.map((s,i) => <li key={i}>{s}</li>)}
       </ol>
       {images[slotKey]
-        ? <img src={images[slotKey]} alt={label+"の手順"} style={{ width:"100%", borderRadius:12, display:"block" }} />
+        ? <img src={images[slotKey]} alt={label+"の手順"} loading="lazy" decoding="async" style={{ width:"100%", borderRadius:12, display:"block" }} />
         : <div className="f-sans" style={{ width:"100%", aspectRatio:"3 / 4", background:"#F5F5F5", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0", fontSize:13 }}>手順の画像（準備中）</div>}
       {admin && (
         <label className="f-sans" style={{ display:"inline-block", marginTop:10, fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>
@@ -1012,9 +1015,11 @@ function HelpCenter({ me, onReportClick }) {
     if (uploadingSlot) return;
     setUploadingSlot(slotKey);
     try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      // スクショは原寸1〜3MB級so長辺1280px・品質0.75に圧縮してから上げる（表示幅760pxの約1.7倍=Retina十分・2026-07-26）
+      const upFile = await compressImage(file, 1280, 0.75);
+      const ext = (upFile.name.split(".").pop() || "jpg").toLowerCase();
       const path = slotKey + "." + ext;
-      const { error: upErr } = await supabase.storage.from("help-images").upload(path, file, { upsert: true });
+      const { error: upErr } = await supabase.storage.from("help-images").upload(path, upFile, { upsert: true });
       if (upErr) { alert("アップロードに失敗しました：" + upErr.message); setUploadingSlot(null); return; }
       const { data: urlData } = supabase.storage.from("help-images").getPublicUrl(path);
       const url = (urlData?.publicUrl || "") + "?t=" + Date.now();
@@ -1034,10 +1039,51 @@ function HelpCenter({ me, onReportClick }) {
       setImages(prev => { const next = { ...prev }; delete next[slotKey]; return next; });
     } catch { alert("削除に失敗しました。"); }
   };
+  // 既存スクショの一括軽量化（管理者のみ・2026-07-26）：圧縮なしで上がった原寸PNG級を、ブラウザで
+  // 取得→compressImage(1280px/0.75)→差し替え。png→jpgで拡張子が変わったら旧ファイルを削除しURLも更新。
+  // 既に軽い画像（compressImageが原本を返す）はスキップ＝何度押しても安全
+  const [recompressing, setRecompressing] = useState("");
+  const recompressAll = async () => {
+    if (recompressing) return;
+    const entries = Object.entries(images);
+    if (!entries.length) { alert("画像がありません。"); return; }
+    if (!confirm(`ガイドのスクショ${entries.length}枚を軽量化して差し替えます。よろしいですか？`)) return;
+    let done = 0, replaced = 0, savedBytes = 0;
+    for (const [slotKey, url] of entries) {
+      done++; setRecompressing(`${done}/${entries.length}`);
+      try {
+        const res = await fetch(url.split("?")[0] + "?t=" + Date.now(), { cache: "reload" });
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const file = new File([blob], helpImagePathFromUrl(url) || slotKey + ".jpg", { type: blob.type });
+        const upFile = await compressImage(file, 1280, 0.75);
+        if (upFile === file) continue; // 既に軽い
+        const ext = (upFile.name.split(".").pop() || "jpg").toLowerCase();
+        const path = slotKey + "." + ext;
+        const { error: upErr } = await supabase.storage.from("help-images").upload(path, upFile, { upsert: true });
+        if (upErr) continue;
+        const oldPath = helpImagePathFromUrl(url);
+        if (oldPath && oldPath !== path) { try { await supabase.storage.from("help-images").remove([oldPath]); } catch { /* 旧ファイル残置は表示に影響なし */ } }
+        const { data: urlData } = supabase.storage.from("help-images").getPublicUrl(path);
+        const newUrl = (urlData?.publicUrl || "") + "?t=" + Date.now();
+        const { error: dbErr } = await supabase.from("help_images").upsert({ slot_key: slotKey, url: newUrl, updated_at: new Date().toISOString() });
+        if (dbErr) continue;
+        setImages(prev => ({ ...prev, [slotKey]: newUrl }));
+        replaced++; savedBytes += Math.max(0, blob.size - upFile.size);
+      } catch { /* この1枚は飛ばして続行 */ }
+    }
+    setRecompressing("");
+    alert(`軽量化が完了しました：${entries.length}枚中 ${replaced}枚を差し替え（約${Math.round(savedBytes / 1024 / 1024 * 10) / 10}MB削減）`);
+  };
   return (
     <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（モバイル・CSS側の負マージン併用） */}
       <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>使い方ガイド</h1>
-      <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>chitose-bankの使い方をまとめています</p>
+      <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom: isAdmin(me) ? 12 : 36 }}>chitose-bankの使い方をまとめています</p>
+      {isAdmin(me) && (
+        <button onClick={recompressAll} disabled={!!recompressing} className="f-sans" style={{ marginBottom:24, padding:"8px 14px", fontSize:12, fontWeight:700, color:"#717171", background:"#F7F7F7", border:"1px dashed #D0D0D0", borderRadius:10, cursor: recompressing ? "default" : "pointer" }}>
+          {recompressing ? `🗜 軽量化中 ${recompressing}…` : "🗜 スクショを一括軽量化（管理）"}
+        </button>
+      )}
       <div style={{ display:"grid", gap:16 }}>
         {HELP_CHAPTER_KEYS.map(key => {
           const ch = HELP_CONTENT[key];
@@ -1066,7 +1112,7 @@ function HelpCenter({ me, onReportClick }) {
                       <div key={slotKey}>
                         {it.label && <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{it.label}</p>}
                         <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{it.body}</p>
-                        {imgUrl && <img src={imgUrl} alt="" style={{ display:"block", marginTop:12, width:"100%", borderRadius:12, border:"3px solid #E0E0E0", boxShadow:"0 4px 16px rgba(0,0,0,0.12)", boxSizing:"border-box" }} />}
+                        {imgUrl && <img src={imgUrl} alt="" loading="lazy" decoding="async" style={{ display:"block", marginTop:12, width:"100%", borderRadius:12, border:"3px solid #E0E0E0", boxShadow:"0 4px 16px rgba(0,0,0,0.12)", boxSizing:"border-box" }} />}
                         {isAdmin(me) && (
                           <div style={{ marginTop:8 }}>
                             {imgUrl ? (
