@@ -291,8 +291,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                       ...((Array.isArray(wMini.self_declared) ? wMini.self_declared : []).map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip).filter(Boolean)),
                     ] : [];
                     return (
-                      <button onClick={()=>{ try { sessionStorage.setItem("cb_expFromApp","1"); } catch {} window.location.hash="/experience"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#F6F8FC", border:"1px solid #E1E8F2", borderRadius:20, padding:"16px", cursor:"pointer", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", display:"block" }}>
-                        <span className="f-sans" style={{ display:"block", fontSize:15, fontWeight:800, color:"#3A5570", marginBottom: chips.length ? 8 : 4 }}>📋 経験・できること（自己申告）</span>
+                      {/* ボックスは他と同じ白・グレー枠（2026-07-26たきと指示）。チップ（タグ）の青は残す */}
+                      <button onClick={()=>{ try { sessionStorage.setItem("cb_expFromApp","1"); } catch {} window.location.hash="/experience"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"16px", cursor:"pointer", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", display:"block" }}>
+                        <span className="f-sans" style={{ display:"block", fontSize:15, fontWeight:800, color:"#222", marginBottom: chips.length ? 8 : 4 }}>📋 経験・できること（自己申告）</span>
                         {chips.length > 0 ? (<>
                           <span style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
                             {chips.map((c,i) => <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px" }}>{c}</span>)}
