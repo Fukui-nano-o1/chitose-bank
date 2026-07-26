@@ -286,6 +286,9 @@ export function TodayPage({ me, defaultRole }) {
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);
+  // 面接の回答を送信してリストが空になった時は「送信完了しました。」を出す（2026-07-26たきと指示。ページを離れたらリセット）
+  const [answeredDone, setAnsweredDone] = useState(false);
+  useEffect(() => { setAnsweredDone(false); }, [pageStage]);
   const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
@@ -429,10 +432,10 @@ export function TodayPage({ me, defaultRole }) {
         ) : pItems.length === 0 ? (
           <div style={{ background:"#F7F7F7", borderRadius:14, padding:"28px 20px", textAlign:"center" }}>
             <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0 }}>この用事はいまありません</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0 }}>{answeredDone ? "送信完了しました。" : "この用事はいまありません"}</p>
           </div>
         ) : pageStage === "w_interview" ? (
-          <InterviewReplyPanel items={pItems} accent={accent} onAnswered={(id)=>removeTodo(id, "w_interview")} />
+          <InterviewReplyPanel items={pItems} accent={accent} onAnswered={(id)=>{ removeTodo(id, "w_interview"); setAnsweredDone(true); }} />
         ) : (
           <TodoStagePanel stage={pageStage} items={pItems} />
         )}
