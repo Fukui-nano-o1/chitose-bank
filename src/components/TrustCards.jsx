@@ -78,9 +78,10 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
       )}
       {/* ── 📋 自己申告ブロック（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。実績の下に置く（2026-07-23） ── */}
       {/* 本人のわたしの実績モーダルではハブのカードに移植済みso非表示。農家の応募者カードでは表示 */}
+      {/* ボックスは他と同じ白・グレー枠（2026-07-26たきと指示・ProfileHubの経験カードと同時変更）。チップの青は残す */}
       {!hideSelfDeclare && declItems.length > 0 && (
-        <div style={{ marginTop:12, background:"#F6F8FC", border:"1px solid #E1E8F2", borderRadius:12, padding:"12px 14px" }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#3A5570", margin:"0 0 8px" }}>📋 自己申告</p>
+        <div style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>📋 自己申告</p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
             {declItems.map((it, i) => (
               <span key={i} {...tap(it.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.text}</span>
