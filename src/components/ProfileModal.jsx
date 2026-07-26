@@ -1,6 +1,7 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。プロフィールモーダル（自分の看板＋道具箱）。
 import { useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { compressImage } from "../lib/image";
 import { Avatar } from "./ui";
 
 const CROP_EMOJIS = ['🥦','🍅','🍆','🥕','🌽','🥬','🍓','🥒','🧅','🥔','🍈','🌶️','🥜','🫛','🧄'];
@@ -42,9 +43,11 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    // アイコンは表示84px級so512pxに圧縮してから上げる（働き手・雇い手アイコンと同じ扱い・2026-07-26）
+    const upFile = await compressImage(file, 512, 0.8);
+    const ext = upFile.name.split('.').pop()?.toLowerCase() || 'jpg';
     const path = me.id + '/avatar.' + ext;
-    await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    await supabase.storage.from('avatars').upload(path, upFile, { upsert: true });
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
     const url = urlData?.publicUrl || '';
     await supabase.from('farmers').update({ avatar_url: url }).eq('auth_id', me.id);

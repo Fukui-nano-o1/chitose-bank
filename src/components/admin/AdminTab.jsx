@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
+import { recompressBucket } from "../../lib/image";
 import { isAdmin, ADMIN_EMAIL, ymdLocal, fmtJstShort, disp, EMPTY_MARK, SURVEY_SOURCES, SURVEY_REASONS, CROP_OPTIONS, dateRangeLabel, C, uid, toKatakana, toHiragana, MONTHS, cn, man } from "../../lib/utils";
 import { Avatar, LinkifiedText, NoticeJumpText, StatusRibbon } from "../ui";
 import { ToggleSwitch } from "../ToggleSwitch";
@@ -176,7 +177,20 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   // ボックス一覧の台帳は専用ページ（#/boxes・AdminBoxRegistryPage）へ昇格（2026-07-17）
   // お知らせ一覧の台帳は専用ページ（#/boxes/notices・AdminBoxRegistryPageのタブ）へ移設（2026-07-17）
   const [legacyView, setLegacyView] = useState(null); // 旧事業データの表示中コンテンツ: farmers|dests|records|stats|datadef|null
-  const [systemView, setSystemView] = useState(null); // システムの表示中コンテンツ: sql|errors|null
+  const [systemView, setSystemView] = useState(null); // システムの表示中コンテンツ: sql|errors|images|null
+  // 画像の一括軽量化（その他＞システム・2026-07-26）：既存ストレージの重い画像を同一パス上書きで圧縮。
+  // URL不変so DB（avatar_url・jobs.photos jsonb・凍結terms_snapshotのURL参照）は無変更＝参照が壊れない
+  const [imgOptRunning, setImgOptRunning] = useState("");   // 実行中のバケット名
+  const [imgOptProgress, setImgOptProgress] = useState(""); // "3/12"
+  const [imgOptResults, setImgOptResults] = useState({});   // bucket → {candidates, replaced, savedBytes}
+  const runRecompress = async (bucket, maxSide, quality) => {
+    if (imgOptRunning) return;
+    if (!confirm(`${bucket} 内の重い画像（400KB以上）を圧縮して差し替えます。よろしいですか？`)) return;
+    setImgOptRunning(bucket); setImgOptProgress("");
+    const r = await recompressBucket(supabase, bucket, { maxSide, quality, onProgress: (d, t) => setImgOptProgress(`${d}/${t}`) });
+    setImgOptRunning(""); setImgOptProgress("");
+    setImgOptResults(prev => ({ ...prev, [bucket]: r }));
+  };
   const [farmers, setFarmers] = useState([]);
   const [dests, setDests] = useState([]);
   const [records, setRecords] = useState([]);
@@ -691,6 +705,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                   {[
                     { k:"sql",    l:"SQL" },
                     { k:"errors", l:"エラー" },
+                    { k:"images", l:"画像軽量化" },
                   ].map(({ k, l }) => (
                     <button key={k} onClick={() => { setSystemView(k); setLegacyView(null); setOtherBox(null); }} className="f-sans" style={{
                       padding:"7px 14px", borderRadius:8, border:"1px solid #EBEBEB",
@@ -1512,6 +1527,37 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               marginTop:12,padding:"8px 20px",background:"#00A86B",color:"#fff",border:"none",
               borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",
             }}>SQLをコピー</button>
+          </Card>
+        </div>
+      )}
+
+      {/* ── 画像軽量化（その他＞システム・2026-07-26） ── */}
+      {!loading && sub==="other" && systemView==="images" && (
+        <div className="fade-in" style={{ display:"grid",gap:16 }}>
+          <Card>
+            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>🗜 画像の一括軽量化</p>
+            <p className="f-sans" style={{ fontSize:11,color:"#717171",lineHeight:1.8,marginBottom:16 }}>
+              圧縮なしで保存された既存の画像（400KB以上）をダウンロード→圧縮→同じ場所に上書きします。
+              URLが変わらないため、求人・プロフィール・凍結済み契約の参照はそのまま。
+              既に軽い画像はスキップ＝何度実行しても安全。使い方ガイドのスクショはガイドページ上部の専用ボタンで。
+            </p>
+            <div style={{ display:"grid", gap:10 }}>
+              {[
+                { bucket:"avatars",    label:"アイコン（avatars）",    maxSide:512,  quality:0.8, note:"表示84px級→512pxに縮小" },
+                { bucket:"job-photos", label:"求人写真（job-photos）", maxSide:1600, quality:0.8, note:"圧縮導入(7/16)前の原寸写真を縮小" },
+              ].map(b => (
+                <div key={b.bucket} style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                  <button onClick={()=>runRecompress(b.bucket, b.maxSide, b.quality)} disabled={!!imgOptRunning} className="f-sans" style={{ padding:"9px 16px", fontSize:12, fontWeight:700, background: imgOptRunning===b.bucket ? "#EBEBEB" : "#00A86B", color: imgOptRunning===b.bucket ? "#717171" : "#fff", border:"none", borderRadius:10, cursor: imgOptRunning ? "default" : "pointer" }}>
+                    {imgOptRunning===b.bucket ? `軽量化中 ${imgOptProgress}…` : b.label}
+                  </button>
+                  <span className="f-sans" style={{ fontSize:11, color:"#999" }}>
+                    {imgOptResults[b.bucket]
+                      ? `完了：対象${imgOptResults[b.bucket].candidates}枚中 ${imgOptResults[b.bucket].replaced}枚を差し替え（約${Math.round(imgOptResults[b.bucket].savedBytes/1024/1024*10)/10}MB削減）`
+                      : b.note}
+                  </span>
+                </div>
+              ))}
+            </div>
           </Card>
         </div>
       )}
