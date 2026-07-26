@@ -300,6 +300,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         if (!appData) return;
         setDbApplicants(appData);
         loadQSentIds(appData.map(x => x.id));
+        // 自分が書いた評価（お仕事の流れバーの「評価」段の判定）。RLS「review select own」で自分の行のみ返る
+        try {
+          const doneIds = appData.filter(a => a.status === "completed").map(a => a.id);
+          if (doneIds.length) {
+            const { data: rv } = await supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).in("application_id", doneIds);
+            setReviewedAppIds(new Set((rv || []).map(r => r.application_id)));
+          } else setReviewedAppIds(new Set());
+        } catch {}
         // 新しく増えた応募者のプロフィールも補充
         const missing = [...new Set(appData.map(a => a.worker_id).filter(Boolean))].filter(id => !workerProfiles[id]);
         if (missing.length > 0) {
@@ -492,6 +500,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setDbApplicants(prev => prev.map(x => x.id === a.id ? { ...x, terms_confirmed_farmer_at: x.terms_confirmed_farmer_at || new Date().toISOString() } : x));
   };
   const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
+  const [reviewedAppIds, setReviewedAppIds] = useState(() => new Set()); // 自分が評価を書いた応募ID。お仕事の流れバーの「評価」段の点灯に使う
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   const appRibbonLabel = (a) => APP_PHASE_LABEL[appPhaseKey(a)] || a.status;
@@ -591,6 +600,41 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
 
   // 応募者カード本体（ボトムシートで表示。承認/見送り・保険・開始確認・完了評価・緊急連絡・チャットの操作込み）
+  // お仕事の流れ（雇い手側・2026-07-26たきと指示）：働き手側FlowBar（WorkerApplications）の鏡写し。
+  // 芯は両者共通（承認→面接→採用→仕事→完了報告→評価）で、頭だけ違う＝働き手「応募」／雇い手「掲載」
+  // （CLAUDE.md「正規フロー（働き手／雇い手）の整理」に準拠）。現在地は応募行から算出する。
+  const EMP_FLOW_STEPS = ["掲載", "承認", "面接", "採用", "仕事", "完了報告", "評価"];
+  const empFlowState = (a) => {
+    const approved = ["approved","meeting","interview","contracted","working","completed"].includes(a.status);
+    const hired    = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
+    const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at;
+    const reported = a.status === "completed";
+    const reviewed = reviewedAppIds.has(a.id) || (a.status === "completed" && a.attended === false); // 欠勤記録は評価の代わり
+    const done = [true, approved, hired, hired, started, reported, reviewed];
+    return { done, active: done.findIndex(d => !d) };
+  };
+  // ※コンポーネントではなく関数として呼ぶ（親の再描画で作り直されても状態を持たないso影響なし）
+  const renderEmpFlowBar = (a) => {
+    const { done, active } = empFlowState(a);
+    return (
+      <div style={{ display:"flex", alignItems:"flex-start", marginBottom:12 }}>
+        {EMP_FLOW_STEPS.map((s, i) => {
+          const isDone = done[i]; const isActive = i === active;
+          const reached = isDone || isActive;
+          return (
+            <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
+              {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? ROLE_GREEN : "#E5E5E5" }} />}
+              <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
+                background: isDone ? ROLE_GREEN : "#fff", border: isDone ? "none" : isActive ? "2px solid " + ROLE_GREEN : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? ROLE_GREEN : "#C8C8C8" }}>
+                {isDone ? "✓" : ""}
+              </div>
+              <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? ROLE_GREEN : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   const renderApplicantCard = (a) => {
     // 旧・独自のチップ配色(badgeColor)は廃止（2026-07-26）：現在地バナーが段階色APP_PHASE_COLORを使う
     const wp = workerProfiles[a.worker_id];
@@ -611,6 +655,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   </div>
                 );
               })()}
+              {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるso出さない（バナーが理由を説明する） */}
+              {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
