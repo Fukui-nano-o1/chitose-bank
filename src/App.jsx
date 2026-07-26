@@ -1471,11 +1471,13 @@ export default function App(){
     const loadedFailsafe = setTimeout(() => setLoaded(true), 4000);
     // 起動の並列化（2026-07-25）：直列5往復（dests×2→停止チェック→farmers→records）を並列2バッチに圧縮。
     // 停止チェックがmeの設定より先に判定される順序は不変（結果の適用順で担保）
-    const [{ data: { session } }, destsOkRes, destsPendRes] = await Promise.all([
-      supabase.auth.getSession(),
+    const [sessRes, destsOkRes, destsPendRes] = await Promise.all([
+      supabase.auth.getSession().catch(e => ({ data: { session: null }, error: e })),
       supabase.from('dests').select('*').eq('status', 'approved'),
       supabase.from('dests').select('*').eq('status', 'pending'),
     ]);
+    const session = sessRes?.data?.session || null;
+    const sessErr = sessRes?.error || null;
     const dbDestsOk = destsOkRes.data;
     const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
     const dbDestsPend = destsPendRes.data;
@@ -1483,7 +1485,21 @@ export default function App(){
 
     let f = [];
     const r = {};
-    if (!session) { setMe(null); clearSnapshots(); } // セッション消滅（期限切れ・別端末ログアウト）→スナップショットの残像を消す
+    // ログアウト誤認の修正（2026-07-26）：「セッションが無い（トークン不在＝本物のログアウト）」と
+    // 「復元に失敗した（トークン更新の一時エラー・電波等）」を区別する。
+    // 前者だけログアウト扱い（スナップショット消去）。後者はログイン状態を維持し、3秒後に1回だけ静かに再試行
+    if (!session && !sessErr) { setMe(null); clearSnapshots(); }
+    if (!session && sessErr) {
+      setTimeout(async () => {
+        try {
+          const { data: { session: s2 } } = await supabase.auth.getSession();
+          if (!s2) return; // まだ復元できない→スナップショットのまま次のリロードに任せる
+          const { data: dbF } = await supabase.from('farmers').select('*').eq('email', s2.user.email).single();
+          if (dbF) setMe({ id: s2.user.id, name: dbF.name, email: dbF.email, status: dbF.status, joinedYear: dbF.joined_year, prefecture: dbF.prefecture || "", municipality: dbF.municipality || "", planned_crops: dbF.planned_crops || [], experience_tier: dbF.experience_tier || "", farming_type: dbF.farming_type || "", area_tan: dbF.area_tan || "", sales_channels: dbF.sales_channels || [], avatar_url: dbF.avatar_url || "" });
+          else setMe({ id: s2.user.id, email: s2.user.email || "", name: "", isWorker: true });
+        } catch {}
+      }, 3000);
+    }
     if (session) {
       const [moddedRes, farmerRes, recsRes] = await Promise.all([
         supabase.rpc('is_account_moderated', { p_uid: session.user.id }).catch(() => ({ data: null })),
