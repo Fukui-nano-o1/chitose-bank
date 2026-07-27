@@ -1314,10 +1314,12 @@ export default function App(){
     })();
     return () => { cancelled = true; };
   }, [me?.id, empCtx]);
-  // 行動計測：ページ遷移ロガー（ログイン済みのみ・page_eventsへfire-and-forget）。入力内容・キー操作は一切収集しない
+  // 行動計測：ページ遷移ロガー（運営者本人の自己デバッグ専用・page_eventsへfire-and-forget）。
+  // 利用者（協力者・一般）の閲覧行動は記録しない（データ憲法・行動記録の憲法／2026-07-27たきと指示）。
+  // DB側もRLS「pe insert self admin only」で本人以外のINSERTを拒否＝画面の実装に関わらず入らない
   const lastLoggedHashRef = useRef(null);
   useEffect(() => {
-    if (!me?.id) return;
+    if (!me?.id || !isAdmin(me)) return;
     const logPageEvent = () => {
       const h = window.location.hash || "#/";
       if (h === lastLoggedHashRef.current) return; // 連続同一hashはskip
