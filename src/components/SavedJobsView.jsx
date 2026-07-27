@@ -56,9 +56,7 @@ export function SavedJobsView({ me }) {
 
   return (
     <div>
-      <div style={{ marginBottom:14 }}>
-        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>いいねした求人</h2>
-      </div>
+      {/* 見出し「いいねした求人」は削除（2026-07-27たきと指示）。現在地は下部ナビの点灯が示すため冗長 */}
       {undoJob && (
         <div className="fade-in" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 14px", marginBottom:12 }}>
           <span className="f-sans" style={{ fontSize:12, color:"#717171", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>いいねを外しました（#{undoJob.id}）</span>
