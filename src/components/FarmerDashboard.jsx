@@ -946,8 +946,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
-                  {/* タブ名（公開中）と同じ帯は出さない（2026-07-25たきと指示・重複排除）。タブと違う状態＝終了・一時非公開・審査中だけ帯を出す */}
-                  {!(d.status === "open" && !ended) && <StatusRibbon label={ended ? "終了" : d.status==="draft" ? "一時非公開" : "審査中"} color={ended ? "#9E9E9E" : d.status==="draft" ? "#757575" : "#C77700"} />}
+                  {/* 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」に加え、
+                      区画見出し「終了（N）」があるので終了の帯も出さない（写真のグレースケール＋🍂で十分伝わる） */}
+                  {!ended && d.status !== "open" && <StatusRibbon label={d.status==="draft" ? "一時非公開" : "審査中"} color={d.status==="draft" ? "#757575" : "#C77700"} />}
                   {qUnansweredMap[d.job_number] > 0 && (
                     // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。
                     // カード本体のプレビュー展開とは別動作なのでstopPropagation。戻るはこのページへ。
