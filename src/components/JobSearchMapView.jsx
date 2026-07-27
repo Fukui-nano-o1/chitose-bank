@@ -507,7 +507,8 @@ export function JobSearchMapView({ onRegister, me }) {
 
       {/* ── Airbnb風検索バー（2026-07-27）：下部バー直上の浮遊ピル（上は遠い・たきと指示）。
            スクロールで他のFABと同じくcb-scroll-hideで格納。適用中は条件の要約＋✕クリア ── */}
-      <button onClick={()=>{ setSearchOpen(true); setSearchSec("what"); }} className="cb-search-fab f-sans" style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #DDD", borderRadius:32, padding:"11px 18px", boxShadow:"0 4px 16px rgba(0,0,0,0.18)", cursor:"pointer", textAlign:"left", boxSizing:"border-box" }}>
+      <button onClick={()=>{ setSearchOpen(true); setSearchSec("what"); }} className="cb-search-fab f-sans" /* 見た目は応募者ページの絞り込みバーと統一（2026-07-27たきと指示）：白・薄グレー枠・999角丸・同じ影 */
+        style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(255,255,255,0.96)", border:"1px solid #EBEBEB", borderRadius:999, padding:"10px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.10)", cursor:"pointer", textAlign:"left", boxSizing:"border-box" }}>
         <span style={{ fontSize:17, flexShrink:0 }}>🔍</span>
         <span style={{ minWidth:0, flex:1 }}>
           <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>

@@ -443,10 +443,20 @@ input:focus { outline: none; }
   will-change: transform;
   transition: transform .25s ease;
 }
-body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
-/* モバイルは左下の☰（left:12px・幅44px）と同じ高さso、☰の右隣から始めて重複を避ける（2026-07-27） */
+body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px + 12px + 44px + 8px + env(safe-area-inset-bottom, 0px)), 0); }
+/* モバイルは☰の1段上に置く（2026-07-27たきと指示：応募者ページの絞り込みバーと見た目・動作を統一）。
+   下部バー64px＋12px＋☰の高さ44px＋8px＝☰・切替FABの上の行so、どれとも重ならない */
 @media (max-width: 768px) {
-  .cb-search-fab { left: calc(12px + 44px + 10px); right: 12px; margin: 0; max-width: none; }
+  .cb-search-fab {
+    left: 8px; right: 8px; margin: 0; max-width: none;
+    bottom: calc(64px + 12px + 44px + 8px + env(safe-area-inset-bottom, 0px));
+  }
+  /* 入力中・チャット・各種ボックス展開中は退避（絞り込みバーと同じガード） */
+  body.cb-typing .cb-search-fab { display: none !important; }
+  body:has(.mobile-apply-bar) .cb-search-fab { display: none; }
+  body:has(.chat-full) .cb-search-fab,
+  body:has(.cb-preview-overlay) .cb-search-fab,
+  body:has(.cb-lock-scroll) .cb-search-fab { display: none !important; }
 }
 /* PCは下部バーも☰も無いので画面下端の中央寄せ */
 @media (min-width: 769px) { .cb-search-fab { bottom: 24px; } }
