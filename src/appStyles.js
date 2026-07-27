@@ -1091,4 +1091,16 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 /* 今日ページ：役割スワイプ切替のスライドイン（2026-07-25）。右から=cbSlideInR／左から=cbSlideInL */
 @keyframes cbSlideInR { from { transform: translateX(64px); opacity: .35; } to { transform: none; opacity: 1; } }
 @keyframes cbSlideInL { from { transform: translateX(-64px); opacity: .35; } to { transform: none; opacity: 1; } }
+
+/* 訪問者の玄関（#/visit）：いま募集中の求人が横に流れる帯（2026-07-27たきと指示・ロゴの差し替え）。
+   同じ並びを2回描いて -50% まで流す＝継ぎ目なしで無限ループ。指を置いている間は停止。
+   高さはカード側の clamp が持つ（同意ボタンを画面外へ押し出さないための伸縮） */
+.cb-visit-marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+/* gapではなくカード側のmargin-rightで間隔を作る＝1枚が必ず「幅＋間隔」so、-50%が1周とぴったり一致する
+   （gapだと末尾の1つ分だけ足りず、1周ごとに数pxずれて継ぎ目が見える） */
+.cb-visit-strip { display: flex; width: max-content; padding: 2px 0; animation: cbVisitMarquee 30s linear infinite; }
+.cb-visit-strip > * { margin-right: 10px; }
+.cb-visit-strip:hover, .cb-visit-strip:active { animation-play-state: paused; }
+@keyframes cbVisitMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .cb-visit-strip { animation: none; } .cb-visit-marquee { overflow-x: auto; } }
 `;
