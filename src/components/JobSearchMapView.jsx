@@ -147,7 +147,9 @@ export function JobSearchMapView({ onRegister, me }) {
   const [selWhats, setSelWhats] = useState([]);
   const [selRegions, setSelRegions] = useState([]);
   const [selMonths, setSelMonths] = useState([]);
-  const [appliedSearch, setAppliedSearch] = useState(null); // {whats,regions,months}・nullなら全件
+  // リアルタイム反映（2026-07-27たきと指示）：チップを触った瞬間に一覧へ反映（検索ボタン待ちの下書き方式は廃止）。
+  // パネルは半透明の暗幕so、背後で一覧が絞られていくのが見える
+  const searchActive = selWhats.length > 0 || selRegions.length > 0 || selMonths.length > 0;
   const jobMonths = (j) => { // 求人の日程が跨る月（1〜12）の一覧
     // ★dateStart/dateEndはDateオブジェクト（mapJobPublicRow）。文字列連結するとInvalid Dateになるため
     //   "YYYY-MM-DD"文字列のdateStartRaw/dateEndRawを使う（2026-07-27修正：いつする？が常に空だったバグ）
@@ -160,24 +162,18 @@ export function JobSearchMapView({ onRegister, me }) {
     while (d <= end && out.length < 12) { out.push(d.getMonth() + 1); d.setMonth(d.getMonth() + 1); }
     return out;
   };
-  const filteredList = !appliedSearch ? jobList : jobList.filter(j => {
-    if (appliedSearch.whats.length && !appliedSearch.whats.some(w => j.crop === w || j.task === w)) return false;
-    if (appliedSearch.regions.length && !appliedSearch.regions.includes(j.region || "")) return false;
-    if (appliedSearch.months.length && !appliedSearch.months.some(m => jobMonths(j).includes(m))) return false;
+  const filteredList = !searchActive ? jobList : jobList.filter(j => {
+    if (selWhats.length && !selWhats.some(w => j.crop === w || j.task === w)) return false;
+    if (selRegions.length && !selRegions.includes(j.region || "")) return false;
+    if (selMonths.length && !selMonths.some(m => jobMonths(j).includes(m))) return false;
     return true;
   });
   const searchWhatOpts = [...new Set(jobList.flatMap(j => [j.crop, j.task]).filter(Boolean))];
   const searchRegionOpts = [...new Set(jobList.map(j => j.region).filter(Boolean))];
   const searchMonthOpts = [...new Set(jobList.flatMap(jobMonths))].sort((a, b) => a - b);
-  const searchSummary = appliedSearch ? [appliedSearch.whats.join("・"), appliedSearch.regions.join("・"), appliedSearch.months.map(m => m + "月").join("・")].filter(Boolean).join("｜") : "";
+  const searchSummary = [selWhats.join("・"), selRegions.join("・"), selMonths.map(m => m + "月").join("・")].filter(Boolean).join("｜");
   const togSel = (setter) => (v) => setter(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
-  const clearSearch = () => { setSelWhats([]); setSelRegions([]); setSelMonths([]); setAppliedSearch(null); };
-  const applySearch = () => {
-    const f = { whats: selWhats, regions: selRegions, months: selMonths };
-    setAppliedSearch((f.whats.length || f.regions.length || f.months.length) ? f : null);
-    setSearchOpen(false);
-    try { window.scrollTo(0, 0); } catch { /* no-op */ }
-  };
+  const clearSearch = () => { setSelWhats([]); setSelRegions([]); setSelMonths([]); };
 
   // ── いいね（お気に入り）：saved_jobs（本人のみRLS）。job_number(=job.id)をキーに管理 ──
   const [savedIds, setSavedIds] = useState(new Set());
@@ -506,24 +502,26 @@ export function JobSearchMapView({ onRegister, me }) {
         <span style={{ fontSize:17, flexShrink:0 }}>🔍</span>
         <span style={{ minWidth:0, flex:1 }}>
           <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-            {appliedSearch ? searchSummary : "仕事をさがす"}
+            {searchActive ? searchSummary : "仕事をさがす"}
           </span>
           <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>
-            {appliedSearch ? `${filteredList.length}件の仕事` : "作物・地域・時期でしぼり込み"}
+            {searchActive ? `${filteredList.length}件の仕事` : "作物・地域・時期でしぼり込み"}
           </span>
         </span>
-        {appliedSearch && (
+        {searchActive && (
           <span role="button" aria-label="条件をクリア" onClick={(e)=>{ e.stopPropagation(); clearSearch(); }} style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:"#555" }}>✕</span>
         )}
       </button>
 
-      {/* ── 検索パネル（全画面・Airbnb風）：3セクションのアコーディオン＋下部「すべてクリア／検索」 ── */}
+      {/* ── 検索パネル（Airbnb風）：半透明の暗幕で背景の一覧が薄く見える。チップはタップの瞬間に一覧へ
+           リアルタイム反映（2026-07-27たきと指示）。暗幕タップ・✕・「N件を表示」いずれでも閉じる ── */}
       {searchOpen && (
-        <div className="fade-in" style={{ position:"fixed", inset:0, zIndex:9500, background:"#F7F7F7", display:"flex", flexDirection:"column" }}>
-          <div style={{ padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 8px" }}>
+        <div className="fade-in" onClick={()=>setSearchOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ maxWidth:520, margin:"0 auto", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 24px" }}>
+          <div style={{ padding:"0 0 10px" }}>
             <button onClick={()=>setSearchOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:34, height:34, borderRadius:"50%", background:"#fff", border:"1px solid #DDD", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
           </div>
-          <div style={{ flex:1, overflowY:"auto", padding:"4px 16px 16px", display:"grid", gap:12, alignContent:"start", WebkitOverflowScrolling:"touch" }}>
+          <div style={{ display:"grid", gap:12, alignContent:"start" }}>
             {[
               { k:"what",   q:"なにを", title:"なにをする？", opts: searchWhatOpts,   sel: selWhats,   tog: togSel(setSelWhats),   label: v => v },
               { k:"region", q:"どこで", title:"どこでする？", opts: searchRegionOpts, sel: selRegions, tog: togSel(setSelRegions), label: v => "📍 " + v },
@@ -548,9 +546,11 @@ export function JobSearchMapView({ onRegister, me }) {
               </button>
             ))}
           </div>
-          <div style={{ background:"#fff", borderTop:"1px solid #EBEBEB", padding:"12px 16px calc(12px + env(safe-area-inset-bottom, 0px))", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <button onClick={()=>{ setSelWhats([]); setSelRegions([]); setSelMonths([]); }} className="f-sans" style={{ background:"none", border:"none", fontSize:14, fontWeight:700, color:"#222", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>すべてクリア</button>
-            <button onClick={applySearch} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:12, padding:"12px 26px", fontSize:15, fontWeight:800, cursor:"pointer" }}>🔍 検索</button>
+          {/* 下部バー：クリア／「N件を表示」（件数はチップ操作に合わせてリアルタイム更新） */}
+          <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 2px 10px rgba(0,0,0,0.15)" }}>
+            <button onClick={clearSearch} className="f-sans" style={{ background:"none", border:"none", fontSize:14, fontWeight:700, color:"#222", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>すべてクリア</button>
+            <button onClick={()=>setSearchOpen(false)} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:12, padding:"12px 26px", fontSize:15, fontWeight:800, cursor:"pointer" }}>{filteredList.length}件を表示</button>
+          </div>
           </div>
         </div>
       )}
