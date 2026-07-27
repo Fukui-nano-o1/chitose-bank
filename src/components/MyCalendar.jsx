@@ -233,20 +233,31 @@ export function MyCalendar({ backToToday }) {
                 const dt = new Date(cvYear, cvMonth, dd);
                 const ymd = ymdLocal(dt);
                 // 予定のある日は塗りつぶし（2026-07-27たきと指示：求人フローのカレンダーと同じ形式に統一）。
-                // 求人期間（農家として）=緑／求職期間（働き手として）=橙／両方が重なる日=赤
+                // 求人期間（農家として）=緑／求職期間（働き手として）=橙／両方が重なる日=赤。
+                // 濃さは公開中（jobs.status='open'）だけ濃色、それ以外（下書き・審査中・終了等）は薄色（同日改定）
                 const es = entriesOnDay(dt);
-                const hasFarmer = es.some(e => e.my_role === "farmer");
-                const hasWorker = es.some(e => e.my_role === "worker");
-                const fill = (hasFarmer && hasWorker) ? CAL_OVERLAP : hasFarmer ? ROLE_GREEN : hasWorker ? ROLE_ORANGE : null;
+                const farmerEs = es.filter(e => e.my_role === "farmer");
+                const workerEs = es.filter(e => e.my_role === "worker");
+                const hasFarmer = farmerEs.length > 0;
+                const hasWorker = workerEs.length > 0;
+                const isOpen = es.some(e => e.status === "open"); // 公開中が1件でもあれば濃色
+                const baseColor = (hasFarmer && hasWorker) ? CAL_OVERLAP : hasFarmer ? ROLE_GREEN : hasWorker ? ROLE_ORANGE : null;
+                // 薄色＝同じ色の8%（+"14"）。文字は色に沿った濃い字にして読めるようにする
+                const fillBg = baseColor ? (isOpen ? baseColor : baseColor + "22") : null;
+                const fillFg = baseColor ? (isOpen ? "#fff" : baseColor) : "#222";
+                const liked = es.some(e => e.relation === "liked" || likedIds.has(e.job_number)); // いいね済み＝右上に小さく❤️
                 const isToday = ymd === todayYmd;
                 const isSelected = selectedDay && ymdLocal(selectedDay) === ymd;
                 return (
                   <button key={dd} onClick={() => onDayTap(dt)} style={{
-                    padding:"7px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, textAlign:"center",
-                    background: fill || (isSelected ? "#E6F7EF" : "transparent"),
-                    color: fill ? "#fff" : "#222", fontWeight: (fill || isToday) ? 700 : 400,
+                    position:"relative", padding:"7px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, textAlign:"center",
+                    background: fillBg || (isSelected ? "#E6F7EF" : "transparent"),
+                    color: fillFg, fontWeight: (baseColor || isToday) ? 700 : 400,
                     boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
-                  }}>{dd}</button>
+                  }}>
+                    {dd}
+                    {liked && <span aria-hidden="true" style={{ position:"absolute", top:1, right:2, fontSize:8, lineHeight:1 }}>❤️</span>}
+                  </button>
                 );
               })}
             </div>
@@ -257,6 +268,8 @@ export function MyCalendar({ backToToday }) {
             <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:ROLE_ORANGE }} />求職期間</span>
             <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:CAL_OVERLAP }} />重複</span>
           </div>
+          {/* 濃淡の意味（2026-07-27たきと指示）：公開中だけ濃く、それ以外（下書き・審査中・終了）は薄く */}
+          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"4px 0 0" }}>濃い色＝公開中／薄い色＝それ以外　❤️＝いいね</p>
           {flashNoPlan && (
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
           )}
