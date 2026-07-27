@@ -276,7 +276,7 @@ export function JobSearchMapView({ onRegister, me }) {
   useEffect(() => {
     const onHash = () => {
       const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
-      if (!m) { setSelectedJob(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
+      if (!m) { setSelectedJob(null); setBackTo(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
       const jn = parseInt(m[1],10);
       const found = jobList.find(j => j.id === jn);
       if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); }
@@ -294,15 +294,15 @@ export function JobSearchMapView({ onRegister, me }) {
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); setDetailTab("content"); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
-  // 開いたときに開くタブの指定（2026-07-27）：今日ページの「質問に答える」→ 求人詳細の質問タブへ直行。
-  // 使い捨てフラグ（cb_jobTab）：着地したら消す＝次に別の求人を開いた時に持ち越さない。
-  // URL側の指定（#/work/job/{番号}/questions・農家の❓バッジ）と併存する。openJobの"content"は
-  // 描画前の初期化so、後から走るこのeffectのフラグが優先される（意図どおり）
+  // 出どころ（cb_jobBackTo）は開いた時点でstateに引き取る（2026-07-27）：
+  // 描画のたびにsessionStorageを読むと、消し忘れが次の求人に持ち越されて戻り先を誤る
+  const [backTo, setBackTo] = useState(null);
+  // 出どころは開いた時点で引き取る（タブ指定はURL #/work/job/{番号}/questions が担うのでフラグは持たない）
   useEffect(() => {
     if (!selectedJob) return;
     try {
-      const t = sessionStorage.getItem("cb_jobTab");
-      if (t) { sessionStorage.removeItem("cb_jobTab"); setDetailTab(t); }
+      const b = sessionStorage.getItem("cb_jobBackTo");
+      if (b) { sessionStorage.removeItem("cb_jobBackTo"); setBackTo(b); }
     } catch {}
   }, [selectedJob]);
   const [empEmployer, setEmpEmployer] = useState(null);
@@ -614,6 +614,9 @@ export function JobSearchMapView({ onRegister, me }) {
       {selectedJob && (<>
         {/* .appear(transform保持)の外に置く＝fixedの基準を画面に保つ（2026-07-16スクロール追従修理） */}
           {/* ←戻る／♡いいね：同じ高さの浮遊固定ボックス（スクロール追従・2026-07-16） */}
+        {/* カレンダー（今日ページ）から来た時は戻るボックスを出さない（2026-07-27たきと指示）：
+            下部ナビのカレンダータブが戻り道so浮遊ボックスは重複。他の出どころ（チャット・応募状況・一覧）では従来どおり出す */}
+        {backTo !== "/calendar" && (
         <button onClick={() => {
           // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
           if (jobBackStack.length > 0) {
@@ -624,20 +627,16 @@ export function JobSearchMapView({ onRegister, me }) {
             try { window.scrollTo(0, 0); } catch {}
             return;
           }
-          // カレンダー等の出どころから来た場合はそこへ戻る（2026-07-16）
-          let backTo = null; try { backTo = sessionStorage.getItem("cb_jobBackTo"); sessionStorage.removeItem("cb_jobBackTo"); } catch {}
-          if (backTo) { setSelectedJob(null); window.location.hash = backTo; return; }
+          // チャット等の出どころから来た場合はそこへ戻る（2026-07-16）
+          if (backTo) { setSelectedJob(null); setBackTo(null); window.location.hash = backTo; return; }
           setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
         }} className="f-sans job-float-back" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : ((()=>{
-          // 出どころ（cb_jobBackTo）で戻り先の名前を変える。農家の求人ボックス（❓バッジ経由）も対象（2026-07-27）
-          let b = null; try { b = sessionStorage.getItem("cb_jobBackTo"); } catch {}
-          if (b === "/calendar") return "← カレンダーに戻る";
-          if (b && b.startsWith("/profile/employer")) return "← 求人に戻る";
-          return "← 一覧に戻る";
-        })())}</button>
+        }}>{jobBackStack.length > 0 ? "← 前の求人に戻る"
+          // 出どころで戻り先の名前を変える。農家の求人ボックス（❓バッジ経由）も対象（2026-07-27）
+          : (backTo && backTo.startsWith("/profile/employer")) ? "← 求人に戻る" : "← 一覧に戻る"}</button>
+        )}
         <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",

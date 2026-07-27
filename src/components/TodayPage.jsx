@@ -308,10 +308,11 @@ export function TodayPage({ me, defaultRole }) {
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
     revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
     // 求人への質問（2026-07-27たきと指示）：公開Q&A（job_questions）の未回答＝求人カードの❓Nと同じ母集団。
-    // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ（cb_jobTabで指定）
+    // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ
     question:    { icon:"💬", title:"求人への質問",         btn:"回答する →",       nav: e => {
-      try { sessionStorage.setItem("cb_jobTab", "questions"); sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
-      return "/work/job/" + e.job_number;
+      // 出どころ＝カレンダー（今日）：求人詳細の浮遊「←戻る」ボックスを出さない目印（2026-07-27たきと指示）
+      try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
+      return "/work/job/" + e.job_number + "/questions"; // タブ指定つきURL（リロードしても質問タブのまま）
     } },
     // 新着の応募（2026-07-26たきと指示・同日改定）：タップでお祝いパネル（NewApplicantsPanel）を展開。
     // 行タップで応募者ページへ「応募中」フィルタ着地＝どの求人に誰が応募したかを応募者ページの求人カード設計で見せる
