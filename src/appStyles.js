@@ -1104,7 +1104,9 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
    （gapだと末尾の1つ分だけ足りず、1周ごとに数pxずれて継ぎ目が見える） */
 .cb-visit-strip { display: flex; width: max-content; padding: 2px 0; animation: cbVisitMarquee 30s linear infinite; }
 .cb-visit-strip > * { margin-right: 10px; }
-.cb-visit-strip:hover, .cb-visit-strip:active { animation-play-state: paused; }
+/* 指を置いたら止める仕掛けは撤去（2026-07-27たきと報告）。スマホは1タップでhover状態が残り、
+   :activeも触るたび発火するsо、訪問者が何か操作するたびに帯が止まって見えていた。
+   カードはタップ不可＝止める理由が無いので、常に流し続ける */
 @keyframes cbVisitMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .cb-visit-strip { animation: none; } .cb-visit-marquee { overflow-x: auto; } }
 `;
