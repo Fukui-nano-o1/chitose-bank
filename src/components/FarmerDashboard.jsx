@@ -12,6 +12,9 @@ import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 
+// 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
+const APP_FILTER_KEYS = ["all","applied","interview","active","completed"];
+
 // 承認され当事者間のやり取りが可能になった段階以降のapplications.status一覧（completed含む）
 const APPROVED_PLUS_STATUSES = ["approved","meeting","interview","contracted","working","completed"];
 
@@ -425,13 +428,20 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
   const [showRoster, setShowRoster] = useState(false); // 記録と予定：また呼びたいリスト箱→モーダル（2026-07-22）
   const [eFlip, setEFlip] = useState(null); // 農家ハブ：？タップで反転して説明を出す箱のラベル（2026-07-22）
-  const [appFilter, setAppFilter] = useState("all"); // 応募者タブの状態フィルタ（2026-07-22）
-  // 今日ページ「新着の応募」からの着地（2026-07-26）：フラグがあれば指定フィルタ（応募中）で開く。読んだら消す
+  // 応募者タブの状態フィルタ（2026-07-22）。選んだタブはsessionStorageに残す（2026-07-27たきと報告）＝
+  // 画面上端での引き下げ（pull-to-refresh）などでリロードが走っても「すべて」に戻らない。
+  // タブを閉じれば消えるso、次に開き直した時は既定（すべて）から始まる
+  const [appFilter, setAppFilter] = useState(() => {
+    try { const f = sessionStorage.getItem("cb_appFilterCur"); if (f && APP_FILTER_KEYS.includes(f)) return f; } catch {}
+    return "all";
+  });
+  useEffect(() => { try { sessionStorage.setItem("cb_appFilterCur", appFilter); } catch {} }, [appFilter]);
+  // 今日ページ「新着の応募」「採用する」からの着地（2026-07-26）：フラグがあれば指定フィルタで開く。読んだら消す
   useEffect(() => {
     if (jobTab !== "applicants") return;
     try {
       const f = sessionStorage.getItem("cb_appFilter");
-      if (f) { sessionStorage.removeItem("cb_appFilter"); if (["all","applied","interview","active","completed"].includes(f)) setAppFilter(f); }
+      if (f) { sessionStorage.removeItem("cb_appFilter"); if (APP_FILTER_KEYS.includes(f)) setAppFilter(f); }
     } catch {}
   }, [jobTab]);
   const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者ページ下部「帯の意味」の説明ボックス開閉
@@ -524,7 +534,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id });
     if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     // 働き手側のterms_confirmed_worker_atは応募時にDBトリガーが自動記録済みso、農家側の時刻だけ足せば帯・ボタンがcontractedへ進む
-    setDbApplicants(prev => prev.map(x => x.id === a.id ? { ...x, terms_confirmed_farmer_at: x.terms_confirmed_farmer_at || new Date().toISOString() } : x));
+    // 採用人数に達した場合、残りの応募はDB側（confirm_terms）で見送りになる（2026-07-27たきと指示）。
+    // 戻り値のclosed_idsを画面にも反映＝リロードせずに帯が「見送り」へ変わる
+    const closed = new Set(Array.isArray(data.closed_ids) ? data.closed_ids : []);
+    const nowIso = new Date().toISOString();
+    setDbApplicants(prev => prev.map(x =>
+      x.id === a.id ? { ...x, terms_confirmed_farmer_at: x.terms_confirmed_farmer_at || nowIso }
+      : closed.has(x.id) ? { ...x, status: "rejected", decided_at: x.decided_at || nowIso }
+      : x));
+    if (data.filled) {
+      alert(closed.size > 0
+        ? `採用しました。募集人数に達したため、残りの応募 ${closed.size} 件は見送りになりました（お相手へ連絡済み）。`
+        : "採用しました。募集人数に達したため、この求人の募集は終了です。");
+    }
   };
   const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
   const [reviewedAppIds, setReviewedAppIds] = useState(() => new Set()); // 自分が評価を書いた応募ID。お仕事の流れバーの「評価」段の点灯に使う
