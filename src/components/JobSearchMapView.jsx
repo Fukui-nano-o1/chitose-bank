@@ -517,8 +517,9 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* ── 検索パネル（Airbnb風）：半透明の暗幕で背景の一覧が薄く見える。チップはタップの瞬間に一覧へ
            リアルタイム反映（2026-07-27たきと指示）。暗幕タップ・✕・「N件を表示」いずれでも閉じる ── */}
       {searchOpen && (
-        <div className="fade-in" onClick={()=>setSearchOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
-          <div onClick={e=>e.stopPropagation()} style={{ maxWidth:520, margin:"0 auto", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 24px" }}>
+        <div className="fade-in" onClick={()=>setSearchOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch", display:"flex" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
+          {/* margin:auto＝縦横中央（2026-07-27たきと指示）。中身が画面より高い時はflex+autoマージンで正しくスクロールできる */}
+          <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:520, margin:"auto", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 24px", boxSizing:"border-box" }}>
           {/* ✕閉じるボタンは削除（2026-07-27たきと指示）：モザイク部分のタップで閉じられるため不要 */}
           <div style={{ display:"grid", gap:12, alignContent:"start" }}>
             {[
