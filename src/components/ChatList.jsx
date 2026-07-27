@@ -80,7 +80,18 @@ export function ChatList() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, refreshUnreadMap)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, () => loadDm(dmOpenRef.current))
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    // 復帰時の再読込＋保険ポーリング（2026-07-27たきと指示）：iOS PWAのバックグラウンドで
+    // WebSocketが凍結・切断されるため、画面復帰で未読を即再取得＋表示中は10秒ごとの保険
+    const onWake = () => { if (document.visibilityState === "visible") { refreshUnreadMap(); loadDm(dmOpenRef.current); } };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    const iv = setInterval(() => { if (document.visibilityState === "visible") refreshUnreadMap(); }, 10000);
+    return () => {
+      supabase.removeChannel(ch);
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+      clearInterval(iv);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const sendDm = async () => {
     const body = dmText.trim();

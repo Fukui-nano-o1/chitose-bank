@@ -208,10 +208,25 @@ export function ChatView({ applicationId, onBack }) {
   // 自分の送信分もイベントが来るがloadは冪等。チャットを閉じると購読解除
   useEffect(() => {
     if (!appIds || appIds.length === 0) return;
-    const ch = supabase.channel("chat-" + applicationId)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "application_id=in.(" + appIds.join(",") + ")" }, () => { load(appIds); })
-      .subscribe();
+    // in.(uuid,...)フィルタはRealtimeで不安定なため、確実なeqを応募IDごとに張る（2026-07-27修正）
+    let ch = supabase.channel("chat-" + applicationId);
+    appIds.forEach(id => {
+      ch = ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "application_id=eq." + id }, () => { load(appIds); });
+    });
+    ch.subscribe();
     return () => { supabase.removeChannel(ch); };
+  }, [appIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 復帰時の再読込＋保険ポーリング（2026-07-27たきと指示：チャットのリアルタイム化）：
+  // iOS PWAはバックグラウンドでWebSocketが凍結・切断され、復帰後にRealtimeイベントが届かないことがある。
+  // 画面復帰（visibilitychange/focus）で即再読込し、開いている間は5秒ごとの保険ポーリング。
+  // loadは冪等で既読化・バッジ再計算も担うso多重に呼ばれても安全
+  useEffect(() => {
+    if (!appIds || appIds.length === 0) return;
+    const refresh = () => { if (document.visibilityState === "visible") load(appIds); };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    const iv = setInterval(refresh, 5000);
+    return () => { document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); clearInterval(iv); };
   }, [appIds]); // eslint-disable-line react-hooks/exhaustive-deps
   // 最新メッセージへ自動スクロール（LINE式・2026-07-19）：メッセージ更新のたびに一番下へ
   useEffect(() => {
