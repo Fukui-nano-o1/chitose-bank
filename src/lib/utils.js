@@ -244,7 +244,9 @@ export const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contrac
 // チャット一覧の表示対象（2026-07-19）：完了後もスレッドを残す＝履歴として双方の確認が取れる状態を保つ。
 // 打刻・緊急連絡など「進行中だけの操作」の判定はCHAT_ELIGIBLE_STATUSESのまま変えない
 // applied=応募直後から相手とチャットで繋がる（2026-07-19）。rejected=見送りの自動返信を読めるよう履歴として残す
-export const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected"];
+// expired=失効も一覧に残す（2026-07-27たきと指示）：判断のないまま開始日を迎えた応募も、何があったかを
+// 双方が後から確認できる状態に保つ（チャット履歴の保全と同じ思想）。チップは黒の「失効」で表示される
+export const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected", "expired"];
 // リアルタイム帯（2026-07-25たきと指示・同日改定）：応募中→面接中→採用→作業中→完了 の5段＋終端（見送り/失効）。
 // すべて農家のアクションがトリガー（承認→面接中／採用タップ→採用／開始→作業中／完了記録→完了）。
 // 「打合せ」段階はトリガーを定義できないため削除（2026-07-25たきと判断）。
