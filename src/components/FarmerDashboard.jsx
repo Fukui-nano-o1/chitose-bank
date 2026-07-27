@@ -470,7 +470,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     }, 40);
   };
   const calendarTop = calOnTop ? (
-    <div key="app-cal-top" style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>
+    /* カレンダー上のスワイプはカレンダー（月送り）が優先（2026-07-27たきと指示）：
+       タッチをここで止めないと、ページ側の横スワイプ（カレンダーの開閉）に食われて
+       月を送ったつもりがカレンダーごと畳まれていた */
+    <div key="app-cal-top" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
+      style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>
   ) : null;
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
