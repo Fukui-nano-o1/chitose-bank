@@ -706,28 +706,65 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const renderApplicantCard = (a) => {
     // 旧・独自のチップ配色(badgeColor)は廃止（2026-07-26）：現在地バナーが段階色APP_PHASE_COLORを使う
     const wp = workerProfiles[a.worker_id];
-    // 求人リンク＋応募日と操作ボタンは、上（ステータス説明の直下）と下（従来位置）の2箇所に出す
-    // （2026-07-27たきと指示）。長いプロフィールを読む前でも、読み終えた後でも同じ操作が届く
-    const jobLinkAndDate = (() => {
-      const info = jobInfoMap[a.job_number] || dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number) || {};
-      const title = [info.crop, info.task].filter(Boolean).join(" ") || "求人";
-      return (
-        <>
-          {/* 求人名はタップで求人プレビューを開くリンク（2026-07-19） */}
-          <button onClick={()=>setPreviewJob({ num: a.job_number })} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"none", border:"none", padding:0, margin:"0 0 4px", cursor:"pointer" }}>
-            <span style={{ fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline" }}>{title}</span>
-            <span style={{ color:"#999", fontWeight:700, fontSize:12, marginLeft:6 }}>#{a.job_number}</span>
-            <span style={{ color:"#00A86B", fontWeight:700, fontSize:12, marginLeft:6 }}>→</span>
-          </button>
-          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
-        </>
-      );
-    })();
-    // ボタンは段階で出し分け（2026-07-26たきと指示）：
-    // 応募中＝見送る／承認する → 承認後（質問未送信）＝質問を送る／チャットを開く →
-    // 初面接後（質問送信済み）＝質問を送る／採用する → 採用後＝チャットを開く。
-    // 段階はappPhaseKey（帯と同じ唯一のソース）＋interview_question_sends（質問送信履歴）で判定
-    const actionButtons = (() => {
+    return (
+      <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+              {/* 現在地バナー（2026-07-26たきと指示）：ステータスと説明を1つの帯にまとめる。
+                  色は段階色（APP_PHASE_COLOR）を左バーと見出しに、背景はその薄色（+"14"＝約8%不透明）。
+                  文面はAPP_PHASE_DESC＝帯・凡例・タップ説明と同じ唯一のソースso言い回しが枝分かれしない */}
+              {(() => {
+                const pk = appPhaseKey(a);
+                const c = APP_PHASE_COLOR[pk] || "#717171";
+                return (
+                  <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{appRibbonLabel(a)}</p>
+                    {APP_PHASE_DESC[pk] && (
+                      <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[pk]}</p>
+                    )}
+                  </div>
+                );
+              })()}
+              {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるso出さない（バナーが理由を説明する） */}
+              {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
+              <div style={{ marginBottom:10 }}>
+                <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
+                <MyReviewsOfWorker workerId={a.worker_id} />
+              </div>
+              {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (
+                <div style={{ display:"grid", gap:6, marginBottom:10 }}>
+                  {wp.pr_qa.map(({ q, a: ans }) => (
+                    <div key={q}>
+                      <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+                      <p className="f-sans" style={{ fontSize:12, color:"#222", margin:0, lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{ans}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* 求人名はタップで求人プレビューを開くリンク（2026-07-19） */}
+              {(() => {
+                const info = jobInfoMap[a.job_number] || dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number) || {};
+                const title = [info.crop, info.task].filter(Boolean).join(" ") || "求人";
+                return (
+                  <button onClick={()=>setPreviewJob({ num: a.job_number })} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"none", border:"none", padding:0, margin:"0 0 4px", cursor:"pointer" }}>
+                    <span style={{ fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline" }}>{title}</span>
+                    <span style={{ color:"#999", fontWeight:700, fontSize:12, marginLeft:6 }}>#{a.job_number}</span>
+                    <span style={{ color:"#00A86B", fontWeight:700, fontSize:12, marginLeft:6 }}>→</span>
+                  </button>
+                );
+              })()}
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+              {/* 来られる日（期間求人・すり合わせの起点・2026-07-24） */}
+              <AvailDatesChips value={a.available_dates} />
+              {/* 働く日（確定済み・2026-07-24 追記3） */}
+              <AgreedDatesRow value={a.agreed_dates} />
+              {/* 状態メモ（進行の記録は小さく残す・操作は今日ページ） */}
+              {a.status === "completed" && (
+                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
+              )}
+              {/* ── ボタンは段階で出し分け（2026-07-26たきと指示）：
+                  応募中＝見送る／承認する → 承認後（質問未送信）＝質問を送る／チャットを開く →
+                  初面接後（質問送信済み）＝質問を送る／採用する → 採用後＝チャットを開く。
+                  段階はappPhaseKey（帯と同じ唯一のソース）＋interview_question_sends（質問送信履歴）で判定 ── */}
+              {(() => {
                 const phase = appPhaseKey(a);
                 const chatBtn = (
                   <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
@@ -756,52 +793,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   </div>
                 );
                 return <div style={{ display:"flex", gap:8 }}>{chatBtn}</div>;
-    })();
-    return (
-      <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-              {/* 現在地バナー（2026-07-26たきと指示）：ステータスと説明を1つの帯にまとめる。
-                  色は段階色（APP_PHASE_COLOR）を左バーと見出しに、背景はその薄色（+"14"＝約8%不透明）。
-                  文面はAPP_PHASE_DESC＝帯・凡例・タップ説明と同じ唯一のソースso言い回しが枝分かれしない */}
-              {(() => {
-                const pk = appPhaseKey(a);
-                const c = APP_PHASE_COLOR[pk] || "#717171";
-                return (
-                  <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{appRibbonLabel(a)}</p>
-                    {APP_PHASE_DESC[pk] && (
-                      <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[pk]}</p>
-                    )}
-                  </div>
-                );
               })()}
-              {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるso出さない（バナーが理由を説明する） */}
-              {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
-              {/* 上側の求人リンク＋応募日＋操作ボタン（2026-07-27たきと指示・流れバーの下・下側と同じもの） */}
-              <div style={{ marginBottom:14 }}>{jobLinkAndDate}{actionButtons}</div>
-              <div style={{ marginBottom:10 }}>
-                <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
-                <MyReviewsOfWorker workerId={a.worker_id} />
-              </div>
-              {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (
-                <div style={{ display:"grid", gap:6, marginBottom:10 }}>
-                  {wp.pr_qa.map(({ q, a: ans }) => (
-                    <div key={q}>
-                      <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
-                      <p className="f-sans" style={{ fontSize:12, color:"#222", margin:0, lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{ans}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {jobLinkAndDate}
-              {/* 来られる日（期間求人・すり合わせの起点・2026-07-24） */}
-              <AvailDatesChips value={a.available_dates} />
-              {/* 働く日（確定済み・2026-07-24 追記3） */}
-              <AgreedDatesRow value={a.agreed_dates} />
-              {/* 状態メモ（進行の記録は小さく残す・操作は今日ページ） */}
-              {a.status === "completed" && (
-                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
-              )}
-              {actionButtons}
       </div>
     );
   };
