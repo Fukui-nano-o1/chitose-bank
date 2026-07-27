@@ -306,6 +306,12 @@ export function TodayPage({ me, defaultRole }) {
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
     revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
+    // 求人への質問（2026-07-27たきと指示）：公開Q&A（job_questions）の未回答＝求人カードの❓Nと同じ母集団。
+    // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ（cb_jobTabで指定）
+    question:    { icon:"💬", title:"求人への質問",         btn:"回答する →",       nav: e => {
+      try { sessionStorage.setItem("cb_jobTab", "questions"); sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
+      return "/work/job/" + e.job_number;
+    } },
     // 新着の応募（2026-07-26たきと指示・同日改定）：タップでお祝いパネル（NewApplicantsPanel）を展開。
     // 行タップで応募者ページへ「応募中」フィルタ着地＝どの求人に誰が応募したかを応募者ページの求人カード設計で見せる
     approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   expand:true, nav: () => { try { sessionStorage.setItem("cb_appFilter", "applied"); } catch {} return "/profile/employer/applicants"; } },
@@ -349,10 +355,10 @@ export function TodayPage({ me, defaultRole }) {
   // 面接の回答を送信してリストが空になった時は「送信完了しました。」を出す（2026-07-26たきと指示。ページを離れたらリセット）
   const [answeredDone, setAnsweredDone] = useState(false);
   useEffect(() => { setAnsweredDone(false); }, [pageStage]);
-  const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
+  const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正", w_revision: "求職の修正", question: "質問に答える" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["t_card", "t_emergency", "revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete"],
+    farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "confirm_start", "complete"],
     worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_start", "w_review"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）

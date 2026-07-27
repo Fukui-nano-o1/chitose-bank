@@ -1,6 +1,6 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。働き手プロフィール編集＋プレビュー（WorkerProfilePreviewは本ファイル専用）。
 // 専用定数（PR_PROMPTS・Q&A20問・興味/言語/作業強度の選択肢）も同居。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { WORKER_DECLARATIONS } from "../lib/utils"; // CROP/TASK_OPTIONSは経験ページ（WorkerExperiencePage）へ移設済み
@@ -85,7 +85,13 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedInReview, setSavedInReview] = useState(false); // 直前の保存で自由記述を審査に出したか（完了メッセージの出し分け）
   const [revTargets, setRevTargets] = useState([]); // 修正依頼の指摘対象（"自己紹介本文"/質問文・2026-07-19）
+  // 公開済み（運営が承認した）自由記述の控え（2026-07-27たきと報告）：
+  // 保存のたびに pr_pending を無条件で書いていたため、住所や移動手段など選択式を直しただけでも
+  // 承認済みの自己紹介が審査待ちに逆戻りし、応募のたびに運営の許可が必要になっていた。
+  // 本文が実際に変わった時だけ審査に出すため、承認済みの中身をここに控えて比べる
+  const approvedRef = useRef({ pr: "", pr_qa: [] });
   useEffect(() => {
     (async () => {
       try {
@@ -98,6 +104,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           setPr(data.pr_pending ?? data.pr ?? "");
           setAvatarUrl(data.avatar_url || "");
           setPrQa(Array.isArray(data.pr_qa_pending) ? data.pr_qa_pending : (Array.isArray(data.pr_qa) ? data.pr_qa : []));
+          approvedRef.current = { pr: data.pr || "", pr_qa: Array.isArray(data.pr_qa) ? data.pr_qa : [] };
           setResidenceCity(data.residence_city || "");
           setTransport(data.transport || "");
           setFarmExperience(data.farm_experience || "");
@@ -248,10 +255,19 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       if (!session) { setSaving(false); return; }
       // 自由記述(pr/pr_qa)は運営確認後に公開。pr_pending/pr_qa_pendingに保存し、
       // 公開版のpr/pr_qaは書かない(承認RPC/48時間cronだけが書く)。選択式項目は従来どおり即時保存
+      // 審査に出すのは「承認済みと中身が違う」時だけ（2026-07-27）。同じなら pending を空にする＝
+      // 何も変えていない保存で審査待ちに戻さない／本文を承認済みの状態へ戻した時は審査依頼が取り下がる
+      const qaKey = (arr) => JSON.stringify((Array.isArray(arr) ? arr : []).map(x => ({ q: x?.q || "", a: (x?.a || "").trim() })));
+      const prChanged = pr.trim() !== (approvedRef.current.pr || "").trim();
+      const qaChanged = qaKey(prQa) !== qaKey(approvedRef.current.pr_qa);
+      const inReview = prChanged || qaChanged;
+      const reviewFields = inReview
+        ? { pr_pending: prChanged ? pr.trim() : null, pr_qa_pending: qaChanged ? prQa : null, pr_submitted_at: new Date().toISOString(),
+            pr_revision_targets: null } // 再提出＝修正依頼の赤帯を解除（2026-07-19）
+        : { pr_pending: null, pr_qa_pending: null, pr_submitted_at: null };
       const { error } = await supabase.from("worker_profiles").upsert({
         auth_id: session.user.id, nickname: nickname.trim(),
-        pr_pending: pr.trim(), pr_qa_pending: prQa, pr_submitted_at: new Date().toISOString(),
-        pr_revision_targets: null, // 再提出＝修正依頼の赤帯を解除（2026-07-19）
+        ...reviewFields,
         residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
         interests, languages, self_declared: selfDeclared,
         experience_entries: expEntries.map(e => ({ crop:(e.crop||"").trim(), task:e.task||"", duration:e.duration||"" })).filter(e => e.crop).slice(0, 5),
@@ -261,7 +277,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       setSaving(false);
       if (!error) {
         setSaved(true);
-        setRevTargets([]);
+        setSavedInReview(inReview);
+        if (inReview) setRevTargets([]); // 赤帯が消えるのは再提出した時だけ（本文を直さない保存では残す）
         if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
         if (stay === true) {
           // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
@@ -342,7 +359,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         })}
       </div>
       {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>保存しました ✓　自己紹介は運営の確認後に公開されます（最大2日）</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>{savedInReview ? "保存しました ✓　自己紹介は運営の確認後に公開されます（最大2日）" : "保存しました ✓"}</p>
       )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
