@@ -1102,7 +1102,14 @@ function HelpCenter({ me, onReportClick }) {
                       <div key={slotKey}>
                         {it.label && <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{it.label}</p>}
                         <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{it.body}</p>
-                        {imgUrl && <img src={imgUrl} alt="" loading="lazy" decoding="async" style={{ display:"block", marginTop:12, width:"100%", borderRadius:12, border:"3px solid #E0E0E0", boxShadow:"0 4px 16px rgba(0,0,0,0.12)", boxSizing:"border-box" }} />}
+                        {imgUrl && (
+                          /* 画像は2倍表示（2026-07-27たきと指示）：横幅いっぱいだと文字が小さくて読めないため、
+                             縦横とも2倍に拡大する＝高さが2倍になる。比率は変えない（引き伸ばすと文字がぼやける）。
+                             はみ出した横方向はこの枠の中だけを指でなぞって送れる（ページは横スクロールしない） */
+                          <div style={{ marginTop:12, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", borderRadius:12 }}>
+                            <img src={imgUrl} alt="" loading="lazy" decoding="async" style={{ display:"block", width:"200%", maxWidth:"none", borderRadius:12, border:"3px solid #E0E0E0", boxShadow:"0 4px 16px rgba(0,0,0,0.12)", boxSizing:"border-box" }} />
+                          </div>
+                        )}
                         {isAdmin(me) && (
                           <div style={{ marginTop:8 }}>
                             {imgUrl ? (
