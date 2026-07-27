@@ -179,7 +179,11 @@ export function WorkerApplications({ filter, me }) {
   // filter: "applying"=応募中(applied), "approved"=承認済み(approved以降), 見送り(rejected)はどちらにも出さない(通知で知らせる)
   const apps = allApps.filter(a => {
     if (filter === "applying") return a.status === "applied";
-    if (filter === "approved") return ["approved","meeting","interview","contracted","working","completed"].includes(a.status);
+    // きょうの仕事＝採用された仕事だけ（2026-07-27たきと指示）。面接中（承認されたが採用前）は
+    // 「返事待ち」側の面が担う。採用の実体は両者の確認時刻が揃っていること
+    // （採用してもstatusは'approved'のまま＝contractedはDBに書かれない表示用の値・CLAUDE.md）
+    if (filter === "approved") return ["contracted","working","completed"].includes(a.status)
+      || (!!a.terms_confirmed_worker_at && !!a.terms_confirmed_farmer_at && a.status !== "rejected" && a.status !== "expired");
     return a.status !== "rejected";
   });
   // リアルタイム帯（2026-07-25）：応募中→面接中→採用→作業中→完了（appPhaseKeyで導出）
@@ -418,21 +422,8 @@ export function WorkerApplications({ filter, me }) {
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
         <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
       </>)}
-      {/* お仕事の流れバナー（2026-07-19・きょうの仕事タブのみ）＝タイトルの代わり */}
-      {filter === "approved" && apps.length > 0 && (
-        <div style={{ background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:14, padding:"14px 16px", marginBottom:16 }}>
-          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 4px" }}>お仕事は、この流れで進みます</p>
-          <p className="f-sans" style={{ fontSize:12, color:"#5B7B6D", margin:"0 0 12px", lineHeight:1.6 }}>いまどこまで進んでいるかは、各求人カードでわかります。</p>
-          <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:"4px 2px" }}>
-            {FLOW_STEPS.map((s, i) => (
-              <Fragment key={s}>
-                {i > 0 && <span style={{ color:"#9BC4B3", fontSize:12, fontWeight:700 }}>→</span>}
-                <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#0B6B4F", background:"#fff", border:"1px solid #CDE9DD", borderRadius:20, padding:"4px 10px" }}>{s}</span>
-              </Fragment>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* お仕事の流れバナー（説明ボックス）は削除（2026-07-27たきと指示）：
+          同じ7段は各求人カードの流れバーが出しているso重複 */}
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 0" }}>読み込み中...</p>
       ) : filter !== "approved" ? (
