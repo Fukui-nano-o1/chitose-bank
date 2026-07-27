@@ -289,6 +289,15 @@ export function JobSearchMapView({ onRegister, me }) {
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
+  // 開いたときに開くタブの指定（2026-07-27）：今日ページの「質問に答える」→ 求人詳細の質問タブへ直行。
+  // 使い捨てフラグ（cb_jobTab）：着地したら消す＝次に別の求人を開いた時に持ち越さない
+  useEffect(() => {
+    if (!selectedJob) return;
+    try {
+      const t = sessionStorage.getItem("cb_jobTab");
+      if (t) { sessionStorage.removeItem("cb_jobTab"); setDetailTab(t); }
+    } catch {}
+  }, [selectedJob]);
   const [empEmployer, setEmpEmployer] = useState(null);
   const [empTrust, setEmpTrust] = useState(null);
   useEffect(() => {
