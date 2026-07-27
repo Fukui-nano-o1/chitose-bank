@@ -563,16 +563,33 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     { k:"active",    l:"進行中",   match: (s) => ["approved","meeting","interview","contracted","working"].includes(s) },
     { k:"completed", l:"完了",     match: (s) => s==="completed" },
   ];
+  // 応募者ページの横スワイプ＝上部カレンダーの開閉（2026-07-27たきと指示。旧・フィルタ切替から置換）。
+  // フィルタは上部/浮遊バーのボタンタップで切り替える（スワイプとの二重割り当てをやめる）。
+  // 求人カードのアイコン列など内側の横スクロールで始まったタッチは奪わない
   const appSwipeRef = useRef(null);
-  const onAppSwipeStart = (e) => { appSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onAppSwipeStart = (e) => {
+    const inHScroll = (() => {
+      for (let n = e.target; n && n !== e.currentTarget; n = n.parentElement) {
+        try {
+          const st = window.getComputedStyle(n);
+          if ((st.overflowX === "auto" || st.overflowX === "scroll") && n.scrollWidth > n.clientWidth + 1) return true;
+        } catch { return true; }
+      }
+      return false;
+    })();
+    appSwipeRef.current = inHScroll ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
   const onAppSwipeEnd = (e) => {
     const s = appSwipeRef.current; appSwipeRef.current = null;
     if (!s) return;
     const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
-    const idx = Math.max(0, APP_FILTERS.findIndex(f => f.k === appFilter));
-    const next = dx < 0 ? Math.min(APP_FILTERS.length - 1, idx + 1) : Math.max(0, idx - 1);
-    setAppFilter(APP_FILTERS[next].k);
+    setCalOnTop(v => {
+      const next = !v;
+      if (next) { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); } } // 開いたら上部を見せる
+      else setCalDay(null); // 畳む時は日付の絞り込み（光らせ）も解除
+      return next;
+    });
   };
   // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
   const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
@@ -1044,6 +1061,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             const floatingFilterBar = (
               <div key="app-tabs-float" className="cb-applicant-filter-bar">{filterButtons}</div>
             );
+            // スワイプでカレンダーが開くことの案内（2026-07-27）。開いている間は畳み方を出す
+            const calHint = (
+              <button key="cal-hint" onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans"
+                style={{ gridColumn:"1/-1", background:"none", border:"none", padding:"0 0 6px", fontSize:11, color:"#B0B0B0", textAlign:"center", cursor:"pointer" }}>
+                {calOnTop ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
+              </button>
+            );
             const legend = (
               <div key="app-legend" style={{ gridColumn:"1/-1", marginTop:14 }}>
                 <button onClick={()=>setAppLegendOpen(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -1138,7 +1162,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     </div>
                   );
                 });
-            return [calendarTop, tabBar, calNote, floatingFilterBar, ...body, legend];
+            return [calendarTop, calHint, tabBar, calNote, floatingFilterBar, ...body, legend];
           })()
         )
       ) : jobTab==="expired" ? (
