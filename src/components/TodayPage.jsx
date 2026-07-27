@@ -174,6 +174,7 @@ export function TodayPage({ me, defaultRole }) {
   const [hasFarmer, setHasFarmer] = useState(false);
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
   const [todos, setTodos] = useState([]);     // やることフィード（my_todo_items・状態カードの単一ソース）
+  const [jobCount, setJobCount] = useState(0); // 自分が出した求人の数（下書き含む）。カレンダーを開けるかの判定に使う
   const [confirming, setConfirming] = useState("");
   const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
@@ -196,7 +197,7 @@ export function TodayPage({ me, defaultRole }) {
         if (cancelled) return;
         const w = !!wp || rows.some(e => e.my_role === "worker");
         const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
-        setHasWorker(w); setHasFarmer(f);
+        setHasWorker(w); setHasFarmer(f); setJobCount(jc || 0);
         // 既定ロールが持っていない側なら、持っている側へ寄せる
         setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
       } catch {}
@@ -307,10 +308,11 @@ export function TodayPage({ me, defaultRole }) {
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
     revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
     // 求人への質問（2026-07-27たきと指示）：公開Q&A（job_questions）の未回答＝求人カードの❓Nと同じ母集団。
-    // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ（cb_jobTabで指定）
+    // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ
     question:    { icon:"💬", title:"求人への質問",         btn:"回答する →",       nav: e => {
-      try { sessionStorage.setItem("cb_jobTab", "questions"); sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
-      return "/work/job/" + e.job_number;
+      // 出どころ＝カレンダー（今日）：求人詳細の浮遊「←戻る」ボックスを出さない目印（2026-07-27たきと指示）
+      try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
+      return "/work/job/" + e.job_number + "/questions"; // タブ指定つきURL（リロードしても質問タブのまま）
     } },
     // 新着の応募（2026-07-26たきと指示・同日改定）：タップでお祝いパネル（NewApplicantsPanel）を展開。
     // 行タップで応募者ページへ「応募中」フィルタ着地＝どの求人に誰が応募したかを応募者ページの求人カード設計で見せる
@@ -386,8 +388,11 @@ export function TodayPage({ me, defaultRole }) {
   const TodoStageBox = ({ stage, items }) => {
     const m = TODO_META[stage]; if (!m) return null;
     const n = items.length;
-    // always指定（カレンダー）：応募（予定）が1件でもあれば件数0でも常にタップ可（2026-07-27たきと指示）
-    const enabled = m.always ? mine.length > 0 : n > 0;
+    // always指定（カレンダー）：カレンダーに出るものが1つでもあればタップ可（2026-07-27たきと指示・同日改定）。
+    // 農家は「求人の下書き保存・掲載をした時から」＝応募がゼロでも自分の求人があれば開ける（jobCount）。
+    // 働き手は自分の予定（応募・いいね等）が1つでもあれば開ける
+    const calendarReady = entries.some(e => e.my_role === role) || mine.length > 0 || (role === "farmer" && jobCount > 0);
+    const enabled = m.always ? calendarReady : n > 0;
     const onTapBox = () => {
       if (!enabled) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
       if (m.always) { window.location.hash = m.nav(); return; } // カレンダーは常に直行
