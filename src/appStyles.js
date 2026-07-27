@@ -373,6 +373,9 @@ input:focus { outline: none; }
 .app-header-mobile-tab .label { font-size: 10px; line-height: 1; }
 .app-header-mobile-tab.active { color: var(--role-accent, #00A86B); font-weight: 600; }
 .app-header-mobile-tab.active .icon { background: var(--role-accent-soft, rgba(0,168,107,0.13)); } /* 2026-07-24: アクティブのアイコン背景を役割色（働き手=橙／農家=緑）に統一 */
+/* 応募者ページの絞り込み：浮遊バーはモバイル専用（PCは本文中の並びを使う・2026-07-27） */
+.cb-applicant-filter-bar { display: none; }
+
 /* ── モバイル☰の上部浮遊ボタン（2026-07-13 下部バーから移設。fixed＝スクロール追従。
    2026-07-24: 下部フッター・切替FABと同じくスクロール（cb-scroll-hide）で下へ格納する） ── */
 .app-header-mobile-float { display: none; }
@@ -398,6 +401,32 @@ input:focus { outline: none; }
   body.cb-scroll-hide .cb-admin-chat-fab { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
   body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
+  /* 応募者ページの絞り込みバー（2026-07-27たきと指示）：下部バーの真上に浮かせ、
+     スクロール格納・入力中の退避・オーバーレイ中の非表示を☰浮遊ボタンと完全に同じ作法で揃える */
+  .cb-applicant-filter-bar {
+    position: fixed;
+    bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
+    left: 8px; right: 8px;
+    z-index: 60;
+    display: flex; gap: 6px;
+    padding: 6px;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid #EBEBEB; border-radius: 999px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+    transition: transform .25s ease;
+  }
+  .cb-applicant-filter-bar::-webkit-scrollbar { display: none; }
+  /* モバイルは浮遊バーだけを見せる（本文中の並びは重複so隠す） */
+  .cb-applicant-filter-inline { display: none !important; }
+  body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
+  body.cb-typing .cb-applicant-filter-bar { display: none !important; }
+  body:has(.mobile-apply-bar) .cb-applicant-filter-bar { display: none; }
+  body:has(.chat-full) .cb-applicant-filter-bar,
+  body:has(.cb-preview-overlay) .cb-applicant-filter-bar,
+  body:has(.cb-lock-scroll) .cb-applicant-filter-bar { display: none !important; }
 }
 /* さがすの検索ピル（2026-07-27）：下部バー直上の浮遊配置（上は遠い・たきと指示）。
    スクロール格納は他のFABと同じcb-scroll-hide 1本 */

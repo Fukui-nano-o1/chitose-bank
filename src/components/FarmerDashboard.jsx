@@ -966,12 +966,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             const shown = dbApplicants.filter(a => (APP_FILTERS.find(f => f.k === appFilter) || APP_FILTERS[0]).match(a.status, a));
             const order = []; const byJob = {};
             shown.forEach(a => { const jn = a.job_number; if (!jobInfoMap[jn]) return; if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
+            // 絞り込みバー（2026-07-27たきと指示）：下部バーの真上に浮かせる。
+            // スクロール格納・入力中の退避・オーバーレイ中の非表示は、浮遊☰と同じCSS作法で揃えてある
+            // （.cb-applicant-filter-bar / body.cb-scroll-hide 等）。PCは従来どおり本文中に並べる
+            const filterButtons = APP_FILTERS.map(f => (
+              <button key={f.k} onClick={()=>setAppFilter(f.k)} className="f-sans" style={{ flex:"1 0 auto", padding:"8px 14px", borderRadius:20, border: appFilter===f.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: appFilter===f.k?800:600, color: appFilter===f.k?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>{f.l}</button>
+            ));
             const tabBar = (
-              <div key="app-tabs" style={{ gridColumn:"1/-1", display:"flex", gap:6, marginBottom:2, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
-                {APP_FILTERS.map(f => (
-                  <button key={f.k} onClick={()=>setAppFilter(f.k)} className="f-sans" style={{ flex:"1 0 auto", padding:"8px 14px", borderRadius:20, border: appFilter===f.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: appFilter===f.k?800:600, color: appFilter===f.k?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>{f.l}</button>
-                ))}
+              <div key="app-tabs" className="cb-applicant-filter-inline" style={{ gridColumn:"1/-1", display:"flex", gap:6, marginBottom:2, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+                {filterButtons}
               </div>
+            );
+            const floatingFilterBar = (
+              <div key="app-tabs-float" className="cb-applicant-filter-bar">{filterButtons}</div>
             );
             const legend = (
               <div key="app-legend" style={{ gridColumn:"1/-1", marginTop:14 }}>
@@ -1057,7 +1064,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     </div>
                   );
                 });
-            return [tabBar, ...body, legend];
+            return [tabBar, floatingFilterBar, ...body, legend];
           })()
         )
       ) : jobTab==="expired" ? (
