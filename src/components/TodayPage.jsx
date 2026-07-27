@@ -1,7 +1,7 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, CHAT_ELIGIBLE_STATUSES, mapJobPublicRow, payLabel } from "../lib/utils";
+import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
 import { Avatar } from "./ui";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
@@ -309,7 +309,9 @@ export function TodayPage({ me, defaultRole }) {
     // interview/hire（2026-07-25たきと指示）：チャットの質問集シート・採用ボタンを今日のリストへ移設。
     // チャットは「アクションの報告（自動送信）＋直接やりとりが必要な時だけ」の最小役割に寄せていく
     interview:   { icon:"❓", title:"面接の質問を送る",     btn:"質問を送る →",     qset:true },
-    hire:        { icon:"🤝", title:"採用する",             btn:"採用する",         hire:true },
+    // 採用する（2026-07-27たきと指示）：その場実行をやめ、応募者ページの「面接中」タブへ直行。
+    // 採用の実行は応募者シートの🤝採用するボタン（二重予約警告つき）が担う
+    hire:        { icon:"🤝", title:"採用する",             btn:"採用する →",       direct:true, nav: () => { try { sessionStorage.setItem("cb_appFilter", "interview"); } catch {} return "/profile/employer/applicants"; } },
     insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance" },
     confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start" },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
@@ -351,44 +353,13 @@ export function TodayPage({ me, defaultRole }) {
     const pr = TODO_STAGE_CATALOG.worker.includes(pageStage) ? "worker" : "farmer";
     if (role !== pr) setRole(pr);
   }, [pageStage, role]);
-  // 採用時の二重予約チェック（ChatViewから移植・2026-07-25）：同じ働き手が自分の別の進行中求人で日程重複していないか
-  const hireDoubleBookingCheck = async (e) => {
-    try {
-      if (!e.partner_id || !e.job_number || !e.date_start) return null;
-      const { data: { session } } = await supabase.auth.getSession(); if (!session) return null;
-      const { data: apps } = await supabase.from("applications")
-        .select("job_number,status").eq("farmer_id", session.user.id).eq("worker_id", e.partner_id).neq("job_number", e.job_number);
-      const others = (apps || []).filter(a => CHAT_ELIGIBLE_STATUSES.includes(a.status) && a.job_number != null);
-      if (!others.length) return null;
-      const { data: jrows } = await supabase.from("jobs").select("job_number,date_start,date_end").in("job_number", [...new Set(others.map(a => a.job_number))]);
-      const curEnd = e.date_end || e.date_start;
-      for (const j of jrows || []) {
-        if (!j.date_start) continue;
-        const jEnd = j.date_end || j.date_start;
-        if (e.date_start <= jEnd && j.date_start <= curEnd) return j.job_number;
-      }
-    } catch {}
-    return null;
-  };
+  // hireDoubleBookingCheck・m.hire分岐は削除（2026-07-27）：採用の実行は応募者シートへ移設（二重予約警告もそちらが持つ）
   const runTodo = async (m, e) => {
     const busyKey = (e.application_id || e.job_number) + e.stage;
     if (m.nav) { window.location.hash = m.nav(e); return; }
     if (m.flag) { try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
     // 面接の質問（チャットからの移設）：チャットに着地して質問集シートを自動で開く（回答は面接の証跡としてチャットに残る）
     if (m.qset) { try { sessionStorage.setItem("cb_openQSet", "1"); } catch {} window.location.hash = "/chat/" + e.application_id; return; }
-    // 採用する（チャットの採用ボタンの移設）：二重予約警告＋確認→confirm_terms。採用通知はDBトリガーが自動送信
-    if (m.hire) {
-      if (confirming) return; setConfirming(busyKey);
-      const dup = await hireDoubleBookingCheck(e);
-      const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : "";
-      if (!window.confirm(warn + `${e.partner_name ? e.partner_name + "さん" : "この方"}を #${e.job_number} に採用しますか？\n面接を終えてから決定してください。`)) { setConfirming(""); return; }
-      const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: e.application_id });
-      setConfirming("");
-      if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-      // 採用が決まったら「面接の質問」の用事も同時に消える（採用前限定の段のため）
-      setTodos(prev => prev.filter(t => !(t.application_id === e.application_id && (t.stage === "hire" || t.stage === "interview"))));
-      return;
-    }
     if (m.rpc) {
       if (confirming) return; setConfirming(busyKey);
       const { data, error } = await supabase.rpc(m.rpc, { p_application_id: e.application_id });
@@ -405,9 +376,10 @@ export function TodayPage({ me, defaultRole }) {
     const onTapBox = () => {
       if (!enabled) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
       if (m.always) { window.location.hash = m.nav(); return; } // カレンダーは常に直行
-      // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。expand指定は件数に関わらず専用ページを展開
-      // （新着の応募＝お祝いパネルを必ず見せる・2026-07-26）。それ以外は用件の専用ページへ
-      if (n === 1 && (m.nav || m.flag) && !m.expand) { runTodo(m, items[0]); return; }
+      // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。direct指定は件数に関わらず直行
+      // （採用する＝応募者ページの面接中タブが一覧の役目・2026-07-27）。expand指定は件数に関わらず
+      // 専用ページを展開（新着の応募＝お祝いパネルを必ず見せる・2026-07-26）。それ以外は用件の専用ページへ
+      if ((n === 1 || m.direct) && (m.nav || m.flag) && !m.expand) { runTodo(m, items[0]); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (

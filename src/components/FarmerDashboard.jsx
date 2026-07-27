@@ -431,7 +431,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (jobTab !== "applicants") return;
     try {
       const f = sessionStorage.getItem("cb_appFilter");
-      if (f) { sessionStorage.removeItem("cb_appFilter"); if (["all","applied","active","completed"].includes(f)) setAppFilter(f); }
+      if (f) { sessionStorage.removeItem("cb_appFilter"); if (["all","applied","interview","active","completed"].includes(f)) setAppFilter(f); }
     } catch {}
   }, [jobTab]);
   const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者ページ下部「帯の意味」の説明ボックス開閉
@@ -509,6 +509,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const APP_FILTERS = [
     { k:"all",       l:"すべて",   match: () => true },
     { k:"applied",   l:"応募中",   match: (s) => s==="applied" },
+    // 面接中＝帯と同じ段階判定（appPhaseKey・承認後〜採用前）。今日ページ「採用する」の着地先（2026-07-27）
+    { k:"interview", l:"面接中",   match: (s, a) => appPhaseKey(a) === "interview" },
     { k:"active",    l:"進行中",   match: (s) => ["approved","meeting","interview","contracted","working"].includes(s) },
     { k:"completed", l:"完了",     match: (s) => s==="completed" },
   ];
@@ -961,7 +963,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         ) : (
           // 応募者を求人毎に分ける（2026-07-19）。上部＝状態フィルタタブ（タップ＋横スワイプ）／下部＝帯の意味の説明（2026-07-22）
           (() => {
-            const shown = dbApplicants.filter(a => (APP_FILTERS.find(f => f.k === appFilter) || APP_FILTERS[0]).match(a.status));
+            const shown = dbApplicants.filter(a => (APP_FILTERS.find(f => f.k === appFilter) || APP_FILTERS[0]).match(a.status, a));
             const order = []; const byJob = {};
             shown.forEach(a => { const jn = a.job_number; if (!jobInfoMap[jn]) return; if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
             const tabBar = (
