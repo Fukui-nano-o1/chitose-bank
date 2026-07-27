@@ -176,6 +176,7 @@ export function TodayPage({ me, defaultRole }) {
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
   const [todos, setTodos] = useState([]);     // やることフィード（my_todo_items・状態カードの単一ソース）
   const [jobCount, setJobCount] = useState(0); // 自分が出した求人の数（下書き含む）。カレンダーを開けるかの判定に使う
+  const [myApps, setMyApps] = useState([]);    // 働き手としての自分の応募（応募中=appliedを含む。当事者RLSの内側）
   const [confirming, setConfirming] = useState("");
   const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
@@ -190,15 +191,17 @@ export function TodayPage({ me, defaultRole }) {
         setEntries(rows);
         const { data: td } = await supabase.rpc("my_todo_items");
         if (!cancelled) setTodos(td || []);
-        const [{ data: wp }, { count: jc }, { data: ep }] = await Promise.all([
+        const [{ data: wp }, { count: jc }, { data: ep }, { data: apps }] = await Promise.all([
           supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
           supabase.from("employer_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
+          // 応募中(applied)を含む自分の応募。get_my_calendar_jobsは承認後しか返さないため別に引く（2026-07-27）
+          supabase.from("applications").select("id,job_number,status").eq("worker_id", session.user.id),
         ]);
         if (cancelled) return;
         const w = !!wp || rows.some(e => e.my_role === "worker");
         const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
-        setHasWorker(w); setHasFarmer(f); setJobCount(jc || 0);
+        setHasWorker(w); setHasFarmer(f); setJobCount(jc || 0); setMyApps(apps || []);
         // 既定ロールが持っていない側なら、持っている側へ寄せる
         setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
       } catch {}
@@ -222,11 +225,18 @@ export function TodayPage({ me, defaultRole }) {
   // 採用済み（契約〜作業中）の仕事は、作業日でなくても緊急連絡・開始の入口を開ける（2026-07-27たきと指示）。
   // 遅刻・欠勤・中止の連絡は前日にもしたいし、開始ページは採用が決まった時点で見たいため
   const hiredMine = mine.filter(e => e.application_id && ["contracted","working"].includes(e.application_status));
+  // 応募した時点で緊急連絡・作業を開始するを開ける（2026-07-27たきと指示）。応募中(applied)は
+  // get_my_calendar_jobsに出ないためapplicationsから直に作る。終わった応募（見送り・失効・完了）は除く。
+  // 求人名などはentriesにあれば拝借する（無ければ#No.だけの表示になる）
+  const jobMeta = {}; entries.forEach(e => { if (e.job_number != null) jobMeta[e.job_number] = e; });
+  const appliedMine = myApps
+    .filter(a => !["rejected","expired","completed"].includes(a.status))
+    .map(a => ({ ...(jobMeta[a.job_number] || {}), application_id: a.id, job_number: a.job_number, application_status: a.status }));
   // 作業が開始された仕事（開始打刻でstatusがworkingになる）＝終了の箱も開ける（2026-07-27たきと指示）
   const startedMine = mine.filter(e => e.application_id && e.application_status === "working");
   const tEmergency = (() => {
     const seen = new Set(); const out = [];
-    [...todayJobs.filter(e => e.application_id), ...hiredMine].forEach(e => {
+    [...todayJobs.filter(e => e.application_id), ...hiredMine, ...(role === "worker" ? appliedMine : [])].forEach(e => {
       if (seen.has(e.application_id)) return;
       seen.add(e.application_id);
       out.push({ ...e, stage: "t_emergency" });
@@ -540,10 +550,12 @@ export function TodayPage({ me, defaultRole }) {
           const activeOrder = []; const byStage = new Map();
           [["t_card", tCard], ["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chatは削除・2026-07-25）
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
-          // 採用済みの働き手は、作業日でなくても「作業を開始する」を開ける（2026-07-27たきと指示）。
-          // my_todo_itemsのw_startは作業日限定so、無い時だけ採用済みの仕事で箱を灯す（バッジ＝件数も出る）
-          if (role === "worker" && !byStage.has("w_start") && hiredMine.length) {
-            byStage.set("w_start", hiredMine.map(e => ({ ...e, stage: "w_start" })));
+          // 応募した働き手は、作業日でなくても「作業を開始する」を開ける（2026-07-27たきと指示・同日改定）。
+          // my_todo_itemsのw_startは作業日限定so、無い時だけ自分の応募で箱を灯す（バッジ＝件数も出る）。
+          // 採用済みがあればそれを優先（開始できる仕事＝採用済みが実体に近い）
+          const startItems = hiredMine.length ? hiredMine : appliedMine;
+          if (role === "worker" && !byStage.has("w_start") && startItems.length) {
+            byStage.set("w_start", startItems.map(e => ({ ...e, stage: "w_start" })));
             activeOrder.push("w_start");
           }
           // 作業が始まったら「終了を確認して評価」も開ける（2026-07-27たきと指示）。
