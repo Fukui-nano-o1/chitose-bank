@@ -484,9 +484,11 @@ export function JobSearchMapView({ onRegister, me }) {
   const [signupOpen, setSignupOpen] = useState(false); // 未ログイン画面の文言用（app_settings.signup_open・既定false=招待制）
   useEffect(() => { supabase.rpc("signup_open").then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
   // 訪問者（未ログイン）が応募・いいね・投稿等をタップした時の案内（2026-07-24・隠さず案内する）
+  // 「閉じる」で普通に閉じる（2026-07-27たきと指示）：以前は閉じた直後に#/loginへ飛ばしていたため、
+  // 案内を読んだだけで見ていた求人から引き剥がされていた。案内だけ出して画面はそのまま残す。
+  // 文面も「登録画面へ進みます」を撤回（進まないso）。応募・いいね両方の入口から呼ばれるsо共通の言い回しにする
   const visitorGuide = () => {
-    alert(signupOpen ? "登録すると応募できます。登録画面へ進みます。" : "現在は招待制です。招待を受けた方は招待メールのアドレスでログインしてください。");
-    window.location.hash = "/login";
+    alert(signupOpen ? "この操作には登録が必要です。登録・ログインのうえ、もう一度お試しください。" : "現在は招待制です。招待を受けた方は招待メールのアドレスでログインしてください。");
   };
   const applyBtnOnClick = !me ? visitorGuide
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
