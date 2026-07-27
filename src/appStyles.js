@@ -410,8 +410,12 @@ input:focus { outline: none; }
     bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
     left: calc(12px + 44px + 10px); right: 12px;
     z-index: 60;
-    display: flex; gap: 6px;
-    padding: 6px;
+    display: flex; gap: 6px; align-items: center;
+    /* 高さは検索バー(.cb-search-fab)と同値にする（2026-07-27たきと指示）。
+       検索バー＝上下padding11px＋2行(14px+2+11px)＋枠1px×2 ≒ 56px。
+       絞り込みは1行so自然高さが低い＝min-heightで合わせる。下端(bottom)は変えないため上へ伸びる */
+    min-height: 56px;
+    padding: 6px 10px;
     background: #fff;
     border: 1px solid #DDD; border-radius: 32px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.18);
