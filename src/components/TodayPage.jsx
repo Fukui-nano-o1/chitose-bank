@@ -221,6 +221,8 @@ export function TodayPage({ me, defaultRole }) {
   // 採用済み（契約〜作業中）の仕事は、作業日でなくても緊急連絡・開始の入口を開ける（2026-07-27たきと指示）。
   // 遅刻・欠勤・中止の連絡は前日にもしたいし、開始ページは採用が決まった時点で見たいため
   const hiredMine = mine.filter(e => e.application_id && ["contracted","working"].includes(e.application_status));
+  // 作業が開始された仕事（開始打刻でstatusがworkingになる）＝終了の箱も開ける（2026-07-27たきと指示）
+  const startedMine = mine.filter(e => e.application_id && e.application_status === "working");
   const tEmergency = (() => {
     const seen = new Set(); const out = [];
     [...todayJobs.filter(e => e.application_id), ...hiredMine].forEach(e => {
@@ -352,7 +354,8 @@ export function TodayPage({ me, defaultRole }) {
     w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
     // 採用済みなら作業日でなくても開始ページへ入れる（2026-07-27たきと指示）。行き先は件数に依らず同じso直行(direct)
     w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   direct:true, nav: () => "/profile/worker/approved" },
-    w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved" },
+    // 作業が始まっていれば終了の箱も開ける（2026-07-27たきと指示）。行き先は件数に依らず同じso直行(direct)
+    w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   direct:true, nav: () => "/profile/worker/approved" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
@@ -540,6 +543,12 @@ export function TodayPage({ me, defaultRole }) {
           if (role === "worker" && !byStage.has("w_start") && hiredMine.length) {
             byStage.set("w_start", hiredMine.map(e => ({ ...e, stage: "w_start" })));
             activeOrder.push("w_start");
+          }
+          // 作業が始まったら「終了を確認して評価」も開ける（2026-07-27たきと指示）。
+          // my_todo_itemsのw_reviewは農家の完了記録の後に出るso、開始済みの仕事で先に灯す
+          if (role === "worker" && !byStage.has("w_review") && startedMine.length) {
+            byStage.set("w_review", startedMine.map(e => ({ ...e, stage: "w_review" })));
+            activeOrder.push("w_review");
           }
           const catalog = TODO_STAGE_CATALOG[role] || [];
           const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
