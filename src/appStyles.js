@@ -405,7 +405,9 @@ input:focus { outline: none; }
      スクロール格納・入力中の退避・オーバーレイ中の非表示を☰浮遊ボタンと完全に同じ作法で揃える */
   .cb-applicant-filter-bar {
     position: fixed;
-    bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
+    /* ☰(44px角・同じ64+12の高さ)と右下の切替FABに重ならないよう、1段上に置く（2026-07-27たきと報告）。
+       下部バー64px＋12px＋☰の高さ44px＋8px＝その上の行 */
+    bottom: calc(64px + 12px + 44px + 8px + env(safe-area-inset-bottom, 0px));
     left: 8px; right: 8px;
     z-index: 60;
     display: flex; gap: 6px;
@@ -421,7 +423,7 @@ input:focus { outline: none; }
   .cb-applicant-filter-bar::-webkit-scrollbar { display: none; }
   /* モバイルは浮遊バーだけを見せる（本文中の並びは重複so隠す） */
   .cb-applicant-filter-inline { display: none !important; }
-  body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
+  body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + 44px + 8px + env(safe-area-inset-bottom, 0px)), 0); }
   body.cb-typing .cb-applicant-filter-bar { display: none !important; }
   body:has(.mobile-apply-bar) .cb-applicant-filter-bar { display: none; }
   body:has(.chat-full) .cb-applicant-filter-bar,
