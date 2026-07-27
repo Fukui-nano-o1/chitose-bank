@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { INSURANCE_ITEMS } from "../lib/utils";
+import { isIOS } from "../lib/push";
 import { ToggleSwitch } from "./ToggleSwitch";
 // 🛡 保険の準備（自己申告）専用ページ（#/insurance・2026-07-24）：農家プロフィール編集の箱から独立ページへ。
 // employer_profiles.insurance_items を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
@@ -129,7 +130,7 @@ export function VisitEntrance({ me }) {
   // 帯は前半と同じ並びをもう一度continueして繋げる＝-50%まで流して先頭へ戻ると継ぎ目が見えない
   const strip = jobs.length ? [...jobs, ...jobs] : [];
   return (
-    <div className="cb-visit-page" style={{ maxWidth:520, margin:"0 auto", padding:"24px 20px 96px", textAlign:"center" }}>
+    <div className="cb-visit-page" style={{ maxWidth:520, margin:"0 auto", padding:"24px 20px 40px", textAlign:"center" }}>
       <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", margin:"0 0 8px" }}>chitose-bank</h1>
       <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:1.8, margin:"0 0 16px" }}>農家と働き手が直接つながる、農作業の求人サイトです。</p>
       {jobs.length > 0 && (
@@ -168,9 +169,29 @@ export function VisitEntrance({ me }) {
       </div>
       <button onClick={agree} className="btn-primary f-sans" style={{ width:"100%", maxWidth:320, padding:"16px", fontSize:16, fontWeight:700, borderRadius:14 }}>同意して見てみる</button>
       <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"12px auto 0", maxWidth:340, lineHeight:1.7 }}>「同意して見てみる」を押すと、利用規約とプライバシーポリシーに同意したものとします。求人の閲覧ができます（応募・登録は会員のみ）。</p>
+      {/* アプリの入れ方（2026-07-27たきと指示）：訪問者に下部バーを出さないため、ここに直接書く。
+          #/install へのリンクにしない＝同意ゲート（未同意は玄関へ戻される）に弾かれ、案内が読めないため。
+          手順はInstallGuide（#/install）と同じ文面。使っている端末のOSを先に出す */}
+      <div style={{ marginTop:34, borderTop:"1px solid #EBEBEB", paddingTop:22, textAlign:"left" }}>
+        <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px", textAlign:"center" }}>📲 アプリとして使う</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 14px", textAlign:"center" }}>ホーム画面に追加すると、アプリのように開けて通知も受け取れます。</p>
+        <div style={{ display:"grid", gap:10 }}>
+          {(isIOS() ? [INSTALL_IOS, INSTALL_ANDROID] : [INSTALL_ANDROID, INSTALL_IOS]).map(g => (
+            <div key={g.label} style={{ background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{g.label}</p>
+              <ol className="f-sans" style={{ margin:0, paddingLeft:18, fontSize:12, color:"#555", lineHeight:1.9 }}>
+                {g.steps.map((s, i) => <li key={i}>{s}</li>)}
+              </ol>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
+// 入れ方の手順（#/install の InstallGuide と同じ文面）
+const INSTALL_IOS = { label:"iPhone（Safari）", steps:["Safariでこのページを開く","下の共有ボタン（□に↑）をタップ","「ホーム画面に追加」を選ぶ","右上の「追加」をタップ"] };
+const INSTALL_ANDROID = { label:"Android（Chrome）", steps:["Chromeでこのページを開く","右上のメニュー（⋮）をタップ","「アプリをインストール」または「ホーム画面に追加」を選ぶ","「インストール」をタップ"] };
 
 // 管理者用QRコードページ（#/qr・2026-07-24）：焼き込み済みの静的QR(public/visit-qr.svg)を表示。実行時生成しない。
 export function VisitorQRPage() {
