@@ -20,6 +20,21 @@ export function ChatList() {
   const [dmSending, setDmSending] = useState(false);
   const [unreadMap, setUnreadMap] = useState(() => chatCache.v?.unreadMap || {}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
   const [initialsMap, setInitialsMap] = useState(() => chatCache.v?.initialsMap || {}); // { partner_auth_id: メール頭文字2文字 }（ニックネーム未設定時のアイコン・2026-07-22）
+  // 返信順（2026-07-27たきと指示）：並びの既定は「最後のやり取りが新しい順」。応募日順ではない
+  const [lastMsgMap, setLastMsgMap] = useState(() => chatCache.v?.lastMsgMap || {}); // { application_id: 最終メッセージのcreated_at }
+  const refreshLastMsg = async (ids) => {
+    try {
+      const list = ids && ids.length ? ids : Object.keys(lastMsgMap);
+      if (!list.length) return;
+      // 降順で取り、application_idごとの初出＝そのスレッドの最終メッセージ時刻
+      const { data } = await supabase.from("messages").select("application_id,created_at")
+        .in("application_id", list).order("created_at", { ascending: false }).limit(1000);
+      if (!data) return;
+      const m = {};
+      data.forEach(r => { if (!m[r.application_id]) m[r.application_id] = r.created_at; });
+      setLastMsgMap(m);
+    } catch { /* 取得できなければ応募日順のまま（並びが壊れるより安全） */ }
+  };
   // プッシュ通知の状態（2026-07-19）：チャット一覧の上に「通知をオンにする」を出す
   const [pushSt, setPushSt] = useState(null); // 'unsupported'|'need-standalone'|'default'|'denied'|'granted'
   const [pushBusy, setPushBusy] = useState(false);
@@ -76,8 +91,14 @@ export function ChatList() {
         if (data) setUnreadMap(data.by_application || {});
       } catch {}
     };
+    // 新着メッセージのINSERTでは、その応募の最終メッセージ時刻も更新する＝返信順が即座に入れ替わる（2026-07-27）
+    const onNewMsg = (payload) => {
+      refreshUnreadMap();
+      const m = payload?.new;
+      if (m?.application_id && m?.created_at) setLastMsgMap(prev => ({ ...prev, [m.application_id]: m.created_at }));
+    };
     const ch = supabase.channel("chatlist-live")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, refreshUnreadMap)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, onNewMsg)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, () => loadDm(dmOpenRef.current))
       .subscribe();
     // 復帰時の再読込＋保険ポーリング（2026-07-27たきと指示）：iOS PWAのバックグラウンドで
@@ -151,6 +172,7 @@ export function ChatList() {
         // 求人（応募）ごとに1スレッド（2026-07-23）：相手で束ねず、求人ごとに分ける。
         // terms_snapshot（契約内容）の混同を防ぐため。未読・遷移先とも応募単位。
         setRows(merged.map(a => ({ ...a, _appIds: [a.id], _count: 1 })));
+        refreshLastMsg(merged.map(a => a.id)); // 返信順の材料（最終メッセージ時刻）
       } catch {}
       setLoading(false);
     })();
@@ -159,16 +181,21 @@ export function ChatList() {
 
   // 一覧スナップショットの保存（2026-07-22）：初回ロード完了後、rows/未読/イニシャルが変わるたびキャッシュへ。
   // チャットから戻った再マウントで即表示され、スピナー（リロード感）が出なくなる
-  useEffect(() => { if (!loading) chatCache.v = { rows, unreadMap, initialsMap }; }, [rows, unreadMap, initialsMap, loading]);
+  useEffect(() => { if (!loading) chatCache.v = { rows, unreadMap, initialsMap, lastMsgMap }; }, [rows, unreadMap, initialsMap, lastMsgMap, loading]);
 
-  // 未読はトップに移動（2026-07-22）：未読のあるスレッドを先頭へ。未読同士・既読同士は新着順。
-  // unreadMapはリアルタイムで変わるので、rowsに焼き込まず描画時に並べ替える
+  // 並び（2026-07-27たきと指示）：①未読があるスレッドを先頭 ②未読同士・既読同士とも「返信順」＝
+  // 最後のやり取りが新しい順（未読が2件以上でも最新順で並ぶ）。メッセージがまだ無いスレッドは応募日で代用。
+  // unreadMap/lastMsgMapはリアルタイムで変わるので、rowsに焼き込まず描画時に並べ替える
   const rowUnreadOf = (a) => (a._appIds || [a.id]).reduce((s, id) => s + (unreadMap[id] || 0), 0);
+  const rowLastAt = (a) => {
+    const t = (a._appIds || [a.id]).map(id => lastMsgMap[id]).filter(Boolean).sort().pop();
+    return new Date(t || a.created_at).getTime();
+  };
   const sortedRows = [...rows].sort((x, y) => {
     const ux = rowUnreadOf(x) > 0 ? 1 : 0;
     const uy = rowUnreadOf(y) > 0 ? 1 : 0;
     if (ux !== uy) return uy - ux;
-    return new Date(y.created_at) - new Date(x.created_at);
+    return rowLastAt(y) - rowLastAt(x);
   });
 
   return (
