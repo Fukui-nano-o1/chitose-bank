@@ -439,6 +439,10 @@ input:focus { outline: none; }
      外れてtransitionで滑らかに戻る */
   .cb-app-jobcard { transform: translateX(var(--cb-swipe-dx, 0px)); transition: transform .18s ease; }
   .cb-swiping .cb-app-jobcard { transition: none; }
+  /* 指を動かしている間は案内文（横スワイプでカレンダーを開く）を緑の太字にして、
+     いま何が起きようとしているかを目で分からせる */
+  .cb-cal-hint { transition: color .15s ease; }
+  .cb-swiping .cb-cal-hint { color: #00A86B !important; font-weight: 700; }
   body:has(.mobile-apply-bar) .cb-applicant-filter-bar { display: none; }
   body:has(.chat-full) .cb-applicant-filter-bar,
   body:has(.cb-preview-overlay) .cb-applicant-filter-bar,

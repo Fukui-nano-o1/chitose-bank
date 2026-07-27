@@ -573,10 +573,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // スワイプの追従（2026-07-27たきと指示）：指の動きに合わせて求人カードだけが同じ方向へズレ、
   // 20pxズレた時点で発火（カレンダーの開閉）。追従はCSS変数への直書き＝再レンダーを起こさない
   const appGridRef = useRef(null);
-  const setSwipeDx = (px) => {
+  // animate=false（指の追従中）＝transitionを切って1:1でついてくる／animate=true（発火後・指を離した後）
+  // ＝transitionを効かせて滑らかに戻す
+  const setSwipeDx = (px, animate = false) => {
     const el = appGridRef.current; if (!el) return;
     el.style.setProperty("--cb-swipe-dx", px + "px");
-    el.classList.toggle("cb-swiping", px !== 0);
+    el.classList.toggle("cb-swiping", !animate && px !== 0);
   };
   const appSwipeRef = useRef(null);
   const onAppSwipeMove = (e) => {
@@ -587,10 +589,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";       // 一度決めたら最後まで変えない
     }
     if (s.lock !== "h") return;                               // 縦スクロールは邪魔しない
-    setSwipeDx(Math.max(-24, Math.min(24, dx)));              // カードが指について動く（最大24px）
+    setSwipeDx(Math.max(-20, Math.min(20, dx)));              // カードが指について動く（横に最大20px）
     if (Math.abs(dx) >= 20) {                                 // 20pxで発火
       s.fired = true;
-      setSwipeDx(0);
+      // 20pxズレた形をひと呼吸だけ見せてから戻す＝「ここで効いた」が目で分かる
+      setSwipeDx(dx > 0 ? 20 : -20, true);
+      setTimeout(() => setSwipeDx(0, true), 160);
       setCalOnTop(v => {
         const next = !v;
         if (next) { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); } }
@@ -612,7 +616,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     appSwipeRef.current = inHScroll ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null, fired: false };
   };
   // 指を離したら追従を戻すだけ（発火はonAppSwipeMoveの20px時点で済んでいる）
-  const onAppSwipeEnd = () => { appSwipeRef.current = null; setSwipeDx(0); };
+  const onAppSwipeEnd = () => { appSwipeRef.current = null; setSwipeDx(0, true); };
   // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
   const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
   // 応募者の注意表示（2026-07-16）：未承認（承認待ち）＝赤影＋浮遊アニメ／保険未チェック＝赤影のみ（静止）
@@ -1090,7 +1094,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             );
             // スワイプでカレンダーが開くことの案内（2026-07-27）。開いている間は畳み方を出す
             const calHint = (
-              <button key="cal-hint" onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans"
+              <button key="cal-hint" onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans cb-cal-hint"
                 style={{ gridColumn:"1/-1", background:"none", border:"none", padding:"0 0 6px", fontSize:11, color:"#B0B0B0", textAlign:"center", cursor:"pointer" }}>
                 {calOnTop ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
               </button>
