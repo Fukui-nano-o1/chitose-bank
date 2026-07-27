@@ -111,13 +111,34 @@ export function MyCalendar({ backToToday }) {
     const needsEndedOpen = matches.every(m => bucketOf(m) === "ended") && !showEnded;
     if (needsEndedOpen) setShowEnded(true);
     setTimeout(() => {
-      const el = rowRefs.current[entryKey(matches[0])];
+      // 重複解消で実際に描画されるのは代表1行so、その行のキーで引く（生のmatches[0]は描画されていない場合がある）
+      const m = matches[0];
+      const rep = dedupeByJob(entries).find(x => x.job_number === m.job_number && (x.my_role || "") === (m.my_role || "")) || m;
+      const el = rowRefs.current[entryKey(rep)];
       if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
     }, needsEndedOpen ? 60 : 0);
   };
 
+  // 同じ求人の重複表示を解消（2026-07-27たきと報告）：get_my_calendar_jobsは応募1件につき1行返すため、
+  // 1つの求人に複数の働き手が進んでいると同じ求人カードが人数分並んでいた（カードは相手名を出さないso見分けがつかない）。
+  // 求人＋自分の役割でまとめ、代表1件だけ表示。まとめた件数は人数バッジ(mergedCount)として持たせる
+  const dedupeByJob = (list) => {
+    const byKey = new Map();
+    list.forEach(e => {
+      const k = `${e.job_number}|${e.my_role || ""}`;
+      const cur = byKey.get(k);
+      if (!cur) { byKey.set(k, { ...e, mergedCount: 1 }); return; }
+      cur.mergedCount += 1;
+      // 代表は「進んでいる方」を優先＝作業中>採用>それ以外。帯が実態から離れないようにする
+      const rank = (st) => st === "working" ? 3 : st === "contracted" ? 2 : 1;
+      if (rank(e.application_status) > rank(cur.application_status)) {
+        byKey.set(k, { ...e, mergedCount: cur.mergedCount });
+      }
+    });
+    return [...byKey.values()];
+  };
   const grouped = { today:[], tomorrow:[], thisWeek:[], later:[], ended:[] };
-  entries.forEach(e => { const b = bucketOf(e); if (b) grouped[b].push(e); });
+  dedupeByJob(entries).forEach(e => { const b = bucketOf(e); if (b) grouped[b].push(e); });
   const byDateAsc = (a, b) => (a.date_start||"").localeCompare(b.date_start||"") || (a.work_time||"").localeCompare(b.work_time||"");
   grouped.today.sort(byDateAsc); grouped.tomorrow.sort(byDateAsc); grouped.thisWeek.sort(byDateAsc); grouped.later.sort(byDateAsc);
   grouped.ended.sort((a, b) => (b.date_start||"").localeCompare(a.date_start||""));
@@ -163,6 +184,10 @@ export function MyCalendar({ backToToday }) {
         <div style={{ padding:"8px 10px 10px" }}>
           <p style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"}</p>
           <p style={{ fontSize:11, color:"#999", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📅 {dateLabel}{e.work_time ? "　" + e.work_time : ""}</p>
+          {/* まとめた件数（同じ求人に複数の相手が進んでいる時だけ）。誰かは出さず人数だけ */}
+          {e.mergedCount > 1 && (
+            <p style={{ fontSize:11, color:"#717171", margin:"2px 0 0" }}>👤 {e.mergedCount}名</p>
+          )}
         </div>
       </button>
     );
