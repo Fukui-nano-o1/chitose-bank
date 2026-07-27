@@ -36,9 +36,20 @@ export function SavedJobsView({ me }) {
     return () => { cancelled = true; };
   }, [me?.id]);
 
+  // いいね解除＝この一覧から消える（♥はいいねを外すボタン）。誤タップ救済に「元に戻す」を10秒出す（2026-07-27）
+  const [undoJob, setUndoJob] = useState(null);
   const handleUnsave = async (job) => {
     setJobs(prev => (prev || []).filter(j => j.id !== job.id));
+    setUndoJob(job);
+    setTimeout(() => setUndoJob(prev => (prev && prev.id === job.id) ? null : prev), 10000);
     await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", job.id);
+  };
+  const handleUndo = async () => {
+    const job = undoJob; if (!job) return;
+    setUndoJob(null);
+    const { error } = await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: job.id });
+    if (error) { alert("戻せませんでした：" + error.message); return; }
+    setJobs(prev => [job, ...(prev || [])].sort((a, b) => b.id - a.id));
   };
 
   if (jobs === null) return null;
@@ -48,10 +59,16 @@ export function SavedJobsView({ me }) {
       <div style={{ marginBottom:14 }}>
         <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>いいねした求人</h2>
       </div>
+      {undoJob && (
+        <div className="fade-in" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 14px", marginBottom:12 }}>
+          <span className="f-sans" style={{ fontSize:12, color:"#717171", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>いいねを外しました（#{undoJob.id}）</span>
+          <button onClick={handleUndo} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>元に戻す</button>
+        </div>
+      )}
       {jobs.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
-          <div style={{ fontSize:40, marginBottom:16 }}>♡</div>
-          <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を💚しておくと、ここに並びます</p>
+          <div style={{ fontSize:40, marginBottom:16, color:"#E24B4A" }}>♡</div>
+          <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を♥しておくと、ここに並びます</p>
         </div>
       ) : (
         <div style={{ display:"grid", gap:10 }}>
@@ -99,9 +116,10 @@ export function SavedJobsView({ me }) {
                     </button>
                   )}
                 </div>
-                {/* いいね解除（従来の♡と同じ役割・終了求人では暗幕でタップ不可） */}
+                {/* いいね解除（求人カードの♥と同じ役割・色も赤で統一・2026-07-27たきと指示）。
+                    タップ＝いいねを外す＝この一覧から消える動作so、直後に「元に戻す」を出す（誤タップ救済） */}
                 <button onClick={()=>handleUnsave(job)} aria-label="いいねを解除" className="f-sans"
-                  style={{ position:"absolute", top:6, right:6, zIndex:1, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:14, lineHeight:1, boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>💚</button>
+                  style={{ position:"absolute", top:6, right:6, zIndex:1, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:15, lineHeight:1, color:"#E24B4A", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>♥</button>
               </div>
             );
           })}
