@@ -1364,10 +1364,16 @@ export default function App(){
   useEffect(()=>{
     if(!me?.id){ setNeedsAccountHolder(false); return; }
     let cancelled=false;
-    (async()=>{
-      const { data } = await supabase.from('account_holders').select('id').eq('auth_id', me.id).maybeSingle();
-      if(!cancelled) setNeedsAccountHolder(!data);
-    })();
+    // 通信エラー＝「未登録」と断定しない（2026-07-27修正：+testで登録済みアカウントに新規登録①が
+    // 出た誤爆。ログイン直後はトークン切替等でクエリが一時失敗しうる）。エラー時はゲートを
+    // 動かさず3秒後に1回だけ再確認。判定が確定した時（error無し）だけsetする＝getSession誤認と同じ型
+    const check = async (retryLeft)=>{
+      const { data, error } = await supabase.from('account_holders').select('id').eq('auth_id', me.id).maybeSingle();
+      if(cancelled) return;
+      if(error){ if(retryLeft > 0) setTimeout(()=>{ if(!cancelled) check(retryLeft - 1); }, 3000); return; }
+      setNeedsAccountHolder(!data);
+    };
+    check(1);
     return ()=>{ cancelled=true; };
   },[me?.id]);
   useEffect(() => {
