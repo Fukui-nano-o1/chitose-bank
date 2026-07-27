@@ -405,16 +405,16 @@ input:focus { outline: none; }
      スクロール格納・入力中の退避・オーバーレイ中の非表示を☰浮遊ボタンと完全に同じ作法で揃える */
   .cb-applicant-filter-bar {
     position: fixed;
-    /* ☰(44px角・同じ64+12の高さ)と右下の切替FABに重ならないよう、1段上に置く（2026-07-27たきと報告）。
-       下部バー64px＋12px＋☰の高さ44px＋8px＝その上の行 */
-    bottom: calc(64px + 12px + 44px + 8px + env(safe-area-inset-bottom, 0px));
-    left: 8px; right: 8px;
+    /* さがすの検索バー(.cb-search-fab)と同じ形式に統一（2026-07-27たきと指示）：
+       ☰(left:12px・幅44px)と同じ高さで、その右隣から始める */
+    bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
+    left: calc(12px + 44px + 10px); right: 12px;
     z-index: 60;
     display: flex; gap: 6px;
     padding: 6px;
-    background: rgba(255,255,255,0.96);
-    border: 1px solid #EBEBEB; border-radius: 999px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    background: #fff;
+    border: 1px solid #DDD; border-radius: 32px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
     overflow-x: auto; -webkit-overflow-scrolling: touch;
     transform: translate3d(0, 0, 0);
     will-change: transform;
@@ -423,7 +423,7 @@ input:focus { outline: none; }
   .cb-applicant-filter-bar::-webkit-scrollbar { display: none; }
   /* モバイルは浮遊バーだけを見せる（本文中の並びは重複so隠す） */
   .cb-applicant-filter-inline { display: none !important; }
-  body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + 44px + 8px + env(safe-area-inset-bottom, 0px)), 0); }
+  body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   body.cb-typing .cb-applicant-filter-bar { display: none !important; }
   body:has(.mobile-apply-bar) .cb-applicant-filter-bar { display: none; }
   body:has(.chat-full) .cb-applicant-filter-bar,
@@ -443,20 +443,10 @@ input:focus { outline: none; }
   will-change: transform;
   transition: transform .25s ease;
 }
-body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px + 12px + 44px + 8px + env(safe-area-inset-bottom, 0px)), 0); }
-/* モバイルは☰の1段上に置く（2026-07-27たきと指示：応募者ページの絞り込みバーと見た目・動作を統一）。
-   下部バー64px＋12px＋☰の高さ44px＋8px＝☰・切替FABの上の行so、どれとも重ならない */
+body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
+/* モバイルは左下の☰（left:12px・幅44px）と同じ高さso、☰の右隣から始めて重複を避ける（2026-07-27） */
 @media (max-width: 768px) {
-  .cb-search-fab {
-    left: 8px; right: 8px; margin: 0; max-width: none;
-    bottom: calc(64px + 12px + 44px + 8px + env(safe-area-inset-bottom, 0px));
-  }
-  /* 入力中・チャット・各種ボックス展開中は退避（絞り込みバーと同じガード） */
-  body.cb-typing .cb-search-fab { display: none !important; }
-  body:has(.mobile-apply-bar) .cb-search-fab { display: none; }
-  body:has(.chat-full) .cb-search-fab,
-  body:has(.cb-preview-overlay) .cb-search-fab,
-  body:has(.cb-lock-scroll) .cb-search-fab { display: none !important; }
+  .cb-search-fab { left: calc(12px + 44px + 10px); right: 12px; margin: 0; max-width: none; }
 }
 /* PCは下部バーも☰も無いので画面下端の中央寄せ */
 @media (min-width: 769px) { .cb-search-fab { bottom: 24px; } }
