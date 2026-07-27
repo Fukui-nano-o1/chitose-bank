@@ -518,9 +518,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {searchOpen && (
         <div className="fade-in" onClick={()=>setSearchOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
           <div onClick={e=>e.stopPropagation()} style={{ maxWidth:520, margin:"0 auto", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 24px" }}>
-          <div style={{ padding:"0 0 10px" }}>
-            <button onClick={()=>setSearchOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:34, height:34, borderRadius:"50%", background:"#fff", border:"1px solid #DDD", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-          </div>
+          {/* ✕閉じるボタンは削除（2026-07-27たきと指示）：モザイク部分のタップで閉じられるため不要 */}
           <div style={{ display:"grid", gap:12, alignContent:"start" }}>
             {[
               { k:"what",   q:"なにを", title:"なにをする？", opts: searchWhatOpts,   sel: selWhats,   tog: togSel(setSelWhats),   label: v => v },
