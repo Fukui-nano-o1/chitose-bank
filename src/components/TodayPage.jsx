@@ -293,8 +293,10 @@ export function TodayPage({ me, defaultRole }) {
   // ── やること（採配台）：状態カード。①②⑧=遷移／③〜⑦=直接実行（保険・開始確認はインライン、日程決定・完了/評価は既存モーダルへ橋渡し） ──
   const removeTodo = (id, st) => setTodos(prev => prev.filter(t => !(t.application_id === id && t.stage === st)));
   const TODO_META = {
-    // きょうの仕事の分解（2026-07-25）：役割ごとの箱。1件なら即遷移（各箱の機能が単一so迷いなし）
-    t_card:      { icon:"📋", title:"確認カード",           btn:"確認カード →",     nav: e => { try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} return "/work/job/" + e.job_number; } },
+    // カレンダー（2026-07-27たきと指示：確認カードをカレンダーに差し替え・統合）：
+    // 応募（予定）が1件でもあれば件数0でも常にタップ可＝月カレンダーへ直行。バッジ＝きょうが作業日の仕事の数。
+    // 現場情報の確認はカレンダーの日タップ→求人ページで担う（確認カードの役割を吸収）
+    t_card:      { icon:"📅", title:"カレンダー",           btn:"カレンダー →",     always:true, nav: () => "/calendar/month" },
     t_emergency: { icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id },
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
@@ -398,18 +400,21 @@ export function TodayPage({ me, defaultRole }) {
   const TodoStageBox = ({ stage, items }) => {
     const m = TODO_META[stage]; if (!m) return null;
     const n = items.length;
+    // always指定（カレンダー）：応募（予定）が1件でもあれば件数0でも常にタップ可（2026-07-27たきと指示）
+    const enabled = m.always ? mine.length > 0 : n > 0;
     const onTapBox = () => {
-      if (!n) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
+      if (!enabled) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
+      if (m.always) { window.location.hash = m.nav(); return; } // カレンダーは常に直行
       // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。expand指定は件数に関わらず専用ページを展開
       // （新着の応募＝お祝いパネルを必ず見せる・2026-07-26）。それ以外は用件の専用ページへ
       if (n === 1 && (m.nav || m.flag) && !m.expand) { runTodo(m, items[0]); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (
-      <button onClick={onTapBox} disabled={!n} className="f-sans" style={{
+      <button onClick={onTapBox} disabled={!enabled} className="f-sans" style={{
         position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:18,
-        padding:"24px 10px 18px", textAlign:"center", cursor: n ? "pointer" : "default", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
-        opacity: n ? 1 : 0.45,
+        padding:"24px 10px 18px", textAlign:"center", cursor: enabled ? "pointer" : "default", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+        opacity: enabled ? 1 : 0.45,
       }}>
         {n > 0 && <span aria-label={"残り" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>}
         <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>{m.icon}</span>
@@ -557,7 +562,7 @@ export function TodayPage({ me, defaultRole }) {
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>📝 メモ</p>
           <textarea value={memo} onChange={e=>{ setMemo(e.target.value); try { localStorage.setItem("cb_todayMemo", e.target.value); } catch {} }} placeholder="自分用のメモ（この端末だけに保存されます）" rows={3} className="field f-sans" style={{ width:"100%", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
         </div>
-        <button onClick={()=>{ window.location.hash = "/calendar/month"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px", fontSize:14, fontWeight:700, color:"#222", cursor:"pointer" }}>📅 月の予定を見る →</button>
+        {/* 「📅 月の予定を見る」ボタンは削除（2026-07-27たきと指示）：やることのカレンダー箱に統合 */}
       </>)}
       </div>
     </div>
