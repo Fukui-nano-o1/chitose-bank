@@ -413,7 +413,11 @@ input:focus { outline: none; }
   transition: transform .25s ease;
 }
 body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
-/* PCは下部バーが無いので画面下端寄せ */
+/* モバイルは左下の☰（left:12px・幅44px）と同じ高さso、☰の右隣から始めて重複を避ける（2026-07-27） */
+@media (max-width: 768px) {
+  .cb-search-fab { left: calc(12px + 44px + 10px); right: 12px; margin: 0; max-width: none; }
+}
+/* PCは下部バーも☰も無いので画面下端の中央寄せ */
 @media (min-width: 769px) { .cb-search-fab { bottom: 24px; } }
 .app-header-mobile-float-btn {
   width: 44px; height: 44px;
