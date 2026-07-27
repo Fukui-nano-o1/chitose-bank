@@ -435,6 +435,21 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     } catch {}
   }, [jobTab]);
   const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者ページ下部「帯の意味」の説明ボックス開閉
+  // 今日ページのカレンダー箱から来たときだけ、応募者ページの上部にカレンダーを展開する（2026-07-27たきと指示）。
+  // 合図は sessionStorage の cb_openCalendar（TodayPage側で立てる）。一度読んだら消す＝タブを離れると元に戻る
+  const [calOnTop, setCalOnTop] = useState(false);
+  useEffect(() => {
+    if (jobTab !== "applicants") { setCalOnTop(false); return; }
+    try {
+      if (sessionStorage.getItem("cb_openCalendar")) {
+        sessionStorage.removeItem("cb_openCalendar");
+        setCalOnTop(true);
+      }
+    } catch {}
+  }, [jobTab]);
+  const calendarTop = calOnTop ? (
+    <div key="app-cal-top" style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar /></div>
+  ) : null;
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
     if (!completeDone) return;
@@ -955,11 +970,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         <EmployerProfileEdit me={me} />
       ) : jobTab==="applicants" ? (
         dbApplicants.length === 0 ? (
-          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-            <div style={{ fontSize:40, marginBottom:12 }}>📩</div>
-            <p style={{ fontSize:14, margin:0 }}>まだ応募はありません</p>
-            <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
-          </div>
+          <>
+            {calendarTop}
+            <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+              <div style={{ fontSize:40, marginBottom:12 }}>📩</div>
+              <p style={{ fontSize:14, margin:0 }}>まだ応募はありません</p>
+              <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
+            </div>
+          </>
         ) : (
           // 応募者を求人毎に分ける（2026-07-19）。上部＝状態フィルタタブ（タップ＋横スワイプ）／下部＝帯の意味の説明（2026-07-22）
           (() => {
@@ -1064,7 +1082,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     </div>
                   );
                 });
-            return [tabBar, floatingFilterBar, ...body, legend];
+            return [calendarTop, tabBar, floatingFilterBar, ...body, legend];
           })()
         )
       ) : jobTab==="expired" ? (
