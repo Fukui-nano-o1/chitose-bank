@@ -399,14 +399,8 @@ function EmployerPreviewSheet() {
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
         ) : st.profile ? (
           <>
-            <FarmerTrustCard profile={st.profile} trust={st.trust} />
-            {perkBadges(st.profile).length > 0 && (
-              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
-                {perkBadges(st.profile).map(b => (
-                  <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
-                ))}
-              </div>
-            )}
+            {/* 待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
+            <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)} />
             {topics.length > 0 && (
               <div style={{ display:"grid", gap:10, marginTop:16 }}>
                 {topics.map(t => (

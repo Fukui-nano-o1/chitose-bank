@@ -97,7 +97,9 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
 // 農家版15秒カード（WorkerTrustCardの鏡写し）。trustはemployer_trust_info/job_employer_trust_infoの返り値
 // onEditItem（任意）: 本人プレビュー用。渡すと各項目がタップ可能になり、対応する編集ボックスのキー
 // (avatar/nickname/style/ask)を返す。働き手側（求人詳細等）は渡さない＝従来どおり表示専用
-export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs }) {
+// extraBadges（任意）：待遇バッジ等、呼び出し元が持つタグをこのカードのタグ行に合流させる。
+// 渡さない画面（求人詳細など）は従来どおり呼び出し元が自前で並べる＝表示は不変
+export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges }) {
   if (!profile) return null;
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
   const cur = onEditItem ? { cursor:"pointer" } : {};
@@ -148,11 +150,6 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
       {okTrust && trust.avg_response_hours != null && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>応募への返答：平均{trust.avg_response_hours}時間</p>
       )}
-      {styleLabel && (
-        <div style={{ marginBottom:10 }}>
-          <span {...tap("style")} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...cur }}>🤝 {styleLabel}</span>
-        </div>
-      )}
       {qa.length > 0 && (
         <div {...tap("ask")} style={{ display:"grid", gap:10, marginTop:4, ...cur }}>
           {qa.map(({ q, a }) => (
@@ -163,18 +160,31 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
           ))}
         </div>
       )}
-      {/* 保険の準備（自己申告・2026-07-23）：選択ありの時だけチップ列＋注記。未選択なら欄ごと非表示（未記載表示は作らない） */}
-      {Array.isArray(profile.insurance_items) && profile.insurance_items.length > 0 && (
-        <div style={{ marginTop:12 }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
-            {normalizeInsuranceItems(profile.insurance_items).map(k => { const it = INSURANCE_ITEMS.find(x => x.k === k); return it ? (
-              <span key={k} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>🛡 {it.chip}</span>
-            ) : null; })}
+      {/* タグは1箇所に集約（2026-07-27たきと指示）：やり取りの雰囲気・保険・待遇を1行に並べる。
+          「🛡 保険の準備（自己申告）」の見出しは削除し、自己申告の注記だけタグ行の下に残す */}
+      {(() => {
+        const insChips = normalizeInsuranceItems(profile.insurance_items).map(k => INSURANCE_ITEMS.find(x => x.k === k)).filter(Boolean);
+        const perks = Array.isArray(extraBadges) ? extraBadges : [];
+        if (!styleLabel && insChips.length === 0 && perks.length === 0) return null;
+        return (
+          <div style={{ marginTop:12 }}>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {styleLabel && (
+                <span {...tap("style")} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...cur }}>🤝 {styleLabel}</span>
+              )}
+              {insChips.map(it => (
+                <span key={it.k} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>🛡 {it.chip}</span>
+              ))}
+              {perks.map(b => (
+                <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>{b}</span>
+              ))}
+            </div>
+            {insChips.length > 0 && (
+              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0", lineHeight:1.5 }}>農家の自己申告です。運営が確認したものではありません。</p>
+            )}
           </div>
-          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:0, lineHeight:1.5 }}>農家の自己申告です。運営が確認したものではありません。</p>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
