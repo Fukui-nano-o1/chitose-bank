@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 import { ymdLocal, calAddDays, calFmtDate, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR } from "../lib/utils";
 import { StatusRibbon, StatusRibbonLeft, NoticeJumpText } from "./ui";
 import { AdminJobPreview } from "./AdminJobPreview";
+// 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
+const CAL_OVERLAP = "#E24B4A";
 // #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
 // 紐づく求人の作業日程を予定表（アジェンダ）として表示。日付タップで該当日へスクロール＆ハイライト。
 // jobsテーブルを直接読むとRLS(owner select=farmer_idのみ)で相手方の求人が読めないため、
@@ -230,34 +232,30 @@ export function MyCalendar({ backToToday }) {
                 if (!dd) return <div key={`e${i}`} />;
                 const dt = new Date(cvYear, cvMonth, dd);
                 const ymd = ymdLocal(dt);
-                // 役割色（第11弾）：農家として設定=緑／働き手として応募・いいね=橙。両方あればドット2つ
+                // 予定のある日は塗りつぶし（2026-07-27たきと指示：求人フローのカレンダーと同じ形式に統一）。
+                // 求人期間（農家として）=緑／求職期間（働き手として）=橙／両方が重なる日=赤
                 const es = entriesOnDay(dt);
                 const hasFarmer = es.some(e => e.my_role === "farmer");
                 const hasWorker = es.some(e => e.my_role === "worker");
+                const fill = (hasFarmer && hasWorker) ? CAL_OVERLAP : hasFarmer ? ROLE_GREEN : hasWorker ? ROLE_ORANGE : null;
                 const isToday = ymd === todayYmd;
                 const isSelected = selectedDay && ymdLocal(selectedDay) === ymd;
                 return (
                   <button key={dd} onClick={() => onDayTap(dt)} style={{
-                    display:"flex", flexDirection:"column", alignItems:"center", gap:1,
-                    padding:"4px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12,
-                    background: isSelected ? "#E6F7EF" : "transparent",
-                    color:"#222", fontWeight: isToday ? 700 : 400,
+                    padding:"7px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, textAlign:"center",
+                    background: fill || (isSelected ? "#E6F7EF" : "transparent"),
+                    color: fill ? "#fff" : "#222", fontWeight: (fill || isToday) ? 700 : 400,
                     boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
-                  }}>
-                    <span>{dd}</span>
-                    <span style={{ display:"flex", gap:2, height:5, alignItems:"center", justifyContent:"center" }}>
-                      {hasFarmer && <span style={{ width:5, height:5, borderRadius:"50%", background:ROLE_GREEN }} />}
-                      {hasWorker && <span style={{ width:5, height:5, borderRadius:"50%", background:ROLE_ORANGE }} />}
-                    </span>
-                  </button>
+                  }}>{dd}</button>
                 );
               })}
             </div>
           </div>
           {/* 役割色の凡例（第11弾） */}
           <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:8 }}>
-            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:8, height:8, borderRadius:"50%", background:ROLE_GREEN }} />農家として</span>
-            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:8, height:8, borderRadius:"50%", background:ROLE_ORANGE }} />働き手として</span>
+            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:ROLE_GREEN }} />求人期間</span>
+            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:ROLE_ORANGE }} />求職期間</span>
+            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:CAL_OVERLAP }} />重複</span>
           </div>
           {flashNoPlan && (
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
