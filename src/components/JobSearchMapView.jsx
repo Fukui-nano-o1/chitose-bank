@@ -149,10 +149,14 @@ export function JobSearchMapView({ onRegister, me }) {
   const [selMonths, setSelMonths] = useState([]);
   const [appliedSearch, setAppliedSearch] = useState(null); // {whats,regions,months}・nullなら全件
   const jobMonths = (j) => { // 求人の日程が跨る月（1〜12）の一覧
-    if (!j.dateStart) return [];
+    // ★dateStart/dateEndはDateオブジェクト（mapJobPublicRow）。文字列連結するとInvalid Dateになるため
+    //   "YYYY-MM-DD"文字列のdateStartRaw/dateEndRawを使う（2026-07-27修正：いつする？が常に空だったバグ）
+    const s = j.dateStartRaw, e = j.dateEndRaw || j.dateStartRaw;
+    if (!s) return [];
     const out = [];
-    const end = new Date((j.dateEnd || j.dateStart) + "T00:00:00");
-    const d = new Date(j.dateStart + "T00:00:00"); d.setDate(1);
+    const end = new Date(e + "T00:00:00");
+    const d = new Date(s + "T00:00:00"); d.setDate(1);
+    if (isNaN(d.getTime()) || isNaN(end.getTime())) return [];
     while (d <= end && out.length < 12) { out.push(d.getMonth() + 1); d.setMonth(d.getMonth() + 1); }
     return out;
   };
