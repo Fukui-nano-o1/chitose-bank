@@ -1417,7 +1417,7 @@ export default function App(){
   useEffect(() => {
     const standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
     if (!standalone) return;
-    let startY = null, fired = false;
+    let startY = null, startX = null, fired = false;
     const inScrollableOrFixed = (el) => {
       for (let n = el; n && n !== document.body; n = n.parentElement) {
         try {
@@ -1431,12 +1431,17 @@ export default function App(){
     const onStart = (e) => {
       fired = false;
       if (window.scrollY > 0 || inScrollableOrFixed(e.target)) { startY = null; return; }
-      startY = e.touches[0].clientY;
+      startY = e.touches[0].clientY; startX = e.touches[0].clientX;
     };
     const onMove = (e) => {
       if (startY == null || fired) return;
       if (window.scrollY > 0) { startY = null; return; }
-      if (e.touches[0].clientY - startY > 90) {
+      const dy = e.touches[0].clientY - startY;
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      // 横スワイプでは発動させない（2026-07-27たきと報告）：応募者ページのタブ切替スワイプが
+      // 少し下に流れただけでリロードが走り、選んでいたタブが「すべて」に戻っていた。
+      // 判定は他のスワイプと同じ作法＝縦が横の1.5倍以上あって初めて「引き下げ」とみなす
+      if (dy > 90 && dy > dx * 1.5) {
         fired = true;
         const ov = document.createElement("div");
         ov.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(255,255,255,.88);display:flex;align-items:center;justify-content:center;font-size:14px;color:#00A86B;font-weight:700;font-family:'Noto Sans JP',sans-serif";
