@@ -399,6 +399,22 @@ input:focus { outline: none; }
   /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
   body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
 }
+/* さがすの検索ピル（2026-07-27）：下部バー直上の浮遊配置（上は遠い・たきと指示）。
+   スクロール格納は他のFABと同じcb-scroll-hide 1本 */
+.cb-search-fab {
+  position: fixed;
+  left: 16px; right: 16px;
+  bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  margin: 0 auto;
+  max-width: 420px;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  transition: transform .25s ease;
+}
+body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
+/* PCは下部バーが無いので画面下端寄せ */
+@media (min-width: 769px) { .cb-search-fab { bottom: 24px; } }
 .app-header-mobile-float-btn {
   width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;

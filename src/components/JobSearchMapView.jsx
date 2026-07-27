@@ -497,8 +497,9 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* 見出し「近くの仕事を探す」は削除（2026-07-27たきと指示）。現在地は下部ナビの点灯が示すため冗長。
           支払いの注記は求人一覧の一番下へ移植（下記） */}
 
-      {/* ── Airbnb風検索バー（2026-07-27）：ピル型バー。タップで全画面パネル。適用中は条件の要約＋✕クリア ── */}
-      <button onClick={()=>{ setSearchOpen(true); setSearchSec("what"); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", maxWidth:520, margin:"0 auto 14px", background:"#fff", border:"1px solid #DDD", borderRadius:32, padding:"11px 18px", boxShadow:"0 3px 12px rgba(0,0,0,0.1)", cursor:"pointer", textAlign:"left", boxSizing:"border-box" }}>
+      {/* ── Airbnb風検索バー（2026-07-27）：下部バー直上の浮遊ピル（上は遠い・たきと指示）。
+           スクロールで他のFABと同じくcb-scroll-hideで格納。適用中は条件の要約＋✕クリア ── */}
+      <button onClick={()=>{ setSearchOpen(true); setSearchSec("what"); }} className="cb-search-fab f-sans" style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #DDD", borderRadius:32, padding:"11px 18px", boxShadow:"0 4px 16px rgba(0,0,0,0.18)", cursor:"pointer", textAlign:"left", boxSizing:"border-box" }}>
         <span style={{ fontSize:17, flexShrink:0 }}>🔍</span>
         <span style={{ minWidth:0, flex:1 }}>
           <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
