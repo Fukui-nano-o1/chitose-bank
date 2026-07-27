@@ -97,10 +97,13 @@ export function ChatView({ applicationId, onBack }) {
     setConfirmBoxOpen(false); setConfirmJob(null); setConfirmMeetingPlace(null); // 前の求人の残像を消す
     if (row.job_number) {
       try {
-        const { data: jobRow } = await supabase.from("jobs_public").select("*").eq("job_number", row.job_number).maybeSingle();
-        if (jobRow) setConfirmJob(mapJobPublicRow(jobRow));
-        const { data: mp } = await supabase.rpc('job_meeting_place', { p_job_number: row.job_number });
-        if (mp && mp.ok) setConfirmMeetingPlace(mp);
+        // 求人情報と集合場所は並列取得（2026-07-27：直列だと切替が体感で遅い）
+        const [jobRes, mpRes] = await Promise.all([
+          supabase.from("jobs_public").select("*").eq("job_number", row.job_number).maybeSingle(),
+          supabase.rpc('job_meeting_place', { p_job_number: row.job_number }),
+        ]);
+        if (jobRes.data) setConfirmJob(mapJobPublicRow(jobRes.data));
+        if (mpRes.data && mpRes.data.ok) setConfirmMeetingPlace(mpRes.data);
       } catch {}
     }
   };
@@ -154,6 +157,19 @@ export function ChatView({ applicationId, onBack }) {
     } catch {}
   };
   useEffect(() => {
+    // 求人No.ボックスでの切替を一瞬に（2026-07-27たきと指示）：
+    // ①前のスレッドのメッセージを即クリア（残像を消す）
+    // ②同じ相手の別応募＝threadAppsに行がある＝相手情報・一覧は取得済みso、
+    //   セッション/相手プロフィール/イニシャル/全応募の再取得（4往復）を丸ごと省き、
+    //   手元の行でapplyActive→messagesの読込だけ行う（体感が一気に縮む）
+    setMsgs([]);
+    const localRow = threadApps.find(r => r.id === applicationId);
+    if (localRow && myId) {
+      setAppIds([applicationId]);
+      applyActive(localRow);
+      load([applicationId]);
+      return;
+    }
     (async () => {
       try {
         const { data:{ session } } = await supabase.auth.getSession();
@@ -168,17 +184,21 @@ export function ChatView({ applicationId, onBack }) {
           const partnerId = iAmWorker ? app.farmer_id : app.worker_id;
           setPartnerWorkerId(iAmWorker ? null : app.worker_id); // 相手が働き手の時だけアイコンタップでプレビュー（2026-07-19）
           setPartnerFarmerId(iAmWorker ? app.farmer_id : null);
-          const { data: pData } = await supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle();
-          if (pData) setPartner(pData);
-          // ニックネーム未設定時のアイコン用に、相手のメール頭文字2文字（本体は伏せる）を取得（2026-07-22）
-          try { const { data: inits } = await supabase.rpc("my_chat_partner_initials"); if (inits && inits[partnerId]) setPartnerInitials(inits[partnerId]); } catch {}
           setIsWorkerSide(iAmWorker);
-          // この相手との全応募（新しい順）。現役＝進行中（承認済み〜作業中）で最新→無ければ最新
-          const { data: rel } = await supabase.from("applications")
-            .select("id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at,available_dates,agreed_dates")
-            .eq(iAmWorker ? "worker_id" : "farmer_id", session.user.id)
-            .eq(iAmWorker ? "farmer_id" : "worker_id", partnerId)
-            .order("created_at", { ascending: false });
+          // 相手プロフィール・イニシャル・全応募は互いに独立so並列取得（2026-07-27：直列3往復を1往復ぶんに）
+          const [pRes, initRes, relRes] = await Promise.all([
+            supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle(),
+            supabase.rpc("my_chat_partner_initials"),
+            supabase.from("applications")
+              .select("id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at,available_dates,agreed_dates")
+              .eq(iAmWorker ? "worker_id" : "farmer_id", session.user.id)
+              .eq(iAmWorker ? "farmer_id" : "worker_id", partnerId)
+              .order("created_at", { ascending: false }),
+          ]);
+          if (pRes.data) setPartner(pRes.data);
+          // ニックネーム未設定時のアイコン用に、相手のメール頭文字2文字（本体は伏せる）を使う（2026-07-22）
+          if (initRes.data && initRes.data[partnerId]) setPartnerInitials(initRes.data[partnerId]);
+          const rel = relRes.data;
           const relRows = (rel && rel.length > 0) ? rel : null;
           // 現役＝開いた応募(applicationId)そのもの（2026-07-22 修正）。メッセージ履歴は相手ごとに束ねる(appIds)が、
           // 状態（採用/確認カード/保険/#N・"勲章"）は開いた応募に固定する。以前は「相手との最新の応募」を現役にしていたため、
@@ -195,8 +215,9 @@ export function ChatView({ applicationId, onBack }) {
           setAppIds(ids);
           setThreadApps(relRows || []);
           if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
-          if (active) await applyActive(active);
+          // メッセージ読込は求人情報の取得を待たない（2026-07-27：awaitで直列化していたぶん表示が遅れていた）
           load(ids);
+          if (active) applyActive(active);
           return;
         }
       } catch {}
@@ -348,7 +369,14 @@ export function ChatView({ applicationId, onBack }) {
               // 別の求人はその求人の別チャットへ遷移（求人ごとに分離・2026-07-23）。
               // replaceで履歴を積まない＝←（戻る）が求人切替の履歴を辿らず、ちゃんとチャットから出る
               return (
-                <button key={r.id} onClick={()=>{ if (!isActive) window.location.replace("#/chat/" + r.id); }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
+                <button key={r.id} onClick={()=>{
+                  if (isActive) return;
+                  // location.replace はブラウザによってページ全体の再読込を起こし、切替に十数秒かかっていた
+                  // （2026-07-27たきと報告）。履歴を積まずhashだけ差し替え＝アプリは再起動しない。
+                  // replaceStateはhashchangeを発火しないので手動で通知する（Appのハッシュ監視が拾う）
+                  try { window.history.replaceState(null, "", "#/chat/" + r.id); } catch { window.location.hash = "/chat/" + r.id; }
+                  window.dispatchEvent(new Event("hashchange"));
+                }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>#{r.job_number}</span>
                   {/* 帯統一（2026-07-25）：段階名は応募者リストと同じ段階色で表示 */}
                   <span style={{ display:"block", fontSize:11, marginTop:2 }}><span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(r)); }} role="button" style={{ color: APP_PHASE_COLOR[appPhaseKey(r)] || "#999", fontWeight:700, cursor:"pointer" }}>{APP_PHASE_LABEL[appPhaseKey(r)] || r.status}</span><span style={{ color:"#999" }}>{isActive ? "・表示中" : "・開く"}</span></span>
