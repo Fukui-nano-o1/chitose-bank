@@ -65,7 +65,9 @@ export function SavedJobsView({ me }) {
     terms_confirmed_worker_at: r.terms_confirmed_worker_at,
     terms_confirmed_farmer_at: r.terms_confirmed_farmer_at,
   } : null;
-  const phaseOf = (r) => { const a = appOf(r); return a ? appPhaseKey(a.status === "expired" ? { ...a, status: "applied" } : a) : null; };
+  // 見送り・失効のアイコンは「その時の状態」で出す（2026-07-27たきと指示）。どちらも応募中から進まずに
+  // 終わった応募なので、アイコンは応募中のまま。終わった事実はカード全体の暗幕＋ラベルが担う
+  const phaseOf = (r) => { const a = appOf(r); return a ? appPhaseKey((a.status === "expired" || a.status === "rejected") ? { ...a, status: "applied" } : a) : null; };
   const openJobPage = (r) => { try { sessionStorage.setItem("cb_jobBackTo", "/saved"); } catch { /* 戻り先が無くても遷移はする */ } window.location.hash = "/work/job/" + r.job_number; };
 
   return (
@@ -86,24 +88,29 @@ export function SavedJobsView({ me }) {
           {rows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);
-            // 日程が過ぎた求人は暗幕＋中央ラベル＋タップ無反応（応募者ページと同設計）。
-            // 自分が完了していれば「完了」、そうでなければ「失効」
+            // 終わった応募・求人は暗幕＋中央ラベル＋タップ無反応（応募者ページと同設計）。
+            // 見送り(rejected)も失効と同じ構造にする（2026-07-27たきと指示）＝日程に関係なく暗幕。
+            // ラベルの優先順：完了 ＞ 見送り（農家の判断） ＞ 失効（判断なきまま日程を過ぎた）
             const jobEnd = r.date_end || r.date_start;
             const jobPast = !!jobEnd && jobEnd < ymdLocal(new Date());
-            const jobCompleted = jobPast && r.application_status === "completed";
+            const isRejected = r.application_status === "rejected";
+            const jobCompleted = r.application_status === "completed";
+            const covered = jobPast || isRejected || jobCompleted;
+            const coverLabel = jobCompleted ? "完了" : isRejected ? "見送り" : "失効";
+            const coverColor = jobCompleted ? "#607D8B" : isRejected ? APP_PHASE_COLOR.rejected : "#111";
             const phase = phaseOf(r);
             return (
-              <div key={r.job_number} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: jobPast ? "none" : undefined }}>
-                {jobPast && (
+              <div key={r.job_number} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: covered ? "none" : undefined }}>
+                {covered && (
                   <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
+                    <span className="f-sans" style={{ background: coverColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{coverLabel}</span>
                   </div>
                 )}
                 {/* 左：求人のトップ写真。タイトル・#No.を写真下部に重ねる（応募者ページと同じ作法）。
                     タップ＝ボックス展開（2026-07-27たきと指示。求人ページへの直行はボックス内のボタンが担う） */}
                 <button onClick={()=>setBoxJob(r)} aria-label="この求人の状況を開く" className="f-sans"
                   style={{ flexShrink:0, width:104, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                  {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
+                  {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : "🌱"}
                   <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
                     <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
                     <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{r.job_number}</span>
