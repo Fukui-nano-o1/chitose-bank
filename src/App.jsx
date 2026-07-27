@@ -4,13 +4,9 @@ import { chatCache } from "./lib/chatCache";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "./lib/questionSets";
 import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION, TASK_OPTIONS, WORKER_EMERGENCY_KINDS, FARMER_EMERGENCY_KINDS, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText, LinkifiedText, LFPillSelect, YesNoPill, DevBadge, PhaseInfoSheet } from "./components/ui";
-import { CalendarView } from "./components/CalendarView";
-import { JobCard } from "./components/JobCard";
-import { JobLocationMap } from "./components/JobLocationMap";
+import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
-import { AdminJobPreview } from "./components/AdminJobPreview";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
 // チャンク取りこぼしの自己修復（2026-07-26・チャットで画面が真っ暗になる不具合の根治）：
 // 新デプロイでチャンク名（ハッシュ）が変わるため、古いページを握ったままの端末は旧チャンクを
@@ -37,23 +33,18 @@ import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
 import { ProfileModal } from "./components/ProfileModal";
 import { OnboardingModal } from "./components/OnboardingModal";
-import { EmployerProfileEdit } from "./components/EmployerProfileEdit";
-import { WorkerProfileEdit } from "./components/WorkerProfileEdit";
-import { WorkerApplications } from "./components/WorkerApplications";
 import { JobSearchMapView } from "./components/JobSearchMapView";
 import { MyReviewsOfWorker } from "./components/MyReviewsOfWorker";
-import { FarmerDashboard } from "./components/FarmerDashboard";
-import { ProfileHub } from "./components/ProfileHub";
 const LandingFlow = lazyChunk(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
 const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
 const ConsignmentRoom = lazyChunk(() => import("./components/admin/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
 const AdminBoxRegistryPage = lazyChunk(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));
-import { ToggleSwitch } from "./components/ToggleSwitch";
+// プロフィールタブ（2026-07-27たきと指示「リロードを必要最低限に」）：農家ハブ・応募状況・
+// プロフィール編集・カレンダーがぶら下がる大きな塊so、開いた時に初めて読む＝起動のJSを軽くする
+const ProfileHub = lazyChunk(() => import("./components/ProfileHub").then(m => ({ default: m.ProfileHub })));
 import { CSS } from "./appStyles";
-import { ContentQTabs, JobQuestions } from "./components/JobQuestions";
 import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/VisitAndInsurance";
 import { WorkerExperiencePage } from "./components/WorkerExperiencePage";
-import { AgreedDatesRow, AvailDatesChips } from "./components/DateChips";
 
 import { isIOS, syncAppBadge } from "./lib/push";
 import { uploadAvatarResilient } from "./lib/avatarUpload";
@@ -2436,10 +2427,10 @@ const subDest=useCallback(async d=>{
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} me={me} /> : null}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
-          ? <ProfileHub me={me}
+          ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ProfileHub me={me}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
-              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} />
+              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="chats"&&(me
           ? <ChatList />

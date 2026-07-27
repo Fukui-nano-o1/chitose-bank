@@ -24,9 +24,19 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // heic2anyは写真選択時にだけ動的読込される1.35MBのチャンク。precacheに入れると
-        // デプロイのたび全員が裏で再取得してしまうため除外（必要時にネットワークから読む・2026-07-25）
-        globIgnores: ['**/heic2any-*.js'],
+        // 動的読込のチャンクはprecacheに入れない（2026-07-25 heic2any／2026-07-27 拡大）。
+        // precacheはデプロイのたび全員が裏で丸ごと再取得するため、起動に要らないものを入れるほど
+        // リロードが重くなる。ここに挙げたものは「使う画面を開いた時にネットワークから読む」
+        //   heic2any(1.35MB)=写真選択時／leaflet(149KB)=地図表示時／
+        //   LandingFlow(115KB)=求人作成／AdminTab・ConsignmentRoom・AdminBoxRegistryPage=管理者のみ
+        globIgnores: [
+          '**/heic2any-*.js',
+          '**/leaflet-src-*.js',
+          '**/LandingFlow-*.js',
+          '**/AdminTab-*.js',
+          '**/ConsignmentRoom-*.js',
+          '**/AdminBoxRegistryPage-*.js',
+        ],
         // 新デプロイのSWをすぐ有効化・即座にページを掌握（autoUpdateの実体）
         clientsClaim: true,
         skipWaiting: true,

@@ -1,7 +1,9 @@
 // アプリ全体のCSS（分割・段階1・2026-07-24）：App.jsxの<style>{CSS}</style>で注入される単一文字列。
 // 純粋な静的CSS（テンプレート補間なし）。編集ルールは従来どおり＝クラスを足す/直すだけ。
 export const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
+/* Webフォントの読み込みは index.html の <link> へ移設（2026-07-27）。
+   ここに@importを置くと、JSの読み込み→CSS注入まで font の取得が始まらず、初回表示が遅れる。
+   併せて使っていない太さ（Noto 300 / Inter 300,500 / DM Mono italic）を削り、取得量を減らした */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; background: #fff; overflow-x: clip; }
