@@ -949,7 +949,18 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   {/* タブ名（公開中）と同じ帯は出さない（2026-07-25たきと指示・重複排除）。タブと違う状態＝終了・一時非公開・審査中だけ帯を出す */}
                   {!(d.status === "open" && !ended) && <StatusRibbon label={ended ? "終了" : d.status==="draft" ? "一時非公開" : "審査中"} color={ended ? "#9E9E9E" : d.status==="draft" ? "#757575" : "#C77700"} />}
                   {qUnansweredMap[d.job_number] > 0 && (
-                    <span className="f-sans" style={{ position:"absolute", top:6, right:6, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:20, padding:"2px 8px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>❓{qUnansweredMap[d.job_number]}</span>
+                    // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。
+                    // カード本体のプレビュー展開とは別動作なのでstopPropagation。戻るはこのページへ。
+                    // 求人詳細はjobs_public（公開中のみ）を読むため、公開中でない・終了した求人では
+                    // 詳細が開けないため、その場合は従来どおりカードのプレビューに任せる（バッジは表示のみ）
+                    <span onClick={(d.status === "open" && !ended) ? (e => {
+                      e.stopPropagation();
+                      try { sessionStorage.setItem("cb_jobBackTo", "/profile/employer/active"); } catch {}
+                      window.location.hash = "/work/job/" + d.job_number + "/questions";
+                    }) : undefined}
+                      role={(d.status === "open" && !ended) ? "button" : undefined}
+                      aria-label={(d.status === "open" && !ended) ? "未回答の質問を見る" : undefined}
+                      className="f-sans" style={{ position:"absolute", top:6, right:6, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:20, padding:"2px 8px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)", cursor:(d.status === "open" && !ended) ? "pointer" : undefined }}>❓{qUnansweredMap[d.job_number]}</span>
                   )}
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>

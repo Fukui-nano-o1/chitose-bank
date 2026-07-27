@@ -42,7 +42,9 @@ function calcMaxPay(job) {
 export function JobSearchMapView({ onRegister, me }) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [detailTab, setDetailTab] = useState("content"); // 求人詳細の「仕事の内容/質問」タブ（第10弾）
-  useEffect(() => { setDetailTab("content"); }, [selectedJob?.id]); // 別の求人を開いたら内容タブに戻す
+  // 別の求人を開いたら内容タブに戻す（2026-07-27：selectedJob監視のリセットeffectは廃止。
+  // タブ指定つきURL #/work/job/{番号}/questions の指定を後から打ち消してしまうため、
+  // 「開く側」＝openJob・戻るスタック・hash解釈のそれぞれで明示的にタブを決める）
   // 自分の求人か（2026-07-22）：自分の求人には応募フッター（日給・応募ボタン）を出さない。
   // jobsのRLS owner selectで自分の行だけ返る（他人の求人はnull＝false）
   const [isOwnJob, setIsOwnJob] = useState(false);
@@ -260,21 +262,24 @@ export function JobSearchMapView({ onRegister, me }) {
       if (job) performSave(job); // ★元のいいねを自動で完了させる
     } catch (e) { alert("送信に失敗しました"); setSurveySaving(false); }
   };
+  // #/work/job/{番号} と、タブ指定つきの #/work/job/{番号}/questions（2026-07-27たきと指示）。
+  // 農家の求人カードの❓バッジ（未回答の質問）から、その求人の質問タブへ直接入るための入口
+  const JOB_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance))?$/;
   useEffect(() => {
-    const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
+    const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
     if (!m) return;
     const jn = parseInt(m[1],10);
     const found = jobList.find(j => j.id === jn);
-    if (found) { setSelectedJob(found); clearApplyReturn(); return; }
+    if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); clearApplyReturn(); return; }
     if (dbJobs && dbJobs.length > 0) clearApplyReturn();
   }, [dbJobs]);
   useEffect(() => {
     const onHash = () => {
-      const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/job\/(\d+)$/);
+      const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
       if (!m) { setSelectedJob(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
       const jn = parseInt(m[1],10);
       const found = jobList.find(j => j.id === jn);
-      if (found) setSelectedJob(found);
+      if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); }
     };
     window.addEventListener("hashchange", onHash);
     window.addEventListener("popstate", onHash);
@@ -288,9 +293,11 @@ export function JobSearchMapView({ onRegister, me }) {
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
-  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
+  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); setDetailTab("content"); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
   // 開いたときに開くタブの指定（2026-07-27）：今日ページの「質問に答える」→ 求人詳細の質問タブへ直行。
-  // 使い捨てフラグ（cb_jobTab）：着地したら消す＝次に別の求人を開いた時に持ち越さない
+  // 使い捨てフラグ（cb_jobTab）：着地したら消す＝次に別の求人を開いた時に持ち越さない。
+  // URL側の指定（#/work/job/{番号}/questions・農家の❓バッジ）と併存する。openJobの"content"は
+  // 描画前の初期化so、後から走るこのeffectのフラグが優先される（意図どおり）
   useEffect(() => {
     if (!selectedJob) return;
     try {
@@ -612,7 +619,7 @@ export function JobSearchMapView({ onRegister, me }) {
           if (jobBackStack.length > 0) {
             const prev = jobBackStack[jobBackStack.length - 1];
             setJobBackStack(st => st.slice(0, -1));
-            setSelectedJob(prev);
+            setSelectedJob(prev); setDetailTab("content");
             try { window.history.pushState(null, "", "#/work/job/" + prev.id); } catch {}
             try { window.scrollTo(0, 0); } catch {}
             return;
@@ -624,7 +631,13 @@ export function JobSearchMapView({ onRegister, me }) {
         }} className="f-sans job-float-back" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : ((()=>{ try { return sessionStorage.getItem("cb_jobBackTo") === "/calendar"; } catch { return false; } })() ? "← カレンダーに戻る" : "← 一覧に戻る")}</button>
+        }}>{jobBackStack.length > 0 ? "← 前の求人に戻る" : ((()=>{
+          // 出どころ（cb_jobBackTo）で戻り先の名前を変える。農家の求人ボックス（❓バッジ経由）も対象（2026-07-27）
+          let b = null; try { b = sessionStorage.getItem("cb_jobBackTo"); } catch {}
+          if (b === "/calendar") return "← カレンダーに戻る";
+          if (b && b.startsWith("/profile/employer")) return "← 求人に戻る";
+          return "← 一覧に戻る";
+        })())}</button>
         <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
