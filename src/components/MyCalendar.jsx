@@ -172,6 +172,10 @@ export function MyCalendar({ backToToday }) {
             <StatusRibbon label="審査中" color="#C77700" />
           ) : e.relation === "liked" ? (
             <StatusRibbon label="いいね" color="#E24B4A" />
+          ) : e.status === "closed" ? (
+            /* 終了した求人に「公開中」と出ていた不具合の修正（2026-07-27たきと報告）。
+               応募が失効等で消えるとown行として拾われ、application_statusが無いsо一律「公開中」になっていた */
+            <StatusRibbon label="終了" color="#9E9E9E" />
           ) : !e.application_status ? (
             <StatusRibbon label="公開中" color="#00A86B" />
           ) : (
