@@ -534,7 +534,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id });
     if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     // 働き手側のterms_confirmed_worker_atは応募時にDBトリガーが自動記録済みso、農家側の時刻だけ足せば帯・ボタンがcontractedへ進む
-    setDbApplicants(prev => prev.map(x => x.id === a.id ? { ...x, terms_confirmed_farmer_at: x.terms_confirmed_farmer_at || new Date().toISOString() } : x));
+    // 採用人数に達した場合、残りの応募はDB側（confirm_terms）で見送りになる（2026-07-27たきと指示）。
+    // 戻り値のclosed_idsを画面にも反映＝リロードせずに帯が「見送り」へ変わる
+    const closed = new Set(Array.isArray(data.closed_ids) ? data.closed_ids : []);
+    const nowIso = new Date().toISOString();
+    setDbApplicants(prev => prev.map(x =>
+      x.id === a.id ? { ...x, terms_confirmed_farmer_at: x.terms_confirmed_farmer_at || nowIso }
+      : closed.has(x.id) ? { ...x, status: "rejected", decided_at: x.decided_at || nowIso }
+      : x));
+    if (data.filled) {
+      alert(closed.size > 0
+        ? `採用しました。募集人数に達したため、残りの応募 ${closed.size} 件は見送りになりました（お相手へ連絡済み）。`
+        : "採用しました。募集人数に達したため、この求人の募集は終了です。");
+    }
   };
   const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
   const [reviewedAppIds, setReviewedAppIds] = useState(() => new Set()); // 自分が評価を書いた応募ID。お仕事の流れバーの「評価」段の点灯に使う
