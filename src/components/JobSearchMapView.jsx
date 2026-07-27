@@ -1080,7 +1080,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {applyConfirmOpen && selectedJob && (
         <div onClick={()=>setApplyConfirmOpen(false)} className="cb-box-overlay" style={{ zIndex:9000 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            <button onClick={()=>setApplyConfirmOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップ＋下部「戻る」で閉じられるso重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="応募の確認" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             {/* 承認の流れ（①プロフィール確認②判断③承認決定）のインフォグラフィック＝応募前に承認制であることを伝える */}
@@ -1158,7 +1158,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {likeDone && (
         <div onClick={()=>setLikeDone(null)} className="cb-box-overlay" style={{ zIndex:9000 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            <button onClick={()=>setLikeDone(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}>✕</button>
+            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられるso重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="いいねしました！" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             {/* いいねした求人のカード：右上に❤️が付く動作（一覧カードの♡ボタンと同じ位置） */}

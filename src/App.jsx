@@ -2172,7 +2172,7 @@ const subDest=useCallback(async d=>{
       {activeNotices && !welcomeApproved && (
         <div onClick={dismissNotices} className="cb-box-overlay" style={{ zIndex:10900 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            <button onClick={dismissNotices} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられる（＝既読化も同じdismissNotices）so重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={activeNotices[0].name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
