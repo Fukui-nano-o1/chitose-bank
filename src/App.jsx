@@ -1279,10 +1279,16 @@ export default function App(){
         if (data) setNavBadges({ chat_threads:data.chat_threads||0, calendar_today:data.calendar_today||0, todo:data.todo||0, applicants_pending:data.applicants_pending||0, review_due:data.review_due||0, job_revision:data.job_revision||0 });
       } catch {}
     };
-    refresh();
-    window.addEventListener("hashchange", refresh);
-    window.addEventListener("cb:unreadRefresh", refresh);
-    return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); };
+    // ページ遷移のたびに全体のバッジRPCを撃たない（2026-07-27たきと指示「該当ページだけリロード」）：
+    // 同一ページ内の移動（求人詳細・サブページ）でも毎回走り、遷移の体感を重くしていた。
+    // 20秒のスロットルを噛ませる。即時性はRealtime購読と既読イベント(cb:unreadRefresh・throttle対象外)が担保する
+    let lastAt = 0;
+    const refreshOnNav = () => { const now = Date.now(); if (now - lastAt < 20000) return; lastAt = now; refresh(); };
+    const refreshNow = () => { lastAt = Date.now(); refresh(); };
+    refreshNow();
+    window.addEventListener("hashchange", refreshOnNav);
+    window.addEventListener("cb:unreadRefresh", refreshNow);
+    return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refreshNow); };
   }, [me?.id, empCtx]);
   // 下部ナビの初回コーチマーク（第12弾）：「← 左から順に、仕事の流れです」を1度だけ。タップで消える（localStorage既読）
   const [navCoach, setNavCoach] = useState(() => { try { return !localStorage.getItem("cb_navCoachSeen"); } catch { return false; } });
@@ -1522,22 +1528,16 @@ export default function App(){
     // 起動フェイルセーフ（2026-07-25）：ネットワークが刺さってもUIを人質にしない。4秒でloadedを強制的に立て、
     // 画面（骨格）を先に出す。セッション復元は裏で続き、完了した時点でme等が後から埋まる
     const loadedFailsafe = setTimeout(() => setLoaded(true), 4000);
-    // 起動の並列化（2026-07-25）：直列5往復（dests×2→停止チェック→farmers→records）を並列2バッチに圧縮。
-    // 停止チェックがmeの設定より先に判定される順序は不変（結果の適用順で担保）
-    const [sessRes, destsOkRes, destsPendRes] = await Promise.all([
+    // 起動で読むのは「今のページに要るもの」だけにする（2026-07-27たきと指示）。
+    // dests×2・records（旧事業データ）は管理タブ・プロフィールモーダルでしか使わないso起動から外し、
+    // 開いた時にloadLegacyData()で読む＝全員のリロードが3往復→2往復に軽くなる
+    const [sessRes] = await Promise.all([
       supabase.auth.getSession().catch(e => ({ data: { session: null }, error: e })),
-      supabase.from('dests').select('*').eq('status', 'approved'),
-      supabase.from('dests').select('*').eq('status', 'pending'),
     ]);
     const session = sessRes?.data?.session || null;
     const sessErr = sessRes?.error || null;
-    const dbDestsOk = destsOkRes.data;
-    const da = dbDestsOk ? dbDestsOk.map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes })) : [];
-    const dbDestsPend = destsPendRes.data;
-    const dp = dbDestsPend ? dbDestsPend.map(d => ({ id: d.id, name: d.name, status: d.status, submittedBy: d.submitted_by })) : [];
 
     let f = [];
-    const r = {};
     // ログアウト誤認の修正（2026-07-26）：「セッションが無い（トークン不在＝本物のログアウト）」と
     // 「復元に失敗した（トークン更新の一時エラー・電波等）」を区別する。
     // 前者だけログアウト扱い（スナップショット消去）。後者はログイン状態を維持し、3秒後に1回だけ静かに再試行
@@ -1554,13 +1554,12 @@ export default function App(){
       }, 3000);
     }
     if (session) {
-      const [moddedRes, farmerRes, recsRes] = await Promise.all([
+      const [moddedRes, farmerRes] = await Promise.all([
         // supabase.rpc()の戻りはthenableだがPromiseではない＝.catchが存在せず、直に繋ぐと
         // 「.catch is not a function」で起動処理ごと落ちる（2026-07-26・応募者ページ白画面の原因）。
         // Promise.resolveで本物のPromiseに包んでから握る
         Promise.resolve(supabase.rpc('is_account_moderated', { p_uid: session.user.id })).catch(() => ({ data: null })),
         supabase.from('farmers').select('*').eq('email', session.user.email).single(),
-        supabase.from('records').select('*').eq('farmer_id', session.user.id),
       ]);
       // 停止／追放チェック（2026-07-19）：ログイン封鎖(banned_until)が効くまでの猶予（既存トークン最大1h）を塞ぐ。
       // 停止中なら即サインアウトして制限画面へ（meはセットしない）
@@ -1577,18 +1576,40 @@ export default function App(){
         // account_holders未登録ならneedsAccountHolderゲートが後段で①フォームを自動表示する。
         setMe({ id: session.user.id, email: session.user.email || "", name: "", isWorker: true });
       }
-      const { data: dbRecs } = recsRes;
-      if (dbRecs) {
-        dbRecs.forEach(rec => {
+    }
+    setFarmers(f);setFarmPend(fp);
+    setBadgeCnt(fp.length);clearTimeout(loadedFailsafe);setLoaded(true);
+  })();},[]);
+
+  // 旧事業データ（出荷先・記録）の遅延読込（2026-07-27たきと指示「該当するページのみリロード」）：
+  // 管理タブ／プロフィールモーダルを開いた時に1回だけ読む。閉じても保持so再取得はしない
+  // ★safeTabはこの下（2000行台）で定義されるため参照禁止（初期化前アクセスで真っ黒画面になる）。
+  //   生のtabで判定する（adminタブは資格ガードを通った後だけ描画されるので実害なし）
+  const legacyLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!(tab === "admin" || showProfile) || legacyLoadedRef.current) return;
+    legacyLoadedRef.current = true;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const [okRes, pendRes, recsRes] = await Promise.all([
+          supabase.from('dests').select('*').eq('status', 'approved'),
+          supabase.from('dests').select('*').eq('status', 'pending'),
+          session ? supabase.from('records').select('*').eq('farmer_id', session.user.id) : Promise.resolve({ data: [] }),
+        ]);
+        const da = (okRes.data || []).map(d => ({ id: d.id, name: d.name, status: d.status, notes: d.notes }));
+        const dp = (pendRes.data || []).map(d => ({ id: d.id, name: d.name, status: d.status, submittedBy: d.submitted_by }));
+        const r = {};
+        (recsRes.data || []).forEach(rec => {
           const k = `${rec.farmer_id}_${rec.year}_${rec.month}`;
           if (!r[k]) r[k] = [];
           r[k].push({ id: rec.id, destId: rec.dest_id, boxes: rec.boxes, ppb: rec.ppb, costs: rec.costs || [], crop: rec.crop, variety: rec.variety, is_brand: rec.is_brand, created_at: rec.created_at });
         });
-      }
-    }
-    setFarmers(f);setFarmPend(fp);setDestOk(da);setDestPend(dp);setRecs(r);
-    setBadgeCnt(fp.length+dp.length);clearTimeout(loadedFailsafe);setLoaded(true);
-  })();},[]);
+        setDestOk(da); setDestPend(dp); setRecs(r);
+        setBadgeCnt(prev => prev + dp.length);
+      } catch { legacyLoadedRef.current = false; } // 失敗したら次に開いた時にもう一度
+    })();
+  }, [tab, showProfile]);
 
   const savF=useCallback(async f=>{setFarmers(f);await sSet("yw_farmers",f);},[]);
   const savFP=useCallback(async f=>{setFarmPend(f);await sSet("yw_farmers_pend",f);setBadgeCnt(f.length+(destPend?.length||0));},[destPend]);
@@ -1674,8 +1695,11 @@ const loadNotifs=useCallback(async(farmerId)=>{
     };
     const onMsg = (payload) => { refresh(); const m = payload?.new; if (m && m.sender_id !== me.id) showToast("/chat/" + m.application_id); };
     const onDm = (payload) => { refresh(); const m = payload?.new; if (m && m.from_admin) showToast("/chats"); };
-    refresh();
-    window.addEventListener("hashchange", refresh);
+    // ナビバッジと同じ理由で遷移時は20秒スロットル（2026-07-27）。新着はRealtime、既読はcb:unreadRefreshが即反映
+    let lastAt = 0;
+    const refreshOnNav = () => { const now = Date.now(); if (now - lastAt < 20000) return; lastAt = now; refresh(); };
+    refresh(); lastAt = Date.now();
+    window.addEventListener("hashchange", refreshOnNav);
     window.addEventListener("cb:unreadRefresh", refresh);
     // リアルタイム（2026-07-19）：自分宛メッセージのINSERTを購読し、バッジ即時更新＋トースト。
     // 配信はRLS準拠＝自分が当事者のchat/自分宛DMしか届かない
@@ -1683,7 +1707,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, onMsg)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, onDm)
       .subscribe();
-    return () => { window.removeEventListener("hashchange", refresh); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
+    return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
   }, [me?.id]);
   // アプリアイコンのバッジに未読数を反映（2026-07-19）。ログアウト時は0でクリア
   useEffect(() => { syncAppBadge(me?.id ? chatUnread : 0); }, [chatUnread, me?.id]);
