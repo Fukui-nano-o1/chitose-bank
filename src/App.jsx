@@ -11,7 +11,6 @@ import { JobLocationMap } from "./components/JobLocationMap";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 import { AdminJobPreview } from "./components/AdminJobPreview";
-import { MyCalendar } from "./components/MyCalendar";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
 // チャンク取りこぼしの自己修復（2026-07-26・チャットで画面が真っ暗になる不具合の根治）：
 // 新デプロイでチャンク名（ハッシュ）が変わるため、古いページを握ったままの端末は旧チャンクを
@@ -497,16 +496,15 @@ function WorkerPreviewSheet() {
 
 
 
-// #/calendar の入口：既定は「今日」、奥（#/calendar/month）で月カレンダー（MyCalendar）。hashで切替
+// #/calendar の入口：「今日」ページ。
+// 月カレンダー単独のページ(#/calendar/month)は廃止（2026-07-27たきと指示）＝カレンダーは
+// 農家＝応募者ページ／働き手＝ステータスページ の上部に移植した。旧URLで来た人は「今日」に着地する
 function CalendarRouter({ me, defaultRole }) {
-  const isMonth = () => window.location.hash.replace(/^#\/?/, "") === "calendar/month";
-  const [month, setMonth] = useState(isMonth());
+  // 旧URL(#/calendar/month)で来たら#/calendarに正す＝アドレスバーと中身を食い違わせない
   useEffect(() => {
-    const on = () => setMonth(isMonth());
-    window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
+    if (window.location.hash.replace(/^#\/?/, "") === "calendar/month") window.location.hash = "/calendar";
   }, []);
-  return month ? <MyCalendar backToToday /> : <TodayPage me={me} defaultRole={defaultRole} />;
+  return <TodayPage me={me} defaultRole={defaultRole} />;
 }
 
 

@@ -165,7 +165,8 @@ function NewApplicantsPanel({ items, onTap }) {
   );
 }
 
-// #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。月カレンダーは奥（#/calendar/month）。
+// #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。
+// カレンダーは各役割の面へ移植（農家＝応募者ページ／働き手＝ステータスページ・2026-07-27）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
   const [loading, setLoading] = useState(true);
@@ -310,11 +311,12 @@ export function TodayPage({ me, defaultRole }) {
     // カレンダー（2026-07-27たきと指示：確認カードをカレンダーに差し替え・統合）：
     // 応募（予定）が1件でもあれば件数0でも常にタップ可＝月カレンダーへ直行。バッジ＝きょうが作業日の仕事の数。
     // 現場情報の確認はカレンダーの日タップ→求人ページで担う（確認カードの役割を吸収）
-    // 遷移先は農家＝応募者ページ（そこの上部にカレンダーを展開する・2026-07-27たきと指示）。
-    // 働き手は応募者ページを持たないso従来どおり月カレンダーへ
+    // 遷移先は「その役割のカレンダーが載っている面」＝農家は応募者ページ／働き手はステータスページ。
+    // どちらも上部にカレンダーを展開して着地する（合図＝cb_openCalendar・2026-07-27たきと指示）。
+    // 月カレンダー単独のページ(#/calendar/month)は廃止した
     t_card:      { icon:"📅", title:"カレンダー",           btn:"カレンダー →",     always:true, nav: () => {
-      if (role === "farmer") { try { sessionStorage.setItem("cb_openCalendar", "1"); } catch {} return "/profile/employer/applicants"; }
-      return "/calendar/month";
+      try { sessionStorage.setItem("cb_openCalendar", "1"); } catch {}
+      return role === "farmer" ? "/profile/employer/applicants" : "/saved";
     } },
     t_emergency: { icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id },
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：

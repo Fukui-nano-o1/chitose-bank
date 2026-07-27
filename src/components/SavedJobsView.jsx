@@ -5,11 +5,12 @@
 //   他の働き手の情報（誰が応募しているか・人数）は取得も表示も一切しない（データ憲法・個人情報の最小化）。
 // ★求人の供給源は my_job_actions()（SECURITY DEFINER・2026-07-27）。jobs_public は status='open' しか
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calFmtDate, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
 import { Avatar } from "./ui";
+import { MyCalendar } from "./MyCalendar";
 
 // ── SavedJobsView（ステータス一覧・#/saved） ──
 export function SavedJobsView({ me }) {
@@ -17,6 +18,49 @@ export function SavedJobsView({ me }) {
   const [myProfile, setMyProfile] = useState(null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
+  // カレンダー（2026-07-27たきと指示）：働き手のカレンダーページを廃止し、この面の上部へ移植。
+  // 開閉は雇い手の応募者ページと同じ作法＝横スワイプ or 案内行のタップ。今日ページのカレンダー箱から
+  // 来たときは合図(cb_openCalendar)で開いた状態で着地する
+  const [calOnTop, setCalOnTop] = useState(false);
+  const [calDay, setCalDay] = useState(null); // { ymd, jobs:[job_number] }＝選んだ日の求人を光らせる
+  const jobCardRefs = useRef({});
+  useEffect(() => {
+    try { if (sessionStorage.getItem("cb_openCalendar")) { sessionStorage.removeItem("cb_openCalendar"); setCalOnTop(true); } } catch {}
+  }, []);
+  const onCalDayTap = (ymd, jobNumbers) => {
+    setCalDay({ ymd, jobs: jobNumbers });
+    if (!jobNumbers.length) return;
+    setTimeout(() => {
+      const el = jobNumbers.map(n => jobCardRefs.current[n]).find(Boolean);
+      if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
+    }, 40);
+  };
+  // 横スワイプでカレンダーを開閉（応募者ページと同じ判定。内側の横スクロールで始まったタッチは奪わない）
+  const swipeRef = useRef(null);
+  const onSwipeStart = (e) => {
+    const inHScroll = (() => {
+      for (let n = e.target; n && n !== e.currentTarget; n = n.parentElement) {
+        try {
+          const st = window.getComputedStyle(n);
+          if ((st.overflowX === "auto" || st.overflowX === "scroll") && n.scrollWidth > n.clientWidth + 1) return true;
+        } catch { return true; }
+      }
+      return false;
+    })();
+    swipeRef.current = inHScroll ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+  const onSwipeEnd = (e) => {
+    const s = swipeRef.current; swipeRef.current = null;
+    if (!s) return;
+    const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
+    setCalOnTop(v => {
+      const next = !v;
+      if (next) { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); } }
+      else setCalDay(null);
+      return next;
+    });
+  };
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -78,13 +122,20 @@ export function SavedJobsView({ me }) {
           <button onClick={handleUndo} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>元に戻す</button>
         </div>
       )}
+      {calOnTop && <div style={{ marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>}
+      {rows.length > 0 && (
+        <button onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans"
+          style={{ width:"100%", background:"none", border:"none", padding:"0 0 6px", fontSize:11, color:"#B0B0B0", textAlign:"center", cursor:"pointer" }}>
+          {calOnTop ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
+        </button>
+      )}
       {rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
           <div style={{ fontSize:40, marginBottom:16, color:"#E24B4A" }}>♡</div>
           <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を♥しておくと、ここに並びます</p>
         </div>
       ) : (
-        <div style={{ display:"grid", gap:10 }}>
+        <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} style={{ display:"grid", gap:10 }}>
           {rows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);
@@ -99,8 +150,11 @@ export function SavedJobsView({ me }) {
             const coverLabel = jobCompleted ? "完了" : isRejected ? "見送り" : "失効";
             const coverColor = jobCompleted ? "#607D8B" : isRejected ? APP_PHASE_COLOR.rejected : "#111";
             const phase = phaseOf(r);
+            // カレンダーで選んだ日に該当する求人は光らせる（応募者ページと同じ引き継ぎ）
+            const calHit = !!calDay && calDay.jobs.includes(r.job_number);
             return (
-              <div key={r.job_number} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: covered ? "none" : undefined }}>
+              <div key={r.job_number} ref={el => { jobCardRefs.current[r.job_number] = el; }}
+                style={{ position:"relative", display:"flex", alignItems:"stretch", background: calHit ? "#FFF6DE" : "#fff", border:"1px solid " + (calHit ? "#E8C77A" : "#EBEBEB"), borderRadius:14, overflow:"hidden", transition:"background .5s", pointerEvents: covered ? "none" : undefined }}>
                 {covered && (
                   <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                     <span className="f-sans" style={{ background: coverColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{coverLabel}</span>
