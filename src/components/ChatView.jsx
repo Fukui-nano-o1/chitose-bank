@@ -518,7 +518,7 @@ export function ChatView({ applicationId, onBack }) {
       </div>
       {chatClosed && (
         <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, pointerEvents:"none", zIndex:5 }}>
-          <span className="f-sans" style={{ background: activeStatus === "expired" ? "#111" : "#607D8B", color:"#fff", fontSize:14, fontWeight:800, padding:"8px 24px", borderRadius:20 }}>{activeStatus === "expired" ? "失効中" : "完了"}</span>
+          <span className="f-sans" style={{ background: activeStatus === "expired" ? "#111" : "#607D8B", color:"#fff", fontSize:14, fontWeight:800, padding:"8px 24px", borderRadius:20 }}>{activeStatus === "expired" ? "失効" : "完了"}</span>
           <span className="f-sans" style={{ color:"#fff", fontSize:12, fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.6)" }}>{activeStatus === "expired" ? "この求人の募集期間は終了しました" : "この仕事は完了しました"}</span>
         </div>
       )}
