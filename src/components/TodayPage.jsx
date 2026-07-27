@@ -321,6 +321,10 @@ export function TodayPage({ me, defaultRole }) {
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
     // w_confirm（求人内容の確認）は廃止（2026-07-25たきと指示）：内容を確認した上で応募するのが前提。
     // 応募INSERT時にterms_confirmed_worker_atをDBトリガーが自動記録。日程の申請（チャットの候補日）は残す
+    // 求職の修正（2026-07-27たきと指示・枠のみ先行）：農家側 revision の働き手版。
+    // 求職カード（求職一覧＝Phase2b）の実装後に、運営からの修正依頼をmy_todo_itemsが返す想定。
+    // 中身（遷移先・実行内容）は未定so nav/rpc は持たせない＝現状は常に「該当なし」の薄い箱として並ぶ
+    w_revision:  { icon:"📝", title:"求職に修正のお願い", btn:"修正する →" },
     w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
     w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   nav: () => "/profile/worker/approved" },
     w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved" },
@@ -340,11 +344,11 @@ export function TodayPage({ me, defaultRole }) {
   // 面接の回答を送信してリストが空になった時は「送信完了しました。」を出す（2026-07-26たきと指示。ページを離れたらリセット）
   const [answeredDone, setAnsweredDone] = useState(false);
   useEffect(() => { setAnsweredDone(false); }, [pageStage]);
-  const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
+  const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["t_card", "t_emergency", "revision", "approve", "interview", "hire", "insurance", "confirm_start", "complete"],
-    worker: ["t_card", "t_emergency", "w_interview", "w_start", "w_review"],
+    worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_start", "w_review"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {

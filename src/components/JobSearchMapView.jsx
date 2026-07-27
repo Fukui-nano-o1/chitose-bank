@@ -458,17 +458,8 @@ export function JobSearchMapView({ onRegister, me }) {
   return (
     <div>
       {!selectedJob && (<>
-      {/* ヘッダー */}
-      <div style={{ marginBottom:5 }}>
-        <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:6 }}>近くの仕事を探す</h2>
-      </div>
-
-      {/* 個人情報保護注記 */}
-      <div style={{ padding:"7px 12px", background:"#F7F7F7", borderRadius:8, marginBottom:12 }}>
-        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
-          お支払いは、作業当日の現金手渡しが原則です。
-        </p>
-      </div>
+      {/* 見出し「近くの仕事を探す」は削除（2026-07-27たきと指示）。現在地は下部ナビの点灯が示すため冗長。
+          支払いの注記は求人一覧の一番下へ移植（下記） */}
 
       {/* 絞込ピルは削除（2026-07-16）：実フィルタ未接続の飾りだった。検索機能は市場の厚みに応じて段階解禁（骨格②） */}
 
@@ -485,6 +476,12 @@ export function JobSearchMapView({ onRegister, me }) {
             <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={toggleSave} />
           ))}
         </div>
+      </div>
+      {/* 支払いの注記（2026-07-27たきと指示で最上部から求人一覧の一番下へ移植） */}
+      <div style={{ padding:"7px 12px", background:"#F7F7F7", borderRadius:8, marginTop:12 }}>
+        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
+          お支払いは、作業当日の現金手渡しが原則です。
+        </p>
       </div>
       </>)}
 
