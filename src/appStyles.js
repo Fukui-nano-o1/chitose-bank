@@ -496,8 +496,11 @@ input:focus { outline: none; }
   }
   /* スクロール連動の自動格納（Part C）。下部バーと同時に沈む。
      沈む量=浮遊位置(バー64px+隙間12px+セーフエリア)+自身の高さ(100%)。
-     旧150%では下がりきらず画面内に残りフッターを覆っていた */
-  body.cb-dir-down .profile-employer-fab { transform: translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
+     旧150%では下がりきらず画面内に残りフッターを覆っていた。
+     2026-07-27: トリガーをcb-dir-down→cb-scroll-hideに統一（バー・☰・運営チャットFABと同じ）。
+     方向のみのcb-dir-downは最下部の強制格納とバウンス吸収帯が無く、フッターでトグルだけ復活して被さる・
+     ☰と出入りがズレる不整合の原因だった */
+  body.cb-scroll-hide .profile-employer-fab { transform: translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
   /* フッタードック機構は廃止（2026-07-16）：トグルは下部バーと同じスクロール格納のみ。
      表示中の高さは常に☰と同じ（バー64px+12px+セーフエリア） */
 }
