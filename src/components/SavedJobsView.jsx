@@ -16,6 +16,7 @@ export function SavedJobsView({ me }) {
   const [rows, setRows] = useState(null);           // my_job_actions() の行（求人＋自分の応募）
   const [myProfile, setMyProfile] = useState(null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
+  const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -133,6 +134,27 @@ export function SavedJobsView({ me }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ステータスの意味（2026-07-27たきと指示・応募者ページ下部の凡例と同じ）。
+          並び・ラベル・色・説明はすべて APP_PHASE_* から引く＝雇い手側と文言が枝分かれしない */}
+      {rows.length > 0 && (
+        <div style={{ marginTop:14 }}>
+          <button onClick={()=>setLegendOpen(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <span style={{ fontSize:13, fontWeight:700, color:"#555" }}>ステータスの意味</span>
+            <span style={{ fontSize:14, color:"#999" }}>{legendOpen ? "－" : "＋"}</span>
+          </button>
+          {legendOpen && (
+            <div className="fade-in" style={{ marginTop:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"12px 14px", display:"grid", gap:10 }}>
+              {["applied","interview","contracted","working","completed","rejected","expired"].map(k => (
+                <div key={k} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                  <span className="f-sans" style={{ flexShrink:0, marginTop:1, background:APP_PHASE_COLOR[k], color:"#fff", fontSize:11, fontWeight:700, borderRadius:6, padding:"3px 8px", minWidth:56, textAlign:"center" }}>{APP_PHASE_LABEL[k]}</span>
+                  <span className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.6 }}>{APP_PHASE_DESC[k]}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
