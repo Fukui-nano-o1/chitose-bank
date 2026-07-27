@@ -8,7 +8,7 @@ import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel
 import { Avatar, DangerItem, JobFlagBadges, LFPillSelect, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
-import { ContentQTabs, JobQuestions } from "./JobQuestions";
+import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
 import { InsurancePanel } from "./InsurancePanel";
 import { FarmerTrustCard } from "./TrustCards";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
@@ -1950,7 +1950,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 );
               })()}
 
-              {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22） */}
+              {/* 仕事の内容 / 保険 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
+              <ContentQSwipeArea value={confTab} onChange={setConfTab} showInsurance={Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0}>
               <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} showInsurance={Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0} /></div>
               {confTab === "questions" ? (
                 /* LandingFlow内に me は存在しない（未定義参照＝ReferenceErrorで画面真っ白の原因だった・2026-07-24修正）。
@@ -2203,6 +2204,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 </div>
               )}
               </>)}
+              </ContentQSwipeArea>
 
               {/* 農園紹介セクションはページから削除（2026-07-16）。内容は農家カードのアイコン・名前タップのボックスに集約 */}
 

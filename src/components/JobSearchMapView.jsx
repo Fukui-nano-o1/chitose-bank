@@ -7,7 +7,7 @@ import { Avatar, Carousel, DangerItem, JobFlagBadges, NoticeJumpText, StatusRibb
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { JobLocationMap } from "./JobLocationMap";
-import { ContentQTabs, JobQuestions } from "./JobQuestions";
+import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
 import { InsurancePanel } from "./InsurancePanel";
 import { FarmerTrustCard } from "./TrustCards";
 
@@ -567,7 +567,8 @@ export function JobSearchMapView({ onRegister, me }) {
             );
           })()}
 
-          {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22） */}
+          {/* 仕事の内容 / 保険 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
+          <ContentQSwipeArea value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(empEmployer?.insurance_items) && empEmployer.insurance_items.length > 0}>
           <ContentQTabs value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(empEmployer?.insurance_items) && empEmployer.insurance_items.length > 0} />
           {detailTab === "questions" ? (
             <JobQuestions jobNumber={selectedJob.id} me={me} />
@@ -903,6 +904,7 @@ export function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
           </>)}
+          </ContentQSwipeArea>
         </div>
       </>)}
 

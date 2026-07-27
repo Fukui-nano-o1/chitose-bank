@@ -1,8 +1,41 @@
 // 求人Q&A（第10弾・2026-07-22／分割・段階2で切り出し・2026-07-24）：
 // 求人詳細・確認ページの「仕事の内容/質問」タブ（ContentQTabs）と公開Q&A本体（JobQuestions）。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { isAdmin, fmtJstShort } from "../lib/utils";
+
+// タブ中身の横スワイプ切替（2026-07-27たきと指示）：仕事の内容⇄保険⇄質問を左右スワイプで移動。
+// 中の横スクロール要素（写真カルーセル・その他の求人等）内で始まったタッチは奪わない。
+// 判定は応募者フィルタと同じ作法（50px以上・横優位のみ）
+export function ContentQSwipeArea({ value, onChange, showInsurance, children }) {
+  const ref = useRef(null);
+  const keys = showInsurance ? ["content", "insurance", "questions"] : ["content", "questions"];
+  const inHScroll = (node, stop) => {
+    for (let n = node; n && n !== stop; n = n.parentElement) {
+      try {
+        const st = window.getComputedStyle(n);
+        if ((st.overflowX === "auto" || st.overflowX === "scroll") && n.scrollWidth > n.clientWidth + 1) return true;
+      } catch { return true; }
+    }
+    return false;
+  };
+  const onStart = (e) => {
+    const t = e.touches[0]; if (!t) return;
+    ref.current = inHScroll(e.target, e.currentTarget) ? null : { x: t.clientX, y: t.clientY };
+  };
+  const onEnd = (e) => {
+    const s = ref.current; ref.current = null;
+    if (!s) return;
+    const t = e.changedTouches[0]; if (!t) return;
+    const dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
+    const idx = Math.max(0, keys.indexOf(value));
+    const next = dx < 0 ? Math.min(keys.length - 1, idx + 1) : Math.max(0, idx - 1);
+    if (keys[next] !== value) onChange(keys[next]);
+  };
+  return <div onTouchStart={onStart} onTouchEnd={onEnd}>{children}</div>;
+}
+
 // 「仕事の内容」「質問」タブバー（第10弾・2026-07-22）：求人詳細・確認ページの写真下に置く
 export function ContentQTabs({ value, onChange, showInsurance }) {
   // 保険タブは農家が保険を自己申告している求人でだけ出す（未申告なら従来の2タブのまま）
