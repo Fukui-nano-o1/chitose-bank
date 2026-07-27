@@ -2309,7 +2309,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 公開までしばらくお待ちください。
               </p>
               <div style={{ display:"grid", gap:10, width:"100%" }}>
-                <button onClick={onComplete} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>あなたの求人を見る</button>
+                {/* 遷移先は農家プロフィール（App.jsxのonComplete＝/profile/employer）so、ラベルもそれに合わせる。
+                    旧「あなたの求人を見る」は実際の行き先と食い違っていた（2026-07-26たきと指示） */}
+                <button onClick={onComplete} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>プロフィールに戻る</button>
                 <button onClick={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} if(typeof onComplete==="function") onComplete(); setTimeout(()=>{ window.location.hash="/work/new"; }, 50); }} style={{ width:"100%", padding:"13px", fontSize:13, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, color:"#222", cursor:"pointer", fontFamily:"inherit" }}>新しい求人を出す</button>
               </div>
             </div>
