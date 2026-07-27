@@ -174,6 +174,7 @@ export function TodayPage({ me, defaultRole }) {
   const [hasFarmer, setHasFarmer] = useState(false);
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
   const [todos, setTodos] = useState([]);     // やることフィード（my_todo_items・状態カードの単一ソース）
+  const [jobCount, setJobCount] = useState(0); // 自分が出した求人の数（下書き含む）。カレンダーを開けるかの判定に使う
   const [confirming, setConfirming] = useState("");
   const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
@@ -196,7 +197,7 @@ export function TodayPage({ me, defaultRole }) {
         if (cancelled) return;
         const w = !!wp || rows.some(e => e.my_role === "worker");
         const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
-        setHasWorker(w); setHasFarmer(f);
+        setHasWorker(w); setHasFarmer(f); setJobCount(jc || 0);
         // 既定ロールが持っていない側なら、持っている側へ寄せる
         setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
       } catch {}
@@ -386,8 +387,11 @@ export function TodayPage({ me, defaultRole }) {
   const TodoStageBox = ({ stage, items }) => {
     const m = TODO_META[stage]; if (!m) return null;
     const n = items.length;
-    // always指定（カレンダー）：応募（予定）が1件でもあれば件数0でも常にタップ可（2026-07-27たきと指示）
-    const enabled = m.always ? mine.length > 0 : n > 0;
+    // always指定（カレンダー）：カレンダーに出るものが1つでもあればタップ可（2026-07-27たきと指示・同日改定）。
+    // 農家は「求人の下書き保存・掲載をした時から」＝応募がゼロでも自分の求人があれば開ける（jobCount）。
+    // 働き手は自分の予定（応募・いいね等）が1つでもあれば開ける
+    const calendarReady = entries.some(e => e.my_role === role) || mine.length > 0 || (role === "farmer" && jobCount > 0);
+    const enabled = m.always ? calendarReady : n > 0;
     const onTapBox = () => {
       if (!enabled) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
       if (m.always) { window.location.hash = m.nav(); return; } // カレンダーは常に直行
