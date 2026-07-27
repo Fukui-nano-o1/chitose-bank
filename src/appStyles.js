@@ -437,8 +437,8 @@ input:focus { outline: none; }
      同じ方向へズレる（カレンダー・タブ・凡例は動かさない＝動かす対象を絞ると意図が伝わる）。
      ズレ幅は親グリッドの--cb-swipe-dxをJSが直書き。指を離す/発火時は0に戻り、.cb-swipingが
      外れてtransitionで滑らかに戻る */
-  .cb-app-jobcard { transform: translateX(var(--cb-swipe-dx, 0px)); transition: transform .18s ease; }
-  .cb-swiping .cb-app-jobcard { transition: none; }
+  /* ズレ自体はJSがカードのインラインstyleへ直接書く（CSS変数方式はカード側のインライン指定に
+     負けて効かなかった）。ここは案内文の点灯だけを担う */
   /* 指を動かしている間は案内文（横スワイプでカレンダーを開く）を緑の太字にして、
      いま何が起きようとしているかを目で分からせる */
   .cb-cal-hint { transition: color .15s ease; }

@@ -574,11 +574,18 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 20pxズレた時点で発火（カレンダーの開閉）。追従はCSS変数への直書き＝再レンダーを起こさない
   const appGridRef = useRef(null);
   // animate=false（指の追従中）＝transitionを切って1:1でついてくる／animate=true（発火後・指を離した後）
-  // ＝transitionを効かせて滑らかに戻す
+  // ＝transitionを効かせて滑らかに戻す。
+  // ★カード要素へ直接インラインで書く（2026-07-27修正）：CSS変数＋クラス指定では、カードの
+  //   インラインstyle（transition:background）やアニメーション指定に負けて見た目が動かなかった。
+  //   インラインのtransformなら他の指定に勝つ。参照は既にあるjobCardRefs（各求人カードのDOM）を使う
   const setSwipeDx = (px, animate = false) => {
-    const el = appGridRef.current; if (!el) return;
-    el.style.setProperty("--cb-swipe-dx", px + "px");
-    el.classList.toggle("cb-swiping", !animate && px !== 0);
+    Object.values(jobCardRefs.current).forEach(el => {
+      if (!el) return;
+      el.style.transition = animate ? "transform .18s ease, background .5s" : "background .5s";
+      el.style.transform = px ? `translateX(${px}px)` : "";
+    });
+    const grid = appGridRef.current;
+    if (grid) grid.classList.toggle("cb-swiping", !animate && px !== 0); // 案内文の点灯（CSS側）
   };
   const appSwipeRef = useRef(null);
   const onAppSwipeMove = (e) => {
