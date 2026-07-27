@@ -129,7 +129,7 @@ export function VisitEntrance({ me }) {
   // 帯は前半と同じ並びをもう一度continueして繋げる＝-50%まで流して先頭へ戻ると継ぎ目が見えない
   const strip = jobs.length ? [...jobs, ...jobs] : [];
   return (
-    <div style={{ maxWidth:520, margin:"0 auto", padding:"24px 20px 96px", textAlign:"center" }}>
+    <div className="cb-visit-page" style={{ maxWidth:520, margin:"0 auto", padding:"24px 20px 96px", textAlign:"center" }}>
       <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", margin:"0 0 8px" }}>chitose-bank</h1>
       <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:1.8, margin:"0 0 16px" }}>農家と働き手が直接つながる、農作業の求人サイトです。</p>
       {jobs.length > 0 && (

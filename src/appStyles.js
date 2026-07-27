@@ -712,6 +712,10 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   body:has(.cb-preview-overlay) .app-header-mobile-float,
   body:has(.cb-lock-scroll) .app-header-mobile,
   body:has(.cb-lock-scroll) .app-header-mobile-float { display: none !important; }
+  /* 訪問者の玄関（#/visit）では浮遊☰を出さない（2026-07-27たきと指示）。
+     ☰の中身は会員向けの操作（求人を出す・管理・ログアウト等）＝まだ同意前の訪問者には要らない。
+     下部バー（さがす／入れ方／登録・ログイン）は訪問者の道案内so残す */
+  body:has(.cb-visit-page) .app-header-mobile-float { display: none !important; }
 }
 /* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
    チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
