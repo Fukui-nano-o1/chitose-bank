@@ -961,6 +961,11 @@ function InstallGuide({ me }) {
         <div style={{ fontSize:64, lineHeight:1, marginBottom:12 }}>🥦</div>
         <h1 className="f-sans" style={{ fontSize:24, fontWeight:800, color:"#222", margin:"0 0 6px" }}>chitose-bankをアプリとして入れる</h1>
         <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7, margin:0 }}>ホーム画面に追加すると、アプリのように開けて通知も受け取れます。</p>
+        {/* 訪問者の「入れ方」タブから来る人向けに、何をするのかを最初に明記する（2026-07-27たきと指示） */}
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"12px auto 0", maxWidth:420, background:"#F7F7F7", borderRadius:12, padding:"12px 14px", textAlign:"left" }}>
+          App Store・Google Playからのインストールは不要です。いま見ているこのページを、お使いのブラウザから
+          ホーム画面に置くだけで完了します。下の手順のとおりに進めてください（1分ほどで終わります）。
+        </p>
       </div>
       <div style={{ display:"grid", gap:16 }}>
         {ios ? <>{iosSlot}{andSlot}</> : <>{andSlot}{iosSlot}</>}
@@ -2340,7 +2345,16 @@ const subDest=useCallback(async d=>{
                   }
                   return;
                 }
-                if (t.hash) { setTab("profile"); window.location.hash = t.hash; return; }
+                // hash指定のタブは、hashの先頭区画から行き先タブを決める（2026-07-27修正）。
+                // 以前は一律 setTab("profile") だったため、tab→URL同期useEffectが直後に
+                // #/install・#/login を #/profile へ巻き戻し、訪問者の「入れ方」「登録・ログイン」が
+                // プロフィールに飛んでいた（農家ナビの行き先は /profile/… なので偶然動いていた）
+                if (t.hash) {
+                  const seg = t.hash.replace(/^\//, "").split("/")[0];
+                  setTab(TAB_URL_KEYS.includes(seg) ? seg : "profile");
+                  window.location.hash = t.hash;
+                  return;
+                }
                 setTab(t.k); window.location.hash = "/" + t.k;
               }}
               className={"app-header-mobile-tab" + (isActive ? " active" : "")}>

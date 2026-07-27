@@ -303,6 +303,10 @@ input:focus { outline: none; }
   /* 入力中（キーボード表示中）は下部バー・浮遊☰を隠す（2026-07-19）。入力欄と被らせない */
   body.cb-typing .app-header-mobile,
   body.cb-typing .app-header-mobile-float { display: none !important; }
+  /* ログイン画面だけは例外＝下部バーを常に出す（2026-07-27たきと指示）。
+     メール欄のautoFocusでキーボードが出た瞬間にcb-typingが付き、訪問者の
+     「さがす・入れ方・登録ログイン」バーが消えて戻り道を失っていた */
+  body:has(.cb-login-page).cb-typing .app-header-mobile { display: block !important; }
 }
 
 /* ── 下部ナビの初回コーチマーク（第12弾・2026-07-23）：下部バー直上に薄い1行。タップで消える ── */
