@@ -433,6 +433,12 @@ input:focus { outline: none; }
   .cb-applicant-filter-inline { display: none !important; }
   body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   body.cb-typing .cb-applicant-filter-bar { display: none !important; }
+  /* 応募者ページのスワイプ追従（2026-07-27たきと指示）：指の動きに合わせて求人カードだけが
+     同じ方向へズレる（カレンダー・タブ・凡例は動かさない＝動かす対象を絞ると意図が伝わる）。
+     ズレ幅は親グリッドの--cb-swipe-dxをJSが直書き。指を離す/発火時は0に戻り、.cb-swipingが
+     外れてtransitionで滑らかに戻る */
+  .cb-app-jobcard { transform: translateX(var(--cb-swipe-dx, 0px)); transition: transform .18s ease; }
+  .cb-swiping .cb-app-jobcard { transition: none; }
   body:has(.mobile-apply-bar) .cb-applicant-filter-bar { display: none; }
   body:has(.chat-full) .cb-applicant-filter-bar,
   body:has(.cb-preview-overlay) .cb-applicant-filter-bar,
