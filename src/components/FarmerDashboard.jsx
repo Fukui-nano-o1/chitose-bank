@@ -774,10 +774,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   </div>
                 );
               })()}
-              {/* 上側の求人リンク＋応募日＋操作ボタン（2026-07-27たきと指示・下と同じもの） */}
-              <div style={{ marginBottom:14 }}>{jobLinkAndDate}{actionButtons}</div>
               {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるso出さない（バナーが理由を説明する） */}
               {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
+              {/* 上側の求人リンク＋応募日＋操作ボタン（2026-07-27たきと指示・流れバーの下・下側と同じもの） */}
+              <div style={{ marginBottom:14 }}>{jobLinkAndDate}{actionButtons}</div>
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
