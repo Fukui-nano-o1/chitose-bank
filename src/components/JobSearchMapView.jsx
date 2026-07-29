@@ -528,6 +528,9 @@ export function JobSearchMapView({ onRegister, me }) {
   const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired));
   const hideApply = recruitClosed && !myAppStatus;
   const closedLabel = selectedJob?.filled ? "この募集は終了しました（満員）" : "この募集は終了しました（期間終了）";
+  // 下部フッターは幅が狭いso短い言葉に差し替える（2026-07-27たきと指示）。
+  // 「応募する」の位置＝そのままボタンの場所に「満員」（期間終了なら「募集終了」）を出す
+  const closedLabelShort = selectedJob?.filled ? "満員" : "募集終了";
 
   return (
     <div>
@@ -1105,7 +1108,7 @@ export function JobSearchMapView({ onRegister, me }) {
               disabled={hideApply || applying || applyBtnDisabled}
               className="btn-primary f-sans"
               style={{ flex:1, minWidth:0, padding:"12px 12px", fontSize:14, fontWeight:700, borderRadius:14, lineHeight:1.35, textAlign:"center", ...(hideApply ? { background:"#EBEBEB", color:"#717171" } : applyBtnStyle) }}
-            >{hideApply ? closedLabel : applyBtnLabel}</button>
+            >{hideApply ? closedLabelShort : applyBtnLabel}</button>
           </div>
           <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
             {hideApply ? "ほかの求人は「さがす」から見られます" : "応募しても即採用ではなく、面接後に決まります"}
