@@ -515,7 +515,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // ただし既に応募・承認・見送りの関係がある本人には、状況確認とチャット導線を残すため従来どおり表示する。
   const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired));
   const hideApply = recruitClosed && !myAppStatus;
-  const closedLabel = selectedJob?.filled ? "募集終了（満員）" : "募集期間終了";
+  const closedLabel = selectedJob?.filled ? "この募集は終了しました（満員）" : "この募集は終了しました（期間終了）";
 
   return (
     <div>
@@ -1036,7 +1036,7 @@ export function JobSearchMapView({ onRegister, me }) {
       </>)}
 
       {/* PC専用：下固定の応募バー（応募パネルが画面外に出たら表示。スマホはCSSでdisplay:none）。募集終了かつ未応募では非表示（2026-07-24） */}
-      {selectedJob && showApplyBar && !isOwnJob && !hideApply && (
+      {selectedJob && showApplyBar && !isOwnJob && (
         <div className="pc-apply-bar" style={{
           position:"fixed", bottom:0, left:0, right:0, zIndex:500,
           background:"#fff", borderTop:"1px solid #EBEBEB",
@@ -1045,17 +1045,19 @@ export function JobSearchMapView({ onRegister, me }) {
         }}>
           <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
           <button
-            onClick={applyBtnOnClick}
-            disabled={applying || applyBtnDisabled}
+            onClick={hideApply ? undefined : applyBtnOnClick}
+            disabled={hideApply || applying || applyBtnDisabled}
             className="btn-primary f-sans"
-            style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...applyBtnStyle }}
-          >{applyBtnLabel}</button>
+            style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap", ...(hideApply ? { background:"#EBEBEB", color:"#717171" } : applyBtnStyle) }}
+          >{hideApply ? closedLabel : applyBtnLabel}</button>
         </div>
       )}
 
       {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS)。自分の求人には出さない（2026-07-22）。
-          募集終了（満員／期間終了）かつ未応募の求人では、この日程・募集ボタンの下部フッター自体を非表示にする（2026-07-24） */}
-      {selectedJob && !isOwnJob && !hideApply && (
+          募集終了（満員／期間終了）かつ未応募でも、構造は同じままボタンを「この募集は終了しました」の
+          灰色・押せない状態にする（2026-07-27たきと指示。以前はフッターごと消していたため、訪問者には
+          下部ナビだけが残り、終了したことが伝わらなかった） */}
+      {selectedJob && !isOwnJob && (
         <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
           {/* 並び入れ替え（2026-07-16）：日給＋応募ボタンが上・注記が下 */}
           {/* バランス修正（2026-07-24）：報酬は1行固定(flexShrink:0)・ボタンは残り幅(flex:1)で長いラベル
@@ -1063,14 +1065,14 @@ export function JobSearchMapView({ onRegister, me }) {
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
             <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222", flexShrink:0, whiteSpace:"nowrap" }}>{payLabel(selectedJob)}</span>
             <button
-              onClick={applyBtnOnClick}
-              disabled={applying || applyBtnDisabled}
+              onClick={hideApply ? undefined : applyBtnOnClick}
+              disabled={hideApply || applying || applyBtnDisabled}
               className="btn-primary f-sans"
-              style={{ flex:1, minWidth:0, padding:"12px 12px", fontSize:14, fontWeight:700, borderRadius:14, lineHeight:1.35, textAlign:"center", ...applyBtnStyle }}
-            >{applyBtnLabel}</button>
+              style={{ flex:1, minWidth:0, padding:"12px 12px", fontSize:14, fontWeight:700, borderRadius:14, lineHeight:1.35, textAlign:"center", ...(hideApply ? { background:"#EBEBEB", color:"#717171" } : applyBtnStyle) }}
+            >{hideApply ? closedLabel : applyBtnLabel}</button>
           </div>
           <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-            応募しても即採用ではなく、面接後に決まります
+            {hideApply ? "ほかの求人は「さがす」から見られます" : "応募しても即採用ではなく、面接後に決まります"}
           </p>
         </div>
       )}
