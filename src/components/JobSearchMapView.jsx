@@ -1118,7 +1118,11 @@ export function JobSearchMapView({ onRegister, me }) {
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="応募の確認" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             {/* 承認の流れ（①プロフィール確認②判断③承認決定）のインフォグラフィック＝応募前に承認制であることを伝える */}
-            <img src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます" style={{ display:"block", width:"100%", borderRadius:12 }} />
+            {/* ★aspectRatioで場所を先に確保する（2026-07-27・日程チップの誤タップ修理）。
+                高さ未指定だと画像の読み込み完了時に下の内容（来られる日のチップ）が一段ずり下がり、
+                狙った位置に別のチップが来る＝「押していない日が選ばれる」誤作動になっていた */}
+            <img src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
+              width={1000} height={750} style={{ display:"block", width:"100%", height:"auto", aspectRatio:"1000 / 750", borderRadius:12, background:"#F7F7F7" }} />
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"14px 0 0" }}>
               応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
             </p>

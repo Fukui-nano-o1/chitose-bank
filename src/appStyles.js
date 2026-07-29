@@ -84,7 +84,11 @@ input:focus { outline: none; }
 /* 求人プレビューのポップアップ（縮小→等倍・軽いオーバーシュートで弾む）。フェード(opacity)なし。
    fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
-.cb-sheet-up { animation: cbPop .8s cubic-bezier(.2, 1.3, .3, 1); transform-origin: center center; }
+/* 出現アニメ中はタップを受け付けない（2026-07-27・日程チップの誤タップ修理）。
+   0.85→1へ弾みながら拡大する間は中身が動いているため、狙った位置と実際に当たる要素がずれる。
+   step-endのgateで終了の瞬間にauto（既定値）へ戻す＝アニメ後は通常どおり押せる */
+@keyframes cbPopGate { from { pointer-events: none; } to { pointer-events: auto; } }
+.cb-sheet-up { animation: cbPop .8s cubic-bezier(.2, 1.3, .3, 1), cbPopGate .8s step-end; transform-origin: center center; }
 /* ── ボックス規格（2026-07-21 全ボックス統一）：画面中央にボックスの中央を合わせる。
    親オーバーレイ(.cb-box-overlay)がflexで上下左右中央寄せ、ボックス(.cb-notice-sheet)は
    意匠（緑太縁3px・角丸・影・左詰め）と最大サイズ・スクロールを担う。
