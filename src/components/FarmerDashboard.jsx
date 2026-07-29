@@ -51,9 +51,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [qMgrOpen, setQMgrOpen] = useState(false);      // 管理モーダル
   const qMgrScrollY = useRef(0);                        // 質問集を開く直前のハブのスクロール位置（閉じたら元の場所へ戻す・2026-07-24）
   // 質問集フルページ(.qset-full)は body{overflow:hidden;height:100%} で開くため、閉じるとハブ先頭へ飛ぶ。開く前の位置を控えて復元する
+  // 使う側（openQMgr・応募者の読み込み・評価の送信）より前に置く（宣言前参照の解消・2026-07-29）
+  const [qEditing, setQEditing] = useState(null);       // 編集中セット {id?, title, questions:[...]}（null=一覧）
+  const [favDone, setFavDone] = useState(null); // {workerId, nickname, avatar_url}
+  const [favDetailOpen, setFavDetailOpen] = useState(false);
+  const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
+  const [reviewedAppIds, setReviewedAppIds] = useState(() => new Set()); // 自分が評価を書いた応募ID。お仕事の流れバーの「評価」段の点灯に使う
+
   const openQMgr = () => { qMgrScrollY.current = window.scrollY; setQEditing(null); setQMgrOpen(true); };
   const closeQMgr = () => { const y = qMgrScrollY.current; setQMgrOpen(false); requestAnimationFrame(() => window.scrollTo(0, y)); };
-  const [qEditing, setQEditing] = useState(null);       // 編集中セット {id?, title, questions:[...]}（null=一覧）
   const [qSaving, setQSaving] = useState(false);
   const [sendQTarget, setSendQTarget] = useState(null); // 「質問を送る」対象の応募(a)
   const [sendingQ, setSendingQ] = useState(false);
@@ -94,6 +100,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       setQEditing(null);
     } catch (e) { alert("削除に失敗しました：" + (e?.message || "不明")); }
   };
+  const [qSentAppIds, setQSentAppIds] = useState(() => new Set());
+  const loadQSentIds = async (appIds) => {
+    try {
+      if (!appIds.length) return;
+      const { data: iqs } = await supabase.from("interview_question_sends").select("application_id").in("application_id", appIds);
+      setQSentAppIds(new Set((iqs || []).map(r => r.application_id)));
+    } catch {}
+  };
+
   const sendInterviewQuestions = async (setId) => {
     if (!sendQTarget || sendingQ) return;
     setSendingQ(true);
@@ -285,93 +300,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       setDraftsLoading(false);
     })();
   }, [jobTab]);
-  // 応募者タブを開くたびに応募の最新statusを取り直す（2026-07-16）。
-  // 初回マウント時の1回だけだと、働き手側の操作（終了打刻→completed等）が進んでも
-  // カードの帯が古いまま（契約のまま）になるため
-  useEffect(() => {
-    if (jobTab !== "applicants") return;
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        // 未対応（＝こちらの番）の応募を、やること・バッジと同じ単一ソース my_todo_items から導出（2026-07-26たきと指示）。
-        // hireは除外：承認後ずっと出続ける段so、質問送信後の「働き手の回答待ち」でも跳ね続けてしまう。
-        // 除外すると流れが正しく出る＝承認直後はinterview(質問を送る)で跳ね、送ったら静止（働き手の番）、
-        // 働き手が答えるとchat(未読)で再び跳ねる。やることリスト側のhireはそのまま（表示だけの調整）
-        // やることと応募は互いに独立なので同時に投げる（2026-07-27たきと指示「直列を並列に」）
-        const [todoRes, appRes] = await Promise.all([
-          supabase.rpc("my_todo_items").then(r => r, () => ({ data: [] })),
-          supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at", { ascending: false }),
-        ]);
-        setTodoAppIds(new Set((todoRes.data || [])
-          .filter(t => t.my_role === "farmer" && t.application_id && t.stage !== "hire")
-          .map(t => t.application_id)));
-        const appData = appRes.data;
-        if (!appData) { setAppsLoading(false); return; }
-        setDbApplicants(appData);
-        loadQSentIds(appData.map(x => x.id));
-        // 自分が書いた評価（お仕事の流れバーの「評価」段の判定）。RLS「review select own」で自分の行のみ返る
-        const doneIds = appData.filter(a => a.status === "completed").map(a => a.id);
-        // 応募者のプロフィールと信頼情報。プロフィールは手元に無い人だけ、信頼情報は
-        // 実績が進むので毎回まとめて（worker_trust_info_bulk＝1往復。2026-07-29）
-        const appWorkerIds = [...new Set(appData.map(a => a.worker_id).filter(Boolean))];
-        const missing = appWorkerIds.filter(id => !workerProfiles[id]);
-        const [rvRes, wpRes, wTrustRes] = await Promise.all([
-          doneIds.length
-            ? supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).in("application_id", doneIds).then(r => r, () => ({ data: [] }))
-            : Promise.resolve({ data: [] }),
-          missing.length > 0
-            ? supabase.from("worker_profiles").select("*").in("auth_id", missing)
-            : Promise.resolve({ data: [] }),
-          appWorkerIds.length > 0
-            ? supabase.rpc('worker_trust_info_bulk', { p_worker_ids: appWorkerIds }).then(r => r, () => ({ data: null }))
-            : Promise.resolve({ data: null }),
-        ]);
-        setReviewedAppIds(new Set((rvRes.data || []).map(r => r.application_id)));
-        if (wpRes.data && wpRes.data.length > 0) {
-          setWorkerProfiles(prev => { const m = { ...prev }; wpRes.data.forEach(wp => { m[wp.auth_id] = wp; }); return m; });
-        }
-        if (wTrustRes.data) {
-          // 返り値は { worker_id: {ok,...} }。権限の無いidはキーごと入らない（DB側で1人ずつ判定）
-          const trustMap = {};
-          Object.entries(wTrustRes.data).forEach(([wid, v]) => { if (v && v.ok) trustMap[wid] = v; });
-          setWorkerTrust(trustMap); setCache("farm:trust", trustMap);
-        }
-        // ここから下は、今日ページ・緊急連絡メールからの着地（応募が手元に揃ってから判定する）。
-        // 行き先はいずれも応募者ページなので、応募をこの面で読む今の形と噛み合っている
-        // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
-        try {
-          const pend = sessionStorage.getItem("cb_emergencyAppId");
-          if (pend) {
-            sessionStorage.removeItem("cb_emergencyAppId");
-            const target = appData.find(x => x.id === pend);
-            if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
-          }
-        } catch {}
-        // 完了・評価モーダルの着地（2026-07-24）：今日ページの「完了して評価する」から cb_completeAppId 経由で自動展開（モーダルはここに常駐）
-        try {
-          const pendC = sessionStorage.getItem("cb_completeAppId");
-          if (pendC) {
-            sessionStorage.removeItem("cb_completeAppId");
-            const target = appData.find(x => x.id === pendC);
-            // completed も対象（評価だけ残っている応募・2026-07-27）。以前は進行中の状態しか通さず、
-            // 今日ページの「完了して評価する」が完了済みの応募では何も開かなかった
-            if (target && (CHAT_ELIGIBLE_STATUSES.includes(target.status) || target.status === 'completed')) openCompleteModal(target);
-          }
-        } catch {}
-        // 働く日を決めるモーダルの着地（2026-07-24）：今日ページの「日を決める」から cb_agreeAppId 経由で自動展開
-        try {
-          const pendA = sessionStorage.getItem("cb_agreeAppId");
-          if (pendA) {
-            sessionStorage.removeItem("cb_agreeAppId");
-            const target = appData.find(x => x.id === pendA);
-            if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) { setAgreeModal(target); setAgreeSel(Array.isArray(target.agreed_dates) ? target.agreed_dates.slice() : []); }
-          }
-        } catch {}
-      } catch {}
-      setAppsLoading(false);
-    })();
-  }, [jobTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const JOB_TABS = [
     { k:"profile", l:"雇い手プロフィール" },
     { k:"draft",   l:"作成中" },
@@ -477,8 +405,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setCompleteSubmitting(false);
   };
   // お気に入り登録しました！ボックス（2026-07-19）：登録成功の瞬間に展開。アイコンに❤️が付く動作つき
-  const [favDone, setFavDone] = useState(null); // {workerId, nickname, avatar_url}
-  const [favDetailOpen, setFavDetailOpen] = useState(false);
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
   const [showRoster, setShowRoster] = useState(false); // 記録と予定：また呼びたいリスト箱→モーダル（2026-07-22）
   const [eFlip, setEFlip] = useState(null); // 農家ハブ：？タップで反転して説明を出す箱のラベル（2026-07-22）
@@ -559,14 +485,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
   // 面接の質問を一度でも送った応募ID（interview_question_sends・農家本人select可）。
   // シートのボタン出し分け「初面接後=採用する」の判定に使用（2026-07-26たきと指示）
-  const [qSentAppIds, setQSentAppIds] = useState(() => new Set());
-  const loadQSentIds = async (appIds) => {
-    try {
-      if (!appIds.length) return;
-      const { data: iqs } = await supabase.from("interview_question_sends").select("application_id").in("application_id", appIds);
-      setQSentAppIds(new Set((iqs || []).map(r => r.application_id)));
-    } catch {}
-  };
   // 採用する（応募者シート・2026-07-26）：今日ページ・チャットの採用と同じconfirm_terms＋二重予約警告
   const hireApplicant = async (a, nickname) => {
     let dup = null;
@@ -606,8 +524,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         : "採用しました。募集人数に達したため、この求人の募集は終了です。");
     }
   };
-  const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
-  const [reviewedAppIds, setReviewedAppIds] = useState(() => new Set()); // 自分が評価を書いた応募ID。お仕事の流れバーの「評価」段の点灯に使う
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   const appRibbonLabel = (a) => APP_PHASE_LABEL[appPhaseKey(a)] || a.status;
@@ -741,6 +657,97 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       } catch {}
     })();
   };
+
+  // ↓応募者ページの読み込み。ここに置く理由：この中の着地処理が openCompleteModal と
+  //   openEmergencyModal を呼ぶため、両方の宣言より後ろでないと宣言前参照になる
+  //   （2026-07-29に並べ替え・中身は不変。読み込み処理は上部の入口/求人ローダーと対）
+  // 応募者タブを開くたびに応募の最新statusを取り直す（2026-07-16）。
+  // 初回マウント時の1回だけだと、働き手側の操作（終了打刻→completed等）が進んでも
+  // カードの帯が古いまま（契約のまま）になるため
+  useEffect(() => {
+    if (jobTab !== "applicants") return;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        // 未対応（＝こちらの番）の応募を、やること・バッジと同じ単一ソース my_todo_items から導出（2026-07-26たきと指示）。
+        // hireは除外：承認後ずっと出続ける段so、質問送信後の「働き手の回答待ち」でも跳ね続けてしまう。
+        // 除外すると流れが正しく出る＝承認直後はinterview(質問を送る)で跳ね、送ったら静止（働き手の番）、
+        // 働き手が答えるとchat(未読)で再び跳ねる。やることリスト側のhireはそのまま（表示だけの調整）
+        // やることと応募は互いに独立なので同時に投げる（2026-07-27たきと指示「直列を並列に」）
+        const [todoRes, appRes] = await Promise.all([
+          supabase.rpc("my_todo_items").then(r => r, () => ({ data: [] })),
+          supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at", { ascending: false }),
+        ]);
+        setTodoAppIds(new Set((todoRes.data || [])
+          .filter(t => t.my_role === "farmer" && t.application_id && t.stage !== "hire")
+          .map(t => t.application_id)));
+        const appData = appRes.data;
+        if (!appData) { setAppsLoading(false); return; }
+        setDbApplicants(appData);
+        loadQSentIds(appData.map(x => x.id));
+        // 自分が書いた評価（お仕事の流れバーの「評価」段の判定）。RLS「review select own」で自分の行のみ返る
+        const doneIds = appData.filter(a => a.status === "completed").map(a => a.id);
+        // 応募者のプロフィールと信頼情報。プロフィールは手元に無い人だけ、信頼情報は
+        // 実績が進むので毎回まとめて（worker_trust_info_bulk＝1往復。2026-07-29）
+        const appWorkerIds = [...new Set(appData.map(a => a.worker_id).filter(Boolean))];
+        const missing = appWorkerIds.filter(id => !workerProfiles[id]);
+        const [rvRes, wpRes, wTrustRes] = await Promise.all([
+          doneIds.length
+            ? supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).in("application_id", doneIds).then(r => r, () => ({ data: [] }))
+            : Promise.resolve({ data: [] }),
+          missing.length > 0
+            ? supabase.from("worker_profiles").select("*").in("auth_id", missing)
+            : Promise.resolve({ data: [] }),
+          appWorkerIds.length > 0
+            ? supabase.rpc('worker_trust_info_bulk', { p_worker_ids: appWorkerIds }).then(r => r, () => ({ data: null }))
+            : Promise.resolve({ data: null }),
+        ]);
+        setReviewedAppIds(new Set((rvRes.data || []).map(r => r.application_id)));
+        if (wpRes.data && wpRes.data.length > 0) {
+          setWorkerProfiles(prev => { const m = { ...prev }; wpRes.data.forEach(wp => { m[wp.auth_id] = wp; }); return m; });
+        }
+        if (wTrustRes.data) {
+          // 返り値は { worker_id: {ok,...} }。権限の無いidはキーごと入らない（DB側で1人ずつ判定）
+          const trustMap = {};
+          Object.entries(wTrustRes.data).forEach(([wid, v]) => { if (v && v.ok) trustMap[wid] = v; });
+          setWorkerTrust(trustMap); setCache("farm:trust", trustMap);
+        }
+        // ここから下は、今日ページ・緊急連絡メールからの着地（応募が手元に揃ってから判定する）。
+        // 行き先はいずれも応募者ページなので、応募をこの面で読む今の形と噛み合っている
+        // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
+        try {
+          const pend = sessionStorage.getItem("cb_emergencyAppId");
+          if (pend) {
+            sessionStorage.removeItem("cb_emergencyAppId");
+            const target = appData.find(x => x.id === pend);
+            if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
+          }
+        } catch {}
+        // 完了・評価モーダルの着地（2026-07-24）：今日ページの「完了して評価する」から cb_completeAppId 経由で自動展開（モーダルはここに常駐）
+        try {
+          const pendC = sessionStorage.getItem("cb_completeAppId");
+          if (pendC) {
+            sessionStorage.removeItem("cb_completeAppId");
+            const target = appData.find(x => x.id === pendC);
+            // completed も対象（評価だけ残っている応募・2026-07-27）。以前は進行中の状態しか通さず、
+            // 今日ページの「完了して評価する」が完了済みの応募では何も開かなかった
+            if (target && (CHAT_ELIGIBLE_STATUSES.includes(target.status) || target.status === 'completed')) openCompleteModal(target);
+          }
+        } catch {}
+        // 働く日を決めるモーダルの着地（2026-07-24）：今日ページの「日を決める」から cb_agreeAppId 経由で自動展開
+        try {
+          const pendA = sessionStorage.getItem("cb_agreeAppId");
+          if (pendA) {
+            sessionStorage.removeItem("cb_agreeAppId");
+            const target = appData.find(x => x.id === pendA);
+            if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) { setAgreeModal(target); setAgreeSel(Array.isArray(target.agreed_dates) ? target.agreed_dates.slice() : []); }
+          }
+        } catch {}
+      } catch {}
+      setAppsLoading(false);
+    })();
+  }, [jobTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const submitEmergency = async () => {
     if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
     setEmergencySubmitting(true);
