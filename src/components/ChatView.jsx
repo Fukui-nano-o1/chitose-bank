@@ -109,18 +109,6 @@ export function ChatView({ applicationId, onBack }) {
     }
   };
   const [deciding, setDeciding] = useState(false);
-  const decideApplication = async (approve) => {
-    if (deciding) return;
-    if (!approve && !window.confirm("この応募を見送りますか？")) return;
-    setDeciding(true);
-    try {
-      const { data, error } = await supabase.rpc("approve_application", { p_application_id: activeAppId, p_approve: approve });
-      if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); setDeciding(false); return; }
-      setActiveStatus(data.status);
-      await load(); // ボタンに応じた自動返信（承認/見送り）が届くので再読込
-    } catch { alert("処理に失敗しました。"); }
-    setDeciding(false);
-  };
   const load = async (ids) => {
     const scope = ids || appIds || [applicationId];
     try {
@@ -157,6 +145,19 @@ export function ChatView({ applicationId, onBack }) {
         }
       } catch {}
     } catch {}
+  };
+
+  const decideApplication = async (approve) => {
+    if (deciding) return;
+    if (!approve && !window.confirm("この応募を見送りますか？")) return;
+    setDeciding(true);
+    try {
+      const { data, error } = await supabase.rpc("approve_application", { p_application_id: activeAppId, p_approve: approve });
+      if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); setDeciding(false); return; }
+      setActiveStatus(data.status);
+      await load(); // ボタンに応じた自動返信（承認/見送り）が届くので再読込
+    } catch { alert("処理に失敗しました。"); }
+    setDeciding(false);
   };
   useEffect(() => {
     // 求人No.ボックスでの切替を一瞬に（2026-07-27たきと指示）：

@@ -103,6 +103,10 @@ export function InsurancePrepPage({ me }) {
 // 2026-07-27たきと指示：ロゴを外し、いまの求人が流れる帯に差し替え（何のサイトかを言葉でなく現物で見せる）。
 // 帯はカード＝表示専用（タップ不可）。閲覧は同意の後＝玄関の意味を残す。
 // 「同意して見てみる」を画面外へ押し出さないため、帯の高さはビューポート比で伸縮させる（clamp）。
+// 入れ方の手順（#/install の InstallGuide と同じ文面）
+const INSTALL_IOS = { label:"iPhone（Safari）", steps:["Safariでこのページを開く","下の共有ボタン（□に↑）をタップ","「ホーム画面に追加」を選ぶ","右上の「追加」をタップ"] };
+const INSTALL_ANDROID = { label:"Android（Chrome）", steps:["Chromeでこのページを開く","右上のメニュー（⋮）をタップ","「アプリをインストール」または「ホーム画面に追加」を選ぶ","「インストール」をタップ"] };
+
 export function VisitEntrance({ me }) {
   const [jobs, setJobs] = useState([]);
   useEffect(() => {
@@ -189,9 +193,6 @@ export function VisitEntrance({ me }) {
     </div>
   );
 }
-// 入れ方の手順（#/install の InstallGuide と同じ文面）
-const INSTALL_IOS = { label:"iPhone（Safari）", steps:["Safariでこのページを開く","下の共有ボタン（□に↑）をタップ","「ホーム画面に追加」を選ぶ","右上の「追加」をタップ"] };
-const INSTALL_ANDROID = { label:"Android（Chrome）", steps:["Chromeでこのページを開く","右上のメニュー（⋮）をタップ","「アプリをインストール」または「ホーム画面に追加」を選ぶ","「インストール」をタップ"] };
 
 // 管理者用QRコードページ（#/qr・2026-07-24）：焼き込み済みの静的QR(public/visit-qr.svg)を表示。実行時生成しない。
 export function VisitorQRPage() {

@@ -18,50 +18,6 @@ export function WorkerApplications({ filter, me }) {
   const [punchingId, setPunchingId] = useState(null);
   const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
   const [pastOpen, setPastOpen] = useState(false); // 過去の応募（見送り・失効）の折りたたみ（第9弾）
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
-        const { data, error } = await supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false});
-        if (!error && data) {
-          setAllApps(data);
-          // 求人の日程と農家の返答傾向は互いに独立なので同時に投げる（2026-07-27たきと指示「直列を並列に」）
-          const jobNumbers = [...new Set(data.map(a => a.job_number).filter(Boolean))];
-          // 農家の返答傾向（第9弾・2026-07-22）：返事待ち(applied)の各求人の農家について、信頼カードの返答速度を転用。
-          // employer_trust_info(avg_response_hours) を farmer_id ごとに引き、当日中/1日以内/2日以内のバケットで表示する
-          const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
-          const [jobRes, respEntries] = await Promise.all([
-            jobNumbers.length > 0
-              ? supabase.from("jobs_public").select("job_number,date_start,date_end,crop,task,photos,work_time,pay_type,hourly_wage,daily_wage,city,town").in("job_number", jobNumbers).then(r => r, () => ({ data: [] }))
-              : Promise.resolve({ data: [] }),
-            waitFarmerIds.length > 0
-              ? Promise.all(waitFarmerIds.map(async fid => {
-                  try { const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: fid }); return [fid, (t && t.ok) ? t.avg_response_hours : null]; }
-                  catch { return [fid, null]; }
-                }))
-              : Promise.resolve([]),
-          ]);
-          if (jobNumbers.length > 0) {
-            const map = {};
-            (jobRes.data || []).forEach(j => { map[j.job_number] = j; });
-            setJobDates(map); setCache("wapp:jobs", map);
-          }
-          if (respEntries.length > 0) setRespByFarmer(Object.fromEntries(respEntries));
-          // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
-          try {
-            const pend = sessionStorage.getItem("cb_emergencyAppId");
-            if (pend) {
-              sessionStorage.removeItem("cb_emergencyAppId");
-              const target = data.find(x => x.id === pend);
-              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
-            }
-          } catch {}
-        }
-      } catch {}
-      setLoading(false);
-    })();
-  }, []);
   const punchStart = async (a) => {
     if (punchingId) return;
     setPunchingId(a.id);
@@ -154,6 +110,53 @@ export function WorkerApplications({ filter, me }) {
       } catch {}
     })();
   };
+
+  // ↓ここに置く理由：この中の緊急連絡ディープリンク着地が openEmergencyModal を呼ぶため、
+  //   その宣言より後ろに置く（2026-07-29に並べ替え・中身は不変）
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setLoading(false); return; }
+        const { data, error } = await supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false});
+        if (!error && data) {
+          setAllApps(data);
+          // 求人の日程と農家の返答傾向は互いに独立なので同時に投げる（2026-07-27たきと指示「直列を並列に」）
+          const jobNumbers = [...new Set(data.map(a => a.job_number).filter(Boolean))];
+          // 農家の返答傾向（第9弾・2026-07-22）：返事待ち(applied)の各求人の農家について、信頼カードの返答速度を転用。
+          // employer_trust_info(avg_response_hours) を farmer_id ごとに引き、当日中/1日以内/2日以内のバケットで表示する
+          const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
+          const [jobRes, respEntries] = await Promise.all([
+            jobNumbers.length > 0
+              ? supabase.from("jobs_public").select("job_number,date_start,date_end,crop,task,photos,work_time,pay_type,hourly_wage,daily_wage,city,town").in("job_number", jobNumbers).then(r => r, () => ({ data: [] }))
+              : Promise.resolve({ data: [] }),
+            waitFarmerIds.length > 0
+              ? Promise.all(waitFarmerIds.map(async fid => {
+                  try { const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: fid }); return [fid, (t && t.ok) ? t.avg_response_hours : null]; }
+                  catch { return [fid, null]; }
+                }))
+              : Promise.resolve([]),
+          ]);
+          if (jobNumbers.length > 0) {
+            const map = {};
+            (jobRes.data || []).forEach(j => { map[j.job_number] = j; });
+            setJobDates(map); setCache("wapp:jobs", map);
+          }
+          if (respEntries.length > 0) setRespByFarmer(Object.fromEntries(respEntries));
+          // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
+          try {
+            const pend = sessionStorage.getItem("cb_emergencyAppId");
+            if (pend) {
+              sessionStorage.removeItem("cb_emergencyAppId");
+              const target = data.find(x => x.id === pend);
+              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
+            }
+          } catch {}
+        }
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
   const submitEmergency = async () => {
     if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
     setEmergencySubmitting(true);

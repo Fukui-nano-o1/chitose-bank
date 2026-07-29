@@ -185,7 +185,9 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [imgOptResults, setImgOptResults] = useState({});   // bucket → {candidates, replaced, savedBytes}
   const runRecompress = async (bucket, maxSide, quality) => {
     if (imgOptRunning) return;
-    if (!confirm(`${bucket} 内の重い画像（400KB以上）を圧縮して差し替えます。よろしいですか？`)) return;
+    // window.confirm と書くこと：同じスコープに確認モーダル用の state `confirm`（{msg,onOk}）があり、
+    // 素の confirm(...) はそちらに解決されて「confirm is not a function」で落ちる（2026-07-29修理）
+    if (!window.confirm(`${bucket} 内の重い画像（400KB以上）を圧縮して差し替えます。よろしいですか？`)) return;
     setImgOptRunning(bucket); setImgOptProgress("");
     const r = await recompressBucket(supabase, bucket, { maxSide, quality, onProgress: (d, t) => setImgOptProgress(`${d}/${t}`) });
     setImgOptRunning(""); setImgOptProgress("");
@@ -239,7 +241,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     loadEmpTexts();
   };
   const rejectEmpTexts = async (authId) => {
-    if (!confirm("この審査待ちの自由記述を差し戻し（破棄）しますか？公開中の文はそのまま残ります")) return;
+    if (!window.confirm("この審査待ちの自由記述を差し戻し（破棄）しますか？公開中の文はそのまま残ります")) return;
     const { data, error } = await supabase.rpc("reject_employer_texts", { p_auth_id: authId });
     if (error || !data?.ok) { alert("差し戻しに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     loadEmpTexts();

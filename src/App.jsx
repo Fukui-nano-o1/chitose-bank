@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
@@ -48,7 +49,6 @@ import { compressImage } from "./lib/image";
 import { peekApplyReturn } from "./lib/applyReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
 
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 
 
@@ -997,37 +997,6 @@ export default function App(){
     if (m) resolveEmergencyLink(m[1]);
   }, []);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
-  useEffect(() => {
-    const onHash = () => {
-      const rawHash = window.location.hash.replace(/^#\/?/, "");
-      const _em = rawHash.match(/^emergency\/([0-9a-fA-F-]+)$/);
-      if (_em) { resolveEmergencyLink(_em[1]); return; }
-      // 現在モード（雇い手/働き手）はempCtxに集約（同一ソース・二重状態を作らない）。プロフィールの側に入った時だけ
-      // 更新し、共通タブ（カレンダー/チャット等）へ移っても保持（sticky・localStorage永続）。下部ナビの役割追従もこれを見る
-      if (rawHash.startsWith("profile/employer")) { setEmpCtx(true); try { localStorage.setItem("cb_empCtx","1"); } catch {} }
-      else if (rawHash === "profile" || rawHash.startsWith("profile/worker")) { setEmpCtx(false); try { localStorage.setItem("cb_empCtx","0"); } catch {} }
-      if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
-      if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
-      setShowApplyDone(rawHash === "apply/done");
-      setConsignRoom(rawHash === "admin/consignment");
-      if (rawHash === "apply/done") {
-        try { setApplyAlready(sessionStorage.getItem("cb_applyAlready")==="1"); sessionStorage.removeItem("cb_applyAlready"); } catch {}
-      }
-      const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
-      setChatAppId(_cm ? _cm[1] : null);
-      if (rawHash === "account") {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session) { setOpenAccountForm(true); }
-          else { setOpenAccountForm(false); window.location.hash = "/login"; }
-        });
-      } else {
-        setOpenAccountForm(false);
-      }
-      const t = readHashTab(); if (t) setTab(t);
-    };
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
   // 訪問者の同意ゲート（2026-07-24）：未ログイン & cb_visitConsent 未記録のアクセスは、
   // どの入口（QR・検索・直リンク）でも まず #/visit（同意の玄関）へ集約する。玄関は必ず一つ。
   // 元の宛先は cb_visitReturn に退避し、同意後に VisitEntrance.agree が読んで元ページへ戻す。
@@ -1049,14 +1018,6 @@ export default function App(){
     gate();
     window.addEventListener("hashchange", gate);
     return () => window.removeEventListener("hashchange", gate);
-  }, []);
-  // #/account 直打ち（初回ロード）の認証チェック。hashchangeイベントは初回ロードでは発火しないため別途判定
-  useEffect(() => {
-    if (window.location.hash.replace(/^#\/?/, "") !== "account") return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { setOpenAccountForm(true); }
-      else { setOpenAccountForm(false); window.location.hash = "/login"; }
-    });
   }, []);
   const [farmers,setFarmers]=useState([]);
   const [farmPend,setFarmPend]=useState([]);
@@ -1167,6 +1128,49 @@ export default function App(){
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
   const [applyAlready,setApplyAlready]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")==="1");
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
+
+  // ↓ここに置く理由：この中で使う state（openAccountForm・showJobPost 等）の宣言より後ろでないと
+  //   宣言前参照になる（no-use-before-define。2026-07-29に並べ替え・中身は不変）
+  useEffect(() => {
+    const onHash = () => {
+      const rawHash = window.location.hash.replace(/^#\/?/, "");
+      const _em = rawHash.match(/^emergency\/([0-9a-fA-F-]+)$/);
+      if (_em) { resolveEmergencyLink(_em[1]); return; }
+      // 現在モード（雇い手/働き手）はempCtxに集約（同一ソース・二重状態を作らない）。プロフィールの側に入った時だけ
+      // 更新し、共通タブ（カレンダー/チャット等）へ移っても保持（sticky・localStorage永続）。下部ナビの役割追従もこれを見る
+      if (rawHash.startsWith("profile/employer")) { setEmpCtx(true); try { localStorage.setItem("cb_empCtx","1"); } catch {} }
+      else if (rawHash === "profile" || rawHash.startsWith("profile/worker")) { setEmpCtx(false); try { localStorage.setItem("cb_empCtx","0"); } catch {} }
+      if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
+      if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
+      setShowApplyDone(rawHash === "apply/done");
+      setConsignRoom(rawHash === "admin/consignment");
+      if (rawHash === "apply/done") {
+        try { setApplyAlready(sessionStorage.getItem("cb_applyAlready")==="1"); sessionStorage.removeItem("cb_applyAlready"); } catch {}
+      }
+      const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
+      setChatAppId(_cm ? _cm[1] : null);
+      if (rawHash === "account") {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) { setOpenAccountForm(true); }
+          else { setOpenAccountForm(false); window.location.hash = "/login"; }
+        });
+      } else {
+        setOpenAccountForm(false);
+      }
+      const t = readHashTab(); if (t) setTab(t);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // #/account 直打ち（初回ロード）の認証チェック。hashchangeイベントは初回ロードでは発火しないため別途判定
+  useEffect(() => {
+    if (window.location.hash.replace(/^#\/?/, "") !== "account") return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) { setOpenAccountForm(true); }
+      else { setOpenAccountForm(false); window.location.hash = "/login"; }
+    });
+  }, []);
   // 規約v2・プラポリv2 全面改定バナー（7日間限定・2026-07-21〜07-28）。閉じるとlocalStorageで再表示しない
   const [legalV2BannerDismissed,setLegalV2BannerDismissed]=useState(()=>{ try { return localStorage.getItem("cb_legalv2_banner_dismissed")==="1"; } catch { return false; } });
   const showLegalV2Banner = (() => {

@@ -243,6 +243,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
   const BOX_ORDER = ["avatar","nickname","place","perks","staff","intro","ask","style"];
+  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
+  const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
+  const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
+
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!recruiterAddress.trim()
     : k === "perks" ? perksOn.length > 0
@@ -309,9 +313,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   };
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
   if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
-  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
-  const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
-  const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
       {/* 見出しとページ全体の保存は削除済み（2026-07-25）。説明文＝左・プレビュー＝右の1行配置（同日たきと指示） */}
