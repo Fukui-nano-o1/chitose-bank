@@ -262,7 +262,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             if (pendC) {
               sessionStorage.removeItem("cb_completeAppId");
               const target = appData.find(x => x.id === pendC);
-              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openCompleteModal(target);
+              // completed も対象（評価だけ残っている応募・2026-07-27）。以前は進行中の状態しか通さず、
+              // 今日ページの「完了して評価する」が完了済みの応募では何も開かなかった
+              if (target && (CHAT_ELIGIBLE_STATUSES.includes(target.status) || target.status === 'completed')) openCompleteModal(target);
             }
           } catch {}
           // 働く日を決めるモーダルの着地（2026-07-24）：今日ページの「日を決める」から cb_agreeAppId 経由で自動展開
@@ -360,7 +362,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [completeNotifyNext, setCompleteNotifyNext] = useState(true); // また呼びたい=はい時のみ表示。ON=repeat_rosterへupsert
   const [completeDone, setCompleteDone] = useState(null); // 評価登録完了モーダル {jobLabel,jobNumber,workerId,workerName,at,wantAgain,entrust,publicComment,privateMemo,favorited}
   const openCompleteModal = (a) => {
-    setCompleteModalApp(a); setCompleteStep('attend');
+    // 完了記録が済んでいる応募（status=completed）は「来ましたか？」を飛ばして評価から始める
+    // （2026-07-27たきと指示：完了のカードには評価ボタンを置く）
+    setCompleteModalApp(a); setCompleteStep(a.status === 'completed' ? 'review' : 'attend');
     setCompleteWantAgain(null); setCompleteEntrust(null);
     setCompletePublicComment(""); setCompletePrivateMemo("");
     setCompleteNotifyNext(true);
@@ -773,6 +777,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     {qSentAppIds.has(a.id)
                       ? <button onClick={()=>hireApplicant(a, wp?.nickname)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する</button>
                       : chatBtn}
+                  </div>
+                );
+                // 完了（出勤あり）でまだ評価していない応募＝評価ボタンを出す（2026-07-27たきと指示）。
+                // 欠勤記録済み（attended===false）は評価の代わりso出さない。評価後はチャットだけに戻る
+                if (phase === "completed" && a.attended !== false && !reviewedAppIds.has(a.id)) return (
+                  <div style={{ display:"flex", gap:8 }}>
+                    {chatBtn}
+                    <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⭐ 評価する</button>
                   </div>
                 );
                 return <div style={{ display:"flex", gap:8 }}>{chatBtn}</div>;
