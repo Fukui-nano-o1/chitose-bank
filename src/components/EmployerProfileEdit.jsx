@@ -57,6 +57,32 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [recruiterName, setRecruiterName] = useState("");
   const [recruiterAddress, setRecruiterAddress] = useState("");
   const [recruiterContact, setRecruiterContact] = useState("");
+  const [carrying, setCarrying] = useState(false);
+  // 新規登録①(account_holders)の内容を引き継ぐ（2026-07-27たきと指示）。
+  // ★自動コピーにはしない：登録時の本人確認情報は「他の利用者に表示しない」と説明して集めたデータなので、
+  //   黙って公開欄へ流し込まない。ボタンで持ってきて、本人が内容を確認して保存する＝本人の意思で公開する形にする。
+  //   読めるのは本人の行だけ（RLS: auth.uid() = auth_id）
+  const carryFromAccount = async () => {
+    if (carrying) return;
+    setCarrying(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setCarrying(false); return; }
+      const { data, error } = await supabase.from("account_holders")
+        .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
+        .eq("auth_id", session.user.id).maybeSingle();
+      setCarrying(false);
+      if (error || !data) { alert("新規登録の情報が見つかりませんでした。"); return; }
+      const name = (data.company_name || "").trim() || (data.full_name || "").trim();
+      const zip = (data.postal_code || "").trim();
+      const addr = [zip ? "〒" + zip : "", (data.address || "").trim()].filter(Boolean).join(" ");
+      const contact = (data.contact_phone || "").trim() || (data.contact_email || "").trim();
+      if (name) setRecruiterName(name);
+      if (addr) setRecruiterAddress(addr);
+      if (contact) setRecruiterContact(contact);
+      if (!name && !addr && !contact) alert("引き継げる内容がありませんでした。");
+    } catch { setCarrying(false); alert("読み込みに失敗しました。"); }
+  };
   const [uniquePoint, setUniquePoint] = useState("");
   const [alwaysDo, setAlwaysDo] = useState("");
   const [breakStyle, setBreakStyle] = useState("");
@@ -408,6 +434,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
               労働者の募集広告には、募集者の氏名または名称・住所・連絡先の明示が必要です。
               <b>入力した内容は、あなたの求人ページに「募集者情報」として表示されます。</b>
             </p>
+            <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
+              style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
+              {carrying ? "読み込み中..." : "新規登録の内容を引き継ぐ"}
+            </button>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集者の氏名または名称</label>
             <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎／〇〇農園" maxLength={100}
               className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:14 }} />
