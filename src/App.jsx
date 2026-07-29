@@ -1266,6 +1266,17 @@ export default function App(){
   // 取得はme.id変化と雇い手空間の出入り(empCtx)ごと。編集画面での変更はonAvatarChangeで即時反映（マージ更新）。
   const [meAvatar,setMeAvatar]=useState({ url:"", name:"", empUrl:"", empName:"" });
   const isEmpCtxHash = () => window.location.hash.replace(/^#\/?/, "").startsWith("profile/employer");
+  // 現在のURL（ハッシュ）を状態として持つ（2026-07-27・下部ナビの点灯が付いてこないバグの根治）。
+  // 描画中に window.location.hash を直接読むと、同じタブ内でのページ移動（例 応募者→求人）は
+  // 他のstateが変わらない＝再描画が起きないため、点灯が前のページのまま固まる。
+  // hashchangeでこの値を更新すれば、URLが変わるたびに必ず描き直される
+  const [curHash, setCurHash] = useState(() => { try { return window.location.hash.replace(/^#\/?/, ""); } catch { return ""; } });
+  useEffect(() => {
+    const on = () => setCurHash(window.location.hash.replace(/^#\/?/, ""));
+    window.addEventListener("hashchange", on);
+    on();
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
   const [empCtx, setEmpCtx] = useState(() => { try { const s = localStorage.getItem("cb_empCtx"); return s !== null ? s === "1" : isEmpCtxHash(); } catch { return false; } });
   // 「🤝応募者」バッジは navBadges.applicants_pending（未対応の応募＝跳ねるアイコンと同数）に一本化（2026-07-26）。
   // 旧・独自の status='applied' 件数カウントは廃止＝バッジとアイコンで数が食い違う原因だった
@@ -2083,11 +2094,16 @@ const subDest=useCallback(async d=>{
     ? visitorNav
     : empNav
     ? [
-        { k:"emp-jobs",       icon:"📣", label:"求人",       hash:"/profile/employer/active" },
-        { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: navBadges.applicants_pending },
+        // matchは「そのタブの領域に居るか」を明示する（2026-07-27）。hashのstartsWithだけだと
+        // 作成中(drafts)・期限切れ(expired)・雇い手プロフィール等で どのタブも点かない穴があった
+        { k:"emp-jobs",       icon:"📣", label:"求人",       hash:"/profile/employer/active",
+          match: h => h.startsWith("profile/employer/active") || h.startsWith("profile/employer/drafts") || h.startsWith("profile/employer/expired") },
+        { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: navBadges.applicants_pending,
+          match: h => h.startsWith("profile/employer/applicants") },
         { k:"chats",          icon:"💬", label:"チャット" },
         { k:"calendar",       icon:"📆", label:"今日" },
-        { k:"profile",        icon:"👤", label:"プロフィール" },
+        { k:"profile",        icon:"👤", label:"プロフィール",
+          match: h => h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
       ]
     : MOBILE_TABS;
 
@@ -2347,8 +2363,10 @@ const subDest=useCallback(async d=>{
       {!(needsAccountHolder || openAccountForm) && <header className="app-header app-header-mobile">
         <div className={"app-header-mobile-tabs" + (navFlip ? " " + navFlip : "")}>
           {navTabs.map(t => {
-            const cur = window.location.hash.replace(/^#\/?/, "");
-            const isActive = t.hash
+            const cur = curHash; // ★描画中にwindow.location.hashを読まない（同一タブ内の移動で点灯が固まる・2026-07-27）
+            const isActive = t.match
+              ? t.match(cur)
+              : t.hash
               ? cur.startsWith(t.hash.replace(/^\//, ""))
               : (t.k === "profile"
                   ? (empNav ? (cur === "profile/employer" || cur === "profile") : safeTab === "profile")
