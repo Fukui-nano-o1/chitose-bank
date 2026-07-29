@@ -222,7 +222,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const appWorkerIds = (!appErr && appData) ? [...new Set(appData.map(a => a.worker_id).filter(Boolean))] : [];
         const jobNums = (!error && allJobs) ? allJobs.map(j => j.job_number) : [];
         // 【第2波】第1波の結果に依存するものを、まとめて同時に投げる
-        const [rosterWpRes, qsRes, appWpRes, trustResults] = await Promise.all([
+        const [rosterWpRes, qsRes, appWpRes, wTrustRes] = await Promise.all([
           (rosterData && rosterData.length > 0)
             ? supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", rosterData.map(r => r.worker_id))
             : Promise.resolve({ data: [] }),
@@ -233,9 +233,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           appWorkerIds.length > 0
             ? supabase.from("worker_profiles").select("*").in("auth_id", appWorkerIds)
             : Promise.resolve({ data: [] }),
+          // 応募者の信頼情報は1回でまとめて引く（2026-07-29・worker_trust_info_bulk）。
+          // 以前は1人につき1本＝応募者20人で20往復だった。権限判定はDB側で1人ずつ効いている
           appWorkerIds.length > 0
-            ? Promise.all(appWorkerIds.map(id => supabase.rpc('worker_trust_info', { p_worker_id: id })))
-            : Promise.resolve([]),
+            ? supabase.rpc('worker_trust_info_bulk', { p_worker_ids: appWorkerIds }).then(r => r, () => ({ data: null }))
+            : Promise.resolve({ data: null }),
         ]);
         if (rosterData && rosterData.length > 0) {
           const wpMap = {};
@@ -282,7 +284,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               setWorkerProfiles(map); setCache("farm:wp", map);
             }
             const trustMap = {};
-            trustResults.forEach((r, i) => { if (r.data && r.data.ok) trustMap[appWorkerIds[i]] = r.data; });
+            // 返り値は { worker_id: {ok,...} }。権限の無いidはキーごと入らない（DB側で1人ずつ判定）
+            Object.entries(wTrustRes.data || {}).forEach(([wid, v]) => { if (v && v.ok) trustMap[wid] = v; });
             setWorkerTrust(trustMap); setCache("farm:trust", trustMap);
           }
           // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
