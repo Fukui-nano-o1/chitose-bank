@@ -1,8 +1,5 @@
 import { supabase } from "./lib/supabase";
-import { openEmployerPreview, openWorkerPreview } from "./lib/previewBus";
-import { chatCache } from "./lib/chatCache";
-import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "./lib/questionSets";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION, TASK_OPTIONS, WORKER_EMERGENCY_KINDS, FARMER_EMERGENCY_KINDS, farmIntroTopics, perkBadges } from "./lib/utils";
+import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
@@ -47,13 +44,11 @@ import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/Vi
 import { WorkerExperiencePage } from "./components/WorkerExperiencePage";
 
 import { isIOS, syncAppBadge } from "./lib/push";
-import { uploadAvatarResilient } from "./lib/avatarUpload";
 import { compressImage } from "./lib/image";
-import { peekApplyReturn, setApplyReturn, clearApplyReturn } from "./lib/applyReturn";
+import { peekApplyReturn } from "./lib/applyReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
 
-import { useState, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 
 
@@ -1068,7 +1063,6 @@ export default function App(){
   const [destOk,setDestOk]=useState([]);
   const [destPend,setDestPend]=useState([]);
   const [recs,setRecs]=useState({});
-  const [publicFarmerCount,setPublicFarmerCount]=useState(null);
   // スナップショット起動（2026-07-25本命）：前回のmeがあればネットワーク0本で即・ログイン済み骨格を描く。
   // セッション復元は従来どおり裏で走り、本物のme/停止判定/ログアウト検知で後から上書きされる
   const [loaded,setLoaded]=useState(() => !!snapGet("me"));
@@ -1167,7 +1161,6 @@ export default function App(){
     return () => window.removeEventListener("cb:openLoginBox", f);
   }, []);
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
-  const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
   const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="admin/consignment"; } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19）
@@ -1183,7 +1176,6 @@ export default function App(){
     return !legalV2BannerDismissed && now >= from && now < until;
   })();
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
-  const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // モバイル下部バー左端☰（PCのmenuOpenとは別系統）
   // この画面を報告：☰の開閉やヘルプの章開閉と無関係な階層で開閉させる（2026-07-14・アンマウントバグ修正）
@@ -1193,7 +1185,6 @@ export default function App(){
   const [showPrivacy,setShowPrivacy]=useState(false);
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [obModalKey,setObModalKey]=useState(0);
-  const [notifs,setNotifs]=useState([]);
   const [showNotifs,setShowNotifs]=useState(false);
   const [showProfile,setShowProfile]=useState(false);
   const modeAccent = "#00A86B";
@@ -1350,11 +1341,6 @@ export default function App(){
   }, []);
 
   useEffect(()=>{(async()=>{
-    const { data, error } = await supabase.rpc('public_farmers_count');
-    if (!error && data != null) setPublicFarmerCount(data);
-  })();},[]);
-
-  useEffect(()=>{(async()=>{
     const init=await sGet("yw_pres_v3");
     if(!init){
       for(const k of ["yw_pres_v1","yw_init_v3","yw_init_v4","yw_farmers","yw_farmers_pend","yw_dests_ok","yw_dests_pend","yw_records"])
@@ -1458,16 +1444,8 @@ export default function App(){
   const savDA=useCallback(async d=>{setDestOk(d);await sSet("yw_dests_ok",d);},[]);
   const savDP=useCallback(async d=>{setDestPend(d);await sSet("yw_dests_pend",d);setBadgeCnt((farmPend?.length||0)+d.length);},[farmPend]);
   
-const loadNotifs=useCallback(async(farmerId)=>{
-    const{data}=await supabase.from('notifications').select('*').eq('farmer_id',farmerId).order('created_at',{ascending:false}).limit(10);
-    if(data)setNotifs(data);
-  },[]);
 
 
-  const pushNotif=useCallback(async(farmerId,type,message)=>{
-    const{data}=await supabase.from('notifications').insert({farmer_id:farmerId,type,message}).select().single();
-    if(data)setNotifs(prev=>[data,...prev].slice(0,10));
-  },[]);
 
   // プロフィール承認の「お帰りなさい」ポップアップ（2026-07-16）
   // approve_profile_text が notifications(type='profile_approved') を挿入する。
@@ -1736,6 +1714,8 @@ const loadNotifs=useCallback(async(farmerId)=>{
 
   const appFarmer=useCallback(async id=>{
     const f=farmPend.find(x=>x.id===id);if(!f)return;
+    // appliedAt を意図的に捨てる分割代入（farmers に申請日時の列は無い）。
+    // 未使用に見えるが消してはいけない＝消すと appliedAt が farmer に混ざりINSERTが落ちる
     const{appliedAt,...farmer}=f;
     await supabase.from('farmers').insert({
       name: farmer.name,
@@ -1786,8 +1766,6 @@ const loadNotifs=useCallback(async(farmerId)=>{
     ? Math.floor((Date.now() - lastInputDate.getTime()) / 86400000)
     : null;
   const isContributor = lastInputDate !== null && daysSinceInput <= 30;
-  const isMember = !!me;
-  const userLevel = !me ? 1 : isContributor ? 3 : 2;
 
   const ALL_TABS=[
     {k:"search",l:"さがす",modes:["farmer","worker"]},
@@ -1796,7 +1774,6 @@ const loadNotifs=useCallback(async(farmerId)=>{
   ];
   const TABS = ALL_TABS;
 
-  const visibleTabKeys = TABS.map(t=>t.k);
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
   // 部屋番号(TAB_URL_KEYS)にある部屋は全て到達可（避難部屋含む・骨格④）。資格の無い部屋と迷子はsearchへ
   const safeTab = TAB_URL_KEYS.includes(tab)
@@ -1908,7 +1885,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"0 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
               <LoginScreen farmers={farmers} onLogin={f=>{
                 setLoginBox(false);
-                setMe(f);setAuthV("login");loadNotifs(f.id);
+                setMe(f);
                 try {
                   const em = sessionStorage.getItem("cb_emergencyLink");
                   if (em) { sessionStorage.removeItem("cb_emergencyLink"); window.location.hash = "/emergency/" + em; return; }
@@ -2224,7 +2201,7 @@ const loadNotifs=useCallback(async(farmerId)=>{
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
-              setMe(f);setAuthV("login");loadNotifs(f.id);
+              setMe(f);
               // 緊急連絡ディープリンクからの復帰（最優先・時間に敏感）
               try {
                 const em = sessionStorage.getItem("cb_emergencyLink");
