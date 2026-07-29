@@ -50,18 +50,24 @@ export function JobSearchMapView({ onRegister, me }) {
   // 自分の求人か（2026-07-22）：自分の求人には応募フッター（日給・応募ボタン）を出さない。
   // jobsのRLS owner selectで自分の行だけ返る（他人の求人はnull＝false）
   const [isOwnJob, setIsOwnJob] = useState(false);
+  // 自分の求人かどうかが分かるまでフッターを出さない（2026-07-27たきと報告「一瞬だけ満員が映ってすぐ戻る」）。
+  // 判定は非同期so、既定のfalse（＝他人の求人）のまま一度描くと、自分の満員求人でも
+  // 「満員」フッターが出てから消える。確定するまで保留する
+  const [ownLoaded, setOwnLoaded] = useState(false);
   // 出どころ（cb_jobBackTo）は開いた時点でstateに引き取る（2026-07-27）：
   // 描画のたびにsessionStorageを読むと、消し忘れが次の求人に持ち越されて戻り先を誤る
   const [backTo, setBackTo] = useState(null);
 
   useEffect(() => {
-    if (!selectedJob || !me) { setIsOwnJob(false); return; }
+    if (!selectedJob || !me) { setIsOwnJob(false); setOwnLoaded(!me); return; } // 未ログインは自分の求人ではありえない＝確定
     let cancelled = false;
+    setOwnLoaded(false);
     (async () => {
       try {
         const { data } = await supabase.from("jobs").select("farmer_id").eq("job_number", selectedJob.id).maybeSingle();
         if (!cancelled) setIsOwnJob(!!(data && data.farmer_id === me.id));
       } catch { if (!cancelled) setIsOwnJob(false); }
+      if (!cancelled) setOwnLoaded(true);
     })();
     return () => { cancelled = true; };
   }, [selectedJob?.id, me]);
@@ -1095,7 +1101,7 @@ export function JobSearchMapView({ onRegister, me }) {
       </>)}
 
       {/* PC専用：下固定の応募バー（応募パネルが画面外に出たら表示。スマホはCSSでdisplay:none）。募集終了かつ未応募では非表示（2026-07-24） */}
-      {selectedJob && showApplyBar && !isOwnJob && (
+      {selectedJob && showApplyBar && ownLoaded && !isOwnJob && (
         <div className="pc-apply-bar" style={{
           position:"fixed", bottom:0, left:0, right:0, zIndex:500,
           background:"#fff", borderTop:"1px solid #EBEBEB",
@@ -1116,7 +1122,7 @@ export function JobSearchMapView({ onRegister, me }) {
           募集終了（満員／期間終了）かつ未応募でも、構造は同じままボタンを「この募集は終了しました」の
           灰色・押せない状態にする（2026-07-27たきと指示。以前はフッターごと消していたため、訪問者には
           下部ナビだけが残り、終了したことが伝わらなかった） */}
-      {selectedJob && !isOwnJob && (
+      {selectedJob && ownLoaded && !isOwnJob && (
         <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
           {/* 並び入れ替え（2026-07-16）：日給＋応募ボタンが上・注記が下 */}
           {/* バランス修正（2026-07-24）：報酬は1行固定(flexShrink:0)・ボタンは残り幅(flex:1)で長いラベル
