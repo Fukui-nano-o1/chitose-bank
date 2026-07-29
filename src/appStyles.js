@@ -13,8 +13,6 @@ body { background: #fff; overflow-x: clip; }
 ::-webkit-scrollbar-thumb { background: #EBEBEB; border-radius: 1px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-.filter-scroll::-webkit-scrollbar { display: none; }
-
 .carousel-scroll::-webkit-scrollbar { height: 6px; }
 .carousel-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
 .carousel-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -28,8 +26,6 @@ body { background: #fff; overflow-x: clip; }
   #data-definition-print, #data-definition-print * { visibility: visible !important; }
   #data-definition-print { position: absolute; left: 0; top: 0; width: 100%; }
 }
-
-.f-serif { font-family: 'Noto Sans JP', 'Inter', sans-serif; font-weight: 700; }
 .f-sans  { font-family: 'Noto Sans JP', 'Inter', sans-serif; }
 .f-mono  { font-family: 'DM Mono', 'Courier New', monospace; }
 
@@ -201,8 +197,6 @@ input:focus { outline: none; }
 .step-in-left   { animation: stepInLeft   .4s ease backwards; }
 /* プロフィール両面(働き手⇄農家プロ)の切替フェード（2026-07-14・opacityのみ=fixed子要素に安全） */
 @keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
-.pfade-out { animation: fadeOut .16s ease both; }
-.pfade-in  { animation: fadeIn  .22s ease both; }
 /* 農家⇄働き手プロフィール切替の反転（カードフリップ・合計0.8秒）。
    outはforwardsで90度に固定→面切替→inで-90度から戻る。transformはfixed子の基準を壊すため
    入場完了後にonAnimationEndでクラスを外す（step同様） */
@@ -213,12 +207,6 @@ input:focus { outline: none; }
 .pulse-slow  { animation: pulse 2s ease infinite; }
 .shake       { animation: shake .4s ease; }
 
-/* staggered children */
-.stagger > *:nth-child(1) { animation-delay: 0s; }
-.stagger > *:nth-child(2) { animation-delay: .08s; }
-.stagger > *:nth-child(3) { animation-delay: .16s; }
-.stagger > *:nth-child(4) { animation-delay: .24s; }
-.stagger > *:nth-child(5) { animation-delay: .32s; }
 
 /* ── Ledger card ── */
 .ledger-card {
@@ -622,15 +610,7 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
 }
 
 /* ── Job detail main info card ── */
-.job-detail-main-card {
-  width: 50%;
-  max-width: 440px;
-}
 @media (max-width: 759px) {
-  .job-detail-main-card {
-    width: 100%;
-    max-width: none;
-  }
 }
 
 /* ── Job detail key info: 3x2 grid (Airbnb-style label/value cells) ── */
@@ -843,74 +823,12 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 }
 
 /* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */
-.profile-grid {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  grid-template-areas: "tabs content" "card content";
-  gap: 32px;
-  align-items: start;
-}
-.profile-tabs {
-  grid-area: tabs;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.profile-tab-btn {
-  text-align: left;
-  padding: 10px 16px;
-  border-radius: 20px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 400;
-  color: #717171;
-}
-.profile-tab-btn.active {
-  background: #F7F7F7;
-  color: #222;
-  font-weight: 700;
-}
-.profile-sidecard { grid-area: card; }
 .profile-content { grid-area: content; min-width: 0; }
 @media (max-width: 768px) {
-  .profile-grid { display: block !important; }
-  .profile-tabs {
-    flex-direction: row;
-    gap: 8px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid #EEE;
-    flex-wrap: wrap;
-  }
-  .profile-tab-btn {
-    padding: 8px 4px;
-    margin-bottom: -1px;
-    border-radius: 0;
-    border-bottom: 2px solid transparent;
-    font-size: 13px;
-  }
-  .profile-tab-btn.active {
-    background: none;
-    border-bottom: 2px solid #00A86B;
-  }
-  .profile-sidecard { margin-top: 24px; }
 }
 
 /* ── LandingFlow Step6 grid ── */
-.lf-map-hero { height: 360px; }
-.lf-preview-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
-  gap: 24px;
-  align-items: start;
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-}
 @media (max-width: 800px) {
-  .lf-map-hero { height: 240px; }
-  .lf-preview-grid { grid-template-columns: 1fr; }
 }
 
 /* ── Fixed footer ── */
@@ -922,24 +840,9 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   text-align: center;
   margin-top: 40px;
 }
-.site-footer-fixed .footer-inner {
-  max-width: 1120px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
 .site-footer-fixed .footer-copy {
   font-size: 11px;
   color: #B0B0B0;
-}
-.site-footer-fixed .footer-links {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  flex-wrap: wrap;
 }
 .site-footer-fixed .footer-note {
   width: 100%;
@@ -1015,18 +918,8 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   .site-footer-fixed {
     padding: 14px 10px;
   }
-  .site-footer-fixed .footer-inner {
-    justify-content: center;
-    gap: 4px 10px;
-  }
   .site-footer-fixed .footer-copy {
     font-size: 10px;
-  }
-  .site-footer-fixed .footer-links {
-    gap: 12px;
-  }
-  .site-footer-fixed .footer-links button {
-    font-size: 9px;
   }
   .site-footer-fixed .footer-note {
     font-size: 9px;
@@ -1064,15 +957,10 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 
 /* ── Mobile responsive ── */
 @media (max-width: 640px) {
-  .hero-row { flex-direction: column !important; }
-  .hero-cta { flex-direction: column !important; }
-  .hero-cta button { width: 100% !important; }
-  .how-to-grid { flex-direction: column !important; }
-  .farmer-3cols { grid-template-columns: 1fr !important; }
 }
 
 /* ── Buttons ── */
-.btn-primary, .btn-dark {
+.btn-primary{
   background: var(--mode-accent, #00A86B);
   color: #fff;
   border: none;
@@ -1082,9 +970,9 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   font-weight: 600;
   letter-spacing: .02em;
 }
-.btn-primary:hover, .btn-dark:hover { filter: brightness(0.92); }
-.btn-primary:active, .btn-dark:active { filter: brightness(0.85); }
-.btn-primary:disabled, .btn-dark:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+.btn-primary:hover{ filter: brightness(0.92); }
+.btn-primary:active{ filter: brightness(0.85); }
+.btn-primary:disabled{ opacity: .35; cursor: not-allowed; transform: none; }
 
 .btn-outline {
   background: transparent;
@@ -1096,19 +984,6 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   font-weight: 500;
 }
 .btn-outline:hover { background: #F7F7F7; }
-
-.btn-gold {
-  background: #F5A623;
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  padding: 13px 24px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: .02em;
-}
-.btn-gold:hover { background: #F7B84B; }
-.btn-gold:disabled { background: #EBEBEB; color: #B0B0B0; cursor: not-allowed; transform: none; }
 
 /* ── Label ── */
 .lbl {
@@ -1122,21 +997,6 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 }
 
 /* ── Rule with text ── */
-.rule-text {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #B0B0B0;
-  font-size: 10px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-.rule-text::before, .rule-text::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: #EBEBEB;
-}
 
 /* ── Tag ── */
 .tag {
