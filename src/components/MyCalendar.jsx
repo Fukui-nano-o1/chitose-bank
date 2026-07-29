@@ -135,10 +135,12 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
           </div>
         </div>
       )}
-      {/* 読み込み中は月表の枠だけ先に出す（2026-07-27たきと指示）。カレンダーは形が固定so
-          前回の骨でなく1枚の大きな面＝出現時のガタつきが無い */}
+      {/* 読み込み中の骨は〈○○年○○月〉の見出し1本ぶんだけ（2026-07-29たきと指示）。
+          盤面ぶんの大きな面は出さない＝展開の順番（見出しが出て、そこから下に開く）と骨の形が一致する */}
       {loading ? (
-        <div aria-busy="true" aria-label="読み込み中" className="ghost-line" style={{ height:300, borderRadius:16 }} />
+        <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:10 }}>
+          <div aria-busy="true" aria-label="読み込み中" className="ghost-line" style={{ height:27, borderRadius:8 }} />
+        </div>
       ) : entries.length === 0 ? (
         <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
           <div style={{ fontSize:40, marginBottom:12 }}>📅</div>
