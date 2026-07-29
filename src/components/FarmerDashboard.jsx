@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges } from "../lib/utils";
-import { Avatar, ExpandableText, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { Avatar, ExpandableText, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
@@ -160,15 +160,18 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [workerProfiles, setWorkerProfiles] = useState(() => getCache("farm:wp") ?? {});
   const [workerTrust, setWorkerTrust] = useState(() => getCache("farm:trust") ?? {}); // { [worker_id]: {joined_at, verified_at} }
   const [draftsLoading, setDraftsLoading] = useState(() => getCache("farm:drafts") === undefined); // キャッシュがあれば最初から仮配置を出さない
+  const [appsLoading, setAppsLoading] = useState(() => getCache("farm:apps") === undefined);       // 応募は求人と別に読むので、待ちの判定も別（2026-07-29）
   // 画面の状態→キャッシュの写し（2026-07-27）。承認・削除・一時非公開などは手元のstateだけを
   // 書き換えるので、ここで一括して写す。呼び出し側（14箇所）にsetCacheを撒かない＝写し忘れが起きない。
   // 読み込みが一度も終わっていない間は写さない（空の[]を焼き付けて「求人ゼロ」に見せないため）
   useEffect(() => { if (draftsLoading) return; setCache("farm:drafts", dbDrafts); }, [dbDrafts, draftsLoading]);
   useEffect(() => { if (draftsLoading) return; setCache("farm:active", dbActive); }, [dbActive, draftsLoading]);
   useEffect(() => { if (draftsLoading) return; setCache("farm:expired", dbExpired); }, [dbExpired, draftsLoading]);
-  useEffect(() => { if (draftsLoading) return; setCache("farm:apps", dbApplicants); }, [dbApplicants, draftsLoading]);
+  useEffect(() => { if (appsLoading) return; setCache("farm:apps", dbApplicants); }, [dbApplicants, appsLoading]);
   // 仮配置の骨を測るref（この面が実際に描いた形が、次回の読み込み中の形になる）
   const skelDraftRef = useSkeletonProbe("farmDrafts");
+  // 応募者ページの一覧はappGridRef（スワイプ判定用）と共用なので、ref付き要素を測る版を使う
+  useSkeletonProbeOn(appGridRef, (jobTab === "applicants" && !appsLoading) ? "farmList:applicants" : null);
   const skelActiveRef = useSkeletonProbe("farmActive");
   const [profileMode, setProfileMode] = useState("preview");
   const [empMini, setEmpMini] = useState(() => getCache("farm:empMini") ?? null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
@@ -193,58 +196,55 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const empHasPending = !!(empMini && empMini.texts_pending && Object.keys(empMini.texts_pending).length > 0);
   const empReview = empHasPending ? "pending" : (empMini?.texts_revision_requested_at ? "revision" : null);
   const [rosterRows, setRosterRows] = useState(() => getCache("farm:roster") ?? []); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
+  // ── 読み込みは「その面を開いた時だけ」（2026-07-29たきと指示 D＝必要になったときに読む）──
+  // 以前は入口(home)を開いただけで、求人・応募・応募者プロフィール・信頼情報まで全部読んでいた。
+  // 入口が要るのは 雇い手プロフィール／信頼情報／また呼びたいリスト の3つだけ。
+  // 求人は「作成中・公開中・期限切れ・応募者」を開いた時、応募は「応募者」を開いた時に読む。
+  // 一度読んだらそのマウント中は読み直さない（求人作成から戻るとマウントし直されるので鮮度は保たれる）。
+
+  // 【入口】常に読む3本（互いに独立なので同時に投げる）
   useEffect(() => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setDraftsLoading(false); return; }
-        // 【第1波】互いに依存しない5本を同時に投げる（2026-07-27たきと指示「直列を並列に」）。
-        // 以前は上から順に await していたので、往復が積み上がって開くまで数十秒かかっていた。
-        // 依存があるもの（誰のプロフィールを引くか等）だけを第2波に回す
+        if (!session) return;
         const uid = session.user.id;
-        const [epRes, trustRes, rosterRes, jobsRes, appRes] = await Promise.all([
+        const [epRes, trustRes, rosterRes] = await Promise.all([
           supabase.from("employer_profiles").select("*").eq("auth_id", uid).maybeSingle(), // トップボックス裏面プレビュー用に全列（2026-07-16）
           supabase.rpc('employer_trust_info', { p_farmer_id: uid }).then(r => r, () => ({ data: null })),
           supabase.from("repeat_roster").select("worker_id,created_at").eq("farmer_id", uid).order("created_at",{ascending:false}),
-          // 自分の求人を一括取得し、日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
-          // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い
-          // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。固定列SELECTに入れ忘れると一時非公開が作成中へ落ちる
-          supabase.from("jobs").select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,work_time,opened_at").eq("farmer_id", uid).order("job_number",{ascending:false}),
-          supabase.from("applications").select("*").eq("farmer_id", uid).order("created_at",{ascending:false}),
         ]);
-        const epMini = epRes.data;
-        const tI = trustRes.data;
+        const epMini = epRes.data, tI = trustRes.data, rosterData = rosterRes.data;
         setEmpTrust(tI && tI.ok ? tI : null); setCache("farm:empTrust", tI && tI.ok ? tI : null);
         if (epMini) { setEmpMini(epMini); setCache("farm:empMini", epMini); }
-        const rosterData = rosterRes.data;
-        const { data: allJobs, error } = jobsRes;
-        const { data: appData, error: appErr } = appRes;
-        const appWorkerIds = (!appErr && appData) ? [...new Set(appData.map(a => a.worker_id).filter(Boolean))] : [];
-        const jobNums = (!error && allJobs) ? allJobs.map(j => j.job_number) : [];
-        // 【第2波】第1波の結果に依存するものを、まとめて同時に投げる
-        const [rosterWpRes, qsRes, appWpRes, wTrustRes] = await Promise.all([
-          (rosterData && rosterData.length > 0)
-            ? supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", rosterData.map(r => r.worker_id))
-            : Promise.resolve({ data: [] }),
-          // 未回答の質問数を集計（第10弾）：自分の求人の、回答なし・非表示でない質問
-          jobNums.length > 0
-            ? supabase.from("job_questions").select("job_number").is("answer", null).eq("hidden", false).in("job_number", jobNums).then(r => r, () => ({ data: [] }))
-            : Promise.resolve({ data: [] }),
-          appWorkerIds.length > 0
-            ? supabase.from("worker_profiles").select("*").in("auth_id", appWorkerIds)
-            : Promise.resolve({ data: [] }),
-          // 応募者の信頼情報は1回でまとめて引く（2026-07-29・worker_trust_info_bulk）。
-          // 以前は1人につき1本＝応募者20人で20往復だった。権限判定はDB側で1人ずつ効いている
-          appWorkerIds.length > 0
-            ? supabase.rpc('worker_trust_info_bulk', { p_worker_ids: appWorkerIds }).then(r => r, () => ({ data: null }))
-            : Promise.resolve({ data: null }),
-        ]);
         if (rosterData && rosterData.length > 0) {
+          const { data: rosterWp } = await supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", rosterData.map(r => r.worker_id));
           const wpMap = {};
-          (rosterWpRes.data || []).forEach(wp => { wpMap[wp.auth_id] = wp; });
+          (rosterWp || []).forEach(wp => { wpMap[wp.auth_id] = wp; });
           const rr = rosterData.map(r => ({ worker_id: r.worker_id, nickname: wpMap[r.worker_id]?.nickname || null, avatar_url: wpMap[r.worker_id]?.avatar_url || null }));
           setRosterRows(rr); setCache("farm:roster", rr);
         }
+      } catch {}
+      try { if (sessionStorage.getItem("cb_afterDraftSave")==="1") { setJobTab("draft"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
+    })();
+  }, []);
+
+  // 【求人】作成中・公開中・期限切れ・応募者（求人名の表示に要る）を開いた時に一度だけ
+  const jobsLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!["draft","active","expired","applicants"].includes(jobTab)) return;
+    if (jobsLoadedRef.current) return;
+    jobsLoadedRef.current = true;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setDraftsLoading(false); return; }
+        // 自分の求人を一括取得し、日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
+        // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い
+        // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。固定列SELECTに入れ忘れると一時非公開が作成中へ落ちる
+        const { data: allJobs, error } = await supabase.from("jobs")
+          .select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,work_time,opened_at")
+          .eq("farmer_id", session.user.id).order("job_number",{ascending:false});
         if (!error && allJobs) {
           const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos }]));
           setJobInfoMap(jim); setCache("farm:jobInfo", jim);
@@ -263,66 +263,24 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           // 一時非公開（status=draftだが掲載歴opened_atあり）は作成中でなく公開中タブに帯付きで残す（2026-07-16）
           const isUnpublished = (j) => j.status === "draft" && !!j.opened_at;
           // 作成中タブ＝作成中＋審査中／公開中タブ＝公開中＋一時非公開（2026-07-16たきと指定）
-          const nDrafts = allJobs.filter(j => ((j.status === "draft" && !j.opened_at) || j.status === "pending") && !isPast(j));
-          const nActive = allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j));
-          const nExpired = allJobs.filter(isPast);
-          setDbDrafts(nDrafts);
-          setDbActive(nActive);
-          setDbExpired(nExpired);
-          const m = {};
-          (qsRes.data || []).forEach(q => { m[q.job_number] = (m[q.job_number] || 0) + 1; });
-          setQUnansweredMap(m); setCache("farm:qUnanswered", m);
-        }
-        if (!appErr && appData) {
-          setDbApplicants(appData);
-          loadQSentIds(appData.map(x => x.id));
-          if (appWorkerIds.length > 0) {
-            const wpData = appWpRes.data;
-            if (wpData) {
-              const map = {};
-              wpData.forEach(wp => { map[wp.auth_id] = wp; });
-              setWorkerProfiles(map); setCache("farm:wp", map);
-            }
-            const trustMap = {};
-            // 返り値は { worker_id: {ok,...} }。権限の無いidはキーごと入らない（DB側で1人ずつ判定）
-            Object.entries(wTrustRes.data || {}).forEach(([wid, v]) => { if (v && v.ok) trustMap[wid] = v; });
-            setWorkerTrust(trustMap); setCache("farm:trust", trustMap);
-          }
-          // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
+          setDbDrafts(allJobs.filter(j => ((j.status === "draft" && !j.opened_at) || j.status === "pending") && !isPast(j)));
+          setDbActive(allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j)));
+          setDbExpired(allJobs.filter(isPast));
+          // 未回答の質問数を集計（第10弾）：自分の求人の、回答なし・非表示でない質問
           try {
-            const pend = sessionStorage.getItem("cb_emergencyAppId");
-            if (pend) {
-              sessionStorage.removeItem("cb_emergencyAppId");
-              const target = appData.find(x => x.id === pend);
-              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
-            }
-          } catch {}
-          // 完了・評価モーダルの着地（2026-07-24）：今日ページの「完了して評価する」から cb_completeAppId 経由で自動展開（モーダルはここに常駐）
-          try {
-            const pendC = sessionStorage.getItem("cb_completeAppId");
-            if (pendC) {
-              sessionStorage.removeItem("cb_completeAppId");
-              const target = appData.find(x => x.id === pendC);
-              // completed も対象（評価だけ残っている応募・2026-07-27）。以前は進行中の状態しか通さず、
-              // 今日ページの「完了して評価する」が完了済みの応募では何も開かなかった
-              if (target && (CHAT_ELIGIBLE_STATUSES.includes(target.status) || target.status === 'completed')) openCompleteModal(target);
-            }
-          } catch {}
-          // 働く日を決めるモーダルの着地（2026-07-24）：今日ページの「日を決める」から cb_agreeAppId 経由で自動展開
-          try {
-            const pendA = sessionStorage.getItem("cb_agreeAppId");
-            if (pendA) {
-              sessionStorage.removeItem("cb_agreeAppId");
-              const target = appData.find(x => x.id === pendA);
-              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) { setAgreeModal(target); setAgreeSel(Array.isArray(target.agreed_dates) ? target.agreed_dates.slice() : []); }
+            const nums = allJobs.map(j => j.job_number);
+            if (nums.length > 0) {
+              const { data: qs } = await supabase.from("job_questions").select("job_number").is("answer", null).eq("hidden", false).in("job_number", nums);
+              const m = {};
+              (qs || []).forEach(q => { m[q.job_number] = (m[q.job_number] || 0) + 1; });
+              setQUnansweredMap(m); setCache("farm:qUnanswered", m);
             }
           } catch {}
         }
       } catch {}
       setDraftsLoading(false);
-      try { if (sessionStorage.getItem("cb_afterDraftSave")==="1") { setJobTab("draft"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
     })();
-  }, []);
+  }, [jobTab]);
   // 応募者タブを開くたびに応募の最新statusを取り直す（2026-07-16）。
   // 初回マウント時の1回だけだと、働き手側の操作（終了打刻→completed等）が進んでも
   // カードの帯が古いまま（契約のまま）になるため
@@ -345,26 +303,69 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           .filter(t => t.my_role === "farmer" && t.application_id && t.stage !== "hire")
           .map(t => t.application_id)));
         const appData = appRes.data;
-        if (!appData) return;
+        if (!appData) { setAppsLoading(false); return; }
         setDbApplicants(appData);
         loadQSentIds(appData.map(x => x.id));
         // 自分が書いた評価（お仕事の流れバーの「評価」段の判定）。RLS「review select own」で自分の行のみ返る
         const doneIds = appData.filter(a => a.status === "completed").map(a => a.id);
-        // 新しく増えた応募者のプロフィールも補充
-        const missing = [...new Set(appData.map(a => a.worker_id).filter(Boolean))].filter(id => !workerProfiles[id]);
-        const [rvRes, wpRes] = await Promise.all([
+        // 応募者のプロフィールと信頼情報。プロフィールは手元に無い人だけ、信頼情報は
+        // 実績が進むので毎回まとめて（worker_trust_info_bulk＝1往復。2026-07-29）
+        const appWorkerIds = [...new Set(appData.map(a => a.worker_id).filter(Boolean))];
+        const missing = appWorkerIds.filter(id => !workerProfiles[id]);
+        const [rvRes, wpRes, wTrustRes] = await Promise.all([
           doneIds.length
             ? supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).in("application_id", doneIds).then(r => r, () => ({ data: [] }))
             : Promise.resolve({ data: [] }),
           missing.length > 0
             ? supabase.from("worker_profiles").select("*").in("auth_id", missing)
             : Promise.resolve({ data: [] }),
+          appWorkerIds.length > 0
+            ? supabase.rpc('worker_trust_info_bulk', { p_worker_ids: appWorkerIds }).then(r => r, () => ({ data: null }))
+            : Promise.resolve({ data: null }),
         ]);
         setReviewedAppIds(new Set((rvRes.data || []).map(r => r.application_id)));
         if (wpRes.data && wpRes.data.length > 0) {
           setWorkerProfiles(prev => { const m = { ...prev }; wpRes.data.forEach(wp => { m[wp.auth_id] = wp; }); return m; });
         }
+        if (wTrustRes.data) {
+          // 返り値は { worker_id: {ok,...} }。権限の無いidはキーごと入らない（DB側で1人ずつ判定）
+          const trustMap = {};
+          Object.entries(wTrustRes.data).forEach(([wid, v]) => { if (v && v.ok) trustMap[wid] = v; });
+          setWorkerTrust(trustMap); setCache("farm:trust", trustMap);
+        }
+        // ここから下は、今日ページ・緊急連絡メールからの着地（応募が手元に揃ってから判定する）。
+        // 行き先はいずれも応募者ページなので、応募をこの面で読む今の形と噛み合っている
+        // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
+        try {
+          const pend = sessionStorage.getItem("cb_emergencyAppId");
+          if (pend) {
+            sessionStorage.removeItem("cb_emergencyAppId");
+            const target = appData.find(x => x.id === pend);
+            if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
+          }
+        } catch {}
+        // 完了・評価モーダルの着地（2026-07-24）：今日ページの「完了して評価する」から cb_completeAppId 経由で自動展開（モーダルはここに常駐）
+        try {
+          const pendC = sessionStorage.getItem("cb_completeAppId");
+          if (pendC) {
+            sessionStorage.removeItem("cb_completeAppId");
+            const target = appData.find(x => x.id === pendC);
+            // completed も対象（評価だけ残っている応募・2026-07-27）。以前は進行中の状態しか通さず、
+            // 今日ページの「完了して評価する」が完了済みの応募では何も開かなかった
+            if (target && (CHAT_ELIGIBLE_STATUSES.includes(target.status) || target.status === 'completed')) openCompleteModal(target);
+          }
+        } catch {}
+        // 働く日を決めるモーダルの着地（2026-07-24）：今日ページの「日を決める」から cb_agreeAppId 経由で自動展開
+        try {
+          const pendA = sessionStorage.getItem("cb_agreeAppId");
+          if (pendA) {
+            sessionStorage.removeItem("cb_agreeAppId");
+            const target = appData.find(x => x.id === pendA);
+            if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) { setAgreeModal(target); setAgreeSel(Array.isArray(target.agreed_dates) ? target.agreed_dates.slice() : []); }
+          }
+        } catch {}
       } catch {}
+      setAppsLoading(false);
     })();
   }, [jobTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const JOB_TABS = [
@@ -1136,7 +1137,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
       ) : jobTab==="applicants" ? (
-        dbApplicants.length === 0 ? (
+        appsLoading ? (
+          <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmList:applicants" /></div>
+        ) : dbApplicants.length === 0 ? (
           <>
             {calendarTop}
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">

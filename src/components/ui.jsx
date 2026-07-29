@@ -295,6 +295,13 @@ export function PhaseInfoSheet() {
 // 使い方：一覧を包む要素に useSkeletonProbe(key) のrefを付け、読み込み中は <AutoSkeleton shapeKey={key} /> を出す。
 export function useSkeletonProbe(key) {
   const ref = useRef(null);
+  useSkeletonProbeOn(ref, key);
+  return ref;
+}
+
+// 既にrefが付いている要素を測りたい時（1要素に2つrefは付けられないため）。
+// keyにnull/falseを渡すと何もしない＝「今この形は覚えない」の意思表示に使える
+export function useSkeletonProbeOn(ref, key) {
   useEffect(() => {
     if (!key || !ref.current) return;
     // 描画直後だと画像の高さが未確定なことがあるので、1フレーム置いてから測る
@@ -304,7 +311,6 @@ export function useSkeletonProbe(key) {
     }, 120);
     return () => clearTimeout(id);
   });
-  return ref;
 }
 
 export function AutoSkeleton({ shapeKey, fallbackHeight = 96, fallbackCount = 4 }) {
