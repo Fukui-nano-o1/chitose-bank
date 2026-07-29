@@ -290,7 +290,16 @@ export function JobSearchMapView({ onRegister, me }) {
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); setDetailTab("content"); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
 
   const openPastJob = (row) => {
-    if (row.job_number === selectedJob.id) { setPastJobsOpen(false); setFarmIntroOpen(false); return; } // 今の求人ならボックスを閉じるだけ
+    // いま見ている求人をタップ＝ボックスを閉じて、ページの先頭までゆっくり戻る（2026-07-27たきと指示）。
+    // 一瞬で飛ばすと「どこへ戻ったか」が分からないため、スクロールしている過程を見せることが大事。
+    // 閉じてから1フレーム置いて動かす（ボックスが消える前だと画面が固定されていて動かないことがある）
+    if (row.job_number === selectedJob.id) {
+      setPastJobsOpen(false); setFarmIntroOpen(false);
+      setTimeout(() => {
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); }
+      }, 60);
+      return;
+    }
     const job = mapJobPublicRow(row);
     setJobBackStack(prev => [...prev, selectedJob]);
     setPastJobsOpen(false); setFarmIntroOpen(false);

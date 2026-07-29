@@ -423,6 +423,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
   const resumePublishRef = useRef(null);
   // 掲載前の日程ガード（2026-07-24）：日程未設定のまま掲載に進ませない（終了求人コピー→日程空で複製、の受け皿）
+  const [returnToConfirm, setReturnToConfirm] = useState(false);
   const openPublish = () => {
     if (!jobDateStart) { alert("作業日程が未設定です。「日程」から新しい日を選んでから掲載してください。"); setReturnToConfirm(true); setStep(4); return; }
     setPublishModal(true);
@@ -540,28 +541,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // 掲載(step11→)と完了(step12)からは進めない。step1の戻りはスワイプでも不可（戻るボタン削除と整合）
   const flowSwipe = useRef(null);
   const onFlowTouchStart = (e) => { flowSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
-  const onFlowTouchEnd = (e) => {
-    const s = flowSwipe.current;
-    flowSwipe.current = null;
-    if (!s || publishModal || showExitModal || photoCaptionsOpen || placeBoxOpen) return;
-    if (step === 11) return; // 確認ページは横スワイプ遷移なし（2026-07-16たきと指定・写真カルーセル優先）
-    const dx = e.changedTouches[0].clientX - s.x;
-    const dy = e.changedTouches[0].clientY - s.y;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // 縦スクロール優先
-    if (dx < 0) {
-      if (step === 11 || step === 12 || step >= TOTAL || !canGoNext) return;
-      if (returnToConfirm) { setStep(11); setReturnToConfirm(false); return; }
-      goNext();
-    } else {
-      if (step <= 1 || step === 12 || step >= TOTAL) return;
-      if (returnToConfirm) { setStep(11); setReturnToConfirm(false); return; }
-      goBack();
-    }
-  };
 
   // 確認ページ(step11)からの編集ジャンプ中フラグ。trueの間、共通フッターの「次へ／戻る」は
   // 通常の順送りでなく確認ページへ直帰する（Airbnb出品確認の「編集→保存して確認へ戻る」と同型）。
-  const [returnToConfirm, setReturnToConfirm] = useState(false);
   useEffect(() => {
     if (step === 11) setReturnToConfirm(false); // 確認ページ到達で必ず解除（保険）
   }, [step]);
@@ -714,6 +696,26 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       //   role="farmer", step=5（確認画面）として復元される
     } catch {}
   };
+
+  // ── カレンダーヘルパー ──────────────────────────────────────
+  const WD = ["日","月","火","水","木","金","土"];
+  const fmtD = (d, opts = {}) => {
+    if (!d) return "";
+    const w = WD[d.getDay()];
+    if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
+    if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${w}）`;
+  };
+  // 日程ラベル（2026-07-16）：年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
+  const jobDateLabel = (() => {
+    if (!jobDateStart) return "日程を選択してください";
+    const end = jobDateEnd || jobDateStart;
+    const thisYear = new Date().getFullYear();
+    const inYear = jobDateStart.getFullYear() === thisYear && end.getFullYear() === thisYear;
+    if (jobDateStart.toDateString() === end.toDateString()) return fmtD(jobDateStart, { omitYear: inYear });
+    const sameMonth = inYear && jobDateStart.getMonth() === end.getMonth();
+    return `${fmtD(jobDateStart, { omitYear: inYear })} 〜 ${fmtD(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
+  })();
 
   const buildJobPayload = async (authUid, statusVal = "pending") => {
     const geo = await geocodeTown(farmerPref, farmerCity, farmerTown);
@@ -886,25 +888,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
 
   // UI helpers はモジュールレベルに移動済み（LF_ プレフィックス）
 
-  // ── カレンダーヘルパー ──────────────────────────────────────
-  const WD = ["日","月","火","水","木","金","土"];
-  const fmtD = (d, opts = {}) => {
-    if (!d) return "";
-    const w = WD[d.getDay()];
-    if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
-    if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
-    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${w}）`;
-  };
-  // 日程ラベル（2026-07-16）：年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
-  const jobDateLabel = (() => {
-    if (!jobDateStart) return "日程を選択してください";
-    const end = jobDateEnd || jobDateStart;
-    const thisYear = new Date().getFullYear();
-    const inYear = jobDateStart.getFullYear() === thisYear && end.getFullYear() === thisYear;
-    if (jobDateStart.toDateString() === end.toDateString()) return fmtD(jobDateStart, { omitYear: inYear });
-    const sameMonth = inYear && jobDateStart.getMonth() === end.getMonth();
-    return `${fmtD(jobDateStart, { omitYear: inYear })} 〜 ${fmtD(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
-  })();
   const handleCalDay = (d) => {
     const clicked = new Date(calYear, calMonth, d);
     if (!jobDateStart || jobDateEnd) { setJobDateStart(clicked); setJobDateEnd(null); }
@@ -951,6 +934,27 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || (!!dailyWageInput && !dailyViolation && breakTime !== ""), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
+
+  // ↓ここに置く理由：この中で canGoNext を読むため、その宣言より後ろに置く
+  //   （2026-07-29に並べ替え・中身は不変。参照はJSXのonTouchEndのみ）
+  const onFlowTouchEnd = (e) => {
+    const s = flowSwipe.current;
+    flowSwipe.current = null;
+    if (!s || publishModal || showExitModal || photoCaptionsOpen || placeBoxOpen) return;
+    if (step === 11) return; // 確認ページは横スワイプ遷移なし（2026-07-16たきと指定・写真カルーセル優先）
+    const dx = e.changedTouches[0].clientX - s.x;
+    const dy = e.changedTouches[0].clientY - s.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // 縦スクロール優先
+    if (dx < 0) {
+      if (step === 11 || step === 12 || step >= TOTAL || !canGoNext) return;
+      if (returnToConfirm) { setStep(11); setReturnToConfirm(false); return; }
+      goNext();
+    } else {
+      if (step <= 1 || step === 12 || step >= TOTAL) return;
+      if (returnToConfirm) { setStep(11); setReturnToConfirm(false); return; }
+      goBack();
+    }
+  };
 
   // 掲載（status=pending投入）前の必須項目チェック。欠けている項目名を返す
   const getPublishMissingFields = () => {
