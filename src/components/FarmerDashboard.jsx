@@ -624,8 +624,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 応募者ページの横スワイプ＝上部カレンダーの開閉（2026-07-27たきと指示。旧・フィルタ切替から置換）。
   // フィルタは上部/浮遊バーのボタンタップで切り替える（スワイプとの二重割り当てをやめる）。
   // 求人カードのアイコン列など内側の横スクロールで始まったタッチは奪わない
-  // スワイプの追従（2026-07-27たきと指示）：指の動きに合わせて求人カードだけが同じ方向へズレ、
-  // 20pxズレた時点で発火（カレンダーの開閉）。追従はCSS変数への直書き＝再レンダーを起こさない
+  // スワイプの追従（2026-07-27たきと指示・同日改定）：指の動きに合わせて求人カードだけが同じ方向へズレ、
+  // 指が30px動いた時点で発火（カレンダーの開閉）。カードの動きは指の半分の速さ（ゆっくり追う）
   // ※appGridRef の宣言は上部（スケルトン計測の useSkeletonProbeOn より前）に移動済み
   // animate=false（指の追従中）＝transitionを切って1:1でついてくる／animate=true（発火後・指を離した後）
   // ＝transitionを効かせて滑らかに戻す。
@@ -650,11 +650,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";       // 一度決めたら最後まで変えない
     }
     if (s.lock !== "h") return;                               // 縦スクロールは邪魔しない
-    setSwipeDx(Math.max(-20, Math.min(20, dx)));              // カードが指について動く（横に最大20px）
-    if (Math.abs(dx) >= 20) {                                 // 20pxで発火
+    // 追従は指の半分の速さ（2026-07-27たきと指示「2倍ゆっくり」）＝勢いで暴発しにくい
+    setSwipeDx(Math.max(-15, Math.min(15, dx * 0.5)));        // 指が30px動くとカードは15px動く
+    if (Math.abs(dx) >= 30) {                                 // 30pxで発火（従来20pxの1.5倍・たきと指示）
       s.fired = true;
-      // 20pxズレた形をひと呼吸だけ見せてから戻す＝「ここで効いた」が目で分かる
-      setSwipeDx(dx > 0 ? 20 : -20, true);
+      // ズレた形をひと呼吸だけ見せてから戻す＝「ここで効いた」が目で分かる
+      setSwipeDx(dx > 0 ? 15 : -15, true);
       setTimeout(() => setSwipeDx(0, true), 160);
       setCalOnTop(v => {
         const next = !v;
@@ -676,7 +677,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     })();
     appSwipeRef.current = inHScroll ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null, fired: false };
   };
-  // 指を離したら追従を戻すだけ（発火はonAppSwipeMoveの20px時点で済んでいる）
+  // 指を離したら追従を戻すだけ（発火はonAppSwipeMoveの30px時点で済んでいる）
   const onAppSwipeEnd = () => { appSwipeRef.current = null; setSwipeDx(0, true); };
   // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
   const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
