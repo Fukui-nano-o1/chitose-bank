@@ -5,7 +5,9 @@
 // 中身（文字・写真・件数）は一切保存しない＝個人情報は入らない。
 //
 // 保存先はlocalStorage。リロード後の初回描画でも正しい形で出したいため（viewCacheはページ寿命）。
-const PREFIX = "cb_skel:";
+// v2（2026-07-29）：子が横いっぱいの行か、列に並ぶカードかを覚えるようにした。
+// 旧キーの骨は形が違う（応募者ページが3列のモザイクになっていた）ので読まずに捨てる
+const PREFIX = "cb_skel2:";
 const MAX_ITEMS = 6; // 仮配置は6個まで（画面を埋めれば十分・実件数は関係ない）
 
 export function readShape(key) {
@@ -29,10 +31,20 @@ export function measureShape(el) {
   if (el.querySelector && el.querySelector("[aria-busy]")) return null;
   let cs;
   try { cs = window.getComputedStyle(el); } catch { return null; }
+  const box = el.getBoundingClientRect();
   const heights = [];
+  const spans = []; // その子が横いっぱいの行か（＝1行1件のカード）。列に並ぶカードはfalse
   for (let i = 0; i < el.children.length && heights.length < MAX_ITEMS; i++) {
-    const h = Math.round(el.children[i].getBoundingClientRect().height);
-    if (h > 8 && h < 600) heights.push(h); // 極端な値は骨にしない
+    const c = el.children[i];
+    let ccs;
+    try { ccs = window.getComputedStyle(c); } catch { continue; }
+    if (ccs.position === "fixed" || ccs.display === "none") continue; // 浮遊バー等は流れの外so骨にしない
+    const r = c.getBoundingClientRect();
+    const h = Math.round(r.height);
+    if (h > 8 && h < 600) { // 極端な値は骨にしない
+      heights.push(h);
+      spans.push(box.width > 0 && r.width >= box.width * 0.9);
+    }
   }
   if (heights.length === 0) return null;
   return {
@@ -40,5 +52,6 @@ export function measureShape(el) {
     columns: cs.display === "grid" ? cs.gridTemplateColumns : "",
     gap: cs.gap && cs.gap !== "normal" ? cs.gap : "10px",
     heights,
+    spans,
   };
 }
