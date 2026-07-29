@@ -985,7 +985,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   <button onClick={openQMgr} className="f-sans" style={{ background:"none", border:"none", padding:0, textAlign:"left", fontSize:13, color:"#717171", lineHeight:1.6, cursor:"pointer" }}>まだありません。タップして作成できます。</button>
                 ) : (
                   /* 横スクロール（たきと指示）：タイトルの箱を横一列に。タップでそのセットの編集画面へ直行 */
-                  <div className="filter-scroll" style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
+                  <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
                     {questionSets.map(s => (
                       <button key={s.id} onClick={()=>{ qMgrScrollY.current = window.scrollY; setQEditing({ id:s.id, title:s.title || "", questions:[...(s.questions || [])] }); setQMgrOpen(true); }}
                         className="f-sans" style={{ flexShrink:0, maxWidth:200, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
