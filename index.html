@@ -26,6 +26,36 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- 真っ白画面の自己修復（2026-07-29）：新デプロイでファイル名（ハッシュ）が変わるため、
+         古いindex.htmlを握ったままの端末は存在しないJSを404で取りに行き、何も描画されないまま止まる。
+         この場合アプリのJSが1行も動かないので、アプリ内のエラー捕捉も自己修復も働かない。
+         そこでHTML側で最初のスクリプト読み込みの失敗を捕まえ、古いService Worker・キャッシュを捨てて
+         1度だけ読み直す（無限リロード防止のためセッションに1回）。 -->
+    <script>
+      window.addEventListener('error', function (e) {
+        var t = e && e.target;
+        if (!t || t.tagName !== 'SCRIPT') return;
+        try {
+          if (sessionStorage.getItem('cb_bootReload')) return;
+          sessionStorage.setItem('cb_bootReload', '1');
+        } catch (_) { return; }
+        var reload = function () { location.reload(); };
+        try {
+          var jobs = [];
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+              return Promise.all(rs.map(function (r) { return r.unregister(); }));
+            }));
+          }
+          if (window.caches && caches.keys) {
+            jobs.push(caches.keys().then(function (ks) {
+              return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+            }));
+          }
+          Promise.all(jobs).then(reload, reload);
+        } catch (_) { reload(); }
+      }, true);
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
