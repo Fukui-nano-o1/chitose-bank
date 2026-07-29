@@ -472,10 +472,12 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
    低い画面用にmax-heightで上方向のはみ出しも防止 */
 .app-header-mobile-float .app-header-mobile-menu {
   bottom: 100%; top: auto;
-  margin-bottom: 8px; margin-top: 0;
+  /* 2026-07-27: 8px→32px。☰(44px)より背の高い検索ピル(.cb-search-fab・約62px)が同じ高さに並ぶため、
+     8pxではメニューの右下と重なっていた（たきと報告）。ピルの上端を越える位置まで持ち上げる */
+  margin-bottom: 32px; margin-top: 0;
   left: 0; right: auto;
   min-width: 220px;
-  max-height: calc(100vh - 180px);
+  max-height: calc(100vh - 204px);
   overflow-y: auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.12);
 }
