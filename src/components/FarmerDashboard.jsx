@@ -16,8 +16,6 @@ import { getCache, setCache } from "../lib/viewCache";
 // 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
 const APP_FILTER_KEYS = ["all","applied","interview","active","completed"];
 
-// 承認され当事者間のやり取りが可能になった段階以降のapplications.status一覧（completed含む）
-const APPROVED_PLUS_STATUSES = ["approved","meeting","interview","contracted","working","completed"];
 
 export function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
@@ -310,21 +308,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // ダミー撤去（憲法3条:表示にダミー禁止）。Phase2aでjobsテーブルから自分の求人を読む
   const jobList = [];
 
-  // 開始の握手（Part4）
-  const [startConfirmingId, setStartConfirmingId] = useState(null);
-  const confirmStart = async (a) => {
-    if (startConfirmingId) return;
-    setStartConfirmingId(a.id);
-    try {
-      const { data, error } = await supabase.rpc('confirm_start', { p_application_id: a.id });
-      if (!error && data && data.ok) {
-        setDbApplicants(prev => prev.map(x => x.id===a.id ? { ...x, farmer_confirmed_start_at: new Date().toISOString() } : x));
-      } else if (data && !data.ok) {
-        alert('確認できませんでした：' + (data.reason || '不明'));
-      }
-    } catch { alert('確認に失敗しました。'); }
-    setStartConfirmingId(null);
-  };
 
   // 完了・評価モーダル（Part1）
   const [completeModalApp, setCompleteModalApp] = useState(null);
@@ -595,12 +578,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 指を離したら追従を戻すだけ（発火はonAppSwipeMoveの20px時点で済んでいる）
   const onAppSwipeEnd = () => { appSwipeRef.current = null; setSwipeDx(0, true); };
-  // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
-  const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
-  // 応募者の注意表示（2026-07-16）：未承認（承認待ち）＝赤影＋浮遊アニメ／保険未チェック＝赤影のみ（静止）
-  const needsInsurance = (a) => APPROVED_PLUS_STATUSES.includes(a.status) && a.status !== "completed" && !a.insurance_prepared_at;
-  const hasUnapprovedApplicant = dbApplicants.some(a => a.status === "applied");
-  const hasInsurancePending = dbApplicants.some(needsInsurance);
 
   // また呼びたいリストのアイコンタップ→働き手詳細モーダル（応募者カードと同じWorkerTrustCard表示）
   const [rosterDetail, setRosterDetail] = useState(null); // {worker_id, loading, profile, trust}
@@ -1234,7 +1211,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   const jobPendingAction = byJob[jn].some(a => todoAppIds.has(a.id));
                   const jobPast = datePast && !jobPendingAction;
                   const jobCompleted = jobPast && byJob[jn].some(a => a.status === "completed");
-                  const jobExpired = jobPast && !jobCompleted;
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
                   const calHit = !!calDay && calDay.jobs.includes(jn);
                   // 未対応（＝農家の番）の応募が1件でもあるカードは、赤影＋跳ねで気づかせる（2026-07-27たきと指示）。

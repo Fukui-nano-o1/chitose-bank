@@ -124,9 +124,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   }, [reviewSec]); // eslint-disable-line react-hooks/exhaustive-deps
   const [accounts, setAccounts] = useState([]); // 新アカウントタブ：admin_list_accounts()の全ユーザー台帳
   const [expandedAccount, setExpandedAccount] = useState(null); // 展開中のauth_id
-  const [revTarget, setRevTarget] = useState(null); // 差し戻し理由入力中のauth_id
-  const [revReason, setRevReason] = useState("");
-  const [revSending, setRevSending] = useState(false);
   const [emailShown, setEmailShown] = useState(null); // 「メールを表示」で全文表示中のauth_id（既定はemail_masked）
   // アカウントの停止／追放（2026-07-19）：一時停止・永久追放・解除。管理者のみ・解除は手動
   const [modOpen, setModOpen] = useState(null); // 操作パネルを開いているauth_id
@@ -335,25 +332,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     setLoading(false);
   }, []);
 
-  // ── 新アカウントタブ：自由記述の承認・差し戻し（RPC・実行後に台帳を再取得） ──
-  const reloadAccounts = async () => {
-    const { data } = await supabase.rpc("admin_list_accounts");
-    if (Array.isArray(data)) setAccounts(data);
-  };
-  const approveProfileText = async (authId) => {
-    const { data, error } = await supabase.rpc("approve_profile_text", { p_auth_id: authId });
-    if (error || data?.ok === false) { alert("承認に失敗しました：" + (error?.message || data?.reason || "不明")); return; }
-    await reloadAccounts();
-  };
-  const sendProfileRevision = async () => {
-    if (!revTarget || !revReason.trim() || revSending) return;
-    setRevSending(true);
-    const { data, error } = await supabase.rpc("request_profile_revision", { p_auth_id: revTarget, p_reason: revReason.trim() });
-    setRevSending(false);
-    if (error || data?.ok === false) { alert("差し戻しに失敗しました：" + (error?.message || data?.reason || "不明")); return; }
-    setRevTarget(null); setRevReason("");
-    await reloadAccounts();
-  };
 
   // ── 審査タブ集約アクション（2026-07-14・DB側は app_admins 基準の審査ポリシーで担保） ──
   const approveFarmerAccount = async (f) => {

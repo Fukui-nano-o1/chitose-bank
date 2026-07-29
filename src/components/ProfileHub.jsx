@@ -70,7 +70,6 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   const [wTrust, setWTrust] = useState(() => getCache("hub:wTrust") ?? null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
   const [wHub, setWHub] = useState(() => getCache("hub:wHub") ?? { today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
-  const [hubFlip, setHubFlip] = useState(null); // ？タップで反転して説明を出す箱のラベル（2026-07-22）
   const [showWAch, setShowWAch] = useState(false); // 🌟わたしの実績モーダル
   const [wSeekFlip, setWSeekFlip] = useState(false); // 「新しく求職を出す」カードの反転（届出受理待ちの案内・2026-07-25）
   const [wSeenReviews, setWSeenReviews] = useState(() => { try { return parseInt(localStorage.getItem("cb_wSeenReviews") || "0", 10) || 0; } catch { return 0; } }); // 既読の評価件数（🌟は新着時のみ）
@@ -224,30 +223,6 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
               }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
             </div>
             {(() => {
-              // 区画見出し＋2箱ずつ（2026-07-22 役割区画化）。数字バッジ＝相手/自分を待たせている件数のみ
-              const hubBox = (c) => {
-                const flipped = hubFlip === c.l;
-                return (
-                <button key={c.l} onClick={()=>{ if (flipped) { setHubFlip(null); return; } c.onClick ? c.onClick() : (window.location.hash=c.h); }} className={"f-sans" + (!flipped && c.urgent && c.n > 0 ? " cb-urgent-card" : "")} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, minHeight:132, boxSizing:"border-box" }}>
-                  {c.desc && <span onClick={(e)=>{ e.stopPropagation(); setHubFlip(flipped ? null : c.l); }} role="button" aria-label="説明" style={{ position:"absolute", top:8, right:8, zIndex:3, width:22, height:22, borderRadius:11, background: flipped ? "#00A86B" : "#F0F0F0", color: flipped ? "#fff" : "#999", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>？</span>}
-                  {flipped ? (
-                    <span className="f-sans pflip-in" style={{ fontSize:12, color:"#555", lineHeight:1.7, textAlign:"center", padding:"2px 8px" }}>{c.desc}</span>
-                  ) : (<>
-                    {c.n > 0 && <span style={{ position:"absolute", top:9, right:c.desc?34:10, minWidth:22, height:22, borderRadius:11, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>}
-                    {c.mark && <span style={{ position:"absolute", top:8, right:c.desc?34:10, fontSize:18, lineHeight:1 }}>🌟</span>}
-                    <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
-                    <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
-                    {c.sub && <span className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", lineHeight:1.4 }}>{c.sub}</span>}
-                  </>)}
-                </button>
-                );
-              };
-              const sec = (title, boxes) => (
-                <div key={title} style={{ marginTop:16 }}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>{title}</p>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>{boxes.map(hubBox)}</div>
-                </div>
-              );
               return (<>
                 {/* 「きょうの仕事」箱は撤去（2026-07-24・1機能1入口）。
                     「返事待ち」「さがす」「いいね」箱も撤去（2026-07-25たきと指示）：

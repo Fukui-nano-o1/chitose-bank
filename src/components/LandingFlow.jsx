@@ -236,8 +236,6 @@ function LFFakeFilterRow() {
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
 export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
-  const TARGET = 30;
-  const progress = Math.min(Math.round((farmersCount / TARGET) * 100), 100);
 
   // ── ログイン後復帰: postLoginReturnTo を確認して draft を読み込む ──
   const _draftInit = (() => {
@@ -341,8 +339,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [jobDateStart,    setJobDateStart]    = useState(d.jobDateStart ? new Date(d.jobDateStart) : null);
   const [jobDateEnd,      setJobDateEnd]      = useState(d.jobDateEnd   ? new Date(d.jobDateEnd)   : null);
   const [showCalendar,    setShowCalendar]    = useState(true);
-  const [calYear,         setCalYear]         = useState(new Date().getFullYear());
-  const [calMonth,        setCalMonth]        = useState(new Date().getMonth());
   const [jobCount,        setJobCount]        = useState(d.jobCount ?? "");
   const [breakTime, setBreakTime] = useState(d.breakTime ?? "");
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
@@ -402,12 +398,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const dailyWage  = Number(dailyWageInput.replace(/[^\d]/g, "")) || 0;
   const workHours = (Number(endHour) + Number(endMinute) / 60) - (Number(startHour) + Number(startMinute) / 60);
   const { hourlyViolation, dailyViolation, unknownWage } = validateMinWage(hourlyWage, dailyWage, workHours, minWage);
-  const calcFarmerMaxPay = () => {
-    const days   = jobDateStart ? Math.floor(((jobDateEnd || jobDateStart) - jobDateStart) / 86400000) + 1 : 0;
-    const breakH = (Number(String(breakTime).replace(/[^\d]/g,"")) || 0) / 60;
-    const netH   = Math.max(workHours - breakH, 0);
-    return hourlyWage > 0 ? Math.round(hourlyWage * netH * days) : dailyWage > 0 ? dailyWage * days : 0;
-  };
   const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
   const [beginnerOk,        setBeginnerOk]        = useState(d.beginnerOk ?? false); // 🌱はじめての人も歓迎 → jobs.beginner_ok
   const [instantApproveRepeat, setInstantApproveRepeat] = useState(d.instantApproveRepeat ?? false); // 🌟また呼びたい即決 → jobs.instant_approve_repeat（効果は自分の求人×自分が評価した相手のみ・労働局確認済み）
@@ -886,13 +876,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
 
   // UI helpers はモジュールレベルに移動済み（LF_ プレフィックス）
 
-  const handleCalDay = (d) => {
-    const clicked = new Date(calYear, calMonth, d);
-    if (!jobDateStart || jobDateEnd) { setJobDateStart(clicked); setJobDateEnd(null); }
-    else if (clicked >= jobDateStart) { setJobDateEnd(clicked); }
-    else { setJobDateStart(clicked); setJobDateEnd(null); }
-  };
-  const isSameDay = (a, b) => a && b && a.toDateString() === b.toDateString();
   // ── タイポグラフィ定数 ─────────────────────────────────────
   const lfStyles = {
     heroTitle: {
@@ -1756,80 +1739,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
             };
             const tmpl = JT_MAP[jobTemplate] || JT_MAP["収穫補助"];
             const rewardLabel = dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定"; // 時給は廃止（2026-07-16）
-            const wageType = "日給";
-            const wageNum  = dailyWage;
-            const avgWage  = hourlyWage > 0 ? AVG_HOURLY : AVG_DAILY;
-            const maxPay = calcFarmerMaxPay();
-            const periodLabel = jobDateStart ? (jobDateLabel !== "日程を選択してください" ? jobDateLabel : "未設定") : "未設定";
-            const ConfCalendar = () => {
-              if (!jobDateStart) return null;
-              const WD2 = ["日","月","火","水","木","金","土"];
-              const sameDay = (a, b) => a && b && ymdLocal(a) === ymdLocal(b);
-              const todayYmdConf = ymdLocal(new Date());
-              const end = jobDateEnd || jobDateStart;
-              // 開始月〜終了月を列挙
-              const months = [];
-              let y = jobDateStart.getFullYear(), m = jobDateStart.getMonth();
-              const ey = end.getFullYear(), em = end.getMonth();
-              while (y < ey || (y === ey && m <= em)) {
-                months.push({ y, m });
-                if (m === 11) { y++; m = 0; } else m++;
-                if (months.length > 12) break; // 安全弁
-              }
-              const LIMIT = 3;
-              const shown = months.slice(0, LIMIT);
-              const fmtEnd = `${end.getFullYear()}/${String(end.getMonth()+1).padStart(2,"0")}/${String(end.getDate()).padStart(2,"0")}（${WD2[end.getDay()]}）`;
-              const renderMonth = ({ y, m }) => {
-                const firstDay = new Date(y, m, 1).getDay();
-                const daysInMonth = new Date(y, m + 1, 0).getDate();
-                const cells = [];
-                for (let i = 0; i < firstDay; i++) cells.push(null);
-                for (let dd = 1; dd <= daysInMonth; dd++) cells.push(dd);
-                return (
-                  <div key={`${y}-${m}`} style={{ marginBottom:12 }}>
-                    <div style={{ textAlign:"center", marginBottom:10 }}>
-                      <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{y}年{m+1}月</span>
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
-                      {WD2.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
-                      {cells.map((dd, i) => {
-                        if (!dd) return <div key={`e${i}`} />;
-                        const dt = new Date(y, m, dd);
-                        const isStart = sameDay(dt, jobDateStart);
-                        const isEnd   = sameDay(dt, jobDateEnd);
-                        const inRange = jobDateStart && jobDateEnd && dt > jobDateStart && dt < jobDateEnd;
-                        const isToday = ymdLocal(dt) === todayYmdConf;
-                        return (
-                          <div key={dd} style={{
-                            padding:"7px 2px", borderRadius:8, fontSize:13, textAlign:"center",
-                            background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
-                            color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
-                            fontWeight: (isStart||isEnd) ? 700 : 400,
-                            boxShadow: isToday && !(isStart||isEnd) ? "inset 0 0 0 1.5px #00A86B" : "none",
-                          }}>{dd}</div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              };
-              return (
-                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginBottom:16 }}>
-                  {shown.map(renderMonth)}
-                  {months.length > LIMIT && (
-                    <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", marginTop:4 }}>ほか {months.length - LIMIT} か月　〜 {fmtEnd} まで</p>
-                  )}
-                </div>
-              );
-            };
-            const diffWage = wageNum > 0 ? wageNum - avgWage : 0;
 
-            // プロフィール完成度
-            const profileFields = [farmerDisplayName, farmerRegion, farmerCrop, farmerTask, farmerWanted, farmerPayType, jobCount, jobDateStart, workTimeLabel, hourlyWageInput || dailyWageInput];
-            const fieldNames     = ["表示名","地域","作物","作業","希望する働き手","支払い方式","採用人数","作業日程","勤務時間","報酬"];
-            const filledCount   = profileFields.filter(Boolean).length;
-            const profilePct    = Math.round(filledCount / profileFields.length * 100);
-            const missingFields = fieldNames.filter((_, i) => !profileFields[i]);
 
             // jobs INSERT用ペイロードはトップレベルに移設（saveDraftToSupabaseからも参照するため）
             const handleSaveJob = async () => {
