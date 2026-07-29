@@ -52,8 +52,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [ownerComment, setOwnerComment] = useState("");
   const [staffCount, setStaffCount] = useState("");
   // 募集者の情報（2026-07-27たきと指示）：氏名または名称／住所・所在地／連絡先。
-  // ★公開ビュー(employer_profiles_public)には載せていない＝働き手には出ない。本人と運営だけが見る。
-  //   求人票への掲載は規約・プラポリの改訂と本人同意が要る別の判断（同日の法務整理どおり）
+  // ★求人ページの「募集者情報」として公開する（2026-07-27改定・法令上の明示事項）。
+  //   経路は job_employer_profile（求人詳細用RPC）。一覧用のemployer_profiles_publicには載せない
   const [recruiterName, setRecruiterName] = useState("");
   const [recruiterAddress, setRecruiterAddress] = useState("");
   const [recruiterContact, setRecruiterContact] = useState("");
@@ -405,7 +405,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       {editBox==="recruiter" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>募集者の情報</label>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
-              募集をしている本人（または事業者）の情報です。<b>いまは働き手には表示されません</b>（あなたと運営だけが見られます）。
+              労働者の募集広告には、募集者の氏名または名称・住所・連絡先の明示が必要です。
+              <b>入力した内容は、あなたの求人ページに「募集者情報」として表示されます。</b>
             </p>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集者の氏名または名称</label>
             <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎／〇〇農園" maxLength={100}
@@ -417,7 +418,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
             <input value={recruiterContact} onChange={e=>setRecruiterContact(e.target.value)} placeholder="例：088-000-0000" maxLength={100}
               className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:16, lineHeight:1.7 }}>
-              連絡先はサイト内には表示しません。働き手とのやり取りはチャットをお使いください。
+              電話番号やメールアドレスなど、応募者が連絡できる手段を書いてください。
+              日々のやり取りは引き続きサイト内チャットをお使いいただけます。
             </p>
       </>)}
 

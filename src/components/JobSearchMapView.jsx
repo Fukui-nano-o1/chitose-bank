@@ -908,6 +908,27 @@ export function JobSearchMapView({ onRegister, me }) {
             </div>
           </div>
 
+          {/* 募集者情報（2026-07-27たきと指示）：労働者の募集広告に必要な明示事項のうち
+              「募集者の氏名または名称／住所・所在地／連絡先」をここに出す。
+              残りの明示事項（業務内容＝作物と作業／業務を行う場所／報酬）は、この上の求人本体に記載済み。
+              値は農家プロフィールの「募集者の情報」から（job_employer_profile経由・未ログインでも読める） */}
+          <div style={{ width:"100%", marginBottom:12, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px" }}>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px" }}>募集者情報</p>
+            {[["募集者", empEmployer?.recruiter_name],
+              ["住所・所在地", empEmployer?.recruiter_address],
+              ["連絡先", empEmployer?.recruiter_contact]].map(([l, v]) => (
+              <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:6 }}>
+                <span className="f-sans" style={{ flexShrink:0, width:88, fontSize:12, color:"#999" }}>{l}</span>
+                <span className="f-sans" style={{ fontSize:13, color: (v && v.trim()) ? "#222" : "#C77700", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>
+                  {(v && v.trim()) ? v : "未設定"}
+                </span>
+              </div>
+            ))}
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.7 }}>
+              業務内容・業務を行う場所・報酬は、このページの上部に記載しています。
+            </p>
+          </div>
+
           {/* 地図（集合場所のおおよその範囲・円のみ） */}
           <div style={{ width:"100%", marginBottom:5 }}>
             <JobLocationMap
