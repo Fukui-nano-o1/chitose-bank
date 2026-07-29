@@ -323,15 +323,20 @@ export function JobSearchMapView({ onRegister, me }) {
     return () => { cancelled = true; };
   }, [selectedJob?.id]);
   const [myApplication, setMyApplication] = useState(null);
+  // 自分の応募を取得できたかどうか（2026-07-27・「満員」が一瞬映る修理）。
+  // 未取得の間にhideApplyを確定させると、応募済みの人にも一瞬「満員」が出てから本来の表示に戻る
+  const [myAppLoaded, setMyAppLoaded] = useState(false);
   useEffect(() => {
-    if (!selectedJob || !me) { setMyApplication(null); return; }
+    if (!selectedJob || !me) { setMyApplication(null); setMyAppLoaded(!me); return; } // 未ログインは判定不要＝確定扱い
     let cancelled = false;
+    setMyAppLoaded(false);
     (async () => {
       try {
         const { data } = await supabase.from('applications').select('id,status,started_at')
           .eq('job_number', selectedJob.id).maybeSingle();
         if (!cancelled) setMyApplication(data || null);
       } catch { if (!cancelled) setMyApplication(null); }
+      if (!cancelled) setMyAppLoaded(true);
     })();
     return () => { cancelled = true; };
   }, [selectedJob?.id, me]);
@@ -472,8 +477,12 @@ export function JobSearchMapView({ onRegister, me }) {
 
   const maxPay = selectedJob ? calcMaxPay(selectedJob) : null;
   const myAppStatus = myApplication?.status;
-  const applyBtnDisabled = myAppStatus === "rejected";
-  const applyBtnLabel = applying ? (myAppStatus === "applied" ? "取り消し中..." : "送信中...")
+  // 自分の応募が分かるまでは押させない（2026-07-27）：締切求人で一瞬「満員」が出る問題の裏返しで、
+  // 逆に締切なのに「応募」を押せてしまう窓も塞ぐ。ラベルは状態を偽らない「確認中…」
+  const appPending = !!(me && !myAppLoaded);
+  const applyBtnDisabled = myAppStatus === "rejected" || appPending;
+  const applyBtnLabel = appPending ? "確認中…"
+    : applying ? (myAppStatus === "applied" ? "取り消し中..." : "送信中...")
     : myAppStatus === "approved" ? "承認されました — チャットを開く"
     : myAppStatus === "rejected" ? "今回は見送りとなりました"
     : myAppStatus === "applied" ? "応募済み — 取り消す"
@@ -526,7 +535,9 @@ export function JobSearchMapView({ onRegister, me }) {
   // 応募導線（下部フッター・応募ボタン）を出さない＝新規の募集を締め切る。
   // ただし既に応募・承認・見送りの関係がある本人には、状況確認とチャット導線を残すため従来どおり表示する。
   const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired));
-  const hideApply = recruitClosed && !myAppStatus;
+  // ★自分の応募が分かるまでは締切扱いにしない（2026-07-27たきと報告「一瞬だけ満員が映る」）。
+  //   未取得の間はmyAppStatusがundefinedso、応募済みの人にも一度「満員」を出してから戻っていた
+  const hideApply = recruitClosed && myAppLoaded && !myAppStatus;
   const closedLabel = selectedJob?.filled ? "この募集は終了しました（満員）" : "この募集は終了しました（期間終了）";
   // 下部フッターは幅が狭いso短い言葉に差し替える（2026-07-27たきと指示）。
   // 「応募する」の位置＝そのままボタンの場所に「満員」（期間終了なら「募集終了」）を出す
