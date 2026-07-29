@@ -170,6 +170,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   useEffect(() => { if (appsLoading) return; setCache("farm:apps", dbApplicants); }, [dbApplicants, appsLoading]);
   // 仮配置の骨を測るref（この面が実際に描いた形が、次回の読み込み中の形になる）
   const skelDraftRef = useSkeletonProbe("farmDrafts");
+  // 応募者一覧のDOM参照。スワイプ判定（下部）とスケルトン計測（直下）で共用するため、
+  // 使う場所より前で宣言する（constは巻き上げても初期化前に触れないため、後ろに置くと
+  // 「Cannot access ... before initialization」で応募者ページが真っ白になる・2026-07-29修理）
+  const appGridRef = useRef(null);
   // 応募者ページの一覧はappGridRef（スワイプ判定用）と共用なので、ref付き要素を測る版を使う
   useSkeletonProbeOn(appGridRef, (jobTab === "applicants" && !appsLoading) ? "farmList:applicants" : null);
   const skelActiveRef = useSkeletonProbe("farmActive");
@@ -622,7 +626,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 求人カードのアイコン列など内側の横スクロールで始まったタッチは奪わない
   // スワイプの追従（2026-07-27たきと指示）：指の動きに合わせて求人カードだけが同じ方向へズレ、
   // 20pxズレた時点で発火（カレンダーの開閉）。追従はCSS変数への直書き＝再レンダーを起こさない
-  const appGridRef = useRef(null);
+  // ※appGridRef の宣言は上部（スケルトン計測の useSkeletonProbeOn より前）に移動済み
   // animate=false（指の追従中）＝transitionを切って1:1でついてくる／animate=true（発火後・指を離した後）
   // ＝transitionを効かせて滑らかに戻す。
   // ★カード要素へ直接インラインで書く（2026-07-27修正）：CSS変数＋クラス指定では、カードの
