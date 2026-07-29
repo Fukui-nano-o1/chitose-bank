@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { chatCache } from "../lib/chatCache";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
+import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush } from "../lib/push";
 import { fmtJstShort, ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
 import { Avatar, LinkifiedText } from "./ui";
@@ -12,6 +13,8 @@ import { Avatar, LinkifiedText } from "./ui";
 export function ChatList() {
   const [rows, setRows] = useState(() => chatCache.v?.rows || []);
   const [loading, setLoading] = useState(() => !chatCache.v); // キャッシュがあれば最初からスピナーを出さない
+  // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
+  const skelRef = useSkeletonProbe("chats");
   // 運営DM（2026-07-16）：チャット最上部の固定タブ。運営からのメッセージ閲覧＋返信（admin_messages・本人スレのみRLS）
   const [dmOpen, setDmOpen] = useState(false);
   const [dmMsgs, setDmMsgs] = useState([]);
@@ -267,14 +270,15 @@ export function ChatList() {
         </div>
       )}
       {loading ? (
-        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+        /* 空白や「読み込み中...」でなく、これから出るスレッドと同じ形の箱を並べる（2026-07-27たきと指示） */
+        <AutoSkeleton shapeKey="chats" />
       ) : rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
           <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
           <p style={{ fontSize:14, margin:0 }}>チャットはまだありません。<br/>応募が承認されると、ここに表示されます。</p>
         </div>
       ) : (
-        <div style={{ display:"grid", gap:10 }}>
+        <div ref={skelRef} style={{ display:"grid", gap:10 }}>
           {sortedRows.map(a => {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
             const rowUnread = rowUnreadOf(a); // 相手との全応募の未読合算

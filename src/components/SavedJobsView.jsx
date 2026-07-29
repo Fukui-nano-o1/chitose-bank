@@ -9,13 +9,15 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calFmtDate, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
-import { Avatar } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
 
 // ── SavedJobsView（ステータス一覧・#/saved） ──
 export function SavedJobsView({ me }) {
-  const [rows, setRows] = useState(null);           // my_job_actions() の行（求人＋自分の応募）
-  const [myProfile, setMyProfile] = useState(null); // 自分のアイコン・ニックネーム
+  // 前回の内容が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）
+  const [rows, setRows] = useState(() => getCache("saved:rows") ?? null);
+  const [myProfile, setMyProfile] = useState(() => getCache("saved:me") ?? null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
   // カレンダー（2026-07-27たきと指示）：働き手のカレンダーページを廃止し、この面の上部へ移植。
@@ -24,6 +26,8 @@ export function SavedJobsView({ me }) {
   const [calOnTop, setCalOnTop] = useState(false);
   const [calDay, setCalDay] = useState(null); // { ymd, jobs:[job_number] }＝選んだ日の求人を光らせる
   const jobCardRefs = useRef({});
+  // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
+  const skelRef = useSkeletonProbe("saved");
   useEffect(() => {
     try { if (sessionStorage.getItem("cb_openCalendar")) { sessionStorage.removeItem("cb_openCalendar"); setCalOnTop(true); } } catch {}
   }, []);
@@ -70,8 +74,8 @@ export function SavedJobsView({ me }) {
           supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", me.id).maybeSingle(),
         ]);
         if (cancelled) return;
-        setRows(actRes.data || []);
-        setMyProfile(wpRes.data || null);
+        setRows(actRes.data || []); setCache("saved:rows", actRes.data || []);
+        setMyProfile(wpRes.data || null); setCache("saved:me", wpRes.data || null);
       } catch { if (!cancelled) setRows([]); }
     })();
     return () => { cancelled = true; };
@@ -99,7 +103,8 @@ export function SavedJobsView({ me }) {
     });
   };
 
-  if (rows === null) return null;
+  // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる
+  if (rows === null) return <div style={{ paddingTop:4 }}><AutoSkeleton shapeKey="saved" /></div>;
 
   const photoOf = (r) => (r.photos && r.photos[0]) ? (typeof r.photos[0] === "string" ? r.photos[0] : (r.photos[0].thumb || r.photos[0].url)) : null;
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
@@ -135,7 +140,7 @@ export function SavedJobsView({ me }) {
           <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を♥しておくと、ここに並びます</p>
         </div>
       ) : (
-        <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} style={{ display:"grid", gap:10 }}>
+        <div ref={skelRef} onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} style={{ display:"grid", gap:10 }}>
           {rows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);
@@ -163,7 +168,10 @@ export function SavedJobsView({ me }) {
                 {/* 左：求人のトップ写真。タイトル・#No.を写真下部に重ねる（応募者ページと同じ作法）。
                     タップ＝ボックス展開（2026-07-27たきと指示。求人ページへの直行はボックス内のボタンが担う） */}
                 <button onClick={()=>setBoxJob(r)} aria-label="この求人の状況を開く" className="f-sans"
-                  style={{ flexShrink:0, width:104, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                  /* 写真の枠は3:4で固定（2026-07-27たきと指示「3番目のカードだけ低い」の修正）：
+                      以前は高さ指定が無く、写真の縦横比がそのままカードの高さになっていた＝
+                      横長の写真の求人だけカードが低くなっていた。枠を固定し中身はcoverで切り抜く */
+                  style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
                   {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : "🌱"}
                   <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
                     <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>

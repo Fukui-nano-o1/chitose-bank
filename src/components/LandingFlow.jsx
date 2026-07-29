@@ -417,6 +417,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [jobSaving, setJobSaving] = useState(false);
   const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
   const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
+  // 募集者情報（①氏名・名称②住所・所在地③連絡先）が無ければ掲載申請できない（法令の明示事項・2026-07-27たきと指示）。
+  // ページを移動せず、その場でボックスを開いて入力→保存→掲載申請を続行する。
+  // 再開はrefに掴んだ関数を呼ぶ（handleSaveJobは確認ページのIIFE内定義なので、識別子は外から参照できない）
+  const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
+  const resumePublishRef = useRef(null);
   // 掲載前の日程ガード（2026-07-24）：日程未設定のまま掲載に進ませない（終了求人コピー→日程空で複製、の受け皿）
   const openPublish = () => {
     if (!jobDateStart) { alert("作業日程が未設定です。「日程」から新しい日を選んでから掲載してください。"); setReturnToConfirm(true); setStep(4); return; }
@@ -1836,6 +1841,31 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session) { saveDraft(); onLogin(); return; }
+                // 募集者情報が揃っていなければ、その場でボックスを開いて入力してもらう（法令の明示事項）。
+                // 未入力の欄は新規登録①の内容を初期値に入れる
+                {
+                  const { data: ep0 } = await supabase.from("employer_profiles")
+                    .select("recruiter_name,recruiter_address,recruiter_contact").eq("auth_id", session.user.id).maybeSingle();
+                  let nm = (ep0?.recruiter_name || "").trim();
+                  let ad = (ep0?.recruiter_address || "").trim();
+                  let ct = (ep0?.recruiter_contact || "").trim();
+                  if (!nm || !ad || !ct) {
+                    try {
+                      const { data: ah } = await supabase.from("account_holders")
+                        .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
+                        .eq("auth_id", session.user.id).maybeSingle();
+                      if (ah) {
+                        if (!nm) nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
+                        if (!ad) ad = [(ah.postal_code || "").trim() ? "〒" + ah.postal_code.trim() : "", (ah.address || "").trim()].filter(Boolean).join(" ");
+                        if (!ct) ct = (ah.contact_phone || "").trim() || (ah.contact_email || "").trim();
+                      }
+                    } catch {}
+                    resumePublishRef.current = handleSaveJob;
+                    setRecruitBox({ name: nm, address: ad, contact: ct, saving: false });
+                    setJobSaving(false);
+                    return;
+                  }
+                }
                 // プロフィール審査中の農家は掲載不能（編集・下書きは可・2026-07-19）。DBトリガーの手前で分かりやすく案内
                 if (!isAdmin(session.user)) {
                   try {
@@ -1860,6 +1890,12 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                   const r = await supabase.from("jobs").insert(payload).select("job_number").single();
                   error = r.error;
                   if (!error && r.data) setDraftJobNumber(r.data.job_number);
+                }
+                if (error && String(error.message || "").includes("RECRUITER_INFO_REQUIRED")) {
+                  // DB側の最終ゲート（機構による拒否）。画面は動かさず、その場で入力ボックスを開く
+                  resumePublishRef.current = handleSaveJob;
+                  setRecruitBox({ name: "", address: "", contact: "", saving: false });
+                  return;
                 }
                 if (error) {
                   alert(String(error.message || "").includes("PROFILE_UNDER_REVIEW")
@@ -2490,6 +2526,53 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
 
       {/* 下部ナビのバーは削除（2026-07-16）：戻る／次へは浮遊固定ボックス（スクロール追従）に。
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
+      {/* 募集者情報の入力ボックス（2026-07-27たきと指示）：掲載申請が止まった時、ページを変えずにここで入力する */}
+      {recruitBox && (
+        <div onClick={()=>{ if (!recruitBox.saving) setRecruitBox(null); }} className="cb-box-overlay" style={{ zIndex:10500 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
+            <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>掲載には募集者情報が必要です</p>
+            <div style={{ height:1, background:"#E5E5E5", margin:"12px 0" }} />
+            <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.7, margin:"0 0 14px" }}>
+              労働者の募集広告には、募集者の氏名または名称・住所・連絡先の明示が必要です。
+              入力すると、あなたの求人ページに「募集者情報」として表示されます。
+            </p>
+            {[["氏名・名称", "name", "例：福井 太郎 ／ 千歳農園"],
+              ["住所・所在地", "address", "例：〒779-3401 徳島県吉野川市山川町〇〇1-2-3"],
+              ["連絡先", "contact", "例：088-000-0000"]].map(([label, key, ph]) => (
+              <div key={key} style={{ marginBottom:12 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>{label}</label>
+                <input value={recruitBox[key]} onChange={e=>setRecruitBox(v => ({ ...v, [key]: e.target.value }))} placeholder={ph}
+                  className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box" }} />
+              </div>
+            ))}
+            <button
+              disabled={recruitBox.saving || !recruitBox.name.trim() || !recruitBox.address.trim() || !recruitBox.contact.trim()}
+              onClick={async ()=>{
+                setRecruitBox(v => ({ ...v, saving: true }));
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session) { setRecruitBox(v => ({ ...v, saving: false })); return; }
+                  const { error } = await supabase.from("employer_profiles").upsert({
+                    auth_id: session.user.id,
+                    recruiter_name: recruitBox.name.trim(),
+                    recruiter_address: recruitBox.address.trim(),
+                    recruiter_contact: recruitBox.contact.trim(),
+                    updated_at: new Date().toISOString(),
+                  }, { onConflict: "auth_id" });
+                  if (error) { alert("保存に失敗しました：" + error.message); setRecruitBox(v => ({ ...v, saving: false })); return; }
+                  setRecruitBox(null);
+                  const resume = resumePublishRef.current;
+                  resumePublishRef.current = null;
+                  if (typeof resume === "function") resume(); // そのまま掲載申請を続ける
+                } catch { alert("保存に失敗しました"); setRecruitBox(v => ({ ...v, saving: false })); }
+              }}
+              className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, borderRadius:12, marginTop:4 }}>
+              {recruitBox.saving ? "保存中..." : "保存して掲載を続ける"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {step > 0 && step < TOTAL && step !== 12 && !publishModal && (
         embedded ? (
         <div style={{

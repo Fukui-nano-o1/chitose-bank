@@ -1,6 +1,7 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
+import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
 import { Avatar } from "./ui";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
@@ -169,14 +170,18 @@ function NewApplicantsPanel({ items, onTap }) {
 // カレンダーは各役割の面へ移植（農家＝応募者ページ／働き手＝ステータスページ・2026-07-27）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
-  const [loading, setLoading] = useState(true);
-  const [entries, setEntries] = useState([]);
-  const [hasWorker, setHasWorker] = useState(false);
-  const [hasFarmer, setHasFarmer] = useState(false);
+  // 前回この面が出した内容をまず描く→裏で最新に差し替える（stale-while-revalidate・2026-07-27たきと指示）
+  const [loading, setLoading] = useState(() => getCache("today:entries") === undefined);
+  const [entries, setEntries] = useState(() => getCache("today:entries") ?? []);
+  const [hasWorker, setHasWorker] = useState(() => getCache("today:roles")?.w ?? false);
+  const [hasFarmer, setHasFarmer] = useState(() => getCache("today:roles")?.f ?? false);
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
-  const [todos, setTodos] = useState([]);     // やることフィード（my_todo_items・状態カードの単一ソース）
-  const [jobCount, setJobCount] = useState(0); // 自分が出した求人の数（下書き含む）。カレンダーを開けるかの判定に使う
-  const [hiredIds, setHiredIds] = useState(() => new Set()); // 採用済み（両者の確認が揃った）自分の応募ID
+  const [todos, setTodos] = useState(() => getCache("today:todos") ?? []);     // やることフィード（my_todo_items・状態カードの単一ソース）
+  const [jobCount, setJobCount] = useState(() => getCache("today:roles")?.jc ?? 0); // 自分が出した求人の数（下書き含む）。カレンダーを開けるかの判定に使う
+  const [hiredIds, setHiredIds] = useState(() => new Set(getCache("today:hired") ?? [])); // 採用済み（両者の確認が揃った）自分の応募ID
+  // 画面の状態→キャッシュの写し（2026-07-27）。やることは片付けると手元のstateだけから消えるため、
+  // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
+  useEffect(() => { if (loading) return; setCache("today:todos", todos); }, [todos, loading]);
   const [confirming, setConfirming] = useState("");
   const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
@@ -185,13 +190,11 @@ export function TodayPage({ me, defaultRole }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        const { data } = await supabase.rpc("get_my_calendar_jobs");
-        const rows = data || [];
-        if (cancelled) return;
-        setEntries(rows);
-        const { data: td } = await supabase.rpc("my_todo_items");
-        if (!cancelled) setTodos(td || []);
-        const [{ data: wp }, { count: jc }, { data: ep }, { data: apps }] = await Promise.all([
+        // 6本とも互いに独立なので1回で同時に投げる（2026-07-27たきと指示「直列を並列に」）。
+        // 以前はカレンダー→やること→残り4本の3段階で待っていた
+        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: apps }] = await Promise.all([
+          supabase.rpc("get_my_calendar_jobs"),
+          supabase.rpc("my_todo_items"),
           supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
           supabase.from("employer_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
@@ -203,13 +206,18 @@ export function TodayPage({ me, defaultRole }) {
             .eq("worker_id", session.user.id),
         ]);
         if (cancelled) return;
+        const rows = data || [];
+        setEntries(rows); setCache("today:entries", rows);
+        setTodos(td || []);
         const w = !!wp || rows.some(e => e.my_role === "worker");
         const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
         setHasWorker(w); setHasFarmer(f); setJobCount(jc || 0);
-        setHiredIds(new Set((apps || [])
+        setCache("today:roles", { w, f, jc: jc || 0 });
+        const hired = (apps || [])
           .filter(a => a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at
                     && !["rejected","expired","completed"].includes(a.status))
-          .map(a => a.id)));
+          .map(a => a.id);
+        setHiredIds(new Set(hired)); setCache("today:hired", hired);
         // 既定ロールが持っていない側なら、持っている側へ寄せる
         setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
       } catch {}
@@ -358,7 +366,10 @@ export function TodayPage({ me, defaultRole }) {
     confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start" },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
-    complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants" },
+    // 完了して評価する（2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
+    // 行タップ（専用ページ経由）でも同じ着地。cb_completeAppId は評価モーダルの自動展開用に併せて渡す
+    complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     direct:true, flag:"cb_completeAppId", to:"/profile/employer/applicants",
+                   before: () => { try { sessionStorage.setItem("cb_appFilter", "completed"); } catch {} } },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
     // w_confirm（求人内容の確認）は廃止（2026-07-25たきと指示）：内容を確認した上で応募するのが前提。
@@ -405,7 +416,7 @@ export function TodayPage({ me, defaultRole }) {
   const runTodo = async (m, e) => {
     const busyKey = (e.application_id || e.job_number) + e.stage;
     if (m.nav) { window.location.hash = m.nav(e); return; }
-    if (m.flag) { try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
+    if (m.flag) { if (m.before) m.before(); try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
     // 面接の質問（チャットからの移設）：チャットに着地して質問集シートを自動で開く（回答は面接の証跡としてチャットに残る）
     if (m.qset) { try { sessionStorage.setItem("cb_openQSet", "1"); } catch {} window.location.hash = "/chat/" + e.application_id; return; }
     if (m.rpc) {

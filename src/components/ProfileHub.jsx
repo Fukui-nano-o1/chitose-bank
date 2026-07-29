@@ -1,6 +1,7 @@
 // 分割3-C（2026-07-25）：App.jsxから移動。プロフィールタブ（両役割の入口カードメニュー＋サブページ切替）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { getCache, setCache } from "../lib/viewCache";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
 import { Avatar } from "./ui";
@@ -45,32 +46,31 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
   // WORKER_TABS(サイドタブ列)は廃止（2026-07-14）：入口カードメニューに一本化
-  const [hasEmployerSide, setHasEmployerSide] = useState(false);
+  const [hasEmployerSide, setHasEmployerSide] = useState(() => getCache("hub:hasEmp") ?? false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session || cancelled) return;
-        const { count } = await supabase.from("jobs")
-          .select("job_number", { count: "exact", head: true })
-          .eq("farmer_id", session.user.id);
-        if (!cancelled && (count || 0) > 0) { setHasEmployerSide(true); return; }
-        const { data: ep } = await supabase.from("employer_profiles")
-          .select("auth_id").eq("auth_id", session.user.id).maybeSingle();
-        if (!cancelled && ep) setHasEmployerSide(true);
+        // 求人の有無と雇い手プロフィールの有無は独立なので同時に投げる（2026-07-27たきと指示）
+        const [{ count }, { data: ep }] = await Promise.all([
+          supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
+          supabase.from("employer_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
+        ]);
+        if (!cancelled && ((count || 0) > 0 || ep)) { setHasEmployerSide(true); setCache("hub:hasEmp", true); }
       } catch {}
     })();
     return () => { cancelled = true; };
   }, []);
   const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"返事待ち", approved:"きょうの仕事" };
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
-  const [wMini, setWMini] = useState(null);
-  const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
+  const [wMini, setWMini] = useState(() => getCache("hub:wMini") ?? null);
+  const [wAppCounts, setWAppCounts] = useState(() => getCache("hub:wCounts") ?? { applying:0, approved:0 });
   const [wTopBack, setWTopBack] = useState(() => { try { return localStorage.getItem("cb_wTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
-  const [wTrust, setWTrust] = useState(null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
-  const [wHub, setWHub] = useState({ today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
+  const [wTrust, setWTrust] = useState(() => getCache("hub:wTrust") ?? null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
+  const [wHub, setWHub] = useState(() => getCache("hub:wHub") ?? { today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
   const [hubFlip, setHubFlip] = useState(null); // ？タップで反転して説明を出す箱のラベル（2026-07-22）
   const [showWAch, setShowWAch] = useState(false); // 🌟わたしの実績モーダル
   const [wSeekFlip, setWSeekFlip] = useState(false); // 「新しく求職を出す」カードの反転（届出受理待ちの案内・2026-07-25）
@@ -82,19 +82,31 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session || cancelled) return;
-        const { data: wp } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (!cancelled && wp) setWMini(wp);
-        const { data: apps } = await supabase.from("applications").select("status,attended,worker_confirmed_end_at,job_number").eq("worker_id", session.user.id);
+        // 【第1波】互いに依存しない4本を同時に投げる（2026-07-27たきと指示「直列を並列に」）。
+        // 依存があるのは「きょうの仕事」件数だけ（応募の結果を見て求人の日程を引く）ので第2波に回す
+        const [{ data: wp }, { data: apps }, openRes, { data: ts }] = await Promise.all([
+          supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
+          supabase.from("applications").select("status,attended,worker_confirmed_end_at,job_number").eq("worker_id", session.user.id),
+          // さがす箱＝きょう応募できる求人件数（jobs_public=公開中）
+          supabase.from("jobs_public").select("job_number", { count: "exact", head: true }).then(r => r, () => ({ count: 0 })),
+          supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
+        ]);
+        if (cancelled) return;
+        if (wp) { setWMini(wp); setCache("hub:wMini", wp); }
         // 承認済みバッジは未対応（手続きが残っている応募）のみ計上。完了・評価済みまで数えると
         // バッジが常時点灯し、新しい要対応があっても気づけなくなるため（2026-07-16）
-        if (!cancelled && apps) setWAppCounts({
-          applying: apps.filter(a => a.status === "applied").length,
-          approved: apps.filter(a =>
-            ["approved","meeting","interview","contracted","working","completed"].includes(a.status)
-            && !(a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at))
-          ).length,
-        });
-        // きょうの仕事バッジ＝当日が作業日の確定した仕事（契約済み以降）の件数
+        if (apps) {
+          const counts = {
+            applying: apps.filter(a => a.status === "applied").length,
+            approved: apps.filter(a =>
+              ["approved","meeting","interview","contracted","working","completed"].includes(a.status)
+              && !(a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at))
+            ).length,
+          };
+          setWAppCounts(counts); setCache("hub:wCounts", counts);
+        }
+        const openCount = openRes.count || 0;
+        // 【第2波】きょうの仕事バッジ＝当日が作業日の確定した仕事（契約済み以降）の件数
         let todayCount = 0;
         try {
           const contracted = (apps || []).filter(a => ["contracted","working"].includes(a.status));
@@ -105,12 +117,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             todayCount = contracted.filter(a => { const j = jm[a.job_number]; if (!j) return false; const s = j.date_start, e = j.date_end || j.date_start; return s && s <= today && today <= e; }).length;
           }
         } catch {}
-        // さがす箱＝きょう応募できる求人件数（jobs_public=公開中）
-        let openCount = 0;
-        try { const { count } = await supabase.from("jobs_public").select("job_number", { count: "exact", head: true }); openCount = count || 0; } catch {}
-        const { data: ts } = await supabase.rpc("my_worker_trust_stats");
-        if (!cancelled && ts?.ok) setWTrust(ts);
-        if (!cancelled) setWHub({ today: todayCount, searchOpen: openCount, reviewed: ts?.reviewed_count || 0, completed: ts?.completed_count || 0, hours: ts?.total_hours || 0, wantAgain: ts?.want_again_count || 0 });
+        if (cancelled) return;
+        if (ts?.ok) { setWTrust(ts); setCache("hub:wTrust", ts); }
+        const hub = { today: todayCount, searchOpen: openCount, reviewed: ts?.reviewed_count || 0, completed: ts?.completed_count || 0, hours: ts?.total_hours || 0, wantAgain: ts?.want_again_count || 0 };
+        setWHub(hub); setCache("hub:wHub", hub);
       } catch {}
     })();
     return () => { cancelled = true; };

@@ -1,15 +1,20 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。働き手の応募状況ページ（FlowBar7段・評価モーダル・緊急連絡）。
 import { useState, useEffect, Fragment } from "react";
 import { supabase } from "../lib/supabase";
+import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL } from "../lib/utils";
 import { YesNoPill } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 
 export function WorkerApplications({ filter, me }) {
-  const [allApps, setAllApps] = useState([]);
-  const [jobDates, setJobDates] = useState({}); // { [job_number]: {date_start, date_end} }
-  const [loading, setLoading] = useState(true);
+  // 前回この面が出した内容をまず描く→裏で最新に差し替える（2026-07-27たきと指示）
+  const [allApps, setAllApps] = useState(() => getCache("wapp:apps") ?? []);
+  const [jobDates, setJobDates] = useState(() => getCache("wapp:jobs") ?? {}); // { [job_number]: {date_start, date_end} }
+  const [loading, setLoading] = useState(() => getCache("wapp:apps") === undefined);
+  // 画面の状態→キャッシュの写し（2026-07-27）。開始打刻・評価・取消は手元のstateだけを書き換えるため、
+  // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
+  useEffect(() => { if (loading) return; setCache("wapp:apps", allApps); }, [allApps, loading]);
   const [punchingId, setPunchingId] = useState(null);
   const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
   const [pastOpen, setPastOpen] = useState(false); // 過去の応募（見送り・失効）の折りたたみ（第9弾）
@@ -21,25 +26,28 @@ export function WorkerApplications({ filter, me }) {
         const { data, error } = await supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false});
         if (!error && data) {
           setAllApps(data);
+          // 求人の日程と農家の返答傾向は互いに独立なので同時に投げる（2026-07-27たきと指示「直列を並列に」）
           const jobNumbers = [...new Set(data.map(a => a.job_number).filter(Boolean))];
-          if (jobNumbers.length > 0) {
-            const { data: jobRows } = await supabase.from("jobs_public").select("job_number,date_start,date_end,crop,task,photos,work_time,pay_type,hourly_wage,daily_wage,city,town").in("job_number", jobNumbers);
-            const map = {};
-            (jobRows || []).forEach(j => { map[j.job_number] = j; });
-            setJobDates(map);
-          }
           // 農家の返答傾向（第9弾・2026-07-22）：返事待ち(applied)の各求人の農家について、信頼カードの返答速度を転用。
           // employer_trust_info(avg_response_hours) を farmer_id ごとに引き、当日中/1日以内/2日以内のバケットで表示する
-          try {
-            const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
-            if (waitFarmerIds.length > 0) {
-              const entries = await Promise.all(waitFarmerIds.map(async fid => {
-                try { const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: fid }); return [fid, (t && t.ok) ? t.avg_response_hours : null]; }
-                catch { return [fid, null]; }
-              }));
-              setRespByFarmer(Object.fromEntries(entries));
-            }
-          } catch {}
+          const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
+          const [jobRes, respEntries] = await Promise.all([
+            jobNumbers.length > 0
+              ? supabase.from("jobs_public").select("job_number,date_start,date_end,crop,task,photos,work_time,pay_type,hourly_wage,daily_wage,city,town").in("job_number", jobNumbers).then(r => r, () => ({ data: [] }))
+              : Promise.resolve({ data: [] }),
+            waitFarmerIds.length > 0
+              ? Promise.all(waitFarmerIds.map(async fid => {
+                  try { const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: fid }); return [fid, (t && t.ok) ? t.avg_response_hours : null]; }
+                  catch { return [fid, null]; }
+                }))
+              : Promise.resolve([]),
+          ]);
+          if (jobNumbers.length > 0) {
+            const map = {};
+            (jobRes.data || []).forEach(j => { map[j.job_number] = j; });
+            setJobDates(map); setCache("wapp:jobs", map);
+          }
+          if (respEntries.length > 0) setRespByFarmer(Object.fromEntries(respEntries));
           // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
           try {
             const pend = sessionStorage.getItem("cb_emergencyAppId");

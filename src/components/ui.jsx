@@ -1,6 +1,7 @@
 // 汎用UIアトム（分割・段階2後半・2026-07-24）：リボン帯・長文の省略表示。
 import { useState, useEffect, useRef, useCallback } from "react";
 import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC } from "../lib/utils";
+import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
 export function StatusRibbon({ label, color }) {
@@ -281,6 +282,48 @@ export function PhaseInfoSheet() {
         <span className="f-sans" style={{ display:"inline-block", background:APP_PHASE_COLOR[pk] || "#999", color:"#fff", fontSize:12, fontWeight:800, borderRadius:8, padding:"4px 14px", marginBottom:10 }}>{APP_PHASE_LABEL[pk]}</span>
         <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:0 }}>{APP_PHASE_DESC[pk] || ""}</p>
       </div>
+    </div>
+  );
+}
+
+// 読み込み中の仮配置（2026-07-27たきと指示「先にボックスを置いて、読み込んでいることを表現する」
+// →同日改定「各ページの構造に自動依存させて」）。
+//
+// ページごとに形を書き分けない。前回そのページが実際に描いた骨（並べ方と子の高さ）を覚えておき、
+// 次に開いた時それをそのまま仮配置にする。ページの構造を変えれば、次の描画から自動で追従する。
+//
+// 使い方：一覧を包む要素に useSkeletonProbe(key) のrefを付け、読み込み中は <AutoSkeleton shapeKey={key} /> を出す。
+export function useSkeletonProbe(key) {
+  const ref = useRef(null);
+  useSkeletonProbeOn(ref, key);
+  return ref;
+}
+
+// 既にrefが付いている要素を測りたい時（1要素に2つrefは付けられないため）。
+// keyにnull/falseを渡すと何もしない＝「今この形は覚えない」の意思表示に使える
+export function useSkeletonProbeOn(ref, key) {
+  useEffect(() => {
+    if (!key || !ref.current) return;
+    // 描画直後だと画像の高さが未確定なことがあるので、1フレーム置いてから測る
+    const id = setTimeout(() => {
+      const shape = measureShape(ref.current);
+      if (shape) writeShape(key, shape);
+    }, 120);
+    return () => clearTimeout(id);
+  });
+}
+
+export function AutoSkeleton({ shapeKey, fallbackHeight = 96, fallbackCount = 4 }) {
+  const shape = shapeKey ? readShape(shapeKey) : null;
+  const heights = shape ? shape.heights : Array.from({ length: fallbackCount }, () => fallbackHeight);
+  const style = shape && shape.display === "grid"
+    ? { display: "grid", gridTemplateColumns: shape.columns || "repeat(3, 1fr)", gap: shape.gap }
+    : { display: "grid", gap: shape ? shape.gap : "10px" };
+  return (
+    <div style={style} aria-busy="true" aria-label="読み込み中">
+      {heights.map((h, i) => (
+        <div key={i} className="ghost-line" style={{ height: h, borderRadius: 14 }} />
+      ))}
     </div>
   );
 }
