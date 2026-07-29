@@ -4,7 +4,7 @@
 // 選んだ日の求人をどう見せるかは置き場所を持つページ側（応募者ページ）の仕事＝onDayTapJobsで渡す。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, isJobDraft } from "../lib/utils";
 import { StatusRibbonLeft, NoticeJumpText } from "./ui";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
@@ -27,8 +27,11 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const { data } = await supabase.from("jobs").select("job_number,crop,task,photos,draft_step,opened_at").eq("farmer_id", session.user.id).eq("status", "draft").order("created_at", { ascending: false });
-        const drafts = (data || []).filter(j => !j.opened_at); // 一時非公開（open経験あり）は下書きではないので除外
+        // ★下書きの定義は lib/utils の isJobDraft に一本化（2026-07-27たきと指示）。
+        //   以前はここだけ「status=draft かつ 掲載歴なし」で見ており、日程が過ぎた求人（＝終了）まで
+        //   下書きとして「進めませんか？」が出ていた。判定に必要な日付・勤務時間も取得する
+        const { data } = await supabase.from("jobs").select("job_number,crop,task,photos,draft_step,opened_at,status,date_start,date_end,work_time").eq("farmer_id", session.user.id).eq("status", "draft").order("created_at", { ascending: false });
+        const drafts = (data || []).filter(isJobDraft);
         if (drafts.length > 0) setDraftPrompt(drafts);
       } catch {}
     })();

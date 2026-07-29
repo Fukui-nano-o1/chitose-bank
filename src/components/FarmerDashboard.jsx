@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges } from "../lib/utils";
+import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft } from "../lib/utils";
 import { Avatar, ExpandableText, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { AdminJobPreview } from "./AdminJobPreview";
@@ -267,22 +267,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         if (!error && allJobs) {
           const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos }]));
           setJobInfoMap(jim); setCache("farm:jobInfo", jim);
-          const todayYmd = ymdLocal(new Date());
-          const isPast = (j) => {
-            const end = j.date_end || j.date_start;
-            if (!end) return false;
-            if (end < todayYmd) return true;
-            // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降）
-            if (end === todayYmd && j.work_time) {
-              const m = String(j.work_time).match(/〜\s*(\d{1,2}):(\d{2})/);
-              if (m) { const n = new Date(); if (n.getHours()*60 + n.getMinutes() > parseInt(m[1],10)*60 + parseInt(m[2],10)) return true; }
-            }
-            return false;
-          };
-          // 一時非公開（status=draftだが掲載歴opened_atあり）は作成中でなく公開中タブに帯付きで残す（2026-07-16）
-          const isUnpublished = (j) => j.status === "draft" && !!j.opened_at;
+          // 判定は lib/utils に一本化（2026-07-27たきと指示）：終了＝日程が過ぎた（statusより優先）／
+          // 一時非公開＝掲載歴ありのdraft／下書き＝掲載歴なし・日程も未過去のdraft。ここで独自に書かない
+          const isPast = isJobEnded;
+          const isUnpublished = isJobUnpublished;
           // 作成中タブ＝作成中＋審査中／公開中タブ＝公開中＋一時非公開（2026-07-16たきと指定）
-          setDbDrafts(allJobs.filter(j => ((j.status === "draft" && !j.opened_at) || j.status === "pending") && !isPast(j)));
+          setDbDrafts(allJobs.filter(j => (isJobDraft(j) || (j.status === "pending" && !isPast(j)))));
           setDbActive(allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j)));
           setDbExpired(allJobs.filter(isPast));
           // 未回答の質問数を集計（第10弾）：自分の求人の、回答なし・非表示でない質問
