@@ -1,8 +1,5 @@
 import { supabase } from "./lib/supabase";
-import { openEmployerPreview, openWorkerPreview } from "./lib/previewBus";
-import { chatCache } from "./lib/chatCache";
-import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "./lib/questionSets";
-import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION, TASK_OPTIONS, WORKER_EMERGENCY_KINDS, FARMER_EMERGENCY_KINDS, farmIntroTopics, perkBadges } from "./lib/utils";
+import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
@@ -47,13 +44,11 @@ import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/Vi
 import { WorkerExperiencePage } from "./components/WorkerExperiencePage";
 
 import { isIOS, syncAppBadge } from "./lib/push";
-import { uploadAvatarResilient } from "./lib/avatarUpload";
 import { compressImage } from "./lib/image";
-import { peekApplyReturn, setApplyReturn, clearApplyReturn } from "./lib/applyReturn";
+import { peekApplyReturn } from "./lib/applyReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
 
-import { useState, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 
 
@@ -101,10 +96,6 @@ const SEED_DESTS = [];
 // 役割カラー（第11弾・2026-07-22）：目印限定。働き手=橙／農家=緑。
 // ブランド緑のCTA（応募・承認等の主ボタン＝--mode-accent）は両モード共通のまま不変。塗るのは「今どっちか」の目印だけ。
 
-// 段階1: 役割撤廃リファクタの安全ネット。現時点では未使用（段階2でRoleSelectScreen撤廃時にme構築へ使用予定）
-function buildMeFromAccountHolder(session, ah) {
-  return { id: session.user.id, name: ah.full_name, email: session.user.email || null, viaAccountHolder: true };
-}
 
 
 // ── エラー監視ユーティリティ ──────────────────────────────────
@@ -141,187 +132,16 @@ async function sSet(k,v){try{await window.storage.set(k,JSON.stringify(v),true);
 
 // ── CSS ────────────────────────────────────────────────────
 
-// ── BalanceSheet ────────────────────────────────────────────
-function BalanceSheet({ revenue, costs, compact = false }) {
-  const [open, setOpen] = useState(false);
-  const items = costs || [];
-  const totalCost = items.reduce((s, c) => s + (c.a || 0), 0);
-  const profit = revenue - totalCost;
-  const isLoss = profit < 0;
-  const costRate = revenue > 0 ? Math.round(totalCost / revenue * 100) : 0;
-  const profRate = 100 - costRate;
-  const maxItem = Math.max(...items.map(c => c.a || 0), 1);
-  const h = compact ? 20 : 28;
-
-  if (revenue === 0) return (
-    <div style={{ padding:"12px 0", textAlign:"center" }}>
-      <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>データなし</p>
-    </div>
-  );
-
-  return (
-    <div>
-      {/* 売上バー */}
-      <div style={{ height:h, background:"#00A86B", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:6 }}>
-        <span className="f-sans" style={{ fontSize: compact ? 9 : 11, color:"#fff", fontWeight:600 }}>売上 {man(revenue)}</span>
-      </div>
-
-      {/* 利益・経費の積み上げバー */}
-      <div style={{ display:"flex", height:h, borderRadius:8, overflow:"hidden" }}>
-        {isLoss ? (
-          <div style={{ flex:1, background:"#E24B4A", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <span className="f-sans" style={{ fontSize: compact ? 8 : 9, color:"#fff", fontWeight:600 }}>赤字 {man(Math.abs(profit))}</span>
-          </div>
-        ) : (
-          <>
-            <div style={{ width:`${profRate}%`, minWidth:0, background:"#00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-              {profRate >= 22 && <span className="f-sans" style={{ fontSize: compact ? 8 : 9, color:"#fff", fontWeight:600, whiteSpace:"nowrap", padding:"0 3px" }}>利益 {man(profit)}（{profRate}%）</span>}
-            </div>
-            <div style={{ width:`${costRate}%`, minWidth:0, background:"#F5A623", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-              {costRate >= 22 && <span className="f-sans" style={{ fontSize: compact ? 8 : 9, color:"#fff", fontWeight:600, whiteSpace:"nowrap", padding:"0 3px" }}>経費 {man(totalCost)}（{costRate}%）</span>}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* 経費内訳展開ボタン（compactでない場合のみ） */}
-      {!compact && items.length > 0 && (
-        <div>
-          <button onClick={() => setOpen(o => !o)} style={{
-            width:"100%", marginTop:8, padding:"7px 12px",
-            background:"transparent", border:"1px solid #EBEBEB",
-            borderRadius:8, fontFamily:"inherit",
-            fontSize:11, color:"#717171", cursor:"pointer",
-            display:"flex", justifyContent:"space-between", alignItems:"center",
-          }}>
-            <span>経費の内訳を見る</span>
-            <span style={{ transition:"transform 0.3s", display:"inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
-          </button>
-          <div style={{ overflow:"hidden", maxHeight: open ? "600px" : "0", transition:"max-height 0.3s ease" }}>
-            <div style={{ paddingTop:12 }}>
-              {items.map((c, i) => {
-                const w = Math.round((c.a || 0) / maxItem * 100);
-                return (
-                  <div key={c.l + i} style={{ display:"grid", gridTemplateColumns:"80px 1fr 56px", alignItems:"center", gap:8, marginBottom:8 }}>
-                    <span className="f-sans" style={{ fontSize:11, color:"#717171", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.l}</span>
-                    <div style={{ height:8, background:"#F7F7F7", borderRadius:4, overflow:"hidden" }}>
-                      <div style={{ height:8, width:`${w}%`, background:"#F5A623", borderRadius:4 }}/>
-                    </div>
-                    <span className="f-mono" style={{ fontSize:11, color:"#F5A623", fontWeight:600, textAlign:"right" }}>{man(c.a || 0)}</span>
-                  </div>
-                );
-              })}
-              <div style={{ borderTop:"2px solid #EBEBEB", paddingTop:8, marginTop:4, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#222" }}>合計</span>
-                <div style={{ display:"flex", gap:8, alignItems:"baseline" }}>
-                  <span className="f-mono" style={{ fontSize:13, fontWeight:700, color:"#F5A623" }}>{man(totalCost)}</span>
-                  <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>売上の{costRate}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-
-function GhostCard({ index }) {
-  const yr = 2021 + index;
-  return (
-    <div className="ledger-card appear" style={{ overflow:"hidden", animationDelay:`${index*.12}s` }}>
-      {/* dark header */}
-      <div style={{
-        background:C.bgSoft, padding:"22px 28px",
-        borderBottom:`1px solid ${C.border}`,
-      }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-          <div>
-            <div className="f-sans" style={{ fontSize:9, color:C.textLight, letterSpacing:".14em", marginBottom:8, textTransform:"uppercase" }}>
-              {THIS_YEAR} · 就農{THIS_YEAR - yr + 1}年目 · ブロッコリー
-            </div>
-            <div className="ghost-line" style={{ width:140, height:22, marginBottom:6 }}/>
-            <div className="ghost-line" style={{ width:90, height:12 }}/>
-          </div>
-          <div style={{ textAlign:"right" }}>
-            <div className="f-sans" style={{ fontSize:9, color:C.goldDim, letterSpacing:".1em", marginBottom:6, textTransform:"uppercase" }}>
-              年間経費
-            </div>
-            <div style={{
-              width:80, height:32,
-              background:`${C.gold}18`,
-              borderRadius:8,
-              display:"flex", alignItems:"center", justifyContent:"center",
-            }}>
-              <span className="f-mono" style={{ color:`${C.gold}44`, fontSize:18, fontWeight:500 }}>——</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* body */}
-      <div style={{ padding:"22px 28px" }}>
-        {/* awaiting message */}
-        <div style={{
-          padding:"20px 0 28px",
-          textAlign:"center",
-          borderBottom:`1px dashed ${C.rule}`,
-          marginBottom:20,
-        }}>
-          <div style={{ fontSize:32, marginBottom:10, opacity:.15 }}>帳</div>
-          <div className="f-sans" style={{ fontSize:13, color:C.ghost, lineHeight:2, letterSpacing:".06em" }}>
-            データ入力後に<br/>
-            <span style={{ color:C.gold, opacity:.6 }}>経費の内訳</span>と<span style={{ color:C.bamboo, opacity:.6 }}>売上</span>が<br/>
-            ここに表示されます
-          </div>
-        </div>
-
-        {/* ghost lines like empty ledger */}
-        <div style={{ display:"grid", gap:10 }}>
-          {[100, 72, 55, 40].map((w,i) => (
-            <div key={i} style={{
-              display:"flex", alignItems:"center", gap:10,
-              paddingBottom:10,
-              borderBottom:`1px solid ${C.rule}`,
-              opacity: 1 - i*.18,
-            }}>
-              <div className="ghost-line" style={{ width:60, height:9, animationDelay:`${i*.15}s` }}/>
-              <div style={{ flex:1, height:1, background:`${C.rule}` }}/>
-              <div className="ghost-line" style={{ width:`${w}px`, height:9, animationDelay:`${i*.2}s` }}/>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 
 
 
 
 
-// ── Market chart constants ───────────────────────────────────
-const CROP_PALETTE = ["#00A86B","#F5A623","#4A90D9","#E85D5D","#9B59B6","#2ECC71","#E67E22","#1ABC9C","#3498DB","#E74C3C"];
 
-const LABOR_HOURS = {
-  'ブロッコリー':102, 'ナス':400,    'トマト':350,    'きゅうり':320,  'キャベツ':80,
-  'だいこん':75,      'にんじん':70,  'たまねぎ':65,   'レタス':90,     'ほうれんそう':120,
-  'ねぎ':150,         'はくさい':85,  'ピーマン':380,  'いちご':450,    'すいか':200,
-  'メロン':350,       'かぼちゃ':60,  'えだまめ':50,   'アスパラガス':280, 'にら':200,
-};
-const LABOR_DATA   = [
-  { crop:"ブロッコリー", min:94,  max:110 },
-  { crop:"ナス",         min:300, max:500 },
-];
-const METRICS = [
-  { key:"acreage", label:"作付面積",  unit:"ha",       dataKey:"acreage_ha" },
-  { key:"harvest", label:"収穫量",    unit:"t",        dataKey:"harvest_t" },
-  { key:"yield",   label:"10a収量",   unit:"kg",       dataKey:"yield_kg_per_10a" },
-  { key:"labor",   label:"労働時間",  unit:"時間/10a", dataKey:null },
-];
+
+
+
 
 
 
@@ -502,10 +322,6 @@ function CalendarRouter({ me, defaultRole }) {
 
 
 
-function buildGoogleMapsUrl(region) {
-  const query = `${region || "徳島県吉野川市"} 周辺`;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
 
 
 
@@ -523,12 +339,6 @@ function buildGoogleMapsUrl(region) {
 
 
 
-// ── LaborTab ─────────────────────────────────────────────────
-// 表示中タブ：「人手確保」(tab==="labor") → <LaborTab> が直接レンダリングされる
-function LaborTab({ farmersCount, onLogin }) {
-  return <Suspense fallback={null}><LandingFlow embedded farmersCount={farmersCount} initialRole="farmer"
-    onComplete={()=>{}} onSkip={onLogin} onLogin={onLogin} /></Suspense>;
-}
 
 
 // ── PrivacyPolicy ────────────────────────────────────────────
@@ -1253,7 +1063,6 @@ export default function App(){
   const [destOk,setDestOk]=useState([]);
   const [destPend,setDestPend]=useState([]);
   const [recs,setRecs]=useState({});
-  const [publicFarmerCount,setPublicFarmerCount]=useState(null);
   // スナップショット起動（2026-07-25本命）：前回のmeがあればネットワーク0本で即・ログイン済み骨格を描く。
   // セッション復元は従来どおり裏で走り、本物のme/停止判定/ログアウト検知で後から上書きされる
   const [loaded,setLoaded]=useState(() => !!snapGet("me"));
@@ -1352,7 +1161,6 @@ export default function App(){
     return () => window.removeEventListener("cb:openLoginBox", f);
   }, []);
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
-  const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
   const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="admin/consignment"; } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19）
@@ -1368,7 +1176,6 @@ export default function App(){
     return !legalV2BannerDismissed && now >= from && now < until;
   })();
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
-  const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // モバイル下部バー左端☰（PCのmenuOpenとは別系統）
   // この画面を報告：☰の開閉やヘルプの章開閉と無関係な階層で開閉させる（2026-07-14・アンマウントバグ修正）
@@ -1378,7 +1185,6 @@ export default function App(){
   const [showPrivacy,setShowPrivacy]=useState(false);
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [obModalKey,setObModalKey]=useState(0);
-  const [notifs,setNotifs]=useState([]);
   const [showNotifs,setShowNotifs]=useState(false);
   const [showProfile,setShowProfile]=useState(false);
   const modeAccent = "#00A86B";
@@ -1535,11 +1341,6 @@ export default function App(){
   }, []);
 
   useEffect(()=>{(async()=>{
-    const { data, error } = await supabase.rpc('public_farmers_count');
-    if (!error && data != null) setPublicFarmerCount(data);
-  })();},[]);
-
-  useEffect(()=>{(async()=>{
     const init=await sGet("yw_pres_v3");
     if(!init){
       for(const k of ["yw_pres_v1","yw_init_v3","yw_init_v4","yw_farmers","yw_farmers_pend","yw_dests_ok","yw_dests_pend","yw_records"])
@@ -1642,22 +1443,9 @@ export default function App(){
   const savFP=useCallback(async f=>{setFarmPend(f);await sSet("yw_farmers_pend",f);setBadgeCnt(f.length+(destPend?.length||0));},[destPend]);
   const savDA=useCallback(async d=>{setDestOk(d);await sSet("yw_dests_ok",d);},[]);
   const savDP=useCallback(async d=>{setDestPend(d);await sSet("yw_dests_pend",d);setBadgeCnt((farmPend?.length||0)+d.length);},[farmPend]);
-  const savR=useCallback(async r=>{setRecs(r);await sSet("yw_records",r);},[]);
   
-const loadNotifs=useCallback(async(farmerId)=>{
-    const{data}=await supabase.from('notifications').select('*').eq('farmer_id',farmerId).order('created_at',{ascending:false}).limit(10);
-    if(data)setNotifs(data);
-  },[]);
 
-  const markRead=useCallback(async(id)=>{
-    await supabase.from('notifications').update({read:true}).eq('id',id);
-    setNotifs(prev=>prev.map(n=>n.id===id?{...n,read:true}:n));
-  },[]);
 
-  const pushNotif=useCallback(async(farmerId,type,message)=>{
-    const{data}=await supabase.from('notifications').insert({farmer_id:farmerId,type,message}).select().single();
-    if(data)setNotifs(prev=>[data,...prev].slice(0,10));
-  },[]);
 
   // プロフィール承認の「お帰りなさい」ポップアップ（2026-07-16）
   // approve_profile_text が notifications(type='profile_approved') を挿入する。
@@ -1922,97 +1710,12 @@ const loadNotifs=useCallback(async(farmerId)=>{
     setTab("profile");
   },[]);
 
-const addRec=useCallback(async(fid,yr,mi,e)=>{
-    const k=`${fid}_${yr}_${mi}`;
-    const newEntry = { ...e, id: Math.random().toString(36).slice(2,11), created_at: new Date().toISOString() };
-    const newRecs={...recs,[k]:[...(recs[k]||[]),newEntry]};
-    const { data: insertedData, error } = await supabase.from('records').insert({
-      farmer_id: fid,
-      year: yr,
-      month: mi,
-      dest_id: e.destId,
-      boxes: e.boxes,
-      ppb: e.ppb,
-      costs: e.costs || [],
-      crop: e.crop,
-      variety: e.variety || '',
-      is_brand: e.is_brand || false,
-    }).select().single();
-    if (error) { console.error('records insert error:', error); return; }
-    if (insertedData) {
-      const finalEntry = { ...newEntry, id: insertedData.id, created_at: insertedData.created_at };
-      const finalRecs = {...recs,[k]:[...(recs[k]||[]),finalEntry]};
-      setRecs(finalRecs);
-    }
 
-    // ── 経営インサイト通知 ──
-    const rev = e.boxes * e.ppb;
-    const cost = (e.costs||[]).reduce((s,c)=>s+(c.a||0),0);
-    if(rev<=0) return;
-    const rate = Math.round(cost/rev*100);
 
-    // 経費率50%超
-    if(rate>50) await pushNotif(fid,'expense_alert',`経費率が${rate}%です。利益を圧迫しています。`);
-
-    // 経費1項目が50%以上
-    if(cost>0){
-      const dominated=(e.costs||[]).find(c=>(c.a||0)/cost>=0.5&&c.l);
-      if(dominated) await pushNotif(fid,'cost_concentration',`${dominated.l}が経費全体の${Math.round((dominated.a||0)/cost*100)}%を占めています。`);
-    }
-
-    // 前月比 悪化
-    const prevMi=mi===0?11:mi-1;const prevYr=mi===0?yr-1:yr;
-    const prevRecs=(recs[`${fid}_${prevYr}_${prevMi}`]||[]);
-    if(prevRecs.length>0){
-      const pr=prevRecs.find(r=>r.destId===e.destId);
-      if(pr){
-        const prevRev=(pr.boxes||0)*(pr.ppb||0);
-        const prevCost=(pr.costs||[]).reduce((s,c)=>s+(c.a||0),0);
-        if(prevRev>0){
-          const prevRate=Math.round(prevCost/prevRev*100);
-          const diff=rate-prevRate;
-          if(diff>=5) await pushNotif(fid,'monthly_change',`前月比で経費率が${diff}%上昇しました（${prevRate}%→${rate}%）。`);
-        }
-      }
-    }
-
-    // 出荷先間の経費率差10%超
-    const allDestRecs=Object.values(recs).flat().filter(r=>r&&r.boxes&&r.ppb);
-    const destRates={};
-    allDestRecs.forEach(r=>{
-      const rv=(r.boxes||0)*(r.ppb||0);const cs=(r.costs||[]).reduce((s,c)=>s+(c.a||0),0);
-      if(rv>0) destRates[r.destId]=Math.round(cs/rv*100);
-    });
-    destRates[e.destId]=rate;
-    const destEntries=Object.entries(destRates);
-    if(destEntries.length>=2){
-      destEntries.sort((a,b)=>a[1]-b[1]);
-      const[lowId,lowR]=destEntries[0];const[highId,highR]=destEntries[destEntries.length-1];
-      if(highR-lowR>=10){
-        const destOkLocal=destOk||[];
-        const lowName=destOkLocal.find(d=>d.id===lowId)?.name||lowId;
-        const highName=destOkLocal.find(d=>d.id===highId)?.name||highId;
-        await pushNotif(fid,'dest_compare',`${lowName}の経費率は${lowR}%、${highName}は${highR}%です。`);
-      }
-    }
-  },[recs,pushNotif,destOk]);
-
-  const deleteRec = useCallback(async (fid, yr, mi, recId) => {
-    const { error } = await supabase.from('records').delete().eq('id', recId);
-    if (error) { console.error('record delete error:', error); return; }
-    const k = fid + "_" + yr + "_" + mi;
-    setRecs(prev => ({
-      ...prev,
-      [k]: (prev[k] || []).filter(r => r.id !== recId),
-    }));
-  }, []);
-
-const subDest=useCallback(async d=>{
-    await supabase.from('dests').insert({ id: d.id, name: d.name, status: 'approved', submitted_by: d.submittedBy });
-    await savDA([...destOk,{...d,status:"approved"}]);
-  },[destOk,savDA]);
   const appFarmer=useCallback(async id=>{
     const f=farmPend.find(x=>x.id===id);if(!f)return;
+    // appliedAt を意図的に捨てる分割代入（farmers に申請日時の列は無い）。
+    // 未使用に見えるが消してはいけない＝消すと appliedAt が farmer に混ざりINSERTが落ちる
     const{appliedAt,...farmer}=f;
     await supabase.from('farmers').insert({
       name: farmer.name,
@@ -2063,8 +1766,6 @@ const subDest=useCallback(async d=>{
     ? Math.floor((Date.now() - lastInputDate.getTime()) / 86400000)
     : null;
   const isContributor = lastInputDate !== null && daysSinceInput <= 30;
-  const isMember = !!me;
-  const userLevel = !me ? 1 : isContributor ? 3 : 2;
 
   const ALL_TABS=[
     {k:"search",l:"さがす",modes:["farmer","worker"]},
@@ -2073,7 +1774,6 @@ const subDest=useCallback(async d=>{
   ];
   const TABS = ALL_TABS;
 
-  const visibleTabKeys = TABS.map(t=>t.k);
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
   // 部屋番号(TAB_URL_KEYS)にある部屋は全て到達可（避難部屋含む・骨格④）。資格の無い部屋と迷子はsearchへ
   const safeTab = TAB_URL_KEYS.includes(tab)
@@ -2185,7 +1885,7 @@ const subDest=useCallback(async d=>{
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"0 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
               <LoginScreen farmers={farmers} onLogin={f=>{
                 setLoginBox(false);
-                setMe(f);setAuthV("login");loadNotifs(f.id);
+                setMe(f);
                 try {
                   const em = sessionStorage.getItem("cb_emergencyLink");
                   if (em) { sessionStorage.removeItem("cb_emergencyLink"); window.location.hash = "/emergency/" + em; return; }
@@ -2501,7 +2201,7 @@ const subDest=useCallback(async d=>{
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
-              setMe(f);setAuthV("login");loadNotifs(f.id);
+              setMe(f);
               // 緊急連絡ディープリンクからの復帰（最優先・時間に敏感）
               try {
                 const em = sessionStorage.getItem("cb_emergencyLink");
