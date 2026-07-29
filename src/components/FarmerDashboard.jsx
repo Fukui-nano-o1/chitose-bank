@@ -1257,7 +1257,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       {/* 右：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
                       <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center" }}>
                         {/* アイコンのみ・中央配置（2026-07-25たきと指示）：箱装飾なし。少人数なら中央、溢れたら横スクロール（max-content＋margin auto） */}
-                        <div onTouchStart={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
+                        {/* アイコン列がはみ出して実際に横スクロールできる時だけ、ページのスワイプに渡さない
+                            （2026-07-27たきと報告「失効・見送りのカードでしかスワイプが効かない」の修理）。
+                            人数が少なくスクロールの余地が無い時は、カードの上でも普通にスワイプできる */}
+                        <div onTouchStart={e=>{ const el = e.currentTarget; if (el.scrollWidth > el.clientWidth + 1) e.stopPropagation(); }}
+                          onTouchEnd={e=>{ const el = e.currentTarget; if (el.scrollWidth > el.clientWidth + 1) e.stopPropagation(); }}
                           /* overflowX:autoは縦も切り取る（CSSの規則：片軸がautoならvisibleはautoになる）so、
                              ジャンプ(-5px)が上で欠ける。paddingTopで跳ねる分の逃げを確保（2026-07-26たきと報告） */
                           style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
