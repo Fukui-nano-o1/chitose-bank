@@ -51,6 +51,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 質問集フルページ(.qset-full)は body{overflow:hidden;height:100%} で開くため、閉じるとハブ先頭へ飛ぶ。開く前の位置を控えて復元する
   // 使う側（openQMgr・応募者の読み込み・評価の送信）より前に置く（宣言前参照の解消・2026-07-29）
   const [qEditing, setQEditing] = useState(null);       // 編集中セット {id?, title, questions:[...]}（null=一覧）
+  // 質問集カードの反転（2026-07-29たきと指示）：表=案内文／裏=作ってある質問集のタイトル横スクロール。
+  // トップボックス(empTopBack)と同じ作法で、切り返した面をlocalStorageに覚える
+  const [qCardBack, setQCardBack] = useState(() => { try { return localStorage.getItem("cb_qCardBack") === "1"; } catch { return false; } });
+  const [qCardAnim, setQCardAnim] = useState("");       // 反転アニメ: pflip-out|pflip-in（0.4s×2）
   const [favDone, setFavDone] = useState(null); // {workerId, nickname, avatar_url}
   const [favDetailOpen, setFavDetailOpen] = useState(false);
   const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
@@ -957,14 +961,48 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
             </span>
           </button>
-          {/* 面接の質問集（2026-07-23）：応募者チャットに送る質問を用意 */}
-          <button onClick={openQMgr} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-            <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📋</span>
-            <span>
-              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>面接の質問集</span>
-              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>聞きたいことをセットにして、応募者のチャットに送れます。回答もチャットに残ります。</span>
-            </span>
-          </button>
+          {/* 面接の質問集（2026-07-23）：応募者チャットに送る質問を用意。
+              右上⇄で反転（2026-07-29たきと指示）：裏＝作ってある質問集のタイトルを横スクロールで一覧。
+              反転はトップボックスと同じ作法（pflip-out→中身入替→pflip-in・0.4s×2）。
+              裏面は<div>で描く＝中のタイトルを本物のボタンにできる（button の中に button は置けない） */}
+          <div style={{ position:"relative", marginTop:12 }}>
+            {!qCardBack ? (
+              <button onClick={openQMgr} className={"f-sans" + (qCardAnim ? " " + qCardAnim : "")}
+                onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && qCardAnim === "pflip-in") setQCardAnim(""); }}
+                style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box" }}>
+                <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📋</span>
+                <span style={{ minWidth:0, paddingRight:28 }}>
+                  <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>面接の質問集</span>
+                  <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>聞きたいことをセットにして、応募者のチャットに送れます。回答もチャットに残ります。</span>
+                </span>
+              </button>
+            ) : (
+              <div className={"f-sans" + (qCardAnim ? " " + qCardAnim : "")}
+                onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && qCardAnim === "pflip-in") setQCardAnim(""); }}
+                style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 10px", paddingRight:28 }}>📋 質問集（{questionSets.length}）</p>
+                {questionSets.length === 0 ? (
+                  <button onClick={openQMgr} className="f-sans" style={{ background:"none", border:"none", padding:0, textAlign:"left", fontSize:13, color:"#717171", lineHeight:1.6, cursor:"pointer" }}>まだありません。タップして作成できます。</button>
+                ) : (
+                  /* 横スクロール（たきと指示）：タイトルの箱を横一列に。タップでそのセットの編集画面へ直行 */
+                  <div className="filter-scroll" style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
+                    {questionSets.map(s => (
+                      <button key={s.id} onClick={()=>{ qMgrScrollY.current = window.scrollY; setQEditing({ id:s.id, title:s.title || "", questions:[...(s.questions || [])] }); setQMgrOpen(true); }}
+                        className="f-sans" style={{ flexShrink:0, maxWidth:200, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
+                        <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title || "無題"}</span>
+                        <span style={{ display:"block", fontSize:11, color:"#B0B0B0", marginTop:2 }}>{(s.questions || []).length}問</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <button onClick={()=>{
+              if (qCardAnim === "pflip-out") return; // 連打ガード
+              setQCardAnim("pflip-out");
+              setTimeout(()=>{ setQCardBack(v=>{ const nv = !v; try { localStorage.setItem("cb_qCardBack", nv ? "1" : "0"); } catch {} return nv; }); setQCardAnim("pflip-in"); }, 400);
+            }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
+          </div>
           {/* 保険の準備（2026-07-24・専用ページ#/insuranceへ遷移）。アプリ内遷移の目印を残し、戻るは history.back で元の場所（スクロール位置）へ復帰させる */}
           <button onClick={()=>{ try{ sessionStorage.setItem("cb_insFromApp","1"); }catch{} window.location.hash="/insurance"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
             <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🛡</span>
