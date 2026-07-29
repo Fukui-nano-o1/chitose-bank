@@ -116,9 +116,9 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
     <div className="fade-in cb-login-page" style={{ minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:28 }}>
       <div style={{ width:"100%",maxWidth:360 }}>
         {/* 旧ブランド「吉野川 農家/YOSHINOGAWA FARMERS」は削除（2026-07-16・前身アプリの遺物） */}
+        {/* 🥦は削除・ブランド名は黒文字に統一（2026-07-27たきと指示） */}
         <div style={{ textAlign:"center",marginBottom:40 }}>
-          <div style={{ fontSize:44,marginBottom:14,lineHeight:1 }}>🥦</div>
-          <div className="f-sans" style={{ fontSize:22,fontWeight:800,color:"#00A86B",letterSpacing:".02em" }}>chitose-bank</div>
+          <div className="f-sans" style={{ fontSize:22,fontWeight:800,color:"#222",letterSpacing:".02em" }}>chitose-bank</div>
         </div>
 
         <div className="ledger-card" style={{ padding:32 }}>

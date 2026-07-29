@@ -2224,10 +2224,11 @@ const subDest=useCallback(async d=>{
       {/* ── PC HEADER（無変更） ── */}
       <header className="app-header app-header-desktop">
         <div className="app-header-inner">
+        {/* 🥦は削除・ブランド名は黒文字に統一（2026-07-27たきと指示・ログイン画面と同じ） */}
         <button onClick={() => { setTab("search"); window.location.hash = "/search"; }}
           style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
-                   fontSize:17, fontWeight:800, color:"#00A86B", padding:0 }}>
-          🥦 chitose-bank
+                   fontSize:17, fontWeight:800, color:"#222", padding:0 }}>
+          chitose-bank
         </button>
 
         <div style={{ display:"flex", alignItems:"center", gap:12, position:"relative" }}>
