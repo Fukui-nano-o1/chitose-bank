@@ -1634,14 +1634,20 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
             {qEditing === null ? (
               <>
-                {/* プロフィール編集ページと同じボックス様式（絵文字→名前→状態・角丸20px・影つき）で、
-                    並びは1列（2026-07-27たきと指示）。中身が質問集so絵文字は📋固定 */}
+                {/* 1列の行カード（2026-07-27たきと指示・同日改定）：左＝タイトル／右＝中身。
+                    応募者ページの求人カードと同じ読み方に揃え、ボックス内のアイコンは置かない */}
                 <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:12, marginBottom:12 }}>
                   {questionSets.map(s => (
-                    <button key={s.id} onClick={()=>setQEditing({ id:s.id, title:s.title || "", questions: (Array.isArray(s.questions) && s.questions.length ? [...s.questions] : [""]) })} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
-                      <span style={{ fontSize:34, lineHeight:1 }}>📋</span>
-                      <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{s.title || "無題の質問集"}</span>
-                      <span style={{ fontSize:11, color:"#00A86B", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>質問{Array.isArray(s.questions) ? s.questions.length : 0}問</span>
+                    <button key={s.id} onClick={()=>setQEditing({ id:s.id, title:s.title || "", questions: (Array.isArray(s.questions) && s.questions.length ? [...s.questions] : [""]) })} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, textAlign:"left" }}>
+                      {/* 左＝タイトル／右＝中身（応募者ページのカードと同じ並び・2026-07-27たきと指示）。
+                          ボックス内の📋アイコンは削除＝中身が質問集であることは見出しが示している */}
+                      <span style={{ flexShrink:0, maxWidth:"46%", fontSize:15, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title || "無題の質問集"}</span>
+                      <span style={{ flex:1, minWidth:0, textAlign:"right", overflow:"hidden" }}>
+                        <span style={{ display:"block", fontSize:11, fontWeight:700, color:"#00A86B" }}>質問{Array.isArray(s.questions) ? s.questions.filter(Boolean).length : 0}問</span>
+                        <span style={{ display:"block", fontSize:12, color:"#717171", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                          {(Array.isArray(s.questions) ? s.questions.filter(Boolean) : []).join("・") || "質問はまだありません"}
+                        </span>
+                      </span>
                     </button>
                   ))}
                   {/* テンプレ区画は削除（2026-07-25たきと指示）：＋自分で作るを押した時、未使用テンプレの内容を
@@ -1651,10 +1657,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     const used = new Set(questionSets.map(s => s.title));
                     const tpl = INTERVIEW_TEMPLATES.find(t => !used.has(t.title));
                     setQEditing(tpl ? { title: tpl.title, questions: [...tpl.questions] } : { title:"", questions:[""] });
-                  }} className="f-sans" style={{ background:"#fff", border:"1px dashed #C8C8C8", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, minWidth:0 }}>
-                    <span style={{ fontSize:34, lineHeight:1 }}>＋</span>
-                    <span style={{ fontSize:14, fontWeight:700, color:"#00A86B" }}>自分で作る</span>
-                    <span style={{ fontSize:11, color:"#B0B0B0" }}>新しい質問集</span>
+                  }} className="f-sans" style={{ background:"#fff", border:"1px dashed #C8C8C8", borderRadius:14, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12, minWidth:0, textAlign:"left" }}>
+                    <span style={{ flexShrink:0, fontSize:15, fontWeight:700, color:"#00A86B" }}>＋ 自分で作る</span>
+                    <span style={{ flex:1, minWidth:0, textAlign:"right", fontSize:12, color:"#B0B0B0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>新しい質問集</span>
                   </button>
                 </div>
               </>
