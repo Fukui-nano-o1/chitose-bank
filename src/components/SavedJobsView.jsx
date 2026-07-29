@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calFmtDate, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
-import { Avatar, SkeletonList } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
 
@@ -26,6 +26,8 @@ export function SavedJobsView({ me }) {
   const [calOnTop, setCalOnTop] = useState(false);
   const [calDay, setCalDay] = useState(null); // { ymd, jobs:[job_number] }＝選んだ日の求人を光らせる
   const jobCardRefs = useRef({});
+  // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
+  const skelRef = useSkeletonProbe("saved");
   useEffect(() => {
     try { if (sessionStorage.getItem("cb_openCalendar")) { sessionStorage.removeItem("cb_openCalendar"); setCalOnTop(true); } } catch {}
   }, []);
@@ -102,7 +104,7 @@ export function SavedJobsView({ me }) {
   };
 
   // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる
-  if (rows === null) return <div style={{ paddingTop:4 }}><SkeletonList n={4} /></div>;
+  if (rows === null) return <div style={{ paddingTop:4 }}><AutoSkeleton shapeKey="saved" /></div>;
 
   const photoOf = (r) => (r.photos && r.photos[0]) ? (typeof r.photos[0] === "string" ? r.photos[0] : (r.photos[0].thumb || r.photos[0].url)) : null;
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
@@ -138,7 +140,7 @@ export function SavedJobsView({ me }) {
           <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を♥しておくと、ここに並びます</p>
         </div>
       ) : (
-        <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} style={{ display:"grid", gap:10 }}>
+        <div ref={skelRef} onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} style={{ display:"grid", gap:10 }}>
           {rows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);

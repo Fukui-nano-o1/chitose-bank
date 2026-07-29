@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges } from "../lib/utils";
-import { Avatar, ExpandableText, StatusRibbon, YesNoPill, NoticeJumpText } from "./ui";
+import { Avatar, ExpandableText, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
@@ -157,6 +157,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [workerProfiles, setWorkerProfiles] = useState({});
   const [workerTrust, setWorkerTrust] = useState({}); // { [worker_id]: {joined_at, verified_at} }
   const [draftsLoading, setDraftsLoading] = useState(true);
+  // 仮配置の骨を測るref（この面が実際に描いた形が、次回の読み込み中の形になる）
+  const skelDraftRef = useSkeletonProbe("farmDrafts");
+  const skelActiveRef = useSkeletonProbe("farmActive");
   const [profileMode, setProfileMode] = useState("preview");
   const [empMini, setEmpMini] = useState(null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
   const [empTrust, setEmpTrust] = useState(null); // 名刺カード裏面＝本物のプレビュー（FarmerTrustCard）用の信頼情報
@@ -979,9 +982,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
         <div ref={pagerTrackRef} style={{ display:"flex", width:"200%", transform: jobTab==="draft" ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 作成中パネル（メルカリ風・横3列） */}
+            <div ref={skelDraftRef} style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 作成中パネル（メルカリ風・横3列） */}
       {draftsLoading ? (
-          <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+          /* 「読み込み中...」の文字でなく、前回この面が実際に描いた形の仮配置を並べる（2026-07-27たきと指示） */
+          <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmDrafts" /></div>
         ) : dbDrafts.length === 0 ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
             <div style={{ fontSize:40, marginBottom:12 }}>🌱</div>
@@ -1020,8 +1024,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </div>
           </div>
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 公開中パネル（メルカリ風・横3列） */}
-      {(dbActive.length === 0 && dbExpired.length === 0) ? (
+            <div ref={skelActiveRef} style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 公開中パネル（メルカリ風・横3列） */}
+      {draftsLoading ? (
+          /* 読み込み中に「公開中の求人はありません」を出すと一瞬ゼロに見える。確定するまでは仮配置 */
+          <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmActive" /></div>
+        ) : (dbActive.length === 0 && dbExpired.length === 0) ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>{/* 空状態は作成中ページと全く同じ配置（2026-07-16） */}
             <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
             <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>公開中の求人はありません</p>

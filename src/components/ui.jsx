@@ -1,6 +1,7 @@
 // 汎用UIアトム（分割・段階2後半・2026-07-24）：リボン帯・長文の省略表示。
 import { useState, useEffect, useRef, useCallback } from "react";
 import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC } from "../lib/utils";
+import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
 export function StatusRibbon({ label, color }) {
@@ -285,36 +286,37 @@ export function PhaseInfoSheet() {
   );
 }
 
-// 読み込み中の仮配置（2026-07-27たきと指示「先にボックスを置いて、読み込んでいることを表現する」）。
-// 空白で待たせず、これから出るものと同じ形の箱を並べる＝体感の待ち時間を減らす。
-// 意匠は既存の .ghost-line（シマー）を流用するので、新しい見た目を増やさない。
-export function SkeletonList({ n = 3, variant = "row" }) {
-  const rows = Array.from({ length: n });
-  if (variant === "card") {
-    return (
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }} aria-busy="true" aria-label="読み込み中">
-        {rows.map((_, i) => (
-          <div key={i} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff" }}>
-            <div className="ghost-line" style={{ width:"100%", aspectRatio:"1 / 1", borderRadius:0 }} />
-            <div style={{ padding:"8px 10px 10px" }}>
-              <div className="ghost-line" style={{ height:11, width:"80%" }} />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  // row＝左に写真・右に中身の横型カード（求人／ステータス／応募者の一覧と同じ形）
+// 読み込み中の仮配置（2026-07-27たきと指示「先にボックスを置いて、読み込んでいることを表現する」
+// →同日改定「各ページの構造に自動依存させて」）。
+//
+// ページごとに形を書き分けない。前回そのページが実際に描いた骨（並べ方と子の高さ）を覚えておき、
+// 次に開いた時それをそのまま仮配置にする。ページの構造を変えれば、次の描画から自動で追従する。
+//
+// 使い方：一覧を包む要素に useSkeletonProbe(key) のrefを付け、読み込み中は <AutoSkeleton shapeKey={key} /> を出す。
+export function useSkeletonProbe(key) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!key || !ref.current) return;
+    // 描画直後だと画像の高さが未確定なことがあるので、1フレーム置いてから測る
+    const id = setTimeout(() => {
+      const shape = measureShape(ref.current);
+      if (shape) writeShape(key, shape);
+    }, 120);
+    return () => clearTimeout(id);
+  });
+  return ref;
+}
+
+export function AutoSkeleton({ shapeKey, fallbackHeight = 96, fallbackCount = 4 }) {
+  const shape = shapeKey ? readShape(shapeKey) : null;
+  const heights = shape ? shape.heights : Array.from({ length: fallbackCount }, () => fallbackHeight);
+  const style = shape && shape.display === "grid"
+    ? { display: "grid", gridTemplateColumns: shape.columns || "repeat(3, 1fr)", gap: shape.gap }
+    : { display: "grid", gap: shape ? shape.gap : "10px" };
   return (
-    <div style={{ display:"grid", gap:10 }} aria-busy="true" aria-label="読み込み中">
-      {rows.map((_, i) => (
-        <div key={i} style={{ display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
-          <div className="ghost-line" style={{ flexShrink:0, width:104, borderRadius:0 }} />
-          <div style={{ flex:1, minWidth:0, padding:"14px 14px" }}>
-            <div className="ghost-line" style={{ height:13, width:"60%", marginBottom:8 }} />
-            <div className="ghost-line" style={{ height:11, width:"38%" }} />
-          </div>
-        </div>
+    <div style={style} aria-busy="true" aria-label="読み込み中">
+      {heights.map((h, i) => (
+        <div key={i} className="ghost-line" style={{ height: h, borderRadius: 14 }} />
       ))}
     </div>
   );

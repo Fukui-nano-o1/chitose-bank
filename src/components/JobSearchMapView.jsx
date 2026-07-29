@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges } from "../lib/utils";
-import { Avatar, Carousel, DangerItem, JobFlagBadges, NoticeJumpText, StatusRibbon, SkeletonList } from "./ui";
+import { Avatar, Carousel, DangerItem, JobFlagBadges, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
@@ -63,6 +63,8 @@ export function JobSearchMapView({ onRegister, me }) {
   }, [selectedJob?.id, me]);
   // 前回の一覧が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）
   const [dbJobs, setDbJobs] = useState(() => getCache("search:jobs") ?? null);
+  // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
+  const skelRef = useSkeletonProbe("search");
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [farmIntroOpen, setFarmIntroOpen] = useState(false); // 農園紹介モーダル（ページには代表よりのみ・タップで全文展開）
   const [farmTrustOpen, setFarmTrustOpen] = useState(false); // 信頼カードのボックス展開（2026-07-16）
@@ -589,10 +591,10 @@ export function JobSearchMapView({ onRegister, me }) {
 
       {/* 仕事リスト（検索適用中はfilteredList） */}
       <div className="job-search-layout">
-        <div>
+        <div ref={skelRef}>
           {/* 読み込み中（dbJobs未取得）は「ありません」でなく仮の箱を並べる（2026-07-27たきと指示）。
               空だと確定してから初めて空状態を出す＝一瞬「求人ゼロ」に見える誤解を防ぐ */}
-          {dbJobs === null && <SkeletonList n={4} />}
+          {dbJobs === null && <AutoSkeleton shapeKey="search" />}
           {dbJobs !== null && jobList.length === 0 && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
               <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
