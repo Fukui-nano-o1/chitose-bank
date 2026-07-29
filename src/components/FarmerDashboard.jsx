@@ -419,6 +419,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         favorited,
       });
       setCompleteModalApp(null);
+      // 評価が終わった応募を未対応リストから外す＝この時点で「完了」の暗幕が掛かる（2026-07-27）
+      setTodoAppIds(prev => { const n = new Set(prev); n.delete(completeModalApp.id); return n; });
     } catch { alert('処理に失敗しました。'); }
     setCompleteSubmitting(false);
   };
@@ -1145,7 +1147,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   // 終端求人の暗幕設計（2026-07-25たきと指示・完了も失効と同じ設計）：
                   // 日程が過ぎた求人は、完了記録あり＝「完了」／なし＝「失効」の暗幕＋中央ラベル＋タップ無反応
                   const jobEnd = info.date_end || info.date_start;
-                  const jobPast = !!jobEnd && jobEnd < ymdLocal(new Date());
+                  const datePast = !!jobEnd && jobEnd < ymdLocal(new Date());
+                  // ★完了ラベル（暗幕）は評価まで終わってから（2026-07-27たきと指示）。
+                  //   従来は日程が過ぎた時点で暗幕＋pointerEvents:noneを掛けていたため、今日ページの
+                  //   「完了して評価する」から来ても応募者カードに触れず、完了記録・評価ができなかった。
+                  //   todoAppIds（my_todo_items由来＝完了記録・評価が残っている応募）が1件でもあれば暗幕を出さない
+                  const jobPendingAction = byJob[jn].some(a => todoAppIds.has(a.id));
+                  const jobPast = datePast && !jobPendingAction;
                   const jobCompleted = jobPast && byJob[jn].some(a => a.status === "completed");
                   const jobExpired = jobPast && !jobCompleted;
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
