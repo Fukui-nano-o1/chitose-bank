@@ -346,9 +346,15 @@ export function ChatView({ applicationId, onBack }) {
     }
     return id;
   })();
-  // 終了したチャット（2026-07-25たきと指示）：失効・完了は同じ設計＝薄暗い幕＋中央ラベル・
-  // スクロール閲覧可・入力バー非表示。ラベル色は帯の既定（APP_PHASE_COLOR expired=#111/completed=#607D8B）
-  const chatClosed = activeStatus === "expired" || activeStatus === "completed";
+  // 終了したチャット（2026-07-25たきと指示・2026-07-27に見送りを追加）：失効・完了・見送りは同じ設計＝
+  // 薄暗い幕＋中央ラベル・スクロール閲覧可・入力バー非表示。履歴は消さずに読める状態を保つ（チャット履歴の保全）。
+  // ラベルと色は帯の唯一のソース（APP_PHASE_LABEL / APP_PHASE_COLOR）から採る
+  const CHAT_CLOSED_NOTE = {
+    expired:   "この求人の募集期間は終了しました",
+    completed: "この仕事は完了しました",
+    rejected:  "この応募は見送りになりました",
+  };
+  const chatClosed = !!CHAT_CLOSED_NOTE[activeStatus];
   return (
     <div className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
       {/* 上部フッター（LINE式・2026-07-22）：← / 名前さん / 報告する の1行ヘッダー。求人No.は下の帯へ移動 */}
@@ -518,8 +524,8 @@ export function ChatView({ applicationId, onBack }) {
       </div>
       {chatClosed && (
         <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, pointerEvents:"none", zIndex:5 }}>
-          <span className="f-sans" style={{ background: activeStatus === "expired" ? "#111" : "#607D8B", color:"#fff", fontSize:14, fontWeight:800, padding:"8px 24px", borderRadius:20 }}>{activeStatus === "expired" ? "失効" : "完了"}</span>
-          <span className="f-sans" style={{ color:"#fff", fontSize:12, fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.6)" }}>{activeStatus === "expired" ? "この求人の募集期間は終了しました" : "この仕事は完了しました"}</span>
+          <span className="f-sans" style={{ background: APP_PHASE_COLOR[activeStatus] || "#607D8B", color:"#fff", fontSize:14, fontWeight:800, padding:"8px 24px", borderRadius:20 }}>{APP_PHASE_LABEL[activeStatus] || "終了"}</span>
+          <span className="f-sans" style={{ color:"#fff", fontSize:12, fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.6)" }}>{CHAT_CLOSED_NOTE[activeStatus]}</span>
         </div>
       )}
       </div>
@@ -588,7 +594,7 @@ export function ChatView({ applicationId, onBack }) {
       )}
 
       {/* 採用するボタンはチャット右上の浮遊に移設（2026-07-19・上のsticky）。下部の常駐ブロックは廃止 */}
-      {/* 失効・完了した求人（2026-07-25たきと指示）：入力バーごと非表示＝送信不可。空いた分メッセージ領域(flex:1)が自動で広がる */}
+      {/* 失効・完了・見送り（2026-07-25たきと指示・2026-07-27に見送り追加）：入力バーごと非表示＝送信不可。空いた分メッセージ領域(flex:1)が自動で広がる */}
       {chatClosed ? null : (!isWorkerSide && activeStatus === "applied") ? (
         /* 承認待ちの間、農家の入力欄は一時的に承認/見送るボタンへ（2026-07-19）。判断後は通常の入力欄に戻る */
         <div style={{ padding:"12px 0", borderTop:"1px solid #EEE" }}>

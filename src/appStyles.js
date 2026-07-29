@@ -1,7 +1,9 @@
 // アプリ全体のCSS（分割・段階1・2026-07-24）：App.jsxの<style>{CSS}</style>で注入される単一文字列。
 // 純粋な静的CSS（テンプレート補間なし）。編集ルールは従来どおり＝クラスを足す/直すだけ。
 export const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap');
+/* Webフォントの読み込みは index.html の <link> へ移設（2026-07-27）。
+   ここに@importを置くと、JSの読み込み→CSS注入まで font の取得が始まらず、初回表示が遅れる。
+   併せて使っていない太さ（Noto 300 / Inter 300,500 / DM Mono italic）を削り、取得量を減らした */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; background: #fff; overflow-x: clip; }
@@ -303,6 +305,10 @@ input:focus { outline: none; }
   /* 入力中（キーボード表示中）は下部バー・浮遊☰を隠す（2026-07-19）。入力欄と被らせない */
   body.cb-typing .app-header-mobile,
   body.cb-typing .app-header-mobile-float { display: none !important; }
+  /* ログイン画面だけは例外＝下部バーを常に出す（2026-07-27たきと指示）。
+     メール欄のautoFocusでキーボードが出た瞬間にcb-typingが付き、訪問者の
+     「さがす・入れ方・登録ログイン」バーが消えて戻り道を失っていた */
+  body:has(.cb-login-page).cb-typing .app-header-mobile { display: block !important; }
 }
 
 /* ── 下部ナビの初回コーチマーク（第12弾・2026-07-23）：下部バー直上に薄い1行。タップで消える ── */
@@ -429,6 +435,16 @@ input:focus { outline: none; }
   .cb-applicant-filter-inline { display: none !important; }
   body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   body.cb-typing .cb-applicant-filter-bar { display: none !important; }
+  /* 応募者ページのスワイプ追従（2026-07-27たきと指示）：指の動きに合わせて求人カードだけが
+     同じ方向へズレる（カレンダー・タブ・凡例は動かさない＝動かす対象を絞ると意図が伝わる）。
+     ズレ幅は親グリッドの--cb-swipe-dxをJSが直書き。指を離す/発火時は0に戻り、.cb-swipingが
+     外れてtransitionで滑らかに戻る */
+  /* ズレ自体はJSがカードのインラインstyleへ直接書く（CSS変数方式はカード側のインライン指定に
+     負けて効かなかった）。ここは案内文の点灯だけを担う */
+  /* 指を動かしている間は案内文（横スワイプでカレンダーを開く）を緑の太字にして、
+     いま何が起きようとしているかを目で分からせる */
+  .cb-cal-hint { transition: color .15s ease; }
+  .cb-swiping .cb-cal-hint { color: #00A86B !important; font-weight: 700; }
   body:has(.mobile-apply-bar) .cb-applicant-filter-bar { display: none; }
   body:has(.chat-full) .cb-applicant-filter-bar,
   body:has(.cb-preview-overlay) .cb-applicant-filter-bar,

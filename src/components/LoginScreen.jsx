@@ -110,7 +110,10 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   };
 
   return (
-    <div className="fade-in" style={{ minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:28 }}>
+    /* cb-login-page＝下部バーを隠さない目印（2026-07-27たきと指示）。メール欄のautoFocusで
+       キーボードを出すと body.cb-typing により下部バーを隠す既定の挙動になっていた。
+       ログイン画面では常に表示する（CSSで打ち消し） */
+    <div className="fade-in cb-login-page" style={{ minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:28 }}>
       <div style={{ width:"100%",maxWidth:360 }}>
         {/* 旧ブランド「吉野川 農家/YOSHINOGAWA FARMERS」は削除（2026-07-16・前身アプリの遺物） */}
         <div style={{ textAlign:"center",marginBottom:40 }}>

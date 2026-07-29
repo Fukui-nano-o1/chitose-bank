@@ -200,7 +200,8 @@ export function ChatList() {
 
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"5px 0 8px" }}>{/* 上余白はmainの10px＋ここ5px＝15px固定（2026-07-25たきと指示） */}
-      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 14px" }}>チャット</h2>
+      {/* 見出し「チャット」は削除（2026-07-27たきと指示）：下部ナビで現在地が分かる＝重複。
+          上の空白は15px固定のまま（main 10px＋この箱 5px） */}
       {/* 通知をオンにする案内（2026-07-19）：未許可かつ対応環境のみ。granted/denied/未対応では出さない */}
       {!pushDismissed && (pushSt === "default" || pushSt === "need-standalone") && (
         <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>

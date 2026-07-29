@@ -4,14 +4,9 @@ import { chatCache } from "./lib/chatCache";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "./lib/questionSets";
 import { ADMIN_EMAIL, isAdmin, ymdLocal, isWorkDayToday, fmtJstShort, CALENDAR_WD, calAddDays, calFmtDate, daysBetweenYmd, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, ROLE_GREEN, payLabel, dateRangeLabel, mapJobPublicRow, CROP_OPTIONS, WORKER_DECLARATIONS, yearMonthLabel, farmHostQa, INTERACTION_STYLE_OPTIONS, interactionStyleLabel, tenureLabel, EMPTY_MARK, disp, stationLabel, CALENDAR_STATUS_LABEL, CALENDAR_STATUS_COLOR, CHAT_ELIGIBLE_STATUSES, CHAT_LIST_STATUSES, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION, TASK_OPTIONS, WORKER_EMERGENCY_KINDS, FARMER_EMERGENCY_KINDS, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { StatusRibbon, StatusRibbonLeft, ExpandableText, DangerItem, Avatar, Carousel, JobFlagBadges, NoticeJumpText, LinkifiedText, LFPillSelect, YesNoPill, DevBadge, PhaseInfoSheet } from "./components/ui";
-import { CalendarView } from "./components/CalendarView";
-import { JobCard } from "./components/JobCard";
-import { JobLocationMap } from "./components/JobLocationMap";
+import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
-import { AdminJobPreview } from "./components/AdminJobPreview";
-import { MyCalendar } from "./components/MyCalendar";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
 // チャンク取りこぼしの自己修復（2026-07-26・チャットで画面が真っ暗になる不具合の根治）：
 // 新デプロイでチャンク名（ハッシュ）が変わるため、古いページを握ったままの端末は旧チャンクを
@@ -38,23 +33,18 @@ import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
 import { ProfileModal } from "./components/ProfileModal";
 import { OnboardingModal } from "./components/OnboardingModal";
-import { EmployerProfileEdit } from "./components/EmployerProfileEdit";
-import { WorkerProfileEdit } from "./components/WorkerProfileEdit";
-import { WorkerApplications } from "./components/WorkerApplications";
 import { JobSearchMapView } from "./components/JobSearchMapView";
 import { MyReviewsOfWorker } from "./components/MyReviewsOfWorker";
-import { FarmerDashboard } from "./components/FarmerDashboard";
-import { ProfileHub } from "./components/ProfileHub";
 const LandingFlow = lazyChunk(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
 const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
 const ConsignmentRoom = lazyChunk(() => import("./components/admin/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
 const AdminBoxRegistryPage = lazyChunk(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));
-import { ToggleSwitch } from "./components/ToggleSwitch";
+// プロフィールタブ（2026-07-27たきと指示「リロードを必要最低限に」）：農家ハブ・応募状況・
+// プロフィール編集・カレンダーがぶら下がる大きな塊so、開いた時に初めて読む＝起動のJSを軽くする
+const ProfileHub = lazyChunk(() => import("./components/ProfileHub").then(m => ({ default: m.ProfileHub })));
 import { CSS } from "./appStyles";
-import { ContentQTabs, JobQuestions } from "./components/JobQuestions";
 import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/VisitAndInsurance";
 import { WorkerExperiencePage } from "./components/WorkerExperiencePage";
-import { AgreedDatesRow, AvailDatesChips } from "./components/DateChips";
 
 import { isIOS, syncAppBadge } from "./lib/push";
 import { uploadAvatarResilient } from "./lib/avatarUpload";
@@ -497,16 +487,15 @@ function WorkerPreviewSheet() {
 
 
 
-// #/calendar の入口：既定は「今日」、奥（#/calendar/month）で月カレンダー（MyCalendar）。hashで切替
+// #/calendar の入口：「今日」ページ。
+// 月カレンダー単独のページ(#/calendar/month)は廃止（2026-07-27たきと指示）＝カレンダーは
+// 農家＝応募者ページ／働き手＝ステータスページ の上部に移植した。旧URLで来た人は「今日」に着地する
 function CalendarRouter({ me, defaultRole }) {
-  const isMonth = () => window.location.hash.replace(/^#\/?/, "") === "calendar/month";
-  const [month, setMonth] = useState(isMonth());
+  // 旧URL(#/calendar/month)で来たら#/calendarに正す＝アドレスバーと中身を食い違わせない
   useEffect(() => {
-    const on = () => setMonth(isMonth());
-    window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
+    if (window.location.hash.replace(/^#\/?/, "") === "calendar/month") window.location.hash = "/calendar";
   }, []);
-  return month ? <MyCalendar backToToday /> : <TodayPage me={me} defaultRole={defaultRole} />;
+  return <TodayPage me={me} defaultRole={defaultRole} />;
 }
 
 
@@ -963,6 +952,11 @@ function InstallGuide({ me }) {
         <div style={{ fontSize:64, lineHeight:1, marginBottom:12 }}>🥦</div>
         <h1 className="f-sans" style={{ fontSize:24, fontWeight:800, color:"#222", margin:"0 0 6px" }}>chitose-bankをアプリとして入れる</h1>
         <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7, margin:0 }}>ホーム画面に追加すると、アプリのように開けて通知も受け取れます。</p>
+        {/* 訪問者の「入れ方」タブから来る人向けに、何をするのかを最初に明記する（2026-07-27たきと指示） */}
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"12px auto 0", maxWidth:420, background:"#F7F7F7", borderRadius:12, padding:"12px 14px", textAlign:"left" }}>
+          App Store・Google Playからのインストールは不要です。いま見ているこのページを、お使いのブラウザから
+          ホーム画面に置くだけで完了します。下の手順のとおりに進めてください（1分ほどで終わります）。
+        </p>
       </div>
       <div style={{ display:"grid", gap:16 }}>
         {ios ? <>{iosSlot}{andSlot}</> : <>{andSlot}{iosSlot}</>}
@@ -1108,7 +1102,14 @@ function HelpCenter({ me, onReportClick }) {
                       <div key={slotKey}>
                         {it.label && <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{it.label}</p>}
                         <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{it.body}</p>
-                        {imgUrl && <img src={imgUrl} alt="" loading="lazy" decoding="async" style={{ display:"block", marginTop:12, width:"100%", borderRadius:12, border:"3px solid #E0E0E0", boxShadow:"0 4px 16px rgba(0,0,0,0.12)", boxSizing:"border-box" }} />}
+                        {imgUrl && (
+                          /* 画像は2倍表示（2026-07-27たきと指示）：横幅いっぱいだと文字が小さくて読めないため、
+                             縦横とも2倍に拡大する＝高さが2倍になる。比率は変えない（引き伸ばすと文字がぼやける）。
+                             はみ出した横方向はこの枠の中だけを指でなぞって送れる（ページは横スクロールしない） */
+                          <div style={{ marginTop:12, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", borderRadius:12 }}>
+                            <img src={imgUrl} alt="" loading="lazy" decoding="async" style={{ display:"block", width:"200%", maxWidth:"none", borderRadius:12, border:"3px solid #E0E0E0", boxShadow:"0 4px 16px rgba(0,0,0,0.12)", boxSizing:"border-box" }} />
+                          </div>
+                        )}
                         {isAdmin(me) && (
                           <div style={{ marginTop:8 }}>
                             {imgUrl ? (
@@ -1333,6 +1334,13 @@ export default function App(){
     return () => window.removeEventListener("hashchange", logPageEvent);
   }, [me?.id]);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
+  // 訪問者の「登録が必要です」案内をボックス化（2026-07-27たきと指示）。どの画面からでも openLoginBox() で開く
+  const [loginBox, setLoginBox] = useState(false);
+  useEffect(() => {
+    const f = () => setLoginBox(true);
+    window.addEventListener("cb:openLoginBox", f);
+    return () => window.removeEventListener("cb:openLoginBox", f);
+  }, []);
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
@@ -2150,6 +2158,31 @@ const subDest=useCallback(async d=>{
       <WorkerPreviewSheet />
       <EmployerPreviewSheet />
       <PhaseInfoSheet />
+      {/* ログインのボックス（2026-07-27たきと指示）：訪問者が応募・いいね等を押したとき、
+          alertでなくログイン画面をその場に展開する。中身はログインタブと同じLoginScreen＝
+          認証の入口は1つだけ（分岐を増やさない）。閉じれば見ていた画面に戻る */}
+      {loginBox && (
+        <div onClick={()=>setLoginBox(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10200, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setLoginBox(false)} aria-label="閉じる" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"0 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+              <LoginScreen farmers={farmers} onLogin={f=>{
+                setLoginBox(false);
+                setMe(f);setAuthV("login");loadNotifs(f.id);
+                try {
+                  const em = sessionStorage.getItem("cb_emergencyLink");
+                  if (em) { sessionStorage.removeItem("cb_emergencyLink"); window.location.hash = "/emergency/" + em; return; }
+                } catch {}
+                // 見ていた求人に留まる（応募の戻り先があればそこへ）。ログインタブと違い、画面は奪わない
+                const ret = peekApplyReturn();
+                if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
+              }}/>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── プロフィール承認の「お帰りなさい」ポップアップ（起動時1回・ボックス展開） ── */}
       {welcomeApproved && (
@@ -2342,7 +2375,16 @@ const subDest=useCallback(async d=>{
                   }
                   return;
                 }
-                if (t.hash) { setTab("profile"); window.location.hash = t.hash; return; }
+                // hash指定のタブは、hashの先頭区画から行き先タブを決める（2026-07-27修正）。
+                // 以前は一律 setTab("profile") だったため、tab→URL同期useEffectが直後に
+                // #/install・#/login を #/profile へ巻き戻し、訪問者の「入れ方」「登録・ログイン」が
+                // プロフィールに飛んでいた（農家ナビの行き先は /profile/… なので偶然動いていた）
+                if (t.hash) {
+                  const seg = t.hash.replace(/^\//, "").split("/")[0];
+                  setTab(TAB_URL_KEYS.includes(seg) ? seg : "profile");
+                  window.location.hash = t.hash;
+                  return;
+                }
                 setTab(t.k); window.location.hash = "/" + t.k;
               }}
               className={"app-header-mobile-tab" + (isActive ? " active" : "")}>
@@ -2424,10 +2466,10 @@ const subDest=useCallback(async d=>{
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} me={me} /> : null}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
-          ? <ProfileHub me={me}
+          ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ProfileHub me={me}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
-              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} />
+              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="chats"&&(me
           ? <ChatList />

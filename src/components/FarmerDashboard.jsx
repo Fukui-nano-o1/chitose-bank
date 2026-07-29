@@ -470,7 +470,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     }, 40);
   };
   const calendarTop = calOnTop ? (
-    <div key="app-cal-top" style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>
+    /* カレンダー上のスワイプはカレンダー（月送り）が優先（2026-07-27たきと指示）：
+       タッチをここで止めないと、ページ側の横スワイプ（カレンダーの開閉）に食われて
+       月を送ったつもりがカレンダーごと畳まれていた */
+    <div key="app-cal-top" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
+      style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>
   ) : null;
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
@@ -566,7 +570,46 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 応募者ページの横スワイプ＝上部カレンダーの開閉（2026-07-27たきと指示。旧・フィルタ切替から置換）。
   // フィルタは上部/浮遊バーのボタンタップで切り替える（スワイプとの二重割り当てをやめる）。
   // 求人カードのアイコン列など内側の横スクロールで始まったタッチは奪わない
+  // スワイプの追従（2026-07-27たきと指示）：指の動きに合わせて求人カードだけが同じ方向へズレ、
+  // 20pxズレた時点で発火（カレンダーの開閉）。追従はCSS変数への直書き＝再レンダーを起こさない
+  const appGridRef = useRef(null);
+  // animate=false（指の追従中）＝transitionを切って1:1でついてくる／animate=true（発火後・指を離した後）
+  // ＝transitionを効かせて滑らかに戻す。
+  // ★カード要素へ直接インラインで書く（2026-07-27修正）：CSS変数＋クラス指定では、カードの
+  //   インラインstyle（transition:background）やアニメーション指定に負けて見た目が動かなかった。
+  //   インラインのtransformなら他の指定に勝つ。参照は既にあるjobCardRefs（各求人カードのDOM）を使う
+  const setSwipeDx = (px, animate = false) => {
+    Object.values(jobCardRefs.current).forEach(el => {
+      if (!el) return;
+      el.style.transition = animate ? "transform .18s ease, background .5s" : "background .5s";
+      el.style.transform = px ? `translateX(${px}px)` : "";
+    });
+    const grid = appGridRef.current;
+    if (grid) grid.classList.toggle("cb-swiping", !animate && px !== 0); // 案内文の点灯（CSS側）
+  };
   const appSwipeRef = useRef(null);
+  const onAppSwipeMove = (e) => {
+    const s = appSwipeRef.current; if (!s || s.fired) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (s.lock == null) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;      // まだ向きが決まっていない
+      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";       // 一度決めたら最後まで変えない
+    }
+    if (s.lock !== "h") return;                               // 縦スクロールは邪魔しない
+    setSwipeDx(Math.max(-20, Math.min(20, dx)));              // カードが指について動く（横に最大20px）
+    if (Math.abs(dx) >= 20) {                                 // 20pxで発火
+      s.fired = true;
+      // 20pxズレた形をひと呼吸だけ見せてから戻す＝「ここで効いた」が目で分かる
+      setSwipeDx(dx > 0 ? 20 : -20, true);
+      setTimeout(() => setSwipeDx(0, true), 160);
+      setCalOnTop(v => {
+        const next = !v;
+        if (next) { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); } }
+        else setCalDay(null);
+        return next;
+      });
+    }
+  };
   const onAppSwipeStart = (e) => {
     const inHScroll = (() => {
       for (let n = e.target; n && n !== e.currentTarget; n = n.parentElement) {
@@ -577,20 +620,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       }
       return false;
     })();
-    appSwipeRef.current = inHScroll ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    appSwipeRef.current = inHScroll ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null, fired: false };
   };
-  const onAppSwipeEnd = (e) => {
-    const s = appSwipeRef.current; appSwipeRef.current = null;
-    if (!s) return;
-    const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
-    setCalOnTop(v => {
-      const next = !v;
-      if (next) { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); } } // 開いたら上部を見せる
-      else setCalDay(null); // 畳む時は日付の絞り込み（光らせ）も解除
-      return next;
-    });
-  };
+  // 指を離したら追従を戻すだけ（発火はonAppSwipeMoveの20px時点で済んでいる）
+  const onAppSwipeEnd = () => { appSwipeRef.current = null; setSwipeDx(0, true); };
   // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
   const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
   // 応募者の注意表示（2026-07-16）：未承認（承認待ち）＝赤影＋浮遊アニメ／保険未チェック＝赤影のみ（静止）
@@ -1027,7 +1060,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       </div>
       ) : (
-      <div onTouchStart={jobTab==="applicants" ? onAppSwipeStart : undefined} onTouchEnd={jobTab==="applicants" ? onAppSwipeEnd : undefined} style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
+      <div ref={appGridRef}
+        onTouchStart={jobTab==="applicants" ? onAppSwipeStart : undefined}
+        onTouchMove={jobTab==="applicants" ? onAppSwipeMove : undefined}
+        onTouchEnd={jobTab==="applicants" ? onAppSwipeEnd : undefined}
+        onTouchCancel={jobTab==="applicants" ? onAppSwipeEnd : undefined}
+        style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
@@ -1063,7 +1101,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             );
             // スワイプでカレンダーが開くことの案内（2026-07-27）。開いている間は畳み方を出す
             const calHint = (
-              <button key="cal-hint" onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans"
+              <button key="cal-hint" onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans cb-cal-hint"
                 style={{ gridColumn:"1/-1", background:"none", border:"none", padding:"0 0 6px", fontSize:11, color:"#B0B0B0", textAlign:"center", cursor:"pointer" }}>
                 {calOnTop ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
               </button>
@@ -1113,7 +1151,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
                   const calHit = !!calDay && calDay.jobs.includes(jn);
                   return (
-                    <div key={`job-${jn}`} ref={el => { jobCardRefs.current[jn] = el; }}
+                    <div key={`job-${jn}`} ref={el => { jobCardRefs.current[jn] = el; }} className="cb-app-jobcard"
                       style={{ gridColumn:"1/-1", position:"relative", display:"flex", alignItems:"stretch", background: calHit ? "#FFF6DE" : "#fff", border:"1px solid " + (calHit ? "#E8C77A" : "#EBEBEB"), borderRadius:14, overflow:"hidden", marginTop:2, transition:"background .5s", pointerEvents: jobPast ? "none" : undefined }}>
                       {jobPast && (
                         <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>

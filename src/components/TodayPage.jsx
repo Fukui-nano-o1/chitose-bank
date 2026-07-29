@@ -165,7 +165,8 @@ function NewApplicantsPanel({ items, onTap }) {
   );
 }
 
-// #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。月カレンダーは奥（#/calendar/month）。
+// #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。
+// カレンダーは各役割の面へ移植（農家＝応募者ページ／働き手＝ステータスページ・2026-07-27）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
   const [loading, setLoading] = useState(true);
@@ -175,6 +176,7 @@ export function TodayPage({ me, defaultRole }) {
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
   const [todos, setTodos] = useState([]);     // やることフィード（my_todo_items・状態カードの単一ソース）
   const [jobCount, setJobCount] = useState(0); // 自分が出した求人の数（下書き含む）。カレンダーを開けるかの判定に使う
+  const [hiredIds, setHiredIds] = useState(() => new Set()); // 採用済み（両者の確認が揃った）自分の応募ID
   const [confirming, setConfirming] = useState("");
   const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
@@ -189,15 +191,25 @@ export function TodayPage({ me, defaultRole }) {
         setEntries(rows);
         const { data: td } = await supabase.rpc("my_todo_items");
         if (!cancelled) setTodos(td || []);
-        const [{ data: wp }, { count: jc }, { data: ep }] = await Promise.all([
+        const [{ data: wp }, { count: jc }, { data: ep }, { data: apps }] = await Promise.all([
           supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
           supabase.from("employer_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
+          // 採用の判定に要る時刻。採用してもstatusは'approved'のままなので（contractedは表示用の値で
+          // DBには書かれない・CLAUDE.md）、両者の確認時刻で見るしかない。get_my_calendar_jobsは
+          // この2列を返さないため、自分の応募から直に引く（当事者RLSの内側・2026-07-27）
+          supabase.from("applications")
+            .select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
+            .eq("worker_id", session.user.id),
         ]);
         if (cancelled) return;
         const w = !!wp || rows.some(e => e.my_role === "worker");
         const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
         setHasWorker(w); setHasFarmer(f); setJobCount(jc || 0);
+        setHiredIds(new Set((apps || [])
+          .filter(a => a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at
+                    && !["rejected","expired","completed"].includes(a.status))
+          .map(a => a.id)));
         // 既定ロールが持っていない側なら、持っている側へ寄せる
         setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
       } catch {}
@@ -220,7 +232,10 @@ export function TodayPage({ me, defaultRole }) {
   const tCard = todayJobs.map(e => ({ ...e, stage: "t_card" }));
   // 採用済み（契約〜作業中）の仕事は、作業日でなくても緊急連絡・開始の入口を開ける（2026-07-27たきと指示）。
   // 遅刻・欠勤・中止の連絡は前日にもしたいし、開始ページは採用が決まった時点で見たいため
-  const hiredMine = mine.filter(e => e.application_id && ["contracted","working"].includes(e.application_status));
+  // 採用済み＝両者の確認が揃った応募（status='approved'のまま採用になる。帯のappPhaseKeyと同じ判定）。
+  // statusだけで見ると採用済みが拾えず、緊急連絡・開始の箱が薄いままだった（2026-07-27たきと報告）
+  const hiredMine = mine.filter(e => e.application_id
+    && (hiredIds.has(e.application_id) || ["contracted","working"].includes(e.application_status)));
   // 作業が開始された仕事（開始打刻でstatusがworkingになる）＝終了の箱も開ける（2026-07-27たきと指示）
   const startedMine = mine.filter(e => e.application_id && e.application_status === "working");
   const tEmergency = (() => {
@@ -310,11 +325,12 @@ export function TodayPage({ me, defaultRole }) {
     // カレンダー（2026-07-27たきと指示：確認カードをカレンダーに差し替え・統合）：
     // 応募（予定）が1件でもあれば件数0でも常にタップ可＝月カレンダーへ直行。バッジ＝きょうが作業日の仕事の数。
     // 現場情報の確認はカレンダーの日タップ→求人ページで担う（確認カードの役割を吸収）
-    // 遷移先は農家＝応募者ページ（そこの上部にカレンダーを展開する・2026-07-27たきと指示）。
-    // 働き手は応募者ページを持たないso従来どおり月カレンダーへ
+    // 遷移先は「その役割のカレンダーが載っている面」＝農家は応募者ページ／働き手はステータスページ。
+    // どちらも上部にカレンダーを展開して着地する（合図＝cb_openCalendar・2026-07-27たきと指示）。
+    // 月カレンダー単独のページ(#/calendar/month)は廃止した
     t_card:      { icon:"📅", title:"カレンダー",           btn:"カレンダー →",     always:true, nav: () => {
-      if (role === "farmer") { try { sessionStorage.setItem("cb_openCalendar", "1"); } catch {} return "/profile/employer/applicants"; }
-      return "/calendar/month";
+      try { sessionStorage.setItem("cb_openCalendar", "1"); } catch {}
+      return role === "farmer" ? "/profile/employer/applicants" : "/saved";
     } },
     t_emergency: { icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id },
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：

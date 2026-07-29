@@ -4,7 +4,6 @@ import { supabase } from "../lib/supabase";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
 import { Avatar } from "./ui";
-import { MyCalendar } from "./MyCalendar";
 import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
@@ -23,7 +22,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     if (h === "profile/worker/profile") return "wprofile";
     if (h === "profile/worker/applying") return "applying";
     if (h === "profile/worker/approved") return "approved";
-    if (h === "profile/worker/calendar") return "wcalendar";
+    // 働き手のカレンダーページは廃止（2026-07-27たきと指示）＝カレンダーはステータスページ(#/saved)に移植。
+    // 旧URLで来た人は入口(ホーム)に着地させる（行き先を失わせない）
     return "home"; // 入口はAirbnb型カードメニュー（2026-07-14・農家プロと同構造）
   };
   const [wTab, setWTab] = useState(() => { try { return hashToWTab(); } catch { return "home"; } });
@@ -63,7 +63,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     })();
     return () => { cancelled = true; };
   }, []);
-  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"返事待ち", approved:"きょうの仕事", wcalendar:"カレンダー" };
+  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"返事待ち", approved:"きょうの仕事" };
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
   const [wMini, setWMini] = useState(null);
   const [wAppCounts, setWAppCounts] = useState({ applying:0, approved:0 });
@@ -327,12 +327,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         <div className="profile-content">
             {/* 浮遊の「← プロフィール」ボックスは削除（2026-07-25たきと指示・農家側の「← 農家プロ」削除と対）。
                 戻りは下部ナビのプロフィールタップ（＝働き手トップへ）が担う */}
-            {/* カレンダーはMyCalendar自身が見出しを持つため、ここでは出さない（文字重複防止・2026-07-16） */}
-            {wTab !== "wcalendar" && (
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-                <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
-              </div>
-            )}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
+            </div>
             {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
             {wTab === "wprofile" ? (
               <WorkerProfileEdit me={me} onAvatarChange={onAvatarChange} onDone={()=>{
@@ -343,9 +340,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
               <WorkerApplications filter="applying" me={me} />
             ) : wTab === "approved" ? (
               <WorkerApplications filter="approved" me={me} />
-            ) : (
-              <MyCalendar />
-            )}{/* カレンダーはページ内に直接展開（旧：カレンダーへ→の案内ページ・2026-07-16） */}
+            ) : null}{/* 旧・カレンダーページは廃止（2026-07-27）。カレンダーはステータスページ(#/saved)の上部へ移植 */}
         </div>
         )
       ) : (
