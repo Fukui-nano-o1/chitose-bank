@@ -20,7 +20,11 @@ export function ChatList() {
   const [dmSending, setDmSending] = useState(false);
   const [unreadMap, setUnreadMap] = useState(() => chatCache.v?.unreadMap || {}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
   const [initialsMap, setInitialsMap] = useState(() => chatCache.v?.initialsMap || {}); // { partner_auth_id: メール頭文字2文字 }（ニックネーム未設定時のアイコン・2026-07-22）
-  // 返信順（2026-07-27たきと指示）：並びの既定は「最後のやり取りが新しい順」。応募日順ではない
+  // アクション順（2026-07-27たきと指示・同日改定）：並びの既定は「利用者が最後にアクションした順」。
+  // アクション＝メッセージの送受信＋応募の記録（応募・承認/見送り・採用・保険報告・開始・完了・終了確認）。
+  // ★チャットを開いただけ（既読＝read_at・chat_reads）は動かさない＝アクションではない（記録の憲法）
+  const APP_ACTION_COLS = ["created_at","decided_at","status_changed_at","terms_confirmed_worker_at","terms_confirmed_farmer_at",
+    "insurance_prepared_at","started_at","farmer_confirmed_start_at","work_completed_at","worker_confirmed_end_at"];
   const [lastMsgMap, setLastMsgMap] = useState(() => chatCache.v?.lastMsgMap || {}); // { application_id: 最終メッセージのcreated_at }
   const refreshLastMsg = async (ids) => {
     try {
@@ -97,9 +101,16 @@ export function ChatList() {
       const m = payload?.new;
       if (m?.application_id && m?.created_at) setLastMsgMap(prev => ({ ...prev, [m.application_id]: m.created_at }));
     };
+    // 応募のアクション（承認・採用・保険報告・開始・完了・終了確認）で並びが動くよう、
+    // applicationsのUPDATEも購読して手元の行を差し替える（2026-07-27・アクション順）
+    const onAppUpdate = (payload) => {
+      const a = payload?.new; if (!a?.id) return;
+      setRows(prev => (prev || []).map(x => x.id === a.id ? { ...x, ...a } : x));
+    };
     const ch = supabase.channel("chatlist-live")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, onNewMsg)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, () => loadDm(dmOpenRef.current))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "applications" }, onAppUpdate)
       .subscribe();
     // 復帰時の再読込＋保険ポーリング（2026-07-27たきと指示）：iOS PWAのバックグラウンドで
     // WebSocketが凍結・切断されるため、画面復帰で未読を即再取得＋表示中は10秒ごとの保険
@@ -183,13 +194,19 @@ export function ChatList() {
   // チャットから戻った再マウントで即表示され、スピナー（リロード感）が出なくなる
   useEffect(() => { if (!loading) chatCache.v = { rows, unreadMap, initialsMap, lastMsgMap }; }, [rows, unreadMap, initialsMap, lastMsgMap, loading]);
 
-  // 並び（2026-07-27たきと指示）：①未読があるスレッドを先頭 ②未読同士・既読同士とも「返信順」＝
-  // 最後のやり取りが新しい順（未読が2件以上でも最新順で並ぶ）。メッセージがまだ無いスレッドは応募日で代用。
+  // 並び（2026-07-27たきと指示・同日改定）：①未読があるスレッドを先頭 ②未読同士・既読同士とも
+  // 「アクション順」＝最後のアクションが新しい順（未読が2件以上でも最新順で並ぶ）。
+  // メッセージも記録も無ければ応募日（created_at＝応募というアクション）で代用。
+  // ★チャットを開いただけでは動かない（既読はアクションに数えない）
   // unreadMap/lastMsgMapはリアルタイムで変わるので、rowsに焼き込まず描画時に並べ替える
   const rowUnreadOf = (a) => (a._appIds || [a.id]).reduce((s, id) => s + (unreadMap[id] || 0), 0);
+  // その応募の最後のアクション時刻＝メッセージの最新 と 記録された行動の時刻 の大きい方（既読は含めない）
   const rowLastAt = (a) => {
-    const t = (a._appIds || [a.id]).map(id => lastMsgMap[id]).filter(Boolean).sort().pop();
-    return new Date(t || a.created_at).getTime();
+    const times = [
+      ...(a._appIds || [a.id]).map(id => lastMsgMap[id]),
+      ...APP_ACTION_COLS.map(c => a[c]),
+    ].filter(Boolean).map(t => new Date(t).getTime()).filter(n => !isNaN(n));
+    return times.length ? Math.max(...times) : 0;
   };
   const sortedRows = [...rows].sort((x, y) => {
     const ux = rowUnreadOf(x) > 0 ? 1 : 0;
