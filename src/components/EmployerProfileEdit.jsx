@@ -130,6 +130,23 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
           setRecruiterName(data.recruiter_name || "");
           setRecruiterAddress(data.recruiter_address || "");
           setRecruiterContact(data.recruiter_contact || "");
+          // 未入力なら新規登録の内容を初期値として入れる（2026-07-27たきと指示「自動挿入」）。
+          // 入っている値は上書きしない＝本人が直した内容を消さない。保存は本人が押した時だけ
+          if (!(data.recruiter_name || "").trim() || !(data.recruiter_address || "").trim() || !(data.recruiter_contact || "").trim()) {
+            try {
+              const { data: ah } = await supabase.from("account_holders")
+                .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
+                .eq("auth_id", session.user.id).maybeSingle();
+              if (ah) {
+                const nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
+                const ad = [(ah.postal_code || "").trim() ? "〒" + ah.postal_code.trim() : "", (ah.address || "").trim()].filter(Boolean).join(" ");
+                const ct = (ah.contact_phone || "").trim() || (ah.contact_email || "").trim();
+                if (!(data.recruiter_name || "").trim() && nm) setRecruiterName(nm);
+                if (!(data.recruiter_address || "").trim() && ad) setRecruiterAddress(ad);
+                if (!(data.recruiter_contact || "").trim() && ct) setRecruiterContact(ct);
+              }
+            } catch {}
+          }
           setUniquePoint(tp.unique_point ?? data.unique_point ?? "");
           setAlwaysDo(tp.always_do ?? data.always_do ?? "");
           setBreakStyle(tp.break_style ?? data.break_style ?? "");
@@ -227,7 +244,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
   const BOX_ORDER = ["avatar","nickname","place","perks","staff","intro","ask","style"];
   const boxFilled = (k) => (
-    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!nickname.trim() : k === "place" ? !!placeCity.trim()
+    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!nickname.trim() : k === "place" ? !!recruiterAddress.trim()
     : k === "perks" ? perksOn.length > 0
     : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
@@ -306,10 +323,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16）
           { k:"avatar",   e:"🖼️", l:"ロゴ・アイコン", v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
           { k:"nickname", e:"✏️", l:"農園名",         req:true, v: nickname },
-          { k:"place",    e:"📍", l:"作業場所",       req:true, v: [placePref, placeCity, placeTown].filter(Boolean).join("") },
+          { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: recruiterAddress },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
-          { k:"recruiter", e:"🧾", l:"募集者の情報",  v: [recruiterName, recruiterAddress, recruiterContact].filter(x=>x && x.trim()).length ? `${[recruiterName, recruiterAddress, recruiterContact].filter(x=>x && x.trim()).length}件記入` : "" },
+          { k:"recruiter", e:"🧾", l:"募集者の情報",  req:true, v: [recruiterName, recruiterContact].filter(x=>x && x.trim()).join("／") },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
@@ -359,22 +376,20 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       </>)}
 
       {editBox==="place" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>作業場所（集合場所の既定値）</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:10, lineHeight:1.6 }}>求人作成の集合場所で「復元」を押すと、ここの住所が入ります。番地・建物名は公開されません。</p>
-      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>郵便番号</label>
-      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-        <input value={placeZip} onChange={e=>{ setPlaceZip(e.target.value); setPlaceZipError(""); }} placeholder="例：779-3401" className="field f-sans" style={{ flex:1, fontSize:14, marginBottom:0 }} />
-        <button onClick={searchPlaceZip} disabled={placeZipBusy} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:12, fontWeight:600, cursor: placeZipBusy ? "default" : "pointer", whiteSpace:"nowrap" }}>{placeZipBusy ? "検索中..." : "住所を検索"}</button>
-      </div>
-      {placeZipError && <p className="f-sans" style={{ fontSize:12, color:"#E53935", marginBottom:8 }}>{placeZipError}</p>}
-      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>都道府県</label>
-      <input value={placePref} onChange={e=>setPlacePref(e.target.value)} placeholder="例：徳島県" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
-      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>市区町村</label>
-      <input value={placeCity} onChange={e=>setPlaceCity(e.target.value)} placeholder="例：吉野川市" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
-      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>町域</label>
-      <input value={placeTown} onChange={e=>setPlaceTown(e.target.value)} placeholder="例：山川町〇〇" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
-      <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>番地・建物名</label>
-      <input value={placeAddr} onChange={e=>setPlaceAddr(e.target.value)} placeholder="例：1-2-3 〇〇ハイツ101" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+      {/* 作業場所（4分割）から住所・所在地に差し替え（2026-07-27たきと指示）。
+          労働者の募集広告に必要な明示事項so、求人ページの「募集者情報」に出る。
+          求人ごとの集合場所は求人作成フローで入力する（ここは募集者＝あなたの所在地） */}
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>住所・所在地</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>
+        労働者の募集広告には住所・所在地の明示が必要です。<b>あなたの求人ページに「募集者情報」として表示されます。</b>
+        新規登録で入力した住所を初期値にしています。
+      </p>
+      <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
+        style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
+        {carrying ? "読み込み中..." : "新規登録の内容を引き継ぐ"}
+      </button>
+      <input value={recruiterAddress} onChange={e=>setRecruiterAddress(e.target.value)} placeholder="例：〒779-3401 徳島県吉野川市山川町〇〇1-2-3" maxLength={200}
+        className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:16 }} />
       </>)}
 
       {editBox==="perks" && (<>
@@ -441,9 +456,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集者の氏名または名称</label>
             <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎／〇〇農園" maxLength={100}
               className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:14 }} />
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>住所・所在地</label>
-            <input value={recruiterAddress} onChange={e=>setRecruiterAddress(e.target.value)} placeholder="例：徳島県吉野川市〇〇町1-2-3" maxLength={200}
-              className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:14 }} />
+            {/* 住所・所在地は「📍住所・所在地」ボックスへ移した（2026-07-27・重複解消） */}
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>連絡先</label>
             <input value={recruiterContact} onChange={e=>setRecruiterContact(e.target.value)} placeholder="例：088-000-0000" maxLength={100}
               className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
