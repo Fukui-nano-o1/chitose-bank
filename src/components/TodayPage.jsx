@@ -368,9 +368,9 @@ export function TodayPage({ me, defaultRole }) {
     // 中身（遷移先・実行内容）は未定so nav/rpc は持たせない＝現状は常に「該当なし」の薄い箱として並ぶ
     w_revision:  { icon:"📝", title:"求職に修正のお願い", btn:"修正する →" },
     w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
-    // 採用済みなら作業日でなくても開始ページへ入れる（2026-07-27たきと指示）。行き先は件数に依らず同じso直行(direct)
-    w_start:     { icon:"▶", title:"作業を開始する",       btn:"開始ページへ →",   direct:true, nav: () => "/profile/worker/approved" },
-    // 作業が始まっていれば終了の箱も開ける（2026-07-27たきと指示）。行き先は件数に依らず同じso直行(direct)
+    // w_start（作業を開始する）は廃止（2026-07-27たきと指示）：開始時刻が来たらDB側のcron
+    // auto_start_work() が自動で開始を記録するため、働き手に押させる箱を置かない
+    // 採用済みなら終了の箱も開ける（2026-07-27たきと指示）。行き先は件数に依らず同じso直行(direct)
     w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   direct:true, nav: () => "/profile/worker/approved" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
@@ -392,7 +392,7 @@ export function TodayPage({ me, defaultRole }) {
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "confirm_start", "complete"],
-    worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_start", "w_review"],
+    worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_review"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
@@ -549,21 +549,17 @@ export function TodayPage({ me, defaultRole }) {
         {/* 【やること】採配台：状態カードを締切の近い順に。①②⑧=遷移／③〜⑦=直接実行。件数=今日タブのバッジ(todo)と一致 */}
         {(() => {
           // 最新順（sort_keyの新しい順・同日なら求人番号の新しい順）
-          const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
+          const myTodos = todos.filter(t => t.my_role === role && t.stage !== "w_start").sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
           // 用件（stage）ごとに1箱へ集約。該当ありは最新順で上位、該当なしもカタログ順で常時表示（薄表示・タップ不可）
           const activeOrder = []; const byStage = new Map();
           [["t_card", tCard], ["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chatは削除・2026-07-25）
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
-          // 採用済みの働き手は、作業日でなくても「作業を開始する」を開ける（2026-07-27たきと指示）。
-          // my_todo_itemsのw_startは作業日限定so、無い時だけ採用済みの仕事で箱を灯す（バッジ＝件数も出る）
-          if (role === "worker" && !byStage.has("w_start") && hiredMine.length) {
-            byStage.set("w_start", hiredMine.map(e => ({ ...e, stage: "w_start" })));
-            activeOrder.push("w_start");
-          }
-          // 作業が始まったら「終了を確認して評価」も開ける（2026-07-27たきと指示）。
-          // my_todo_itemsのw_reviewは農家の完了記録の後に出るso、開始済みの仕事で先に灯す
-          if (role === "worker" && !byStage.has("w_review") && startedMine.length) {
-            byStage.set("w_review", startedMine.map(e => ({ ...e, stage: "w_review" })));
+          // 「終了を確認して評価」は採用済みなら常に開ける（2026-07-27たきと指示）。
+          // my_todo_itemsのw_reviewは農家の完了記録の後にしか出ないso、それを待たずに灯す。
+          // 開始は自動（auto_start_work）になったため、開始済みがあればそれを優先して件数に出す
+          const reviewItems = startedMine.length ? startedMine : hiredMine;
+          if (role === "worker" && !byStage.has("w_review") && reviewItems.length) {
+            byStage.set("w_review", reviewItems.map(e => ({ ...e, stage: "w_review" })));
             activeOrder.push("w_review");
           }
           const catalog = TODO_STAGE_CATALOG[role] || [];

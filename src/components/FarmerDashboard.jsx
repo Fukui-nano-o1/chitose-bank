@@ -1158,8 +1158,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   const jobExpired = jobPast && !jobCompleted;
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
                   const calHit = !!calDay && calDay.jobs.includes(jn);
+                  // 未対応（＝農家の番）の応募が1件でもあるカードは、赤影＋跳ねで気づかせる（2026-07-27たきと指示）。
+                  // 既存の .cb-urgent-card（赤影＋3.5秒の浮遊ループ）をそのまま使う。終わった求人は静かにする
+                  const cardUrgent = !jobPast && byJob[jn].some(a => todoAppIds.has(a.id));
                   return (
-                    <div key={`job-${jn}`} ref={el => { jobCardRefs.current[jn] = el; }} className="cb-app-jobcard"
+                    <div key={`job-${jn}`} ref={el => { jobCardRefs.current[jn] = el; }} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
                       style={{ gridColumn:"1/-1", position:"relative", display:"flex", alignItems:"stretch", background: calHit ? "#FFF6DE" : "#fff", border:"1px solid " + (calHit ? "#E8C77A" : "#EBEBEB"), borderRadius:14, overflow:"hidden", marginTop:2, transition:"background .5s", pointerEvents: jobPast ? "none" : undefined }}>
                       {jobPast && (
                         <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
