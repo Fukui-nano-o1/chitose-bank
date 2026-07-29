@@ -50,6 +50,10 @@ export function JobSearchMapView({ onRegister, me }) {
   // 自分の求人か（2026-07-22）：自分の求人には応募フッター（日給・応募ボタン）を出さない。
   // jobsのRLS owner selectで自分の行だけ返る（他人の求人はnull＝false）
   const [isOwnJob, setIsOwnJob] = useState(false);
+  // 出どころ（cb_jobBackTo）は開いた時点でstateに引き取る（2026-07-27）：
+  // 描画のたびにsessionStorageを読むと、消し忘れが次の求人に持ち越されて戻り先を誤る
+  const [backTo, setBackTo] = useState(null);
+
   useEffect(() => {
     if (!selectedJob || !me) { setIsOwnJob(false); return; }
     let cancelled = false;
@@ -90,14 +94,6 @@ export function JobSearchMapView({ onRegister, me }) {
       const { data: cnts } = await supabase.rpc("employer_public_job_counts", { p_job_number: selectedJob.id });
       if (cnts) setPastJobsCounts(cnts);
     } catch {}
-  };
-  const openPastJob = (row) => {
-    if (row.job_number === selectedJob.id) { setPastJobsOpen(false); setFarmIntroOpen(false); return; } // 今の求人ならボックスを閉じるだけ
-    const job = mapJobPublicRow(row);
-    setJobBackStack(prev => [...prev, selectedJob]);
-    setPastJobsOpen(false); setFarmIntroOpen(false);
-    openJob(job);
-    try { window.scrollTo(0, 0); } catch {}
   };
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTargetField, setReportTargetField] = useState("");
@@ -240,13 +236,6 @@ export function JobSearchMapView({ onRegister, me }) {
       } catch { setLikeDone(job); }
     }
   };
-  const toggleSave = async (job) => {
-    if (!me) { visitorGuide(); return; }
-    const isSaved = savedIds.has(job.id);
-    // 未回答ユーザーの「最初のいいね」の前にきっかけアンケート（追加時のみ・解除時は出さない・2026-07-24）
-    if (!isSaved && surveyAnswered === false) { setSurveyJob(job); return; }
-    performSave(job);
-  };
   const toggleSurveyReason = (v) => setSurveyReasons(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const submitSurvey = async () => {
     if (surveySaving || !me) return;
@@ -299,9 +288,15 @@ export function JobSearchMapView({ onRegister, me }) {
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); setDetailTab("content"); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
-  // 出どころ（cb_jobBackTo）は開いた時点でstateに引き取る（2026-07-27）：
-  // 描画のたびにsessionStorageを読むと、消し忘れが次の求人に持ち越されて戻り先を誤る
-  const [backTo, setBackTo] = useState(null);
+
+  const openPastJob = (row) => {
+    if (row.job_number === selectedJob.id) { setPastJobsOpen(false); setFarmIntroOpen(false); return; } // 今の求人ならボックスを閉じるだけ
+    const job = mapJobPublicRow(row);
+    setJobBackStack(prev => [...prev, selectedJob]);
+    setPastJobsOpen(false); setFarmIntroOpen(false);
+    openJob(job);
+    try { window.scrollTo(0, 0); } catch {}
+  };
   // 出どころは開いた時点で引き取る（タブ指定はURL #/work/job/{番号}/questions が担うのでフラグは持たない）
   useEffect(() => {
     if (!selectedJob) return;
@@ -362,6 +357,8 @@ export function JobSearchMapView({ onRegister, me }) {
   // プロフィールゲートのモーダル状態。null=非表示 / {mode:"soft"}=クライアント側の空チェック（両方選べる）
   // / {mode:"hard", hasNickname, qaAnswered, qaRequired}=サーバー側の必須ゲート（プロフィールを書く、のみ）
   const [profileGate, setProfileGate] = useState(null);
+
+  const applyAvailRef = useRef(null);
 
   // apply_to_job本体（プロフィールゲート通過後、または「このまま応募する」選択後に呼ぶ）
   const doApply = async () => {
@@ -490,7 +487,6 @@ export function JobSearchMapView({ onRegister, me }) {
   // 応募時の来られる日宣言（2026-07-24）：期間求人（date_end有り・単日でない）だけ、応募シートで日程を選ぶ。
   // applyAvailRefに最終値（"any"／日付配列／null）を同期的に入れてからhandleApply＝ゲート往復でも保持できる
   const [applyDates, setApplyDates] = useState([]); // 選択中の特定日（"YYYY-MM-DD"）
-  const applyAvailRef = useRef(null);
   useEffect(() => { setApplyConfirmOpen(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);
   const isPeriodJob = !!(selectedJob && selectedJob.dateEndRaw && selectedJob.dateEndRaw !== selectedJob.dateStartRaw);
   // 期間内の日付を "YYYY-MM-DD" 配列で列挙（開始〜終了・両端含む）
@@ -513,6 +509,14 @@ export function JobSearchMapView({ onRegister, me }) {
     // 見ていた求人からログイン画面へ飛ばすと文脈が切れるため、同じ画面の上に重ねる
     if (signupOpen) { openLoginBox(); return; }
     alert("現在は招待制です。招待を受けた方は招待メールのアドレスでログインしてください。");
+  };
+
+  const toggleSave = async (job) => {
+    if (!me) { visitorGuide(); return; }
+    const isSaved = savedIds.has(job.id);
+    // 未回答ユーザーの「最初のいいね」の前にきっかけアンケート（追加時のみ・解除時は出さない・2026-07-24）
+    if (!isSaved && surveyAnswered === false) { setSurveyJob(job); return; }
+    performSave(job);
   };
   const applyBtnOnClick = !me ? visitorGuide
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
