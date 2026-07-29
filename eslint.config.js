@@ -38,6 +38,11 @@ export default defineConfig([
       //   ESLint本体のno-undefはJSX識別子を見ないため、この専用ルールが必須（本命3つ目）
       'react/jsx-no-undef': 'error',
       'react-hooks/rules-of-hooks': 'error',
+      // ④ no-use-before-define … const/let を宣言より前で参照（TDZ。実行時に
+      //   「Cannot access ... before initialization」で画面が真っ白になる。2026-07-29に
+      //   応募者ページで実際に発生）。関数宣言は巻き上げが効くので対象外（functions:false）。
+      //   2026-07-29に既存48件を全て解消したうえで error として常設する
+      'no-use-before-define': ['error', { functions: false, classes: false, variables: true, allowNamedExports: true }],
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipJSXText: true, skipComments: true }],
       'no-constant-binary-expression': 'off',
