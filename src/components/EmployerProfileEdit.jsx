@@ -244,7 +244,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
   const BOX_ORDER = ["avatar","nickname","place","perks","staff","intro","ask","style"];
   const boxFilled = (k) => (
-    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!nickname.trim() : k === "place" ? !!recruiterAddress.trim()
+    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!recruiterAddress.trim()
     : k === "perks" ? perksOn.length > 0
     : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
@@ -275,7 +275,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       const textsPending = {};
       Object.keys(desiredTexts).forEach(k => { if (desiredTexts[k] !== (approvedTextsRef.current[k] ?? "")) textsPending[k] = desiredTexts[k]; });
       const { error } = await supabase.from("employer_profiles").upsert({
-        auth_id: session.user.id, nickname: nickname.trim(), pr: pr.trim(),
+        auth_id: session.user.id,
+        // 表示名(nickname)は既存の値を尊重し、空のときだけ氏名・名称で埋める（チャット等の「〇〇さん」が空にならないように）
+        nickname: (nickname.trim() || recruiterName.trim()), pr: pr.trim(),
         place_zip: placeZip.trim(), place_prefecture: placePref.trim(), place_city: placeCity.trim(),
         place_town: placeTown.trim(), place_address: placeAddr.trim(),
         has_transport: hasTransport, has_parking: hasParking, has_commute_allowance: hasCommuteAllowance,
@@ -322,11 +324,11 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
         {[
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16）
           { k:"avatar",   e:"🖼️", l:"ロゴ・アイコン", v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
-          { k:"nickname", e:"✏️", l:"農園名",         req:true, v: nickname },
+          { k:"nickname", e:"✏️", l:"氏名・名称",     req:true, v: recruiterName },
           { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: recruiterAddress },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
-          { k:"recruiter", e:"🧾", l:"募集者の情報",  req:true, v: [recruiterName, recruiterContact].filter(x=>x && x.trim()).join("／") },
+          { k:"recruiter", e:"🧾", l:"連絡先",         req:true, v: recruiterContact },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
@@ -371,13 +373,24 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       </>)}
 
       {editBox==="nickname" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>農園名・屋号・社名</label>
-      <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：山川ファーム / 千歳農園" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
+      {/* 農園名から氏名・名称に差し替え（2026-07-27たきと指示）。労働者の募集広告に必要な明示事項なので、
+          求人ページの「募集者情報」に出る。個人なら氏名、法人・屋号があればその名称 */}
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>氏名・名称</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>
+        労働者の募集広告には募集者の氏名または名称の明示が必要です。<b>あなたの求人ページに「募集者情報」として表示されます。</b>
+        新規登録で入力した内容を初期値にしています。
+      </p>
+      <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
+        style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
+        {carrying ? "読み込み中..." : "新規登録の内容を引き継ぐ"}
+      </button>
+      <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎 ／ 千歳農園" maxLength={100}
+        className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:16 }} />
       </>)}
 
       {editBox==="place" && (<>
       {/* 作業場所（4分割）から住所・所在地に差し替え（2026-07-27たきと指示）。
-          労働者の募集広告に必要な明示事項so、求人ページの「募集者情報」に出る。
+          労働者の募集広告に必要な明示事項なので、求人ページの「募集者情報」に出る。
           求人ごとの集合場所は求人作成フローで入力する（ここは募集者＝あなたの所在地） */}
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>住所・所在地</label>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>
@@ -453,9 +466,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
               style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
               {carrying ? "読み込み中..." : "新規登録の内容を引き継ぐ"}
             </button>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集者の氏名または名称</label>
-            <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎／〇〇農園" maxLength={100}
-              className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:14 }} />
+            {/* 氏名・名称は「✏️氏名・名称」ボックスへ移した（2026-07-27・重複解消） */}
             {/* 住所・所在地は「📍住所・所在地」ボックスへ移した（2026-07-27・重複解消） */}
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>連絡先</label>
             <input value={recruiterContact} onChange={e=>setRecruiterContact(e.target.value)} placeholder="例：088-000-0000" maxLength={100}
