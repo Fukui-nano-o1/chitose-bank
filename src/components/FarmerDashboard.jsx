@@ -625,7 +625,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // フィルタは上部/浮遊バーのボタンタップで切り替える（スワイプとの二重割り当てをやめる）。
   // 求人カードのアイコン列など内側の横スクロールで始まったタッチは奪わない
   // スワイプの追従（2026-07-27たきと指示・同日改定）：指の動きに合わせて求人カードだけが同じ方向へズレ、
-  // 指が30px動いた時点で発火（カレンダーの開閉）。カードの動きは指の半分の速さ（ゆっくり追う）
+  // 指が20px動いた時点で発火（カレンダーの開閉）。カードは指と1対1で動く（上限40px）
   // ※appGridRef の宣言は上部（スケルトン計測の useSkeletonProbeOn より前）に移動済み
   // animate=false（指の追従中）＝transitionを切って1:1でついてくる／animate=true（発火後・指を離した後）
   // ＝transitionを効かせて滑らかに戻す。
@@ -647,15 +647,17 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
     if (s.lock == null) {
       if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;      // まだ向きが決まっていない
-      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";       // 一度決めたら最後まで変えない
+      // 斜めのスワイプも横として拾う（2026-07-27たきと指示「判定が厳しい」）。
+      // 真下・真上へ引いた時だけ縦（＝スクロール）に倒す
+      s.lock = Math.abs(dx) >= Math.abs(dy) * 0.7 ? "h" : "v"; // 一度決めたら最後まで変えない
     }
     if (s.lock !== "h") return;                               // 縦スクロールは邪魔しない
-    // 追従は指の半分の速さ（2026-07-27たきと指示「2倍ゆっくり」）＝勢いで暴発しにくい
-    setSwipeDx(Math.max(-15, Math.min(15, dx * 0.5)));        // 指が30px動くとカードは15px動く
-    if (Math.abs(dx) >= 30) {                                 // 30pxで発火（従来20pxの1.5倍・たきと指示）
+    // 追従は指と1対1（たきと指示「指に連動させて」）。上限だけ設けて画面外まで流れないようにする
+    setSwipeDx(Math.max(-40, Math.min(40, dx)));
+    if (Math.abs(dx) >= 20) {                                 // 20pxで発火（30pxは厳しすぎた・たきと報告）
       s.fired = true;
       // ズレた形をひと呼吸だけ見せてから戻す＝「ここで効いた」が目で分かる
-      setSwipeDx(dx > 0 ? 15 : -15, true);
+      setSwipeDx(dx > 0 ? 20 : -20, true);
       setTimeout(() => setSwipeDx(0, true), 160);
       setCalOnTop(v => {
         const next = !v;
@@ -677,7 +679,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     })();
     appSwipeRef.current = inHScroll ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null, fired: false };
   };
-  // 指を離したら追従を戻すだけ（発火はonAppSwipeMoveの30px時点で済んでいる）
+  // 指を離したら追従を戻すだけ（発火はonAppSwipeMoveの20px時点で済んでいる）
   const onAppSwipeEnd = () => { appSwipeRef.current = null; setSwipeDx(0, true); };
   // 未完了＝農家側の対応が残っている応募（完了 or 見送りになるまで）
   const isApplicantDone = (a) => a.status === "completed" || a.status === "rejected";
