@@ -741,6 +741,42 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const renderApplicantCard = (a) => {
     // 旧・独自のチップ配色(badgeColor)は廃止（2026-07-26）：現在地バナーが段階色APP_PHASE_COLORを使う
     const wp = workerProfiles[a.worker_id];
+    // 操作ボタン（2026-07-27たきと指示）：現在地バナーの直下とカード末尾の2箇所に同じものを置く。
+    // 上＝状態を読んだ直後にそのまま押せる／下＝プロフィールを読み終えた流れで押せる。
+    /* ── ボタンは段階で出し分け（2026-07-26たきと指示）：
+                  応募中＝見送る／承認する → 承認後（質問未送信）＝質問を送る／チャットを開く →
+                  初面接後（質問送信済み）＝質問を送る／採用する → 採用後＝チャットを開く。
+                  段階はappPhaseKey（帯と同じ唯一のソース）＋interview_question_sends（質問送信履歴）で判定 ── */
+    const actionButtons = (() => {
+                const phase = appPhaseKey(a);
+                const chatBtn = (
+                  <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+                );
+                if (phase === "applied") return (
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={async ()=>{
+                      if (!confirm('この応募を見送りますか？')) return;
+                      const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
+                      if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
+                    }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
+                    <button onClick={async ()=>{
+                      const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
+                      if (error || !data?.ok) { alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
+                    }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
+                  </div>
+                );
+                if (phase === "interview") return (
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>📋 質問を送る</button>
+                    {qSentAppIds.has(a.id)
+                      ? <button onClick={()=>hireApplicant(a, wp?.nickname)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する</button>
+                      : chatBtn}
+                  </div>
+                );
+                return <div style={{ display:"flex", gap:8 }}>{chatBtn}</div>;
+    })();
     return (
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
               {/* 現在地バナー（2026-07-26たきと指示）：ステータスと説明を1つの帯にまとめる。
@@ -758,6 +794,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   </div>
                 );
               })()}
+              {/* バナー直下の操作ボタン（末尾と同じもの・2箇所） */}
+              <div style={{ marginBottom:12 }}>{actionButtons}</div>
               {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるso出さない（バナーが理由を説明する） */}
               {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
               <div style={{ marginBottom:10 }}>
@@ -795,40 +833,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               {a.status === "completed" && (
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
               )}
-              {/* ── ボタンは段階で出し分け（2026-07-26たきと指示）：
-                  応募中＝見送る／承認する → 承認後（質問未送信）＝質問を送る／チャットを開く →
-                  初面接後（質問送信済み）＝質問を送る／採用する → 採用後＝チャットを開く。
-                  段階はappPhaseKey（帯と同じ唯一のソース）＋interview_question_sends（質問送信履歴）で判定 ── */}
-              {(() => {
-                const phase = appPhaseKey(a);
-                const chatBtn = (
-                  <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
-                );
-                if (phase === "applied") return (
-                  <div style={{ display:"flex", gap:8 }}>
-                    <button onClick={async ()=>{
-                      if (!confirm('この応募を見送りますか？')) return;
-                      const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
-                      if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
-                    }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
-                    <button onClick={async ()=>{
-                      const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
-                      if (error || !data?.ok) { alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
-                    }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
-                  </div>
-                );
-                if (phase === "interview") return (
-                  <div style={{ display:"flex", gap:8 }}>
-                    <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>📋 質問を送る</button>
-                    {qSentAppIds.has(a.id)
-                      ? <button onClick={()=>hireApplicant(a, wp?.nickname)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する</button>
-                      : chatBtn}
-                  </div>
-                );
-                return <div style={{ display:"flex", gap:8 }}>{chatBtn}</div>;
-              })()}
+              {actionButtons}
       </div>
     );
   };
