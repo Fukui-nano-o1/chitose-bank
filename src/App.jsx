@@ -933,9 +933,8 @@ function InstallGuide({ me }) {
       <ol className="f-sans" style={{ margin:"0 0 14px", paddingLeft:20, fontSize:14, color:"#333", lineHeight:1.9 }}>
         {steps.map((s,i) => <li key={i}>{s}</li>)}
       </ol>
-      {images[slotKey]
-        ? <img src={images[slotKey]} alt={label+"の手順"} loading="lazy" decoding="async" style={{ width:"100%", borderRadius:12, display:"block" }} />
-        : <div className="f-sans" style={{ width:"100%", aspectRatio:"3 / 4", background:"#F5F5F5", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0", fontSize:13 }}>手順の画像（準備中）</div>}
+      {/* 画像が無いときは何も出さない（2026-07-27たきと指示）：「準備中」の空枠は訪問者には不要 */}
+      {images[slotKey] && <img src={images[slotKey]} alt={label+"の手順"} loading="lazy" decoding="async" style={{ width:"100%", borderRadius:12, display:"block" }} />}
       {admin && (
         <label className="f-sans" style={{ display:"inline-block", marginTop:10, fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>
           {uploadingSlot===slotKey ? "アップロード中..." : (images[slotKey] ? "画像を差し替え" : "＋ 画像をアップロード")}
@@ -949,7 +948,7 @@ function InstallGuide({ me }) {
   return (
     <div style={{ maxWidth:560, margin:"0 auto", padding:"40px 16px 60px" }}>
       <div style={{ textAlign:"center", marginBottom:28 }}>
-        <div style={{ fontSize:64, lineHeight:1, marginBottom:12 }}>🥦</div>
+        {/* 🥦は削除（2026-07-27たきと指示） */}
         <h1 className="f-sans" style={{ fontSize:24, fontWeight:800, color:"#222", margin:"0 0 6px" }}>chitose-bankをアプリとして入れる</h1>
         <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7, margin:0 }}>ホーム画面に追加すると、アプリのように開けて通知も受け取れます。</p>
         {/* 訪問者の「入れ方」タブから来る人向けに、何をするのかを最初に明記する（2026-07-27たきと指示） */}
