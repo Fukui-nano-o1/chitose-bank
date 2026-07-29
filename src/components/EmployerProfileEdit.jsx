@@ -51,6 +51,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [introMessage, setIntroMessage] = useState("");
   const [ownerComment, setOwnerComment] = useState("");
   const [staffCount, setStaffCount] = useState("");
+  // 募集者の情報（2026-07-27たきと指示）：氏名または名称／住所・所在地／連絡先。
+  // ★公開ビュー(employer_profiles_public)には載せていない＝働き手には出ない。本人と運営だけが見る。
+  //   求人票への掲載は規約・プラポリの改訂と本人同意が要る別の判断（同日の法務整理どおり）
+  const [recruiterName, setRecruiterName] = useState("");
+  const [recruiterAddress, setRecruiterAddress] = useState("");
+  const [recruiterContact, setRecruiterContact] = useState("");
   const [uniquePoint, setUniquePoint] = useState("");
   const [alwaysDo, setAlwaysDo] = useState("");
   const [breakStyle, setBreakStyle] = useState("");
@@ -95,6 +101,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
           setIntroMessage(tp.intro_message ?? data.intro_message ?? "");
           setOwnerComment(tp.owner_comment ?? data.owner_comment ?? "");
           setStaffCount(data.staff_count != null ? String(data.staff_count) : "");
+          setRecruiterName(data.recruiter_name || "");
+          setRecruiterAddress(data.recruiter_address || "");
+          setRecruiterContact(data.recruiter_contact || "");
           setUniquePoint(tp.unique_point ?? data.unique_point ?? "");
           setAlwaysDo(tp.always_do ?? data.always_do ?? "");
           setBreakStyle(tp.break_style ?? data.break_style ?? "");
@@ -230,6 +239,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
         has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
         staff_count: staffCount === "" ? null : Number(staffCount),
+        recruiter_name: recruiterName.trim(), recruiter_address: recruiterAddress.trim(), recruiter_contact: recruiterContact.trim(),
         interaction_style: interactionStyle || null,
         texts_pending: textsPending,
         texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
@@ -273,6 +283,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
           { k:"place",    e:"📍", l:"作業場所",       req:true, v: [placePref, placeCity, placeTown].filter(Boolean).join("") },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
+          { k:"recruiter", e:"🧾", l:"募集者の情報",  v: [recruiterName, recruiterAddress, recruiterContact].filter(x=>x && x.trim()).length ? `${[recruiterName, recruiterAddress, recruiterContact].filter(x=>x && x.trim()).length}件記入` : "" },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
@@ -389,6 +400,25 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
               <input type="number" value={staffCount} onChange={e=>setStaffCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
               <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>人</span>
             </div>
+      </>)}
+
+      {editBox==="recruiter" && (<>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>募集者の情報</label>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
+              募集をしている本人（または事業者）の情報です。<b>いまは働き手には表示されません</b>（あなたと運営だけが見られます）。
+            </p>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>募集者の氏名または名称</label>
+            <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎／〇〇農園" maxLength={100}
+              className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:14 }} />
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>住所・所在地</label>
+            <input value={recruiterAddress} onChange={e=>setRecruiterAddress(e.target.value)} placeholder="例：徳島県吉野川市〇〇町1-2-3" maxLength={200}
+              className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:14 }} />
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>連絡先</label>
+            <input value={recruiterContact} onChange={e=>setRecruiterContact(e.target.value)} placeholder="例：088-000-0000" maxLength={100}
+              className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:16, lineHeight:1.7 }}>
+              連絡先はサイト内には表示しません。働き手とのやり取りはチャットをお使いください。
+            </p>
       </>)}
 
       {editBox==="intro" && (<>
