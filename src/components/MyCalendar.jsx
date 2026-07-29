@@ -144,12 +144,14 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       ) : (
         <>
           <div onTouchStart={onCalTouchStart} onTouchEnd={onCalTouchEnd} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:10, touchAction:"pan-y", overflow:"hidden" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+            {/* 展開の2段（2026-07-27）：見出し（○○年○○月）が先に入り、盤面が少し遅れて開く */}
+            <div className="cb-cal-head" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
               <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"‹"}</button>
               <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{cvYear}年{cvMonth+1}月</span>
               <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"›"}</button>
             </div>
-            <div key={`${cvYear}-${cvMonth}`} className={calAnim} style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2 }}>
+            {/* calAnim（月送りのスライド）がある時はそちらを優先＝展開アニメと二重に動かさない */}
+            <div key={`${cvYear}-${cvMonth}`} className={calAnim || "cb-cal-body"} style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2 }}>
               {CALENDAR_WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:9, color:"#B0B0B0", padding:"2px 0" }}>{wd}</div>)}
               {cells.map((dd, i) => {
                 if (!dd) return <div key={`e${i}`} />;

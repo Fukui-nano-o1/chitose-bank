@@ -83,6 +83,21 @@ input:focus { outline: none; }
 @keyframes stepInLeft   { from { opacity:0; transform:translateX(-120px); } to { opacity:1; transform:translateX(0); } }
 /* 求人プレビューのポップアップ（縮小→等倍・軽いオーバーシュートで弾む）。フェード(opacity)なし。
    fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
+/* ── カレンダーの展開（2026-07-27たきと指示「ヌルッと」）：
+   ①「○○年○○月」の見出しの箱がふわっと現れ ②そこから盤面が下へ開く、の2段。
+   高さはgrid-template-rows 0fr→1frで滑らかに伸ばす（中身の実寸を測らずにautoへ animate できる技法）。
+   古い環境でこの技法が効かない場合も、opacityのフェードだけは効くので「出ない」事故にはならない ── */
+@keyframes cbCalUnfold { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
+.cb-cal-reveal { display: grid; grid-template-rows: 1fr; animation: cbCalUnfold .5s cubic-bezier(.22, .8, .36, 1) both; }
+.cb-cal-reveal > * { min-height: 0; overflow: hidden; }
+/* 見出し（月）→ 盤面 の順で入る。盤面は見出しの後（0.16秒後）に少し遅れて開く */
+@keyframes cbCalHead { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+@keyframes cbCalBody { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.cb-cal-head { animation: cbCalHead .26s ease both; }
+.cb-cal-body { animation: cbCalBody .34s cubic-bezier(.22, .8, .36, 1) .16s both; }
+@media (prefers-reduced-motion: reduce) {
+  .cb-cal-reveal, .cb-cal-head, .cb-cal-body { animation: none; }
+}
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
 /* 出現アニメ中はタップを受け付けない（2026-07-27・日程チップの誤タップ修理）。
    0.85→1へ弾みながら拡大する間は中身が動いているため、狙った位置と実際に当たる要素がずれる。

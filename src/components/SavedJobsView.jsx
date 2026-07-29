@@ -127,7 +127,8 @@ export function SavedJobsView({ me }) {
           <button onClick={handleUndo} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>元に戻す</button>
         </div>
       )}
-      {calOnTop && <div style={{ marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>}
+      {/* 展開はヌルッと（2026-07-27たきと指示）：cb-cal-revealが高さ0→自動へ滑らかに開く */}
+      {calOnTop && <div className="cb-cal-reveal" style={{ marginBottom:14 }}><div><MyCalendar onDayTapJobs={onCalDayTap} /></div></div>}
       {rows.length > 0 && (
         <button onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans"
           style={{ width:"100%", background:"none", border:"none", padding:"0 0 6px", fontSize:11, color:"#B0B0B0", textAlign:"center", cursor:"pointer" }}>
