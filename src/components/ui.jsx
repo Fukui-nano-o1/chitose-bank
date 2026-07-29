@@ -322,7 +322,10 @@ export function AutoSkeleton({ shapeKey, fallbackHeight = 96, fallbackCount = 4 
   return (
     <div style={style} aria-busy="true" aria-label="読み込み中">
       {heights.map((h, i) => (
-        <div key={i} className="ghost-line" style={{ height: h, borderRadius: 14 }} />
+        /* 横いっぱいだった行は仮配置でも横いっぱいに（応募者ページのカードは1行1件so、
+           列に詰めるとモザイク状になっていた・2026-07-29修理） */
+        <div key={i} className="ghost-line"
+          style={{ height: h, borderRadius: 14, gridColumn: shape && shape.spans && shape.spans[i] ? "1 / -1" : undefined }} />
       ))}
     </div>
   );
