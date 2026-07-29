@@ -9,13 +9,15 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, calFmtDate, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
-import { Avatar } from "./ui";
+import { Avatar, SkeletonList } from "./ui";
+import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
 
 // ── SavedJobsView（ステータス一覧・#/saved） ──
 export function SavedJobsView({ me }) {
-  const [rows, setRows] = useState(null);           // my_job_actions() の行（求人＋自分の応募）
-  const [myProfile, setMyProfile] = useState(null); // 自分のアイコン・ニックネーム
+  // 前回の内容が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）
+  const [rows, setRows] = useState(() => getCache("saved:rows") ?? null);
+  const [myProfile, setMyProfile] = useState(() => getCache("saved:me") ?? null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
   // カレンダー（2026-07-27たきと指示）：働き手のカレンダーページを廃止し、この面の上部へ移植。
@@ -70,8 +72,8 @@ export function SavedJobsView({ me }) {
           supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", me.id).maybeSingle(),
         ]);
         if (cancelled) return;
-        setRows(actRes.data || []);
-        setMyProfile(wpRes.data || null);
+        setRows(actRes.data || []); setCache("saved:rows", actRes.data || []);
+        setMyProfile(wpRes.data || null); setCache("saved:me", wpRes.data || null);
       } catch { if (!cancelled) setRows([]); }
     })();
     return () => { cancelled = true; };
@@ -99,7 +101,8 @@ export function SavedJobsView({ me }) {
     });
   };
 
-  if (rows === null) return null;
+  // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる
+  if (rows === null) return <div style={{ paddingTop:4 }}><SkeletonList n={4} /></div>;
 
   const photoOf = (r) => (r.photos && r.photos[0]) ? (typeof r.photos[0] === "string" ? r.photos[0] : (r.photos[0].thumb || r.photos[0].url)) : null;
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;

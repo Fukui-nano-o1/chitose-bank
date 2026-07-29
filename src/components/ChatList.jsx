@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { chatCache } from "../lib/chatCache";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
+import { SkeletonList } from "./ui";
 import { pushStatus, enablePush } from "../lib/push";
 import { fmtJstShort, ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
 import { Avatar, LinkifiedText } from "./ui";
@@ -250,7 +251,8 @@ export function ChatList() {
         </div>
       )}
       {loading ? (
-        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+        /* 空白や「読み込み中...」でなく、これから出るスレッドと同じ形の箱を並べる（2026-07-27たきと指示） */
+        <SkeletonList n={4} />
       ) : rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
           <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
