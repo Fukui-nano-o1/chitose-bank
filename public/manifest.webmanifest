@@ -1,6 +1,6 @@
 {
   "name": "chitose-bank",
-  "short_name": "chitose",
+  "short_name": "chitose-bank",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -13,7 +13,7 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'chitose-bank',
-        short_name: 'chitose',
+        short_name: 'chitose-bank', // 表記は全面 chitose-bank に統一（2026-07-27たきと指示）
         display: 'standalone',
         theme_color: '#00A86B',
         background_color: '#FFFFFF',
