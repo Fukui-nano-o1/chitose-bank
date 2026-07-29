@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
-import { Avatar } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
 //   textareaのフォーカス・下書きが消える（LandingFlowのフォーカス消失バグと同族）
@@ -176,6 +176,8 @@ export function TodayPage({ me, defaultRole }) {
   const [hasWorker, setHasWorker] = useState(() => getCache("today:roles")?.w ?? false);
   const [hasFarmer, setHasFarmer] = useState(() => getCache("today:roles")?.f ?? false);
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
+  // 仮配置の骨を測るref：役割で箱の数が違うので鍵も分ける（働き手／農家）
+  const skelRef = useSkeletonProbe("today:" + role);
   const [todos, setTodos] = useState(() => getCache("today:todos") ?? []);     // やることフィード（my_todo_items・状態カードの単一ソース）
   const [jobCount, setJobCount] = useState(() => getCache("today:roles")?.jc ?? 0); // 自分が出した求人の数（下書き含む）。カレンダーを開けるかの判定に使う
   const [hiredIds, setHiredIds] = useState(() => new Set(getCache("today:hired") ?? [])); // 採用済み（両者の確認が揃った）自分の応募ID
@@ -554,8 +556,10 @@ export function TodayPage({ me, defaultRole }) {
       <div key={slideKey} ref={contentRef} style={{
         animation: slideDir ? `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` : undefined,
       }}>
+      {/* 読み込み中は仮配置（2026-07-27たきと指示）。このページは往復が多い
+          （セッション→カレンダー→やること→プロフィール類）ので待ちが最も長い */}
       {loading ? (
-        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+        <AutoSkeleton shapeKey={"today:" + role} />
       ) : (<>
         {/* 【やること】採配台：状態カードを締切の近い順に。①②⑧=遷移／③〜⑦=直接実行。件数=今日タブのバッジ(todo)と一致 */}
         {(() => {
@@ -578,7 +582,7 @@ export function TodayPage({ me, defaultRole }) {
           return (
             <div style={{ marginBottom:24 }}>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
+              <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
                 {stageOrder.map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} />)}
               </div>
             </div>

@@ -11,6 +11,7 @@ import { Avatar } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
+  const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
   const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -125,6 +126,7 @@ export function ChatView({ applicationId, onBack }) {
     try {
       const { data } = await supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true});
       if (data) setMsgs(data);
+      setMsgsLoading(false); // 取得できた時点で仮配置を畳む（0件なら「まだメッセージはありません」に切り替わる）
       // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -162,7 +164,7 @@ export function ChatView({ applicationId, onBack }) {
     // ②同じ相手の別応募＝threadAppsに行がある＝相手情報・一覧は取得済みso、
     //   セッション/相手プロフィール/イニシャル/全応募の再取得（4往復）を丸ごと省き、
     //   手元の行でapplyActive→messagesの読込だけ行う（体感が一気に縮む）
-    setMsgs([]);
+    setMsgs([]); setMsgsLoading(true); // 切替＝前の残像を消し、仮配置に戻す
     const localRow = threadApps.find(r => r.id === applicationId);
     if (localRow && myId) {
       setAppIds([applicationId]);
@@ -487,7 +489,15 @@ export function ChatView({ applicationId, onBack }) {
       <div style={{ flex:1, minHeight:0, position:"relative", display:"flex", flexDirection:"column" }}>
       <div ref={msgScrollRef} style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
         {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
-        {msgs.length === 0 ? (
+        {/* 読み込み中は吹き出しの仮配置（2026-07-27たきと指示）。「まだメッセージはありません」を
+            先に出すと、履歴があるのに一瞬「無い」と誤読させるため、読込中と空を分ける */}
+        {msgs.length === 0 && msgsLoading ? (
+          <div aria-busy="true" aria-label="読み込み中" style={{ display:"grid", gap:10, padding:"8px 4px" }}>
+            {[0,1,2,3].map(i => (
+              <div key={i} className="ghost-line" style={{ height: i % 2 ? 44 : 62, width: i % 2 ? "58%" : "72%", borderRadius:16, justifySelf: i % 2 ? "end" : "start" }} />
+            ))}
+          </div>
+        ) : msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>面接や打ち合わせの連絡は、ここで行えます。</p>
         ) : msgs.map(m => (
           <Fragment key={m.id}>

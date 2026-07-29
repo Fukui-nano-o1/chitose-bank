@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
+import { AutoSkeleton } from "./ui";
 
 export function WorkerExperiencePage() {
   const [expEntries, setExpEntries] = useState([]);       // 経験の構造化申告 {crop,task,duration}（最大5）
@@ -51,7 +52,7 @@ export function WorkerExperiencePage() {
       <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>📋 経験・できること（自己申告）</h1>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
       {loading ? (
-        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+        <AutoSkeleton fallbackHeight={84} fallbackCount={4} /> /* 読み込み中は入力欄の仮配置（2026-07-27） */
       ) : (<>
         {/* 経験の構造化申告（作物×作業×どのくらい・最大5） */}
         <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）</p>

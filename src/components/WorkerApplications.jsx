@@ -3,7 +3,7 @@ import { useState, useEffect, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL } from "../lib/utils";
-import { YesNoPill } from "./ui";
+import { YesNoPill, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 
@@ -199,6 +199,8 @@ export function WorkerApplications({ filter, me }) {
   const color = (s) => s==="approved"||s==="contracted"||s==="working" ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="rejected" ? {bg:"#F3F3F3",fg:"#999"} : {bg:"#FFF4E0",fg:"#C77700"};
   // 承認済みタブのグリッド用（農家の作成中ページと同設計・2026-07-16）
   const [sheetAppId, setSheetAppId] = useState(null); // タップした応募のボトムシート
+  // 仮配置の骨を測るref：タブごとに形が違う（返事待ち／きょうの仕事）ので鍵も分ける
+  const skelRef = useSkeletonProbe("wapp:" + filter);
   // 帯は「働き手側の実態」を出す：農家が完了記録済みでも、こちらの終了確認・評価が残っていれば「評価待ち」
   const ribbonLabel = (a) => {
     if (a.status === "completed") {
@@ -432,8 +434,10 @@ export function WorkerApplications({ filter, me }) {
       </>)}
       {/* お仕事の流れバナー（説明ボックス）は削除（2026-07-27たきと指示）：
           同じ7段は各求人カードの流れバーが出しているso重複 */}
+      {/* 読み込み中は仮配置（前回この面が描いた形・2026-07-27たきと指示「1秒以上かかるページに」）。
+          応募＋求人＋プロフィールで数往復するので、文字の「読み込み中...」では待ちが長く感じる */}
       {loading ? (
-        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 0" }}>読み込み中...</p>
+        <AutoSkeleton shapeKey={"wapp:" + filter} />
       ) : filter !== "approved" ? (
         // 返事待ちタブ（第9弾）：応募中カード（再設計）＋待っている間にできること＋過去の応募
         (apps.length === 0 && pastApps.length === 0) ? (
@@ -444,7 +448,7 @@ export function WorkerApplications({ filter, me }) {
           </div>
         ) : (
           <>
-            {apps.length > 0 && <div style={{ display:"grid", gap:12 }}>{apps.map(a => renderWaitingCard(a))}</div>}
+            {apps.length > 0 && <div ref={skelRef} style={{ display:"grid", gap:12 }}>{apps.map(a => renderWaitingCard(a))}</div>}
             {waitingTodoBox}
             {pastAppsBlock}
           </>
@@ -457,7 +461,7 @@ export function WorkerApplications({ filter, me }) {
         </div>
       ) : (
         // フロー可視化のため1列リスト（2026-07-19）：写真＋タイトル＋状態＋進捗ステッパー。タップでボトムシート
-        <div style={{ display:"grid", gap:12 }}>
+        <div ref={skelRef} style={{ display:"grid", gap:12 }}>
           {apps.map(a => {
             const job = jobDates[a.job_number] || {};
             const photo = job.photos && job.photos[0] ? (typeof job.photos[0] === "string" ? job.photos[0] : job.photos[0]?.url) : null;

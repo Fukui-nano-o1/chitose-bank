@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, farmHostQa, farmIntroTopics, perkBadges } from "../lib/utils";
-import { Avatar } from "./ui";
+import { Avatar, AutoSkeleton } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 
@@ -307,7 +307,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       else alert("保存に失敗しました：" + error.message);
     } catch { setSaving(false); alert("保存に失敗しました。"); }
   };
-  if (loading) return <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
+  // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
+  if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
   const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
@@ -598,7 +599,8 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
       setLoading(false);
     })();
   }, []);
-  if (loading) return <p className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
+  // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
+  if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
   const topics = data ? farmIntroTopics(data) : [];
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:400 }}>

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { WORKER_DECLARATIONS } from "../lib/utils"; // CROP/TASK_OPTIONSは経験ページ（WorkerExperiencePage）へ移設済み
-import { Avatar, LFPillSelect } from "./ui";
+import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
 import { WorkerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 
@@ -292,7 +292,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       else alert("保存に失敗しました：" + error.message);
     } catch { setSaving(false); alert("保存に失敗しました。"); }
   };
-  if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
+  // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）
+  if (loading) return <AutoSkeleton fallbackHeight={92} fallbackCount={5} />;
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {/* 雇い手プロフィール編集と同じ構造（2026-07-25たきと指示）：見出しとページ全体の保存は廃止。
@@ -599,7 +600,8 @@ function WorkerProfilePreview({ me, onEdit, onEditItem }) {
       setLoading(false);
     })();
   }, []);
-  if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>;
+  // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）
+  if (loading) return <AutoSkeleton fallbackHeight={92} fallbackCount={5} />;
   const prQa = Array.isArray(profile?.pr_qa) ? profile.pr_qa : [];
   const pendingPrQa = Array.isArray(profile?.pr_qa_pending) ? profile.pr_qa_pending : [];
   const hasPending = !!(profile?.pr_pending || pendingPrQa.length > 0);
