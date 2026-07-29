@@ -83,20 +83,22 @@ input:focus { outline: none; }
 @keyframes stepInLeft   { from { opacity:0; transform:translateX(-120px); } to { opacity:1; transform:translateX(0); } }
 /* 求人プレビューのポップアップ（縮小→等倍・軽いオーバーシュートで弾む）。フェード(opacity)なし。
    fill無し=終了後にtransformが外れ、内部のfixed要素(ライトボックス等)の基準を壊さない */
-/* ── カレンダーの展開（2026-07-27たきと指示「ヌルッと」）：
-   ①「○○年○○月」の見出しの箱がふわっと現れ ②そこから盤面が下へ開く、の2段。
-   高さはgrid-template-rows 0fr→1frで滑らかに伸ばす（中身の実寸を測らずにautoへ animate できる技法）。
-   古い環境でこの技法が効かない場合も、opacityのフェードだけは効くので「出ない」事故にはならない ── */
+/* ── カレンダーの展開（2026-07-27たきと指示）：順番は【①横 →（伸び切ってから）② 縦】。
+   ① 〈○○年○○月〉の帯が中央から左右へ伸びる（scaleX 0→1・0.34秒）。この間、盤面は畳まれているので
+      画面には月の見出しの箱だけが横に開いて見える。
+   ② 伸び切った後（0.34秒後）に、その月のカレンダーが下へ伸びる（grid-template-rows 0fr→1fr）。
+   高さは中身の実寸を測らずにautoへ animate できる技法。効かない環境でもフェードは効くso「出ない」事故はなし ── */
+@keyframes cbCalSweep { from { transform: scaleX(.08); opacity: 0; } 60% { opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
+.cb-cal-reveal { animation: cbCalSweep .34s cubic-bezier(.22, .8, .36, 1) both; transform-origin: center center; }
+/* ②縦に開く部分（見出しより下の中身）。①が終わる0.34秒後から動き出す */
 @keyframes cbCalUnfold { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
-.cb-cal-reveal { display: grid; grid-template-rows: 1fr; animation: cbCalUnfold .5s cubic-bezier(.22, .8, .36, 1) both; }
-.cb-cal-reveal > * { min-height: 0; overflow: hidden; }
-/* 見出し（月）→ 盤面 の順で入る。盤面は見出しの後（0.16秒後）に少し遅れて開く */
-@keyframes cbCalHead { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
-@keyframes cbCalBody { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-.cb-cal-head { animation: cbCalHead .26s ease both; }
-.cb-cal-body { animation: cbCalBody .34s cubic-bezier(.22, .8, .36, 1) .16s both; }
+.cb-cal-body-wrap { display: grid; grid-template-rows: 1fr; animation: cbCalUnfold .42s cubic-bezier(.22, .8, .36, 1) .34s both; }
+.cb-cal-body-wrap > * { min-height: 0; overflow: hidden; }
+/* 見出しの文字は帯が伸びる間に薄く入る（帯だけが先に見える） */
+@keyframes cbCalHead { from { opacity: 0; } to { opacity: 1; } }
+.cb-cal-head { animation: cbCalHead .3s ease .1s both; }
 @media (prefers-reduced-motion: reduce) {
-  .cb-cal-reveal, .cb-cal-head, .cb-cal-body { animation: none; }
+  .cb-cal-reveal, .cb-cal-head, .cb-cal-body-wrap { animation: none; }
 }
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
 /* 出現アニメ中はタップを受け付けない（2026-07-27・日程チップの誤タップ修理）。

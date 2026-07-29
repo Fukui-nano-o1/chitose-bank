@@ -150,8 +150,9 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
               <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{cvYear}年{cvMonth+1}月</span>
               <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"›"}</button>
             </div>
-            {/* calAnim（月送りのスライド）がある時はそちらを優先＝展開アニメと二重に動かさない */}
-            <div key={`${cvYear}-${cvMonth}`} className={calAnim || "cb-cal-body"} style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2 }}>
+            {/* ②縦の展開はここから下（見出しの帯が横に伸び切ってから開く・2026-07-27たきと指示） */}
+            <div className="cb-cal-body-wrap"><div>
+            <div key={`${cvYear}-${cvMonth}`} className={calAnim} style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2 }}>
               {CALENDAR_WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:9, color:"#B0B0B0", padding:"2px 0" }}>{wd}</div>)}
               {cells.map((dd, i) => {
                 if (!dd) return <div key={`e${i}`} />;
@@ -186,6 +187,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                 );
               })}
             </div>
+            </div></div>{/* ②縦の展開ここまで */}
           </div>
           {/* 役割色の凡例（第11弾） */}
           <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:8 }}>
