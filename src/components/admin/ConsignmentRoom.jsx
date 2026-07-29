@@ -1,5 +1,5 @@
 // 委託 準備室（#/admin/consignment・管理者専用・分割3-Aで切り出し2026-07-24）。
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。

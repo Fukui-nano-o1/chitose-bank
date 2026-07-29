@@ -1,13 +1,12 @@
 // 審査プレビュー兼オーナープレビュー（分割・大物①・2026-07-24）：働き手視点の求人詳細を全画面表示。
 // 管理タブの審査（掲載/差し戻し）・農家自身の下書き/公開中プレビュー（再開/削除/一時非公開/コピー）の二役。
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
-import { mapJobPublicRow, payLabel, disp, stationLabel, daysBetweenYmd } from "../lib/utils";
-import { StatusRibbon, Carousel, JobFlagBadges, DangerItem, ExpandableText, Avatar } from "./ui";
+import { mapJobPublicRow, payLabel, disp, stationLabel } from "../lib/utils";
+import { Carousel, JobFlagBadges, DangerItem } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
-import { ContentQTabs, JobQuestions } from "./JobQuestions";
 // 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
 const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い","差別的な条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","表現が不明瞭","写真が不適切","その他"];
 

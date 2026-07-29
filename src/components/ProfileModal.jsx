@@ -2,7 +2,6 @@
 import { useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { compressImage } from "../lib/image";
-import { Avatar } from "./ui";
 
 const CROP_EMOJIS = ['🥦','🍅','🍆','🥕','🌽','🥬','🍓','🥒','🧅','🥔','🍈','🌶️','🥜','🫛','🧄'];
 function getDefaultAvatar(farmerId) {
@@ -72,7 +71,6 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
     setUploading(false);
   };
 
-  const totalBoxes = myRecs.reduce((s, r) => s + (r.boxes || 0), 0);
   const uniqueMonths = new Set(myRecs.map(r => r.year + "-" + r.month)).size;
   const uniqueDests = new Set(myRecs.map(r => r.destId).filter(Boolean)).size;
 

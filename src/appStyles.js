@@ -73,7 +73,10 @@ input:focus { outline: none; }
 }
 .cb-hop { animation: cbHop 1.6s ease-in-out infinite; }
 
-.appear      { animation: appear .5s cubic-bezier(.22,.8,.36,1) both; }
+/* fillは backwards（2026-07-27修理・bothにしない）：bothだとアニメ終了後も transform が残り、
+   この要素が「画面固定(position:fixed)の基準」になる。すると中で開いたボックスが要素の箱に
+   閉じ込められ、スクロールに追従しない・外タップの当たり判定がずれる。見え方は同じ */
+.appear      { animation: appear .5s cubic-bezier(.22,.8,.36,1) backwards; }
 .fade-in     { animation: fadeIn .35s ease both; }
 /* 求人フローのstep遷移（2026-07-14）：次へ=左へフェードアウト→右からフェードイン／戻る=その逆。
    transformはfixedな子(モーダル等)の基準を壊すため、入場完了後にonAnimationEndでクラスを外す */
@@ -89,10 +92,14 @@ input:focus { outline: none; }
    ② 伸び切った後（0.34秒後）に、その月のカレンダーが下へ伸びる（grid-template-rows 0fr→1fr）。
    高さは中身の実寸を測らずにautoへ animate できる技法。効かない環境でもフェードは効くso「出ない」事故はなし ── */
 @keyframes cbCalSweep { from { transform: scaleX(.08); opacity: 0; } 60% { opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
-.cb-cal-reveal { animation: cbCalSweep .34s cubic-bezier(.22, .8, .36, 1) both; transform-origin: center center; }
+/* fillは backwards（2026-07-27修理・both禁止）：bothだと終わった後もtransformが残り、
+   この要素が「画面固定(fixed)の基準」になってしまう。すると中で開くボックス
+   （下書きを進めませんか？等）がカレンダーの箱の中に閉じ込められ、求人カードの下へ潜る。
+   backwardsなら見え方は同じまま、終了後にtransformが外れて基準が画面に戻る */
+.cb-cal-reveal { animation: cbCalSweep .34s cubic-bezier(.22, .8, .36, 1) backwards; transform-origin: center center; }
 /* ②縦に開く部分（見出しより下の中身）。①が終わる0.34秒後から動き出す */
 @keyframes cbCalUnfold { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
-.cb-cal-body-wrap { display: grid; grid-template-rows: 1fr; animation: cbCalUnfold .42s cubic-bezier(.22, .8, .36, 1) .34s both; }
+.cb-cal-body-wrap { display: grid; grid-template-rows: 1fr; animation: cbCalUnfold .42s cubic-bezier(.22, .8, .36, 1) .34s backwards; }
 .cb-cal-body-wrap > * { min-height: 0; overflow: hidden; }
 /* 見出しの文字は帯が伸びる間に薄く入る（帯だけが先に見える） */
 @keyframes cbCalHead { from { opacity: 0; } to { opacity: 1; } }
@@ -179,9 +186,9 @@ input:focus { outline: none; }
 .cb-urgent-still { box-shadow: 0 2px 6px rgba(226,75,74,.45) !important; }
 /* 体感0.8秒（退場0.4s＋入場0.4s）・スワイプ風の横滑り（2026-07-16） */
 .step-out-left  { animation: stepOutLeft  .4s ease both; }
-.step-in-right  { animation: stepInRight  .4s ease both; }
+.step-in-right  { animation: stepInRight  .4s ease backwards; } /* 入場は終了後にtransformを残さない（上記と同じ理由） */
 .step-out-right { animation: stepOutRight .4s ease both; }
-.step-in-left   { animation: stepInLeft   .4s ease both; }
+.step-in-left   { animation: stepInLeft   .4s ease backwards; }
 /* プロフィール両面(働き手⇄農家プロ)の切替フェード（2026-07-14・opacityのみ=fixed子要素に安全） */
 @keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
 .pfade-out { animation: fadeOut .16s ease both; }

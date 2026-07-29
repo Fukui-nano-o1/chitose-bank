@@ -77,7 +77,6 @@ export function JobSearchMapView({ onRegister, me }) {
   const skelRef = useSkeletonProbe("search");
   const [dangerLightbox, setDangerLightbox] = useState(null);
   const [farmIntroOpen, setFarmIntroOpen] = useState(false); // 農園紹介モーダル（ページには代表よりのみ・タップで全文展開）
-  const [farmTrustOpen, setFarmTrustOpen] = useState(false); // 信頼カードのボックス展開（2026-07-16）
   // 受け入れ実績タップ→この農家の過去の求人ボックス（2026-07-16）
   const [pastJobsOpen, setPastJobsOpen] = useState(false);
   const [pastJobs, setPastJobs] = useState(null); // null=読み込み中

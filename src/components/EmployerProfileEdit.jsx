@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
-import { INTERACTION_STYLE_OPTIONS, farmHostQa, farmIntroTopics, perkBadges } from "../lib/utils";
+import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges } from "../lib/utils";
 import { Avatar, AutoSkeleton } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -17,23 +17,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
   const [placeCity, setPlaceCity] = useState("");
   const [placeTown, setPlaceTown] = useState("");
   const [placeAddr, setPlaceAddr] = useState("");
-  const [placeZipBusy, setPlaceZipBusy] = useState(false);
-  const [placeZipError, setPlaceZipError] = useState("");
   const approvedTextsRef = useRef({}); // 自由記述の承認済み（本公開）値の控え。保存時の差分判定に使う（2026-07-16）
-  const searchPlaceZip = async () => {
-    const zip = placeZip.replace(/[^0-9]/g, "");
-    if (zip.length !== 7) { setPlaceZipError("郵便番号は7桁で入力してください"); return; }
-    setPlaceZipBusy(true); setPlaceZipError("");
-    try {
-      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
-      const data = await res.json();
-      if (data.status === 200 && data.results) {
-        const r = data.results[0];
-        setPlacePref(r.address1); setPlaceCity(r.address2); setPlaceTown(r.address3 || "");
-      } else { setPlaceZipError("郵便番号が見つかりませんでした"); }
-    } catch { setPlaceZipError("検索に失敗しました。通信環境をご確認ください"); }
-    setPlaceZipBusy(false);
-  };
   const [hasTransport, setHasTransport] = useState(false);
   const [hasParking, setHasParking] = useState(false);
   const [hasCommuteAllowance, setHasCommuteAllowance] = useState(false);
