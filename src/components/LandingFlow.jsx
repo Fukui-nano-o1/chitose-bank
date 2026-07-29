@@ -494,7 +494,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [confTrust, setConfTrust] = useState(null); // 確認ページ用：登録してからの月日など（employer_trust_info）
   const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
   const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
-  const [confTrustOpen, setConfTrustOpen] = useState(false); // 確認ページ用：信頼カードのボックス展開（2026-07-16）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
@@ -516,7 +515,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [workerHourly,      setWorkerHourly]      = useState("");
   const [workerDaily,       setWorkerDaily]       = useState("");
   const [workerHours,       setWorkerHours]       = useState("");
-  const [expandedJob,       setExpandedJob]       = useState(null);
 
   const isFarmer = role === "farmer";
   const isWorker = role === "worker";

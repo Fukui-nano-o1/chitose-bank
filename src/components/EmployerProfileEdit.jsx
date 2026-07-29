@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
-import { INTERACTION_STYLE_OPTIONS, farmHostQa, farmIntroTopics, perkBadges } from "../lib/utils";
+import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges } from "../lib/utils";
 import { Avatar, AutoSkeleton } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";

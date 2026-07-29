@@ -8,7 +8,6 @@ import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/pr
 import { chatCache } from "../lib/chatCache";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar } from "./ui";
-import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）

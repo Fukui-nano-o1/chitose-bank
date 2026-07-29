@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, interactionStyleLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges } from "../lib/utils";
-import { Avatar, ExpandableText, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn } from "./ui";
+import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges } from "../lib/utils";
+import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
@@ -192,7 +192,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 応募者ページの一覧はappGridRef（スワイプ判定用）と共用なので、ref付き要素を測る版を使う
   useSkeletonProbeOn(appGridRef, (jobTab === "applicants" && !appsLoading) ? "farmList:applicants" : null);
   const skelActiveRef = useSkeletonProbe("farmActive");
-  const [profileMode, setProfileMode] = useState("preview");
   const [empMini, setEmpMini] = useState(() => getCache("farm:empMini") ?? null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
   const [empTrust, setEmpTrust] = useState(() => getCache("farm:empTrust") ?? null); // 名刺カード裏面＝本物のプレビュー（FarmerTrustCard）用の信頼情報
   const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
@@ -406,8 +405,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // お気に入り登録しました！ボックス（2026-07-19）：登録成功の瞬間に展開。アイコンに❤️が付く動作つき
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
-  const [showRoster, setShowRoster] = useState(false); // 記録と予定：また呼びたいリスト箱→モーダル（2026-07-22）
-  const [eFlip, setEFlip] = useState(null); // 農家ハブ：？タップで反転して説明を出す箱のラベル（2026-07-22）
   // 応募者タブの状態フィルタ（2026-07-22）。選んだタブはsessionStorageに残す（2026-07-27たきと報告）＝
   // 画面上端での引き下げ（pull-to-refresh）などでリロードが走っても「すべて」に戻らない。
   // タブを閉じれば消えるso、次に開き直した時は既定（すべて）から始まる

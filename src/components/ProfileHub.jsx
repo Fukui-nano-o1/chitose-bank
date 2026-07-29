@@ -39,7 +39,6 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
     window.addEventListener("cb:workerHome", onWorkerHome);
     return () => window.removeEventListener("cb:workerHome", onWorkerHome);
   }, []);
-  const [wProfileMode, setWProfileMode] = useState("preview");
   useEffect(() => {
     const onHash = () => { const p = hashToPTab(); if (p) setPTab(p); const w = hashToWTab(); if (w) setWTab(w); setEHome(isEmployerHome()); };
     window.addEventListener("hashchange", onHash);

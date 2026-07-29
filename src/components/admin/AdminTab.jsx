@@ -1,13 +1,11 @@
 // 管理タブ（#/admin・管理者専用・分割3-Aで切り出し2026-07-24）：農家承認・求人審査・質問管理・お知らせ・エラーログ等。
-import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket } from "../../lib/image";
-import { isAdmin, ADMIN_EMAIL, ymdLocal, fmtJstShort, disp, EMPTY_MARK, SURVEY_SOURCES, SURVEY_REASONS, CROP_OPTIONS, dateRangeLabel, C, uid, toKatakana, toHiragana, MONTHS, cn, man } from "../../lib/utils";
-import { Avatar, LinkifiedText, NoticeJumpText, StatusRibbon } from "../ui";
-import { ToggleSwitch } from "../ToggleSwitch";
+import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man } from "../../lib/utils";
+import { Avatar, LinkifiedText, StatusRibbon } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
-import { AdminBoxRegistryPage } from "./AdminBoxRegistryPage";
 
 const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F","#6B3A18"];
 

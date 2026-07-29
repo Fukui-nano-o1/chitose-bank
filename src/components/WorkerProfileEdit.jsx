@@ -6,7 +6,6 @@ import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { WORKER_DECLARATIONS } from "../lib/utils"; // CROP/TASK_OPTIONSは経験ページ（WorkerExperiencePage）へ移設済み
 import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
 import { WorkerTrustCard } from "./TrustCards";
-import { ToggleSwitch } from "./ToggleSwitch";
 
 const PR_PROMPTS = [
   { q:"農作業に興味を持ったきっかけは？", placeholder:"きっかけを、あなたの言葉で" },

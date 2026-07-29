@@ -2,7 +2,6 @@
 import { useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { compressImage } from "../lib/image";
-import { Avatar } from "./ui";
 
 const CROP_EMOJIS = ['🥦','🍅','🍆','🥕','🌽','🥬','🍓','🥒','🧅','🥔','🍈','🌶️','🥜','🫛','🧄'];
 function getDefaultAvatar(farmerId) {

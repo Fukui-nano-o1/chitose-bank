@@ -1,5 +1,5 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
