@@ -398,8 +398,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 今日ページのカレンダー箱から来たときだけ、応募者ページの上部にカレンダーを展開する（2026-07-27たきと指示）。
   // 合図は sessionStorage の cb_openCalendar（TodayPage側で立てる）。一度読んだら消す＝タブを離れると元に戻る
   const [calOnTop, setCalOnTop] = useState(false);
+  // 畳む動作は開く動作の逆順（①縦に畳む→②横に縮む・2026-07-29たきと指示）。
+  // アニメが終わるまで要素を残す必要があるので、calClosing を立ててから遅れて外す
+  const [calClosing, setCalClosing] = useState(false);
+  const calCloseT = useRef(null);
+  const CAL_CLOSE_MS = 660; // CSS: 縦0.34s +（0.34s待ち）横0.3s ＝ 0.64s ＋ 余白
+  useEffect(() => () => clearTimeout(calCloseT.current), []);
   useEffect(() => {
-    if (jobTab !== "applicants") { setCalOnTop(false); return; }
+    if (jobTab !== "applicants") { clearTimeout(calCloseT.current); setCalClosing(false); setCalOnTop(false); return; }
     try {
       if (sessionStorage.getItem("cb_openCalendar")) {
         sessionStorage.removeItem("cb_openCalendar");
@@ -419,13 +425,27 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
     }, 40);
   };
-  const calendarTop = calOnTop ? (
+  // 開閉はここ1箇所（横スワイプ・案内行タップの両方から呼ぶ）。setCalDayを使うのでcalDayの後に置く
+  const toggleCalTop = () => {
+    if (calOnTop) {
+      if (calClosing) return;                  // 二度押しで二重に走らせない
+      setCalClosing(true);
+      setCalDay(null);
+      calCloseT.current = setTimeout(() => { setCalOnTop(false); setCalClosing(false); }, CAL_CLOSE_MS);
+    } else {
+      clearTimeout(calCloseT.current);
+      setCalClosing(false);
+      setCalOnTop(true);
+      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); }
+    }
+  };
+  const calendarTop = (calOnTop || calClosing) ? (
     /* カレンダー上のスワイプはカレンダー（月送り）が優先（2026-07-27たきと指示）：
        タッチをここで止めないと、ページ側の横スワイプ（カレンダーの開閉）に食われて
        月を送ったつもりがカレンダーごと畳まれていた */
     /* 展開はヌルッと（2026-07-27たきと指示）：cb-cal-revealが高さ0→自動へ滑らかに開く */
     <div key="app-cal-top" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
-      className="cb-cal-reveal" style={{ gridColumn:"1/-1", marginBottom:14 }}><div><MyCalendar onDayTapJobs={onCalDayTap} /></div></div>
+      className={"cb-cal-reveal" + (calClosing ? " cb-cal-closing" : "")} style={{ gridColumn:"1/-1", marginBottom:14 }}><div><MyCalendar onDayTapJobs={onCalDayTap} /></div></div>
   ) : null;
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
@@ -546,12 +566,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       // ズレた形をひと呼吸だけ見せてから戻す＝「ここで効いた」が目で分かる
       setSwipeDx(dx > 0 ? 20 : -20, true);
       setTimeout(() => setSwipeDx(0, true), 160);
-      setCalOnTop(v => {
-        const next = !v;
-        if (next) { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); } }
-        else setCalDay(null);
-        return next;
-      });
+      toggleCalTop();
     }
   };
   const onAppSwipeStart = (e) => {
@@ -1149,9 +1164,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             );
             // スワイプでカレンダーが開くことの案内（2026-07-27）。開いている間は畳み方を出す
             const calHint = (
-              <button key="cal-hint" onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans cb-cal-hint"
+              <button key="cal-hint" onClick={toggleCalTop} className="f-sans cb-cal-hint"
                 style={{ gridColumn:"1/-1", background:"none", border:"none", padding:"0 0 6px", fontSize:11, color:"#B0B0B0", textAlign:"center", cursor:"pointer" }}>
-                {calOnTop ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
+                {(calOnTop && !calClosing) ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
               </button>
             );
             const legend = (

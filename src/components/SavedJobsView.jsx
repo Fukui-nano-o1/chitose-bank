@@ -25,6 +25,24 @@ export function SavedJobsView({ me }) {
   // 来たときは合図(cb_openCalendar)で開いた状態で着地する
   const [calOnTop, setCalOnTop] = useState(false);
   const [calDay, setCalDay] = useState(null); // { ymd, jobs:[job_number] }＝選んだ日の求人を光らせる
+  // 畳む動作は開く動作の逆順（①縦に畳む→②横に縮む・2026-07-29たきと指示）。応募者ページと同じ作法
+  const [calClosing, setCalClosing] = useState(false);
+  const calCloseT = useRef(null);
+  const CAL_CLOSE_MS = 660; // CSS: 縦0.34s +（0.34s待ち）横0.3s ＝ 0.64s ＋ 余白
+  useEffect(() => () => clearTimeout(calCloseT.current), []);
+  const toggleCalTop = () => {
+    if (calOnTop) {
+      if (calClosing) return;
+      setCalClosing(true);
+      setCalDay(null);
+      calCloseT.current = setTimeout(() => { setCalOnTop(false); setCalClosing(false); }, CAL_CLOSE_MS);
+    } else {
+      clearTimeout(calCloseT.current);
+      setCalClosing(false);
+      setCalOnTop(true);
+      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); }
+    }
+  };
   const jobCardRefs = useRef({});
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("saved");
@@ -58,12 +76,7 @@ export function SavedJobsView({ me }) {
     if (!s) return;
     const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
-    setCalOnTop(v => {
-      const next = !v;
-      if (next) { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); } }
-      else setCalDay(null);
-      return next;
-    });
+    toggleCalTop();
   };
   useEffect(() => {
     let cancelled = false;
@@ -128,11 +141,11 @@ export function SavedJobsView({ me }) {
         </div>
       )}
       {/* 展開はヌルッと（2026-07-27たきと指示）：cb-cal-revealが高さ0→自動へ滑らかに開く */}
-      {calOnTop && <div className="cb-cal-reveal" style={{ marginBottom:14 }}><div><MyCalendar onDayTapJobs={onCalDayTap} /></div></div>}
+      {(calOnTop || calClosing) && <div className={"cb-cal-reveal" + (calClosing ? " cb-cal-closing" : "")} style={{ marginBottom:14 }}><div><MyCalendar onDayTapJobs={onCalDayTap} /></div></div>}
       {rows.length > 0 && (
-        <button onClick={()=>{ setCalOnTop(v=>{ if (v) setCalDay(null); return !v; }); }} className="f-sans"
+        <button onClick={toggleCalTop} className="f-sans"
           style={{ width:"100%", background:"none", border:"none", padding:"0 0 6px", fontSize:11, color:"#B0B0B0", textAlign:"center", cursor:"pointer" }}>
-          {calOnTop ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
+          {(calOnTop && !calClosing) ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
         </button>
       )}
       {rows.length === 0 ? (

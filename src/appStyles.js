@@ -104,8 +104,18 @@ input:focus { outline: none; }
 /* 見出しの文字は帯が伸びる間に薄く入る（帯だけが先に見える） */
 @keyframes cbCalHead { from { opacity: 0; } to { opacity: 1; } }
 .cb-cal-head { animation: cbCalHead .3s ease .1s both; }
+/* ── 閉じる時は開く時の逆順（2026-07-29たきと指示）：【①縦に畳む →（畳み切ってから）②横に縮む】。
+   .cb-cal-closing が付いている間だけ有効。付け外しは各ページ（応募者・ステータス）が
+   「畳むアニメが終わってから要素を外す」形で面倒を見る（外すのが早いとアニメが見えない） ── */
+@keyframes cbCalFoldUp { from { grid-template-rows: 1fr; opacity: 1; } to { grid-template-rows: 0fr; opacity: 0; } }
+@keyframes cbCalShrink { from { transform: scaleX(1); opacity: 1; } to { transform: scaleX(.08); opacity: 0; } }
+/* ①中身（見出しより下）が上へ畳まれる。指定の勝負に勝つため .cb-cal-reveal 側から辿って書く */
+.cb-cal-reveal.cb-cal-closing .cb-cal-body-wrap { animation: cbCalFoldUp .34s cubic-bezier(.4, 0, .7, .2) both; }
+/* ②畳み切った0.34秒後に、残った〈○○年○○月〉の帯が中央へ縮む */
+.cb-cal-reveal.cb-cal-closing { animation: cbCalShrink .3s cubic-bezier(.4, 0, .7, .2) .34s both; }
 @media (prefers-reduced-motion: reduce) {
-  .cb-cal-reveal, .cb-cal-head, .cb-cal-body-wrap { animation: none; }
+  .cb-cal-reveal, .cb-cal-head, .cb-cal-body-wrap,
+  .cb-cal-reveal.cb-cal-closing, .cb-cal-reveal.cb-cal-closing .cb-cal-body-wrap { animation: none; }
 }
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
 /* 出現アニメ中はタップを受け付けない（2026-07-27・日程チップの誤タップ修理）。
