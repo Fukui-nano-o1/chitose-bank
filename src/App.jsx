@@ -1334,6 +1334,13 @@ export default function App(){
     return () => window.removeEventListener("hashchange", logPageEvent);
   }, [me?.id]);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
+  // 訪問者の「登録が必要です」案内をボックス化（2026-07-27たきと指示）。どの画面からでも openLoginBox() で開く
+  const [loginBox, setLoginBox] = useState(false);
+  useEffect(() => {
+    const f = () => setLoginBox(true);
+    window.addEventListener("cb:openLoginBox", f);
+    return () => window.removeEventListener("cb:openLoginBox", f);
+  }, []);
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
   const [authV,setAuthV]=useState("login");
   const [showLanding,setShowLanding]=useState(false);
@@ -2151,6 +2158,31 @@ const subDest=useCallback(async d=>{
       <WorkerPreviewSheet />
       <EmployerPreviewSheet />
       <PhaseInfoSheet />
+      {/* ログインのボックス（2026-07-27たきと指示）：訪問者が応募・いいね等を押したとき、
+          alertでなくログイン画面をその場に展開する。中身はログインタブと同じLoginScreen＝
+          認証の入口は1つだけ（分岐を増やさない）。閉じれば見ていた画面に戻る */}
+      {loginBox && (
+        <div onClick={()=>setLoginBox(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10200, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+              <button onClick={()=>setLoginBox(false)} aria-label="閉じる" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"0 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+              <LoginScreen farmers={farmers} onLogin={f=>{
+                setLoginBox(false);
+                setMe(f);setAuthV("login");loadNotifs(f.id);
+                try {
+                  const em = sessionStorage.getItem("cb_emergencyLink");
+                  if (em) { sessionStorage.removeItem("cb_emergencyLink"); window.location.hash = "/emergency/" + em; return; }
+                } catch {}
+                // 見ていた求人に留まる（応募の戻り先があればそこへ）。ログインタブと違い、画面は奪わない
+                const ret = peekApplyReturn();
+                if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
+              }}/>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── プロフィール承認の「お帰りなさい」ポップアップ（起動時1回・ボックス展開） ── */}
       {welcomeApproved && (

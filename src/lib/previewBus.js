@@ -17,3 +17,9 @@ export function openWorkerPreview(workerId) {
 export function openPhaseInfo(phaseKey) {
   if (phaseKey) window.dispatchEvent(new CustomEvent("cb:openPhaseInfo", { detail: phaseKey }));
 }
+// ログインのボックス（2026-07-27たきと指示）：訪問者が応募・いいね等を押したとき、
+// alertで案内するのをやめてログイン画面をその場にボックスで開く。受け手はApp.jsx常駐のLoginSheet。
+// 画面を奪わない＝閉じれば見ていた求人に戻る（従来の#/loginへの自動遷移は撤去済み）
+export function openLoginBox() {
+  window.dispatchEvent(new CustomEvent("cb:openLoginBox"));
+}

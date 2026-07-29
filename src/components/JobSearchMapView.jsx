@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
+import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, NoticeJumpText, StatusRibbon } from "./ui";
 import { CalendarView } from "./CalendarView";
@@ -504,7 +505,10 @@ export function JobSearchMapView({ onRegister, me }) {
   // 案内を読んだだけで見ていた求人から引き剥がされていた。案内だけ出して画面はそのまま残す。
   // 文面も「登録画面へ進みます」を撤回（進まないso）。応募・いいね両方の入口から呼ばれるsо共通の言い回しにする
   const visitorGuide = () => {
-    alert(signupOpen ? "この操作には登録が必要です。登録・ログインのうえ、もう一度お試しください。" : "現在は招待制です。招待を受けた方は招待メールのアドレスでログインしてください。");
+    // ログインのボックスをその場に展開（2026-07-27たきと指示）。alertは画面を止めるだけで先に進めず、
+    // 見ていた求人からログイン画面へ飛ばすと文脈が切れるため、同じ画面の上に重ねる
+    if (signupOpen) { openLoginBox(); return; }
+    alert("現在は招待制です。招待を受けた方は招待メールのアドレスでログインしてください。");
   };
   const applyBtnOnClick = !me ? visitorGuide
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
