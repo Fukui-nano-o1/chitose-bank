@@ -984,21 +984,55 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 {questionSets.length === 0 ? (
                   <button onClick={openQMgr} className="f-sans" style={{ background:"none", border:"none", padding:0, textAlign:"left", fontSize:13, color:"#717171", lineHeight:1.6, cursor:"pointer" }}>まだありません。タップして作成できます。</button>
                 ) : (
-                  /* 横スクロール（たきと指示）：タイトルの箱を横一列に。タップでそのセットの編集画面へ直行 */
-                  <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
-                    {questionSets.map(s => (
-                      <button key={s.id} onClick={()=>{ qMgrScrollY.current = window.scrollY; setQEditing({ id:s.id, title:s.title || "", questions:[...(s.questions || [])] }); setQMgrOpen(true); }}
-                        className="f-sans" style={{ flexShrink:0, maxWidth:200, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
-                        <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title || "無題"}</span>
-                        <span style={{ display:"block", fontSize:11, color:"#B0B0B0", marginTop:2 }}>{(s.questions || []).length}問</span>
-                      </button>
-                    ))}
-                  </div>
+                  /* 横スクロール（たきと指示）：タイトルの箱を横一列に。タップでその場にボックスが開き、
+                     質問をここで直接入力できる（2026-07-29たきと指示）。もう一度タップで畳む */
+                  <>
+                    <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
+                      {questionSets.map(s => {
+                        const on = qEditing?.id === s.id;
+                        return (
+                          <button key={s.id} onClick={()=>setQEditing(on ? null : { id:s.id, title:s.title || "", questions:(s.questions && s.questions.length) ? [...s.questions] : [""] })}
+                            className="f-sans" style={{ flexShrink:0, maxWidth:200, background: on ? "#EAF7F1" : "#F7F7F7", border:"1px solid " + (on ? ROLE_GREEN : "#EBEBEB"), borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
+                            <span style={{ display:"block", fontSize:13, fontWeight:700, color: on ? ROLE_GREEN : "#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title || "無題"}</span>
+                            <span style={{ display:"block", fontSize:11, color:"#B0B0B0", marginTop:2 }}>{(s.questions || []).length}問</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {qEditing?.id && (
+                      /* 展開したボックス：この質問集の質問をその場で入力・保存する。
+                         状態(qEditing)と保存(saveQuestionSet)は質問集ページと共用＝入力の作法が2つに割れない */
+                      <div className="fade-in" style={{ marginTop:12, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px" }}>
+                        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>{qEditing.title || "無題"} の質問（最大5問）</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:10 }}>
+                          {qEditing.questions.map((q,i) => (
+                            <div key={i} style={{ display:"flex", gap:8, alignItems:"center" }}>
+                              <span className="f-sans" style={{ fontSize:13, color:"#999", flexShrink:0, width:16 }}>{i+1}.</span>
+                              <input value={q} onChange={e=>setQEditing(prev=>({ ...prev, questions: prev.questions.map((x,j)=> j===i ? e.target.value : x) }))} placeholder={`質問${i+1}`} className="field f-sans" style={{ fontSize:14, flex:1, minWidth:0, background:"#fff" }} />
+                              {qEditing.questions.length > 1 && (
+                                <button onClick={()=>setQEditing(prev=>({ ...prev, questions: prev.questions.filter((_,j)=>j!==i) }))} aria-label="削除" className="f-sans" style={{ flexShrink:0, width:32, height:32, borderRadius:8, background:"#EBEBEB", border:"none", color:"#999", fontSize:16, cursor:"pointer" }}>×</button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {qEditing.questions.length < 5 && (
+                          <button onClick={()=>setQEditing(prev=>({ ...prev, questions:[...prev.questions, ""] }))} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:ROLE_GREEN, cursor:"pointer", fontWeight:600, marginBottom:10 }}>＋ 質問を追加</button>
+                        )}
+                        <div style={{ display:"flex", gap:8 }}>
+                          <button onClick={()=>setQEditing(null)} className="f-sans" style={{ flex:"0 0 auto", padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
+                          <button onClick={saveQuestionSet} disabled={qSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qSaving ? "保存中..." : "保存する"}</button>
+                        </div>
+                        {/* タイトルの変更・削除は質問集ページで（ここは質問の入力に絞る） */}
+                        <button onClick={()=>{ qMgrScrollY.current = window.scrollY; setQMgrOpen(true); }} className="f-sans" style={{ width:"100%", marginTop:8, padding:"6px", fontSize:12, background:"none", border:"none", color:"#B0B0B0", cursor:"pointer" }}>タイトルの変更・削除はこちら →</button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
             <button onClick={()=>{
               if (qCardAnim === "pflip-out") return; // 連打ガード
+              setQEditing(null);                     // 開いていた入力ボックスは畳んでから返す
               setQCardAnim("pflip-out");
               setTimeout(()=>{ setQCardBack(v=>{ const nv = !v; try { localStorage.setItem("cb_qCardBack", nv ? "1" : "0"); } catch {} return nv; }); setQCardAnim("pflip-in"); }, 400);
             }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
