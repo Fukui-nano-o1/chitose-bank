@@ -1348,8 +1348,8 @@ export function JobSearchMapView({ onRegister, me }) {
                                   <p className="f-sans" style={{ fontSize:12, color:"#222", margin:"0 0 8px" }}>
                                     応募 {fmtCnt(c.applied)}・承認 {fmtCnt(c.approved)}・採用 {fmtCnt(c.hired)}
                                   </p>
-                                  <button onClick={()=>openPastJob(r)} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                                    {r.job_number === selectedJob.id ? "この求人を見ています" : "求人ページを見る →"}
+                                  <button onClick={()=>openPastJob(r)} className="f-sans" /* 文言は必ず1行（2026-07-27たきと指示）：折り返すと2行になり読みにくかったため、nowrapに加えて表示中のラベルを短くした */ style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:8, padding:"7px 12px", fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", maxWidth:"100%" }}>
+                                    {r.job_number === selectedJob.id ? "この求人を表示中" : "求人ページを見る →"}
                                   </button>
                                 </div>
                               </div>
