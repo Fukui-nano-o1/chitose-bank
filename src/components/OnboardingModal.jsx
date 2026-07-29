@@ -77,8 +77,6 @@ export function OnboardingModal({ me, setMe, onComplete, isEditing = false, onCl
 
   const canGoNext = [null, !!obName.trim(), !!obPrefecture, !!obMunicipality.trim(), !!obTier, !!obFarmingType, Number(obArea) > 0, obCrops.length > 0, obChannels.length > 0, true][obStep] ?? true;
 
-  const goNext = () => { if (obStep < totalSteps) setObStep(s => s + 1); else handleSubmit(); };
-  const goBack = () => setObStep(s => s - 1);
 
   const toggleCrop = crop => setObCrops(prev => {
     if (prev.includes(crop)) return prev.filter(c => c !== crop);
@@ -140,6 +138,9 @@ export function OnboardingModal({ me, setMe, onComplete, isEditing = false, onCl
       setSaving(false);
     }
   };
+
+  const goNext = () => { if (obStep < totalSteps) setObStep(s => s + 1); else handleSubmit(); };
+  const goBack = () => setObStep(s => s - 1);
 
   const CardBtn = ({ selected, onClick, children }) => (
     <button onClick={onClick} style={{
