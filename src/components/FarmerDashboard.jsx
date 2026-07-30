@@ -1099,9 +1099,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     const on = insItems.includes(it.k);
                     const open = insOpenKey === it.k;
                     return (
-                      /* 箱の色（2026-07-29たきと指示）：既定=白／申告ずみ=縁だけ緑／開いている=全体が緑 */
+                      /* 箱の色（2026-07-29たきと指示）：既定=元のまま／申告ずみ=縁だけ緑／開いている=全体が緑 */
                       <button key={it.k} onClick={()=>setInsOpenKey(open ? null : it.k)}
-                        className="f-sans" style={{ flexShrink:0, maxWidth:200, background: open ? ROLE_GREEN : "#fff", border:"1px solid " + (open || on ? ROLE_GREEN : "#EBEBEB"), borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
+                        className="f-sans" style={{ flexShrink:0, maxWidth:200, background: open ? ROLE_GREEN : "#F7F7F7", border:"1px solid " + (open || on ? ROLE_GREEN : "#EBEBEB"), borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
                         <span style={{ display:"block", fontSize:13, fontWeight:700, color: open ? "#fff" : "#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{it.icon} {it.chip}</span>
                         <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? ROLE_GREEN : "#B0B0B0", marginTop:2 }}>{on ? "申告ずみ ✓" : "未申告"}</span>
                       </button>
