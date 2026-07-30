@@ -744,10 +744,16 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   /* プレビューボックス展開中も下部バー・浮遊☰を隠す（2026-07-26たきと指示）＝ボックスに集中。
      オーバーレイ(z-index 9000〜)の下に残る低z-index要素が暗幕越しに透けるのを止める。
      対象＝働き手/雇い手プレビュー(.cb-preview-overlay)とスクロール固定ボックス(.cb-lock-scroll) */
+  /* 役割切替の浮遊トグル（.profile-employer-fab）も一緒に隠す（2026-07-29たきと指示）：
+     また呼びたいリストの詳細など、プロフィール入口の上でボックスを開くとトグルが暗幕の上に残り、
+     ボックスのボタンと重なって見えていた。ボックス表示中は操作を1つに絞る */
   body:has(.cb-preview-overlay) .app-header-mobile,
   body:has(.cb-preview-overlay) .app-header-mobile-float,
+  body:has(.cb-preview-overlay) .profile-employer-fab,
   body:has(.cb-lock-scroll) .app-header-mobile,
-  body:has(.cb-lock-scroll) .app-header-mobile-float { display: none !important; }
+  body:has(.cb-lock-scroll) .app-header-mobile-float,
+  body:has(.cb-lock-scroll) .profile-employer-fab,
+  body:has(.cb-box-overlay) .profile-employer-fab { display: none !important; }
   /* 訪問者の玄関（#/visit）では浮遊☰も下部バーも出さない（2026-07-27たきと指示）。
      ☰の中身は会員向けの操作＝同意前の訪問者には要らない。下部バーの「入れ方」も、
      同意ゲート（未同意は玄関へ戻る）に弾かれて読めないため、案内は玄関の最下部に直接置いた */
