@@ -365,7 +365,12 @@ export function TodayPage({ me, defaultRole }) {
     // 採用の実行は応募者シートの🤝採用するボタン（二重予約警告つき）が担う
     hire:        { icon:"🤝", title:"採用する",             btn:"採用する →",       direct:true, nav: () => { try { sessionStorage.setItem("cb_appFilter", "interview"); } catch {} return "/profile/employer/applicants"; } },
     insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance" },
-    confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start" },
+    // 開始を確認／来なかった の2択（2026-07-30たきと指摘「働き手がこなかった場合の措置がない」）。
+    // 来なかった時に「開始を確認」しか道が無いのは、事実と違う記録を迫ることになる。altは
+    // 応募者ページの完了モーダル（働き手は来ましたか？→来なかった＝欠勤記録・72時間の異議申立つき）へ直行する
+    confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start",
+                   alt: { label:"来なかった", flag:"cb_completeAppId", to:"/profile/employer/applicants",
+                          before: () => { try { sessionStorage.setItem("cb_appFilter", "active"); } catch {} } } },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
     // 完了して評価する（2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
@@ -480,6 +485,10 @@ export function TodayPage({ me, defaultRole }) {
                 {/* 求人チップはタップで求人ページへ（確認前に内容を見られる） */}
                 {jobChip && <button onClick={()=>{ if (!t.job_number) return; try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>{jobChip}</button>}
                 <span style={{ flex:1 }} />
+                {/* 副の選択肢（今のところ「来なかった」だけ）。主の隣に控えめに置く */}
+                {m.alt && (
+                  <button onClick={()=>runTodo(m.alt, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 10px", fontSize:12, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap" }}>{m.alt.label}</button>
+                )}
                 <button onClick={()=>runTodo(m, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 12px", fontSize:12, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
               </div>
             );

@@ -866,6 +866,18 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       : chatBtn}
                   </div>
                 );
+                // 採用〜作業中（＝作業日が来ている／来る応募）に「完了・欠勤を記録」を置く（2026-07-30たきと指摘
+                // 「働き手がこなかった場合の措置がない」）。これまでは今日ページの「作業の開始を確認」を
+                // 押した後にしか完了モーダルへ行けず、来なかった時は開始を確認するしかない（＝事実と違う記録を
+                // 迫る）状態だった。complete_work は承認済み〜作業中を受け付ける（開始確認は要件でない）ため、
+                // ここから直接「働き手は来ましたか？」→「来なかった」に入れる。作業日前は
+                // RPCが「開始日はまだ先です」と理由付きで断る
+                if (phase === "contracted" || phase === "working") return (
+                  <div style={{ display:"flex", gap:8 }}>
+                    {chatBtn}
+                    <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✅ 完了・欠勤を記録</button>
+                  </div>
+                );
                 // 完了（出勤あり）でまだ評価していない応募＝評価ボタンを出す（2026-07-27たきと指示）。
                 // 欠勤記録済み（attended===false）は評価の代わりso出さない。評価後はチャットだけに戻る
                 if (phase === "completed" && a.attended !== false && !reviewedAppIds.has(a.id)) return (
