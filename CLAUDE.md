@@ -1508,3 +1508,118 @@ appPhaseKeyの採用段キーは'contracted'（色は既存の契約テール#00
 3. 日程変更（set_agreed_dates）の履歴（現状は最新値のみ）
 4. 取消・失効（rejected/expired）の経緯メモ
 ━━━ ここまで ━━━
+
+
+━━━ 2026-07-29 性能改善・lintゲート④・大掃除（①〜⑤）━━━
+
+【体感速度：4段（A〜D）】たきと指示「遷移するたびに数十秒は長すぎる」
+A. 前回内容から即描画（stale-while-revalidate）… lib/viewCache.js（ページ寿命のMap）に
+   前回の結果を置き、次に開いた時はまず前回を描いて裏で最新に差し替える。
+   適用：農家お仕事タブ／今日ページ／プロフィール入口／働き手の応募状況
+   （さがす・チャット・ステータスは既存）。
+   ★手元のstateだけ書き換える操作（承認・削除・一時非公開・開始打刻・評価・やること片付け）は
+     キャッシュを素通りするので、state→キャッシュの写しを useEffect 1箇所に集約した。
+     呼び出し側20箇所にsetCacheを撒かない＝写し忘れが構造的に起きない。
+     読み込み前は写さない（空の[]を焼き付けて「ゼロ件」に見せないため）。
+B. 直列を並列に … 依存の無い問い合わせを同時に投げ、依存があるものだけ第2波へ。
+   往復の段数：農家お仕事タブ 10段→3段／応募者 5段→3段／今日ページ 4段→2段／
+   プロフィール入口 6段→3段／働き手の応募状況 4段→3段。取得内容は不変。
+C. worker_trust_info_bulk(uuid[]) 新設（migration 20260729073905）…
+   応募者1人につき1本だった信頼情報を1往復に。権限判定は1件版と同じ規則を「1人ずつ」適用し、
+   権限の無い働き手は返り値にキーごと現れない（まとめたから緩む、を起こさない）。
+D. 必要になったときに読む（サブタブ単位の遅延読み込み・FarmerDashboard）…
+   入口が実際に使う状態は empMini/empTrust/rosterRows の3つだけと判明。
+   マウント時の1本を【入口】【求人（作成中/公開中/期限切れ/応募者）】【応募（応募者）】の
+   3ローダーに分割。入口を開くまでの問い合わせ 9本→3本。
+   ★今日ページ・緊急連絡メールからの着地3種（cb_completeAppId/cb_agreeAppId/cb_emergencyAppId）は
+     行き先が全て応募者ページなので、応募の読み込みと一緒に移設した。jobTabはhashから初期化される
+     ためディープリンクでも該当ローダーが即走る。
+
+【スケルトンをページ構造に自動依存させた】たきと指示
+lib/skeletonShape.js … ページが実際に描いた骨（display/gridTemplateColumns/gap＋子の高さ最大6個）を
+localStorageに記憶し、次回の読み込み中はそれを並べる。中身（文字・写真・件数）は保存しない＝個人情報は入らない。
+仮配置自身は測らない（aria-busyを見て除外）＝構造を変えれば次の描画から自動追従。
+使い方：一覧を包む要素に useSkeletonProbe(key) の ref／読み込み中は <AutoSkeleton shapeKey={key} />。
+既にrefが付いている要素は useSkeletonProbeOn(ref, key)（1要素に2つrefは付けられないため）。
+固定形の SkeletonList は廃止。適用：saved／chats／search／farmDrafts／farmActive／farmList:applicants。
+※ついでに直した実害：公開中パネルと応募者ページが読み込み中に「ありません」を出していた（一瞬ゼロ件に見える）。
+
+【★lintゲート④を常設：no-use-before-define】
+本命ゲートは4つになった：no-undef／react/jsx-no-undef／rules-of-hooks／no-use-before-define。
+設定：{ functions:false, classes:false, variables:true, allowNamedExports:true }。
+functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依存しているため必須）。
+・契機：D の作業で useSkeletonProbeOn(appGridRef,…) を const appGridRef の宣言より前に置き、
+  TDZ「Cannot access before initialization」で応募者ページが真っ白になった（別セッションが5fdd67bで修理）。
+  build も既存の3ゲートも通ってしまう型。day4教訓そのまま。
+・既存48件を全て解消してから error で常設。導入後、同じ形のコードを書いて error になることを実測確認済み。
+・48件の内訳と潰し方（並べ替えのみ・「消えただけの行=0」を毎回機械確認）：
+  上げられるもの＝依存の無い state/ref・純粋なヘルパー → 使う側の手前へ
+  上げられないもの＝多数のstateから導く派生値（canGoNext）や隣接state群に依存する関数
+  （openEmergencyModal/openCompleteModal/openJob/visitorGuide）→ 呼ぶ側や effect を下げる
+  effect を下げるのは安全（描画後に走るので実行順に影響しない・名前で参照されない）
+・フック呼び出し数が前後で不変であることも確認（FarmerDashboard 78／LandingFlow 128）。
+
+【大掃除①〜⑤（洗い出し→削除）】
+① App.jsx 2,732→2,432行（▲300）。分割3-Aで消したUIの取り残し：
+   BalanceSheet(84)/GhostCard(69)/addRec(74)/LABOR系定数/LaborTab/buildGoogleMapsUrl 等277行＋
+   死んだimport52個＋未使用state10個。うち2つは無駄なDB往復だった
+   （publicFarmerCount＝起動ごとにrpc、notifs/loadNotifs＝ログインごとにnotifications取得。どちらも誰も読まない）。
+   ※const{appliedAt,...farmer}=f は「このキーを捨てる」定型。未使用に見えるが消すとINSERTが壊れる＝注記付きで残置。
+② 各ファイルの未使用 155→15件（▲222行）。未使用import29個／双方未使用のuseState7組／
+   宣言のみ16件＋その連鎖3周（searchPlaceZip→placeZip*、sendProfileRevision→rev*/reloadAccounts 等）。
+   残した15件は書き込み専用state（farmerExp/farmerPurpose/farmerDisplayName/farmerWanted 等＝
+   CLAUDE.mdで「変数は残す」と決めた残置変数を含む）と上記の捨てる定型。
+   消えた機能の記録（呼び出し元が無い状態だった・git履歴から復元可）：雇い手プロフィールの郵便番号検索
+   （searchPlaceZip）／管理タブの自由記述の個別承認・差し戻し（approveProfileText/sendProfileRevision）／
+   確認ページのカレンダー部品（ConfCalendar）と最高額計算（calcFarmerMaxPay）／農家側の手動「開始を確認」
+   （confirmStart。2026-07-27に自動開始へ移行済みなので整合）。
+④ CSS 未参照22種（appStyles.js ▲144行）。同居ルールは「ルールごと削除」と
+   「セレクタから死んだ側だけ除去（.btn-primary, .btn-dark → .btn-primary）」を使い分けた。
+⑤ DB 13件（migration 20260729221516・本番適用済み）。公開ボードの残骸（board_* 4本＋public_summary）／
+   接続先を失った関数（public_farmers_count/job_meeting_address/farmer_hiring_stats/
+   admin_analytics_series/feedback_daily_summary）／空テーブル3つ（calendar_notes/error_logs/mail_failures）。
+   ★DROPは戻せないので、削除前の全定義（DDL＋RLSポリシー）をマイグレーション末尾にコメントで丸ごと残した。
+   ★admin_analytics_series と feedback_daily_summary は「SQLエディタから手で叩いている」可能性を
+     コード検査では否定できない。必要なら末尾から復元する。
+   残したもの：records(2行)/dests(1行)/market_stats(287行)＝管理タブlegacyViewと初期設定が読む／
+   app_errors(172行)＝現役（消したerror_logsは旧版の別物）／rls_auto_enable＝ensure_rlsイベントトリガーに
+   紐づく（新規テーブルのRLS自動有効化。呼び出し元ゼロに見えるが消すとセキュリティが落ちる）。
+
+【★今日見つけた本物のバグ2件】
+1. worker_trust_info のフェイルオープン（migration 20260729073905で修理）
+   入口が `if auth.uid() <> p_worker_id and not exists(...)` で、未ログインだと auth.uid() が NULL →
+   条件全体が NULL＝偽と評価され、拒否に入らずそのまま値を返していた。本番でanonとして再現確認済み。
+   返っていたのは 登録日・本人確認日・評価件数・また呼びたい件数・完了件数・稼働時間
+   ＝データ憲法「個人を特定しうる生の数値」に触れる。`auth.uid() is null` を先に弾く形に修正。
+   一括版は入口でもanonからrevoke（二重の壁）。
+   ※employer_trust_info に同じ挙動があるが、こちらは仕様（雇い手の信頼情報は公開求人ページで
+     訪問者にも見せている＝job_employer_trust_info 経由）。触っていない。
+2. 管理タブの confirm 取り違え（2ボタンが必ず失敗していた）
+   AdminTab には確認モーダル用の state `const [confirm, setConfirm] = useState(null)`（{msg,onOk}）があり、
+   同じスコープで素の confirm(...) と書くと state に解決される。初期値nullなので TypeError で必ず落ちる。
+   該当＝L188 runRecompress（画像の再圧縮）／L242 rejectEmpTexts（自由記述の差し戻し）。両方 window.confirm に。
+   ★ルールが拾ったのは宣言より前のL188だけ。L242は宣言より後にあるため映らず目視で見つけた
+     ＝ルールだけでは同種の片方しか出ない。
+
+【教訓：機械的な一括編集で2回壊した（どちらもpush前に検出）】
+1. 括弧を含まない1行宣言（const jobExpired = jobPast && !jobCompleted; 等）で、ブレース均衡による
+   終端検出が走り過ぎ、隣の行（calHit・profileFields）まで巻き込んだ。
+   → 「1行で閉じている／括弧が無い宣言はその行だけ」に直す。lintゲート(no-undef)が即検出。
+2. CSSを { } の単純分割でパースし、@media の閉じ括弧を巻き込んだ。
+   → @media（68ブロック）を再帰的に扱うパーサに書き直し。「波括弧の均衡が前後とも0」＋
+     「生きているクラス全種がファイルに残っている」を機械確認してから書き込む。
+■一括編集の作法（今後）：①削除/移動の前に全ソースで参照を数える（文字列・動的参照込み）
+②実行後に「消えただけの行=0（移動）」または「追加行=0（削除）」を機械確認 ③build＋lint ④1変更1コミット。
+
+【⚠️実機確認の残り（build+lint+grepまでは済・目視は未実施）】
+1. お仕事タブ：入口→作成中→公開中→応募者（承認・面接の質問を送る・採用・完了と評価・また呼びたい登録）
+   →期限切れ→カレンダー。今日ページの「完了して評価する」「日を決める」と緊急連絡メールからの着地も
+2. 求人作成フロー通し：横スワイプのページ送り・日程の選択と日程ラベル・保存して終了・確認ページからの掲載
+3. 削除の影響範囲：雇い手プロフィール編集（住所欄）／管理タブ（自由記述の審査ボックス・画像の再圧縮ボタン）
+4. 仮配置（スケルトン）は初回だけ既定の形で出て、一度そのページを開いた後から本来の形になる仕様
+
+【残タスク】
+・上の実機確認
+・no-use-before-define 以外のlint警告（exhaustive-deps 等）は warn のまま。手を付けていない
+・未使用15件（書き込み専用state）を消すかは、CLAUDE.mdの残置方針と合わせて別途判断
+━━━ ここまで ━━━
