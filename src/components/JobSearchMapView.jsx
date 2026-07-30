@@ -978,9 +978,11 @@ export function JobSearchMapView({ onRegister, me }) {
               値は農家プロフィールの「募集者の情報」から（job_employer_profile経由・未ログインでも読める） */}
           <div style={{ width:"100%", marginBottom:12, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px" }}>
             <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px" }}>募集者情報</p>
-            {[["募集者", empEmployer?.recruiter_name],
-              ["住所・所在地", empEmployer?.recruiter_address],
-              ["連絡先", empEmployer?.recruiter_contact]].map(([l, v]) => (
+            {/* 値は求人ごとの控え（jobs_publicへ掲載時に転写）を優先。まだ控えの無い旧求人だけ
+                原本（employer_profiles）へフォールバックする（2026-07-30・第14弾） */}
+            {[["募集者", selectedJob.recruiterName || empEmployer?.recruiter_name],
+              ["住所・所在地", selectedJob.recruiterAddress || empEmployer?.recruiter_address],
+              ["連絡先", selectedJob.recruiterContact || empEmployer?.recruiter_contact]].map(([l, v]) => (
               <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:6 }}>
                 <span className="f-sans" style={{ flexShrink:0, width:88, fontSize:12, color:"#999" }}>{l}</span>
                 <span className="f-sans" style={{ fontSize:13, color: (v && v.trim()) ? "#222" : "#C77700", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>
