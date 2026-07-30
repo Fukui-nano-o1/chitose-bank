@@ -772,6 +772,11 @@ body:has(.chat-full) main { overflow: hidden !important; }
 .qset-full { position: fixed; inset: 0; z-index: 9000; background: #fff; display: flex; flex-direction: column; }
 body:has(.qset-full) .app-header-mobile,
 body:has(.qset-full) .app-header-mobile-float,
+/* ボックス表示中は役割切替トグルを隠す（2026-07-29たきと指示）。メディアクエリの外にも置く＝
+   画面幅に関係なく必ず効く（760〜768pxの隙間で漏れていた） */
+body:has(.cb-lock-scroll) .profile-employer-fab,
+body:has(.cb-preview-overlay) .profile-employer-fab,
+body:has(.cb-box-overlay) .profile-employer-fab { display: none !important; }
 body:has(.qset-full) .profile-employer-fab,
 body:has(.qset-full) .nav-coach { display: none !important; }
 body:has(.qset-full) .site-footer-fixed { display: none !important; }
