@@ -83,6 +83,27 @@ export const normalizeInsuranceItems = (items) => {
   return arr.some(k => k !== "considering") ? arr.filter(k => k !== "considering") : arr;
 };
 
+// 保険の選択を切り替えた結果を返す純粋関数（2026-07-29・保険ページとプロフィールの保険カードで共用）。
+// 排他ルール：「これから準備する(considering)」と実際の保険は両立しない。
+//   losing=true は「他の選択・ひとことが消える」印＝呼び出し側が確認を取ってから適用する（確認の文言はUI側）
+export const insuranceToggle = (items, notes, k, v) => {
+  const its = Array.isArray(items) ? items : [];
+  const nts = (notes && typeof notes === "object") ? notes : {};
+  if (k === "considering" && v) {
+    return {
+      items: ["considering"],
+      notes: nts.considering ? { considering: nts.considering } : {},
+      losing: its.some(x => x !== "considering") || Object.keys(nts).some(x => x !== "considering" && (nts[x] || "").trim()),
+    };
+  }
+  if (v && its.includes("considering")) {
+    // 実際の保険を選んだら「これから準備する」は自動で外れる（逆向きは失うものが無いので確認なし）
+    const n = { ...nts }; delete n.considering;
+    return { items: [k], notes: n, losing: false };
+  }
+  return { items: v ? [...new Set([...its, k])] : its.filter(x => x !== k), notes: nts, losing: false };
+};
+
 // 保険種類ごとの運営用意の定型説明（2026-07-25）。求人の「保険」タブで各項目をタップした時、
 // この定型説明＋農家の自由記述メモ（insurance_notes）を並べて出す。運営が保証する文ではなく、
 // 保険の一般的な性質の説明にとどめる（自己申告の注記は別途表示）。

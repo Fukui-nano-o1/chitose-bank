@@ -2,7 +2,7 @@
 // /#/visit は印刷物に焼かれた恒久URL＝ルート文字列・遷移先の意味を変えない（CLAUDE.md絶対遵守）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { INSURANCE_ITEMS } from "../lib/utils";
+import { INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
 import { isIOS } from "../lib/push";
 import { ToggleSwitch } from "./ToggleSwitch";
 // 🛡 保険の準備（自己申告）専用ページ（#/insurance・2026-07-24）：農家プロフィール編集の箱から独立ページへ。
@@ -28,20 +28,11 @@ export function InsurancePrepPage({ me }) {
   // トグルの排他ルール（2026-07-25たきと指示）：「これから準備する」は他の保険と両立しない。
   // 選ぶと他の選択・ひとことが消えるため、消えるものがある時だけ警告を一度出してからリセットする
   const toggleItem = (k, v) => {
-    if (k === "considering" && v) {
-      const losing = items.some(x => x !== "considering") || Object.keys(notes).some(x => x !== "considering" && (notes[x] || "").trim());
-      if (losing && !window.confirm("「これから準備する」を選ぶと、他の保険の選択と入力したひとことはリセットされます。よろしいですか？")) return;
-      setItems(["considering"]);
-      setNotes(prev => (prev.considering ? { considering: prev.considering } : {}));
-      return;
-    }
-    if (v && items.includes("considering")) {
-      // 実際の保険を選んだら「これから準備する」は自動で外れる（排他の逆向き・こちらは失うものが無いので警告なし）
-      setItems([k]);
-      setNotes(prev => { const n = { ...prev }; delete n.considering; return n; });
-      return;
-    }
-    setItems(prev => v ? [...new Set([...prev, k])] : prev.filter(x => x !== k));
+    // 排他ルール本体は lib/utils の insuranceToggle に一本化（プロフィールの保険カードと共用・2026-07-29）
+    const r = insuranceToggle(items, notes, k, v);
+    if (r.losing && !window.confirm("「これから準備する」を選ぶと、他の保険の選択と入力したひとことはリセットされます。よろしいですか？")) return;
+    setItems(r.items);
+    setNotes(r.notes);
   };
   const save = async () => {
     if (saving) return;
