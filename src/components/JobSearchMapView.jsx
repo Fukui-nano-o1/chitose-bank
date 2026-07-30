@@ -57,6 +57,22 @@ export function JobSearchMapView({ onRegister, me }) {
   // 出どころ（cb_jobBackTo）は開いた時点でstateに引き取る（2026-07-27）：
   // 描画のたびにsessionStorageを読むと、消し忘れが次の求人に持ち越されて戻り先を誤る
   const [backTo, setBackTo] = useState(null);
+  // 自分が出した求人の番号（2026-07-29たきと指示「自分の求人にはいいねを付けられないように」）。
+  // 一覧のカードは jobs_public 経由で farmer_id を持たないため、自分の求人番号をまとめて引いて突き合わせる。
+  // jobsのRLS（owner select）で返るのは自分の行だけso、他人の求人番号は取得できない
+  const [myJobNums, setMyJobNums] = useState(() => new Set());
+  useEffect(() => {
+    if (!me) { setMyJobNums(new Set()); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("jobs").select("job_number").eq("farmer_id", me.id);
+        if (!cancelled && data) setMyJobNums(new Set(data.map(r => r.job_number)));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [me]);
+  const canLike = (job) => !!job && !myJobNums.has(job.id); // 自分の求人はいいね対象外
 
   useEffect(() => {
     if (!selectedJob || !me) { setIsOwnJob(false); setOwnLoaded(!me); return; } // 未ログインは自分の求人ではありえない＝確定
@@ -536,6 +552,7 @@ export function JobSearchMapView({ onRegister, me }) {
 
   const toggleSave = async (job) => {
     if (!me) { visitorGuide(); return; }
+    if (!canLike(job)) return; // 自分が出した求人（DB側もトリガーで拒否する）
     const isSaved = savedIds.has(job.id);
     // 未回答ユーザーの「最初のいいね」の前にきっかけアンケート（追加時のみ・解除時は出さない・2026-07-24）
     if (!isSaved && surveyAnswered === false) { setSurveyJob(job); return; }
@@ -641,7 +658,7 @@ export function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
           {filteredList.map(job => (
-            <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={toggleSave} />
+            <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} />
           ))}
         </div>
       </div>
@@ -680,10 +697,13 @@ export function JobSearchMapView({ onRegister, me }) {
           // 出どころで戻り先の名前を変える。農家の求人ボックス（❓バッジ経由）も対象（2026-07-27）
           : (backTo && backTo.startsWith("/profile/employer")) ? "← 求人に戻る" : "← 一覧に戻る"}</button>
         )}
+        {/* 自分が出した求人にはいいねを出さない（2026-07-29たきと指示） */}
+        {!isOwnJob && canLike(selectedJob) && (
         <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
         }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+        )}
         <div className="appear job-detail-body-mobile">
           {/* 通報リンク（いいねの上=ページ先頭右） */}
           {me && (
@@ -1084,7 +1104,7 @@ export function JobSearchMapView({ onRegister, me }) {
               style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
             >
               {jobList.filter(job => job.id !== selectedJob.id).map(job => (
-                <JobCard key={job.id} job={job} variant="related" saved={savedIds.has(job.id)} onToggleSave={toggleSave} />
+                <JobCard key={job.id} job={job} variant="related" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} />
               ))}
             </Carousel>
             )}
