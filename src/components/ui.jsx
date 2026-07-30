@@ -357,7 +357,8 @@ export const DeclaredBadge = ({ show, label = "圏外で申告された時刻" }
 
 // 双方の署名時刻の乖離。打刻は双方署名なので、開きが大きい＝どちらかの時刻が実態と違う手がかり。
 // 隠さず両方を並べ、修正申請への道を添える（押し付けはしない）
-export function PunchGapNotice({ app, onRequestCorrection }) {
+// 導線は双方に出す（2026-07-30たきと訂正「申請権の非対称を解消」）。文言だけ立場で変える
+export function PunchGapNotice({ app, onRequestCorrection, correctionLabel = "🕐 実際と違う場合は修正を申請" }) {
   const gaps = punchDivergence(app);
   if (!gaps.start && !gaps.end) return null;
   const hm = (ts) => new Date(ts).toLocaleTimeString("ja-JP", { hour:"2-digit", minute:"2-digit" });
@@ -378,7 +379,7 @@ export function PunchGapNotice({ app, onRequestCorrection }) {
       </p>
       {onRequestCorrection && (
         <button onClick={onRequestCorrection} className="f-sans" style={{ marginTop:6, background:"none", border:"none", padding:0, fontSize:11, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:2, cursor:"pointer" }}>
-          🕐 打刻の修正を申請する
+          {correctionLabel}
         </button>
       )}
     </div>

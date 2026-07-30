@@ -5,6 +5,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import ContractPartyName from "./ContractPartyName";
+import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
 //   textareaのフォーカス・下書きが消える（LandingFlowのフォーカス消失バグと同族）
@@ -190,6 +191,7 @@ export function TodayPage({ me, defaultRole }) {
   // my_todo_items（RETURNS TABLE・固定型）は触らず、件数はDB側のmy_nav_badges が todo に加算済み
   const [corrections, setCorrections] = useState([]);
   const [punchFacts, setPunchFacts] = useState({}); // application_id → 打刻の事実（申告フラグ・双方の署名時刻）
+  const [corrApp, setCorrApp] = useState(null);     // 乖離からの修正申請（シートは共通部品・双方から出せる）
   const [corrDeciding, setCorrDeciding] = useState("");
   // 承認／見送り。片付いたらカードが消える＝やることの件数・ナビのバッジと一致し続ける。
   // 申請者自身は承認できない（RPCが 'self' で拒否し message を返すので、それをそのまま出す）
@@ -533,7 +535,9 @@ export function TodayPage({ me, defaultRole }) {
               {pf && (pf.started_declared || pf.ended_declared) && (
                 <span><DeclaredBadge show label={(pf.started_declared ? "開始" : "終了") + "は圏外で申告された時刻"} /></span>
               )}
-              {pf && <PunchGapNotice app={pf} />}
+              {/* 導線は双方に出す（2026-07-30たきと訂正）。文言だけ立場で変える */}
+              {pf && <PunchGapNotice app={pf} onRequestCorrection={()=>setCorrApp(pf)}
+                correctionLabel={role === "worker" ? "🕐 自分の打刻を直す → 修正を申請" : "🕐 実際と違う場合は → 修正を申請"} />}
               </div>
             );
           })}
@@ -583,6 +587,7 @@ export function TodayPage({ me, defaultRole }) {
         ) : (
           <TodoStagePanel stage={pageStage} items={pItems} />
         )}
+        {corrApp && <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />}
       </div>
     );
   }
@@ -690,6 +695,7 @@ export function TodayPage({ me, defaultRole }) {
         {/* 「📅 月の予定を見る」ボタンは削除（2026-07-27たきと指示）：やることのカレンダー箱に統合 */}
       </>)}
       </div>
+      {corrApp && <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />}
     </div>
   );
 }

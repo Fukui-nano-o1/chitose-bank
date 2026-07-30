@@ -7,6 +7,7 @@ import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES,
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
+import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
@@ -664,6 +665,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     } catch { alert('解除に失敗しました。'); }
   };
 
+  // 打刻の修正申請（第13弾・追補の訂正／2026-07-30たきと指示「申請権の非対称を解消」）。
+  // 申請は相手の承認で成立するので、雇い手から出しても双方署名の構造は崩れない。シートは働き手側と同じ共通部品
+  const [corrApp, setCorrApp] = useState(null);
+
   // 緊急連絡（Part3・農家側）
   const [emergencyModalApp, setEmergencyModalApp] = useState(null);
   const [emergencyKind, setEmergencyKind] = useState("");
@@ -919,7 +924,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   {a.time_corrected && <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#717171", background:"#F0F0F0", borderRadius:4, padding:"1px 5px" }}>修正済み</span>}
                 </p>
               )}
-              <PunchGapNotice app={a} />
+              <PunchGapNotice app={a} onRequestCorrection={()=>setCorrApp(a)} correctionLabel="🕐 実際と違う場合は → 修正を申請" />
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
                 {/* 契約成立後のみ本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
@@ -1745,6 +1750,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button onClick={()=>setCompleteDone(null)} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>閉じる</button>
           </div>
         </div>
+      )}
+
+      {/* 打刻の修正を申請（第13弾・追補の訂正）。働き手側と同じ共通シート */}
+      {corrApp && (
+        <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />
       )}
 
       {/* 緊急連絡モーダル（Part3・農家側） */}
