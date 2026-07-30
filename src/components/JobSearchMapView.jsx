@@ -1205,6 +1205,9 @@ export function JobSearchMapView({ onRegister, me }) {
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"14px 0 0" }}>
               応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
             </p>
+            <p className="f-sans" style={{ fontSize:13, color:"#8A8A8A", lineHeight:1.7, margin:"12px 0 0", background:"#F7F7F7", borderRadius:10, padding:"10px 12px" }}>
+              採用されると契約が成立し、お互いのお名前（本名）が農家に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。
+            </p>
             {isPeriodJob ? (
               /* 期間求人：来られる日を宣言してから応募（いつでもOK=1タップ／特定日=複数選択） */
               <div style={{ marginTop:18 }}>

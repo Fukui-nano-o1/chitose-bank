@@ -1,6 +1,6 @@
 // 汎用UIアトム（分割・段階2後半・2026-07-24）：リボン帯・長文の省略表示。
 import { useState, useEffect, useRef, useCallback } from "react";
-import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC } from "../lib/utils";
+import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, punchDivergence, PUNCH_GAP_MIN } from "../lib/utils";
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
@@ -342,6 +342,46 @@ export function AutoSkeleton({ shapeKey, fallbackHeight = 96, fallbackCount = 4 
         <div key={i} className="ghost-line"
           style={{ height: h, borderRadius: 14, gridColumn: shape && shape.spans && shape.spans[i] ? "1 / -1" : undefined }} />
       ))}
+    </div>
+  );
+}
+
+// ── 打刻の事実の質を出す部品（第13弾・追補・2026-07-30たきと判断）──
+// 「記録は改変しない・事実の質は表示する」の原則どおり、隠さずに小さく添える。
+// 申告打刻も実績には算入する（作業は本当に行われている）。フラグは永久に残す。
+
+// 圏外で申告された打刻であることの印。修正済みバッジと同じ思想・同じ大きさ
+export const DeclaredBadge = ({ show, label = "圏外で申告された時刻" }) => (
+  show ? <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#C77700", background:"#FFF4E0", borderRadius:4, padding:"1px 5px", whiteSpace:"nowrap" }}>{label}</span> : null
+);
+
+// 双方の署名時刻の乖離。打刻は双方署名なので、開きが大きい＝どちらかの時刻が実態と違う手がかり。
+// 隠さず両方を並べ、修正申請への道を添える（押し付けはしない）
+// 導線は双方に出す（2026-07-30たきと訂正「申請権の非対称を解消」）。文言だけ立場で変える
+export function PunchGapNotice({ app, onRequestCorrection, correctionLabel = "🕐 実際と違う場合は修正を申請" }) {
+  const gaps = punchDivergence(app);
+  if (!gaps.start && !gaps.end) return null;
+  const hm = (ts) => new Date(ts).toLocaleTimeString("ja-JP", { hour:"2-digit", minute:"2-digit" });
+  const rows = [
+    gaps.start && { k:"開始", a:["働き手の打刻", hm(gaps.start.worker)], b:["雇い手の確認", hm(gaps.start.farmer)], m:gaps.start.minutes },
+    gaps.end   && { k:"終了", a:["雇い手の記録", hm(gaps.end.farmer)],   b:["働き手の確認", hm(gaps.end.worker)],   m:gaps.end.minutes },
+  ].filter(Boolean);
+  return (
+    <div style={{ background:"#FFF9EE", border:"1px solid #F5A623", borderRadius:10, padding:"9px 11px", margin:"0 0 8px" }}>
+      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", margin:"0 0 6px" }}>⚠️ 時刻に開きがあります</p>
+      {rows.map(r => (
+        <p key={r.k} className="f-sans" style={{ fontSize:11, color:"#444", margin:"0 0 3px", lineHeight:1.7 }}>
+          {r.k}：{r.a[0]} {r.a[1]} ／ {r.b[0]} {r.b[1]}（{r.m}分の開き）
+        </p>
+      ))}
+      <p className="f-sans" style={{ fontSize:10, color:"#8A6D1D", margin:"4px 0 0", lineHeight:1.6 }}>
+        {PUNCH_GAP_MIN}分以上の開きがある時に出ます。実態と違う場合は修正を申請できます。
+      </p>
+      {onRequestCorrection && (
+        <button onClick={onRequestCorrection} className="f-sans" style={{ marginTop:6, background:"none", border:"none", padding:0, fontSize:11, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:2, cursor:"pointer" }}>
+          {correctionLabel}
+        </button>
+      )}
     </div>
   );
 }

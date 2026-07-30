@@ -5,9 +5,10 @@ import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow } from "../lib/utils";
 import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
 import { fetchWorkerReady } from "../lib/workerReady";
-import { YesNoPill, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { YesNoPill, AutoSkeleton, useSkeletonProbe, DeclaredBadge, PunchGapNotice } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
+import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 
 export function WorkerApplications({ filter, me }) {
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（2026-07-27たきと指示）
@@ -65,7 +66,7 @@ export function WorkerApplications({ filter, me }) {
     });
     if (sent > 0) {
       setOfflineIds(new Set(queuedPunches().map(x => x.application_id)));
-      setFlushedMsg(`圏外のあいだの打刻を送信しました（${sent}件）`);
+      setFlushedMsg(`圏外のあいだの打刻を送信しました（${sent}件）。相手に申告として通知しました`);
       setTimeout(() => setFlushedMsg(""), 6000); // 1回だけ出す
     }
   };
@@ -110,43 +111,9 @@ export function WorkerApplications({ filter, me }) {
   // ── 打刻の修正申請（第13弾(2)・2026-07-30たきと指示）──
   // 開始・終了のどちらか片方だけでも申請できる。相手の承認で記録が直る（申請と結果は記録に残る）。
   // 重複申請はDB側が弾き message を返すので、それをそのまま出す
+  // シート本体は共通部品 TimeCorrectionSheet（雇い手・今日ページと同じもの）。ここは開く相手を持つだけ
   const [corrApp, setCorrApp] = useState(null);
-  const [corrStart, setCorrStart] = useState("");   // "HH:MM"（空＝変更なし）
-  const [corrEnd, setCorrEnd] = useState("");
-  const [corrReason, setCorrReason] = useState("");
-  const [corrSending, setCorrSending] = useState(false);
-  const openCorrection = (a) => {
-    setCorrApp(a); setCorrReason(""); setCorrSending(false);
-    const hm = (ts) => { if (!ts) return ""; const d = new Date(ts); return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0"); };
-    setCorrStart(hm(a.started_at)); setCorrEnd(hm(a.work_completed_at));
-  };
-  // "HH:MM" を作業日のその時刻（端末のタイムゾーン）としてISOに変換。日付は求人の開始日を使う
-  const hmToIso = (hm, a) => {
-    if (!hm) return null;
-    const base = jobDates[a.job_number]?.date_start || ymdLocal(new Date());
-    const [h, mi] = hm.split(":").map(n => parseInt(n, 10));
-    const d = new Date(base + "T00:00:00");
-    d.setHours(h, mi, 0, 0);
-    return d.toISOString();
-  };
-  const submitCorrection = async () => {
-    if (!corrApp || corrSending) return;
-    if (!corrStart && !corrEnd) { alert("開始時刻か終了時刻のどちらかを入れてください"); return; }
-    setCorrSending(true);
-    try {
-      const { data, error } = await supabase.rpc("request_time_correction", {
-        p_application_id: corrApp.id,
-        p_started: hmToIso(corrStart, corrApp),
-        p_ended: hmToIso(corrEnd, corrApp),
-        p_reason: corrReason.trim(),
-      });
-      if (error) { alert("送信に失敗しました：" + error.message); setCorrSending(false); return; }
-      if (!data?.ok) { alert(data?.message || ("送信できませんでした：" + (data?.reason || "不明"))); setCorrSending(false); return; }
-      setCorrApp(null);
-      alert("修正の申請を送りました。相手の承認をお待ちください。");
-    } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); }
-    setCorrSending(false);
-  };
+  const openCorrection = (a) => setCorrApp(a);
 
   // 欠勤記録への異議申立（Part2・attended=falseの代替導線）
   const [disputeModalApp, setDisputeModalApp] = useState(null);
@@ -333,6 +300,7 @@ export function WorkerApplications({ filter, me }) {
                   return a.started_at ? (
                     <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>
                       開始済み（{new Date(a.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
+                      <DeclaredBadge show={a.started_declared} />
                       {a.time_corrected && <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#717171", background:"#F0F0F0", borderRadius:4, padding:"1px 5px" }}>修正済み</span>}
                     </p>
                   ) : queued ? (
@@ -349,6 +317,8 @@ export function WorkerApplications({ filter, me }) {
                     </>
                   );
                 })()}
+                {/* 双方の署名時刻の乖離（第13弾・追補）：申告打刻を承認制にしない代わりに、開きを隠さず出す */}
+                <PunchGapNotice app={a} onRequestCorrection={()=>openCorrection(a)} correctionLabel="🕐 自分の打刻を直す → 修正を申請" />
                 {/* 打刻の修正を申請（第13弾(2)）：時間どおりに押せなかった時の道を、打刻の近くに常時置く */}
                 {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
                   <button onClick={()=>openCorrection(a)} className="f-sans" style={{ display:"block", width:"100%", background:"none", border:"none", fontSize:11, color:"#717171", textDecoration:"underline", textUnderlineOffset:2, cursor:"pointer", margin:"0 0 8px", padding:0 }}>
@@ -576,6 +546,12 @@ export function WorkerApplications({ filter, me }) {
   };
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
+      {/* 圏外キューの送信完了（第13弾(3)）：送れた時に1回だけ出す。相手には申告として通知が飛んでいる */}
+      {flushedMsg && (
+        <p className="f-sans fade-in" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", border:"1px solid #00A86B", borderRadius:10, padding:"9px 11px", margin:"0 0 14px", textAlign:"center", lineHeight:1.6 }}>
+          {flushedMsg}
+        </p>
+      )}
       {/* きょうの仕事タブはタイトルをフローバナーに差し替え（2026-07-19）。返事待ちタブは従来のタイトル */}
       {filter !== "approved" && (<>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
@@ -677,36 +653,7 @@ export function WorkerApplications({ filter, me }) {
       {/* 異議申立モーダル（Part2・欠勤記録への異議） */}
       {/* 打刻の修正を申請（第13弾(2)）。開始・終了のどちらか片方だけでも出せる */}
       {corrApp && (
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:6 }}>🕐 打刻の修正を申請</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.6, marginBottom:14 }}>
-              実際の時刻を入れてください。どちらか片方だけでも申請できます。
-            </p>
-            <div style={{ display:"grid", gap:10, marginBottom:14 }}>
-              <label className="f-sans" style={{ fontSize:12, color:"#717171" }}>開始時刻
-                <input type="time" value={corrStart} onChange={e=>setCorrStart(e.target.value)}
-                  className="field f-sans" style={{ width:"100%", fontSize:16, marginTop:4, marginBottom:0 }} />
-              </label>
-              <label className="f-sans" style={{ fontSize:12, color:"#717171" }}>終了時刻
-                <input type="time" value={corrEnd} onChange={e=>setCorrEnd(e.target.value)}
-                  className="field f-sans" style={{ width:"100%", fontSize:16, marginTop:4, marginBottom:0 }} />
-              </label>
-            </div>
-            <textarea value={corrReason} onChange={e=>setCorrReason(e.target.value)} placeholder="理由（任意）" rows={3}
-              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:14, marginBottom:12, boxSizing:"border-box", resize:"vertical" }} />
-            <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.6, marginBottom:14, background:"#F7F7F7", borderRadius:8, padding:"8px 10px" }}>
-              相手の承認で記録が修正されます。申請と結果は記録に残ります。
-            </p>
-            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-              <button onClick={()=>setCorrApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#F7F7F7", border:"none", borderRadius:8, cursor:"pointer" }}>やめる</button>
-              <button onClick={submitCorrection} disabled={corrSending || (!corrStart && !corrEnd)}
-                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", opacity:(corrSending || (!corrStart && !corrEnd)) ? 0.5 : 1 }}>
-                {corrSending ? "送信中..." : "申請する"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <TimeCorrectionSheet key={corrApp.id} app={corrApp} baseYmd={jobDates[corrApp.job_number]?.date_start} onClose={()=>setCorrApp(null)} />
       )}
       {disputeModalApp && (
         <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>

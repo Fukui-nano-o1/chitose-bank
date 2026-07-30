@@ -4,14 +4,16 @@ import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
-import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots } from "./ui";
+import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
+import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
+import ContractPartyName from "./ContractPartyName";
 import { getCache, setCache } from "../lib/viewCache";
 
 // 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
@@ -546,7 +548,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       }
     } catch {}
     const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : "";
-    if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。`)) return;
+    if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。\n\n採用すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。`)) return;
     const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id });
     if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     // 働き手側のterms_confirmed_worker_atは応募時にDBトリガーが自動記録済みso、農家側の時刻だけ足せば帯・ボタンがcontractedへ進む
@@ -662,6 +664,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       setRosterRows(prev => prev.filter(r => r.worker_id !== workerId));
     } catch { alert('解除に失敗しました。'); }
   };
+
+  // 打刻の修正申請（第13弾・追補の訂正／2026-07-30たきと指示「申請権の非対称を解消」）。
+  // 申請は相手の承認で成立するので、雇い手から出しても双方署名の構造は崩れない。シートは働き手側と同じ共通部品
+  const [corrApp, setCorrApp] = useState(null);
 
   // 緊急連絡（Part3・農家側）
   const [emergencyModalApp, setEmergencyModalApp] = useState(null);
@@ -909,8 +915,20 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <div style={{ marginBottom:12 }}>{actionButtons}</div>
               {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるso出さない（バナーが理由を説明する） */}
               {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
+              {/* 打刻の事実の質（第13弾・追補）：申告打刻の印と、双方の署名時刻の乖離。
+                  申告打刻に承認は課さない代わりに、農家が見て気づける形で必ず出す */}
+              {a.started_at && (
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>
+                  開始 {new Date(a.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}
+                  <DeclaredBadge show={a.started_declared} />
+                  {a.time_corrected && <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#717171", background:"#F0F0F0", borderRadius:4, padding:"1px 5px" }}>修正済み</span>}
+                </p>
+              )}
+              <PunchGapNotice app={a} onRequestCorrection={()=>setCorrApp(a)} correctionLabel="🕐 実際と違う場合は → 修正を申請" />
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
+                {/* 契約成立後のみ本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
+                <ContractPartyName applicationId={a.id} showPending={false} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
               </div>
               {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (
@@ -1732,6 +1750,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button onClick={()=>setCompleteDone(null)} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>閉じる</button>
           </div>
         </div>
+      )}
+
+      {/* 打刻の修正を申請（第13弾・追補の訂正）。働き手側と同じ共通シート */}
+      {corrApp && (
+        <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />
       )}
 
       {/* 緊急連絡モーダル（Part3・農家側） */}

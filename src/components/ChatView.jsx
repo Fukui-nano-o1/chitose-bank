@@ -8,6 +8,7 @@ import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/pr
 import { chatCache } from "../lib/chatCache";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar, Dots } from "./ui";
+import ContractPartyName from "./ContractPartyName";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
@@ -440,10 +441,14 @@ export function ChatView({ applicationId, onBack }) {
             farmerConfirmed ? (
               <span className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#E6F7EF", color:"#00A86B", fontSize:13, fontWeight:700, borderRadius:12, padding:"8px 16px", whiteSpace:"nowrap" }}>✓ 採用決定済み{!workerConfirmed ? "（確認待ち）" : ""}</span>
             ) : (
-              <button onClick={async ()=>{ if (confirmingTerms) return; const dup = await farmerDoubleBookingCheck(); const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : ""; if (window.confirm(warn + "この方の採用を決定しますか？\n面接はチャットで行い、採用を決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : ""))) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap", opacity: confirmingTerms ? 0.6 : 1 }}>{confirmingTerms ? "..." : "採用する"}</button>
+              <button onClick={async ()=>{ if (confirmingTerms) return; const dup = await farmerDoubleBookingCheck(); const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : ""; if (window.confirm(warn + "この方の採用を決定しますか？\n面接はチャットで行い、採用を決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : "") + "\n\n採用すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。")) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap", opacity: confirmingTerms ? 0.6 : 1 }}>{confirmingTerms ? "..." : "採用する"}</button>
             )
           )}
         </div>
+      )}
+      {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)）。未契約は案内文を出す */}
+      {activeAppId && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
+        <ContractPartyName applicationId={activeAppId} style={{ padding:"2px 0 0" }} />
       )}
       {reportMode && !reportTarget && (
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
@@ -517,6 +522,9 @@ export function ChatView({ applicationId, onBack }) {
                       </div>
                     ))}
                   </div>
+                  <p className="f-sans" style={{ fontSize:11, color:"#8A8A8A", lineHeight:1.7, margin:"0 0 10px", background:"#F7F7F7", borderRadius:8, padding:"8px 10px" }}>
+                    確認すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。
+                  </p>
                   <button onClick={async ()=>{ await confirmTerms(); setConfirmBoxOpen(false); }} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>
                     {confirmingTerms ? "..." : "内容に相違ありません"}
                   </button>

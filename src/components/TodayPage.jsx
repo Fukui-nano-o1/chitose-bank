@@ -3,7 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
-import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
+import ContractPartyName from "./ContractPartyName";
+import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
 //   textareaのフォーカス・下書きが消える（LandingFlowのフォーカス消失バグと同族）
@@ -188,6 +190,8 @@ export function TodayPage({ me, defaultRole }) {
   // 打刻の修正申請（第13弾(2)）：自分が承認する側のpendingを直接読む。
   // my_todo_items（RETURNS TABLE・固定型）は触らず、件数はDB側のmy_nav_badges が todo に加算済み
   const [corrections, setCorrections] = useState([]);
+  const [punchFacts, setPunchFacts] = useState({}); // application_id → 打刻の事実（申告フラグ・双方の署名時刻）
+  const [corrApp, setCorrApp] = useState(null);     // 乖離からの修正申請（シートは共通部品・双方から出せる）
   const [corrDeciding, setCorrDeciding] = useState("");
   // 承認／見送り。片付いたらカードが消える＝やることの件数・ナビのバッジと一致し続ける。
   // 申請者自身は承認できない（RPCが 'self' で拒否し message を返すので、それをそのまま出す）
@@ -212,7 +216,7 @@ export function TodayPage({ me, defaultRole }) {
         if (!session) { setLoading(false); return; }
         // 6本とも互いに独立なので1回で同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 以前はカレンダー→やること→残り4本の3段階で待っていた
-        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: apps }, { data: corr }] = await Promise.all([
+        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: apps }, { data: facts }, { data: corr }] = await Promise.all([
           supabase.rpc("get_my_calendar_jobs"),
           supabase.rpc("my_todo_items"),
           supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
@@ -224,6 +228,12 @@ export function TodayPage({ me, defaultRole }) {
           supabase.from("applications")
             .select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
             .eq("worker_id", session.user.id),
+          // 打刻の事実（第13弾・追補）：申告フラグと双方の署名時刻。両役割ぶんをまとめて取る
+          // （RLSで当事者の行だけ返る）。get_my_calendar_jobs/my_todo_items は返さない列なので直に読む
+          supabase.from("applications")
+            .select("id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected")
+            .or(`worker_id.eq.${session.user.id},farmer_id.eq.${session.user.id}`)
+            .then(r => r, () => ({ data: [] })),
           // 自分が承認する側の打刻修正（申請者自身には出さない＝RPC側でも拒否される）
           supabase.from("attendance_corrections")
             .select("id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)")
@@ -245,6 +255,7 @@ export function TodayPage({ me, defaultRole }) {
           .map(a => a.id);
         setHiredIds(new Set(hired)); setCache("today:hired", hired);
         setCorrections(corr || []);
+        setPunchFacts(Object.fromEntries((facts || []).map(f => [f.id, f])));
         // 既定ロールが持っていない側なら、持っている側へ寄せる
         setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
       } catch {}
@@ -498,8 +509,11 @@ export function TodayPage({ me, defaultRole }) {
           {items.map(t => {
             const busy = confirming === (t.application_id || t.job_number) + t.stage;
             const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" "), (stage.startsWith("t_") && t.work_time) ? "🕒" + t.work_time : ""].filter(Boolean).join(" ");
+            // 打刻の事実（第13弾・追補）：申告フラグと双方の署名時刻の開き。隠さず、この行の下に添える
+            const pf = punchFacts[t.application_id];
             return (
-              <div key={todoKey(t)} style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+              <div key={todoKey(t)} style={{ display:"grid", gap:6, minWidth:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
                 {role === "farmer" && t.partner_name ? (
                   /* ニックネームはアイコンの下（2026-07-26たきと指示） */
                   <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flexShrink:0, maxWidth:64 }}>
@@ -515,6 +529,15 @@ export function TodayPage({ me, defaultRole }) {
                   <button onClick={()=>runTodo(m.alt, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 10px", fontSize:12, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap" }}>{m.alt.label}</button>
                 )}
                 <button onClick={()=>runTodo(m, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 12px", fontSize:12, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
+              </div>
+              {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
+              {t.application_id && <ContractPartyName applicationId={t.application_id} showPending={false} style={{ margin:0, paddingLeft:2 }} />}
+              {pf && (pf.started_declared || pf.ended_declared) && (
+                <span><DeclaredBadge show label={(pf.started_declared ? "開始" : "終了") + "は圏外で申告された時刻"} /></span>
+              )}
+              {/* 導線は双方に出す（2026-07-30たきと訂正）。文言だけ立場で変える */}
+              {pf && <PunchGapNotice app={pf} onRequestCorrection={()=>setCorrApp(pf)}
+                correctionLabel={role === "worker" ? "🕐 自分の打刻を直す → 修正を申請" : "🕐 実際と違う場合は → 修正を申請"} />}
               </div>
             );
           })}
@@ -564,6 +587,7 @@ export function TodayPage({ me, defaultRole }) {
         ) : (
           <TodoStagePanel stage={pageStage} items={pItems} />
         )}
+        {corrApp && <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />}
       </div>
     );
   }
@@ -671,6 +695,7 @@ export function TodayPage({ me, defaultRole }) {
         {/* 「📅 月の予定を見る」ボタンは削除（2026-07-27たきと指示）：やることのカレンダー箱に統合 */}
       </>)}
       </div>
+      {corrApp && <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />}
     </div>
   );
 }
