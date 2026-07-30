@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { isAdmin, fmtJstShort } from "../lib/utils";
+import { openLoginBox } from "../lib/previewBus";
+import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginReturn";
 
 // タブ中身の横スワイプ切替（2026-07-27たきと指示）：仕事の内容⇄保険⇄質問を左右スワイプで移動。
 // 中の横スクロール要素（写真カルーセル・その他の求人等）内で始まったタッチは奪わない。
@@ -89,6 +91,12 @@ export function JobQuestions({ jobNumber, me }) {
       load();
     })();
   }, [jobNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ログインを挟んで戻ってきたとき、書きかけの質問を元の求人にだけ戻す（2026-07-30たきと指示）
+  useEffect(() => {
+    if (jobNumber == null) return;
+    const d = takeLoginDraft("jobQuestion");
+    if (d && String(d.jobNumber) === String(jobNumber) && d.text) setText(d.text);
+  }, [jobNumber]);
   const submitAsk = async () => {
     const q = text.trim();
     if (!q || sending) return;
@@ -96,7 +104,16 @@ export function JobQuestions({ jobNumber, me }) {
     try {
       const { data, error } = await supabase.rpc("ask_job_question", { p_job: jobNumber, p_question: q });
       if (error || !data?.ok) {
-        setNgMsg(data?.message || (data?.reason === "not_logged_in" ? "質問するにはログインが必要です。" : data?.reason === "own_job" ? "自分の求人には質問できません。" : data?.reason === "not_open" ? "この求人は現在公開されていません。" : "送信できませんでした。"));
+        if (data?.reason === "not_logged_in") {
+          // 書いた文と今いるページを預けてから、その場にログインのボックスを開く。
+          // ログイン後にこのページへ戻り、上のuseEffectが文を書き戻す
+          stashLoginDraft("jobQuestion", { jobNumber, text: q });
+          armLoginReturn();
+          setNgMsg("質問するにはログインが必要です。入力した内容は保存されます。");
+          openLoginBox();
+        } else {
+          setNgMsg(data?.message || (data?.reason === "own_job" ? "自分の求人には質問できません。" : data?.reason === "not_open" ? "この求人は現在公開されていません。" : "送信できませんでした。"));
+        }
       } else { setText(""); await load(); }
     } catch { setNgMsg("送信できませんでした。"); }
     setSending(false);

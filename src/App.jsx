@@ -47,6 +47,7 @@ import { WorkerExperiencePage } from "./components/WorkerExperiencePage";
 import { isIOS, syncAppBadge } from "./lib/push";
 import { compressImage } from "./lib/image";
 import { peekApplyReturn } from "./lib/applyReturn";
+import { armLoginReturn, takeLoginReturn } from "./lib/loginReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
 
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
@@ -1117,10 +1118,27 @@ export default function App(){
   // 訪問者の「登録が必要です」案内をボックス化（2026-07-27たきと指示）。どの画面からでも openLoginBox() で開く
   const [loginBox, setLoginBox] = useState(false);
   useEffect(() => {
-    const f = () => setLoginBox(true);
+    // ボックスで開く時も、閉じて別経路でログインした時に戻れるよう発火ページを覚えておく
+    const f = () => { armLoginReturn(); setLoginBox(true); };
     window.addEventListener("cb:openLoginBox", f);
     return () => window.removeEventListener("cb:openLoginBox", f);
   }, []);
+  // 訪問者をログイン画面へ送る唯一の入口（2026-07-30たきと指示）。
+  // 送り出す前に「今いるページ」を覚え、ログイン成功後にそこへ戻す（下の onLogin で消費）
+  const goLogin = () => { armLoginReturn(); setTab("login"); };
+  // ログイン成功後の行き先。優先順＝①緊急連絡リンク（時間に敏感）②応募の戻り先（具体的）
+  // ③発火したページ ④既定（プロフィール）。戻り先の記録は読んだ時点で消える
+  const afterLoginGo = () => {
+    try {
+      const em = sessionStorage.getItem("cb_emergencyLink");
+      if (em) { sessionStorage.removeItem("cb_emergencyLink"); window.location.hash = "/emergency/" + em; return; }
+    } catch {}
+    const ret = peekApplyReturn();
+    if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); return; }
+    const back = takeLoginReturn();
+    if (back) { window.location.hash = "/" + back; return; }
+    setTab("profile");
+  };
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
@@ -1890,13 +1908,15 @@ export default function App(){
               <LoginScreen farmers={farmers} onLogin={f=>{
                 setLoginBox(false);
                 setMe(f);
+                // ボックスは画面を奪っていないので、原則その場に留まる。
+                // 緊急連絡・応募の戻り先だけは行き先が決まっているので従来どおり移動する
                 try {
                   const em = sessionStorage.getItem("cb_emergencyLink");
                   if (em) { sessionStorage.removeItem("cb_emergencyLink"); window.location.hash = "/emergency/" + em; return; }
                 } catch {}
-                // 見ていた求人に留まる（応募の戻り先があればそこへ）。ログインタブと違い、画面は奪わない
                 const ret = peekApplyReturn();
-                if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
+                if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); return; }
+                takeLoginReturn(); // その場に居るので戻り先は使わない＝古い記録を残さない
               }}/>
             </div>
           </div>
@@ -2048,7 +2068,8 @@ export default function App(){
             {MOBILE_MENU_ITEMS
               .filter(item => !item.adminOnly || isAdmin(me))
               .map(item => (
-                <button key={item.key} onClick={()=>{ setMobileMenuOpen(false); window.location.hash = item.hash; }} className="f-sans app-header-mobile-menu-item">{item.label}</button>
+                /* ログインへ行く時だけ、今いるページを覚える（戻ってこられるように・2026-07-30） */
+                <button key={item.key} onClick={()=>{ setMobileMenuOpen(false); if (item.hash === "/login") armLoginReturn(); window.location.hash = item.hash; }} className="f-sans app-header-mobile-menu-item">{item.label}</button>
               ))}
             {me && (
               <button onClick={()=>{ setMobileMenuOpen(false); handleLogout(); }} className="f-sans app-header-mobile-menu-item" style={{ color:"#E24B4A", borderTop:"1px solid #EBEBEB" }}>ログアウト</button>
@@ -2186,34 +2207,28 @@ export default function App(){
             <button onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans" style={{ background:"none", border:"none", fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer", marginBottom:20 }}>どんなメールが来るか確認する →</button>
             <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
           </div>
-        ) : safeTab==="search" ? <JobSearchMapView onRegister={()=>setTab("login")} me={me} /> : null}
+        ) : safeTab==="search" ? <JobSearchMapView onRegister={goLogin} me={me} /> : null}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
           ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ProfileHub me={me}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} /></Suspense>
-          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="chats"&&(me
           ? <ChatList />
-          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>チャットを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>チャットを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="saved"&&(me
           ? <SavedJobsView me={me} />
-          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>いいねを見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>いいねを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="calendar"&&(me
           ? <CalendarRouter me={me} defaultRole={empCtx ? "farmer" : "worker"} />
-          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>今日の予定を見るにはログインしてください</p><button onClick={()=>setTab("login")} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+          : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>今日の予定を見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="login"&&(me
           ? <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#222"}}>ログイン済みです</p></div>
           : <LoginScreen farmers={farmers} onLogin={f=>{
               setMe(f);
-              // 緊急連絡ディープリンクからの復帰（最優先・時間に敏感）
-              try {
-                const em = sessionStorage.getItem("cb_emergencyLink");
-                if (em) { sessionStorage.removeItem("cb_emergencyLink"); window.location.hash = "/emergency/" + em; return; }
-              } catch {}
-              setTab("profile");
-              const ret = peekApplyReturn();
-              if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); }
+              // 行き先の決め方は afterLoginGo に一本化（緊急連絡→応募の戻り先→発火したページ→既定）
+              afterLoginGo();
             }}/>)}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ConsignmentRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><AdminTab
