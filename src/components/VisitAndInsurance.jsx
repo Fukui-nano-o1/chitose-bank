@@ -57,26 +57,31 @@ export function InsurancePrepPage({ me }) {
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
       ) : (<>
-        <div style={{ borderTop:"1px solid #EBEBEB", marginBottom:16 }}>
-          {/* これから準備する選択中は他の保険行を非表示（2026-07-25たきと指示・排他を見た目でも表現）。OFFに戻すと全行復活 */}
-          {(items.includes("considering") ? INSURANCE_ITEMS.filter(it => it.k === "considering") : INSURANCE_ITEMS).map((it, i, arr) => (
-            <div key={it.k} style={{ borderBottom: i < arr.length - 1 ? "1px solid #EBEBEB" : "none" }}>
-              <ToggleSwitch label={it.label} checked={items.includes(it.k)} onChange={(v)=>toggleItem(it.k, v)} />
-              {items.includes(it.k) && (
-                <div style={{ padding:"0 2px 12px" }}>
-                  <textarea
-                    value={notes[it.k] || ""}
-                    onChange={e=>setNotes(prev => ({ ...prev, [it.k]: e.target.value }))}
-                    placeholder="働き手へのひとこと（任意・例：加入している保険会社や補償の範囲など）"
-                    rows={2}
-                    maxLength={300}
-                    className="field f-sans"
-                    style={{ fontSize:13, resize:"vertical", width:"100%", boxSizing:"border-box" }}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
+        {/* 罫線で区切る行から、1項目=1ボックスへ（2026-07-29たきと指示・プロフィールの箱と同じ作法）。
+            申告した項目は縁が緑。中身（トグル・ひとこと）と排他ルールは従来どおり */}
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+          {/* これから準備する選択中は他の保険を非表示（2026-07-25たきと指示・排他を見た目でも表現）。OFFに戻すと全箱復活 */}
+          {(items.includes("considering") ? INSURANCE_ITEMS.filter(it => it.k === "considering") : INSURANCE_ITEMS).map((it) => {
+            const on = items.includes(it.k);
+            return (
+              <div key={it.k} style={{ background:"#F7F7F7", border:"1px solid " + (on ? "#00A86B" : "#EBEBEB"), borderRadius:14, padding:"2px 14px 6px" }}>
+                <ToggleSwitch label={it.label} checked={on} onChange={(v)=>toggleItem(it.k, v)} />
+                {on && (
+                  <div style={{ padding:"0 0 8px" }}>
+                    <textarea
+                      value={notes[it.k] || ""}
+                      onChange={e=>setNotes(prev => ({ ...prev, [it.k]: e.target.value }))}
+                      placeholder="働き手へのひとこと（任意・例：加入している保険会社や補償の範囲など）"
+                      rows={2}
+                      maxLength={300}
+                      className="field f-sans"
+                      style={{ fontSize:13, resize:"vertical", width:"100%", boxSizing:"border-box", background:"#fff" }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         {items.includes("considering") && (
           <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, color:"#00A86B", fontSize:13, fontWeight:700, textDecoration:"underline", cursor:"pointer", marginBottom:16 }}>→ 1日保険の入り方（ヘルプ）</button>
