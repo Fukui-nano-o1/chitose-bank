@@ -4,7 +4,7 @@
 // 選んだ日の求人をどう見せるかは置き場所を持つページ側（応募者ページ）の仕事＝onDayTapJobsで渡す。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, isJobDraft } from "../lib/utils";
+import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, isJobDraft, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
 import { StatusRibbonLeft, NoticeJumpText } from "./ui";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
@@ -61,6 +61,25 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
     const ymd = ymdLocal(dt);
     return entries.filter(e => e.date_start && ymd >= e.date_start && ymd <= (e.date_end || e.date_start));
   };
+  // ── 名前チップ「誰がいつ来るか」（2026-07-29たきと指示）──
+  // 出すのは採用済みだけ＝両者の確認時刻が揃った応募（面接中はまだ来ると確定していないので出さない）。
+  // 段階は appPhaseKey（帯の唯一のソース）で導く。statusは承認後も'approved'のままで、
+  // 面接中と採用の区別は terms_confirmed_*_at にしか無いため、RPCにこの2列を返させている
+  // （migration 20260729…_calendar_terms_confirmed_for_phase）。
+  const HIRED_PHASES = ["contracted", "working"];
+  const phaseOfEntry = (e) => appPhaseKey({
+    status: e.application_status,
+    terms_confirmed_worker_at: e.terms_confirmed_worker_at,
+    terms_confirmed_farmer_at: e.terms_confirmed_farmer_at,
+  });
+  // 働く日（agreed_dates）が確定していればその日だけ、未確定なら求人の日程どおりに出す
+  const comesOnDay = (e, ymd) => {
+    if (e.relation !== "application" || !e.partner_name) return false;
+    if (!HIRED_PHASES.includes(phaseOfEntry(e))) return false;
+    if (Array.isArray(e.agreed_dates) && e.agreed_dates.length > 0) return e.agreed_dates.includes(ymd);
+    return !!e.date_start && ymd >= e.date_start && ymd <= (e.date_end || e.date_start);
+  };
+  const chipsOnDay = (dt) => { const ymd = ymdLocal(dt); return entries.filter(e => comesOnDay(e, ymd)); };
 
   const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
   const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
@@ -173,9 +192,13 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                 const hasWorker = workerEs.length > 0;
                 const isOpen = es.some(e => e.status === "open"); // 公開中が1件でもあれば濃色
                 const baseColor = (hasFarmer && hasWorker) ? CAL_OVERLAP : hasFarmer ? ROLE_GREEN : hasWorker ? ROLE_ORANGE : null;
+                // 名前チップが乗る日は塗りを薄くする（2026-07-29たきと指示）＝濃い地に濃いチップを重ねない。
+                // 濃淡の既存ルール（濃い=公開中）はチップの無い日でそのまま維持される
+                const chips = chipsOnDay(dt);
                 // 薄色＝同じ色の8%（+"14"）。文字は色に沿った濃い字にして読めるようにする
-                const fillBg = baseColor ? (isOpen ? baseColor : baseColor + "22") : null;
-                const fillFg = baseColor ? (isOpen ? "#fff" : baseColor) : "#222";
+                const solid = isOpen && chips.length === 0;
+                const fillBg = baseColor ? (solid ? baseColor : baseColor + "22") : null;
+                const fillFg = baseColor ? (solid ? "#fff" : baseColor) : "#222";
                 const liked = es.some(e => e.relation === "liked" || likedIds.has(e.job_number)); // いいね済み＝右上に小さく❤️
                 const isToday = ymd === todayYmd;
                 const isSelected = selectedDay && ymdLocal(selectedDay) === ymd;
@@ -185,8 +208,22 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                     background: fillBg || (isSelected ? "#E6F7EF" : "transparent"),
                     color: fillFg, fontWeight: (baseColor || isToday) ? 700 : 400,
                     boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
+                    display:"flex", flexDirection:"column", alignItems:"stretch", gap:2, minHeight: chips.length > 0 ? 46 : undefined,
                   }}>
-                    {dd}
+                    <span>{dd}</span>
+                    {/* 誰が来るか（採用済みのみ）。色は段階色＝帯・チャットと同じ体系。
+                        名前はニックネーム（未設定ならメール頭2文字）で、本名は返らない（resolve_actor_name） */}
+                    {chips.slice(0, 2).map(e => (
+                      <span key={e.application_id} title={`${e.partner_name}（${APP_PHASE_LABEL[phaseOfEntry(e)]}）`}
+                        className="f-sans" style={{
+                          background: APP_PHASE_COLOR[phaseOfEntry(e)], color:"#fff",
+                          fontSize:9, fontWeight:700, lineHeight:1.5, borderRadius:3, padding:"0 3px",
+                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block",
+                        }}>{e.partner_name}</span>
+                    ))}
+                    {chips.length > 2 && (
+                      <span className="f-sans" style={{ fontSize:8, fontWeight:700, color:"#717171", lineHeight:1.4 }}>＋{chips.length - 2}</span>
+                    )}
                     {liked && <span aria-hidden="true" style={{ position:"absolute", top:1, right:2, fontSize:8, lineHeight:1 }}>❤️</span>}
                   </button>
                 );
@@ -200,8 +237,18 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
             <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:ROLE_ORANGE }} />求職期間</span>
             <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:CAL_OVERLAP }} />重複</span>
           </div>
+          {/* 名前チップの凡例（2026-07-29）：段階色は帯・チャットと同じ体系なので、ここでも同じ意味で読める */}
+          <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:6, flexWrap:"wrap" }}>
+            {["contracted","working"].map(k => (
+              <span key={k} className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}>
+                <span style={{ background:APP_PHASE_COLOR[k], color:"#fff", fontSize:9, fontWeight:700, borderRadius:3, padding:"0 4px", lineHeight:1.6 }}>名前</span>
+                {APP_PHASE_LABEL[k]}
+              </span>
+            ))}
+          </div>
           {/* 濃淡の意味（2026-07-27たきと指示）：公開中だけ濃く、それ以外（下書き・審査中・終了）は薄く */}
           <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"4px 0 0" }}>濃い色＝公開中／薄い色＝それ以外　❤️＝いいね</p>
+          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"2px 0 0" }}>名前は採用が決まった方のみ表示されます（面接中は出ません）</p>
           {flashNoPlan && (
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
           )}
