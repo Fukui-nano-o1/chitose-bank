@@ -12,6 +12,7 @@ import { MyCalendar } from "./MyCalendar";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
+import ContractPartyName from "./ContractPartyName";
 import { getCache, setCache } from "../lib/viewCache";
 
 // 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
@@ -546,7 +547,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       }
     } catch {}
     const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : "";
-    if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。`)) return;
+    if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。\n\n採用すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。`)) return;
     const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id });
     if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     // 働き手側のterms_confirmed_worker_atは応募時にDBトリガーが自動記録済みso、農家側の時刻だけ足せば帯・ボタンがcontractedへ進む
@@ -911,6 +912,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
+                {/* 契約成立後のみ本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
+                <ContractPartyName applicationId={a.id} showPending={false} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
               </div>
               {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (

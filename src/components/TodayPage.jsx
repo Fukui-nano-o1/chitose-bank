@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
+import ContractPartyName from "./ContractPartyName";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
 //   textareaのフォーカス・下書きが消える（LandingFlowのフォーカス消失バグと同族）
@@ -499,7 +500,8 @@ export function TodayPage({ me, defaultRole }) {
             const busy = confirming === (t.application_id || t.job_number) + t.stage;
             const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" "), (stage.startsWith("t_") && t.work_time) ? "🕒" + t.work_time : ""].filter(Boolean).join(" ");
             return (
-              <div key={todoKey(t)} style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+              <div key={todoKey(t)} style={{ display:"flex", flexDirection:"column", gap:2, minWidth:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
                 {role === "farmer" && t.partner_name ? (
                   /* ニックネームはアイコンの下（2026-07-26たきと指示） */
                   <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flexShrink:0, maxWidth:64 }}>
@@ -515,6 +517,9 @@ export function TodayPage({ me, defaultRole }) {
                   <button onClick={()=>runTodo(m.alt, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 10px", fontSize:12, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap" }}>{m.alt.label}</button>
                 )}
                 <button onClick={()=>runTodo(m, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 12px", fontSize:12, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
+              </div>
+              {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
+              {t.application_id && <ContractPartyName applicationId={t.application_id} showPending={false} style={{ margin:0, paddingLeft:2 }} />}
               </div>
             );
           })}
