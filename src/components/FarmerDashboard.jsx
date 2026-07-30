@@ -214,6 +214,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setInsNotes((empMini?.insurance_notes && typeof empMini.insurance_notes === "object") ? empMini.insurance_notes : {});
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [empMini]);
+  // 箱の並び（2026-07-29たきと指示）：申告した順に左へ、そのあとに未申告。
+  // 並びの元は「保存ずみ」の順（empMini）＝入力中にトグルするたび箱が飛び回らない。保存すると並び替わる
+  const insOrderedItems = (() => {
+    const saved = Array.isArray(empMini?.insurance_items) ? empMini.insurance_items : [];
+    const declared = saved.map(k => INSURANCE_ITEMS.find(x => x.k === k)).filter(Boolean);
+    return [...declared, ...INSURANCE_ITEMS.filter(it => !saved.includes(it.k))];
+  })();
   const toggleInsurance = (k, v) => {
     // 排他ルールは lib/utils の insuranceToggle（保険ページと共用）。確認の文言も保険ページと同じ
     const r = insuranceToggle(insItems, insNotes, k, v);
@@ -1095,7 +1102,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box", display:"flex", flexDirection:"column", justifyContent:"center" }}>
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 10px", paddingRight:28 }}>🛡 保険の準備（自己申告・{insItems.length}件）</p>
                 <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
-                  {INSURANCE_ITEMS.map(it => {
+                  {insOrderedItems.map(it => {
                     const on = insItems.includes(it.k);
                     const open = insOpenKey === it.k;
                     return (
