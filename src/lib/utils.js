@@ -77,6 +77,31 @@ export function punchStartWindow(job, now = new Date()) {
   };
 }
 
+// ── 打刻の透明性（第13弾・追補・2026-07-30たきと判断）──
+// オフラインの申告打刻に相手の承認は課さない（電波が最も悪い場面で摩擦を増やさない）。
+// 代わりに「事実の質」を隠さず出す＝申告であることのフラグと、双方の署名時刻の乖離を見せる。
+// 記録そのものは改変しない・申告打刻も実績に算入する、という台帳の扱いは変えない。
+export const PUNCH_GAP_MIN = 30; // これ以上ズレていたら並べて出す
+
+// 働き手の打刻と農家の確認、それぞれの署名時刻の開き（分）。片方でも無ければ null
+const gapMinutes = (a, b) => {
+  if (!a || !b) return null;
+  const d = Math.abs(new Date(a).getTime() - new Date(b).getTime());
+  if (!isFinite(d)) return null;
+  return Math.round(d / 60000);
+};
+// 開始・終了それぞれについて「並べて出すべきか」を返す。
+// 開始＝働き手のstarted_at と 農家のfarmer_confirmed_start_at
+// 終了＝農家のwork_completed_at と 働き手のworker_confirmed_end_at
+export function punchDivergence(app) {
+  const s = gapMinutes(app?.started_at, app?.farmer_confirmed_start_at);
+  const e = gapMinutes(app?.work_completed_at, app?.worker_confirmed_end_at);
+  return {
+    start: (s !== null && s >= PUNCH_GAP_MIN) ? { minutes: s, worker: app.started_at, farmer: app.farmer_confirmed_start_at } : null,
+    end:   (e !== null && e >= PUNCH_GAP_MIN) ? { minutes: e, farmer: app.work_completed_at, worker: app.worker_confirmed_end_at } : null,
+  };
+}
+
 // JSTの短い日時表示（MM/DD HH:MM）
 export const fmtJstShort = (ts) => {
   if (!ts) return "";

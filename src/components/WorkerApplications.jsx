@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow } from "../lib/utils";
 import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
-import { YesNoPill, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { YesNoPill, AutoSkeleton, useSkeletonProbe, DeclaredBadge, PunchGapNotice } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 
@@ -54,7 +54,7 @@ export function WorkerApplications({ filter, me }) {
     });
     if (sent > 0) {
       setOfflineIds(new Set(queuedPunches().map(x => x.application_id)));
-      setFlushedMsg(`圏外のあいだの打刻を送信しました（${sent}件）`);
+      setFlushedMsg(`圏外のあいだの打刻を送信しました（${sent}件）。相手に申告として通知しました`);
       setTimeout(() => setFlushedMsg(""), 6000); // 1回だけ出す
     }
   };
@@ -314,6 +314,7 @@ export function WorkerApplications({ filter, me }) {
                   return a.started_at ? (
                     <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>
                       開始済み（{new Date(a.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
+                      <DeclaredBadge show={a.started_declared} />
                       {a.time_corrected && <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#717171", background:"#F0F0F0", borderRadius:4, padding:"1px 5px" }}>修正済み</span>}
                     </p>
                   ) : queued ? (
@@ -330,6 +331,8 @@ export function WorkerApplications({ filter, me }) {
                     </>
                   );
                 })()}
+                {/* 双方の署名時刻の乖離（第13弾・追補）：申告打刻を承認制にしない代わりに、開きを隠さず出す */}
+                <PunchGapNotice app={a} onRequestCorrection={()=>openCorrection(a)} />
                 {/* 打刻の修正を申請（第13弾(2)）：時間どおりに押せなかった時の道を、打刻の近くに常時置く */}
                 {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
                   <button onClick={()=>openCorrection(a)} className="f-sans" style={{ display:"block", width:"100%", background:"none", border:"none", fontSize:11, color:"#717171", textDecoration:"underline", textUnderlineOffset:2, cursor:"pointer", margin:"0 0 8px", padding:0 }}>
@@ -529,6 +532,12 @@ export function WorkerApplications({ filter, me }) {
   };
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
+      {/* 圏外キューの送信完了（第13弾(3)）：送れた時に1回だけ出す。相手には申告として通知が飛んでいる */}
+      {flushedMsg && (
+        <p className="f-sans fade-in" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", border:"1px solid #00A86B", borderRadius:10, padding:"9px 11px", margin:"0 0 14px", textAlign:"center", lineHeight:1.6 }}>
+          {flushedMsg}
+        </p>
+      )}
       {/* きょうの仕事タブはタイトルをフローバナーに差し替え（2026-07-19）。返事待ちタブは従来のタイトル */}
       {filter !== "approved" && (<>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
