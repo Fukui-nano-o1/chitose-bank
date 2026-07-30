@@ -169,6 +169,12 @@ export function mapJobPublicRow(j) {
     lng:    j.lng != null ? Number(j.lng) : null,
     radius: j.geo_radius_m != null ? Number(j.geo_radius_m) : null,
     count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
+    // 募集主の法定表示（2026-07-30・第14弾）：掲載時にjobsへ転写された値をそのまま出す。
+    // 原本（employer_profiles）ではなく求人ごとの控えを見るので、掲載後にプロフィールを直しても
+    // その求人の表示は掲載時点のまま＝広告の記載と食い違わない
+    recruiterName: j.recruiter_name || "",
+    recruiterAddress: j.recruiter_address || "",
+    recruiterContact: j.recruiter_contact || "",
     nearestStation: j.nearest_station || "", workTime: j.work_time || "",
     breakTime: j.break_time || "",
     commuteTime: j.commute_time || "", jobBody: j.notes || "",
