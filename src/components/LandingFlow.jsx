@@ -289,9 +289,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   }, [farmerPref]);
   const [zipSearching,      setZipSearching]      = useState(false);
   const [zipError,          setZipError]          = useState("");
-  // 郵便番号から住所を検索（zipcloud・無料・認証不要）。都道府県・市区町村を自動入力
-  const searchZip = async () => {
-    const zip = farmerZip.replace(/[^0-9]/g, "");
+  // 郵便番号から住所を検索（zipcloud・無料・認証不要）。都道府県・市区町村を自動入力。
+  // ★引数で郵便番号を受け取れるようにしてある（2026-07-29）：入力欄のonChangeから呼ぶとき、
+  //   その時点の farmerZip state はまだ更新前なので、打たれた値を直接渡す必要がある
+  const searchZip = async (zipRaw) => {
+    const zip = String(zipRaw === undefined ? farmerZip : zipRaw).replace(/[^0-9]/g, "");
     if (zip.length !== 7) { setZipError("郵便番号は7桁で入力してください"); return; }
     setZipSearching(true); setZipError("");
     try {
@@ -315,10 +317,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     }
     setZipSearching(false);
   };
-  useEffect(() => {
-    const digits = farmerZip.replace(/[^0-9]/g, "");
-    if (digits.length === 7) { searchZip(); }
-  }, [farmerZip]);
+  // ★farmerZip を監視して自動検索する useEffect は廃止した（2026-07-29・集合場所が復元できない不具合の根治）。
+  //   farmerZip に書き込む経路は5つあり、うち4つは「正しい住所を丸ごと入れる」復元処理だった：
+  //     ①下書き復元（useStateの初期値 d.farmerZip） ②求人の編集読み込み ③「前回の住所を使う」
+  //     ④集合場所ボックスの保存後（setFarmerTown(pbTown) 等で町域まで入れている）
+  //   監視effectはこの4つでも発火し、直後に zipcloud の address3 で町域を上書きしていた。
+  //   例：町域を「宮島」に直して保存 → その場で「忌部」（郵便番号が指す町域）に戻る。
+  //   自動検索は「利用者が郵便番号を打った時」だけに限定する＝入力欄のonChangeから呼ぶ（下記）。
   const [farmerCropPill,    setFarmerCropPill]    = useState(d.farmerCropPill ?? ""); // 作物ピル選択
   const [farmerCropText,    setFarmerCropText]    = useState(d.farmerCropText ?? ""); // 作物自由入力
   const [farmerTaskPill,    setFarmerTaskPill]    = useState(d.farmerTaskPill ?? ""); // 作業ピル選択
@@ -1125,13 +1130,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                   <input
                     ref={zipRef}
                     value={farmerZip}
-                    onChange={e => setFarmerZip(e.target.value)}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setFarmerZip(v);
+                      // 7桁打ち終わった時だけ自動検索（復元処理では走らない・上のコメント参照）
+                      if (v.replace(/[^0-9]/g, "").length === 7) searchZip(v);
+                    }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchZip(); } }}
                     placeholder="例：779-3401"
                     className="field f-sans"
                     style={{ fontSize:16, flex:1, marginBottom:0 }}
                   />
-                  <button onClick={searchZip} disabled={zipSearching} className="f-sans" style={{
+                  {/* onClick={searchZip} と書かないこと：Reactがイベントを第1引数で渡すため、
+                      それが郵便番号として解釈されてしまう（searchZipは引数を取るようになった） */}
+                  <button onClick={() => searchZip()} disabled={zipSearching} className="f-sans" style={{
                     padding:"0 16px", borderRadius:8, border:"1px solid #DADADA",
                     background:"#fff", color:"#222", fontSize:13, fontWeight:600,
                     cursor: zipSearching ? "default" : "pointer", whiteSpace:"nowrap",
