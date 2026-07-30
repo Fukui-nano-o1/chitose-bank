@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { openLoginBox } from "../lib/previewBus";
-import { ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges } from "../lib/utils";
+import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
@@ -817,12 +817,21 @@ export function JobSearchMapView({ onRegister, me }) {
                   {myApplication.started_at ? (
                     <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#00A86B", margin:0 }}>
                       開始済み（{new Date(myApplication.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
+                      {myApplication.time_corrected && <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#717171", background:"#F0F0F0", borderRadius:4, padding:"1px 5px" }}>修正済み</span>}
                     </p>
-                  ) : (
-                    <button onClick={punchStart} disabled={punching} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, borderRadius:14 }}>
-                      {punching ? "..." : "▶ 作業を開始する"}
-                    </button>
-                  )}
+                  ) : (() => {
+                    // 打刻の時間窓（第13弾(1)）。応募状況ページと同じ規則を使う＝ここだけ早く押せる抜け道を作らない
+                    const win = punchStartWindow({ date_start: selectedJob.dateStart, date_end: selectedJob.dateEnd, work_time: selectedJob.workTime });
+                    return (
+                      <>
+                        <button onClick={punchStart} disabled={punching || !win.canPunch} className={win.canPunch ? "btn-primary f-sans" : "f-sans"}
+                          style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, borderRadius:14, ...(win.canPunch ? {} : { background:"#E5E5E5", color:"#999", border:"none" }) }}>
+                          {punching ? "..." : "▶ 作業を開始する"}
+                        </button>
+                        {!win.canPunch && <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"8px 0 0" }}>{win.reason}</p>}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
