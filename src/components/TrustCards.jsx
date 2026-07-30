@@ -147,9 +147,6 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
           )}
         </div>
       )}
-      {okTrust && trust.avg_response_hours != null && (
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>応募への返答：平均{trust.avg_response_hours}時間</p>
-      )}
       {okTrust && trust.avg_approval_hours != null && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>承認までの時間：平均{trust.avg_approval_hours}時間</p>
       )}
