@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { compressImage } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges } from "../lib/utils";
-import { Avatar, DangerItem, JobFlagBadges, LFPillSelect, DevBadge } from "./ui";
+import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
@@ -1849,8 +1849,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
 
               {/* 公開イメージ・セクション①：写真ギャラリー（求人詳細ページと同じく写真が先頭） */}
               {(() => {
-                const cropIcon = farmerCrop && farmerCrop.includes("ブロッコリー") ? "🥦" : farmerCrop && farmerCrop.includes("なす") ? "🍆" : farmerCrop && farmerCrop.includes("トマト") ? "🍅" : farmerCrop && farmerCrop.includes("ねぎ") ? "🌿" : "🌱";
-                const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
+                /* 作物の絵文字・3色の背景は、写真が無いときの水増し表示に使っていたもの。
+                   求人者のアイコン1枚に置き換えたため削除（2026-07-30） */
                 return (
                   <div style={{ marginBottom:28, maxWidth:1000, margin:"0 auto 5px" }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", maxWidth:870, margin:"0 auto 8px" }}>
@@ -1873,15 +1873,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                                 )}
                               </div>
                             ))
-                          : [0, 1, 2].map(i => (
-                              <div key={i} style={{ flexShrink:0, width:"100%", height:392, borderRadius:12, background:bgColors[i % bgColors.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, scrollSnapAlign:"start" }}>{cropIcon}</div>
-                            ))}
+                          : (
+                              /* 写真が1枚も無いときは、絵文字を3枚並べず、求人者のアイコンを1枚だけ大きく出す
+                                 （2026-07-30たきと指示・求人詳細と同じ見え方） */
+                              <div style={{ flexShrink:0, width:"100%", scrollSnapAlign:"start" }}>
+                                <JobPhotoFallback url={confEmployer?.avatar_url} name={confEmployer?.nickname || "？"} />
+                              </div>
+                            )}
                       </div>
                       <button onClick={() => { const el = confScrollRef.current; if (el) el.scrollBy({ left: -el.offsetWidth, behavior:"smooth" }); }} style={{ position:"absolute", top:"50%", left:12, transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.9)", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer", fontSize:18, color:"#222", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
                       <button onClick={() => { const el = confScrollRef.current; if (el) el.scrollBy({ left: el.offsetWidth, behavior:"smooth" }); }} style={{ position:"absolute", top:"50%", right:12, transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.9)", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer", fontSize:18, color:"#222", display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
                     </div>
                     <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
-                      {(jobPhotos.length > 0 ? jobPhotos.map((_, i) => i) : [0, 1, 2]).map(i => (
+                      {/* 写真が無いときは1枚しか無いのでドットも出さない（3つ出ていた） */}
+                      {jobPhotos.map((_, i) => i).map(i => (
                         <span key={i} style={{ fontSize:10, color: i === confActiveSlide ? "#00A86B" : "#D0D0D0" }}>{i === confActiveSlide ? "●" : "○"}</span>
                       ))}
                     </div>

@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges } from "../lib/utils";
-import { Avatar, Carousel, DangerItem, JobFlagBadges, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
@@ -695,9 +695,14 @@ export function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
 
-          {/* 写真ギャラリー（ダミー3枚／将来 selectedJob.photos 配列を受け取る想定・最大10枚） */}
+          {/* 写真ギャラリー（最大10枚）。1枚も無い求人は求人者のアイコンを1枚だけ大きく出す（2026-07-30たきと指示） */}
           {(() => {
-            const photos = selectedJob.photos || [selectedJob.icon, selectedJob.icon, selectedJob.icon];
+            const photos = Array.isArray(selectedJob.photos) ? selectedJob.photos : [];
+            if (photos.length === 0) return (
+              <div style={{ marginBottom:20 }}>
+                <JobPhotoFallback url={empEmployer?.avatar_url} name={empEmployer?.nickname || "？"} />
+              </div>
+            );
             const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
             // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側
             const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
