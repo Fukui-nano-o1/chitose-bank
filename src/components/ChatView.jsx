@@ -280,6 +280,49 @@ export function ChatView({ applicationId, onBack }) {
     } catch {}
     setConfirmingTerms(false);
   };
+  // ── 横スワイプで求人No.を切り替える（2026-07-30たきと指示「指に連動させてほしい」）──
+  // 並びは上部の求人No.帯と同じ threadApps の順。左へ引く＝次の求人／右へ引く＝前の求人。
+  // 端では引きしろを1/4に落として「これ以上は無い」を手で伝える（ゴムの手応え）。
+  // 縦スクロールは邪魔しない＝最初の動きで軸を決め、横と決まった時だけ追従する。
+  const goThread = (id) => {
+    // 帯のボタンと同じ行き先。location.replaceはアプリ全体の再読込を起こすためhashだけ差し替える
+    try { window.history.replaceState(null, "", "#/chat/" + id); } catch { window.location.hash = "/chat/" + id; }
+    window.dispatchEvent(new Event("hashchange"));
+  };
+  const chatSwipe = useRef(null);
+  const [swipeDx, setSwipeDx] = useState(0);
+  const [swipeSnap, setSwipeSnap] = useState(false); // true=指を離した後の戻り（アニメで戻す）
+  const threadNeighbor = (dir) => { // dir=+1 次 / -1 前
+    const i = threadApps.findIndex(r => r.id === activeAppId);
+    if (i < 0) return null;
+    const n = threadApps[i + dir];
+    return n ? n.id : null;
+  };
+  const onChatSwipeStart = (e) => {
+    if (threadApps.length < 2 || !e.touches || e.touches.length !== 1) { chatSwipe.current = null; return; }
+    chatSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null };
+    setSwipeSnap(false);
+  };
+  const onChatSwipeMove = (e) => {
+    const s = chatSwipe.current; if (!s || !e.touches || !e.touches[0]) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;      // まだ方向が定まっていない
+      s.lock = Math.abs(dx) > Math.abs(dy) * 1.2 ? "h" : "v"; // 一度決めたら最後まで変えない
+    }
+    if (s.lock !== "h") return;                               // 縦スクロールはそのまま通す
+    const hasNext = !!threadNeighbor(dx < 0 ? 1 : -1);
+    setSwipeDx(Math.max(-140, Math.min(140, hasNext ? dx : dx * 0.25))); // 端はゴムの手応え
+  };
+  const onChatSwipeEnd = () => {
+    const s = chatSwipe.current; chatSwipe.current = null;
+    if (!s || s.lock !== "h") { setSwipeDx(0); return; }
+    const dx = swipeDx;
+    const target = Math.abs(dx) >= 60 ? threadNeighbor(dx < 0 ? 1 : -1) : null;
+    setSwipeSnap(true); setSwipeDx(0);                        // 指を離したら必ず元の位置へ戻す
+    setTimeout(() => setSwipeSnap(false), 240);
+    if (target) goThread(target);
+  };
   // 二重予約チェック（2026-07-22）：農家が採用しようとする働き手が、この農家の別の求人（進行中）で
   // 日程が重なっていないか。重なる求人番号を返す（無ければnull）。RLSで見えるのは自分の求人だけ＝越権なし
   const farmerDoubleBookingCheck = async () => {
@@ -487,7 +530,13 @@ export function ChatView({ applicationId, onBack }) {
       {/* 失効した求人のチャット（2026-07-25たきと指示）：メッセージ領域を薄暗くし中央に「失効中」ラベル。
           オーバーレイはpointerEvents:noneなので背後のチャットは従来どおりスクロール・閲覧できる（履歴保全と整合） */}
       <div style={{ flex:1, minHeight:0, position:"relative", display:"flex", flexDirection:"column" }}>
-      <div ref={msgScrollRef} style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
+      {/* 横スワイプで求人No.を切り替える（2026-07-30たきと指示）。指に連動＝引いた分だけ中身がずれ、
+          離すと切り替わる／戻る。上部の求人No.帯のタップと同じ行き先（hash差し替え＝再読込しない） */}
+      <div ref={msgScrollRef}
+        onTouchStart={onChatSwipeStart} onTouchMove={onChatSwipeMove} onTouchEnd={onChatSwipeEnd} onTouchCancel={onChatSwipeEnd}
+        style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8,
+                 transform: swipeDx ? `translateX(${swipeDx}px)` : undefined,
+                 transition: swipeSnap ? "transform .22s cubic-bezier(.22,.8,.36,1)" : "none" }}>
         {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
         {/* 読み込み中は吹き出しの仮配置（2026-07-27たきと指示）。「まだメッセージはありません」を
             先に出すと、履歴があるのに一瞬「無い」と誤読させるため、読込中と空を分ける */}
