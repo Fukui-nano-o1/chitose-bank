@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow } from "../lib/utils";
 import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
+import { fetchWorkerReady } from "../lib/workerReady";
 import { YesNoPill, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -17,6 +18,16 @@ export function WorkerApplications({ filter, me }) {
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
   useEffect(() => { if (loading) return; setCache("wapp:apps", allApps); }, [allApps, loading]);
   const [punchingId, setPunchingId] = useState(null);
+  // 仮応募（第15弾・2026-07-30）：応募の意思だけ預かった行と、必須項目の残り
+  const [pendingApps, setPendingApps] = useState([]);
+  const [readyState, setReadyState] = useState(null); // { ready, missing:[...] }
+  const cancelPending = async (p) => {
+    if (!window.confirm("この仮応募を取り消しますか？")) return;
+    // RLS「pending own」で自分の行だけ消せる（取り消しは本人の操作＝記録は残さず預かりを解く）
+    const { error } = await supabase.from("pending_applications").delete().eq("id", p.id);
+    if (error) { alert("取り消しに失敗しました：" + error.message); return; }
+    setPendingApps(prev => prev.filter(x => x.id !== p.id));
+  };
   const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
   const [pastOpen, setPastOpen] = useState(false); // 過去の応募（見送り・失効）の折りたたみ（第9弾）
   // 圏外キュー（第13弾(3)）：通信に失敗したら「押した時刻」を端末に貯め、復帰時に自動送信する。
@@ -192,11 +203,19 @@ export function WorkerApplications({ filter, me }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        const { data, error } = await supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false});
+        // 仮応募（第15弾・2026-07-30）：意思だけ預かった行と、あと何項目かの内訳を同時に取る
+        const [appsRes, pendRes, readyRes] = await Promise.all([
+          supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false}),
+          supabase.from("pending_applications").select("id,job_number,created_at").order("created_at",{ascending:false}).then(r => r, () => ({ data: [] })),
+          fetchWorkerReady().then(r => r, () => null),
+        ]);
+        setPendingApps(pendRes.data || []);
+        if (readyRes) setReadyState(readyRes);
+        const { data, error } = appsRes;
         if (!error && data) {
           setAllApps(data);
           // 求人の日程と農家の返答傾向は互いに独立なので同時に投げる（2026-07-27たきと指示「直列を並列に」）
-          const jobNumbers = [...new Set(data.map(a => a.job_number).filter(Boolean))];
+          const jobNumbers = [...new Set([...data.map(a => a.job_number), ...(pendRes.data || []).map(p => p.job_number)].filter(Boolean))];
           // 農家の返答傾向（第9弾・2026-07-22）：返事待ち(applied)の各求人の農家について、信頼カードの返答速度を転用。
           // employer_trust_info(avg_response_hours) を farmer_id ごとに引き、当日中/1日以内/2日以内のバケットで表示する
           const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
@@ -465,6 +484,34 @@ export function WorkerApplications({ filter, me }) {
     );
   };
   // 待っている間にできること（カード群の下）
+  // 仮応募（第15弾・2026-07-30たきと指示）：プロフィール待ちで預かっている応募。
+  // 「あと◯項目」はDBと同じ条件（lib/workerReady）から出す＝画面ごとに必須セットを作らない
+  const pendingBlock = pendingApps.length > 0 && (
+    <div style={{ background:"#FFF8E7", border:"1px solid #F0E0B8", borderRadius:14, padding:"14px 16px", marginBottom:16 }}>
+      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:"0 0 4px" }}>⏳ 仮応募（プロフィール待ち・{pendingApps.length}）</p>
+      <p className="f-sans" style={{ fontSize:12, color:"#8A6D1D", margin:"0 0 10px", lineHeight:1.7 }}>
+        {readyState && readyState.missing.length > 0
+          ? `あと${readyState.missing.length}項目で応募が届きます`
+          : "必須項目はそろっています。プロフィールを保存すると応募が届きます"}
+      </p>
+      <div style={{ display:"grid", gap:8 }}>
+        {pendingApps.map(p => {
+          const job = jobDates[p.job_number] || {};
+          return (
+            <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, background:"#fff", border:"1px solid #F0E0B8", borderRadius:10, padding:"10px 12px" }}>
+              <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", "/profile/worker/applying"); } catch {} window.location.hash = "/work/job/" + p.job_number; }}
+                className="f-sans" style={{ flex:1, minWidth:0, textAlign:"left", background:"none", border:"none", padding:0, cursor:"pointer", fontSize:13, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + p.job_number)}
+                <span style={{ color:"#B0B0B0", fontWeight:700, fontSize:11 }}> #{p.job_number}</span>
+              </button>
+              <button onClick={()=>cancelPending(p)} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:11, color:"#B0B0B0", textDecoration:"underline", cursor:"pointer" }}>取り消す</button>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={()=>{ window.location.hash = "/apply/pending"; }} className="f-sans" style={{ display:"block", width:"100%", marginTop:10, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>プロフィールを仕上げる →</button>
+    </div>
+  );
   const waitingTodoBox = (
     <div style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:14, padding:"14px 16px", marginTop:16 }}>
       <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 10px" }}>📎 待っている間にできること</p>
@@ -541,8 +588,8 @@ export function WorkerApplications({ filter, me }) {
       {loading ? (
         <AutoSkeleton shapeKey={"wapp:" + filter} />
       ) : filter !== "approved" ? (
-        // 返事待ちタブ（第9弾）：応募中カード（再設計）＋待っている間にできること＋過去の応募
-        (apps.length === 0 && pastApps.length === 0) ? (
+        // 返事待ちタブ（第9弾）：仮応募＋応募中カード（再設計）＋待っている間にできること＋過去の応募
+        (apps.length === 0 && pastApps.length === 0 && pendingApps.length === 0) ? (
           <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
             <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
             <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
@@ -550,6 +597,7 @@ export function WorkerApplications({ filter, me }) {
           </div>
         ) : (
           <>
+            {pendingBlock}
             {apps.length > 0 && <div ref={skelRef} style={{ display:"grid", gap:12 }}>{apps.map(a => renderWaitingCard(a))}</div>}
             {waitingTodoBox}
             {pastAppsBlock}

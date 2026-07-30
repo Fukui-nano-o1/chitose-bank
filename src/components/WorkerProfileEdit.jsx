@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
+import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS } from "../lib/utils"; // CROP/TASK_OPTIONSは経験ページ（WorkerExperiencePage）へ移設済み
 import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
 import { WorkerTrustCard } from "./TrustCards";
@@ -275,6 +276,15 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       }, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) {
+        // 仮応募の昇格（第15弾・2026-07-30たきと指示）：保存の直後に一度だけ試す。
+        // 必須がそろっていなければDB側が not_ready を返して何も起きない＝ここでの判定は持たない。
+        // 届いたら成功ページで件数を知らせる（運営の自由記述審査は待たない）
+        const promoted = await promotePendingApplications();
+        if (promoted > 0) {
+          try { sessionStorage.setItem("cb_promoted", String(promoted)); } catch {}
+          window.location.hash = "/apply/done";
+          return;
+        }
         setSaved(true);
         setSavedInReview(inReview);
         if (inReview) setRevTargets([]); // 赤帯が消えるのは再提出した時だけ（本文を直さない保存では残す）

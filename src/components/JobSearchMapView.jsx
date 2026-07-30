@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
+import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
@@ -356,16 +357,21 @@ export function JobSearchMapView({ onRegister, me }) {
   // 自分の応募を取得できたかどうか（2026-07-27・「満員」が一瞬映る修理）。
   // 未取得の間にhideApplyを確定させると、応募済みの人にも一瞬「満員」が出てから本来の表示に戻る
   const [myAppLoaded, setMyAppLoaded] = useState(false);
+  // 仮応募中（第15弾・2026-07-30）：意思は預かったがプロフィールがまだ＝応募ボタンを仕上げ導線に変える
+  const [myPending, setMyPending] = useState(false);
   useEffect(() => {
     if (!selectedJob || !me) { setMyApplication(null); setMyAppLoaded(!me); return; } // 未ログインは判定不要＝確定扱い
     let cancelled = false;
     setMyAppLoaded(false);
     (async () => {
       try {
-        const { data } = await supabase.from('applications').select('id,status,started_at')
-          .eq('job_number', selectedJob.id).maybeSingle();
-        if (!cancelled) setMyApplication(data || null);
-      } catch { if (!cancelled) setMyApplication(null); }
+        // 仮応募（第15弾）も一緒に見る。RLS「pending own」で自分の行しか返らない
+        const [appRes, pendRes] = await Promise.all([
+          supabase.from('applications').select('id,status,started_at').eq('job_number', selectedJob.id).maybeSingle(),
+          supabase.from('pending_applications').select('id').eq('job_number', selectedJob.id).maybeSingle().then(r => r, () => ({ data: null })),
+        ]);
+        if (!cancelled) { setMyApplication(appRes.data || null); setMyPending(!!pendRes.data); }
+      } catch { if (!cancelled) { setMyApplication(null); setMyPending(false); } }
       if (!cancelled) setMyAppLoaded(true);
     })();
     return () => { cancelled = true; };
@@ -442,16 +448,17 @@ export function JobSearchMapView({ onRegister, me }) {
         window.location.hash = "/account";
         return;
       }
-      // プロフィール空チェック（ソフトゲート：nickname・prが両方空の時だけ一呼吸置かせる。取得失敗は「入力済み」側に倒し応募を止めない）
-      let profileBlank = false;
-      try {
-        const { data: wp } = await supabase.from('worker_profiles').select('nickname, pr').eq('auth_id', session.user.id).maybeSingle();
-        const isBlank = v => !v || !v.trim();
-        profileBlank = !!wp && isBlank(wp.nickname) && isBlank(wp.pr);
-      } catch { profileBlank = false; }
-      if (profileBlank) {
+      // 仮応募（第15弾・2026-07-30たきと指示）：必須項目がそろっていない人は、応募の意思だけ先に預かる。
+      // 判定の基準は is_worker_profile_ready（DB）1本＝画面ごとに別の必須セットを作らない。
+      // 昇格の引き金は本人のプロフィール完成だけ（運営の自由記述審査は間に立たない）
+      const ready = await fetchWorkerReady();
+      if (!ready.ready) {
+        const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id });
         setApplying(false);
-        setProfileGate({ mode:"soft" });
+        if (pend && pend.ok) { window.location.hash = "/apply/pending"; return; }
+        if (pend && pend.reason === "already_applied") { window.location.hash = "/apply/done"; return; }
+        // 預かりに失敗した時は、従来どおり本応募を試して理由をサーバーに言わせる
+        await doApply();
         return;
       }
       await doApply();
@@ -516,9 +523,12 @@ export function JobSearchMapView({ onRegister, me }) {
     : myAppStatus === "approved" ? "承認されました — チャットを開く"
     : myAppStatus === "rejected" ? "今回は見送りとなりました"
     : myAppStatus === "applied" ? "応募済み — 取り消す"
+    // 仮応募中（第15弾）：意思は預かり済み。次の一手はプロフィールの仕上げ
+    : (!myAppStatus && myPending) ? "仮応募中 → プロフィールを仕上げる"
     : "応募";
   const applyBtnStyle = myAppStatus === "rejected" ? { background:"#EBEBEB", color:"#717171" }
     : myAppStatus === "applied" ? { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }
+    : (!myAppStatus && myPending) ? { background:"#C77700" }
     : {};
   // 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照）
   // 応募確認ボックス（2026-07-18）：新規応募はボタン直送信でなく、内容確認のボックスを展開してから
@@ -561,6 +571,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const applyBtnOnClick = !me ? visitorGuide
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
+    : (!myAppStatus && myPending) ? (() => { window.location.hash = "/apply/pending"; })
     : (() => setApplyConfirmOpen(true));
   // 募集終了（2026-07-24）：設定した採用人数に達した（満員＝filled）／作業日程が過ぎた（expired）求人は
   // 応募導線（下部フッター・応募ボタン）を出さない＝新規の募集を締め切る。
