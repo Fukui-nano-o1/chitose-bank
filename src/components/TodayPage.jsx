@@ -185,6 +185,24 @@ export function TodayPage({ me, defaultRole }) {
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
   useEffect(() => { if (loading) return; setCache("today:todos", todos); }, [todos, loading]);
   const [confirming, setConfirming] = useState("");
+  // 打刻の修正申請（第13弾(2)）：自分が承認する側のpendingを直接読む。
+  // my_todo_items（RETURNS TABLE・固定型）は触らず、件数はDB側のmy_nav_badges が todo に加算済み
+  const [corrections, setCorrections] = useState([]);
+  const [corrDeciding, setCorrDeciding] = useState("");
+  // 承認／見送り。片付いたらカードが消える＝やることの件数・ナビのバッジと一致し続ける。
+  // 申請者自身は承認できない（RPCが 'self' で拒否し message を返すので、それをそのまま出す）
+  const decideCorrection = async (c, approve) => {
+    if (corrDeciding) return;
+    setCorrDeciding(c.id);
+    try {
+      const { data, error } = await supabase.rpc("decide_time_correction", { p_id: c.id, p_approve: approve });
+      if (error) { alert("処理に失敗しました：" + error.message); setCorrDeciding(""); return; }
+      if (!data?.ok) { alert(data?.message || ("処理できませんでした：" + (data?.reason || "不明"))); setCorrDeciding(""); return; }
+      setCorrections(prev => prev.filter(x => x.id !== c.id));
+      window.dispatchEvent(new Event("cb:unreadRefresh"));   // ナビのやることバッジを取り直す
+    } catch (e) { alert("処理に失敗しました：" + (e?.message || "不明")); }
+    setCorrDeciding("");
+  };
   const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
     let cancelled = false;
@@ -194,7 +212,7 @@ export function TodayPage({ me, defaultRole }) {
         if (!session) { setLoading(false); return; }
         // 6本とも互いに独立なので1回で同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 以前はカレンダー→やること→残り4本の3段階で待っていた
-        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: apps }] = await Promise.all([
+        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: apps }, { data: corr }] = await Promise.all([
           supabase.rpc("get_my_calendar_jobs"),
           supabase.rpc("my_todo_items"),
           supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
@@ -206,6 +224,12 @@ export function TodayPage({ me, defaultRole }) {
           supabase.from("applications")
             .select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
             .eq("worker_id", session.user.id),
+          // 自分が承認する側の打刻修正（申請者自身には出さない＝RPC側でも拒否される）
+          supabase.from("attendance_corrections")
+            .select("id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)")
+            .eq("status", "pending").neq("requested_by", session.user.id)
+            .order("created_at", { ascending: false })
+            .then(r => r, () => ({ data: [] })),
         ]);
         if (cancelled) return;
         const rows = data || [];
@@ -220,6 +244,7 @@ export function TodayPage({ me, defaultRole }) {
                     && !["rejected","expired","completed"].includes(a.status))
           .map(a => a.id);
         setHiredIds(new Set(hired)); setCache("today:hired", hired);
+        setCorrections(corr || []);
         // 既定ロールが持っていない側なら、持っている側へ寄せる
         setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
       } catch {}
@@ -590,7 +615,33 @@ export function TodayPage({ me, defaultRole }) {
           const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
           return (
             <div style={{ marginBottom:24 }}>
-              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
+              {/* 件数は打刻修正の承認ぶんも足す＝ナビのバッジ(todo)と一致させる（my_nav_badgesも同じ加算） */}
+              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length + corrections.length}）</p>
+              {/* 打刻の修正の承認（第13弾(2)）：やることの最上部。相手が申請したものだけが並ぶ
+                  （申請者自身には出さない＝RPC側でも拒否される）。片付けると消える＝バッジ数と一致する */}
+              {corrections.length > 0 && (
+                <div style={{ display:"grid", gap:10, marginBottom:12 }}>
+                  {corrections.map(c => {
+                    const hm = (ts) => ts ? new Date(ts).toLocaleTimeString("ja-JP", { hour:"2-digit", minute:"2-digit" }) : null;
+                    const parts = [hm(c.proposed_started_at) && ("開始 " + hm(c.proposed_started_at)), hm(c.proposed_ended_at) && ("終了 " + hm(c.proposed_ended_at))].filter(Boolean);
+                    return (
+                      <div key={c.id} style={{ border:"1px solid #F5A623", background:"#FFF9EE", borderRadius:12, padding:"12px 14px" }}>
+                        <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 4px" }}>🕐 打刻の修正の申請が届いています</p>
+                        <p className="f-sans" style={{ fontSize:12, color:"#444", margin:"0 0 2px", lineHeight:1.7 }}>
+                          {c.applications?.job_number ? ("求人 #" + c.applications.job_number + "　") : ""}{parts.join("／") || "（時刻の指定なし）"}
+                        </p>
+                        {c.reason && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px", lineHeight:1.7, whiteSpace:"pre-wrap" }}>理由：{c.reason}</p>}
+                        <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                          <button onClick={()=>decideCorrection(c, true)} disabled={corrDeciding===c.id} className="f-sans"
+                            style={{ flex:1, padding:"9px 0", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", opacity: corrDeciding===c.id ? 0.5 : 1 }}>承認する</button>
+                          <button onClick={()=>decideCorrection(c, false)} disabled={corrDeciding===c.id} className="f-sans"
+                            style={{ flex:1, padding:"9px 0", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #DDD", borderRadius:8, cursor:"pointer", opacity: corrDeciding===c.id ? 0.5 : 1 }}>見送る</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
                 {stageOrder.map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} />)}
               </div>

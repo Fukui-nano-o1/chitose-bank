@@ -41,6 +41,42 @@ export function isWorkDayToday(dateStart, dateEnd) {
   return todayStr >= startStr && todayStr <= endStr;
 }
 
+// ── 打刻の時間窓（第13弾(1)・2026-07-30たきと指示）──
+// 他社（タイミー・メルカリハロ・LINEスキマニ）は全て打刻可能な時間窓を持つ。当方も入れる。
+// 判定はここに集約し、打刻ボタンのある画面（応募状況ページ・求人詳細）はこの関数を使う。
+export const PUNCH_WINDOW_MIN = 60; // 開始の握手は作業開始時刻の60分前から押せる
+
+// work_time（"8:00〜17:00"）の開始時刻を「その日の0時からの分」で返す。取れなければ null
+export const workStartMinutes = (workTime) => {
+  const m = String(workTime || "").match(/^\s*(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+  if (!(h >= 0 && h <= 23 && mi >= 0 && mi <= 59)) return null;
+  return h * 60 + mi;
+};
+// "8:00" のような表示用文字列に戻す
+export const minutesToHm = (mins) => {
+  const v = ((mins % 1440) + 1440) % 1440;
+  return Math.floor(v / 60) + ":" + String(v % 60).padStart(2, "0");
+};
+// 開始の握手を押せるか。押せない時は理由の文言つきで返す。
+// ・作業日当日でなければ押せない（深夜4:00の日境界は既存の isWorkDayToday の扱いをそのまま使う）
+// ・work_time が取れない求人は時間で縛らない（＝当日ならいつでも押せる。従来どおり）
+export function punchStartWindow(job, now = new Date()) {
+  if (!isWorkDayToday(job?.date_start, job?.date_end)) {
+    return { canPunch: false, reason: "作業日の当日になると押せます" };
+  }
+  const startMin = workStartMinutes(job?.work_time);
+  if (startMin === null) return { canPunch: true, reason: "" };
+  const openMin = startMin - PUNCH_WINDOW_MIN;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  if (nowMin >= openMin) return { canPunch: true, reason: "" };
+  return {
+    canPunch: false,
+    reason: `${minutesToHm(startMin)}の${PUNCH_WINDOW_MIN}分前（${minutesToHm(openMin)}）から押せます`,
+  };
+}
+
 // JSTの短い日時表示（MM/DD HH:MM）
 export const fmtJstShort = (ts) => {
   if (!ts) return "";
@@ -169,6 +205,12 @@ export function mapJobPublicRow(j) {
     lng:    j.lng != null ? Number(j.lng) : null,
     radius: j.geo_radius_m != null ? Number(j.geo_radius_m) : null,
     count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
+    // 募集主の法定表示（2026-07-30・第14弾）：掲載時にjobsへ転写された値をそのまま出す。
+    // 原本（employer_profiles）ではなく求人ごとの控えを見るので、掲載後にプロフィールを直しても
+    // その求人の表示は掲載時点のまま＝広告の記載と食い違わない
+    recruiterName: j.recruiter_name || "",
+    recruiterAddress: j.recruiter_address || "",
+    recruiterContact: j.recruiter_contact || "",
     nearestStation: j.nearest_station || "", workTime: j.work_time || "",
     breakTime: j.break_time || "",
     commuteTime: j.commute_time || "", jobBody: j.notes || "",
