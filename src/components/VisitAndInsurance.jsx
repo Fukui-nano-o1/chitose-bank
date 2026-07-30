@@ -50,7 +50,8 @@ export function InsurancePrepPage({ me }) {
     } catch { setSaving(false); alert("保存に失敗しました"); }
   };
   return (
-    <div className="help-edge" style={{ maxWidth:560, marginLeft:"auto", marginRight:"auto", padding:"24px 20px 96px" }}>
+    /* ins-prep-page＝このページではサイトのフッター（サポート等）を隠す目印（CSSはappStyles） */
+    <div className="help-edge ins-prep-page" style={{ maxWidth:560, marginLeft:"auto", marginRight:"auto", padding:"24px 20px 96px" }}>
       <button onClick={()=>{ let fromApp=false; try{ fromApp=sessionStorage.getItem("cb_insFromApp")==="1"; sessionStorage.removeItem("cb_insFromApp"); }catch{} if (fromApp && window.history.length>1) window.history.back(); else window.location.hash="/profile/employer"; }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 14px", display:"inline-flex", alignItems:"center", gap:6 }}>← 戻る</button>
       <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</h1>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。選んだ項目には、働き手向けのひとことを添えられます（任意）。</p>

@@ -780,6 +780,9 @@ body:has(.cb-box-overlay) .profile-employer-fab { display: none !important; }
 body:has(.qset-full) .profile-employer-fab,
 body:has(.qset-full) .nav-coach { display: none !important; }
 body:has(.qset-full) .site-footer-fixed { display: none !important; }
+/* 保険の準備ページ（#/insurance）はフッター（サポート等）を出さない（2026-07-29たきと指示）。
+   保存ボタンの下にリンクの列が続くと、申告の締めが見えにくいため */
+body:has(.ins-prep-page) .site-footer-fixed { display: none !important; }
 html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
 /* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。
