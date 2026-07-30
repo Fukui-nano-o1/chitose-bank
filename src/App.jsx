@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet } from "./components/ui";
+import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
@@ -209,7 +209,7 @@ function EmployerPreviewSheet() {
         <button onClick={()=>setSt(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
         <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{st.profile?.nickname ? `${st.profile.nickname}の農園紹介` : "農園紹介"}</p>
         {st.loading ? (
-          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
             {/* 待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
@@ -272,7 +272,7 @@ function WorkerPreviewSheet() {
         <button onClick={()=>setSt(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
         <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>働き手のプレビュー</p>
         {st.loading ? (
-          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
             <WorkerTrustCard profile={st.profile} trust={st.trust} />
@@ -2186,7 +2186,7 @@ export default function App(){
             window.location.hash="/login";
           }} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)} />
         ) : chatAppId ? (
-          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} /></Suspense>
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} /></Suspense>
         ) : showApplyDone ? (
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
             <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
@@ -2209,7 +2209,7 @@ export default function App(){
           </div>
         ) : safeTab==="search" ? <JobSearchMapView onRegister={goLogin} me={me} /> : null}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="profile"&&(me
-          ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ProfileHub me={me}
+          ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} /></Suspense>
@@ -2230,8 +2230,8 @@ export default function App(){
               // 行き先の決め方は afterLoginGo に一本化（緊急連絡→応募の戻り先→発火したページ→既定）
               afterLoginGo();
             }}/>)}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><ConsignmentRoom/></Suspense>}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><AdminTab
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ConsignmentRoom/></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
@@ -2247,7 +2247,7 @@ export default function App(){
             } else { setTab(t); }
           }}
           onShowAccountForm={() => setNeedsAccountHolder(true)}/></Suspense>}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="boxes"&&isAdmin(me)&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>}><AdminBoxRegistryPage/></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="boxes"&&isAdmin(me)&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminBoxRegistryPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!showApplyDone&&safeTab==="charter"&&(
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
-import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
 //   textareaのフォーカス・下書きが消える（LandingFlowのフォーカス消失バグと同族）
@@ -69,7 +69,7 @@ function InterviewReplyPanel({ items, accent, onAnswered }) {
             {jobOpen[t.application_id] && (
               <div style={{ border:"1px solid #EBEBEB", borderRadius:12, background:"#FAFAFA", overflow:"hidden" }}>
                 {!(t.job_number in jobInfo) ? (
-                  <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", padding:"14px 0", margin:0 }}>読み込み中...</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", padding:"14px 0", margin:0 }}>読み込み中<Dots /></p>
                 ) : jobInfo[t.job_number] ? (() => {
                   const j = jobInfo[t.job_number];
                   const photo = j.photos && j.photos[0] ? (typeof j.photos[0] === "string" ? j.photos[0] : j.photos[0]?.url) : null;
@@ -106,7 +106,7 @@ function InterviewReplyPanel({ items, accent, onAnswered }) {
               </div>
             )}
             <p className="f-sans" style={{ fontSize:12, color:"#222", lineHeight:1.7, background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>
-              {questions[t.application_id] || "質問を読み込み中..."}
+              {questions[t.application_id] || <>質問を読み込み中<Dots /></>}
             </p>
             <textarea rows={3} value={drafts[t.application_id] || ""} onChange={ev => setDrafts(prev => ({ ...prev, [t.application_id]: ev.target.value }))}
               placeholder="回答を入力（そのまま相手に届きます）" className="field f-sans" style={{ width:"100%", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
@@ -526,7 +526,7 @@ export function TodayPage({ me, defaultRole }) {
           {/* 件数バッジは廃止（2026-07-26たきと指示：ページ内で通知は不要。件数は今日ページのボックスが示す） */}
         </div>
         {loading ? (
-          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中...</p>
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>
         ) : pItems.length === 0 ? (
           <div style={{ background:"#F7F7F7", borderRadius:14, padding:"28px 20px", textAlign:"center" }}>
             <div style={{ fontSize:32, marginBottom:8 }}>✅</div>

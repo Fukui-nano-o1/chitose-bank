@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges } from "../lib/utils";
-import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
@@ -1337,7 +1337,7 @@ export function JobSearchMapView({ onRegister, me }) {
                     <button onClick={()=>setPastJobsOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                     <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>{empEmployer.nickname ? `${empEmployer.nickname}さんの求人` : "この農家の求人"}</h3>
                     {pastJobs === null ? (
-                      <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+                      <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
                     ) : pastJobs.length === 0 ? (
                       <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>
                         {(empTrust?.ok && empTrust.completed_hires > 0) ? "過去に受け入れた求人は、掲載を終了しています" : "初めての求人です"}

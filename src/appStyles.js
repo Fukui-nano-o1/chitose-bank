@@ -142,6 +142,22 @@ input:focus { outline: none; }
   8% { transform: translateY(0); }
   100% { transform: translateY(0); }
 }
+/* 読み込み中の「…」を1つずつ跳ねさせる（2026-07-30たきと指示・遊び心）。
+   待ち時間そのものは変わらないが、止まっていないことが目で分かる。
+   3つの点に0.16秒ずつ遅れを付けて左から順に跳ねる（波の走破後に少し休んでループ） */
+@keyframes cbDotJump {
+  0%, 44%, 100% { transform: translateY(0); }
+  22%           { transform: translateY(-0.32em); }
+}
+.cb-dots > span {
+  display: inline-block;
+  animation: cbDotJump 1.4s ease-in-out infinite;
+}
+.cb-dots > span:nth-child(2) { animation-delay: .16s; }
+.cb-dots > span:nth-child(3) { animation-delay: .32s; }
+@media (prefers-reduced-motion: reduce) {
+  .cb-dots > span { animation: none; }
+}
 /* 未完了カードの注意アニメ（働き手・承認済みタブ）：赤い影＋最初の0.5秒で2度浮遊→3秒かけて沈む（計3.5秒・無限ループ） */
 @keyframes cbUrgent {
   0%    { transform: translateY(0);    box-shadow: 0 2px 6px rgba(226,75,74,.45); }

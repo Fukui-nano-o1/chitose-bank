@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, stationLabel } from "../lib/utils";
-import { Carousel, JobFlagBadges, DangerItem } from "./ui";
+import { Carousel, JobFlagBadges, DangerItem, Dots } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 // 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
@@ -139,7 +139,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       <div style={ownerView ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" } : undefined}>
       <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading && (
-          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>読み込み中...</p>
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>読み込み中<Dots /></p>
         )}
         {!loading && !job && (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>求人が見つかりません（権限がないか、削除された可能性があります）</p>

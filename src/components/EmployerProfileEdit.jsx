@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges } from "../lib/utils";
-import { Avatar, AutoSkeleton } from "./ui";
+import { Avatar, AutoSkeleton, Dots } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 
@@ -368,7 +368,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       </p>
       <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
         style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
-        {carrying ? "読み込み中..." : "新規登録の内容を引き継ぐ"}
+        {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
       </button>
       <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎 ／ 千歳農園" maxLength={100}
         className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:16 }} />
@@ -385,7 +385,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       </p>
       <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
         style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
-        {carrying ? "読み込み中..." : "新規登録の内容を引き継ぐ"}
+        {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
       </button>
       <input value={recruiterAddress} onChange={e=>setRecruiterAddress(e.target.value)} placeholder="例：〒779-3401 徳島県吉野川市山川町〇〇1-2-3" maxLength={200}
         className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:16 }} />
@@ -450,7 +450,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
             </p>
             <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
               style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
-              {carrying ? "読み込み中..." : "新規登録の内容を引き継ぐ"}
+              {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
             </button>
             {/* 氏名・名称は「✏️氏名・名称」ボックスへ移した（2026-07-27・重複解消） */}
             {/* 住所・所在地は「📍住所・所在地」ボックスへ移した（2026-07-27・重複解消） */}

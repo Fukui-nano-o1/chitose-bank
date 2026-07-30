@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { isAdmin, fmtJstShort } from "../lib/utils";
 import { openLoginBox } from "../lib/previewBus";
+import { Dots } from "./ui";
 import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginReturn";
 
 // タブ中身の横スワイプ切替（2026-07-27たきと指示）：仕事の内容⇄保険⇄質問を左右スワイプで移動。
@@ -150,7 +151,7 @@ export function JobQuestions({ jobNumber, me }) {
         </p>
       </div>
       {loading ? (
-        <p style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中...</p>
+        <p style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中<Dots /></p>
       ) : (
         <>
           {rows.length === 0 ? (

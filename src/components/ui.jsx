@@ -84,6 +84,12 @@ export const Avatar = ({ url, name, size = 40, ring, bg }) => {
       </div>;
 };
 
+// 読み込み中の「…」（2026-07-30たきと指示・遊び心）：点が1つずつ跳ねる。
+// 読み上げには「…」1文字だけ渡す（点3つを読み上げさせない）
+export const Dots = () => (
+  <span className="cb-dots" aria-label="…" role="img"><span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span></span>
+);
+
 // 写真が1枚も登録されていない求人の表紙（2026-07-30たきと指示）：求人者のアイコンを1枚だけ大きく出す。
 // ダミー写真・絵文字の水増しはしない（憲法3条＝実データ／未設定／非表示の三択）。
 // アイコン未設定の雇い手は Avatar が名前の頭文字の丸を出す＝これも実データ

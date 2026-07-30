@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
 import { isIOS } from "../lib/push";
 import { ToggleSwitch } from "./ToggleSwitch";
+import { Dots } from "./ui";
 // 🛡 保険の準備（自己申告）専用ページ（#/insurance・2026-07-24）：農家プロフィール編集の箱から独立ページへ。
 // employer_profiles.insurance_items を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
 export function InsurancePrepPage({ me }) {
@@ -56,7 +57,7 @@ export function InsurancePrepPage({ me }) {
       <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</h1>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。選んだ項目には、働き手向けのひとことを添えられます（任意）。</p>
       {loading ? (
-        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
       ) : (<>
         {/* 罫線で区切る行から、1項目=1ボックスへ（2026-07-29たきと指示・プロフィールの箱と同じ作法）。
             申告した項目は縁が緑。中身（トグル・ひとこと）と排他ルールは従来どおり */}

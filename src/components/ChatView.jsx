@@ -7,7 +7,7 @@ import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { chatCache } from "../lib/chatCache";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
-import { Avatar } from "./ui";
+import { Avatar, Dots } from "./ui";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
@@ -623,7 +623,7 @@ export function ChatView({ applicationId, onBack }) {
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <button onClick={()=>setJobBox(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2, boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>✕</button>
             {jobBox.loading ? (
-              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中...</p>
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
             ) : jobBox.job ? (
               <>
                 {(() => {
@@ -689,7 +689,7 @@ export function ChatView({ applicationId, onBack }) {
           <>
             <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップでチャットに【面接の質問】として送ります。回答もチャットに残ります。</p>
             {chatQSets === null ? (
-              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中...</p>
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中<Dots /></p>
             ) : chatQSets.length === 0 ? (
               <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 8px", lineHeight:1.7 }}>まだ質問集がありません。<br/>プロフィールの「📋 面接の質問集」から作成できます。</p>
             ) : (

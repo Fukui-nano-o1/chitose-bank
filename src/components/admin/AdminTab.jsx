@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket } from "../../lib/image";
 import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man } from "../../lib/utils";
-import { Avatar, LinkifiedText, StatusRibbon } from "../ui";
+import { Avatar, LinkifiedText, StatusRibbon, Dots } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
 
 const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F","#6B3A18"];
@@ -66,7 +66,7 @@ function SurveyStats() {
       } catch { setRows([]); }
     })();
   }, []);
-  if (rows === null) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中...</p>;
+  if (rows === null) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中<Dots /></p>;
   const total = rows.length;
   const countBy = (opts, pick) => opts.map(o => ({ label:o, n: rows.filter(r => pick(r, o)).length }));
   const sourceCounts = countBy(SURVEY_SOURCES, (r,o) => r.source === o);
@@ -700,7 +700,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {loading && <div style={{ textAlign:"center",padding:48,color:"#B0B0B0",fontSize:13 }}>読み込み中...</div>}
+      {loading && <div style={{ textAlign:"center",padding:48,color:"#B0B0B0",fontSize:13 }}>読み込み中<Dots /></div>}
 
       {/* ── アカウント（2026-07-16アイコンカード化）：3列グリッド・アイコン＋ニックネームのみ（他一覧と同設計）。
            タップで詳細ボックス展開（閲覧＋運営DMのみ）。承認・差し戻しはここでは一切行わない＝審査タブに集約 ── */}
@@ -1289,7 +1289,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 12px" }}>採用が決まった瞬間（働き手の確認＋農家の採用）の契約条件を、そのまま凍結した記録です。あとから求人を編集しても、この内容は変わりません。</p>
           <div style={{ display:"grid", gap:10 }}>
             {contracts === null ? (
-              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>読み込み中...</p>
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>読み込み中<Dots /></p>
             ) : contracts.length === 0 ? (
               <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>凍結された契約はまだありません（両者が確認・採用した時点で記録されます）</p>
             ) : contracts.map(c => {

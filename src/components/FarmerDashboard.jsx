@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
-import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn } from "./ui";
+import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { AdminJobPreview } from "./AdminJobPreview";
@@ -1667,7 +1667,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button onClick={()=>setRosterDetail(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>働き手の詳細</p>
             {rosterDetail.loading ? (
-              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中...</p>
+              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
             ) : rosterDetail.profile ? (
               <>
                 <WorkerTrustCard profile={rosterDetail.profile} trust={rosterDetail.trust} />
