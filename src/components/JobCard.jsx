@@ -1,6 +1,6 @@
 // 求人カード（分割・段階2後半・2026-07-24）：さがす一覧・関連求人・いいね一覧で共用。
 import { payLabel, dateRangeLabel, CROP_OPTIONS } from "../lib/utils";
-import { StatusRibbonLeft } from "./ui";
+import { Avatar, StatusRibbonLeft } from "./ui";
 
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
 // saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
@@ -55,8 +55,12 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
       {topSrc ? (
         <img src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius }} />
       ) : (
-        <div style={{ width:"100%", height:photoHeight, borderRadius:photoRadius, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
-          {cropIcon}
+        /* 写真が無い求人は求人者のアイコンを大きく出す（2026-07-30たきと指示・詳細/確認ページと同じ扱い）。
+           アイコン未設定なら Avatar が名前の頭文字の丸を出し、名前も無ければ作物の絵文字に落とす */
+        <div style={{ width:"100%", height:photoHeight, borderRadius:photoRadius, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
+          {(job.employerAvatar || job.employerName)
+            ? <Avatar url={job.employerAvatar} name={job.employerName || "？"} size={isList ? 112 : 88} />
+            : cropIcon}
         </div>
       )}
       {/* 概要：list=写真の下／related=写真の上に黒半透明グラデで重ねる（2026-07-23） */}

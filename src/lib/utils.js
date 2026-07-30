@@ -183,6 +183,10 @@ export function mapJobPublicRow(j) {
     beginnerOk: !!j.beginner_ok,
     instantApproveRepeat: !!j.instant_approve_repeat,
     perks: j.perks || null, // この求人だけの待遇上書き（NULL=農家プロフィールの待遇・2026-07-18）
+    // 写真の無い求人の表紙に出す求人者のアイコン（2026-07-30たきと指示）。jobs_publicに2列追加済み。
+    // 公開範囲は増えていない＝同じ2項目は job_employer_profile が求人詳細で既に返している
+    employerName: j.employer_nickname || "",
+    employerAvatar: j.employer_avatar_url || "",
     experiencedPreferred: !!j.experienced_preferred,
     // 終了帯の判定（2026-07-21）：採用人数を満たした／作業日程が過ぎた。探すからは除外しない
     hiredCount: j.hired_count != null ? Number(j.hired_count) : 0,
