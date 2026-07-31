@@ -82,16 +82,6 @@ const CONSIGN_TEXT_FIELDS = [
   { k:"special",    l:"特約",     ph:"あれば記入" },
 ];
 
-// 入場演出の草の群れ（2026-07-31たきと指示・右→左→右の順に下から上へ）。
-// panel=どちらの幕に取り付けるか（幕が開くとき群れごと退場するための所属）。
-// pos=幕の中での位置（bottom基準。下幕の"bottom:12%"≒画面下1割、上幕の"bottom:28%"≒画面上側）。
-// delay=群れが現れる時刻（1本目基準・群れの中はさらに1本ずつ+0.035sずつ遅れる）。
-// 乱数は使わず決め打ち＝毎回同じ景色（再現性）
-const CONSIGN_GRASS_CLUSTERS = [
-  { panel: "bottom", pos: { right: "8%",  bottom: "12%" }, delay: 0.12 }, // ①右・下段
-  { panel: "bottom", pos: { left:  "10%", bottom: "62%" }, delay: 0.36 }, // ②左・中段
-  { panel: "top",    pos: { right: "14%", bottom: "28%" }, delay: 0.60 }, // ③右・上段
-];
 // 草の形（2026-07-31たきと提供イメージ：茎に小さな楕円の葉が互い違いにつく枝葉のシルエット）。
 // 三角形でなくSVGの手書きパスで描く。stem=茎、leaves=[中心x, 中心y, 傾き°]（viewBox 0 0 40 80・葉は楕円）
 const CONSIGN_SPRIGS = [
@@ -102,8 +92,30 @@ const CONSIGN_SPRIGS = [
   { stem: "M22 80 C22 68 21 56 20 44",
     leaves: [[15,66,38],[28,60,-36],[14,52,40],[27,47,-38],[20,44,85]] },
 ];
-// 群れ1つの構成：小→大→中の3株（v=形の番号・h=表示高さpx）。中央が高い茂みの形
-const CONSIGN_CLUSTER_SPRIGS = [ { v: 2, h: 40 }, { v: 0, h: 62 }, { v: 1, h: 50 } ];
+// 群れの土台（振り付けは固定：右→左→右の順に下から上へ）。
+// panel=どちらの幕に所属するか（幕が開くとき群れごと退場）。anchor/base=左右の寄せの基準%。
+const CONSIGN_CLUSTER_BASES = [
+  { panel: "bottom", anchor: "right", base: 2,  bottomMin: 0,  bottomMax: 14, delay: 0.12 }, // ①右・下段
+  { panel: "bottom", anchor: "left",  base: 4,  bottomMin: 36, bottomMax: 58, delay: 0.36 }, // ②左・中段
+  { panel: "top",    anchor: "right", base: 6,  bottomMin: 6,  bottomMax: 26, delay: 0.60 }, // ③右・上段
+];
+// 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
+// 以前の「決め打ち＝再現性」はこの指示で上書き）。株の種類・本数・高さ・左右の向き・位置ずれを変える。
+// 高さは従来の約10倍（300〜650px・たきと指示）＝先端が画面から出てもよい
+const makeConsignGrass = () => {
+  const r = (min, max) => min + Math.random() * (max - min);
+  return CONSIGN_CLUSTER_BASES.map(c => ({
+    panel: c.panel,
+    delay: c.delay,
+    pos: { [c.anchor]: r(c.base, c.base + 12).toFixed(1) + "%", bottom: r(c.bottomMin, c.bottomMax).toFixed(1) + "%" },
+    sprigs: Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => ({ // 2〜4株
+      v: Math.floor(Math.random() * CONSIGN_SPRIGS.length),
+      h: Math.round(r(300, 650)),
+      flip: Math.random() < 0.5,           // 左右反転（同じ形でも景色が変わる）
+      d: r(0, 0.14),                       // 群れの中の生える時間差
+    })),
+  }));
+};
 
 export function ConsignmentRoom() {
   const [cTab, setCTab] = useState("spec"); // spec=仕様書 / ledger=台帳
@@ -114,6 +126,8 @@ export function ConsignmentRoom() {
   const [entrance, setEntrance] = useState(() => {
     try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; }
   });
+  // 草の配置は入室ごとに抽選（毎回違うパターン・たきと指示）。再レンダーでは変えない＝useStateの初期化で1回だけ
+  const [entranceGrass] = useState(makeConsignGrass);
   useEffect(() => {
     if (!entrance) return;
     const t = setTimeout(() => setEntrance(false), 1600);
@@ -274,16 +288,20 @@ export function ConsignmentRoom() {
           {["top", "bottom"].map(panel => (
             <div key={panel} className={"consign-entrance-" + panel}>
               {panel === "bottom" && <div className="consign-entrance-line" />}
-              {CONSIGN_GRASS_CLUSTERS.filter(c => c.panel === panel).map((c, ci) => (
+              {entranceGrass.filter(c => c.panel === panel).map((c, ci) => (
                 <div key={ci} className="consign-entrance-cluster" style={c.pos}>
-                  {CONSIGN_CLUSTER_SPRIGS.map((sp, i) => {
+                  {c.sprigs.map((sp, i) => {
                     const d = CONSIGN_SPRIGS[sp.v];
                     return (
-                      <svg key={i} viewBox="0 0 40 80" style={{ height: sp.h, width: sp.h / 2, animationDelay: (c.delay + i * 0.06) + "s" }}>
-                        <path d={d.stem} fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
-                        {d.leaves.map(([x, y, a], k) => (
-                          <ellipse key={k} rx="7.2" ry="3" fill="#fff" transform={`translate(${x} ${y}) rotate(${a})`} />
-                        ))}
+                      // 巨大な株は重ねて茂みにする（marginLeft負値）。flipはsvg内の<g>で行う
+                      // （外のtransformはscaleYの生えるアニメが上書きしてしまうため）
+                      <svg key={i} viewBox="0 0 40 80" style={{ height: sp.h, width: sp.h / 2, marginLeft: i > 0 ? -Math.round(sp.h * 0.16) : 0, animationDelay: (c.delay + sp.d).toFixed(2) + "s" }}>
+                        <g transform={sp.flip ? "translate(40 0) scale(-1 1)" : undefined}>
+                          <path d={d.stem} fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+                          {d.leaves.map(([x, y, a], k) => (
+                            <ellipse key={k} rx="7.2" ry="3" fill="#fff" transform={`translate(${x} ${y}) rotate(${a})`} />
+                          ))}
+                        </g>
                       </svg>
                     );
                   })}
