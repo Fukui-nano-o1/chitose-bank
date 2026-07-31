@@ -820,6 +820,12 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 @keyframes consignSway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
 /* 四隅の蔓：角を抱く飾り（額縁）。揺らさない・操作を妨げない・内容の下に敷く */
 .consign-corners svg { position: fixed; z-index: -1; pointer-events: none; overflow: visible; }
+/* 委託ページの入力（2026-07-31たきと指示）：文字も入力ボックスの縁もブラック。
+   .field の既定（縁#EBEBEB・文字#222・ラベルはグレー）をこのページだけ黒に上書き */
+.cb-consign-page .field, .cb-consign-page textarea.field, .cb-consign-page select.field {
+  border-color: #111 !important; color: #111 !important; }
+.cb-consign-page .field:focus { border-color: #111 !important; box-shadow: 0 0 0 3px rgba(17,17,17,0.12) !important; }
+.cb-consign-page .lbl { color: #111 !important; }
 /* 動きを減らす設定の端末では、入場演出は出さず・蔓は揺らさず静止で置く */
 @media (prefers-reduced-motion: reduce) {
   .consign-entrance { display: none; }

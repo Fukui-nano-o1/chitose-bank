@@ -311,7 +311,7 @@ export function ConsignmentRoom() {
     return (
       <div className="cb-consign-page" style={{ maxWidth:760, margin:"0 auto", padding:"24px 16px 120px" }}>
         <div className="no-print" style={{ display:"flex", gap:8, marginBottom:16 }}>
-          <button onClick={()=>setPrintOpen(false)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻る</button>
+          <button onClick={()=>setPrintOpen(false)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#111111", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻る</button>
           <button onClick={()=>window.print()} className="f-sans" style={{ padding:"9px 20px", fontSize:13, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>印刷する</button>
         </div>
         <div className="consign-print" style={{ background:"#fff", border:"1px solid #DDD", borderRadius:4, padding:"32px 28px", fontFamily:"serif", color:"#111" }}>
@@ -419,13 +419,13 @@ export function ConsignmentRoom() {
       {cTab === "list" && (<>
       {/* 戻り先は雇い手プロフィール入口（2026-07-31たきと指示・管理タブではない）：
           入口カード「新しく委託を出す」が置いてある場所へ帰る。ラベルも「← 戻る」に */}
-      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
+      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
       {/* 大プロフィールカード（農家プロフィール入口と同じ構造・2026-07-31たきと指示。カラーはブラック：
           緑2px枠→黒2px枠・役割ピル「農家」→「委託主」。反転⇄はプレビュー相当が無いので置かない） */}
       <div style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12 }}>
         <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
         <span style={{ textAlign:"center" }}>
-          <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || "名称未設定"}</span>
+          <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
           <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:"#111111", borderRadius:20, padding:"3px 14px" }}>委託主</span>
         </span>
       </div>
@@ -447,8 +447,8 @@ export function ConsignmentRoom() {
         <div className="fade-in">
           {/* ダッシュボードの戻り＝一覧へ（さがすの詳細→一覧と同じ動線）。一覧は開き直しで最新化 */}
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-            <button onClick={()=>{ setCTab("list"); loadDeals(); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
-            <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{editId ? ((spec.field_name || "（圃場未記入）") + "　" + [spec.crop, spec.task].filter(Boolean).join(" ")) : "新しい委託"}</span>
+            <button onClick={()=>{ setCTab("list"); loadDeals(); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
+            <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{editId ? ((spec.field_name || "（圃場未記入）") + "　" + [spec.crop, spec.task].filter(Boolean).join(" ")) : "新しい委託"}</span>
           </div>
 
           {/* ── 全行程の進行（保存済みの案件のみ）：ステッパー＋現在の状態に応じたアクション ── */}
@@ -471,7 +471,7 @@ export function ConsignmentRoom() {
                       return v ? (
                         <div key={f.k} style={{ display:"flex", gap:10 }}>
                           <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:96, flexShrink:0 }}>{f.l}</span>
-                          <span className="f-sans" style={{ fontSize:12, color:"#222", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{v}</span>
+                          <span className="f-sans" style={{ fontSize:12, color:"#111111", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{v}</span>
                         </div>
                       ) : null;
                     })}
@@ -522,7 +522,7 @@ export function ConsignmentRoom() {
                 <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", margin:0, textAlign:"center" }}>この委託は完了しています{curDeal.spec?.reflection ? "" : ""}</p>
               )}
               {curDeal.status === "done" && curDeal.spec?.reflection && (
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"8px 0 0", whiteSpace:"pre-wrap" }}>振り返り：{curDeal.spec.reflection}</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"8px 0 0", whiteSpace:"pre-wrap" }}>振り返り：{curDeal.spec.reflection}</p>
               )}
             </div>
           )}
@@ -530,7 +530,7 @@ export function ConsignmentRoom() {
           {/* ── 日次進捗（作業中以降）：履行サマリー＋1行フォーム＋日別一覧 ── */}
           {editId && curDeal && ["working","inspected","paid","done"].includes(curDeal.status) && (
             <div style={{ border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px", marginBottom:16, background:"#fff" }}>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px" }}>日次進捗</p>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>日次進捗</p>
               {summary && (
                 <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
                   {[
@@ -542,7 +542,7 @@ export function ConsignmentRoom() {
                   ].map(([l, v]) => (
                     <div key={l} style={{ flex:"1 0 30%", background:"#F7F7F7", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
                       <span className="f-sans" style={{ display:"block", fontSize:10, color:"#B0B0B0" }}>{l}</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{v}</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#111111" }}>{v}</span>
                     </div>
                   ))}
                 </div>
@@ -565,8 +565,8 @@ export function ConsignmentRoom() {
                 <div style={{ display:"grid", gap:6 }}>
                   {prog.map(r => (
                     <div key={r.id} style={{ display:"flex", gap:10, alignItems:"baseline", borderBottom:"1px solid #F7F7F7", paddingBottom:6 }}>
-                      <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", minWidth:78, flexShrink:0 }}>{r.work_date}</span>
-                      <span className="f-sans" style={{ fontSize:12, color:"#555", flex:1, minWidth:0 }}>
+                      <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", minWidth:78, flexShrink:0 }}>{r.work_date}</span>
+                      <span className="f-sans" style={{ fontSize:12, color:"#111111", flex:1, minWidth:0 }}>
                         {[r.hours != null ? `${r.hours}h` : null, r.workers != null ? `${r.workers}人` : null, r.yield_boxes != null ? `${r.yield_boxes}箱` : null].filter(Boolean).join("・")}
                         {r.note ? `　${r.note}` : ""}
                       </span>
@@ -600,9 +600,9 @@ export function ConsignmentRoom() {
             </div>
           ))}
           <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", margin:"14px 0" }}>
-            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
             {CONSIGN_FIXED_CLAUSES.map(c => (
-              <p key={c} className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.8, margin:0 }}>・{c}</p>
+              <p key={c} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.8, margin:0 }}>・{c}</p>
             ))}
           </div>
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
@@ -619,7 +619,7 @@ export function ConsignmentRoom() {
           </div>
           <div style={{ display:"flex", gap:8 }}>
             <button onClick={save} disabled={saving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : (editId ? "更新を保存" : "保存")}</button>
-            <button onClick={()=>setPrintOpen(true)} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#222", border:"1px solid #222", borderRadius:12, cursor:"pointer" }}>印刷ビュー</button>
+            <button onClick={()=>setPrintOpen(true)} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #222", borderRadius:12, cursor:"pointer" }}>印刷ビュー</button>
           </div>
         </div>
       )}
@@ -627,7 +627,7 @@ export function ConsignmentRoom() {
       {cTab === "list" && (
         <div className="fade-in">
           {deals.length === 0 ? (
-            <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", padding:"32px 0" }}>まだ委託がありません。「新しく委託を出す」から始めましょう。</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#111111", textAlign:"center", padding:"32px 0" }}>まだ委託がありません。「新しく委託を出す」から始めましょう。</p>
           ) : (
           <div style={{ display:"grid", gap:14 }}>
           {deals.map(d => {
@@ -640,14 +640,14 @@ export function ConsignmentRoom() {
               <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                   <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
-                  <span className="f-sans" style={{ fontSize:11, color:"#999" }}>{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
+                  <span className="f-sans" style={{ fontSize:11, color:"#111111" }}>{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
                   <span style={{ marginLeft:"auto", fontSize:14, color:"#B0B0B0" }}>›</span>
                 </div>
                 <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#111", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {s.field_name || "（圃場未記入）"}
-                  <span style={{ fontWeight:600, fontSize:13, color:"#555" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
+                  <span style={{ fontWeight:600, fontSize:13, color:"#111111" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
                 </p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {[s.contractor, s.area_a ? s.area_a + "a" : "", s.total ? "総額 " + Number(s.total).toLocaleString() + "円" : "", cardPeriod].filter(Boolean).join("　") || "詳細未記入"}
                 </p>
                 <ConsignStepper deal={d} />
