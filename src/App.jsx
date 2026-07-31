@@ -1889,7 +1889,7 @@ export default function App(){
       {/* 働き手/雇い手プレビューの全域ボックス（どの画面のアイコンからでもイベントで展開・2026-07-19） */}
       {/* 採用おめでとうボックス（2026-07-19）：花びら🌸＋求人リンク＋？マーク3つ（緊急連絡先・採用からの流れ・評価とは） */}
       {/* 段階お祝いボックス（2026-07-19・②承認/⑤仕事/⑥評価・働き手/農家両側）：お知らせ規格の意匠 */}
-      {stageBox && (
+      {!consignRoom && stageBox && (
         <div onClick={()=>setStageBox(null)} style={{ position:"fixed", inset:0, zIndex:9630, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 22px", maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", textAlign:"left", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <button onClick={()=>setStageBox(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
@@ -1901,7 +1901,7 @@ export default function App(){
           </div>
         </div>
       )}
-      {hiredBox && (
+      {!consignRoom && hiredBox && (
         <div onClick={()=>setHiredBox(null)} style={{ position:"fixed", inset:0, zIndex:9640, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"fadeIn .2s ease", overflow:"hidden" }}>
           {Array.from({ length: 14 }).map((_, i) => (
             <span key={i} className="cb-petal" style={{ left: `${(i * 7.3 + 3) % 100}%`, fontSize: 14 + (i % 4) * 5, animationDuration: `${4 + (i % 5)}s`, animationDelay: `${(i % 7) * 0.6}s` }}>🌸</span>
@@ -1932,7 +1932,7 @@ export default function App(){
         </div>
       )}
       {/* アプリ内トースト（新着メッセージ・2026-07-19）：画面上部からスライドイン。タップでチャットへ。内容は出さない */}
-      {msgToast && (
+      {!consignRoom && msgToast && (
         <button onClick={()=>{ const h = msgToast.hash; setMsgToast(null); window.location.hash = h; }} className="f-sans"
           style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 12px)", left:12, right:12, zIndex:11000, maxWidth:460, margin:"0 auto",
                    display:"flex", alignItems:"center", gap:12, background:"#222", color:"#fff", border:"none", borderRadius:14,
@@ -1945,9 +1945,13 @@ export default function App(){
           <span aria-label="閉じる" onClick={(e)=>{ e.stopPropagation(); setMsgToast(null); }} style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13 }}>✕</span>
         </button>
       )}
-      <WorkerPreviewSheet />
-      <EmployerPreviewSheet />
-      <PhaseInfoSheet />
+      {/* ── 世界の分離（2026-07-31たきと指示）──
+          委託ページ（consignRoom）では、求人求職プラットフォームのボックス（お祝い・お知らせ・
+          チャット新着トースト・プレビュー・段階ヘルプ）を一切展開しない。世界観の混同を防ぐ。
+          描画を止めるだけ＝stateは生きているので、委託ページを出れば未読のお知らせ等は従来どおり出る */}
+      {!consignRoom && <WorkerPreviewSheet />}
+      {!consignRoom && <EmployerPreviewSheet />}
+      {!consignRoom && <PhaseInfoSheet />}
       {/* ログインのボックス（2026-07-27たきと指示）：訪問者が応募・いいね等を押したとき、
           alertでなくログイン画面をその場に展開する。中身はログインタブと同じLoginScreen＝
           認証の入口は1つだけ（分岐を増やさない）。閉じれば見ていた画面に戻る */}
@@ -1977,7 +1981,7 @@ export default function App(){
       )}
 
       {/* ── プロフィール承認の「お帰りなさい」ポップアップ（起動時1回・ボックス展開） ── */}
-      {welcomeApproved && (
+      {!consignRoom && welcomeApproved && (
         <div onClick={()=>confirmWelcomeApproved()} style={{ position:"fixed", inset:0, zIndex:11000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
             <button onClick={()=>confirmWelcomeApproved()} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
@@ -1994,7 +1998,7 @@ export default function App(){
       {/* 運営お知らせポップアップの規定（2026-07-17設計）：左詰め・緑の太縁(3px)・タイトルと説明の間に横線・
           上限=画面上から30px・下限=下部フッターの40px上（2026-07-18に20px引き上げ）・最後の段に「〇〇する」形式のリンク（タップ=既読化して遷移）。
           文字はタイトル20/本文18/リンク18（2026-07-17縮小・説明文が5行を超えると読まれないため）。1回の起動で1件、残りは次回（たきと方針） */}
-      {activeNotices && !welcomeApproved && (
+      {!consignRoom && activeNotices && !welcomeApproved && (
         <div onClick={dismissNotices} className="cb-box-overlay" style={{ zIndex:10900 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられる（＝既読化も同じdismissNotices）so重複 */}
