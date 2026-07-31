@@ -85,16 +85,41 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
   // カレンダーのスワイプ月送り（2026-07-19）：左スワイプ=次月/右スワイプ=前月。
   // 判定は求人フローと同じ作法（60px以上かつ横が縦の1.5倍）。切替時は求人フローの横滑りアニメを流用
+  // 指に連動させる（2026-07-30たきと指示）：引いた分だけ月表が横にずれ、離すと切り替わる／戻る。
+  // 判定は従来どおり（60px以上・横が縦の1.5倍以上）。切替後は求人フローの横滑りアニメで新しい月が入る
   const calTouch = useRef(null);
   const [calAnim, setCalAnim] = useState("");
-  const onCalTouchStart = (e) => { calTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const [calDx, setCalDx] = useState(0);       // 指の追従量（px）
+  const [calSnap, setCalSnap] = useState(false); // true=離した後の戻り（アニメで0へ）
+  const onCalTouchStart = (e) => {
+    if (!e.touches || e.touches.length !== 1) { calTouch.current = null; return; }
+    calTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null };
+    setCalSnap(false);
+  };
+  const onCalTouchMove = (e) => {
+    const s = calTouch.current; if (!s || !e.touches || !e.touches[0]) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;        // まだ方向が定まっていない
+      s.lock = Math.abs(dx) > Math.abs(dy) * 1.5 ? "h" : "v";  // 一度決めたら最後まで変えない
+    }
+    if (s.lock !== "h") return;                                // 縦は日付タップ・ページのスクロールに渡す
+    setCalDx(Math.max(-160, Math.min(160, dx)));               // 引きしろの上限（画面外まで流さない）
+  };
   const onCalTouchEnd = (e) => {
     const s = calTouch.current; calTouch.current = null;
-    if (!s || !e.changedTouches || !e.changedTouches[0]) return;
+    if (!s || s.lock !== "h" || !e.changedTouches || !e.changedTouches[0]) { setCalDx(0); return; }
     const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
+    setCalSnap(true); setCalDx(0);                             // 指を離したら必ず元の位置へ戻す
+    setTimeout(() => setCalSnap(false), 240);
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
     if (dx < 0) { nextMo(); setCalAnim("step-in-right"); } else { prevMo(); setCalAnim("step-in-left"); }
     setTimeout(() => setCalAnim(""), 450);
+  };
+  // 追従中の見た目：引いた分だけずらし、指を離したら0.22秒で戻す（切替時は新しい月が滑り込む）
+  const calSlideStyle = {
+    transform: calDx ? `translateX(${calDx}px)` : undefined,
+    transition: calSnap ? "transform .22s cubic-bezier(.22,.8,.36,1)" : "none",
   };
   const firstDay = new Date(cvYear, cvMonth, 1).getDay();
   const daysInMonth = new Date(cvYear, cvMonth + 1, 0).getDate();
@@ -167,16 +192,17 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
         </div>
       ) : (
         <>
-          <div onTouchStart={onCalTouchStart} onTouchEnd={onCalTouchEnd} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:10, touchAction:"pan-y", overflow:"hidden" }}>
-            {/* 展開の2段（2026-07-27）：見出し（○○年○○月）が先に入り、盤面が少し遅れて開く */}
-            <div className="cb-cal-head" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+          <div onTouchStart={onCalTouchStart} onTouchMove={onCalTouchMove} onTouchEnd={onCalTouchEnd} onTouchCancel={onCalTouchEnd} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:10, touchAction:"pan-y", overflow:"hidden" }}>
+            {/* 展開の2段（2026-07-27）：見出し（○○年○○月）が先に入り、盤面が少し遅れて開く。
+                月送りのスワイプ中は見出しごと指について動く（2026-07-30たきと指示） */}
+            <div className="cb-cal-head" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6, ...calSlideStyle }}>
               <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"‹"}</button>
               <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{cvYear}年{cvMonth+1}月</span>
               <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"›"}</button>
             </div>
             {/* ②縦の展開はここから下（見出しの帯が横に伸び切ってから開く・2026-07-27たきと指示） */}
             <div className="cb-cal-body-wrap"><div>
-            <div key={`${cvYear}-${cvMonth}`} className={calAnim} style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2 }}>
+            <div key={`${cvYear}-${cvMonth}`} className={calAnim} style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2, ...(calAnim ? {} : calSlideStyle) }}>
               {CALENDAR_WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:9, color:"#B0B0B0", padding:"2px 0" }}>{wd}</div>)}
               {cells.map((dd, i) => {
                 if (!dd) return <div key={`e${i}`} />;
