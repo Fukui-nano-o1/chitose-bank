@@ -342,10 +342,10 @@ export function ConsignmentRoom() {
             <svg key={i} viewBox="0 0 60 120" style={{ left: sp.x + "%", height: sp.h, width: sp.h / 2, animationDuration: sp.dur + "s", animationDelay: "-" + sp.delay + "s" }}>
               <g transform={sp.flip ? "translate(60 0) scale(-1 1)" : undefined}>
                 {d.stems.map((st, k) => (
-                  <path key={k} d={st} fill="none" stroke="#111" strokeWidth="2.4" strokeLinecap="round" />
+                  <path key={k} d={st} fill="none" stroke="#D0D0D0" strokeWidth="2.4" strokeLinecap="round" />
                 ))}
                 {d.leaves.map(([x, y, a], k) => (
-                  <ellipse key={k} rx="7" ry="3" fill="#111" transform={`translate(${x} ${y}) rotate(${a})`} />
+                  <ellipse key={k} rx="7" ry="3" fill="#D0D0D0" transform={`translate(${x} ${y}) rotate(${a})`} />
                 ))}
               </g>
             </svg>
@@ -363,10 +363,10 @@ export function ConsignmentRoom() {
         ].map((cn, i) => (
           <svg key={i} viewBox="0 0 120 120" style={{ ...cn.pos, width: cornerSizes[i], height: cornerSizes[i], transform: cn.tr || undefined }}>
             {CONSIGN_CORNER_VINE.stems.map((st, k) => (
-              <path key={k} d={st} fill="none" stroke="#111" strokeWidth="2.4" strokeLinecap="round" />
+              <path key={k} d={st} fill="none" stroke="#D0D0D0" strokeWidth="2.4" strokeLinecap="round" />
             ))}
             {CONSIGN_CORNER_VINE.leaves.map(([x, y, a], k) => (
-              <ellipse key={k} rx="6.5" ry="2.8" fill="#111" transform={`translate(${x} ${y}) rotate(${a})`} />
+              <ellipse key={k} rx="6.5" ry="2.8" fill="#D0D0D0" transform={`translate(${x} ${y}) rotate(${a})`} />
             ))}
           </svg>
         ))}
