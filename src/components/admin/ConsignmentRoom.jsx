@@ -103,19 +103,19 @@ const CONSIGN_CLUSTER_BASES = [
 // 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
 // 以前の「決め打ち＝再現性」はこの指示で上書き）。全てのパターンを毎回変える（たきと指示）：
 // 群れごとの大きさの基準・株の種類・本数・高さ・左右の向き・傾き・位置ずれ・生える時間差。
-// 高さは最大1050px前後（半分→3倍に調整・2026-07-31たきと指示）＝先端が画面から出てもよい
+// 高さは最大420px前後（3倍→実機で大きすぎたため良い塩梅に再調整・2026-07-31）＝先端の画面はみ出しは許容のまま
 const makeConsignGrass = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return CONSIGN_CLUSTER_BASES.map(c => {
-    const size = r(390, 750); // 群れごとの大きさの基準（3倍・2026-07-31たきと指示）
+    const size = r(160, 300); // 群れごとの大きさの基準（実機確認で縮小・2026-07-31「良い塩梅に」）
     return {
       panel: c.panel,
       anchor: c.anchor,
       delay: c.delay,
       pos: { bottom: r(c.bottomMin, c.bottomMax).toFixed(1) + "%" },
-      sprigs: Array.from({ length: 6 + Math.floor(Math.random() * 7) }, () => ({ // 6〜12株（3倍）
+      sprigs: Array.from({ length: 3 + Math.floor(Math.random() * 3) }, () => ({ // 3〜5株（白い塊に潰れない密度）
         v: Math.floor(Math.random() * CONSIGN_SPRIGS.length),
-        h: Math.round(Math.min(1050, r(size * 0.7, size * 1.3))),
+        h: Math.round(Math.min(420, r(size * 0.7, size * 1.3))),
         x: +r(-8, 38).toFixed(1),           // 端からの寄せ%（負値=画面外へはみ出す）＝右左の分離
         y: Math.round(r(0, 44)),            // 根元の縦ゆらぎpx（一直線に並ばない）
         flip: Math.random() < 0.5,          // 左右反転（同じ形でも景色が変わる）
@@ -395,7 +395,7 @@ export function ConsignmentRoom() {
                         <g transform={`${sp.flip ? "translate(40 0) scale(-1 1) " : ""}rotate(${sp.tilt} 20 80)`}>
                           <path d={d.stem} fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
                           {d.leaves.map(([x, y, a], k) => (
-                            <ellipse key={k} rx="7.2" ry="3" fill="#fff" transform={`translate(${x} ${y}) rotate(${a})`} />
+                            <ellipse key={k} rx="6.4" ry="2.6" fill="#fff" transform={`translate(${x} ${y}) rotate(${a})`} />
                           ))}
                         </g>
                       </svg>
