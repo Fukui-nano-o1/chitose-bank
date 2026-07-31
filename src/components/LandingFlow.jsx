@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { compressImage } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges } from "../lib/utils";
-import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, DevBadge } from "./ui";
+import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
@@ -86,64 +86,6 @@ function dangerHasSecond(arr) {
 // ── LandingFlow 共有UIヘルパー（モジュールレベル定義でフォーカス消失バグを防ぐ）───
 // 注意：これらを LandingFlow 内に定義すると再レンダリングのたびに関数参照が変わり
 // React が別コンポーネントと判定してアンマウントし input のフォーカスが失われる。
-function LFWizCard({ children }) {
-  return (
-    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px", marginBottom:14, boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
-      {children}
-    </div>
-  );
-}
-function LFCardBtn({ selected, onClick, children }) {
-  return (
-    <button onClick={onClick} style={{
-      width:"100%", textAlign:"left", padding:"20px 22px", borderRadius:16, display:"block", marginBottom:10,
-      border: selected ? "2px solid #00A86B" : "2px solid #EBEBEB",
-      background: selected ? "#E6F7EF" : "#fff",
-      fontSize:15, fontWeight: selected ? 600 : 400, color:"#222", cursor:"pointer", transition:"all .15s",
-    }}>{children}</button>
-  );
-}
-
-
-
-// 選択カードグリッド（Airbnb型・汎用）。options=[{name,icon}], value=選択中, onSelect=カード選択, otherText=自由入力値, onOtherChange=自由入力
-function LFCropGrid({ options, value, onSelect, otherText, onOtherChange, otherPlaceholder }) {
-  const isOther = value === "__other__";
-  return (
-    <div style={{ marginBottom:8 }}>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12 }}>
-        {options.map(c => {
-          const sel = value === c.name;
-          return (
-            <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={{
-              display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
-              padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
-              borderColor: sel ? "#00A86B" : "#EBEBEB",
-              background: sel ? "#E6F7EF" : "#fff",
-            }}>
-              {c.icon && <span style={{ fontSize:28 }}>{c.icon}</span>}
-              <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222" }}>{c.name}</span>
-            </button>
-          );
-        })}
-        <button onClick={() => onSelect("__other__")} className="f-sans crop-card" style={{
-          display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
-          padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
-          borderColor: isOther ? "#00A86B" : "#EBEBEB",
-          background: isOther ? "#E6F7EF" : "#fff",
-        }}>
-          <span style={{ fontSize:28 }}>✏️</span>
-          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222" }}>その他</span>
-        </button>
-      </div>
-      {isOther && (
-        <input value={otherText} onChange={e => onOtherChange(e.target.value)}
-          placeholder={otherPlaceholder} className="field f-sans"
-          style={{ fontSize:16, marginTop:12 }} />
-      )}
-    </div>
-  );
-}
 function LFMultiPill({ options, values, onToggle }) {
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
@@ -160,15 +102,6 @@ function LFMultiPill({ options, values, onToggle }) {
     </div>
   );
 }
-function LFSummaryRow({ label, value }) {
-  return (
-    <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0", borderBottom:"1px solid #F7F7F7" }}>
-      <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>{label}</span>
-      <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{value}</span>
-    </div>
-  );
-}
-
 // サービス提供範囲。展開時はこの配列に都道府県を追加するだけでよい
 const ALLOWED_PREFECTURES = ["徳島県"];
 const isAllowedPrefecture = (pref) => ALLOWED_PREFECTURES.includes((pref || "").trim());

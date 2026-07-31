@@ -213,6 +213,76 @@ export function LinkifiedText({ text, onNavigate }) {
 }
 
 // 分割3-B（2026-07-25）：App.jsxから移動。ピル型の単一選択（LandingFlow・WorkerProfileEditで共用）
+// ── 求人フロー（LandingFlow）由来の共有UI（分割・2026-07-31：委託フローと共用するため ui へ移動）──
+// ★モジュールレベル定義を維持すること：使う側のコンポーネント内で定義すると再レンダーのたびに
+//   関数参照が変わり、React が別コンポーネントと判定して input のフォーカスが失われる
+export function LFWizCard({ children }) {
+  return (
+    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px", marginBottom:14, boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+      {children}
+    </div>
+  );
+}
+export function LFCardBtn({ selected, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      width:"100%", textAlign:"left", padding:"20px 22px", borderRadius:16, display:"block", marginBottom:10,
+      border: selected ? "2px solid #00A86B" : "2px solid #EBEBEB",
+      background: selected ? "#E6F7EF" : "#fff",
+      fontSize:15, fontWeight: selected ? 600 : 400, color:"#222", cursor:"pointer", transition:"all .15s",
+    }}>{children}</button>
+  );
+}
+
+
+
+// 選択カードグリッド（Airbnb型・汎用）。options=[{name,icon}], value=選択中, onSelect=カード選択, otherText=自由入力値, onOtherChange=自由入力
+export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange, otherPlaceholder }) {
+  const isOther = value === "__other__";
+  return (
+    <div style={{ marginBottom:8 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12 }}>
+        {options.map(c => {
+          const sel = value === c.name;
+          return (
+            <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={{
+              display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
+              padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
+              borderColor: sel ? "#00A86B" : "#EBEBEB",
+              background: sel ? "#E6F7EF" : "#fff",
+            }}>
+              {c.icon && <span style={{ fontSize:28 }}>{c.icon}</span>}
+              <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222" }}>{c.name}</span>
+            </button>
+          );
+        })}
+        <button onClick={() => onSelect("__other__")} className="f-sans crop-card" style={{
+          display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
+          padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
+          borderColor: isOther ? "#00A86B" : "#EBEBEB",
+          background: isOther ? "#E6F7EF" : "#fff",
+        }}>
+          <span style={{ fontSize:28 }}>✏️</span>
+          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222" }}>その他</span>
+        </button>
+      </div>
+      {isOther && (
+        <input value={otherText} onChange={e => onOtherChange(e.target.value)}
+          placeholder={otherPlaceholder} className="field f-sans"
+          style={{ fontSize:16, marginTop:12 }} />
+      )}
+    </div>
+  );
+}
+export function LFSummaryRow({ label, value }) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0", borderBottom:"1px solid #F7F7F7" }}>
+      <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0" }}>{label}</span>
+      <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>{value}</span>
+    </div>
+  );
+}
+
 export function LFPillSelect({ options, value, onSelect }) {
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
