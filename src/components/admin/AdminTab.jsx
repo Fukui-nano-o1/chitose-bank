@@ -1332,7 +1332,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 ["休憩", s.break_time || "—"],
                 ["募集人数", s.headcount != null ? `${s.headcount}名` : "—"],
                 ["報酬", wage || "—"],
-                ["満額保証", s.full_pay_guarantee ? "あり" : "—"],
+                ["満額支払", s.full_pay_guarantee ? "あり" : "—"],
                 ["場所", [s.prefecture, s.city, s.town, s.address].filter(Boolean).join("") || "—"],
                 ["最寄り駅", s.nearest_station ? `${s.nearest_station}（${s.commute_time || "—"}）` : "—"],
                 ["持ち物", s.belongings || "—"],

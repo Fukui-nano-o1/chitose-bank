@@ -481,8 +481,9 @@ export const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/100
 // 今年（西暦）。就農年数表示・生年選択肢・フッターコピーライトで共用
 export const THIS_YEAR = new Date().getFullYear();
 // account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
-// v2 = 2026-07-21 全面改定（制定 2026-07-05）。表示ヘッダーの改定日と一致させること
-export const TERMS_VERSION = "v2-2026-07";
+// 規約v2.1 = 2026-08 一部改定（前文新設・第5条/第6条4参照方式化・第12条労災/上限型ほか・トラックA）
+// プラポリはv2のまま（2026-07-21全面改定）。表示ヘッダーの改定日と一致させること
+export const TERMS_VERSION = "v2.1-2026-08";
 export const PRIVACY_VERSION = "v2-2026-07";
 
 // 分割3-B（2026-07-25）：App.jsxから移動（LandingFlow・WorkerProfileEditで共用）

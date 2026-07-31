@@ -579,7 +579,7 @@ const HELP_CONTENT = {
       { key:"farmer-insurance",       label: "⑧ 保険の準備", body: "作業当日に備えて、働き手のケガに備える保険（1日傷害保険など）の準備をおすすめします。準備したら「☑保険を準備した」を押しましょう。働き手にお知らせが届きます。" },
       { key:"farmer-confirmStart",    label: "⑨ 当日「開始を確認」", body: "働き手が作業を開始したら、「開始を確認」を押します。" },
       { key:"farmer-completeReview",  label: "⑩ 作業後「完了して評価する」", body: "働き手が来たか確認し、2タップで評価します。" },
-      { key:"farmer-fullPay",         label: "満額保証型とは", body: "満額保証型（デフォルト）では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。" },
+      { key:"farmer-fullPay",         label: "満額支払型とは", body: "満額支払型（デフォルト）では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。" },
     ],
   },
   worker: {
@@ -647,7 +647,7 @@ const HELP_CONTENT = {
       // 募集主の法定表示（2026-07-30・第14弾）：なぜ書くのかを一言で答える
       { key:"faq-whyRecruiterInfo", label: "なぜ住所や連絡先を書くのですか", body: "求人広告には、募集主の氏名（名称）・住所・連絡先の表示が法律で義務づけられているためです（職業安定法）。業務内容・就業場所・賃金と合わせた6項目が、求人ページに必ず表示されます。ニックネームとは別に、正式な情報をプロフィールの「募集者の情報」にご記入ください。" },
       { key:"faq-payWho",          label: "報酬はいつ誰からもらえますか", body: "報酬は農家から直接受け取ります。運営は報酬のやり取りに関与しません。" },
-      { key:"faq-earlyFinish",     label: "早く終わったら給与は減りますか", body: "満額保証型（デフォルト）の求人では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。" },
+      { key:"faq-earlyFinish",     label: "早く終わったら給与は減りますか", body: "満額支払型（デフォルト）の求人では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。" },
       { key:"faq-wrongReview",     label: "評価を間違えた", body: "お問い合わせ窓口までご連絡ください。" },
       { key:"faq-profileHidden",   label: "自己紹介が表示されない", body: "自由記述の自己紹介は、運営の確認後に公開されます（最大2日）。確認中は、あなたのプレビューに「確認待ち」と表示されます。" },
       { key:"faq-withdraw",        label: "退会したい", body: "お問い合わせ窓口までご連絡ください。" },
@@ -2414,7 +2414,7 @@ export default function App(){
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>利用規約</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改定：2026年7月21日</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改定：2026年7月21日／一部改定：2026年8月●日</p>
 
             <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
               {TERMS_ARTICLES.map(a => (
@@ -2457,7 +2457,7 @@ export default function App(){
             <p className="f-sans footer-col-title">雇う・働く</p>
             <button onClick={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans footer-col-link">求人を出す</button>
             <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">審査のしくみ</button>
-            <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">満額保証型とは</button>
+            <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">満額支払型とは</button>
             <button onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans footer-col-link">保険の準備</button>
             <button onClick={()=>{ window.location.hash="/help/worker"; }} className="f-sans footer-col-link">評価のしくみ</button>
           </div>

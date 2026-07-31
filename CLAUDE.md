@@ -170,6 +170,9 @@ FarmerDashboard/ChatView）・応募確認（働き手・JobSearchMapView）・�
 - 集計表示は原則5農家以上。未満はマスク
 
 ## 作業ルール
+- 【絶対】作業開始前に必ず git pull origin main を実行する（毎セッションの第一手）。
+  さらに push 直前にも git pull --rebase origin main（複数セッションが同時にmainへpushする
+  運用のため、pullなしのpushはほぼ確実に弾かれる。2026-07-31に多発・明文化）
 - 大きな変更を始める前に必ず git status で作業ツリーがクリーンか確認
 - 1回の指示に複数の大きな変更を入れない
 - 編集後は grep で反映を確認し、結果を報告する
