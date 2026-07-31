@@ -82,8 +82,26 @@ const CONSIGN_TEXT_FIELDS = [
   { k:"special",    l:"特約",     ph:"あれば記入" },
 ];
 
+// 入場演出の草：高さ（%）と生える順（遅延s）。乱数は使わず決め打ち＝毎回同じ景色（再現性）
+const CONSIGN_GRASS = [
+  { h: 55, d: 0.26 }, { h: 82, d: 0.34 }, { h: 64, d: 0.22 }, { h: 100, d: 0.30 },
+  { h: 72, d: 0.40 }, { h: 90, d: 0.24 }, { h: 60, d: 0.36 }, { h: 96, d: 0.28 },
+  { h: 68, d: 0.44 }, { h: 84, d: 0.32 }, { h: 58, d: 0.38 }, { h: 76, d: 0.26 },
+];
+
 export function ConsignmentRoom() {
   const [cTab, setCTab] = useState("spec"); // spec=仕様書 / ledger=台帳
+  // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
+  // 線(0.22s)→草(〜0.74s)→幕が開く(0.62s+0.5s)＝約1.1sで終演、1.3sでDOMから外す。
+  // 動きを減らす設定の端末では最初から出さない（CSS側のprefers-reduced-motionと二重の判定）
+  const [entrance, setEntrance] = useState(() => {
+    try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; }
+  });
+  useEffect(() => {
+    if (!entrance) return;
+    const t = setTimeout(() => setEntrance(false), 1300);
+    return () => clearTimeout(t);
+  }, [entrance]);
   const [spec, setSpec] = useState({ ...CONSIGN_EMPTY });
   const [editId, setEditId] = useState(null);
   const [curDeal, setCurDeal] = useState(null); // 開いている案件の全行（status/agreed_at/inspected_at/paid_at/spec_snapshot等）
@@ -232,6 +250,20 @@ export function ConsignmentRoom() {
 
   return (
     <div className="cb-consign-page fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px" }}>
+      {/* 入場演出：黒幕＋白線＋草→幕が上下に開いてフィールド展開。線・草は下幕に取り付け＝幕と一緒に退場 */}
+      {entrance && (
+        <div className="consign-entrance" aria-hidden="true">
+          <div className="consign-entrance-top" />
+          <div className="consign-entrance-bottom">
+            <div className="consign-entrance-line" />
+            <div className="consign-entrance-grass">
+              {CONSIGN_GRASS.map((g, i) => (
+                <span key={i} style={{ height: g.h + "%", animationDelay: g.d + "s" }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 管理</button>
       <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>委託 準備室</p>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>B2B委託レーンの手動1件用の内部道具です（管理者のみ・市場機能はまだ作らない）</p>
