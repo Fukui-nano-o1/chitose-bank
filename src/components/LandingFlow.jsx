@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { compressImage } from "../lib/image";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges } from "../lib/utils";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS } from "../lib/utils";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
@@ -1746,7 +1746,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 } else {
                   const r = await supabase.from("jobs").insert(payload).select("job_number").single();
                   error = r.error;
-                  if (!error && r.data) setDraftJobNumber(r.data.job_number);
+                  if (!error && r.data) { _jn = r.data.job_number; setDraftJobNumber(r.data.job_number); }
                 }
                 if (error && String(error.message || "").includes("RECRUITER_INFO_REQUIRED")) {
                   // DB側の最終ゲート（機構による拒否）。画面は動かさず、その場で入力ボックスを開く
@@ -1759,6 +1759,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                     ? "プロフィールが審査中のため、いまは掲載できません（下書き保存は可能です）。審査が終わると掲載できるようになります。"
                     : "掲載エラー: " + error.message);
                   return;
+                }
+                // 掲載前の確認を記録に残す（2026-07-30たきと指示・行動記録の憲法）。
+                // 画面のstateだけだった同意を、押した文言と時刻ごと追記のみの台帳へ。
+                // 記録に失敗しても掲載自体は止めない（掲載は成功済み）が、管理者には見えるようにする
+                if (_jn) {
+                  try {
+                    const { error: ckErr } = await supabase.from("job_publish_checks").insert({
+                      job_number: _jn,
+                      farmer_id: session.user.id,
+                      items: PUBLISH_CHECKS.map((text, i) => ({ text, checked: !!publishChecks[i] })),
+                      agreed_at: new Date().toISOString(),
+                    });
+                    if (ckErr && isAdmin(session.user)) alert("【管理者デバッグ】掲載前の確認の記録に失敗：" + ckErr.message);
+                  } catch {}
                 }
                 try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                 setDraftJobNumber(null);
@@ -2161,12 +2175,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                       <button onClick={() => setPublishModal(false)} aria-label="閉じる" style={{ background:"none", border:"none", fontSize:22, color:"#717171", cursor:"pointer", padding:"0 4px", lineHeight:1 }}>×</button>
                     </div>
                     <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
-                    {[
-                      "報酬・勤務時間・休憩の内容に間違いはありません",
-                      "危険な場所・作業は、漏れなく記載しました（該当が無いことを確認しました）",
-                      "日程・場所・人数は、実際に働いていただける内容です",
-                      "記載内容は事実です。掲載には運営の審査があることに同意します",
-                    ].map((text, i) => (
+                    {/* 文言は lib/utils の PUBLISH_CHECKS（表示と記録で共用・2026-07-30） */}
+                    {PUBLISH_CHECKS.map((text, i) => (
                       <label key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"8px 0", cursor:"pointer" }}>
                         <input
                           type="checkbox"

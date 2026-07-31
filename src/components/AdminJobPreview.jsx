@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
-import { mapJobPublicRow, payLabel, disp, stationLabel } from "../lib/utils";
+import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort } from "../lib/utils";
 import { Carousel, JobFlagBadges, DangerItem, Dots } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
@@ -21,6 +21,23 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
   const [copying, setCopying] = useState(false); // 求人コピー中（2026-07-24）
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
+  // 掲載前の確認の記録（2026-07-30）：undefined=読み込み中／null=記録なし／オブジェクト=最新の1件
+  const [pubChecks, setPubChecks] = useState(undefined);
+  const [pubOpen, setPubOpen] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setPubChecks(undefined); setPubOpen(false);
+    (async () => {
+      try {
+        // RLS：本人は自分の記録／運営は全件。権限が無ければ0件で返る（＝記録なし表示）
+        const { data } = await supabase.from("job_publish_checks")
+          .select("items,agreed_at").eq("job_number", jobNumber)
+          .order("agreed_at", { ascending: false }).limit(1);
+        if (!cancelled) setPubChecks((data && data[0]) || null);
+      } catch { if (!cancelled) setPubChecks(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [jobNumber]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [dangerLightbox, setDangerLightbox] = useState(null);
   // タップ式修正依頼（2026-07-19）：審査中、プレビューの各項目の「⚠️指摘」を押して、何がどう問題かを積み上げる
@@ -145,6 +162,41 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>求人が見つかりません（権限がないか、削除された可能性があります）</p>
         )}
         {job && (<>
+          {/* 掲載前の確認の記録（2026-07-30たきと指示）：農家が掲載時にチェックした自己申告。
+              運営（審査）も本人も同じものを見る。RLSで、本人＝自分の記録／運営＝全件が返る。
+              記録が無い＝この記録を始める前に出された求人（過去分は遡って作らない） */}
+          <div style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", marginBottom:16, background:"#FAFAFA" }}>
+            {pubChecks === undefined ? (
+              <p className="f-sans" style={{ fontSize:12, color:"#999", margin:0 }}>掲載前の確認：読み込み中<Dots /></p>
+            ) : pubChecks === null ? (
+              <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:0 }}>掲載前の確認：記録なし（記録の運用開始前に出された求人です）</p>
+            ) : (() => {
+              const items = Array.isArray(pubChecks.items) ? pubChecks.items : [];
+              const okN = items.filter(x => x && x.checked).length;
+              const all = okN === items.length && items.length > 0;
+              return (
+                <>
+                  <button onClick={()=>setPubOpen(v=>!v)} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left" }}>
+                    <span style={{ fontSize:12, fontWeight:700, color: all ? "#00A86B" : "#C77700" }}>
+                      掲載前の確認：{okN}/{items.length} {all ? "✓" : "⚠️"}
+                      <span style={{ color:"#B0B0B0", fontWeight:400 }}>　{fmtJstShort(pubChecks.agreed_at)}</span>
+                    </span>
+                    <span style={{ fontSize:11, color:"#B0B0B0" }}>{pubOpen ? "閉じる ▲" : "内容を見る ▼"}</span>
+                  </button>
+                  {pubOpen && (
+                    <div style={{ display:"grid", gap:6, marginTop:10 }}>
+                      {items.map((x, i) => (
+                        <p key={i} className="f-sans" style={{ fontSize:12, color: x.checked ? "#222" : "#C77700", margin:0, lineHeight:1.6 }}>
+                          {x.checked ? "✓ " : "× "}{x.text}
+                        </p>
+                      ))}
+                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"4px 0 0", lineHeight:1.6 }}>この記録は変更・削除できません（追記のみの台帳）。</p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
           {/* 写真ギャラリー */}
           {(() => {
             const photos = job.photos.length > 0 ? job.photos : [job.icon, job.icon, job.icon];
