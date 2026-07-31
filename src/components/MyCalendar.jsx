@@ -92,7 +92,19 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   const calTrackRef = useRef(null);
   const [calDx, setCalDx] = useState(0);         // 指の追従量（px）
   const [calSnap, setCalSnap] = useState(false); // true=離した後の滑り（アニメ）
-  const panelW = () => calTrackRef.current?.clientWidth || 320; // 1枚分の幅＝表示中の枠の幅
+  // 1枚分の幅は実測（px）で持つ（2026-07-30修理）。%で組むと、隣の月の右端の列が
+  // 今月の1列目に重なって出た（%の解決先が枠とズレる）。実測pxなら重なりようがない
+  const [trackW, setTrackW] = useState(0);
+  useEffect(() => {
+    const el = calTrackRef.current;
+    if (!el) return;
+    const measure = () => setTrackW(el.clientWidth || 0);
+    measure();
+    let ro;
+    try { ro = new ResizeObserver(measure); ro.observe(el); } catch { window.addEventListener("resize", measure); }
+    return () => { if (ro) ro.disconnect(); else window.removeEventListener("resize", measure); };
+  }, [loading, entries.length]);
+  const panelW = () => trackW || calTrackRef.current?.clientWidth || 320;
   const onCalTouchStart = (e) => {
     if (!e.touches || e.touches.length !== 1) { calTouch.current = null; return; }
     calTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null };
@@ -128,10 +140,10 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       setCalSnap(false); setCalDx(0);
     }, 240);
   };
-  // 帯の位置：既定は真ん中の月（-1枚分）。そこから指のぶんだけずらす
+  // 帯の位置：既定は真ん中の月（1枚分だけ左へ）。そこから指のぶんだけずらす。すべてpx
   const calTrackStyle = {
-    display:"flex", width:"300%",
-    transform: `translateX(calc(-33.3333% + ${calDx}px))`,
+    display:"flex", width: trackW ? trackW * 3 : "100%",
+    transform: trackW ? `translateX(${-trackW + calDx}px)` : undefined,
     transition: calSnap ? "transform .24s cubic-bezier(.22,.8,.36,1)" : "none",
   };
   // 半分より引いたら、見出しの月表示も引いた先の月に変える（今どの月を見ているかと一致させる）
@@ -227,8 +239,9 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
             {/* 3枚並び（2026-07-30たきと指示）：引いた先の月の日程がその場で見える。いつも真ん中が今月 */}
             <div ref={calTrackRef} style={{ overflow:"hidden" }}>
             <div style={calTrackStyle}>
-            {[-1, 0, 1].map(off => { const mm = monthAt(off); return (
-            <div key={`${mm.y}-${mm.m}`} style={{ width:"33.3333%", flexShrink:0, opacity: off === 0 ? 1 : 0.55 }}>
+            {/* 幅を測るまでは今月の1枚だけ描く（測る前の%組みで重なりが出たため・2026-07-30修理） */}
+            {(trackW ? [-1, 0, 1] : [0]).map(off => { const mm = monthAt(off); return (
+            <div key={`${mm.y}-${mm.m}`} style={{ width: trackW ? trackW : "100%", flexShrink:0, opacity: off === 0 ? 1 : 0.55 }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2 }}>
               {CALENDAR_WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:9, color:"#B0B0B0", padding:"2px 0" }}>{wd}</div>)}
               {monthCells(mm.y, mm.m).map((dd, i) => {
