@@ -233,6 +233,19 @@ export function ConsignmentRoom() {
       <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 管理</button>
       <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>🚩 委託 準備室</p>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>B2B委託レーンの手動1件用の内部道具です（管理者のみ・市場機能はまだ作らない）</p>
+
+      {/* 新しく委託を出す（2026-07-31たきと指示・農家の「📝新しく求人を出す」と同じワイドカード）。
+          管理者のみ：この部屋自体が admin ゲートの内側で、consignment_deals のRLSも app_admins 限定。
+          ★行き先は今は既存の「新規作成」（白紙の仕様書）。次の工程で、求人フローと同じ並びの
+            委託フロー（#/admin/consignment/new）に差し替える＝この onClick 1行だけの変更で済む */}
+      <button onClick={newDeal} className="f-sans" style={{ width:"100%", margin:"0 0 16px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+        <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🚩</span>
+        <span>
+          <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく委託を出す</span>
+          <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>仕様書を白紙から作ります。</span>
+        </span>
+      </button>
+
       <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
         {[{ k:"spec", l:"📄 仕様書" }, { k:"ledger", l:"📚 台帳", n:deals.length }].map(t => (
           <button key={t.k} onClick={()=>setCTab(t.k)} className="f-sans"
