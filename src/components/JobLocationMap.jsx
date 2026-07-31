@@ -46,21 +46,15 @@ export function JobLocationMap({ lat, lng, radius, label }) {
         maxZoom: 18,
       }).addTo(map);
 
-      L.circle([lat, lng], {
-        radius: r,
-        color: "#00A86B",
-        weight: 2,
-        fillColor: "#00A86B",
-        fillOpacity: 0.12,
-      }).addTo(map);
-
+      // 範囲の円は描かない（2026-07-31たきと指示「ピンだけ表示」）。
+      // rは表示の広さ（fitBounds）にだけ使う＝周辺が見える倍率は従来どおり
       // 場所のピン（divIcon＝画像を読まないので、アイコンのURL切れで消える事故が起きない）。
-      // 円の中心＝町域の重心に立てる。タップは無効（地図アプリではなく位置を示す図）
+      // 立てる位置は町域の重心で、番地は含まない。タップは無効（地図アプリではなく位置を示す図）
       const pin = L.divIcon({
         className: "",
-        html: '<div style="width:26px;height:36px;transform:translate(-13px,-36px)">'
-            + '<svg width="26" height="36" viewBox="0 0 26 36" xmlns="http://www.w3.org/2000/svg">'
-            + '<path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 11.4 21.6 11.9 22.1a1.5 1.5 0 0 0 2.2 0C14.6 34.6 26 22.2 26 13 26 5.8 20.2 0 13 0z" fill="#00A86B"/>'
+        html: '<div style="width:30px;height:42px;transform:translate(-15px,-42px)">'
+            + '<svg width="30" height="42" viewBox="0 0 26 36" xmlns="http://www.w3.org/2000/svg">'
+            + '<path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 11.4 21.6 11.9 22.1a1.5 1.5 0 0 0 2.2 0C14.6 34.6 26 22.2 26 13 26 5.8 20.2 0 13 0z" fill="#E24B4A"/>'
             + '<circle cx="13" cy="13" r="5" fill="#fff"/></svg></div>',
         iconSize: [0, 0],
         iconAnchor: [0, 0],
@@ -91,8 +85,8 @@ export function JobLocationMap({ lat, lng, radius, label }) {
           無いと掲載前確認モーダル等(z-index:200)を地図が突き抜けて覆う（2026-07-14修正） */}
       <div style={{ position:"relative" }}>
         <div ref={ref} style={{ width:"100%", height:"clamp(240px, 42vw, 420px)", borderRadius:12, overflow:"hidden", border:"1px solid #EBEBEB", position:"relative", zIndex:0 }} />
-        {/* 注記は上端へ（2026-07-31）：中央はピン、右下はGoogleマップの箱so重ならない位置に置く */}
-        <span className="f-sans" style={{ position:"absolute", left:"50%", top:10, transform:"translateX(-50%)", zIndex:1, pointerEvents:"none", background:"rgba(255,255,255,0.92)", borderRadius:20, padding:"6px 14px", fontSize:11, fontWeight:600, color:"#717171", whiteSpace:"nowrap", boxShadow:"0 1px 4px rgba(0,0,0,0.12)" }}>本名・詳細住所は公開しません。</span>
+        {/* 地図上の注記ボックス（本名・詳細住所は公開しません。）は削除（2026-07-31たきと指示）。
+            開示の説明は地図の下の1行に残る */}
         {/* Googleマップで開く（2026-07-31たきと指示）：右下の箱をタップで別タブへ。
             渡す座標はこの地図と同じ町域の重心＝番地は渡さない（開示の粒度は変わらない） */}
         <a href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`} target="_blank" rel="noopener noreferrer"
@@ -101,7 +95,7 @@ export function JobLocationMap({ lat, lng, radius, label }) {
         </a>
       </div>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
-        📍は{label ? label + "の" : ""}おおよその位置、円はその周辺の範囲です（番地は含みません）。
+        ピンは{label ? label + "の" : ""}おおよその位置です（番地は含みません）。
         正確な集合場所は、応募を承認した方にのみお伝えします
       </p>
     </div>
