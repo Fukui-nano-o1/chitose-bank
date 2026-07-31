@@ -92,8 +92,18 @@ const CONSIGN_GRASS_CLUSTERS = [
   { panel: "bottom", pos: { left:  "10%", bottom: "62%" }, delay: 0.36 }, // ②左・中段
   { panel: "top",    pos: { right: "14%", bottom: "28%" }, delay: 0.60 }, // ③右・上段
 ];
-// 群れ1つぶんの草の高さ（%）。中央が高く裾が低い＝茂みの形
-const CONSIGN_GRASS_BLADES = [58, 86, 100, 92, 72, 60];
+// 草の形（2026-07-31たきと提供イメージ：茎に小さな楕円の葉が互い違いにつく枝葉のシルエット）。
+// 三角形でなくSVGの手書きパスで描く。stem=茎、leaves=[中心x, 中心y, 傾き°]（viewBox 0 0 40 80・葉は楕円）
+const CONSIGN_SPRIGS = [
+  { stem: "M20 80 C20 58 20 32 20 6",
+    leaves: [[12,64,38],[28,56,-38],[12,46,40],[28,38,-38],[13,28,36],[27,20,-36],[20,7,90]] },
+  { stem: "M14 80 C16 60 24 38 29 8",
+    leaves: [[9,60,40],[30,50,-35],[11,40,42],[32,30,-33],[16,22,40],[29,9,-75]] },
+  { stem: "M22 80 C22 68 21 56 20 44",
+    leaves: [[15,66,38],[28,60,-36],[14,52,40],[27,47,-38],[20,44,85]] },
+];
+// 群れ1つの構成：小→大→中の3株（v=形の番号・h=表示高さpx）。中央が高い茂みの形
+const CONSIGN_CLUSTER_SPRIGS = [ { v: 2, h: 40 }, { v: 0, h: 62 }, { v: 1, h: 50 } ];
 
 export function ConsignmentRoom() {
   const [cTab, setCTab] = useState("spec"); // spec=仕様書 / ledger=台帳
@@ -266,9 +276,17 @@ export function ConsignmentRoom() {
               {panel === "bottom" && <div className="consign-entrance-line" />}
               {CONSIGN_GRASS_CLUSTERS.filter(c => c.panel === panel).map((c, ci) => (
                 <div key={ci} className="consign-entrance-cluster" style={c.pos}>
-                  {CONSIGN_GRASS_BLADES.map((h, i) => (
-                    <span key={i} style={{ height: h + "%", animationDelay: (c.delay + i * 0.035) + "s" }} />
-                  ))}
+                  {CONSIGN_CLUSTER_SPRIGS.map((sp, i) => {
+                    const d = CONSIGN_SPRIGS[sp.v];
+                    return (
+                      <svg key={i} viewBox="0 0 40 80" style={{ height: sp.h, width: sp.h / 2, animationDelay: (c.delay + i * 0.06) + "s" }}>
+                        <path d={d.stem} fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+                        {d.leaves.map(([x, y, a], k) => (
+                          <ellipse key={k} rx="7.2" ry="3" fill="#fff" transform={`translate(${x} ${y}) rotate(${a})`} />
+                        ))}
+                      </svg>
+                    );
+                  })}
                 </div>
               ))}
             </div>

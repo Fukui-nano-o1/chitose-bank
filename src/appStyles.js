@@ -804,12 +804,11 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 .consign-entrance-line { position: absolute; top: -1px; left: 0; right: 0; height: 2px; background: #fff;
   transform: scaleX(0); animation: consignLine .22s ease-out forwards; }
 @keyframes consignLine { to { transform: scaleX(1); } }
-/* 草の群れ：白いシルエットの束。位置（右下→左中→右上）と時間差はJSXのインラインstyleで与える */
-.consign-entrance-cluster { position: absolute; height: 44px; display: flex; align-items: flex-end; gap: 5px; }
-.consign-entrance-cluster span { width: 13px; background: #fff;
-  clip-path: polygon(50% 0, 80% 100%, 20% 100%);
+/* 草の群れ：枝葉のシルエット（SVG・白）。形はJSX側（CONSIGN_SPRIGS）、位置と時間差もJSXのインラインstyle */
+.consign-entrance-cluster { position: absolute; display: flex; align-items: flex-end; gap: 4px; }
+.consign-entrance-cluster svg { display: block; overflow: visible;
   transform: scaleY(0); transform-origin: bottom;
-  animation: consignGrass .3s cubic-bezier(.2,.9,.3,1.35) forwards; }
+  animation: consignGrass .34s cubic-bezier(.2,.9,.3,1.3) forwards; }
 @keyframes consignGrass { to { transform: scaleY(1); } }
 /* 動きを減らす設定の端末では演出ごと出さない（JS側でも同じ判定で外している） */
 @media (prefers-reduced-motion: reduce) { .consign-entrance { display: none; } }
