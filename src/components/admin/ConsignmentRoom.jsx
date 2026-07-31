@@ -113,7 +113,7 @@ const makeConsignGrass = () => {
       anchor: c.anchor,
       delay: c.delay,
       pos: { bottom: r(c.bottomMin, c.bottomMax).toFixed(1) + "%" },
-      sprigs: Array.from({ length: 3 + Math.floor(Math.random() * 3) }, () => ({ // 3〜5株（白い塊に潰れない密度）
+      sprigs: Array.from({ length: 6 + Math.floor(Math.random() * 5) }, () => ({ // 6〜10株（3〜5株の倍・2026-07-31たきと指示）
         v: Math.floor(Math.random() * CONSIGN_SPRIGS.length),
         h: Math.round(Math.min(420, r(size * 0.7, size * 1.3))),
         x: +r(-8, 38).toFixed(1),           // 端からの寄せ%（負値=画面外へはみ出す）＝右左の分離
