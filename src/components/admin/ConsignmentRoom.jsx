@@ -93,31 +93,34 @@ const CONSIGN_SPRIGS = [
     leaves: [[15,66,38],[28,60,-36],[14,52,40],[27,47,-38],[20,44,85]] },
 ];
 // 群れの土台＝3つの縄張り（振り付けは固定：右→左→右の順に下から上へ・2026-07-31たきと指示）。
-// 3つの群れがひと塊に見えないよう、それぞれの縄張り（左右の寄せ・縦の帯）を分けて抽選する。
-// panel=どちらの幕に所属するか（幕が開くとき群れごと退場）。
+// 中央に寄って見えないよう、株の根元は必ず端の側に置く（右群れ=右端0〜38%・左群れ=左端0〜38%。
+// 負値も許す＝画面外へはみ出してよい）。panel=どちらの幕に所属するか（幕が開くとき群れごと退場）。
 const CONSIGN_CLUSTER_BASES = [
-  { panel: "bottom", anchor: "right", base: 0, bottomMin: 0,  bottomMax: 10, delay: 0.10 }, // ①右・下段
-  { panel: "bottom", anchor: "left",  base: 0, bottomMin: 55, bottomMax: 75, delay: 0.45 }, // ②左・中段
-  { panel: "top",    anchor: "right", base: 2, bottomMin: 0,  bottomMax: 20, delay: 0.80 }, // ③右・上段
+  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10, delay: 0.10 }, // ①右・下段
+  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75, delay: 0.45 }, // ②左・中段
+  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20, delay: 0.80 }, // ③右・上段
 ];
 // 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
 // 以前の「決め打ち＝再現性」はこの指示で上書き）。全てのパターンを毎回変える（たきと指示）：
 // 群れごとの大きさの基準・株の種類・本数・高さ・左右の向き・傾き・位置ずれ・生える時間差。
-// 高さは最大350px前後（10倍→半分に調整・2026-07-31たきと指示）＝先端が画面から出てもよい
+// 高さは最大1050px前後（半分→3倍に調整・2026-07-31たきと指示）＝先端が画面から出てもよい
 const makeConsignGrass = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return CONSIGN_CLUSTER_BASES.map(c => {
-    const size = r(130, 250); // 群れごとの大きさの基準（2026-07-31たきと指示で半分に）
+    const size = r(390, 750); // 群れごとの大きさの基準（3倍・2026-07-31たきと指示）
     return {
       panel: c.panel,
+      anchor: c.anchor,
       delay: c.delay,
-      pos: { [c.anchor]: r(c.base, c.base + 10).toFixed(1) + "%", bottom: r(c.bottomMin, c.bottomMax).toFixed(1) + "%" },
-      sprigs: Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => ({ // 2〜4株
+      pos: { bottom: r(c.bottomMin, c.bottomMax).toFixed(1) + "%" },
+      sprigs: Array.from({ length: 6 + Math.floor(Math.random() * 7) }, () => ({ // 6〜12株（3倍）
         v: Math.floor(Math.random() * CONSIGN_SPRIGS.length),
-        h: Math.round(Math.min(350, r(size * 0.7, size * 1.3))),
+        h: Math.round(Math.min(1050, r(size * 0.7, size * 1.3))),
+        x: +r(-8, 38).toFixed(1),           // 端からの寄せ%（負値=画面外へはみ出す）＝右左の分離
+        y: Math.round(r(0, 44)),            // 根元の縦ゆらぎpx（一直線に並ばない）
         flip: Math.random() < 0.5,          // 左右反転（同じ形でも景色が変わる）
         tilt: Math.round(r(-10, 10)),       // 株ごとの傾き（°・根元を軸に）
-        d: r(0, 0.08),                      // 群れの中の生える時間差（ステップの区切りを崩さない範囲）
+        d: r(0, 0.12),                      // 群れの中の生える時間差（ステップの区切りを崩さない範囲）
       })),
     };
   });
@@ -300,10 +303,9 @@ export function ConsignmentRoom() {
                   {c.sprigs.map((sp, i) => {
                     const d = CONSIGN_SPRIGS[sp.v];
                     return (
-                      // 株は強めに重ねてひと茂みに束ねる（marginLeft負値・群れが横に散らばると
-                      // 3つの群れの区切りが消えるため）。flip/tiltはsvg内の<g>で行う
-                      // （外のtransformはscaleYの生えるアニメが上書きしてしまうため）
-                      <svg key={i} viewBox="0 0 40 80" style={{ height: sp.h, width: sp.h / 2, marginLeft: i > 0 ? -Math.round(sp.h * 0.35) : 0, animationDelay: (c.delay + sp.d).toFixed(2) + "s" }}>
+                      // 株は群れの帯の中に絶対配置（根元は端の側=右左の分離・2026-07-31たきと指示）。
+                      // flip/tiltはsvg内の<g>で行う（外のtransformはscaleYの生えるアニメが上書きしてしまうため）
+                      <svg key={i} viewBox="0 0 40 80" style={{ position: "absolute", bottom: sp.y, [c.anchor]: sp.x + "%", height: sp.h, width: sp.h / 2, animationDelay: (c.delay + sp.d).toFixed(2) + "s" }}>
                         <g transform={`${sp.flip ? "translate(40 0) scale(-1 1) " : ""}rotate(${sp.tilt} 20 80)`}>
                           <path d={d.stem} fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
                           {d.leaves.map(([x, y, a], k) => (

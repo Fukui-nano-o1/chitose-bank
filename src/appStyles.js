@@ -804,8 +804,9 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 .consign-entrance-line { position: absolute; top: -1px; left: 0; right: 0; height: 2px; background: #fff;
   transform: scaleX(0); animation: consignLine .22s ease-out forwards; }
 @keyframes consignLine { to { transform: scaleX(1); } }
-/* 草の群れ：枝葉のシルエット（SVG・白）。形はJSX側（CONSIGN_SPRIGS）、位置と時間差もJSXのインラインstyle */
-.consign-entrance-cluster { position: absolute; display: flex; align-items: flex-end; gap: 4px; }
+/* 草の群れ：枝葉のシルエット（SVG・白）。形はJSX側（CONSIGN_SPRIGS）、位置と時間差もJSXのインラインstyle。
+   帯は横いっぱい（left:0 right:0）＋株は帯の中に絶対配置＝根元を右端/左端の側に限定して右左を分ける */
+.consign-entrance-cluster { position: absolute; left: 0; right: 0; height: 0; }
 .consign-entrance-cluster svg { display: block; overflow: visible;
   transform: scaleY(0); transform-origin: bottom;
   animation: consignGrass .34s cubic-bezier(.2,.9,.3,1.3) forwards; }
