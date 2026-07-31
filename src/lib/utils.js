@@ -482,9 +482,9 @@ export const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/100
 export const THIS_YEAR = new Date().getFullYear();
 // account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
 // 規約v2.1 = 2026-08 一部改定（前文新設・第5条/第6条4参照方式化・第12条労災/上限型ほか・トラックA）
-// プラポリv3 = 2026-08 改定（保存期間の確定：削除30日・契約と記録3年、第3条データ台帳・第7条1）。表示ヘッダーの改定日と一致させること
+// プラポリv3.1 = 2026-08 改定（v3=保存期間の確定に加え、利用目的列・第8条請求手続・第2条D業務委託先・委託先現行化）。表示ヘッダーの改定日と一致させること
 export const TERMS_VERSION = "v2.1-2026-08";
-export const PRIVACY_VERSION = "v3-2026-08";
+export const PRIVACY_VERSION = "v3.1-2026-08";
 
 // 分割3-B（2026-07-25）：App.jsxから移動（LandingFlow・WorkerProfileEditで共用）
 export // 作業リスト（アイコン無し・文字だけカード。増やすときはここに1行足すだけ）
