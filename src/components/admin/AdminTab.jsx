@@ -1760,7 +1760,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                     { data:"本人確認済み記録",       period:"利用中は保存",                      note:"本人記録" },
                     { data:"集計・加工済みデータ",   period:"継続保存可",                        note:"再特定リスクを定期確認" },
                     { data:"操作ログ",               period:"3年目安",                           note:"法令・紛争対応により変動" },
-                    { data:"退会後の個人紐づけ",     period:"1か月以内に削除または解除",         note:"最小限の履歴は目的限定で保存" },
+                    { data:"退会後の個人紐づけ",     period:"30日以内に削除または解除",          note:"最小限の履歴は目的限定で保存" },
                   ].map((r,i) => (
                     <tr key={i} style={{ borderBottom:"1px solid #F7F7F7" }}>
                       <td style={{ padding:"10px 12px", fontWeight:500 }}>{r.data}</td>
