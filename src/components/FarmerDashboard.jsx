@@ -1037,15 +1037,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </span>
           </button>
           {/* 新しく委託を出す（2026-07-31たきと指示）：求人カードの真下・同じ構造。
+              配色はブラック＝委託・受託の世界（求人・求職のオレンジ／ミドリとは分ける）。アイコンは置かない。
+              黒いカードそのものが「別の世界への扉」の目印になる。
               管理者のみ表示＝B2B委託レーンは運営の手動1件用の内部道具（市場機能はまだ作らない）。
               画面で隠すだけでなく consignment_deals のRLSが app_admins 限定＝サーバ側でも閉じている */}
           {isAdmin(me) && (
-            <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🚩</span>
-              <span>
-                <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NoticeJumpText text="新しく委託を出す" /></span>
-                <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>圃場ごとの作業を請け負う委託の仕様書を作ります。</span>
-              </span>
+            <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#111111", border:"none", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>圃場ごとの作業を請け負う委託の仕様書を作ります。</span>
             </button>
           )}
           {/* 面接の質問集（2026-07-23）：応募者チャットに送る質問を用意。
