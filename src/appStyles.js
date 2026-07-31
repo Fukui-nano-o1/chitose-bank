@@ -796,8 +796,8 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
    草の群れは各幕の中に取り付けてあるため、幕が開くと群れごと滑って退場する（片付け不要） */
 .consign-entrance { position: fixed; inset: 0; z-index: 9600; pointer-events: none; overflow: hidden; }
 .consign-entrance-top, .consign-entrance-bottom { position: absolute; left: 0; right: 0; height: 50%; background: #111; }
-.consign-entrance-top { top: 0; animation: consignOpenTop .5s cubic-bezier(.75,0,.25,1) .88s forwards; }
-.consign-entrance-bottom { bottom: 0; animation: consignOpenBottom .5s cubic-bezier(.75,0,.25,1) .88s forwards; }
+.consign-entrance-top { top: 0; animation: consignOpenTop .5s cubic-bezier(.75,0,.25,1) 1.2s forwards; }
+.consign-entrance-bottom { bottom: 0; animation: consignOpenBottom .5s cubic-bezier(.75,0,.25,1) 1.2s forwards; }
 @keyframes consignOpenTop { to { transform: translateY(-102%); } }
 @keyframes consignOpenBottom { to { transform: translateY(102%); } }
 /* 白い線：中央から左右へ走る（バトル開始の合図） */

@@ -96,28 +96,28 @@ const CONSIGN_SPRIGS = [
 // 3つの群れがひと塊に見えないよう、それぞれの縄張り（左右の寄せ・縦の帯）を分けて抽選する。
 // panel=どちらの幕に所属するか（幕が開くとき群れごと退場）。
 const CONSIGN_CLUSTER_BASES = [
-  { panel: "bottom", anchor: "right", base: 0, bottomMin: 0,  bottomMax: 10, delay: 0.12 }, // ①右・下段
-  { panel: "bottom", anchor: "left",  base: 0, bottomMin: 55, bottomMax: 75, delay: 0.36 }, // ②左・中段
-  { panel: "top",    anchor: "right", base: 2, bottomMin: 0,  bottomMax: 20, delay: 0.60 }, // ③右・上段
+  { panel: "bottom", anchor: "right", base: 0, bottomMin: 0,  bottomMax: 10, delay: 0.10 }, // ①右・下段
+  { panel: "bottom", anchor: "left",  base: 0, bottomMin: 55, bottomMax: 75, delay: 0.45 }, // ②左・中段
+  { panel: "top",    anchor: "right", base: 2, bottomMin: 0,  bottomMax: 20, delay: 0.80 }, // ③右・上段
 ];
 // 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
 // 以前の「決め打ち＝再現性」はこの指示で上書き）。全てのパターンを毎回変える（たきと指示）：
 // 群れごとの大きさの基準・株の種類・本数・高さ・左右の向き・傾き・位置ずれ・生える時間差。
-// 高さは従来の約10倍（最大650px前後）＝先端が画面から出てもよい
+// 高さは最大350px前後（10倍→半分に調整・2026-07-31たきと指示）＝先端が画面から出てもよい
 const makeConsignGrass = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return CONSIGN_CLUSTER_BASES.map(c => {
-    const size = r(260, 500); // 群れごとの大きさの基準（小柄な群れ・巨大な群れが混ざる）
+    const size = r(130, 250); // 群れごとの大きさの基準（2026-07-31たきと指示で半分に）
     return {
       panel: c.panel,
       delay: c.delay,
       pos: { [c.anchor]: r(c.base, c.base + 10).toFixed(1) + "%", bottom: r(c.bottomMin, c.bottomMax).toFixed(1) + "%" },
       sprigs: Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => ({ // 2〜4株
         v: Math.floor(Math.random() * CONSIGN_SPRIGS.length),
-        h: Math.round(Math.min(700, r(size * 0.7, size * 1.3))),
+        h: Math.round(Math.min(350, r(size * 0.7, size * 1.3))),
         flip: Math.random() < 0.5,          // 左右反転（同じ形でも景色が変わる）
         tilt: Math.round(r(-10, 10)),       // 株ごとの傾き（°・根元を軸に）
-        d: r(0, 0.14),                      // 群れの中の生える時間差
+        d: r(0, 0.08),                      // 群れの中の生える時間差（ステップの区切りを崩さない範囲）
       })),
     };
   });
@@ -126,8 +126,9 @@ const makeConsignGrass = () => {
 export function ConsignmentRoom() {
   const [cTab, setCTab] = useState("spec"); // spec=仕様書 / ledger=台帳
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
-  // 線(0.22s)→草の群れ 右下(0.12s)→左中(0.36s)→右上(0.60s)→幕が開く(0.88s+0.5s)
-  // ＝約1.4sで終演、1.6sでDOMから外す。
+  // ステップ展開（2026-07-31たきと指示）：群れ①が生え切ってから②、②の後に③＝三段のリズム。
+  // 線(0.22s)→①右下(0.10s〜)→②左中(0.45s〜)→③右上(0.80s〜)→幕が開く(1.20s+0.5s)
+  // ＝約1.7sで終演、1.95sでDOMから外す。
   // 動きを減らす設定の端末では最初から出さない（CSS側のprefers-reduced-motionと二重の判定）
   const [entrance, setEntrance] = useState(() => {
     try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; }
@@ -136,7 +137,7 @@ export function ConsignmentRoom() {
   const [entranceGrass] = useState(makeConsignGrass);
   useEffect(() => {
     if (!entrance) return;
-    const t = setTimeout(() => setEntrance(false), 1600);
+    const t = setTimeout(() => setEntrance(false), 1950);
     return () => clearTimeout(t);
   }, [entrance]);
   const [spec, setSpec] = useState({ ...CONSIGN_EMPTY });
