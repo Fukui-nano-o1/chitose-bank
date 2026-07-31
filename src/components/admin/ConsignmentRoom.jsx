@@ -193,7 +193,7 @@ export function ConsignmentRoom() {
 
   if (printOpen) {
     return (
-      <div style={{ maxWidth:760, margin:"0 auto", padding:"24px 16px 120px" }}>
+      <div className="cb-consign-page" style={{ maxWidth:760, margin:"0 auto", padding:"24px 16px 120px" }}>
         <div className="no-print" style={{ display:"flex", gap:8, marginBottom:16 }}>
           <button onClick={()=>setPrintOpen(false)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻る</button>
           <button onClick={()=>window.print()} className="btn-primary f-sans" style={{ padding:"9px 20px", fontSize:13, fontWeight:700, borderRadius:10 }}>🖨 印刷する</button>
@@ -229,7 +229,7 @@ export function ConsignmentRoom() {
   }
 
   return (
-    <div className="fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px" }}>
+    <div className="cb-consign-page fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px" }}>
       <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 管理</button>
       <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>🚩 委託 準備室</p>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>B2B委託レーンの手動1件用の内部道具です（管理者のみ・市場機能はまだ作らない）</p>

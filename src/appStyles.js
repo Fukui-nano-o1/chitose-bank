@@ -775,7 +775,19 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
      同意ゲート（未同意は玄関へ戻る）に弾かれて読めないため、案内は玄関の最下部に直接置いた */
   body:has(.cb-visit-page) .app-header-mobile,
   body:has(.cb-visit-page) .app-header-mobile-float { display: none !important; }
+  /* 委託ページ（#/admin/consignment）は別世界観（2026-07-31たきと指示）：
+     下部バー・浮遊☰を出さない。B2B委託レーンは運営の内部道具であって、
+     さがす/しごと/プロフィールの3タブ世界とは別物＝その案内を持ち込まない */
+  body:has(.cb-consign-page) .app-header-mobile,
+  body:has(.cb-consign-page) .app-header-mobile-float { display: none !important; }
+  /* 下部バーが消えたぶんの余白（バー高ぶん）を詰める */
+  body:has(.cb-consign-page) main { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important; }
 }
+/* 委託ページ：ヘッダー（PC上部）とフッターも隠す＝画面には委託の道具だけを残す。
+   ヘッダーぶんの上余白（main の padding-top 68/72px）も一緒に詰める */
+body:has(.cb-consign-page) .app-header-desktop,
+body:has(.cb-consign-page) .site-footer-fixed { display: none !important; }
+body:has(.cb-consign-page) main { padding-top: 0 !important; }
 /* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
    チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
 body:has(.chat-full) .site-footer-fixed { display: none !important; }
