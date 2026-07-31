@@ -818,6 +818,8 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 .consign-vines svg { position: absolute; top: 0; overflow: visible;
   transform-origin: top center; animation: consignSway ease-in-out infinite alternate; }
 @keyframes consignSway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
+/* 四隅の蔓：角を抱く飾り（額縁）。揺らさない・操作を妨げない・内容の下に敷く */
+.consign-corners svg { position: fixed; z-index: -1; pointer-events: none; overflow: visible; }
 /* 動きを減らす設定の端末では、入場演出は出さず・蔓は揺らさず静止で置く */
 @media (prefers-reduced-motion: reduce) {
   .consign-entrance { display: none; }

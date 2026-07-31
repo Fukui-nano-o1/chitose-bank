@@ -146,6 +146,18 @@ const CONSIGN_VINES = [
     ],
     leaves: [[34,8,-35],[50,16,30],[34,28,-38],[30,44,35],[18,54,-30]] },
 ];
+// 四隅の蔓（2026-07-31たきと指示「四隅に蔓を這わしてほしい」）：角を抱くように這う飾り蔓。
+// 左上向きに1種だけ描き、他の3隅は左右・上下の反転で使い回す。viewBox 0 0 120 120
+const CONSIGN_CORNER_VINE = {
+  stems: [
+    "M6 84 C4 48 24 12 82 8",                                    // 角を抱く主茎（左辺→上辺）
+    "M30 34 C44 30 52 38 48 48 C45 55 37 53 39 46 C40 42 45 43 44 47", // 内側へ伸びて渦を巻く枝
+    "M82 8 C92 6 100 12 97 20 C95 26 88 24 90 18",               // 上辺の先のツル（渦）
+    "M14 60 C22 58 26 64 23 70",                                 // 小枝
+  ],
+  leaves: [[10,70,-70],[8,46,-80],[16,28,-45],[34,16,-20],[56,10,-8],[74,12,10],[24,44,-50],[46,26,-15],[23,70,60]],
+};
+
 // 配置は入室ごとに抽選
 const makeConsignVines = () => {
   const r = (min, max) => min + Math.random() * (max - min);
@@ -172,6 +184,8 @@ export function ConsignmentRoom() {
   // 草の配置は入室ごとに抽選（毎回違うパターン・たきと指示）。再レンダーでは変えない＝useStateの初期化で1回だけ
   const [entranceGrass] = useState(makeConsignGrass);
   const [vines] = useState(makeConsignVines); // 背景の蔓も入室ごとに抽選
+  // 四隅の蔓：大きさだけ隅ごとに抽選（140〜220px）。向きは四隅で固定＝反転で使い回す
+  const [cornerSizes] = useState(() => Array.from({ length: 4 }, () => Math.round(140 + Math.random() * 80)));
   useEffect(() => {
     if (!entrance) return;
     const t = setTimeout(() => setEntrance(false), 1950);
@@ -343,6 +357,25 @@ export function ConsignmentRoom() {
             </svg>
           );
         })}
+      </div>
+      {/* 四隅の蔓（2026-07-31たきと指示）：角を抱くように這う。左上の形を反転で4隅に配る。
+          -6pxのはみ出し＝紙の外から蔓が入り込んでいる見え方。揺らさない（額縁は静かに） */}
+      <div className="consign-corners" aria-hidden="true">
+        {[
+          { pos: { top: -6, left: -6 },     tr: "" },
+          { pos: { top: -6, right: -6 },    tr: "scaleX(-1)" },
+          { pos: { bottom: -6, left: -6 },  tr: "scaleY(-1)" },
+          { pos: { bottom: -6, right: -6 }, tr: "scale(-1,-1)" },
+        ].map((cn, i) => (
+          <svg key={i} viewBox="0 0 120 120" style={{ ...cn.pos, width: cornerSizes[i], height: cornerSizes[i], transform: cn.tr || undefined }}>
+            {CONSIGN_CORNER_VINE.stems.map((st, k) => (
+              <path key={k} d={st} fill="none" stroke="#111" strokeWidth="2.4" strokeLinecap="round" />
+            ))}
+            {CONSIGN_CORNER_VINE.leaves.map(([x, y, a], k) => (
+              <ellipse key={k} rx="6.5" ry="2.8" fill="#111" transform={`translate(${x} ${y}) rotate(${a})`} />
+            ))}
+          </svg>
+        ))}
       </div>
       {/* 入場演出：黒幕＋白線→草の群れが右→左→右と下から上へ→幕が上下に開いてフィールド展開。
           群れは所属する幕の中に描く＝幕が開くと群れごと退場する */}
