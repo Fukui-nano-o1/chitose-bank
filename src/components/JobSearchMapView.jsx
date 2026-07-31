@@ -568,7 +568,11 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!isSaved && surveyAnswered === false) { setSurveyJob(job); return; }
     performSave(job);
   };
-  const applyBtnOnClick = !me ? visitorGuide
+  // 未ログイン（訪問者）が応募を押したら、戻り先にこの求人を記録してからログイン導線を開く（2026-07-31）。
+  // これが無いと、登録→新規登録①（AccountHolderForm）完了後に #/search へ落ち、見ていた求人を見失う
+  // （県大会のQRから来た人の一気通貫を守る）。applyReturn は login-box成功(App:1974)・
+  // AccountHolderForm.onDone(App:2239)・afterLoginGo(App:1181) の三箇所が読んで /work/job/{n} へ戻す。
+  const applyBtnOnClick = !me ? (() => { if (selectedJob) setApplyReturn(selectedJob.id); visitorGuide(); })
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (!myAppStatus && myPending) ? (() => { window.location.hash = "/apply/pending"; })
