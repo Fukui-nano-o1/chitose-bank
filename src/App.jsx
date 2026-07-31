@@ -2297,8 +2297,11 @@ export default function App(){
 
               <section id="charter-ch1" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
                 <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>一、この場について</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、農家と働き手が出会い、働き、つながる場を運営する。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>はじめての人が経験を積み、頼れる担い手へ育っていける場であることを大切にする。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>農業の雇用には、雇用して初めて分かることが二つある。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>雇い手にとっては働き手の技術と知識、働き手にとっては職場の環境と待遇である。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、その双方を事実として記録し、雇い手と働き手が雇用の前に互いを判断できる場を運営する。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>働き手は自らの望む条件を示すことができ、雇い手はそれに応えることができる。</p>
+                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>記録の積み重ねが働き手の資産となり、頼れる担い手が育っていく土壌となることを大切にする。</p>
               </section>
 
               <section id="charter-ch2" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
@@ -2422,7 +2425,7 @@ export default function App(){
           </div>
           <div>
             <p className="f-sans footer-col-title">chitose-bank</p>
-            <button onClick={()=>{ window.location.hash="/charter"; }} className="f-sans footer-col-link">運営憲章</button>
+            <button onClick={()=>{ window.location.hash="/charter"; window.scrollTo(0,0); }} className="f-sans footer-col-link">運営憲章</button>
             <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">利用規約</button>
             <button onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans footer-col-link">プライバシー</button>
             <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">届出について</button>
