@@ -789,24 +789,24 @@ body:has(.cb-consign-page) .app-header-desktop,
 body:has(.cb-consign-page) .site-footer-fixed { display: none !important; }
 body:has(.cb-consign-page) main { padding-top: 0 !important; }
 /* ── 委託ページの入場演出（2026-07-31たきと指示・ポケモンバトル風）──
-   黒幕の中央に白い線が走り→継ぎ目から草が生え→幕が上下に割れてフィールド（ページ）が展開する。
-   モノクロ厳守（草も白のシルエット）。全要素 pointer-events:none＝演出中も操作を妨げない。
-   構造：.consign-entrance（固定・全画面）＝上幕＋下幕。線と草は下幕の上辺（＝継ぎ目）に取り付けて
-   あるため、幕が開くと草ごと下へ滑って退場する（片付けの処理が要らない） */
+   黒幕の中央に白い線が走り→草の群れが右→左→右の順に下から上へ現れ→幕が上下に割れて
+   フィールド（ページ）が展開する。モノクロ厳守（草も白のシルエット）。
+   全要素 pointer-events:none＝演出中も操作を妨げない。
+   構造：.consign-entrance（固定・全画面）＝上幕＋下幕。線は下幕の上辺（＝継ぎ目）、
+   草の群れは各幕の中に取り付けてあるため、幕が開くと群れごと滑って退場する（片付け不要） */
 .consign-entrance { position: fixed; inset: 0; z-index: 9600; pointer-events: none; overflow: hidden; }
 .consign-entrance-top, .consign-entrance-bottom { position: absolute; left: 0; right: 0; height: 50%; background: #111; }
-.consign-entrance-top { top: 0; animation: consignOpenTop .5s cubic-bezier(.75,0,.25,1) .62s forwards; }
-.consign-entrance-bottom { bottom: 0; animation: consignOpenBottom .5s cubic-bezier(.75,0,.25,1) .62s forwards; }
+.consign-entrance-top { top: 0; animation: consignOpenTop .5s cubic-bezier(.75,0,.25,1) .88s forwards; }
+.consign-entrance-bottom { bottom: 0; animation: consignOpenBottom .5s cubic-bezier(.75,0,.25,1) .88s forwards; }
 @keyframes consignOpenTop { to { transform: translateY(-102%); } }
 @keyframes consignOpenBottom { to { transform: translateY(102%); } }
 /* 白い線：中央から左右へ走る（バトル開始の合図） */
 .consign-entrance-line { position: absolute; top: -1px; left: 0; right: 0; height: 2px; background: #fff;
   transform: scaleX(0); animation: consignLine .22s ease-out forwards; }
 @keyframes consignLine { to { transform: scaleX(1); } }
-/* 草：継ぎ目から上へ生える白いシルエット。ばらばらの高さ・時間差で1本ずつ */
-.consign-entrance-grass { position: absolute; bottom: 100%; left: 0; right: 0; height: 44px;
-  display: flex; justify-content: center; align-items: flex-end; gap: 7px; }
-.consign-entrance-grass span { width: 13px; background: #fff;
+/* 草の群れ：白いシルエットの束。位置（右下→左中→右上）と時間差はJSXのインラインstyleで与える */
+.consign-entrance-cluster { position: absolute; height: 44px; display: flex; align-items: flex-end; gap: 5px; }
+.consign-entrance-cluster span { width: 13px; background: #fff;
   clip-path: polygon(50% 0, 80% 100%, 20% 100%);
   transform: scaleY(0); transform-origin: bottom;
   animation: consignGrass .3s cubic-bezier(.2,.9,.3,1.35) forwards; }

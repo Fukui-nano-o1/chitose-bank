@@ -82,24 +82,31 @@ const CONSIGN_TEXT_FIELDS = [
   { k:"special",    l:"特約",     ph:"あれば記入" },
 ];
 
-// 入場演出の草：高さ（%）と生える順（遅延s）。乱数は使わず決め打ち＝毎回同じ景色（再現性）
-const CONSIGN_GRASS = [
-  { h: 55, d: 0.26 }, { h: 82, d: 0.34 }, { h: 64, d: 0.22 }, { h: 100, d: 0.30 },
-  { h: 72, d: 0.40 }, { h: 90, d: 0.24 }, { h: 60, d: 0.36 }, { h: 96, d: 0.28 },
-  { h: 68, d: 0.44 }, { h: 84, d: 0.32 }, { h: 58, d: 0.38 }, { h: 76, d: 0.26 },
+// 入場演出の草の群れ（2026-07-31たきと指示・右→左→右の順に下から上へ）。
+// panel=どちらの幕に取り付けるか（幕が開くとき群れごと退場するための所属）。
+// pos=幕の中での位置（bottom基準。下幕の"bottom:12%"≒画面下1割、上幕の"bottom:28%"≒画面上側）。
+// delay=群れが現れる時刻（1本目基準・群れの中はさらに1本ずつ+0.035sずつ遅れる）。
+// 乱数は使わず決め打ち＝毎回同じ景色（再現性）
+const CONSIGN_GRASS_CLUSTERS = [
+  { panel: "bottom", pos: { right: "8%",  bottom: "12%" }, delay: 0.12 }, // ①右・下段
+  { panel: "bottom", pos: { left:  "10%", bottom: "62%" }, delay: 0.36 }, // ②左・中段
+  { panel: "top",    pos: { right: "14%", bottom: "28%" }, delay: 0.60 }, // ③右・上段
 ];
+// 群れ1つぶんの草の高さ（%）。中央が高く裾が低い＝茂みの形
+const CONSIGN_GRASS_BLADES = [58, 86, 100, 92, 72, 60];
 
 export function ConsignmentRoom() {
   const [cTab, setCTab] = useState("spec"); // spec=仕様書 / ledger=台帳
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
-  // 線(0.22s)→草(〜0.74s)→幕が開く(0.62s+0.5s)＝約1.1sで終演、1.3sでDOMから外す。
+  // 線(0.22s)→草の群れ 右下(0.12s)→左中(0.36s)→右上(0.60s)→幕が開く(0.88s+0.5s)
+  // ＝約1.4sで終演、1.6sでDOMから外す。
   // 動きを減らす設定の端末では最初から出さない（CSS側のprefers-reduced-motionと二重の判定）
   const [entrance, setEntrance] = useState(() => {
     try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; }
   });
   useEffect(() => {
     if (!entrance) return;
-    const t = setTimeout(() => setEntrance(false), 1300);
+    const t = setTimeout(() => setEntrance(false), 1600);
     return () => clearTimeout(t);
   }, [entrance]);
   const [spec, setSpec] = useState({ ...CONSIGN_EMPTY });
@@ -250,18 +257,22 @@ export function ConsignmentRoom() {
 
   return (
     <div className="cb-consign-page fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px" }}>
-      {/* 入場演出：黒幕＋白線＋草→幕が上下に開いてフィールド展開。線・草は下幕に取り付け＝幕と一緒に退場 */}
+      {/* 入場演出：黒幕＋白線→草の群れが右→左→右と下から上へ→幕が上下に開いてフィールド展開。
+          群れは所属する幕の中に描く＝幕が開くと群れごと退場する */}
       {entrance && (
         <div className="consign-entrance" aria-hidden="true">
-          <div className="consign-entrance-top" />
-          <div className="consign-entrance-bottom">
-            <div className="consign-entrance-line" />
-            <div className="consign-entrance-grass">
-              {CONSIGN_GRASS.map((g, i) => (
-                <span key={i} style={{ height: g.h + "%", animationDelay: g.d + "s" }} />
+          {["top", "bottom"].map(panel => (
+            <div key={panel} className={"consign-entrance-" + panel}>
+              {panel === "bottom" && <div className="consign-entrance-line" />}
+              {CONSIGN_GRASS_CLUSTERS.filter(c => c.panel === panel).map((c, ci) => (
+                <div key={ci} className="consign-entrance-cluster" style={c.pos}>
+                  {CONSIGN_GRASS_BLADES.map((h, i) => (
+                    <span key={i} style={{ height: h + "%", animationDelay: (c.delay + i * 0.035) + "s" }} />
+                  ))}
+                </div>
               ))}
             </div>
-          </div>
+          ))}
         </div>
       )}
       <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 管理</button>
