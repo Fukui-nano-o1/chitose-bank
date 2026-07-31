@@ -126,12 +126,31 @@ const makeConsignGrass = () => {
   });
 };
 
-// ページ背景の蔓（2026-07-31たきと指示）：画面上端から黒い草の蔓が垂れ下がる環境装飾。
-// 形は入場演出と同じCONSIGN_SPRIGSを180°回して使う（世界の道具は増やさない）。配置は入室ごとに抽選
+// ページ背景の蔓（2026-07-31たきと指示・同日修正：たきと提供の蔓イラストのイメージに準拠）。
+// うねる茎＋渦巻きのツル（先端と枝先がくるりと巻く）＋葉。上端から吊るす前提の向きで描く。
+// stems=茎とツルのパス（複数）、leaves=[中心x, 中心y, 傾き°]（viewBox 0 0 60 120・葉は楕円）
+const CONSIGN_VINES = [
+  { stems: [
+      "M30 0 C26 18 40 30 34 46 C28 62 42 70 36 86 C32 96 24 102 26 110 C27 116 35 118 37 112 C38 108 33 106 32 110",
+      "M34 46 C46 48 54 42 52 34 C50.5 28 43 28.5 44.5 34.5 C45.5 38 50 37 49.5 33.5",
+    ],
+    leaves: [[22,24,-40],[40,36,35],[24,56,-38],[44,64,30],[27,84,-36],[36,96,40]] },
+  { stems: [
+      "M18 0 C26 16 10 30 18 46 C25 60 40 62 44 74 C48 86 38 94 30 88 C24 83 28 73 35 76 C39 78 38 83 34 83",
+      "M18 46 C10 48 4 42 7 35 C9 30 15 32 13 37",
+    ],
+    leaves: [[26,12,35],[10,28,-40],[26,40,38],[36,58,30],[48,70,-30]] },
+  { stems: [
+      "M42 0 C38 14 48 22 44 34 C40 46 26 48 24 60 C22 70 32 75 36 68 C38 63 33 59 30 63",
+      "M44 34 C52 36 58 30 55 23 C53 18 47 20 49 25",
+    ],
+    leaves: [[34,8,-35],[50,16,30],[34,28,-38],[30,44,35],[18,54,-30]] },
+];
+// 配置は入室ごとに抽選
 const makeConsignVines = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return Array.from({ length: 6 + Math.floor(Math.random() * 4) }, () => ({ // 6〜9本
-    v: Math.floor(Math.random() * CONSIGN_SPRIGS.length),
+    v: Math.floor(Math.random() * CONSIGN_VINES.length),
     x: +r(-4, 96).toFixed(1),            // 横位置%（負値=左へ少しはみ出す）
     h: Math.round(r(120, 340)),          // 垂れる長さ
     flip: Math.random() < 0.5,
@@ -310,14 +329,15 @@ export function ConsignmentRoom() {
           z-index:-1でページ内容の下に敷く（白いカードの裏に自然に隠れる）。ゆっくり揺れる */}
       <div className="consign-vines" aria-hidden="true">
         {vines.map((sp, i) => {
-          const d = CONSIGN_SPRIGS[sp.v];
+          const d = CONSIGN_VINES[sp.v];
           return (
-            <svg key={i} viewBox="0 0 40 80" style={{ left: sp.x + "%", height: sp.h, width: sp.h / 2, animationDuration: sp.dur + "s", animationDelay: "-" + sp.delay + "s" }}>
-              {/* 180°回して吊るす（根元が上端・葉先が下）。flipはさらに左右反転 */}
-              <g transform={`rotate(180 20 40)${sp.flip ? " translate(40 0) scale(-1 1)" : ""}`}>
-                <path d={d.stem} fill="none" stroke="#111" strokeWidth="2.6" strokeLinecap="round" />
+            <svg key={i} viewBox="0 0 60 120" style={{ left: sp.x + "%", height: sp.h, width: sp.h / 2, animationDuration: sp.dur + "s", animationDelay: "-" + sp.delay + "s" }}>
+              <g transform={sp.flip ? "translate(60 0) scale(-1 1)" : undefined}>
+                {d.stems.map((st, k) => (
+                  <path key={k} d={st} fill="none" stroke="#111" strokeWidth="2.4" strokeLinecap="round" />
+                ))}
                 {d.leaves.map(([x, y, a], k) => (
-                  <ellipse key={k} rx="7.2" ry="3" fill="#111" transform={`translate(${x} ${y}) rotate(${a})`} />
+                  <ellipse key={k} rx="7" ry="3" fill="#111" transform={`translate(${x} ${y}) rotate(${a})`} />
                 ))}
               </g>
             </svg>
