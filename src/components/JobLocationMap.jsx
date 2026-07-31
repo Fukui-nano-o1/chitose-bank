@@ -41,6 +41,10 @@ export function JobLocationMap({ lat, lng, radius, label }) {
 
       // 標準地図に変更（2026-07-31たきと指示「具体的に見えるように」）：淡色地図は地名・道が薄く、
       // どの辺りか読み取りにくかった。標準版は道路・施設名・地名がはっきり出る（同じ国土地理院タイル）
+      // 出典表示は左下へ（2026-07-31）：右下はGoogleマップの箱の場所so、重なって
+      // 箱が隅に収まって見えない問題を避ける（出典の表示義務は左下でも果たされる）
+      try { map.attributionControl.setPosition("bottomleft"); } catch {}
+
       L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
         attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">国土地理院</a>',
         maxZoom: 18,
@@ -90,7 +94,7 @@ export function JobLocationMap({ lat, lng, radius, label }) {
         {/* Googleマップで開く（2026-07-31たきと指示）：右下の箱をタップで別タブへ。
             渡す座標はこの地図と同じ町域の重心＝番地は渡さない（開示の粒度は変わらない） */}
         <a href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`} target="_blank" rel="noopener noreferrer"
-          className="f-sans" style={{ position:"absolute", right:10, bottom:10, zIndex:2, display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 13px", fontSize:12, fontWeight:700, color:"#222", textDecoration:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.16)", whiteSpace:"nowrap" }}>
+          className="f-sans" style={{ position:"absolute", right:12, bottom:12, zIndex:3, display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 13px", fontSize:12, fontWeight:700, color:"#222", textDecoration:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.16)", whiteSpace:"nowrap" }}>
           Googleマップ <span style={{ color:"#00A86B" }}>→</span>
         </a>
       </div>
