@@ -91,8 +91,14 @@ export function JobLocationMap({ lat, lng, radius, label }) {
           無いと掲載前確認モーダル等(z-index:200)を地図が突き抜けて覆う（2026-07-14修正） */}
       <div style={{ position:"relative" }}>
         <div ref={ref} style={{ width:"100%", height:"clamp(240px, 42vw, 420px)", borderRadius:12, overflow:"hidden", border:"1px solid #EBEBEB", position:"relative", zIndex:0 }} />
-        {/* 注記は下端へ移動（2026-07-31）：中央はピンの位置so重ならないようにする */}
-        <span className="f-sans" style={{ position:"absolute", left:"50%", bottom:10, transform:"translateX(-50%)", zIndex:1, pointerEvents:"none", background:"rgba(255,255,255,0.92)", borderRadius:20, padding:"6px 14px", fontSize:11, fontWeight:600, color:"#717171", whiteSpace:"nowrap", boxShadow:"0 1px 4px rgba(0,0,0,0.12)" }}>本名・詳細住所は公開しません。</span>
+        {/* 注記は上端へ（2026-07-31）：中央はピン、右下はGoogleマップの箱so重ならない位置に置く */}
+        <span className="f-sans" style={{ position:"absolute", left:"50%", top:10, transform:"translateX(-50%)", zIndex:1, pointerEvents:"none", background:"rgba(255,255,255,0.92)", borderRadius:20, padding:"6px 14px", fontSize:11, fontWeight:600, color:"#717171", whiteSpace:"nowrap", boxShadow:"0 1px 4px rgba(0,0,0,0.12)" }}>本名・詳細住所は公開しません。</span>
+        {/* Googleマップで開く（2026-07-31たきと指示）：右下の箱をタップで別タブへ。
+            渡す座標はこの地図と同じ町域の重心＝番地は渡さない（開示の粒度は変わらない） */}
+        <a href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`} target="_blank" rel="noopener noreferrer"
+          className="f-sans" style={{ position:"absolute", right:10, bottom:10, zIndex:2, display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 13px", fontSize:12, fontWeight:700, color:"#222", textDecoration:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.16)", whiteSpace:"nowrap" }}>
+          Googleマップ <span style={{ color:"#00A86B" }}>→</span>
+        </a>
       </div>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
         📍は{label ? label + "の" : ""}おおよその位置、円はその周辺の範囲です（番地は含みません）。
