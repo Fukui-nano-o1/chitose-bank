@@ -775,6 +775,53 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
      同意ゲート（未同意は玄関へ戻る）に弾かれて読めないため、案内は玄関の最下部に直接置いた */
   body:has(.cb-visit-page) .app-header-mobile,
   body:has(.cb-visit-page) .app-header-mobile-float { display: none !important; }
+  /* 委託ページ（#/admin/consignment）は別世界観（2026-07-31たきと指示）：
+     下部バー・浮遊☰を出さない。B2B委託レーンは運営の内部道具であって、
+     さがす/しごと/プロフィールの3タブ世界とは別物＝その案内を持ち込まない */
+  body:has(.cb-consign-page) .app-header-mobile,
+  body:has(.cb-consign-page) .app-header-mobile-float { display: none !important; }
+  /* 下部バーが消えたぶんの余白（バー高ぶん）を詰める */
+  body:has(.cb-consign-page) main { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+/* 委託ページ：ヘッダー（PC上部）とフッターも隠す＝画面には委託の道具だけを残す。
+   ヘッダーぶんの上余白（main の padding-top 68/72px）も一緒に詰める */
+body:has(.cb-consign-page) .app-header-desktop,
+body:has(.cb-consign-page) .site-footer-fixed { display: none !important; }
+body:has(.cb-consign-page) main { padding-top: 0 !important; }
+/* ── 委託ページの入場演出（2026-07-31たきと指示・ポケモンバトル風）──
+   黒幕の中央に白い線が走り→草の群れが右→左→右の順に下から上へ現れ→幕が上下に割れて
+   フィールド（ページ）が展開する。モノクロ厳守（草も白のシルエット）。
+   全要素 pointer-events:none＝演出中も操作を妨げない。
+   構造：.consign-entrance（固定・全画面）＝上幕＋下幕。線は下幕の上辺（＝継ぎ目）、
+   草の群れは各幕の中に取り付けてあるため、幕が開くと群れごと滑って退場する（片付け不要） */
+.consign-entrance { position: fixed; inset: 0; z-index: 9600; pointer-events: none; overflow: hidden; }
+.consign-entrance-top, .consign-entrance-bottom { position: absolute; left: 0; right: 0; height: 50%; background: #111; }
+.consign-entrance-top { top: 0; animation: consignOpenTop .5s cubic-bezier(.75,0,.25,1) 1.2s forwards; }
+.consign-entrance-bottom { bottom: 0; animation: consignOpenBottom .5s cubic-bezier(.75,0,.25,1) 1.2s forwards; }
+@keyframes consignOpenTop { to { transform: translateY(-102%); } }
+@keyframes consignOpenBottom { to { transform: translateY(102%); } }
+/* 白い線：中央から左右へ走る（バトル開始の合図） */
+.consign-entrance-line { position: absolute; top: -1px; left: 0; right: 0; height: 2px; background: #fff;
+  transform: scaleX(0); animation: consignLine .22s ease-out forwards; }
+@keyframes consignLine { to { transform: scaleX(1); } }
+/* 草の群れ：枝葉のシルエット（SVG・白）。形はJSX側（CONSIGN_SPRIGS）、位置と時間差もJSXのインラインstyle。
+   帯は横いっぱい（left:0 right:0）＋株は帯の中に絶対配置＝根元を右端/左端の側に限定して右左を分ける */
+.consign-entrance-cluster { position: absolute; left: 0; right: 0; height: 0; }
+.consign-entrance-cluster svg { display: block; overflow: visible;
+  transform: scaleY(0); transform-origin: bottom;
+  animation: consignGrass .34s cubic-bezier(.2,.9,.3,1.3) forwards; }
+@keyframes consignGrass { to { transform: scaleY(1); } }
+/* ── 委託ページの背景環境（2026-07-31たきと指示）：上端から垂れ下がる黒い草の蔓 ──
+   z-index:-1＝ページ内容・白いカードの下に敷かれ、余白にだけ見える。操作は一切妨げない。
+   揺れは上端（吊り元）を軸にゆっくり・周期は1本ずつJSXで変える（風のばらつき） */
+.consign-vines { position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; }
+.consign-vines svg { position: absolute; top: 0; overflow: visible;
+  transform-origin: top center; animation: consignSway ease-in-out infinite alternate; }
+@keyframes consignSway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
+/* 動きを減らす設定の端末では、入場演出は出さず・蔓は揺らさず静止で置く */
+@media (prefers-reduced-motion: reduce) {
+  .consign-entrance { display: none; }
+  .consign-vines svg { animation: none; }
 }
 /* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
    チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
