@@ -471,8 +471,9 @@ export const man = n => { const a=Math.abs(n); return a>=10000?(Math.round(a/100
 // 今年（西暦）。就農年数表示・生年選択肢・フッターコピーライトで共用
 export const THIS_YEAR = new Date().getFullYear();
 // account_holders（本人確認・口座名義人情報）の規約バージョン。全面改訂時にここを上げると再同意検出に使える
-export const TERMS_VERSION = "v1-2026-07";
-export const PRIVACY_VERSION = "v1-2026-07";
+// v2 = 2026-07-21 全面改定（制定 2026-07-05）。表示ヘッダーの改定日と一致させること
+export const TERMS_VERSION = "v2-2026-07";
+export const PRIVACY_VERSION = "v2-2026-07";
 
 // 分割3-B（2026-07-25）：App.jsxから移動（LandingFlow・WorkerProfileEditで共用）
 export // 作業リスト（アイコン無し・文字だけカード。増やすときはここに1行足すだけ）
