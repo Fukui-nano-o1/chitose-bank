@@ -100,9 +100,9 @@ const CONSIGN_SPRIGS = [
 // 中央に寄って見えないよう、株の根元は必ず端の側に置く（右群れ=右端0〜38%・左群れ=左端0〜38%。
 // 負値も許す＝画面外へはみ出してよい）。panel=どちらの幕に所属するか（幕が開くとき群れごと退場）。
 const CONSIGN_CLUSTER_BASES = [
-  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10, delay: 0.10 }, // ①右・下段
-  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75, delay: 0.45 }, // ②左・中段
-  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20, delay: 0.80 }, // ③右・上段
+  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10, delay: 0.10 }, // ①右・下段（草）
+  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75, delay: 0.45 }, // ②左・中段（草）
+  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20, delay: 0.80, kind: "sun" }, // ③上段＝夏仕様の白い太陽（2026-07-31たきと指示・草から置換）
 ];
 // 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
 // 以前の「決め打ち＝再現性」はこの指示で上書き）。全てのパターンを毎回変える（たきと指示）：
@@ -111,6 +111,17 @@ const CONSIGN_CLUSTER_BASES = [
 const makeConsignGrass = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return CONSIGN_CLUSTER_BASES.map(c => {
+    // 夏仕様：上段の群れは草でなく白い太陽（2026-07-31たきと指示）。大きさ・位置だけ入室ごとに抽選
+    if (c.kind === "sun") {
+      return {
+        panel: c.panel,
+        kind: "sun",
+        delay: c.delay,
+        sunSize: Math.round(r(210, 280)),   // 太陽の直径px（爛々と大きめ）
+        sunTop: +r(7, 17).toFixed(1),       // 上幕の上端からの位置%
+        sunLeft: +r(40, 64).toFixed(1),     // 横位置%（中央やや右）
+      };
+    }
     const size = r(160, 300); // 群れごとの大きさの基準（実機確認で縮小・2026-07-31「良い塩梅に」）
     return {
       panel: c.panel,
@@ -394,6 +405,23 @@ export function ConsignmentRoom() {
             <div key={panel} className={"consign-entrance-" + panel}>
               {panel === "bottom" && <div className="consign-entrance-line" />}
               {entranceGrass.filter(c => c.panel === panel).map((c, ci) => (
+                c.kind === "sun" ? (
+                  // 夏仕様：一番上の群れ＝白い太陽が爛々と輝く（2026-07-31たきと指示）。
+                  // 円盤＋放射する光条（長短交互＝きらめき）＋脈打つ光輪(glow)。回転と脈動はCSS側。
+                  // 上幕の中に居るので、幕が開くと太陽ごとスライド退場する（草と同じ片付け不要の仕組み）
+                  <div key={ci} className="consign-sun" style={{ top: c.sunTop + "%", left: c.sunLeft + "%", width: c.sunSize, height: c.sunSize, marginLeft: -c.sunSize / 2, animationDelay: c.delay + "s" }}>
+                    <div className="consign-sun-glow" />
+                    <svg className="consign-sun-rays" viewBox="-100 -100 200 200">
+                      {Array.from({ length: 16 }, (_, k) => {
+                        const long = k % 2 === 0;
+                        return <line key={k} x1="0" y1={long ? -58 : -54} x2="0" y2={long ? -97 : -80} stroke="#fff" strokeWidth={long ? 5 : 3.4} strokeLinecap="round" transform={`rotate(${k * 22.5})`} />;
+                      })}
+                    </svg>
+                    <svg className="consign-sun-disc" viewBox="-100 -100 200 200">
+                      <circle cx="0" cy="0" r="40" fill="#fff" />
+                    </svg>
+                  </div>
+                ) : (
                 <div key={ci} className="consign-entrance-cluster" style={c.pos}>
                   {c.sprigs.map((sp, i) => {
                     const d = CONSIGN_SPRIGS[sp.v];
@@ -411,6 +439,7 @@ export function ConsignmentRoom() {
                     );
                   })}
                 </div>
+                )
               ))}
             </div>
           ))}
