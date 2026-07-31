@@ -1285,6 +1285,17 @@ jobs_public ビューに列を追加/削除したら、RETURNS SETOF jobs_public
 - 洗い出し：select proname from pg_proc where pg_get_function_result(oid) ilike '%jobs_public%'（prokind='f'で絞る）
 ━━━ ここまで ━━━
 
+━━━ 2026-07-31 追補：42P13の再発（recruiter系4列）と構造根絶 — 絶対遵守 ━━━
+2026-07-30の recruiter系4列 backfill（jobs_public 37→41列）で、上記2026-07-22ルールを守り忘れ、
+employer_public_jobs / admin_preview_job が37列のまま残り 42P13（return type mismatch）で全滅していた
+（訪問者開示レベル調査で発見・2026-07-31修正）。
+- employer_public_jobs：本体を「select jp.* from jobs_public jp where …」＝ビュー参照に書き換え済み。
+  以後この関数は列を列挙しない＝jobs_publicに列を足しても自動追従＆anonマスクも自動継承（構造ドリフト根絶）。
+- admin_preview_job：pending行が必要でjobs_public（open限定）を参照できないため、41列の列挙を維持。
+  【絶対】jobs_public の列を変更したら admin_preview_job の SELECT 列も同数・同順で連動更新すること。
+  （SETOF jobs_public で残る唯一の列挙関数。ここだけは手で合わせる）
+━━━ ここまで ━━━
+
 ━━━ 2026-07-22 正規フロー（働き手／雇い手）の整理 ━━━
 フローは2層。混ぜない（準備＝一度きり／取引＝繰り返し）。
 ■A層・準備（アカウント。一度きり。FlowBarには載せない）
