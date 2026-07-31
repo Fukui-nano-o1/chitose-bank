@@ -241,8 +241,10 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
             <div style={calTrackStyle}>
             {/* 幅を測るまでは今月の1枚だけ描く（測る前の%組みで重なりが出たため・2026-07-30修理） */}
             {(trackW ? [-1, 0, 1] : [0]).map(off => { const mm = monthAt(off); return (
-            <div key={`${mm.y}-${mm.m}`} style={{ width: trackW ? trackW : "100%", flexShrink:0, opacity: off === 0 ? 1 : 0.55 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:2 }}>
+            <div key={`${mm.y}-${mm.m}`} style={{ width: trackW ? trackW : "100%", flexShrink:0, overflow:"hidden", opacity: off === 0 ? 1 : 0.55 }}>
+            {/* minmax(0,1fr)（2026-07-30修理）：既定の 1fr は minmax(auto,1fr)＝中身の最小幅で列が広がる。
+                名前チップ（4文字以上）が乗った日の列だけ広がり、盤面が枠からはみ出して隣の月と重なっていた */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,minmax(0,1fr))", gap:1, marginBottom:2 }}>
               {CALENDAR_WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:9, color:"#B0B0B0", padding:"2px 0" }}>{wd}</div>)}
               {monthCells(mm.y, mm.m).map((dd, i) => {
                 if (!dd) return <div key={`e${i}`} />;
@@ -274,7 +276,8 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                     background: fillBg || (isSelected ? "#E6F7EF" : "transparent"),
                     color: fillFg, fontWeight: (baseColor || isToday) ? 700 : 400,
                     boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
-                    display:"flex", flexDirection:"column", alignItems:"stretch", gap:2, minHeight: chips.length > 0 ? 46 : undefined,
+                    // minWidth:0＝中身（名前チップ）で列を押し広げない。長い名前は下の…省略で収める
+                    display:"flex", flexDirection:"column", alignItems:"stretch", gap:2, minWidth:0, overflow:"hidden", minHeight: chips.length > 0 ? 46 : undefined,
                   }}>
                     <span>{dd}</span>
                     {/* 誰が来るか（採用済みのみ）。色は段階色＝帯・チャットと同じ体系。
@@ -285,6 +288,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                           background: APP_PHASE_COLOR[phaseOfEntry(e)], color:"#fff",
                           fontSize:9, fontWeight:700, lineHeight:1.5, borderRadius:3, padding:"0 3px",
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block",
+                          minWidth:0, maxWidth:"100%", boxSizing:"border-box",
                         }}>{e.partner_name}</span>
                     ))}
                     {chips.length > 2 && (
