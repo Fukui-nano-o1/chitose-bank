@@ -64,7 +64,11 @@ const CONSIGN_FIXED_CLAUSES = [
   "支払い：前金→区画ごとの検収後に残額",
 ];
 
-const CONSIGN_EMPTY = { field_name:"", area_a:"", crop:"", task:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
+// 作物はブロッコリー固定（2026-07-31たきと指示「作物はブロッコリーだけ」）。
+// 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
+const CONSIGN_CROP = "ブロッコリー";
+
+const CONSIGN_EMPTY = { field_name:"", area_a:"", crop:CONSIGN_CROP, task:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名" },
@@ -261,7 +265,7 @@ export function ConsignmentRoom() {
     if (saving) return;
     setSaving(true);
     try {
-      const payload = { spec: { ...spec, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
+      const payload = { spec: { ...spec, crop: CONSIGN_CROP, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
       if (editId) {
         const { error } = await supabase.from("consignment_deals").update(payload).eq("id", editId);
         if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return; }
@@ -610,7 +614,10 @@ export function ConsignmentRoom() {
           {CONSIGN_BASIC_FIELDS.map(f => (
             <div key={f.k} style={{ marginBottom:10 }}>
               <label className="lbl f-sans">{f.l}</label>
-              {f.k === "task" ? (
+              {f.k === "crop" ? (
+                // ブロッコリー固定（入力不可）。この委託はブロッコリーのみ
+                <div><span className="f-sans" style={{ display:"inline-block", padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff" }}>{CONSIGN_CROP}</span></div>
+              ) : f.k === "task" ? (
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {CONSIGN_TASKS.map(t => {
                     const sel = (spec.task ? spec.task.split("・").filter(Boolean) : []).includes(t);
