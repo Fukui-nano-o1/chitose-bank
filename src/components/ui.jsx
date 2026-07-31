@@ -329,6 +329,27 @@ function isAdminDebugEnabled() {
   }
 }
 
+// 委託世界の飾り蔓（角を抱く形・2026-07-31たきと指示「委託ボックスにも蔓を這わして」）。
+// 黒い入口カードの角に這わせる装飾。色は地に合わせて指定（黒地=白）。装飾専用＝pointer-events無効。
+// 形は委託ページ四隅の蔓と同じパス（世界の道具は増やさない）
+export const VINE_CORNER_STEMS = [
+  "M6 84 C4 48 24 12 82 8",
+  "M30 34 C44 30 52 38 48 48 C45 55 37 53 39 46 C40 42 45 43 44 47",
+  "M82 8 C92 6 100 12 97 20 C95 26 88 24 90 18",
+  "M14 60 C22 58 26 64 23 70",
+];
+export const VINE_CORNER_LEAVES = [[10,70,-70],[8,46,-80],[16,28,-45],[34,16,-20],[56,10,-8],[74,12,10],[24,44,-50],[46,26,-15],[23,70,60]];
+export function VineCorner({ size = 100, color = "#fff", flip, style }) {
+  return (
+    <svg viewBox="0 0 120 120" aria-hidden="true" style={{ position:"absolute", width:size, height:size, pointerEvents:"none", ...style }}>
+      <g transform={flip ? "translate(120 0) scale(-1 1)" : undefined}>
+        {VINE_CORNER_STEMS.map((d, k) => <path key={k} d={d} fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" />)}
+        {VINE_CORNER_LEAVES.map(([x, y, a], k) => <ellipse key={k} rx="6.5" ry="2.8" fill={color} transform={`translate(${x} ${y}) rotate(${a})`} />)}
+      </g>
+    </svg>
+  );
+}
+
 export function DevBadge({ label }) {
   if (!isAdminDebugEnabled()) return null;
 

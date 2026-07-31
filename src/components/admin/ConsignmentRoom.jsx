@@ -1,6 +1,7 @@
 // 委託 準備室（#/admin/consignment・管理者専用・分割3-Aで切り出し2026-07-24）。
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
@@ -147,16 +148,9 @@ const CONSIGN_VINES = [
     leaves: [[34,8,-35],[50,16,30],[34,28,-38],[30,44,35],[18,54,-30]] },
 ];
 // 四隅の蔓（2026-07-31たきと指示「四隅に蔓を這わしてほしい」）：角を抱くように這う飾り蔓。
-// 左上向きに1種だけ描き、他の3隅は左右・上下の反転で使い回す。viewBox 0 0 120 120
-const CONSIGN_CORNER_VINE = {
-  stems: [
-    "M6 84 C4 48 24 12 82 8",                                    // 角を抱く主茎（左辺→上辺）
-    "M30 34 C44 30 52 38 48 48 C45 55 37 53 39 46 C40 42 45 43 44 47", // 内側へ伸びて渦を巻く枝
-    "M82 8 C92 6 100 12 97 20 C95 26 88 24 90 18",               // 上辺の先のツル（渦）
-    "M14 60 C22 58 26 64 23 70",                                 // 小枝
-  ],
-  leaves: [[10,70,-70],[8,46,-80],[16,28,-45],[34,16,-20],[56,10,-8],[74,12,10],[24,44,-50],[46,26,-15],[23,70,60]],
-};
+// 左上向きに1種だけ描き、他の3隅は左右・上下の反転で使い回す。viewBox 0 0 120 120。
+// パスの正本は components/ui の VINE_CORNER_*（入口カードの蔓と同じ形＝二重管理しない）
+const CONSIGN_CORNER_VINE = { stems: VINE_CORNER_STEMS, leaves: VINE_CORNER_LEAVES };
 
 // 配置は入室ごとに抽選
 const makeConsignVines = () => {
@@ -418,9 +412,11 @@ export function ConsignmentRoom() {
           管理者のみ：この部屋自体が admin ゲートの内側で、consignment_deals のRLSも app_admins 限定。
           ★行き先は今は既存の「新規作成」（白紙の仕様書）。次の工程で、求人フローと同じ並びの
             委託フロー（#/admin/consignment/new）に差し替える＝この onClick 1行だけの変更で済む */}
-      <button onClick={newDeal} className="f-sans" style={{ width:"100%", margin:"0 0 16px", background:"#111111", border:"none", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
-        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
-        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>仕様書を白紙から作ります。</span>
+      <button onClick={newDeal} className="f-sans" style={{ position:"relative", overflow:"hidden", width:"100%", margin:"0 0 16px", background:"#111111", border:"none", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
+        {/* カードの角を這う白い蔓（2026-07-31たきと指示）。文字はzIndexで蔓の上に */}
+        <VineCorner flip size={110} style={{ top:-6, right:-6, opacity:0.5 }} />
+        <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:16, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
+        <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>仕様書を白紙から作ります。</span>
       </button>
 
       <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
