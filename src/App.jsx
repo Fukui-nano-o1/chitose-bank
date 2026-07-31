@@ -2415,7 +2415,7 @@ export default function App(){
           </div>
           <div>
             <p className="f-sans footer-col-title">chitose-bank</p>
-            <button onClick={()=>{ window.location.hash="/charter"; }} className="f-sans footer-col-link">運営憲章</button>
+            <button onClick={()=>{ window.location.hash="/charter"; window.scrollTo(0,0); }} className="f-sans footer-col-link">運営憲章</button>
             <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">利用規約</button>
             <button onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans footer-col-link">プライバシー</button>
             <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">届出について</button>
