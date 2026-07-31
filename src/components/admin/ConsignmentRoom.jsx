@@ -64,10 +64,9 @@ const CONSIGN_FIXED_CLAUSES = [
   "支払い：前金→区画ごとの検収後に残額",
 ];
 
-const CONSIGN_EMPTY = { contractor:"", field_name:"", area_a:"", crop:"", task:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
+const CONSIGN_EMPTY = { field_name:"", area_a:"", crop:"", task:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
-  { k:"contractor",     l:"受託者名" },
   { k:"field_name",     l:"圃場の呼び名" },
   { k:"area_a",         l:"面積（a）" },
   { k:"crop",           l:"作物" },
@@ -683,7 +682,7 @@ export function ConsignmentRoom() {
                   <span style={{ fontWeight:600, fontSize:13, color:"#111111" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
                 </p>
                 <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {[s.contractor, s.area_a ? s.area_a + "a" : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
+                  {[s.area_a ? s.area_a + "a" : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
                 </p>
                 <ConsignStepper deal={d} />
                 {ag && (ag.hours > 0 || ag.days > 0) && (
