@@ -126,6 +126,20 @@ const makeConsignGrass = () => {
   });
 };
 
+// ページ背景の蔓（2026-07-31たきと指示）：画面上端から黒い草の蔓が垂れ下がる環境装飾。
+// 形は入場演出と同じCONSIGN_SPRIGSを180°回して使う（世界の道具は増やさない）。配置は入室ごとに抽選
+const makeConsignVines = () => {
+  const r = (min, max) => min + Math.random() * (max - min);
+  return Array.from({ length: 6 + Math.floor(Math.random() * 4) }, () => ({ // 6〜9本
+    v: Math.floor(Math.random() * CONSIGN_SPRIGS.length),
+    x: +r(-4, 96).toFixed(1),            // 横位置%（負値=左へ少しはみ出す）
+    h: Math.round(r(120, 340)),          // 垂れる長さ
+    flip: Math.random() < 0.5,
+    dur: +r(4.5, 7.5).toFixed(1),        // 揺れの周期s（1本ずつ違う=風のばらつき）
+    delay: +r(0, 3).toFixed(1),
+  }));
+};
+
 export function ConsignmentRoom() {
   const [cTab, setCTab] = useState("spec"); // spec=仕様書 / ledger=台帳
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
@@ -138,6 +152,7 @@ export function ConsignmentRoom() {
   });
   // 草の配置は入室ごとに抽選（毎回違うパターン・たきと指示）。再レンダーでは変えない＝useStateの初期化で1回だけ
   const [entranceGrass] = useState(makeConsignGrass);
+  const [vines] = useState(makeConsignVines); // 背景の蔓も入室ごとに抽選
   useEffect(() => {
     if (!entrance) return;
     const t = setTimeout(() => setEntrance(false), 1950);
@@ -291,6 +306,24 @@ export function ConsignmentRoom() {
 
   return (
     <div className="cb-consign-page fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px" }}>
+      {/* 背景の環境：画面上端から垂れ下がる黒い草の蔓（2026-07-31たきと指示）。
+          z-index:-1でページ内容の下に敷く（白いカードの裏に自然に隠れる）。ゆっくり揺れる */}
+      <div className="consign-vines" aria-hidden="true">
+        {vines.map((sp, i) => {
+          const d = CONSIGN_SPRIGS[sp.v];
+          return (
+            <svg key={i} viewBox="0 0 40 80" style={{ left: sp.x + "%", height: sp.h, width: sp.h / 2, animationDuration: sp.dur + "s", animationDelay: "-" + sp.delay + "s" }}>
+              {/* 180°回して吊るす（根元が上端・葉先が下）。flipはさらに左右反転 */}
+              <g transform={`rotate(180 20 40)${sp.flip ? " translate(40 0) scale(-1 1)" : ""}`}>
+                <path d={d.stem} fill="none" stroke="#111" strokeWidth="2.6" strokeLinecap="round" />
+                {d.leaves.map(([x, y, a], k) => (
+                  <ellipse key={k} rx="7.2" ry="3" fill="#111" transform={`translate(${x} ${y}) rotate(${a})`} />
+                ))}
+              </g>
+            </svg>
+          );
+        })}
+      </div>
       {/* 入場演出：黒幕＋白線→草の群れが右→左→右と下から上へ→幕が上下に開いてフィールド展開。
           群れは所属する幕の中に描く＝幕が開くと群れごと退場する */}
       {entrance && (

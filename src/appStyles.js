@@ -811,8 +811,18 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
   transform: scaleY(0); transform-origin: bottom;
   animation: consignGrass .34s cubic-bezier(.2,.9,.3,1.3) forwards; }
 @keyframes consignGrass { to { transform: scaleY(1); } }
-/* 動きを減らす設定の端末では演出ごと出さない（JS側でも同じ判定で外している） */
-@media (prefers-reduced-motion: reduce) { .consign-entrance { display: none; } }
+/* ── 委託ページの背景環境（2026-07-31たきと指示）：上端から垂れ下がる黒い草の蔓 ──
+   z-index:-1＝ページ内容・白いカードの下に敷かれ、余白にだけ見える。操作は一切妨げない。
+   揺れは上端（吊り元）を軸にゆっくり・周期は1本ずつJSXで変える（風のばらつき） */
+.consign-vines { position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; }
+.consign-vines svg { position: absolute; top: 0; overflow: visible;
+  transform-origin: top center; animation: consignSway ease-in-out infinite alternate; }
+@keyframes consignSway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
+/* 動きを減らす設定の端末では、入場演出は出さず・蔓は揺らさず静止で置く */
+@media (prefers-reduced-motion: reduce) {
+  .consign-entrance { display: none; }
+  .consign-vines svg { animation: none; }
+}
 /* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
    チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
 body:has(.chat-full) .site-footer-fixed { display: none !important; }
