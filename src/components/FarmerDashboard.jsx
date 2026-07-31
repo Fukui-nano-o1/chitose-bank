@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -1036,6 +1036,18 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
             </span>
           </button>
+          {/* 新しく委託を出す（2026-07-31たきと指示）：求人カードの真下・同じ構造。
+              管理者のみ表示＝B2B委託レーンは運営の手動1件用の内部道具（市場機能はまだ作らない）。
+              画面で隠すだけでなく consignment_deals のRLSが app_admins 限定＝サーバ側でも閉じている */}
+          {isAdmin(me) && (
+            <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🚩</span>
+              <span>
+                <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NoticeJumpText text="新しく委託を出す" /></span>
+                <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>圃場ごとの作業を請け負う委託の仕様書を作ります。</span>
+              </span>
+            </button>
+          )}
           {/* 面接の質問集（2026-07-23）：応募者チャットに送る質問を用意。
               右上⇄で反転（2026-07-29たきと指示）：裏＝作ってある質問集のタイトルを横スクロールで一覧。
               反転はトップボックスと同じ作法（pflip-out→中身入替→pflip-in・0.4s×2）。
