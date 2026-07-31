@@ -166,7 +166,7 @@ const makeConsignVines = () => {
 };
 
 export function ConsignmentRoom() {
-  const [cTab, setCTab] = useState("spec"); // spec=仕様書 / ledger=台帳
+  const [cTab, setCTab] = useState("list"); // list=一覧（トップ画・さがすと同じ設計）/ deal=案件ダッシュボード（2026-07-31たきと指示）
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示）：群れ①が生え切ってから②、②の後に③＝三段のリズム。
   // 線(0.22s)→①右下(0.10s〜)→②左中(0.45s〜)→③右上(0.80s〜)→幕が開く(1.20s+0.5s)
@@ -283,8 +283,8 @@ export function ConsignmentRoom() {
     await loadProgress(editId);
     setBusy(false);
   };
-  const openDeal = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("spec"); loadProgress(d.id); };
-  const newDeal = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("spec"); };
+  const openDeal = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
+  const newDeal = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("deal"); };
   const stBadge = (k) => CONSIGN_STATUS.find(s => s.k === k) || CONSIGN_STATUS[0];
   const period = [spec.period_start, spec.period_end].filter(Boolean).join(" 〜 ");
   // 合意後にフォームを変更したか（保存済みspec vs 凍結snapshot・基本/テキスト項目で比較）
@@ -401,11 +401,14 @@ export function ConsignmentRoom() {
           ))}
         </div>
       )}
+      {/* トップ画=一覧（さがすページと同じ設計・2026-07-31たきと指示）：カードの一覧→タップで
+          案件ダッシュボード(deal)へ。←戻る・見出し・入口カードは一覧側だけに出す */}
+      {cTab === "list" && (<>
       {/* 戻り先は雇い手プロフィール入口（2026-07-31たきと指示・管理タブではない）：
           入口カード「新しく委託を出す」が置いてある場所へ帰る。ラベルも「← 戻る」に */}
       <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
-      <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>委託 準備室</p>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>B2B委託レーンの手動1件用の内部道具です（管理者のみ・市場機能はまだ作らない）</p>
+      <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>委託</p>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>出した委託の一覧です。カードを開くと進行の記録がつけられます（管理者のみ・市場機能はまだ作らない）</p>
 
       {/* 新しく委託を出す（2026-07-31たきと指示・農家の「新しく求人を出す」と同じワイドカード）。
           配色はブラック＝委託・受託の世界（求人・求職のオレンジ／ミドリとは分ける）。アイコンは置かない。
@@ -418,24 +421,15 @@ export function ConsignmentRoom() {
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:16, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>仕様書を白紙から作ります。</span>
       </button>
+      </>)}
 
-      <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
-        {[{ k:"spec", l:"仕様書" }, { k:"ledger", l:"台帳", n:deals.length }].map(t => (
-          <button key={t.k} onClick={()=>setCTab(t.k)} className="f-sans"
-            style={{ flex:1, padding:"11px 0", borderRadius:12, border: cTab===t.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:14, fontWeight: cTab===t.k ? 800 : 600, color: cTab===t.k ? "#222" : "#999", cursor:"pointer" }}>
-            {t.l}{t.n > 0 ? `（${t.n}）` : ""}
-          </button>
-        ))}
-      </div>
-
-      {cTab === "spec" && (
+      {cTab === "deal" && (
         <div className="fade-in">
-          {editId && (
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-              <span className="f-sans" style={{ fontSize:12, color:"#717171" }}>編集中：{spec.contractor || "（受託者未記入）"}</span>
-              <button onClick={newDeal} className="f-sans" style={{ marginLeft:"auto", background:"none", border:"1px solid #EBEBEB", borderRadius:8, padding:"5px 10px", fontSize:12, color:"#717171", cursor:"pointer" }}>＋ 新規作成</button>
-            </div>
-          )}
+          {/* ダッシュボードの戻り＝一覧へ（さがすの詳細→一覧と同じ動線）。一覧は開き直しで最新化 */}
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+            <button onClick={()=>{ setCTab("list"); loadDeals(); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
+            <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{editId ? ((spec.field_name || "（圃場未記入）") + "　" + [spec.crop, spec.task].filter(Boolean).join(" ")) : "新しい委託"}</span>
+          </div>
 
           {/* ── 全行程の進行（保存済みの案件のみ）：ステッパー＋現在の状態に応じたアクション ── */}
           {editId && curDeal && (
@@ -610,29 +604,41 @@ export function ConsignmentRoom() {
         </div>
       )}
 
-      {cTab === "ledger" && (
+      {cTab === "list" && (
         <div className="fade-in">
           {deals.length === 0 ? (
-            <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", padding:"32px 0" }}>台帳は空です。仕様書タブから保存すると、ここに並びます。</p>
-          ) : deals.map(d => {
+            <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", padding:"32px 0" }}>まだ委託がありません。「新しく委託を出す」から始めましょう。</p>
+          ) : (
+          <div style={{ display:"grid", gap:14 }}>
+          {deals.map(d => {
             const s = d.spec || {};
             const st = stBadge(d.status);
             const ag = progAgg[d.id]; const area = dealAreaA(d);
             const hpa = ag && area ? hoursPer10a(ag.hours, area) : null;
+            const cardPeriod = [s.period_start, s.period_end].filter(Boolean).join(" 〜 ");
             return (
-              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"12px 4px", background:"none", border:"none", borderBottom:"1px solid #F7F7F7", textAlign:"left", cursor:"pointer" }}>
-                <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
-                <span style={{ flex:1, minWidth:0 }}>
-                  <span className="f-sans" style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.contractor || "（受託者未記入）"}　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
-                  <span className="f-sans" style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{s.field_name || "圃場未記入"}・{s.area_a ? s.area_a + "a" : "面積未記入"}・総額{s.total ? Number(s.total).toLocaleString() + "円" : "未記入"}　{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
-                  {ag && (ag.hours > 0 || ag.days > 0) && (
-                    <span className="f-sans" style={{ display:"block", fontSize:11, color:"#111111", fontWeight:700, marginTop:2 }}>履行：実働{ag.hours}h・{ag.days}日{ag.boxes > 0 ? `・${ag.boxes}箱` : ""}{hpa != null ? `　10aあたり ${hpa}h` : ""}</span>
-                  )}
-                </span>
-                <span style={{ fontSize:14, color:"#B0B0B0", flexShrink:0 }}>›</span>
+              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                  <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
+                  <span className="f-sans" style={{ fontSize:11, color:"#999" }}>{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
+                  <span style={{ marginLeft:"auto", fontSize:14, color:"#B0B0B0" }}>›</span>
+                </div>
+                <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#111", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {s.field_name || "（圃場未記入）"}
+                  <span style={{ fontWeight:600, fontSize:13, color:"#555" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
+                </p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {[s.contractor, s.area_a ? s.area_a + "a" : "", s.total ? "総額 " + Number(s.total).toLocaleString() + "円" : "", cardPeriod].filter(Boolean).join("　") || "詳細未記入"}
+                </p>
+                <ConsignStepper deal={d} />
+                {ag && (ag.hours > 0 || ag.days > 0) && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#111111", fontWeight:700, margin:"-8px 0 6px" }}>履行：実働{ag.hours}h・{ag.days}日{ag.boxes > 0 ? `・${ag.boxes}箱` : ""}{hpa != null ? `　10aあたり ${hpa}h` : ""}</p>
+                )}
               </button>
             );
           })}
+          </div>
+          )}
         </div>
       )}
     </div>
