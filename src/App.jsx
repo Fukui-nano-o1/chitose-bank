@@ -956,6 +956,13 @@ export default function App(){
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment") return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; if (h === "calendar" || h.startsWith("calendar/")) return "calendar"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
+  // 利用規約・プライバシーポリシーを開いたら必ず先頭から（2026-07-30たきと指示）。
+  // どちらもフッター等ページの下の方から開くため、スクロール位置が残ると本文の途中に着地する。
+  // 章リンク（#見出しへのscrollIntoView）は別動作so、ここではページを開いた瞬間だけ先頭に戻す
+  useEffect(() => {
+    if (tab !== "terms" && tab !== "privacy") return;
+    try { window.scrollTo({ top: 0, behavior: "auto" }); } catch { window.scrollTo(0, 0); }
+  }, [tab]);
   // tab → URL：タブが変わったらアドレスバーの#を書き換える
   useEffect(() => {
     const target = "#/" + tab;
