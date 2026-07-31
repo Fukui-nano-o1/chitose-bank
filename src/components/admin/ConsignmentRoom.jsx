@@ -64,7 +64,7 @@ const CONSIGN_FIXED_CLAUSES = [
   "支払い：前金→区画ごとの検収後に残額",
 ];
 
-const CONSIGN_EMPTY = { contractor:"", field_name:"", area_a:"", crop:"", task:"", unit_price_10a:"", total:"", advance:"", period_start:"", period_end:"", inspection:"", field_cond:"", special:"" };
+const CONSIGN_EMPTY = { contractor:"", field_name:"", area_a:"", crop:"", task:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"contractor",     l:"受託者名" },
@@ -73,9 +73,12 @@ const CONSIGN_BASIC_FIELDS = [
   { k:"crop",           l:"作物" },
   { k:"task",           l:"作業" },
   { k:"unit_price_10a", l:"単価（10aあたり・円）" },
-  { k:"total",          l:"総額（円）" },
   { k:"advance",        l:"前金額（円）" },
 ];
+
+// 作業は3択・複数選択可（2026-07-31たきと指示）。値は「・」区切りの文字列で spec.task に保存
+// ＝印刷・凍結スナップショット・カード表示（いずれも spec.task を文字列で読む）を変更せずに済む
+const CONSIGN_TASKS = ["収穫", "検品", "出荷"];
 
 const CONSIGN_TEXT_FIELDS = [
   { k:"inspection", l:"検収基準", ph:"例：2L以上・軸2cm・コンテナ渡し" },
@@ -299,9 +302,8 @@ export function ConsignmentRoom() {
   const openDeal = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
   const newDeal = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("deal"); };
   const stBadge = (k) => CONSIGN_STATUS.find(s => s.k === k) || CONSIGN_STATUS[0];
-  const period = [spec.period_start, spec.period_end].filter(Boolean).join(" 〜 ");
   // 合意後にフォームを変更したか（保存済みspec vs 凍結snapshot・基本/テキスト項目で比較）
-  const specKeys = [...CONSIGN_BASIC_FIELDS.map(f => f.k), ...CONSIGN_TEXT_FIELDS.map(f => f.k), "period_start", "period_end"];
+  const specKeys = [...CONSIGN_BASIC_FIELDS.map(f => f.k), ...CONSIGN_TEXT_FIELDS.map(f => f.k)];
   const pick = (o) => specKeys.reduce((a, k) => { a[k] = (o || {})[k] || ""; return a; }, {});
   const changedAfterAgree = !!(curDeal && curDeal.spec_snapshot && JSON.stringify(pick(curDeal.spec)) !== JSON.stringify(pick(curDeal.spec_snapshot)));
   const snapAtLabel = curDeal?.snapshot_at ? new Date(curDeal.snapshot_at).toLocaleString("ja-JP") : "";
@@ -319,7 +321,7 @@ export function ConsignmentRoom() {
           <p className="f-sans" style={{ fontSize:11, color:"#666", textAlign:"center", margin:"0 0 20px" }}>chitose-bank 委託準備室</p>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, marginBottom:18 }}>
             <tbody>
-              {[...CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]), ["作業期間", period]].map(([l, v]) => (
+              {CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]).map(([l, v]) => (
                 <tr key={l}>
                   <td style={{ border:"1px solid #999", padding:"7px 10px", width:170, background:"#F5F5F5", fontWeight:700 }}>{l}</td>
                   <td style={{ border:"1px solid #999", padding:"7px 10px" }}>{v || "　"}</td>
@@ -466,7 +468,7 @@ export function ConsignmentRoom() {
                 <details style={{ marginTop: curDeal.status === "draft" ? 12 : 0 }}>
                   <summary className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", cursor:"pointer" }}>合意時の仕様書（凍結・{snapAtLabel}）</summary>
                   <div style={{ marginTop:10, background:"#FAFAFA", border:"1px solid #E5E5E5", borderRadius:10, padding:"10px 12px", display:"grid", gap:6 }}>
-                    {[...CONSIGN_BASIC_FIELDS, { k:"period_start", l:"作業期間（開始）" }, { k:"period_end", l:"作業期間（終了）" }, ...CONSIGN_TEXT_FIELDS].map(f => {
+                    {[...CONSIGN_BASIC_FIELDS, ...CONSIGN_TEXT_FIELDS].map(f => {
                       const v = (curDeal.spec_snapshot || {})[f.k];
                       return v ? (
                         <div key={f.k} style={{ display:"flex", gap:10 }}>
@@ -580,19 +582,24 @@ export function ConsignmentRoom() {
           {CONSIGN_BASIC_FIELDS.map(f => (
             <div key={f.k} style={{ marginBottom:10 }}>
               <label className="lbl f-sans">{f.l}</label>
-              <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} style={{ fontSize:14, marginBottom:0 }} />
+              {f.k === "task" ? (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  {CONSIGN_TASKS.map(t => {
+                    const sel = (spec.task ? spec.task.split("・").filter(Boolean) : []).includes(t);
+                    return (
+                      <button key={t} type="button" onClick={()=>{
+                        const cur = spec.task ? spec.task.split("・").filter(Boolean) : [];
+                        const next = cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t];
+                        setF("task", CONSIGN_TASKS.filter(x => next.includes(x)).join("・"));
+                      }} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: sel ? "2px solid #111111" : "1px solid #D0D0D0", background: sel ? "#111111" : "#fff", color: sel ? "#fff" : "#111111" }}>{t}</button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} style={{ fontSize:14, marginBottom:0 }} />
+              )}
             </div>
           ))}
-          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-            <div style={{ flex:1 }}>
-              <label className="lbl f-sans">作業期間（開始）</label>
-              <input className="field f-sans" type="date" value={spec.period_start} onChange={e=>setF("period_start", e.target.value)} style={{ fontSize:13, marginBottom:0 }} />
-            </div>
-            <div style={{ flex:1 }}>
-              <label className="lbl f-sans">作業期間（終了）</label>
-              <input className="field f-sans" type="date" value={spec.period_end} onChange={e=>setF("period_end", e.target.value)} style={{ fontSize:13, marginBottom:0 }} />
-            </div>
-          </div>
           {CONSIGN_TEXT_FIELDS.map(f => (
             <div key={f.k} style={{ marginBottom:10 }}>
               <label className="lbl f-sans">{f.l}</label>
@@ -635,7 +642,6 @@ export function ConsignmentRoom() {
             const st = stBadge(d.status);
             const ag = progAgg[d.id]; const area = dealAreaA(d);
             const hpa = ag && area ? hoursPer10a(ag.hours, area) : null;
-            const cardPeriod = [s.period_start, s.period_end].filter(Boolean).join(" 〜 ");
             return (
               <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
@@ -648,7 +654,7 @@ export function ConsignmentRoom() {
                   <span style={{ fontWeight:600, fontSize:13, color:"#111111" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
                 </p>
                 <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {[s.contractor, s.area_a ? s.area_a + "a" : "", s.total ? "総額 " + Number(s.total).toLocaleString() + "円" : "", cardPeriod].filter(Boolean).join("　") || "詳細未記入"}
+                  {[s.contractor, s.area_a ? s.area_a + "a" : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
                 </p>
                 <ConsignStepper deal={d} />
                 {ag && (ag.hours > 0 || ag.days > 0) && (
