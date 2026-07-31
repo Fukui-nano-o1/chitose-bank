@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
@@ -126,6 +126,38 @@ async function logAppError({ level = "error", source = "client", page = "", comp
   } catch (e) { console.warn("error logging failed", e); }
 }
 
+
+// 画面が真っ暗になるのを止める最後の壁（2026-07-31・委託ページで再発）。
+// lazyChunk の自己修復は「1セッション1回だけ再読込」so、デプロイの最中など2回続けて失敗すると
+// 例外がそのまま上まで抜け、React がツリーごと外して何も描かれない＝真っ暗になる。
+// ここで受け止めて、原因と次の一手（再読み込み）を必ず画面に出す。エラーは app_errors にも残す。
+class AppErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { failed: false, chunk: false }; }
+  static getDerivedStateFromError(error) {
+    const msg = String(error?.message || error || "");
+    // 動的importの失敗＝古いチャンクを掴んだまま（デプロイ直後に起きる）。文言を分ける
+    const chunk = /importing a module script failed|failed to fetch dynamically imported module|error loading dynamically imported module/i.test(msg);
+    return { failed: true, chunk };
+  }
+  componentDidCatch(error, info) {
+    logAppError({ source: "error_boundary", component: "app", action: "render_error", error, metadata: { componentStack: String(info?.componentStack || "").slice(0, 1000) } });
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="f-sans" style={{ maxWidth:420, margin:"64px auto", padding:"28px 24px", textAlign:"center", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16 }}>
+        <p style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{this.state.chunk ? "新しい版に更新されました" : "画面を表示できませんでした"}</p>
+        <p style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:"0 0 18px" }}>
+          {this.state.chunk
+            ? "アプリが更新されたため、古い画面のままでは開けません。再読み込みすると最新の画面になります。"
+            : "一時的な不具合の可能性があります。再読み込みしても直らない場合は、この画面を報告してください。"}
+        </p>
+        <button onClick={()=>{ try { sessionStorage.removeItem("cb_chunkReload"); } catch {} window.location.reload(); }}
+          style={{ padding:"12px 26px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>再読み込み</button>
+      </div>
+    );
+  }
+}
 
 async function sGet(k){try{const r=await window.storage.get(k,true);return r?JSON.parse(r.value):null;}catch{return null;}}
 async function sSet(k,v){try{await window.storage.set(k,JSON.stringify(v),true);}catch{}};
@@ -2187,6 +2219,7 @@ export default function App(){
       {/* ── MAIN ── */}
       <main style={{maxWidth:1200,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
+        <AppErrorBoundary>
         {me&&!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab!=="terms"&&safeTab!=="privacy"&&showLegalV2Banner&&(
           <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"0 0 16px", padding:"14px 18px", background:"#EAF7F0", border:"1px solid #00A86B", borderRadius:12, fontSize:13, color:"#1B5E3F", lineHeight:1.6 }}>
             <span>利用規約とプライバシーポリシーを全面改定しました（7/21）</span>
@@ -2402,6 +2435,7 @@ export default function App(){
             </div>
           </div>
         )}
+        </AppErrorBoundary>
       </main>
 
       {/* ── FOOTER（Airbnb型3列）：新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
