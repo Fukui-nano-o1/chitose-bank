@@ -49,6 +49,63 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [recruiterName, setRecruiterName] = useState("");
   const [recruiterAddress, setRecruiterAddress] = useState("");
   const [recruiterContact, setRecruiterContact] = useState("");
+  // ── 住所・所在地の分割入力（2026-08-01たきと指示）────────────────────────
+  // 分割値（郵便番号/都道府県/市区町村/町名・番地・建物名）が真実の座。保存時に1行へ合成して
+  // recruiter_address に入れる＝表示経路（求人ページ「募集者情報」・求人フローの引用）は無改修。
+  // 既存の1行値だけ持つ利用者は、分割欄が空の間は従来の1行値をそのまま維持する（消さない）
+  const [recruiterZip, setRecruiterZip] = useState("");
+  const [recruiterPref, setRecruiterPref] = useState("");
+  const [recruiterCity, setRecruiterCity] = useState("");
+  const [recruiterDetail, setRecruiterDetail] = useState("");
+  const [rZipSearching, setRZipSearching] = useState(false);
+  const [rZipError, setRZipError] = useState("");
+  const composeRecruiterAddress = () => {
+    const body = (recruiterPref + recruiterCity + recruiterDetail).trim();
+    if (!recruiterZip.trim() && !body) return recruiterAddress.trim(); // 分割未入力＝既存の1行値を維持
+    return [recruiterZip.trim() ? "〒" + recruiterZip.trim() : "", body].filter(Boolean).join(" ");
+  };
+  // 郵便番号→zipcloudで都道府県・市区町村を自動入力（求人フローstep3と同じAPI・無料・認証不要）。
+  // ★引数で郵便番号を受け取る理由も求人フローと同じ：入力欄のonChangeから呼ぶとき、stateはまだ更新前
+  const searchRecruiterZip = async (zipRaw) => {
+    const zip = String(zipRaw === undefined ? recruiterZip : zipRaw).replace(/[^0-9]/g, "");
+    if (zip.length !== 7) { setRZipError("郵便番号は7桁で入力してください"); return; }
+    setRZipSearching(true); setRZipError("");
+    try {
+      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
+      const dj = await res.json();
+      if (dj.status === 200 && dj.results) {
+        const r = dj.results[0];
+        setRecruiterPref(r.address1); setRecruiterCity(r.address2);
+        // 町域が取れて番地欄が空なら初期値に（入力済みの値は上書きしない）
+        setRecruiterDetail(prev => prev.trim() ? prev : (r.address3 || ""));
+      } else setRZipError("郵便番号が見つかりませんでした");
+    } catch { setRZipError("検索に失敗しました。通信環境をご確認ください"); }
+    setRZipSearching(false);
+  };
+  // 新規登録（account_holders）の1行住所を分割欄へ流し込む：郵便番号→zipcloudで都道府県・市区町村、
+  // 残りを町名・番地欄へ。都道府県・市区町村の先頭一致で剥がすだけ（推測パースはしない）。
+  // zipcloudが引けなかったときは全文を町名・番地欄に入れる＝本人が確認して直せる形で残す
+  const fillSplitFromAccount = async (ah) => {
+    const zip = (ah.postal_code || "").trim().replace(/[^0-9]/g, "");
+    const addr = (ah.address || "").trim();
+    if (!zip && !addr) return false;
+    if (zip) setRecruiterZip(zip);
+    let pref = "", city = "";
+    if (zip.length === 7) {
+      try {
+        const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
+        const dj = await res.json();
+        if (dj.status === 200 && dj.results) { pref = dj.results[0].address1; city = dj.results[0].address2; }
+      } catch {}
+    }
+    if (pref) setRecruiterPref(pref);
+    if (city) setRecruiterCity(city);
+    let rest = addr;
+    if (pref && rest.startsWith(pref)) rest = rest.slice(pref.length);
+    if (city && rest.startsWith(city)) rest = rest.slice(city.length);
+    if (rest.trim()) setRecruiterDetail(rest.trim());
+    return true;
+  };
   const [carrying, setCarrying] = useState(false);
   // 新規登録①(account_holders)の内容を引き継ぐ（2026-07-27たきと指示）。
   // ★自動コピーにはしない：登録時の本人確認情報は「他の利用者に表示しない」と説明して集めたデータなので、
@@ -66,13 +123,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       setCarrying(false);
       if (error || !data) { alert("新規登録の情報が見つかりませんでした。"); return; }
       const name = (data.company_name || "").trim() || (data.full_name || "").trim();
-      const zip = (data.postal_code || "").trim();
-      const addr = [zip ? "〒" + zip : "", (data.address || "").trim()].filter(Boolean).join(" ");
       const contact = (data.contact_phone || "").trim() || (data.contact_email || "").trim();
       if (name) setRecruiterName(name);
-      if (addr) setRecruiterAddress(addr);
+      // 住所は分割欄へ流し込む（郵便番号→zipcloudで都道府県・市区町村を補完・2026-08-01）
+      const gotAddr = await fillSplitFromAccount(data);
       if (contact) setRecruiterContact(contact);
-      if (!name && !addr && !contact) alert("引き継げる内容がありませんでした。");
+      if (!name && !gotAddr && !contact) alert("引き継げる内容がありませんでした。");
     } catch { setCarrying(false); alert("読み込みに失敗しました。"); }
   };
   const [uniquePoint, setUniquePoint] = useState("");
@@ -130,6 +186,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setRecruiterName(data.recruiter_name || "");
           setRecruiterAddress(data.recruiter_address || "");
           setRecruiterContact(data.recruiter_contact || "");
+          setRecruiterZip(data.recruiter_zip || ""); setRecruiterPref(data.recruiter_prefecture || "");
+          setRecruiterCity(data.recruiter_city || ""); setRecruiterDetail(data.recruiter_address_detail || "");
           // 未入力なら新規登録の内容を初期値として入れる（2026-07-27たきと指示「自動挿入」）。
           // 入っている値は上書きしない＝本人が直した内容を消さない。保存は本人が押した時だけ
           if (!(data.recruiter_name || "").trim() || !(data.recruiter_address || "").trim() || !(data.recruiter_contact || "").trim()) {
@@ -139,10 +197,11 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
                 .eq("auth_id", session.user.id).maybeSingle();
               if (ah) {
                 const nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
-                const ad = [(ah.postal_code || "").trim() ? "〒" + ah.postal_code.trim() : "", (ah.address || "").trim()].filter(Boolean).join(" ");
                 const ct = (ah.contact_phone || "").trim() || (ah.contact_email || "").trim();
                 if (!(data.recruiter_name || "").trim() && nm) setRecruiterName(nm);
-                if (!(data.recruiter_address || "").trim() && ad) setRecruiterAddress(ad);
+                // 住所：分割欄も1行値も空のときだけ、新規登録の住所を分割欄へ流し込む（2026-08-01）
+                const partsEmpty = !((data.recruiter_zip || "").trim() || (data.recruiter_prefecture || "").trim() || (data.recruiter_city || "").trim() || (data.recruiter_address_detail || "").trim());
+                if (!(data.recruiter_address || "").trim() && partsEmpty) await fillSplitFromAccount(ah);
                 if (!(data.recruiter_contact || "").trim() && ct) setRecruiterContact(ct);
               }
             } catch {}
@@ -247,7 +306,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
 
   const boxFilled = (k) => (
-    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!recruiterAddress.trim()
+    k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!composeRecruiterAddress()
     : k === "perks" ? perksOn.length > 0
     : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
@@ -290,7 +349,11 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
         staff_count: staffCount === "" ? null : Number(staffCount),
-        recruiter_name: recruiterName.trim(), recruiter_address: recruiterAddress.trim(), recruiter_contact: recruiterContact.trim(),
+        // 住所・所在地：分割値をそのまま保存し、表示用の1行（recruiter_address）は合成して保存（2026-08-01）。
+        // 分割欄が全て空の既存利用者は composeRecruiterAddress が旧1行値を返す＝消えない
+        recruiter_name: recruiterName.trim(), recruiter_address: composeRecruiterAddress(), recruiter_contact: recruiterContact.trim(),
+        recruiter_zip: recruiterZip.trim(), recruiter_prefecture: recruiterPref.trim(),
+        recruiter_city: recruiterCity.trim(), recruiter_address_detail: recruiterDetail.trim(),
         interaction_style: interactionStyle || null,
         ...(reviewFlow ? {
           texts_pending: textsPending,
@@ -335,7 +398,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16）
           { k:"avatar",   e:"🖼️", l:"ロゴ・アイコン", v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
           { k:"nickname", e:"✏️", l:"氏名・名称",     req:true, v: recruiterName },
-          { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: recruiterAddress },
+          { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: composeRecruiterAddress() },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
           { k:"recruiter", e:"🧾", l:"連絡先",         req:true, v: recruiterContact },
@@ -411,8 +474,36 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
         {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
       </button>
-      <input value={recruiterAddress} onChange={e=>setRecruiterAddress(e.target.value)} placeholder="例：〒779-3401 徳島県吉野川市山川町〇〇1-2-3" maxLength={200}
-        className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:16 }} />
+      {/* 分割入力（2026-08-01たきと指示）：郵便番号→自動で都道府県・市区町村（求人フローstep3と同じ流儀）。
+          保存時に1行へ合成して recruiter_address に入れる＝表示側は無改修 */}
+      {recruiterAddress.trim() && !(recruiterZip + recruiterPref + recruiterCity + recruiterDetail).trim() && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"8px 10px", margin:"0 0 12px", lineHeight:1.6 }}>現在の登録内容：{recruiterAddress}<br />郵便番号から入力し直すと、分割した内容に置き換わります。</p>
+      )}
+      <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>郵便番号</label>
+      <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:10 }}>
+        <input value={recruiterZip}
+          onChange={e => { const v = e.target.value; setRecruiterZip(v); if (v.replace(/[^0-9]/g, "").length === 7) searchRecruiterZip(v); }}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); searchRecruiterZip(); } }}
+          placeholder="例：779-3401" inputMode="numeric" maxLength={8}
+          className="field f-sans" style={{ flex:1, minWidth:0, fontSize:16, marginBottom:0, boxSizing:"border-box" }} />
+        {/* onClick={searchRecruiterZip} と書かないこと：Reactがイベントを第1引数で渡すため、
+            それが郵便番号として解釈されてしまう（求人フローsearchZipと同じ注意） */}
+        <button onClick={() => searchRecruiterZip()} disabled={rZipSearching} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:13, fontWeight:600, cursor: rZipSearching ? "default" : "pointer", whiteSpace:"nowrap" }}>{rZipSearching ? "検索中..." : "住所を検索"}</button>
+      </div>
+      {rZipError && <p className="f-sans" style={{ fontSize:12, color:"#E53935", margin:"0 0 10px" }}>{rZipError}</p>}
+      <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>都道府県</label>
+      <input value={recruiterPref} readOnly placeholder="例：徳島県" className="field f-sans"
+        style={{ width:"100%", fontSize:16, marginBottom:10, boxSizing:"border-box", background:"#F7F7F7", color:"#717171", cursor:"not-allowed" }} />
+      <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>市区町村</label>
+      <input value={recruiterCity} readOnly placeholder="例：吉野川市" className="field f-sans"
+        style={{ width:"100%", fontSize:16, marginBottom:4, boxSizing:"border-box", background:"#F7F7F7", color:"#717171", cursor:"not-allowed" }} />
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 10px", lineHeight:1.5 }}>都道府県・市区町村は郵便番号から自動で入力されます。誤りがある場合は郵便番号を修正してください</p>
+      <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>町名・番地・建物名</label>
+      <input value={recruiterDetail} onChange={e=>setRecruiterDetail(e.target.value)} placeholder="例：山川町〇〇1-2-3" maxLength={200}
+        className="field f-sans" style={{ width:"100%", fontSize:16, marginBottom:10, boxSizing:"border-box" }} />
+      {!!(recruiterZip + recruiterPref + recruiterCity + recruiterDetail).trim() && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 16px", lineHeight:1.6 }}>求人ページの表示：{composeRecruiterAddress()}</p>
+      )}
       </>)}
 
       {editBox==="perks" && (<>
