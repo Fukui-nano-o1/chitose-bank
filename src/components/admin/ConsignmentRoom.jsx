@@ -644,7 +644,12 @@ const computeSky = (now) => {
     return { isNight: false, left: leftOf(prog), top: arc(prog), skyTop, orb, glow, chrome };
   }
   const prog = (((h - 19) + 24) % 24) / 10; // 夜（19→翌5）
-  return { isNight: true, left: leftOf(prog), top: arc(prog), skyTop: "rgba(28,32,60,0.60)", orb: "#E8ECF5", glow: "rgba(200,210,235,0.50)", chrome: "#77798A" };
+  // 月齢（実際の欠け加減を再現・2026-07-31たきと指示）：既知の新月（2000-01-06 18:14 UTC）からの
+  // 経過日数を朔望月（29.530589日）で割った端数。0=新月・0.5=満月
+  const synodic = 29.530588853;
+  let moonPhase = ((now.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 86400000) % synodic / synodic;
+  if (moonPhase < 0) moonPhase += 1;
+  return { isNight: true, left: leftOf(prog), top: arc(prog), skyTop: "rgba(28,32,60,0.60)", orb: "#E8ECF5", glow: "rgba(200,210,235,0.50)", chrome: "#77798A", moonPhase };
 };
 
 export function ConsignmentRoom() {
@@ -1114,10 +1119,26 @@ export function ConsignmentRoom() {
         {sky.isNight && skyStars.map((st, i) => (
           <span key={i} className="consign-star" style={{ left: st.x + "%", top: st.y + "%", width: st.s, height: st.s, animationDuration: st.dur + "s", animationDelay: "-" + st.delay + "s" }} />
         ))}
-        <div className={"consign-sky-orb" + (sky.isNight ? " consign-sky-orb--moon" : "")} style={{ left: sky.left + "%", top: sky.top + "%", background: sky.orb,
+        <div className={"consign-sky-orb" + (sky.isNight ? " consign-sky-orb--moon" : "")} style={{ left: sky.left + "%", top: sky.top + "%", background: sky.isNight ? "transparent" : sky.orb,
           boxShadow: sky.isNight
-            ? `0 0 16px 4px rgba(255,255,255,0.95), 0 0 60px 18px ${sky.glow}, 0 0 130px 46px rgba(185,205,255,0.28)`
-            : `0 0 44px 12px ${sky.glow}` }} />
+            ? `0 0 16px 4px rgba(255,255,255,0.55), 0 0 60px 18px ${sky.glow}, 0 0 130px 46px rgba(185,205,255,0.28)`
+            : `0 0 44px 12px ${sky.glow}` }}>
+          {/* 月の欠け加減（実際の月齢を再現）：右半円＋明暗境界の楕円弧で照面だけを描く。
+              上弦（満ちる側）は右が照り、下弦（欠ける側）は左右反転。新月付近は地球照のうっすら円盤だけ残る */}
+          {sky.isNight && (() => {
+            const ph = sky.moonPhase;
+            const k = Math.cos(2 * Math.PI * ph);      // 1=新月・-1=満月
+            const rx = (Math.abs(k) * 30).toFixed(2);  // 明暗境界（楕円）の横半径
+            return (
+              <svg viewBox="-32 -32 64 64" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
+                <g transform={ph < 0.5 ? undefined : "scale(-1 1)"}>
+                  <circle r="30" fill="rgba(232,236,245,0.28)" />
+                  <path d={`M 0 -30 A 30 30 0 0 1 0 30 A ${rx} 30 0 0 ${k > 0 ? 0 : 1} 0 -30 Z`} fill={sky.orb} />
+                </g>
+              </svg>
+            );
+          })()}
+        </div>
       </div>
       )}
       {/* 背景の環境：画面上端から垂れ下がる黒い草の蔓（2026-07-31たきと指示）。
