@@ -1384,7 +1384,10 @@ export default function App(){
       if (dy > 90 && dy > dx * 1.5) {
         fired = true;
         const ov = document.createElement("div");
-        ov.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(255,255,255,.88);display:flex;align-items:center;justify-content:center;font-size:14px;color:#00A86B;font-weight:700;font-family:'Noto Sans JP',sans-serif";
+        // 委託ページ（黒の世界）ではブラック、他は既定の緑（2026-07-31たきと指示）
+        const inkColor = document.querySelector(".cb-consign-page") ? "#111111" : "#00A86B";
+        ov.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(255,255,255,.88);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;font-family:'Noto Sans JP',sans-serif";
+        ov.style.color = inkColor;
         ov.textContent = "↻ 更新しています…";
         document.body.appendChild(ov);
         setTimeout(() => window.location.reload(), 150);
