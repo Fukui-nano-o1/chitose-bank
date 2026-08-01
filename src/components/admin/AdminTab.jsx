@@ -292,6 +292,9 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
   // 修正依頼は審査プレビュー内のタップ式指摘に一本化（2026-07-19）。送信はsubmitJobRevisionで実行
 
+  // ページ遷移らしく先頭から見せる（審査ページはダッシュボードの下の方から開くため）
+  const scrollTop = () => { try { window.scrollTo({ top: 0, behavior: "auto" }); } catch { window.scrollTo(0, 0); } };
+
   // 審査ページの深いリンク対応（#/admin/review/{key} と #/admin/review/{job_number}）。
   //  ・数字 → 求人審査プレビューを開く（審査メールのボタンからの従来経路）
   //  ・セクションキー → 各審査一覧を開く（お知らせ・ブックマーク・直リンクから）
@@ -303,17 +306,17 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       const m = h.match(/^admin\/review\/(.+)$/);
       if (!m) return;
       const seg = m[1];
-      if (/^\d+$/.test(seg)) { setSub("jobs"); setPreviewJobNumber(parseInt(seg, 10)); return; }
-      if (REVIEW_SECTION_KEYS.includes(seg)) { setSub("jobs"); setPreviewJobNumber(null); setReviewSec(seg); }
+      if (/^\d+$/.test(seg)) { setSub("jobs"); setPreviewJobNumber(parseInt(seg, 10)); scrollTop(); return; }
+      if (REVIEW_SECTION_KEYS.includes(seg)) { setSub("jobs"); setPreviewJobNumber(null); setReviewSec(seg); scrollTop(); }
     };
     applyReviewHash();
     window.addEventListener("hashchange", applyReviewHash);
     return () => window.removeEventListener("hashchange", applyReviewHash);
   }, []);
 
-  // 審査セクションへ移動／格子へ戻る（状態とURLを同時に動かす＝ボックスが共有可能なリンクになる）
+  // 審査セクションへ移動／格子へ戻る（状態とURLを同時に動かす＝ボックスが共有可能なリンクになる。URL変更→上のeffectが発火し先頭へスクロール）
   const goReview = (key) => { setSub("jobs"); setPreviewJobNumber(null); setReviewSec(key); window.location.hash = "/admin/review/" + key; };
-  const backToReviewGrid = () => { setReviewSec(null); window.location.hash = "/admin"; };
+  const backToReviewGrid = () => { setReviewSec(null); window.location.hash = "/admin"; scrollTop(); };
 
   const TIERS = ["1-3","4-10","10+"];
 
@@ -559,6 +562,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
+      {/* 審査セクションを開いている間はダッシュボードの見出し＋メインタブを隠し、セクションを1枚のページとして見せる */}
+      {!reviewSec && (<>
       <div style={{ marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
         <div>
           <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
@@ -590,6 +595,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           </button>
         ))}
       </div>
+      </>)}
 
       {/* ── その他（ボックス化・2026-07-16）：絵文字カード格子。タップでポップアップ展開（他画面と同じ意匠）。
            旧アコーディオン（開発ツール／旧事業データ／システム）は、開発ツールを主要ページ・求人フローに分解し、ボックス一覧を追加した5ボックスに再編 ── */}
