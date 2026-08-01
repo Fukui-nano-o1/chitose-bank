@@ -235,11 +235,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // ホームの「🛡 保険の準備」から来た時は、その場で保険ボックスを開く（移植・2026-07-23）
   const [editBox, setEditBox] = useState(null);
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→FarmerProfilePreviewをモーダル展開
-  const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復・働き手側と同構造）
-  const closeEditBox = () => {
-    setEditBox(null);
-    if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
-  };
+  // editFromPreview（プレビュー発の編集の往復）は削除（2026-07-31）：プレビューの項目タップ編集の
+  // 廃止（2026-07-25）で発火元が消え、永久にfalseの死に状態だった
+  const closeEditBox = () => setEditBox(null);
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
   const BOX_ORDER = ["avatar","nickname","place","perks","staff","intro","ask","style"];
@@ -579,9 +577,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           {/* touchAction/overscrollBehavior: iOSでスクロールが背面ページに奪われるのを防ぐ（2026-07-14） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
             <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
-            <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容）・項目をタップで編集できます</p>
-            <FarmerProfilePreview me={me} table={table} withTrust={table === "employer_profiles"} black={black} onEdit={()=>setShowPreview(false)}
-              onEditItem={(key)=>{ setShowPreview(false); setEditFromPreview(true); setEditBox(key); }} />
+            <FarmerProfilePreview me={me} table={table} withTrust={table === "employer_profiles"} black={black} />
           </div>
         </div>
       )}
@@ -592,7 +588,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 // プレビューの統一（2026-07-25たきと指示）：実際の求人詳細で雇い手アイコンをタップした時に出る
 // EmployerPreviewSheet（App.jsx）と同一の情報・構造（農園紹介タイトル→信頼カード→待遇チップ→紹介お題）で表示する。
 // データは本人行（employer_profiles）＋employer_trust_info＝働き手が見るものと同じ形。項目タップ編集は廃止（編集はボックス格子から）
-function FarmerProfilePreview({ me, onEdit, onEditItem, table = "employer_profiles", withTrust = true, black = false }) {
+function FarmerProfilePreview({ me, table = "employer_profiles", withTrust = true, black = false }) {
   const [data, setData] = useState(null);
   const [trust, setTrust] = useState(null);
   const [loading, setLoading] = useState(true);
