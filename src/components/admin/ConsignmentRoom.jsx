@@ -240,12 +240,24 @@ const CONSIGNOR_FIELDS = [
 // 掲載プレビュー・印刷に反映する公開系の項目（緊急連絡先・振込情報は内部用so反映しない）
 const CONSIGNOR_PUBLIC_KEYS = ["consignor_name","consignor_trade_name","consignor_corp_no","consignor_invoice_no","consignor_rep_name","consignor_address","consignor_phone","consignor_email"];
 
+// 設定ページのボックス設計（2026-07-31たきと指示「ボックス設計にして。タップで入力ボックス展開」）。
+// 10項目を6ボックスに束ねる。v=ボックスに出す代表値のキー
+const CONSIGNOR_BOXES = [
+  { k:"name",      l:"氏名・名称",   keys:["consignor_name","consignor_trade_name","consignor_rep_name"], v:"consignor_name" },
+  { k:"numbers",   l:"事業者番号",   keys:["consignor_corp_no","consignor_invoice_no"], v:"consignor_invoice_no" },
+  { k:"address",   l:"住所・所在地", keys:["consignor_address"], v:"consignor_address" },
+  { k:"contact",   l:"連絡先",       keys:["consignor_phone","consignor_email"], v:"consignor_phone" },
+  { k:"emergency", l:"緊急連絡先",   keys:["consignor_emergency"], v:"consignor_emergency" },
+  { k:"billing",   l:"振込・請求",   keys:["consignor_billing"], v:"consignor_billing" },
+];
+
 // 委託者情報の設定フォーム（ブラック・アイコンなし）。初回は account_holders から氏名・住所・
 // 電話・メールを下敷きに（空欄のみ埋める・保存は本人が押した時だけ＝雇い手プロフィールと同じ作法）
 function ConsignorInfoEdit() {
   const [form, setForm] = useState(null); // null=読み込み中
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [editBox, setEditBox] = useState(null); // 開いている入力ボックス（CONSIGNOR_BOXESのk）
   useEffect(() => {
     (async () => {
       const empty = CONSIGNOR_FIELDS.reduce((a, f) => { a[f.k] = ""; return a; }, {});
@@ -288,22 +300,46 @@ function ConsignorInfoEdit() {
     setSaving(false);
   };
   if (!form) return <p className="f-sans" style={{ fontSize:13, color:"#999999", textAlign:"center", padding:"24px 0" }}>読み込み中…</p>;
+  const boxFields = editBox ? CONSIGNOR_FIELDS.filter(f => (CONSIGNOR_BOXES.find(b => b.k === editBox) || { keys:[] }).keys.includes(f.k)) : [];
   return (
     <div>
-      <p className="f-sans" style={{ fontSize:13, color:"#111111", margin:"0 0 16px", lineHeight:1.7 }}>原則変更しない委託者情報です。案件の確認ページと印刷仕様書に自動で反映されます。</p>
-      {CONSIGNOR_FIELDS.map(f => (
-        <div key={f.k} style={{ marginBottom:10 }}>
-          <label className="lbl f-sans">{f.l}</label>
-          {f.ta ? (
-            <textarea className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
-          ) : (
-            <input className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
-          )}
-        </div>
-      ))}
-      <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>緊急連絡先・振込情報は内部用です（掲載や印刷には出ません）。</p>
-      <button onClick={save} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
+      <p className="f-sans" style={{ fontSize:13, color:"#111111", margin:"0 0 16px", lineHeight:1.7 }}>原則変更しない委託者情報です。案件の確認ページと印刷仕様書に自動で反映されます。タップして入力できます。</p>
+      {/* ボックス格子（タップで入力モーダル展開・ブラック・アイコンなし） */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        {CONSIGNOR_BOXES.map(b => {
+          const filled = b.keys.some(k => (form[k] || "").trim());
+          const v = (form[b.v] || "").trim() || (filled ? "設定済み" : "");
+          return (
+            <button key={b.k} onClick={()=>setEditBox(b.k)} className="f-sans" style={{ background:"#fff", border:"1px solid #111111", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+              <span style={{ fontSize:14, fontWeight:700, color:"#111111" }}>{b.l}</span>
+              <span style={{ fontSize:11, color: v ? "#111111" : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{v || "未設定"}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"12px 0 0" }}>緊急連絡先・振込情報は内部用です（掲載や印刷には出ません）。</p>
       {saved && <p className="f-sans" style={{ fontSize:12, color:"#111111", textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
+
+      {/* 入力モーダル（雇い手プロフィール編集と同じ様式・保存は全項目upsert） */}
+      {editBox && (
+        <div onClick={()=>setEditBox(null)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:"16px 16px calc(64px + 10px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <button onClick={()=>setEditBox(null)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, color:"#111111", cursor:"pointer", zIndex:1 }}>✕</button>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#111111", margin:"0 0 14px" }}>{(CONSIGNOR_BOXES.find(b => b.k === editBox) || {}).l}</p>
+            {boxFields.map(f => (
+              <div key={f.k} style={{ marginBottom:10 }}>
+                <label className="lbl f-sans">{f.l}</label>
+                {f.ta ? (
+                  <textarea className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+                ) : (
+                  <input className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+                )}
+              </div>
+            ))}
+            <button onClick={async ()=>{ await save(); setEditBox(null); }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", marginTop:4, opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
