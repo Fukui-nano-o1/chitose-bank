@@ -68,10 +68,11 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", area_a:"", crop:CONSIGN_CROP, task:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名" },
+  { k:"region",         l:"地域", ph:"例：徳島県吉野川市（番地は掲載しない）" },
   { k:"area_a",         l:"面積（a）" },
   { k:"crop",           l:"作物" },
   { k:"task",           l:"作業" },
@@ -631,7 +632,7 @@ export function ConsignmentRoom() {
                   })}
                 </div>
               ) : (
-                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} style={{ fontSize:14, marginBottom:0 }} />
+                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
               )}
             </div>
           ))}
@@ -689,7 +690,7 @@ export function ConsignmentRoom() {
                   <span style={{ fontWeight:600, fontSize:13, color:"#111111" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
                 </p>
                 <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {[s.area_a ? s.area_a + "a" : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
+                  {[s.region, s.area_a ? s.area_a + "a" : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
                 </p>
                 <ConsignStepper deal={d} />
                 {ag && (ag.hours > 0 || ag.days > 0) && (
