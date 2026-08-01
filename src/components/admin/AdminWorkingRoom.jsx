@@ -4,10 +4,22 @@
 // 読み取り専用（admin_working_jobs RPC・security definer + app_admins ゲート）。ここからの書き込みは無し。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
-import { CROP_OPTIONS, dateRangeLabel } from "../../lib/utils";
+import { CROP_OPTIONS, dateRangeLabel, ymdLocal, isWorkDayToday } from "../../lib/utils";
 import { Dots } from "../ui";
 
 const cropIcon = (crop) => CROP_OPTIONS.find(c => c.name === crop)?.icon || "🌱";
+
+// 作業当日か（＝トップに「仕事中」として展開する日）。当事者合意日(agreed_dates)があればその範囲、
+// 無ければ求人の日程(date_start〜date_end)で判定。「仕事が始まる日」の採用済みマッチを仕事中側へ昇格させる
+function isTodayWork(item) {
+  const ad = item.agreed_dates;
+  if (Array.isArray(ad) && ad.length) {
+    const days = ad.map(d => String(d).slice(0, 10)).sort();
+    const today = ymdLocal(new Date());
+    return today >= days[0] && today <= days[days.length - 1];
+  }
+  return isWorkDayToday(item.date_start, item.date_end);
+}
 
 // 作業日程：agreed_dates（当事者が合意した実施日の配列）があればそれ、無ければ求人の日程
 function scheduleLabel(item) {
@@ -60,6 +72,36 @@ function CardHead({ item }) {
   );
 }
 
+// 仕事中カード。today=本日開始（採用済み・当日・未打刻）はまだ started_at 等が無いので、
+// 採用→保険→開始待ちの並びで「これから始まる」を示す。working は開始〜終了の全打刻を示す
+function WorkCard({ item, today }) {
+  return (
+    <div className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid #E24B4A" }}>
+      <CardHead item={item} />
+      <PartyLine item={item} />
+      <p className="f-sans" style={{ fontSize:12, color:"#444", margin:"8px 0 10px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+        <span>📅 {scheduleLabel(item)}</span>
+        {today && <span style={{ fontSize:10, fontWeight:800, color:"#fff", background:"#E24B4A", borderRadius:20, padding:"2px 8px" }}>本日開始</span>}
+        {!today && item.auto_started && <span style={{ color:"#999" }}>· 自動開始</span>}
+      </p>
+      <div style={{ display:"flex", flexDirection:"column", gap:6, background:"#FAFAFA", borderRadius:10, padding:"10px 12px" }}>
+        {today ? (<>
+          <CheckRow label="採用" at={item.hired_at} />
+          <CheckRow label="保険の準備" at={item.insurance_prepared_at} />
+          <CheckRow label="開始（働き手）" at={item.started_at} />
+          <CheckRow label="開始確認（農家）" at={item.farmer_confirmed_start_at} />
+        </>) : (<>
+          <CheckRow label="開始（働き手）" at={item.started_at} />
+          <CheckRow label="開始確認（農家）" at={item.farmer_confirmed_start_at} />
+          <CheckRow label="保険の準備" at={item.insurance_prepared_at} />
+          <CheckRow label="完了（農家）" at={item.work_completed_at} />
+          <CheckRow label="終了確認（働き手）" at={item.worker_confirmed_end_at} />
+        </>)}
+      </div>
+    </div>
+  );
+}
+
 export function AdminWorkingRoom() {
   const [state, setState] = useState(null); // null=読み込み中 | {working, upcoming} | "error" | "denied"
   const load = useCallback(async () => {
@@ -87,38 +129,34 @@ export function AdminWorkingRoom() {
         <p className="f-sans" style={{ textAlign:"center", color:"#E24B4A", fontSize:13, padding:"48px 0" }}>読み込みに失敗しました。ページを開き直してください</p>
       )}
 
-      {state && typeof state === "object" && (<>
-        {/* ── 仕事中（status=working） ── */}
+      {state && typeof state === "object" && (() => {
+        // 「仕事が始まる日」の採用済みマッチ（本日開始）は、まもなく開始ではなく仕事中側にトップ展開する。
+        // まもなく開始からは当日分を除外＝二重展開を防ぎ、仕事中を優先させる（当日は仕事中が正）。
+        const todayUpcoming = state.upcoming.filter(isTodayWork);
+        const futureUpcoming = state.upcoming.filter(it => !isTodayWork(it));
+        const workingCount = state.working.length + todayUpcoming.length;
+        return (<>
+        {/* ── 仕事中（status=working ＋ 本日開始の採用済み） ── */}
         <div style={{ display:"flex", alignItems:"center", gap:8, margin:"22px 0 12px" }}>
           <span style={{ width:4, height:16, borderRadius:2, background:"#E24B4A" }} />
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>作業中 <span style={{ color:"#E24B4A" }}>{state.working.length}</span></p>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>作業中 <span style={{ color:"#E24B4A" }}>{workingCount}</span></p>
         </div>
-        {state.working.length === 0 ? (
-          <div className="f-sans" style={{ background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:14, padding:"24px 16px", textAlign:"center", color:"#999", fontSize:13 }}>いま作業中のマッチはありません</div>
-        ) : state.working.map(item => (
-          <div key={item.application_id} className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid #E24B4A" }}>
-            <CardHead item={item} />
-            <PartyLine item={item} />
-            <p className="f-sans" style={{ fontSize:12, color:"#444", margin:"8px 0 10px" }}>📅 {scheduleLabel(item)}{item.auto_started ? "　·　自動開始" : ""}</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:6, background:"#FAFAFA", borderRadius:10, padding:"10px 12px" }}>
-              <CheckRow label="開始（働き手）" at={item.started_at} />
-              <CheckRow label="開始確認（農家）" at={item.farmer_confirmed_start_at} />
-              <CheckRow label="保険の準備" at={item.insurance_prepared_at} />
-              <CheckRow label="完了（農家）" at={item.work_completed_at} />
-              <CheckRow label="終了確認（働き手）" at={item.worker_confirmed_end_at} />
-            </div>
-          </div>
-        ))}
+        {workingCount === 0 ? (
+          <div className="f-sans" style={{ background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:14, padding:"24px 16px", textAlign:"center", color:"#999", fontSize:13 }}>いま作業中・本日開始のマッチはありません</div>
+        ) : (<>
+          {todayUpcoming.map(item => <WorkCard key={item.application_id} item={item} today />)}
+          {state.working.map(item => <WorkCard key={item.application_id} item={item} />)}
+        </>)}
 
-        {/* ── まもなく開始（採用済み・未開始） ── */}
+        {/* ── まもなく開始（採用済み・未開始・後日）。当日分は上の仕事中へ昇格済みso除外 ── */}
         <div style={{ display:"flex", alignItems:"center", gap:8, margin:"28px 0 12px" }}>
           <span style={{ width:4, height:16, borderRadius:2, background:"#00897B" }} />
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>まもなく開始 <span style={{ color:"#00897B" }}>{state.upcoming.length}</span></p>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>まもなく開始 <span style={{ color:"#00897B" }}>{futureUpcoming.length}</span></p>
         </div>
-        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 12px" }}>採用が決まり、作業日を待っているマッチ（開始日の近い順）</p>
-        {state.upcoming.length === 0 ? (
-          <div className="f-sans" style={{ background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:14, padding:"24px 16px", textAlign:"center", color:"#999", fontSize:13 }}>開始待ちのマッチはありません</div>
-        ) : state.upcoming.map(item => (
+        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 12px" }}>採用が決まり、後日の作業日を待っているマッチ（開始日の近い順）</p>
+        {futureUpcoming.length === 0 ? (
+          <div className="f-sans" style={{ background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:14, padding:"24px 16px", textAlign:"center", color:"#999", fontSize:13 }}>後日に始まるマッチはありません</div>
+        ) : futureUpcoming.map(item => (
           <div key={item.application_id} className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid #00897B" }}>
             <CardHead item={item} />
             <PartyLine item={item} />
@@ -129,7 +167,8 @@ export function AdminWorkingRoom() {
             </div>
           </div>
         ))}
-      </>)}
+        </>);
+      })()}
     </div>
   );
 }
