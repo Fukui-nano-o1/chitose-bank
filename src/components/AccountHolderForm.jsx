@@ -127,7 +127,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
 
   return (
     <div className="fade-in" style={{ minHeight:"80vh", padding:"28px 24px 64px" }}>
-      <div style={{ width:"100%", maxWidth:640, margin:"0 auto" }}>
+      <div style={{ width:"100%", maxWidth:"100%", margin:"0 auto" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
           <div className="f-sans" style={{ fontSize:20, fontWeight:700, color:C.ink }}>新規登録：本人情報の入力</div>
