@@ -1,0 +1,81 @@
+# 日次DBバックアップ（プラポリv3.1 第6条4「データは定期的にバックアップします」を事実にする実装）
+#
+# 設計（2026-07-31たきと指示）：
+# - pg_dump の出力はディスクに平文を書かず、そのまま age で公開鍵暗号化する（パイプ直結）
+# - 暗号化済みファイルだけを private のバックアップ用リポジトリへ push する
+# - 平文ダンプをこのリポジトリ・ログ・artifact に一切残さない（set -x 禁止・artifact 未使用）
+# - 復号鍵（age の秘密鍵）は GitHub に置かない。たきとが手元で保管する
+#
+# 必要な Secrets（Settings → Secrets and variables → Actions → New repository secret）：
+# - SUPABASE_DB_URL   : postgresql://... 形式の接続文字列（直接接続 or セッションプーラー5432。トランザクションプーラー6543は不可）
+# - AGE_PUBLIC_KEY    : age1... で始まる公開鍵（age-keygen で生成した受信者鍵）
+# - BACKUP_REPO       : バックアップ保存先の private リポジトリ（例 Fukui-nano-o1/chitose-bank-backups）
+# - BACKUP_REPO_TOKEN : 上記リポジトリに Contents: Read and write を持つ Fine-grained PAT
+#
+# 初回は workflow_dispatch（Actions タブ → db-backup → Run workflow）で手動実行し、
+# バックアップ用リポジトリに .dump.age が生成されることを確認してから、
+# 下の schedule の 2 行のコメントを外して日次を有効化する（たきと指示・手順10）。
+name: db-backup
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 18 * * *"  # UTC 18:00 = JST 翌3:00 に毎日実行
+
+permissions: {}
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install postgresql-client-17 and age
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age postgresql-common >/dev/null
+          sudo YES=yes /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+          pg_dump --version
+          age --version
+
+      - name: Dump and encrypt (no plaintext on disk)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          AGE_PUBLIC_KEY: ${{ secrets.AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL}" ] || [ -z "${AGE_PUBLIC_KEY}" ]; then
+            echo "SUPABASE_DB_URL / AGE_PUBLIC_KEY が未設定です。Settings→Secrets を確認してください" >&2
+            exit 1
+          fi
+          STAMP="$(date -u +%Y%m%d_%H%M%S)"
+          # 平文はパイプ内のみ。ディスクには暗号化済み .dump.age だけが書かれる
+          pg_dump "${SUPABASE_DB_URL}" --format=custom --no-owner --no-privileges \
+            | age -r "${AGE_PUBLIC_KEY}" -o "chitose_${STAMP}.dump.age"
+          ls -l chitose_${STAMP}.dump.age
+          echo "STAMP=${STAMP}" >> "$GITHUB_ENV"
+
+      - name: Push encrypted dump to private backup repo
+        env:
+          BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKUP_REPO}" ] || [ -z "${BACKUP_REPO_TOKEN}" ]; then
+            echo "BACKUP_REPO / BACKUP_REPO_TOKEN が未設定です。Settings→Secrets を確認してください" >&2
+            exit 1
+          fi
+          git clone --depth 1 "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/${BACKUP_REPO}.git" backup-repo
+          mkdir -p backup-repo/daily
+          mv "chitose_${STAMP}.dump.age" backup-repo/daily/
+          cd backup-repo
+          git config user.name "chitose-backup"
+          git config user.email "noreply@chitose-bank.com"
+          git add daily
+          git commit -m "backup: ${STAMP}"
+          git push

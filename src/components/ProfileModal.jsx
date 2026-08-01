@@ -252,7 +252,18 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
                     flex:1, padding:"11px", background:"#fff", border:"1px solid #EBEBEB",
                     borderRadius:12, fontSize:13, cursor:"pointer", fontFamily:"inherit", color:"#222",
                   }}>キャンセル</button>
-                  <button onClick={async () => { await supabase.auth.signOut(); onLogout(); }} style={{
+                  <button onClick={async () => {
+                    // 退会申し出を記録（プラポリv3第7条1：申し出から30日以内に運営が削除）。
+                    // insert失敗でもsignOutは実行する＝退会の意思表示を通信エラーで妨げない
+                    try {
+                      const { data:{ user } } = await supabase.auth.getUser();
+                      if (user) {
+                        const { error } = await supabase.from("withdrawal_requests").insert({ auth_id: user.id });
+                        if (error) console.error("退会申請の記録に失敗:", error.message);
+                      }
+                    } catch (e) { console.error("退会申請の記録に失敗:", e); }
+                    await supabase.auth.signOut(); onLogout();
+                  }} style={{
                     flex:1, padding:"11px", background:"#E24B4A", color:"#fff", border:"none",
                     borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit",
                   }}>退会する</button>

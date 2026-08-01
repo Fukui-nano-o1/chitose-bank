@@ -1,12 +1,14 @@
 // 委託 準備室（#/admin/consignment・管理者専用・分割3-Aで切り出し2026-07-24）。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { ymdLocal } from "../../lib/utils";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
+import { CalendarView } from "../CalendarView";
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
 //    タブ2つ：仕様書（フォーム→保存→印刷ビュー）／台帳（consignment_deals一覧・行タップで編集・状態更新・メモ）
-const CONSIGN_STEPS = ["下書き", "合意", "前金", "作業中", "検収", "支払", "完了"];
+const CONSIGN_STEPS = ["下書き", "合意", "着手金", "作業中", "検収", "支払", "完了"];
 const consignStepState = (d) => {
   const s = d.spec || {}; const st = d.status || "draft";
   const beyond = (arr) => arr.includes(st);
@@ -33,6 +35,27 @@ const CONSIGN_STATUS = [
   { k:"paid",      l:"支払済", bg:"#5C5C5C", fg:"#FFFFFF" },
   { k:"done",      l:"完了",   bg:"#F3F3F3", fg:"#999999" },
 ];
+
+// 募集状況（掲載画面に出す状態）＝内部statusから自動導出（2026-07-31たきと指示・二重管理しない）。
+// 内部 draft→募集中／agreed→募集終了（受託者決定）／working・inspected・paid→作業中／done→完了
+const consignRecruitState = (status) => {
+  if (status === "done") return { l:"完了", bg:"#F3F3F3", fg:"#999999" };
+  if (["working", "inspected", "paid"].includes(status)) return { l:"作業中", bg:"#3A3A3A", fg:"#FFFFFF" };
+  if (status === "agreed") return { l:"募集終了", bg:"#E5E5E5", fg:"#444444" };
+  return { l:"募集中", bg:"#111111", fg:"#FFFFFF" }; // draft（既定）＝掲載中・応募受付
+};
+
+// 履行期限は開始+終了の日付範囲（2026-07-31たきと指示）。raw は spec.date_start/date_end(ymd)、
+// 表示用ラベルは spec.deadline に持たせる（カード/印刷/スナップショットは deadline を読む＝据え置き）。
+// 復元は raw から。文字列パースで逆算しない（day4教訓#4）
+const parseYmd = (s) => { if (!s) return null; const p = String(s).split("-").map(Number); return p.length === 3 && p.every(n => !isNaN(n)) ? new Date(p[0], p[1] - 1, p[2]) : null; };
+const deadlineLabel = (ds, de) => {
+  const s = parseYmd(ds); if (!s) return "";
+  const e = parseYmd(de) || s;
+  const cy = new Date().getFullYear();
+  const f = (dt) => (dt.getFullYear() === cy ? "" : dt.getFullYear() + "年") + (dt.getMonth() + 1) + "月" + dt.getDate() + "日";
+  return s.getTime() === e.getTime() ? f(s) : f(s) + " 〜 " + f(e);
+};
 
 // 進行ステッパー（FlowBarと同じ視覚文法。色だけブラック：黒の✓＝完了・黒リング＝現在地・グレー＝未着手）
 function ConsignStepper({ deal }) {
@@ -64,21 +87,30 @@ const CONSIGN_FIXED_CLAUSES = [
   "支払い：前金→区画ごとの検収後に残額",
 ];
 
-const CONSIGN_EMPTY = { contractor:"", field_name:"", area_a:"", crop:"", task:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
+// 作物はブロッコリー固定（2026-07-31たきと指示「作物はブロッコリーだけ」）。
+// 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
+const CONSIGN_CROP = "ブロッコリー";
+
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", hazards:[], hazard_other:"", photos:[], special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
-  { k:"contractor",     l:"受託者名" },
   { k:"field_name",     l:"圃場の呼び名" },
+  { k:"region",         l:"地域", ph:"例：徳島県吉野川市（番地は掲載しない）" },
   { k:"area_a",         l:"面積（a）" },
   { k:"crop",           l:"作物" },
   { k:"task",           l:"作業" },
+  { k:"deadline",       l:"履行期限" },
   { k:"unit_price_10a", l:"単価（10aあたり・円）" },
-  { k:"advance",        l:"前金額（円）" },
+  { k:"advance",        l:"着手金（前払金・円）" },
 ];
 
 // 作業は3択・複数選択可（2026-07-31たきと指示）。値は「・」区切りの文字列で spec.task に保存
 // ＝印刷・凍結スナップショット・カード表示（いずれも spec.task を文字列で読む）を変更せずに済む
 const CONSIGN_TASKS = ["収穫", "検品", "出荷"];
+
+// 危険情報はチェック式（2026-07-31たきと指示・自由記述だと書かれず埋もれるため）。
+// 選択は spec.hazards（配列）、その他の自由記述は spec.hazard_other に保存
+const CONSIGN_HAZARDS = ["電柵あり", "急斜面", "ぬかるみ", "農薬散布後", "その他"];
 
 const CONSIGN_TEXT_FIELDS = [
   { k:"inspection", l:"検収基準", ph:"例：2L以上・軸2cm・コンテナ渡し" },
@@ -100,9 +132,9 @@ const CONSIGN_SPRIGS = [
 // 中央に寄って見えないよう、株の根元は必ず端の側に置く（右群れ=右端0〜38%・左群れ=左端0〜38%。
 // 負値も許す＝画面外へはみ出してよい）。panel=どちらの幕に所属するか（幕が開くとき群れごと退場）。
 const CONSIGN_CLUSTER_BASES = [
-  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10, delay: 0.10 }, // ①右・下段
-  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75, delay: 0.45 }, // ②左・中段
-  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20, delay: 0.80 }, // ③右・上段
+  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10, delay: 0.10 }, // ①右・下段（草）
+  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75, delay: 0.45 }, // ②左・中段（草）
+  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20, delay: 0.80, kind: "sun" }, // ③上段＝夏仕様の白い太陽（2026-07-31たきと指示・草から置換）
 ];
 // 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
 // 以前の「決め打ち＝再現性」はこの指示で上書き）。全てのパターンを毎回変える（たきと指示）：
@@ -111,6 +143,17 @@ const CONSIGN_CLUSTER_BASES = [
 const makeConsignGrass = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return CONSIGN_CLUSTER_BASES.map(c => {
+    // 夏仕様：上段の群れは草でなく白い太陽（2026-07-31たきと指示）。大きさ・位置だけ入室ごとに抽選
+    if (c.kind === "sun") {
+      return {
+        panel: c.panel,
+        kind: "sun",
+        delay: c.delay,
+        sunSize: Math.round(r(210, 280)),   // 太陽の直径px（爛々と大きめ）
+        sunTop: +r(7, 17).toFixed(1),       // 上幕の上端からの位置%
+        sunLeft: +r(40, 64).toFixed(1),     // 横位置%（中央やや右）
+      };
+    }
     const size = r(160, 300); // 群れごとの大きさの基準（実機確認で縮小・2026-07-31「良い塩梅に」）
     return {
       panel: c.panel,
@@ -169,7 +212,18 @@ const makeConsignVines = () => {
 };
 
 export function ConsignmentRoom() {
-  const [cTab, setCTab] = useState("list"); // list=一覧（トップ画・さがすと同じ設計）/ deal=案件ダッシュボード（2026-07-31たきと指示）
+  // 画面切替はURLで裏打ちする（2026-08-01たきと報告「スワイプで前のページに戻らない」の根治）：
+  // 一覧=#/admin/consignment／新規=#/admin/consignment/new／案件=#/admin/consignment/deal/{id}。
+  // openDeal/newDealはhashを進め、実際の画面切替はhashchangeが担う＝スワイプ・ブラウザ戻るが
+  // そのまま「一覧へ戻る」になる（さがす→求人詳細と同じ作法）
+  const readConsignView = () => {
+    const h = window.location.hash.replace(/^#\/?/, "");
+    const m = h.match(/^admin\/consignment\/deal\/([0-9a-f-]+)$/);
+    if (m) return { view: "deal", id: m[1] };
+    if (h === "admin/consignment/new") return { view: "new" };
+    return { view: "list" };
+  };
+  const [cTab, setCTab] = useState(() => readConsignView().view === "list" ? "list" : "deal"); // list=一覧（トップ画・さがすと同じ設計）/ deal=案件ダッシュボード（2026-07-31たきと指示）
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示）：群れ①が生え切ってから②、②の後に③＝三段のリズム。
   // 線(0.22s)→①右下(0.10s〜)→②左中(0.45s〜)→③右上(0.80s〜)→幕が開く(1.20s+0.5s)
@@ -194,6 +248,8 @@ export function ConsignmentRoom() {
   const [status, setStatus] = useState("draft");
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [showDeadlineCal, setShowDeadlineCal] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [deals, setDeals] = useState([]);
   const [progAgg, setProgAgg] = useState({}); // 台帳の要約用：deal_id→{hours,boxes,days}
@@ -217,6 +273,7 @@ export function ConsignmentRoom() {
     (pr.data || []).forEach(r => { const a = agg[r.deal_id] || { hours: 0, boxes: 0, days: new Set() }; a.hours += Number(r.hours || 0); a.boxes += Number(r.yield_boxes || 0); if (r.work_date) a.days.add(r.work_date); agg[r.deal_id] = a; });
     const out = {}; Object.entries(agg).forEach(([k, v]) => { out[k] = { hours: v.hours, boxes: v.boxes, days: v.days.size }; });
     setProgAgg(out);
+    return dl.data || [];
   };
   const loadProgress = async (id) => {
     if (!id) { setProg([]); setSummary(null); return; }
@@ -230,18 +287,41 @@ export function ConsignmentRoom() {
   // トップの大プロフィールカード用（農家プロフィール入口と同じ構造・2026-07-31たきと指示）。
   // 名刺の中身は employer_profiles の自分の行から（このページはprops無しなので自分で引く）
   const [empMini, setEmpMini] = useState(null);
-  useEffect(() => {
-    loadDeals();
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const { data } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
-        setEmpMini(data || null);
-      } catch {}
-    })();
-  }, []);
+  // ★mount時の読み込み（loadDeals・名刺・リロード復元）は openDealState の定義より後ろに置いた
+  //   effectが担う（no-use-before-define対応＝「呼ぶ側・effectを下げる」の作法・2026-07-29教訓）
   const setF = (k, v) => setSpec(p => ({ ...p, [k]: v }));
+  // 写真アップロード（consignment-photos バケット・管理者のみ書込＝RLSで担保）。
+  // 複数選択可・spec.photos に {url} で追記。job-photos の作法に準拠
+  const handlePhotoFiles = async (files) => {
+    const list = files ? Array.from(files) : [];
+    if (!list.length) return;
+    setPhotoUploading(true);
+    try {
+      for (const file of list) {
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `consign_${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("consignment-photos").upload(path, file, { upsert: false });
+        if (upErr) { alert("写真のアップロードに失敗しました：" + upErr.message); continue; }
+        const { data: pub } = supabase.storage.from("consignment-photos").getPublicUrl(path);
+        setSpec(p => ({ ...p, photos: [...(p.photos || []), { url: pub.publicUrl }] }));
+      }
+    } catch { alert("写真のアップロードに失敗しました。"); }
+    setPhotoUploading(false);
+  };
+  const removePhoto = (i) => setSpec(p => ({ ...p, photos: (p.photos || []).filter((_, k) => k !== i) }));
+  // 履行期限のカレンダー選択（1回目=開始／2回目=終了／開始より前=選び直し）。
+  // raw(date_start/date_end)とラベル(deadline)を同時に更新
+  const onDeadlineSelect = (dt) => {
+    const ds = parseYmd(spec.date_start);
+    const de = parseYmd(spec.date_end);
+    let ns, ne;
+    if (!ds || de) { ns = dt; ne = null; }
+    else if (dt >= ds) { ns = ds; ne = dt; }
+    else { ns = dt; ne = null; }
+    const nds = ymdLocal(ns);
+    const nde = ne ? ymdLocal(ne) : "";
+    setSpec(p => ({ ...p, date_start: nds, date_end: nde, deadline: deadlineLabel(nds, nde) }));
+  };
   const refreshCur = async (id) => {
     const { data } = await supabase.from("consignment_deals").select("*").eq("id", id).maybeSingle();
     if (data) { setCurDeal(data); setStatus(data.status || "draft"); }
@@ -249,9 +329,10 @@ export function ConsignmentRoom() {
   };
   const save = async () => {
     if (saving) return;
+    if ((spec.photos || []).length < 3) { alert("掲載には写真が最低3枚必要です。"); return; }
     setSaving(true);
     try {
-      const payload = { spec: { ...spec, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
+      const payload = { spec: { ...spec, crop: CONSIGN_CROP, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
       if (editId) {
         const { error } = await supabase.from("consignment_deals").update(payload).eq("id", editId);
         if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return; }
@@ -259,7 +340,11 @@ export function ConsignmentRoom() {
       } else {
         const { data, error } = await supabase.from("consignment_deals").insert(payload).select("*").single();
         if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return; }
-        if (data) { setEditId(data.id); setCurDeal(data); }
+        if (data) {
+          setEditId(data.id); setCurDeal(data);
+          // URLを /new → /deal/{id} に置換（pushしない＝スワイプ/戻る1回で一覧へ帰れるまま）
+          try { window.history.replaceState(null, "", "#/admin/consignment/deal/" + data.id); } catch {}
+        }
         await loadDeals();
       }
     } catch { alert("保存に失敗しました。"); }
@@ -276,7 +361,7 @@ export function ConsignmentRoom() {
     setBusy(false);
   };
   const makeAgreed = () => advance({ status: "agreed" }, "この内容で合意にしますか？\n合意すると、いまの仕様書が「合意時の仕様書」として凍結されます。");
-  const receiveDeposit = async () => advance({ spec: { ...(curDeal?.spec || spec), deposit_received_at: todayJst() } }, "前金を受領した記録を残しますか？");
+  const receiveDeposit = async () => advance({ spec: { ...(curDeal?.spec || spec), deposit_received_at: todayJst() } }, "着手金を受領した記録を残しますか？");
   const startWork = () => advance({ status: "working" }, "作業中にしますか？");
   const doInspect = () => advance({ status: "inspected", inspected_at: todayJst(), notes: inspectNote.trim() || (curDeal?.notes || null) }, "検収を記録しますか？");
   const doPay = () => advance({ status: "paid", paid_at: todayJst() }, "残金の支払いを記録しますか？");
@@ -299,9 +384,39 @@ export function ConsignmentRoom() {
     await loadProgress(editId);
     setBusy(false);
   };
-  const openDeal = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
-  const newDeal = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("deal"); };
-  const stBadge = (k) => CONSIGN_STATUS.find(s => s.k === k) || CONSIGN_STATUS[0];
+  const openDealState = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
+  const newDealState = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("deal"); };
+  const openDeal = (d) => { openDealState(d); window.location.hash = "/admin/consignment/deal/" + d.id; };
+  const newDeal = () => { newDealState(); window.location.hash = "/admin/consignment/new"; };
+  // mount時の読み込み：一覧＋名刺。URLが /deal/{id} のままのリロードは取得行でその案件を開き直す
+  useEffect(() => {
+    (async () => {
+      const rows = await loadDeals();
+      const c0 = readConsignView();
+      if (c0.view === "deal") { const d0 = (rows || []).find(x => x.id === c0.id); if (d0) openDealState(d0); }
+    })();
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
+        setEmpMini(data || null);
+      } catch {}
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // スワイプ・戻る・URL直打ちの全部をここで受ける。dealsはクロージャで凍るためrefで最新を持つ
+  const dealsRef = useRef([]);
+  useEffect(() => { dealsRef.current = deals; }, [deals]);
+  useEffect(() => {
+    const onHash = () => {
+      const c = readConsignView();
+      if (c.view === "list") { setCTab("list"); loadDeals(); }
+      else if (c.view === "new") { newDealState(); }
+      else { const d = dealsRef.current.find(x => x.id === c.id); if (d) openDealState(d); }
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // 合意後にフォームを変更したか（保存済みspec vs 凍結snapshot・基本/テキスト項目で比較）
   const specKeys = [...CONSIGN_BASIC_FIELDS.map(f => f.k), ...CONSIGN_TEXT_FIELDS.map(f => f.k)];
   const pick = (o) => specKeys.reduce((a, k) => { a[k] = (o || {})[k] || ""; return a; }, {});
@@ -335,6 +450,10 @@ export function ConsignmentRoom() {
               <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{spec[f.k] || "　"}</p>
             </div>
           ))}
+          <div style={{ marginBottom:14 }}>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 危険情報</p>
+            <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{(spec.hazards || []).length ? (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・") : "特になし"}</p>
+          </div>
           <div style={{ marginTop:18 }}>
             <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 6px" }}>■ 定型条項（全仕様書共通）</p>
             {CONSIGN_FIXED_CLAUSES.map(c => (
@@ -394,6 +513,23 @@ export function ConsignmentRoom() {
             <div key={panel} className={"consign-entrance-" + panel}>
               {panel === "bottom" && <div className="consign-entrance-line" />}
               {entranceGrass.filter(c => c.panel === panel).map((c, ci) => (
+                c.kind === "sun" ? (
+                  // 夏仕様：一番上の群れ＝白い太陽が爛々と輝く（2026-07-31たきと指示）。
+                  // 円盤＋放射する光条（長短交互＝きらめき）＋脈打つ光輪(glow)。回転と脈動はCSS側。
+                  // 上幕の中に居るので、幕が開くと太陽ごとスライド退場する（草と同じ片付け不要の仕組み）
+                  <div key={ci} className="consign-sun" style={{ top: c.sunTop + "%", left: c.sunLeft + "%", width: c.sunSize, height: c.sunSize, marginLeft: -c.sunSize / 2, animationDelay: c.delay + "s" }}>
+                    <div className="consign-sun-glow" />
+                    <svg className="consign-sun-rays" viewBox="-100 -100 200 200">
+                      {Array.from({ length: 16 }, (_, k) => {
+                        const long = k % 2 === 0;
+                        return <line key={k} x1="0" y1={long ? -58 : -54} x2="0" y2={long ? -97 : -80} stroke="#fff" strokeWidth={long ? 5 : 3.4} strokeLinecap="round" transform={`rotate(${k * 22.5})`} />;
+                      })}
+                    </svg>
+                    <svg className="consign-sun-disc" viewBox="-100 -100 200 200">
+                      <circle cx="0" cy="0" r="40" fill="#fff" />
+                    </svg>
+                  </div>
+                ) : (
                 <div key={ci} className="consign-entrance-cluster" style={c.pos}>
                   {c.sprigs.map((sp, i) => {
                     const d = CONSIGN_SPRIGS[sp.v];
@@ -411,6 +547,7 @@ export function ConsignmentRoom() {
                     );
                   })}
                 </div>
+                )
               ))}
             </div>
           ))}
@@ -424,13 +561,14 @@ export function ConsignmentRoom() {
       <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
       {/* 大プロフィールカード（農家プロフィール入口と同じ構造・2026-07-31たきと指示。カラーはブラック：
           緑2px枠→黒2px枠・役割ピル「農家」→「委託主」。反転⇄はプレビュー相当が無いので置かない） */}
-      <div style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12 }}>
+      {/* 名刺タップでプロフィールページ（雇い手本人）へ遷移（2026-07-31たきと指示） */}
+      <button type="button" onClick={()=>{ window.location.hash = "/profile/employer/profile"; }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12, cursor:"pointer" }}>
         <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
         <span style={{ textAlign:"center" }}>
           <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
           <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:"#111111", borderRadius:20, padding:"3px 14px" }}>委託主</span>
         </span>
-      </div>
+      </button>
 
       {/* 新しく委託を出す（2026-07-31たきと指示・農家の「新しく求人を出す」と同じワイドカード）。
           配色はブラック＝委託・受託の世界（求人・求職のオレンジ／ミドリとは分ける）。アイコンは置かない。
@@ -449,7 +587,7 @@ export function ConsignmentRoom() {
         <div className="fade-in">
           {/* ダッシュボードの戻り＝一覧へ（さがすの詳細→一覧と同じ動線）。一覧は開き直しで最新化 */}
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-            <button onClick={()=>{ setCTab("list"); loadDeals(); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
+            <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
             <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{editId ? ((spec.field_name || "（圃場未記入）") + "　" + [spec.crop, spec.task].filter(Boolean).join(" ")) : "新しい委託"}</span>
           </div>
 
@@ -488,9 +626,9 @@ export function ConsignmentRoom() {
               {(curDeal.status === "agreed") && hasDeposit && (
                 <div style={{ marginTop:12 }}>
                   {curDeal.spec?.deposit_received_at ? (
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", margin:0 }}>✓ 前金 受領済み（{curDeal.spec.deposit_received_at}）</p>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", margin:0 }}>✓ 着手金 受領済み（{curDeal.spec.deposit_received_at}）</p>
                   ) : (
-                    <button onClick={receiveDeposit} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>前金を受領した（{Number(spec.advance).toLocaleString()}円）</button>
+                    <button onClick={receiveDeposit} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>着手金を受領した（{Number(spec.advance).toLocaleString()}円）</button>
                   )}
                 </div>
               )}
@@ -582,7 +720,21 @@ export function ConsignmentRoom() {
           {CONSIGN_BASIC_FIELDS.map(f => (
             <div key={f.k} style={{ marginBottom:10 }}>
               <label className="lbl f-sans">{f.l}</label>
-              {f.k === "task" ? (
+              {f.k === "crop" ? (
+                // ブロッコリー固定（入力不可）。この委託はブロッコリーのみ
+                <div><span className="f-sans" style={{ display:"inline-block", padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff" }}>{CONSIGN_CROP}</span></div>
+              ) : f.k === "deadline" ? (
+                // 履行期限＝開始+終了の日付範囲。同じ欄をタップでカレンダー展開（ブラック）
+                <div>
+                  <button type="button" onClick={()=>setShowDeadlineCal(v => !v)} className="field f-sans" style={{ width:"100%", textAlign:"left", fontSize:14, marginBottom:0, cursor:"pointer", background:"#fff", color: spec.date_start ? "#111111" : "#999999" }}>
+                    {spec.date_start ? deadlineLabel(spec.date_start, spec.date_end) : "タップして期間を選択"}
+                  </button>
+                  {showDeadlineCal && (
+                    <CalendarView accent="#111111" accentSoft="#EEEEEE" hideHints start={parseYmd(spec.date_start)} end={parseYmd(spec.date_end)} onSelect={onDeadlineSelect} />
+                  )}
+                  <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"6px 0 0" }}>1回目のタップで開始日、2回目で終了日。終了日を選ばなければ開始日のみ。</p>
+                </div>
+              ) : f.k === "task" ? (
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {CONSIGN_TASKS.map(t => {
                     const sel = (spec.task ? spec.task.split("・").filter(Boolean) : []).includes(t);
@@ -596,11 +748,59 @@ export function ConsignmentRoom() {
                   })}
                 </div>
               ) : (
-                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} style={{ fontSize:14, marginBottom:0 }} />
+                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
               )}
             </div>
           ))}
-          {CONSIGN_TEXT_FIELDS.map(f => (
+          {/* 検収基準・圃場条件（特約は危険情報の後・掲載順どおり） */}
+          {CONSIGN_TEXT_FIELDS.filter(f => f.k !== "special").map(f => (
+            <div key={f.k} style={{ marginBottom:10 }}>
+              <label className="lbl f-sans">{f.l}</label>
+              <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+            </div>
+          ))}
+          {/* 危険情報（チェック式・その他は自由記述を展開） */}
+          <div style={{ marginBottom:10 }}>
+            <label className="lbl f-sans">危険情報</label>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {CONSIGN_HAZARDS.map(h => {
+                const on = (spec.hazards || []).includes(h);
+                return (
+                  <button key={h} type="button" onClick={()=>{
+                    const cur = spec.hazards || [];
+                    setF("hazards", cur.includes(h) ? cur.filter(x => x !== h) : [...cur, h]);
+                  }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, textAlign:"left", padding:"10px 14px", fontSize:14, fontWeight:600, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>
+                    <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: on ? "none" : "2px solid #C8C8C8", background: on ? "#fff" : "transparent", color:"#111111" }}>{on ? "✓" : ""}</span>
+                    {h}
+                  </button>
+                );
+              })}
+              {(spec.hazards || []).includes("その他") && (
+                <input className="field f-sans" value={spec.hazard_other || ""} onChange={e=>setF("hazard_other", e.target.value)} placeholder="その他の危険（自由記述）" style={{ fontSize:13, marginBottom:0 }} />
+              )}
+            </div>
+          </div>
+          {/* 写真（最低3枚・掲載の顔。consignment-photos バケット） */}
+          <div style={{ marginBottom:10 }}>
+            <label className="lbl f-sans">写真（最低3枚）</label>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {(spec.photos || []).map((ph, i) => (
+                <div key={i} style={{ position:"relative", width:96, height:96, borderRadius:10, overflow:"hidden", border:"1px solid #E5E5E5" }}>
+                  <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  <button type="button" onClick={()=>removePhoto(i)} className="f-sans" style={{ position:"absolute", top:2, right:2, width:22, height:22, borderRadius:"50%", background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", fontSize:14, lineHeight:1, cursor:"pointer" }}>×</button>
+                </div>
+              ))}
+              <label className="f-sans" style={{ width:96, height:96, borderRadius:10, border:"1px dashed #B0B0B0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: photoUploading ? "default" : "pointer", fontSize:12, color:"#111111", gap:2 }}>
+                {photoUploading ? "…" : (<><span style={{ fontSize:22, lineHeight:1 }}>＋</span>写真</>)}
+                <input type="file" accept="image/*" multiple onChange={e=>{ handlePhotoFiles(e.target.files); e.target.value=""; }} style={{ display:"none" }} disabled={photoUploading} />
+              </label>
+            </div>
+            <p className="f-sans" style={{ fontSize:11, margin:"6px 0 0", color: (spec.photos || []).length >= 3 ? "#999999" : "#111111", fontWeight: (spec.photos || []).length >= 3 ? 400 : 700 }}>
+              {(spec.photos || []).length}枚（掲載には最低3枚必要です）
+            </p>
+          </div>
+          {/* 特約（掲載順の最後） */}
+          {CONSIGN_TEXT_FIELDS.filter(f => f.k === "special").map(f => (
             <div key={f.k} style={{ marginBottom:10 }}>
               <label className="lbl f-sans">{f.l}</label>
               <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
@@ -639,11 +839,16 @@ export function ConsignmentRoom() {
           <div style={{ display:"grid", gap:14 }}>
           {deals.map(d => {
             const s = d.spec || {};
-            const st = stBadge(d.status);
+            const st = consignRecruitState(d.status);
             const ag = progAgg[d.id]; const area = dealAreaA(d);
             const hpa = ag && area ? hoursPer10a(ag.hours, area) : null;
             return (
-              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
+                {s.photos && s.photos[0] && s.photos[0].url && (
+                  <div style={{ margin:"-16px -16px 12px", height:150, overflow:"hidden" }}>
+                    <img src={s.photos[0].url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  </div>
+                )}
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                   <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
                   <span className="f-sans" style={{ fontSize:11, color:"#111111" }}>{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
@@ -654,8 +859,13 @@ export function ConsignmentRoom() {
                   <span style={{ fontWeight:600, fontSize:13, color:"#111111" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
                 </p>
                 <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {[s.contractor, s.area_a ? s.area_a + "a" : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
+                  {[s.region, s.area_a ? s.area_a + "a" : "", s.deadline ? "期限 " + s.deadline : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
                 </p>
+                {(s.hazards || []).length > 0 && (
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    ⚠ {(s.hazards || []).map(h => h === "その他" && s.hazard_other ? "その他（" + s.hazard_other + "）" : h).join("・")}
+                  </p>
+                )}
                 <ConsignStepper deal={d} />
                 {ag && (ag.hours > 0 || ag.days > 0) && (
                   <p className="f-sans" style={{ fontSize:11, color:"#111111", fontWeight:700, margin:"-8px 0 6px" }}>履行：実働{ag.hours}h・{ag.days}日{ag.boxes > 0 ? `・${ag.boxes}箱` : ""}{hpa != null ? `　10aあたり ${hpa}h` : ""}</p>

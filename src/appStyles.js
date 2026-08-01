@@ -811,6 +811,23 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
   transform: scaleY(0); transform-origin: bottom;
   animation: consignGrass .34s cubic-bezier(.2,.9,.3,1.3) forwards; }
 @keyframes consignGrass { to { transform: scaleY(1); } }
+/* 夏仕様：入場演出の一番上の群れ＝白い太陽が爛々と輝く（2026-07-31たきと指示）。
+   円盤＋光条＋光輪(glow)。上幕(consign-entrance-top)の中に絶対配置＝幕が開くと太陽ごと退場。
+   base=scale(0)＋forwards＝草と同じく animation-delay の間は縮んだまま待つ（delayはインライン）。
+   爛々の実体：光輪が脈打ち(1.4s)・光条がゆっくり回り(18s)・円盤が微かに脈動する重ね合わせ */
+.consign-sun { position: absolute; transform: scale(0); transform-origin: center;
+  animation: consignSunRise .55s cubic-bezier(.2,.9,.3,1.4) forwards; }
+@keyframes consignSunRise { to { transform: scale(1); } }
+.consign-sun > * { position: absolute; inset: 0; }
+.consign-sun svg { overflow: visible; }
+.consign-sun-glow { border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,255,255,.5) 34%, rgba(255,255,255,0) 70%);
+  animation: consignSunGlow 1.4s ease-in-out infinite; }
+@keyframes consignSunGlow { 0%,100% { transform: scale(.9); opacity: .7; } 50% { transform: scale(1.14); opacity: 1; } }
+.consign-sun-rays { animation: consignSunSpin 18s linear infinite; }
+@keyframes consignSunSpin { to { transform: rotate(360deg); } }
+.consign-sun-disc { animation: consignSunPulse 1.4s ease-in-out infinite; }
+@keyframes consignSunPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
 /* ── 委託ページの背景環境（2026-07-31たきと指示）：上端から垂れ下がる黒い草の蔓 ──
    z-index:-1＝ページ内容・白いカードの下に敷かれ、余白にだけ見える。操作は一切妨げない。
    揺れは上端（吊り元）を軸にゆっくり・周期は1本ずつJSXで変える（風のばらつき） */

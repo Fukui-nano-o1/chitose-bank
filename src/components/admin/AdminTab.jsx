@@ -9,6 +9,10 @@ import { AdminJobPreview } from "../AdminJobPreview";
 
 const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F","#6B3A18"];
 
+// 審査セクションのURLキー（#/admin/review/{key}）。ボックス格子の並びと一致させる唯一の正本。
+// 数字（#/admin/review/{job_number}）は求人審査プレビューへの深いリンク（従来どおり）。
+const REVIEW_SECTION_KEYS = ["jobs","accounts","prs","reports","disputes","questions","withdrawals","contracts"];
+
 // 日付キー（YYYY-MM-DD）はローカル整形で統一する。toISOString().slice(0,10)は
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
 
@@ -207,6 +211,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [addingDest, setAddingDest]   = useState(false);
   const [appErrors, setAppErrors] = useState([]);
   const [pendingJobs, setPendingJobs] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]); // 退会申請の未対応一覧（プラポリv3第7条1：申し出から30日以内に手動削除）
   const [pendingPrs, setPendingPrs] = useState([]); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
   const [sheetPrId, setSheetPrId] = useState(null); // 自由記述審査：タップした働き手のボトムシート（auth_id）
   // 全ての自由記述の審査（2026-07-16）：農家プロフィールの自由記述はtexts_pendingに溜まり、ここで承認して初めて公開される
@@ -287,24 +292,37 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
   // 修正依頼は審査プレビュー内のタップ式指摘に一本化（2026-07-19）。送信はsubmitJobRevisionで実行
 
-  // 審査メールのボタン（#/admin/review/{job_number}）からの深いリンク対応。
-  // マウント時に加え、既にAdminTabが開いた状態で別の審査メールのリンクを踏んだ場合(hashchange)にも追従
+  // ページ遷移らしく先頭から見せる（審査ページはダッシュボードの下の方から開くため）
+  const scrollTop = () => { try { window.scrollTo({ top: 0, behavior: "auto" }); } catch { window.scrollTo(0, 0); } };
+
+  // 審査ページの深いリンク対応（#/admin/review/{key} と #/admin/review/{job_number}）。
+  //  ・数字 → 求人審査プレビューを開く（審査メールのボタンからの従来経路）
+  //  ・セクションキー → 各審査一覧を開く（お知らせ・ブックマーク・直リンクから）
+  // マウント時に加え、既にAdminTabが開いた状態で別の審査リンクを踏んだ場合(hashchange)にも追従。
+  // 一致しないハッシュ（#/admin 等）では何もしない＝戻る/他操作でセクション選択を消さない。
   useEffect(() => {
     const applyReviewHash = () => {
       const h = window.location.hash.replace(/^#\/?/, "");
-      const m = h.match(/^admin\/review\/(\d+)$/);
-      if (m) { setSub("jobs"); setPreviewJobNumber(parseInt(m[1], 10)); }
+      const m = h.match(/^admin\/review\/(.+)$/);
+      if (!m) return;
+      const seg = m[1];
+      if (/^\d+$/.test(seg)) { setSub("jobs"); setPreviewJobNumber(parseInt(seg, 10)); scrollTop(); return; }
+      if (REVIEW_SECTION_KEYS.includes(seg)) { setSub("jobs"); setPreviewJobNumber(null); setReviewSec(seg); scrollTop(); }
     };
     applyReviewHash();
     window.addEventListener("hashchange", applyReviewHash);
     return () => window.removeEventListener("hashchange", applyReviewHash);
   }, []);
 
+  // 審査セクションへ移動／格子へ戻る（状態とURLを同時に動かす＝ボックスが共有可能なリンクになる。URL変更→上のeffectが発火し先頭へスクロール）
+  const goReview = (key) => { setSub("jobs"); setPreviewJobNumber(null); setReviewSec(key); window.location.hash = "/admin/review/" + key; };
+  const backToReviewGrid = () => { setReviewSec(null); window.location.hash = "/admin"; scrollTop(); };
+
   const TIERS = ["1-3","4-10","10+"];
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re, ae, pj, wp, jr, av, la, mr, jq] = await Promise.all([
+    const [fr, de, re, ae, pj, wp, jr, av, la, mr, jq, wd] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
@@ -316,6 +334,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       supabase.rpc("admin_list_accounts"),
       supabase.from("message_reports").select("*").order("created_at",{ascending:false}),
       supabase.from("job_questions").select("*").order("created_at",{ascending:false}),
+      supabase.from("withdrawal_requests").select("*").is("processed_at", null).order("requested_at",{ascending:true}),
     ]);
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
@@ -329,9 +348,18 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (!la.error && Array.isArray(la.data)) setAccounts(la.data); // {ok:false,reason:'not_admin'}時は配列でないため無視
     if (!mr.error) setMsgReports(mr.data || []);
     if (!jq.error) setAdminQuestions(jq.data || []);
+    if (!wd.error) setWithdrawals(wd.data || []);
     setLoading(false);
   }, []);
 
+
+  // 退会申請を対応済みにする（削除作業の完了後に押す。素のconfirmはこのスコープのstateに解決されるためwindow.confirm必須・2026-07-29教訓）
+  const completeWithdrawal = async (w) => {
+    if (!window.confirm("この退会申請を対応済みにしますか？30日以内の削除作業を完了してから押してください")) return;
+    const { error } = await supabase.from("withdrawal_requests").update({ processed_at: new Date().toISOString() }).eq("id", w.id);
+    if (error) { alert("更新に失敗しました：" + error.message); return; }
+    setWithdrawals(prev => prev.filter(x => x.id !== w.id));
+  };
 
   // ── 審査タブ集約アクション（2026-07-14・DB側は app_admins 基準の審査ポリシーで担保） ──
   const approveFarmerAccount = async (f) => {
@@ -534,6 +562,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
+      {/* 審査セクションを開いている間はダッシュボードの見出し＋メインタブを隠し、セクションを1枚のページとして見せる */}
+      {!reviewSec && (<>
       <div style={{ marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
         <div>
           <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
@@ -565,6 +595,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           </button>
         ))}
       </div>
+      </>)}
 
       {/* ── その他（ボックス化・2026-07-16）：絵文字カード格子。タップでポップアップ展開（他画面と同じ意匠）。
            旧アコーディオン（開発ツール／旧事業データ／システム）は、開発ツールを主要ページ・求人フローに分解し、ボックス一覧を追加した5ボックスに再編 ── */}
@@ -950,9 +981,10 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"reports",  e:"🚨", l:"通報",           n:openReports.length + openMsgReports.length },
             { k:"disputes", e:"⚖️", l:"欠勤異議",       n:disputes.length },
             { k:"questions",e:"❓", l:"質問",           n:0 },
+            { k:"withdrawals", e:"🚪", l:"退会申請",    n:withdrawals.length },
             { k:"contracts",e:"📄", l:"契約記録",       n:0 },
           ].map(c => (
-            <button key={c.k} onClick={()=>setReviewSec(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button key={c.k} onClick={()=>goReview(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               {c.n > 0 && (
                 <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
               )}
@@ -964,7 +996,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
       {sub==="jobs" && reviewSec && (
         <div className="fade-in" style={{ display:"grid", gap:16 }}>
-        <button onClick={()=>setReviewSec(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
+        <button onClick={backToReviewGrid} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
 
         {/* ① 求人 */}
         {reviewSec==="jobs" && (
@@ -1282,6 +1314,37 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
         )}
 
+        {/* 退会申請（プラポリv3第7条1）：申し出から30日以内にたきとが手動で削除し、完了後に対応済みにする */}
+        {reviewSec==="withdrawals" && (
+        <div>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 6px" }}>退会申請{withdrawals.length > 0 ? `（${withdrawals.length}）` : ""}</p>
+          <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 12px" }}>申し出から30日以内に、本人確認情報とプロフィールを削除します（プラポリ第7条1）。削除作業の完了後に「対応済みにする」を押してください。</p>
+          <div style={{ display:"grid", gap:10 }}>
+            {withdrawals.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>未対応の退会申請はありません</p>
+            ) : withdrawals.map(w => {
+              const acct = accounts.find(a => a.auth_id === w.auth_id);
+              const deadline = new Date(w.requested_at); deadline.setDate(deadline.getDate() + 30);
+              const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / 86400000);
+              return (
+                <div key={w.id} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {acct ? (acct.nickname || acct.email_masked || "利用者") : `auth_id：${String(w.auth_id).slice(0, 8)}…`}
+                    </p>
+                    <span className="f-sans" style={{ fontSize:11, color: daysLeft <= 7 ? "#E24B4A" : "#B0B0B0", fontWeight: daysLeft <= 7 ? 700 : 400, flexShrink:0 }}>期限まで{Math.max(daysLeft, 0)}日</span>
+                  </div>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>
+                    申し出：{fmtJstShort(w.requested_at)}／削除期限：{deadline.toLocaleDateString("ja-JP")}
+                  </p>
+                  <button onClick={()=>completeWithdrawal(w)} className="f-sans" style={{ padding:"9px 18px", background:"#fff", border:"1px solid #222", borderRadius:10, fontSize:12, fontWeight:600, color:"#222", cursor:"pointer" }}>対応済みにする</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        )}
+
         {/* ⑥ 契約スナップショット（採用時に凍結・terms_snapshot）：争いの証跡。閲覧専用 */}
         {reviewSec==="contracts" && (
         <div>
@@ -1369,8 +1432,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <AdminJobPreview
           jobNumber={previewJobNumber}
           publishing={publishing===previewJobNumber}
-          onClose={()=>{ setPreviewJobNumber(null); window.location.hash = "/admin"; }}
-          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); window.location.hash = "/admin"; }}
+          onClose={()=>{ setPreviewJobNumber(null); window.location.hash = reviewSec ? ("/admin/review/" + reviewSec) : "/admin"; }}
+          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); window.location.hash = reviewSec ? ("/admin/review/" + reviewSec) : "/admin"; }}
           onRequestRevision={(reasonText)=>submitJobRevision(previewJobNumber, reasonText)}
         />
       )}
