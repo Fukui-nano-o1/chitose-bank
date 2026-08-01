@@ -7,7 +7,9 @@ import { Avatar, AutoSkeleton, Dots } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 
-export function EmployerProfileEdit({ me, onDone, onCancel }) {
+// table/avatarDir で保存先を差し替え可能（2026-07-31たきと指示・委託専用プロフィールが同じ項目/配置で
+// 別テーブルに保存するため）。既定は雇い手プロフィール（employer_profiles・avatarは avatars/employer/）＝現行不変
+export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_profiles", avatarDir = "employer" }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState(""); // 紹介・PRボックスは廃止（2026-07-16）。既存データ保全のためstateと保存は温存
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -81,7 +83,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        const { data } = await supabase.from(table).select("*").eq("auth_id", session.user.id).maybeSingle();
         if (data) {
           setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || "");
           setPlaceZip(data.place_zip || ""); setPlacePref(data.place_prefecture || ""); setPlaceCity(data.place_city || "");
@@ -184,18 +186,18 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       catch (convErr) { setUploading(false); alert(convErr.message || "この画像形式は対応していません。JPEG・PNG・WebP等をお試しください。"); return; }
       // 拡張子はjpg固定（変換後は必ずjpeg）。旧ファイルが別拡張子で残っていれば掃除
       try {
-        const { data: olds } = await supabase.storage.from('avatars').list("employer/" + session.user.id);
+        const { data: olds } = await supabase.storage.from('avatars').list(avatarDir + "/" + session.user.id);
         if (olds && olds.length > 0) {
-          const paths = olds.map(f => "employer/" + session.user.id + "/" + f.name);
+          const paths = olds.map(f => avatarDir + "/" + session.user.id + "/" + f.name);
           await supabase.storage.from('avatars').remove(paths);
         }
       } catch {}
-      const path = "employer/" + session.user.id + "/avatar.jpg";
-      const upErr = await uploadAvatarResilient("employer/" + session.user.id, blob);
+      const path = avatarDir + "/" + session.user.id + "/avatar.jpg";
+      const upErr = await uploadAvatarResilient(avatarDir + "/" + session.user.id, blob);
       if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message + "\n通信環境を確認して、もう一度お試しください。"); return; }
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
-      await supabase.from('employer_profiles').upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      await supabase.from(table).upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       setAvatarUrl(url);
     } catch { alert("画像のアップロードに失敗しました。"); }
     setUploading(false);
@@ -206,12 +208,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setUploading(false); return; }
-      const { data: files } = await supabase.storage.from('avatars').list("employer/" + session.user.id);
+      const { data: files } = await supabase.storage.from('avatars').list(avatarDir + "/" + session.user.id);
       if (files && files.length > 0) {
-        const paths = files.map(f => "employer/" + session.user.id + "/" + f.name);
+        const paths = files.map(f => avatarDir + "/" + session.user.id + "/" + f.name);
         await supabase.storage.from('avatars').remove(paths);
       }
-      await supabase.from('employer_profiles').upsert({ auth_id: session.user.id, avatar_url: '', updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      await supabase.from(table).upsert({ auth_id: session.user.id, avatar_url: '', updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       setAvatarUrl('');
     } catch { alert("削除に失敗しました。"); }
     setUploading(false);
@@ -262,7 +264,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
       };
       const textsPending = {};
       Object.keys(desiredTexts).forEach(k => { if (desiredTexts[k] !== (approvedTextsRef.current[k] ?? "")) textsPending[k] = desiredTexts[k]; });
-      const { error } = await supabase.from("employer_profiles").upsert({
+      const { error } = await supabase.from(table).upsert({
         auth_id: session.user.id,
         // 表示名(nickname)は既存の値を尊重し、空のときだけ氏名・名称で埋める（チャット等の「〇〇さん」が空にならないように）
         nickname: (nickname.trim() || recruiterName.trim()), pr: pr.trim(),
@@ -555,7 +557,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
             <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容）・項目をタップで編集できます</p>
-            <FarmerProfilePreview me={me} onEdit={()=>setShowPreview(false)}
+            <FarmerProfilePreview me={me} table={table} withTrust={table === "employer_profiles"} onEdit={()=>setShowPreview(false)}
               onEditItem={(key)=>{ setShowPreview(false); setEditFromPreview(true); setEditBox(key); }} />
           </div>
         </div>
@@ -567,7 +569,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel }) {
 // プレビューの統一（2026-07-25たきと指示）：実際の求人詳細で雇い手アイコンをタップした時に出る
 // EmployerPreviewSheet（App.jsx）と同一の情報・構造（農園紹介タイトル→信頼カード→待遇チップ→紹介お題）で表示する。
 // データは本人行（employer_profiles）＋employer_trust_info＝働き手が見るものと同じ形。項目タップ編集は廃止（編集はボックス格子から）
-function FarmerProfilePreview({ me, onEdit, onEditItem }) {
+function FarmerProfilePreview({ me, onEdit, onEditItem, table = "employer_profiles", withTrust = true }) {
   const [data, setData] = useState(null);
   const [trust, setTrust] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -576,10 +578,12 @@ function FarmerProfilePreview({ me, onEdit, onEditItem }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        const { data: ep } = await supabase.from(table).select("*").eq("auth_id", session.user.id).maybeSingle();
         if (ep) setData(ep);
-        const { data: t } = await supabase.rpc('employer_trust_info', { p_farmer_id: session.user.id });
-        setTrust(t && t.ok ? t : null);
+        if (withTrust) {
+          const { data: t } = await supabase.rpc('employer_trust_info', { p_farmer_id: session.user.id });
+          setTrust(t && t.ok ? t : null);
+        }
       } catch {}
       setLoading(false);
     })();

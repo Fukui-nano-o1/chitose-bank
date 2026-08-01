@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { ymdLocal } from "../../lib/utils";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
 import { CalendarView } from "../CalendarView";
+import { EmployerProfileEdit } from "../EmployerProfileEdit";
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
@@ -635,33 +636,12 @@ export function ConsignmentRoom() {
       </>)}
 
       {/* 委託専用プロフィール（#/admin/consignment/profile・2026-07-31たきと指示）。
-          雇い手プロフィールとは別。委託主の名刺（黒）＋委託の実績（既存dealsから集計・新規スキーマ不要） */}
+          雇い手プロフィールと同じ項目・ボックス配置（EmployerProfileEditを流用）だが、
+          保存先だけ別テーブル consignment_profiles（avatarは avatars/consignment/）＝雇い手とは独立 */}
       {cTab === "profile" && (
         <div className="fade-in">
           <button onClick={()=>{ setCTab("list"); window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 委託一覧</button>
-          {/* 委託主の名刺（黒） */}
-          <div style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:16 }}>
-            <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
-            <span style={{ textAlign:"center" }}>
-              <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
-              <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:"#111111", borderRadius:20, padding:"3px 14px" }}>委託主</span>
-            </span>
-          </div>
-          {/* 委託の実績（既存dealsから集計・黒） */}
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>委託の実績</p>
-          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-            {[
-              ["掲載数", deals.length],
-              ["募集中", deals.filter(d => consignRecruitState(d.status).l === "募集中").length],
-              ["作業中", deals.filter(d => consignRecruitState(d.status).l === "作業中").length],
-              ["完了", deals.filter(d => consignRecruitState(d.status).l === "完了").length],
-            ].map(([l, v]) => (
-              <div key={l} style={{ flex:1, background:"#111111", borderRadius:12, padding:"14px 8px", textAlign:"center" }}>
-                <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#fff" }}>{v}</span>
-                <span className="f-sans" style={{ display:"block", fontSize:11, color:"#B9B9B9", marginTop:2 }}>{l}</span>
-              </div>
-            ))}
-          </div>
+          <EmployerProfileEdit me={empMini || {}} table="consignment_profiles" avatarDir="consignment" />
         </div>
       )}
 
