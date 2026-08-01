@@ -9,6 +9,10 @@ import { AdminJobPreview } from "../AdminJobPreview";
 
 const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F","#6B3A18"];
 
+// 審査セクションのURLキー（#/admin/review/{key}）。ボックス格子の並びと一致させる唯一の正本。
+// 数字（#/admin/review/{job_number}）は求人審査プレビューへの深いリンク（従来どおり）。
+const REVIEW_SECTION_KEYS = ["jobs","accounts","prs","reports","disputes","questions","withdrawals","contracts"];
+
 // 日付キー（YYYY-MM-DD）はローカル整形で統一する。toISOString().slice(0,10)は
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
 
@@ -288,18 +292,28 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
   // 修正依頼は審査プレビュー内のタップ式指摘に一本化（2026-07-19）。送信はsubmitJobRevisionで実行
 
-  // 審査メールのボタン（#/admin/review/{job_number}）からの深いリンク対応。
-  // マウント時に加え、既にAdminTabが開いた状態で別の審査メールのリンクを踏んだ場合(hashchange)にも追従
+  // 審査ページの深いリンク対応（#/admin/review/{key} と #/admin/review/{job_number}）。
+  //  ・数字 → 求人審査プレビューを開く（審査メールのボタンからの従来経路）
+  //  ・セクションキー → 各審査一覧を開く（お知らせ・ブックマーク・直リンクから）
+  // マウント時に加え、既にAdminTabが開いた状態で別の審査リンクを踏んだ場合(hashchange)にも追従。
+  // 一致しないハッシュ（#/admin 等）では何もしない＝戻る/他操作でセクション選択を消さない。
   useEffect(() => {
     const applyReviewHash = () => {
       const h = window.location.hash.replace(/^#\/?/, "");
-      const m = h.match(/^admin\/review\/(\d+)$/);
-      if (m) { setSub("jobs"); setPreviewJobNumber(parseInt(m[1], 10)); }
+      const m = h.match(/^admin\/review\/(.+)$/);
+      if (!m) return;
+      const seg = m[1];
+      if (/^\d+$/.test(seg)) { setSub("jobs"); setPreviewJobNumber(parseInt(seg, 10)); return; }
+      if (REVIEW_SECTION_KEYS.includes(seg)) { setSub("jobs"); setPreviewJobNumber(null); setReviewSec(seg); }
     };
     applyReviewHash();
     window.addEventListener("hashchange", applyReviewHash);
     return () => window.removeEventListener("hashchange", applyReviewHash);
   }, []);
+
+  // 審査セクションへ移動／格子へ戻る（状態とURLを同時に動かす＝ボックスが共有可能なリンクになる）
+  const goReview = (key) => { setSub("jobs"); setPreviewJobNumber(null); setReviewSec(key); window.location.hash = "/admin/review/" + key; };
+  const backToReviewGrid = () => { setReviewSec(null); window.location.hash = "/admin"; };
 
   const TIERS = ["1-3","4-10","10+"];
 
@@ -964,7 +978,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"withdrawals", e:"🚪", l:"退会申請",    n:withdrawals.length },
             { k:"contracts",e:"📄", l:"契約記録",       n:0 },
           ].map(c => (
-            <button key={c.k} onClick={()=>setReviewSec(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button key={c.k} onClick={()=>goReview(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               {c.n > 0 && (
                 <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
               )}
@@ -976,7 +990,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       )}
       {sub==="jobs" && reviewSec && (
         <div className="fade-in" style={{ display:"grid", gap:16 }}>
-        <button onClick={()=>setReviewSec(null)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
+        <button onClick={backToReviewGrid} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
 
         {/* ① 求人 */}
         {reviewSec==="jobs" && (
@@ -1412,8 +1426,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <AdminJobPreview
           jobNumber={previewJobNumber}
           publishing={publishing===previewJobNumber}
-          onClose={()=>{ setPreviewJobNumber(null); window.location.hash = "/admin"; }}
-          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); window.location.hash = "/admin"; }}
+          onClose={()=>{ setPreviewJobNumber(null); window.location.hash = reviewSec ? ("/admin/review/" + reviewSec) : "/admin"; }}
+          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); window.location.hash = reviewSec ? ("/admin/review/" + reviewSec) : "/admin"; }}
           onRequestRevision={(reasonText)=>submitJobRevision(previewJobNumber, reasonText)}
         />
       )}
