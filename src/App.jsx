@@ -2348,7 +2348,7 @@ export default function App(){
               window.location.hash = (dj.step >= 1 && dj.step <= 11) ? "/work/new/" + dj.step : "/work/new";
             } else { setTab(t); }
           }}
-          onShowAccountForm={() => setNeedsAccountHolder(true)}/></Suspense>}
+          onShowAccountForm={() => { window.location.hash = "/account"; }}/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="boxes"&&isAdmin(me)&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminBoxRegistryPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="charter"&&(
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
