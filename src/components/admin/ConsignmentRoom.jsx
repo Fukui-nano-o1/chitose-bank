@@ -318,6 +318,7 @@ export function ConsignmentRoom() {
   const [showDeadlineCal, setShowDeadlineCal] = useState(false);
   const [wizStep, setWizStep] = useState(1); // 新規ウィザードの現在ステップ（1〜5・cTab==="new"時のみ有効）
   const [leaving, setLeaving] = useState(false); // 退場演出中（新しく委託を出す→蔓→太陽→中身の順に画面外へ・2026-07-31たきと指示）
+  const [returning, setReturning] = useState(false); // 帰還演出中（ウィザード→一覧に戻るとき、退場の逆再生＝中身→太陽→蔓・2026-07-31たきと指示）
   const [printOpen, setPrintOpen] = useState(false);
   const [deals, setDeals] = useState([]);
   const [progAgg, setProgAgg] = useState({}); // 台帳の要約用：deal_id→{hours,boxes,days}
@@ -484,10 +485,19 @@ export function ConsignmentRoom() {
   // スワイプ・戻る・URL直打ちの全部をここで受ける。dealsはクロージャで凍るためrefで最新を持つ
   const dealsRef = useRef([]);
   useEffect(() => { dealsRef.current = deals; }, [deals]);
+  const cTabRef = useRef(cTab);
+  useEffect(() => { cTabRef.current = cTab; }, [cTab]);
   useEffect(() => {
     const onHash = () => {
       const c = readConsignView();
-      if (c.view === "list") { setCTab("list"); loadDeals(); }
+      if (c.view === "list") {
+        // ウィザードからの帰還＝退場演出の逆再生（中身→太陽→蔓）。戻るタップも指スワイプもhash経由でここに来る
+        if (cTabRef.current === "new") {
+          let reduce = false; try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch {}
+          if (!reduce) { setReturning(true); setTimeout(() => setReturning(false), 1300); }
+        }
+        setCTab("list"); loadDeals();
+      }
       else if (c.view === "new") { newDealState(); }
       else if (c.view === "profile") { setCTab("profile"); }
       else { const d = dealsRef.current.find(x => x.id === c.id); if (d) openDealState(d); }
@@ -636,7 +646,7 @@ export function ConsignmentRoom() {
   }
 
   return (
-    <div className={"cb-consign-page fade-in" + (leaving ? " consign-leaving" : "")} style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
+    <div className={"cb-consign-page fade-in" + (leaving ? " consign-leaving" : "") + (returning ? " consign-returning" : "")} style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
       {/* 背景の空（2026-07-31たきと指示）：朝昼夜の色＋太陽/月が時刻で左→右に移動。
           蔓より奥（z-index:-2）に敷く。上端から色が差し込み、下は透明に抜ける */}
       {cTab !== "new" && (

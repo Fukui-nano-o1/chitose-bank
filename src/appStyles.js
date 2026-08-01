@@ -867,6 +867,17 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 @keyframes consignSkyExit { to { transform: translateY(-105%); opacity: 0; } }
 .consign-leaving .consign-list-content { animation: consignContentExit .4s ease-in .8s forwards; }
 @keyframes consignContentExit { to { transform: translateY(24px); opacity: 0; } }
+/* 帰還演出（2026-07-31たきと指示・ウィザード→一覧へ戻るとき）＝退場の逆再生：
+   中身(0〜0.4s)→太陽と空が降りてくる(0.35〜0.85s)→蔓が垂れてくる(0.75〜1.25s)。
+   backwards＝遅延中は開始姿勢（画面外）で待たせる */
+.consign-returning .consign-list-content { animation: consignContentReturn .4s ease-out backwards; }
+@keyframes consignContentReturn { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.consign-returning .consign-sky { animation: consignSkyReturn .5s ease-out .35s backwards; }
+@keyframes consignSkyReturn { from { transform: translateY(-105%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.consign-returning .consign-vines { animation: consignVinesReturn .5s ease-out .75s backwards; }
+@keyframes consignVinesReturn { from { transform: translateY(-110vh); } to { transform: translateY(0); } }
+.consign-returning .consign-corners { animation: consignCornersReturn .45s ease-out .75s backwards; }
+@keyframes consignCornersReturn { from { opacity: 0; } to { opacity: 1; } }
 /* 動きを減らす設定の端末では、入場演出は出さず・蔓は揺らさず静止で置く（退場演出はJS側で即遷移に分岐） */
 @media (prefers-reduced-motion: reduce) {
   .consign-entrance { display: none; }
