@@ -6,7 +6,7 @@ import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
 //    タブ2つ：仕様書（フォーム→保存→印刷ビュー）／台帳（consignment_deals一覧・行タップで編集・状態更新・メモ）
-const CONSIGN_STEPS = ["下書き", "合意", "前金", "作業中", "検収", "支払", "完了"];
+const CONSIGN_STEPS = ["下書き", "合意", "着手金", "作業中", "検収", "支払", "完了"];
 const consignStepState = (d) => {
   const s = d.spec || {}; const st = d.status || "draft";
   const beyond = (arr) => arr.includes(st);
@@ -76,7 +76,7 @@ const CONSIGN_BASIC_FIELDS = [
   { k:"crop",           l:"作物" },
   { k:"task",           l:"作業" },
   { k:"unit_price_10a", l:"単価（10aあたり・円）" },
-  { k:"advance",        l:"前金額（円）" },
+  { k:"advance",        l:"着手金（前払金・円）" },
 ];
 
 // 作業は3択・複数選択可（2026-07-31たきと指示）。値は「・」区切りの文字列で spec.task に保存
@@ -290,7 +290,7 @@ export function ConsignmentRoom() {
     setBusy(false);
   };
   const makeAgreed = () => advance({ status: "agreed" }, "この内容で合意にしますか？\n合意すると、いまの仕様書が「合意時の仕様書」として凍結されます。");
-  const receiveDeposit = async () => advance({ spec: { ...(curDeal?.spec || spec), deposit_received_at: todayJst() } }, "前金を受領した記録を残しますか？");
+  const receiveDeposit = async () => advance({ spec: { ...(curDeal?.spec || spec), deposit_received_at: todayJst() } }, "着手金を受領した記録を残しますか？");
   const startWork = () => advance({ status: "working" }, "作業中にしますか？");
   const doInspect = () => advance({ status: "inspected", inspected_at: todayJst(), notes: inspectNote.trim() || (curDeal?.notes || null) }, "検収を記録しますか？");
   const doPay = () => advance({ status: "paid", paid_at: todayJst() }, "残金の支払いを記録しますか？");
@@ -520,9 +520,9 @@ export function ConsignmentRoom() {
               {(curDeal.status === "agreed") && hasDeposit && (
                 <div style={{ marginTop:12 }}>
                   {curDeal.spec?.deposit_received_at ? (
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", margin:0 }}>✓ 前金 受領済み（{curDeal.spec.deposit_received_at}）</p>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", margin:0 }}>✓ 着手金 受領済み（{curDeal.spec.deposit_received_at}）</p>
                   ) : (
-                    <button onClick={receiveDeposit} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>前金を受領した（{Number(spec.advance).toLocaleString()}円）</button>
+                    <button onClick={receiveDeposit} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>着手金を受領した（{Number(spec.advance).toLocaleString()}円）</button>
                   )}
                 </div>
               )}
