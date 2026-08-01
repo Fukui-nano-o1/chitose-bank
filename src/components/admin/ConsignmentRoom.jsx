@@ -231,10 +231,14 @@ const CORP_KINDS = ["株式会社", "合同会社", "農事組合法人", "そ�
 
 // 入力欄の定義（h=小見出し/ta=複数行/sel=ピル選択/num=数字のみ/zip=郵便番号検索付き/note=補足）
 const CONSIGNOR_IND_FIELDS = [
+  // 表示上の名称はトップ（2026-07-31たきと指示）：氏名か屋号のどちらかを選ぶ
+  { h:"表示上の名称" },
+  { k:"ind_display", l:"表示に使う名称（どちらか）", sel:["氏名で表示","屋号で表示"], note:"契約書には法的な氏名も印字されます" },
   { h:"本人情報" },
   { k:"ind_name",  l:"氏名" },
   { k:"ind_kana",  l:"氏名フリガナ" },
   { k:"ind_trade", l:"屋号（任意）" },
+  { k:"ind_trade_kana", l:"屋号フリガナ" },
   { k:"ind_birth", l:"生年月日", ph:"例：1990年1月1日" },
   { k:"ind_zip",         l:"郵便番号", zip:{ main:"ind_addr_main" }, ph:"例：7793300" },
   { k:"ind_addr_main",   l:"住所", ph:"例：徳島県吉野川市鴨島町鴨島" },
@@ -250,8 +254,6 @@ const CONSIGNOR_IND_FIELDS = [
   { k:"ind_biz_since", l:"開業年月", ph:"例：2020年4月" },
   { k:"ind_invoice",   l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁" },
   { k:"ind_docs",      l:"本人確認書類（メモ）", ta:true, ph:"例：運転免許証を確認済み" },
-  { h:"表示上の名称" },
-  { k:"ind_display", l:"表示に使う名称", sel:["氏名で表示","屋号で表示"], note:"契約書には法的な氏名も印字されます" },
 ];
 const CONSIGNOR_CORP_FIELDS = [
   { h:"法人情報" },
