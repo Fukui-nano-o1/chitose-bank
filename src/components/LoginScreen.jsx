@@ -73,10 +73,19 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: signupOpen } });
     setSending(false);
     if (error) {
-      const isInviteOnly = /signup/i.test(error.message || "");
-      setErr(isInviteOnly
-        ? "このメールアドレスは招待されていません。招待を受けたアドレスでお試しください"
-        : "メール送信に失敗しました。しばらく経ってから再度お試しください");
+      // 失敗の理由を出し分ける（2026-08-01たきと報告「なぜ？」）。
+      // 以前は「招待されていない」以外を全部「メール送信に失敗しました」に丸めていたため、
+      // 実際は連打の待ち時間・送信上限でも同じ文言が出て、原因が誰にも分からなかった。
+      const msg = String(error.message || "");
+      const wait = msg.match(/after (\d+) seconds?/i);            // 同じ宛先への連打（既定60秒）
+      const isInviteOnly = /signup/i.test(msg);
+      const isRate = /rate limit|too many|only request this after/i.test(msg);
+      setErr(
+        isInviteOnly ? "このメールアドレスは招待されていません。招待を受けたアドレスでお試しください"
+        : wait       ? `送信の間隔が短すぎます。${wait[1]}秒ほど待ってから、もう一度お試しください`
+        : isRate     ? "ただいま送信が混み合っています。しばらく時間をおいてからお試しください"
+        : `メールを送信できませんでした。時間をおいて再度お試しください（詳細: ${msg || "不明"}）`
+      );
       return;
     }
     setCode("");
