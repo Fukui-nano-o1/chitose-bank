@@ -1,7 +1,9 @@
 // 委託 準備室（#/admin/consignment・管理者専用・分割3-Aで切り出し2026-07-24）。
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { ymdLocal } from "../../lib/utils";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
+import { CalendarView } from "../CalendarView";
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
@@ -43,6 +45,18 @@ const consignRecruitState = (status) => {
   return { l:"募集中", bg:"#111111", fg:"#FFFFFF" }; // draft（既定）＝掲載中・応募受付
 };
 
+// 履行期限は開始+終了の日付範囲（2026-07-31たきと指示）。raw は spec.date_start/date_end(ymd)、
+// 表示用ラベルは spec.deadline に持たせる（カード/印刷/スナップショットは deadline を読む＝据え置き）。
+// 復元は raw から。文字列パースで逆算しない（day4教訓#4）
+const parseYmd = (s) => { if (!s) return null; const p = String(s).split("-").map(Number); return p.length === 3 && p.every(n => !isNaN(n)) ? new Date(p[0], p[1] - 1, p[2]) : null; };
+const deadlineLabel = (ds, de) => {
+  const s = parseYmd(ds); if (!s) return "";
+  const e = parseYmd(de) || s;
+  const cy = new Date().getFullYear();
+  const f = (dt) => (dt.getFullYear() === cy ? "" : dt.getFullYear() + "年") + (dt.getMonth() + 1) + "月" + dt.getDate() + "日";
+  return s.getTime() === e.getTime() ? f(s) : f(s) + " 〜 " + f(e);
+};
+
 // 進行ステッパー（FlowBarと同じ視覚文法。色だけブラック：黒の✓＝完了・黒リング＝現在地・グレー＝未着手）
 function ConsignStepper({ deal }) {
   const { done, active } = consignStepState(deal);
@@ -77,7 +91,7 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", hazards:[], hazard_other:"", photos:[], special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", hazards:[], hazard_other:"", photos:[], special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名" },
@@ -85,7 +99,7 @@ const CONSIGN_BASIC_FIELDS = [
   { k:"area_a",         l:"面積（a）" },
   { k:"crop",           l:"作物" },
   { k:"task",           l:"作業" },
-  { k:"deadline",       l:"履行期限", ph:"例：11月10日まで／11月10日〜15日／収穫適期内" },
+  { k:"deadline",       l:"履行期限" },
   { k:"unit_price_10a", l:"単価（10aあたり・円）" },
   { k:"advance",        l:"着手金（前払金・円）" },
 ];
@@ -224,6 +238,7 @@ export function ConsignmentRoom() {
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [showDeadlineCal, setShowDeadlineCal] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [deals, setDeals] = useState([]);
   const [progAgg, setProgAgg] = useState({}); // 台帳の要約用：deal_id→{hours,boxes,days}
@@ -291,6 +306,19 @@ export function ConsignmentRoom() {
     setPhotoUploading(false);
   };
   const removePhoto = (i) => setSpec(p => ({ ...p, photos: (p.photos || []).filter((_, k) => k !== i) }));
+  // 履行期限のカレンダー選択（1回目=開始／2回目=終了／開始より前=選び直し）。
+  // raw(date_start/date_end)とラベル(deadline)を同時に更新
+  const onDeadlineSelect = (dt) => {
+    const ds = parseYmd(spec.date_start);
+    const de = parseYmd(spec.date_end);
+    let ns, ne;
+    if (!ds || de) { ns = dt; ne = null; }
+    else if (dt >= ds) { ns = ds; ne = dt; }
+    else { ns = dt; ne = null; }
+    const nds = ymdLocal(ns);
+    const nde = ne ? ymdLocal(ne) : "";
+    setSpec(p => ({ ...p, date_start: nds, date_end: nde, deadline: deadlineLabel(nds, nde) }));
+  };
   const refreshCur = async (id) => {
     const { data } = await supabase.from("consignment_deals").select("*").eq("id", id).maybeSingle();
     if (data) { setCurDeal(data); setStatus(data.status || "draft"); }
@@ -656,6 +684,17 @@ export function ConsignmentRoom() {
               {f.k === "crop" ? (
                 // ブロッコリー固定（入力不可）。この委託はブロッコリーのみ
                 <div><span className="f-sans" style={{ display:"inline-block", padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff" }}>{CONSIGN_CROP}</span></div>
+              ) : f.k === "deadline" ? (
+                // 履行期限＝開始+終了の日付範囲。同じ欄をタップでカレンダー展開（ブラック）
+                <div>
+                  <button type="button" onClick={()=>setShowDeadlineCal(v => !v)} className="field f-sans" style={{ width:"100%", textAlign:"left", fontSize:14, marginBottom:0, cursor:"pointer", background:"#fff", color: spec.date_start ? "#111111" : "#999999" }}>
+                    {spec.date_start ? deadlineLabel(spec.date_start, spec.date_end) : "タップして期間を選択"}
+                  </button>
+                  {showDeadlineCal && (
+                    <CalendarView accent="#111111" accentSoft="#EEEEEE" hideHints start={parseYmd(spec.date_start)} end={parseYmd(spec.date_end)} onSelect={onDeadlineSelect} />
+                  )}
+                  <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"6px 0 0" }}>1回目のタップで開始日、2回目で終了日。終了日を選ばなければ開始日のみ。</p>
+                </div>
               ) : f.k === "task" ? (
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {CONSIGN_TASKS.map(t => {

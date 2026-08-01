@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { ymdLocal } from "../lib/utils";
 
 // 読み書き両用カレンダー（モジュールレベル・入力側と詳細表示側で共有）
-export function CalendarView({ start, end, readOnly = false, onSelect }) {
+export function CalendarView({ start, end, readOnly = false, onSelect, accent = "#00A86B", accentSoft = "#E6F7EF", hideHints = false }) {
   const WD_CV = ["日","月","火","水","木","金","土"];
   const isSameDayCV = (a, b) => a && b && ymdLocal(a) === ymdLocal(b);
   const todayYmdCV = ymdLocal(new Date());
@@ -54,10 +54,10 @@ export function CalendarView({ start, end, readOnly = false, onSelect }) {
               return (
                 <div key={dd} style={{
                   padding:"5px 2px", borderRadius:6, fontSize:13, textAlign:"center",
-                  background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
-                  color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
+                  background: (isStart||isEnd) ? accent : inRange ? accentSoft : "transparent",
+                  color: (isStart||isEnd) ? "#fff" : inRange ? accent : "#222",
                   fontWeight: (isStart||isEnd) ? 700 : 400,
-                  boxShadow: isToday && !(isStart||isEnd) ? "inset 0 0 0 1.5px #00A86B" : "none",
+                  boxShadow: isToday && !(isStart||isEnd) ? `inset 0 0 0 1.5px ${accent}` : "none",
                 }}>{dd}</div>
               );
             })}
@@ -69,7 +69,7 @@ export function CalendarView({ start, end, readOnly = false, onSelect }) {
       <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginTop:8 }}>
         {shown.map(renderMonth)}
         {!expanded && remaining > 0 && (
-          <button onClick={() => setExpanded(true)} style={{ width:"100%", padding:"10px", borderRadius:10, border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:13, color:"#00A86B", fontWeight:600, cursor:"pointer" }}>
+          <button onClick={() => setExpanded(true)} style={{ width:"100%", padding:"10px", borderRadius:10, border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:13, color:accent, fontWeight:600, cursor:"pointer" }}>
             すべての月を表示（残り{remaining}ヶ月）
           </button>
         )}
@@ -104,17 +104,17 @@ export function CalendarView({ start, end, readOnly = false, onSelect }) {
           return (
             <button key={dd} onClick={readOnly ? undefined : () => onSelect && onSelect(dt)} style={{
               padding:"7px 2px", borderRadius:8, border:"none", cursor: readOnly ? "default" : "pointer", fontSize:13, textAlign:"center",
-              background: (isStart||isEnd) ? "#00A86B" : inRange ? "#E6F7EF" : "transparent",
-              color: (isStart||isEnd) ? "#fff" : inRange ? "#00A86B" : "#222",
+              background: (isStart||isEnd) ? accent : inRange ? accentSoft : "transparent",
+              color: (isStart||isEnd) ? "#fff" : inRange ? accent : "#222",
               fontWeight: (isStart||isEnd) ? 700 : 400,
-              boxShadow: isToday && !(isStart||isEnd) ? "inset 0 0 0 1.5px #00A86B" : "none",
+              boxShadow: isToday && !(isStart||isEnd) ? `inset 0 0 0 1.5px ${accent}` : "none",
             }}>{dd}</button>
           );
         })}
       </div>
-      {!readOnly && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>終了日を選ばない場合は、1日募集として扱います</p>}
+      {!readOnly && !hideHints && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:6, textAlign:"center" }}>終了日を選ばない場合は、1日募集として扱います</p>}
       {/* 期間募集の予告（2026-07-24）：農家に仕組みを先に伝える。終了日ありの期間求人の時だけ表示 */}
-      {!readOnly && end && start && ymdLocal(end) !== ymdLocal(start) && (
+      {!readOnly && !hideHints && end && start && ymdLocal(end) !== ymdLocal(start) && (
         <p className="f-sans" style={{ fontSize:11, color:"#0B6B4F", background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:8, padding:"8px 10px", marginTop:8, lineHeight:1.6 }}>期間で募集すると、応募者が「来られる日」を選んで応募します。</p>
       )}
     </div>
