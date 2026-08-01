@@ -213,17 +213,19 @@ const makeConsignVines = () => {
 
 export function ConsignmentRoom() {
   // 画面切替はURLで裏打ちする（2026-08-01たきと報告「スワイプで前のページに戻らない」の根治）：
-  // 一覧=#/admin/consignment／新規=#/admin/consignment/new／案件=#/admin/consignment/deal/{id}。
-  // openDeal/newDealはhashを進め、実際の画面切替はhashchangeが担う＝スワイプ・ブラウザ戻るが
+  // 一覧=#/admin/consignment／新規=#/admin/consignment/new／案件=#/admin/consignment/deal/{id}／
+  // 委託専用プロフィール=#/admin/consignment/profile（2026-07-31たきと指示）。
+  // openDeal/newDeal/名刺タップはhashを進め、実際の画面切替はhashchangeが担う＝スワイプ・ブラウザ戻るが
   // そのまま「一覧へ戻る」になる（さがす→求人詳細と同じ作法）
   const readConsignView = () => {
     const h = window.location.hash.replace(/^#\/?/, "");
     const m = h.match(/^admin\/consignment\/deal\/([0-9a-f-]+)$/);
     if (m) return { view: "deal", id: m[1] };
     if (h === "admin/consignment/new") return { view: "new" };
+    if (h === "admin/consignment/profile") return { view: "profile" };
     return { view: "list" };
   };
-  const [cTab, setCTab] = useState(() => readConsignView().view === "list" ? "list" : "deal"); // list=一覧（トップ画・さがすと同じ設計）/ deal=案件ダッシュボード（2026-07-31たきと指示）
+  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "profile" ? "profile" : "deal"; }); // list=一覧 / deal=案件ダッシュボード / profile=委託専用プロフィール
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示）：群れ①が生え切ってから②、②の後に③＝三段のリズム。
   // 線(0.22s)→①右下(0.10s〜)→②左中(0.45s〜)→③右上(0.80s〜)→幕が開く(1.20s+0.5s)
@@ -412,6 +414,7 @@ export function ConsignmentRoom() {
       const c = readConsignView();
       if (c.view === "list") { setCTab("list"); loadDeals(); }
       else if (c.view === "new") { newDealState(); }
+      else if (c.view === "profile") { setCTab("profile"); }
       else { const d = dealsRef.current.find(x => x.id === c.id); if (d) openDealState(d); }
     };
     window.addEventListener("hashchange", onHash);
@@ -561,8 +564,8 @@ export function ConsignmentRoom() {
       <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
       {/* 大プロフィールカード（農家プロフィール入口と同じ構造・2026-07-31たきと指示。カラーはブラック：
           緑2px枠→黒2px枠・役割ピル「農家」→「委託主」。反転⇄はプレビュー相当が無いので置かない） */}
-      {/* 名刺タップでプロフィールページ（雇い手本人）へ遷移（2026-07-31たきと指示） */}
-      <button type="button" onClick={()=>{ window.location.hash = "/profile/employer/profile"; }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12, cursor:"pointer" }}>
+      {/* 名刺タップで委託専用プロフィールページへ遷移（2026-07-31たきと指示・雇い手プロフィールではない） */}
+      <button type="button" onClick={()=>{ setCTab("profile"); window.location.hash = "/admin/consignment/profile"; }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12, cursor:"pointer" }}>
         <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
         <span style={{ textAlign:"center" }}>
           <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
@@ -582,6 +585,37 @@ export function ConsignmentRoom() {
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>仕様書を白紙から作ります。</span>
       </button>
       </>)}
+
+      {/* 委託専用プロフィール（#/admin/consignment/profile・2026-07-31たきと指示）。
+          雇い手プロフィールとは別。委託主の名刺（黒）＋委託の実績（既存dealsから集計・新規スキーマ不要） */}
+      {cTab === "profile" && (
+        <div className="fade-in">
+          <button onClick={()=>{ setCTab("list"); window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 委託一覧</button>
+          {/* 委託主の名刺（黒） */}
+          <div style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:16 }}>
+            <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
+            <span style={{ textAlign:"center" }}>
+              <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
+              <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:"#111111", borderRadius:20, padding:"3px 14px" }}>委託主</span>
+            </span>
+          </div>
+          {/* 委託の実績（既存dealsから集計・黒） */}
+          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>委託の実績</p>
+          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+            {[
+              ["掲載数", deals.length],
+              ["募集中", deals.filter(d => consignRecruitState(d.status).l === "募集中").length],
+              ["作業中", deals.filter(d => consignRecruitState(d.status).l === "作業中").length],
+              ["完了", deals.filter(d => consignRecruitState(d.status).l === "完了").length],
+            ].map(([l, v]) => (
+              <div key={l} style={{ flex:1, background:"#111111", borderRadius:12, padding:"14px 8px", textAlign:"center" }}>
+                <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#fff" }}>{v}</span>
+                <span className="f-sans" style={{ display:"block", fontSize:11, color:"#B9B9B9", marginTop:2 }}>{l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {cTab === "deal" && (
         <div className="fade-in">
