@@ -18,6 +18,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const [pw2,     setPw2]     = useState("");
   const [code,    setCode]    = useState("");
   const [authedUser, setAuthedUser] = useState(null); // OTP認証済みユーザー（パスワード設定待ち）
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false); // 既にアカウントを持っている人が新規登録から入ってきた（2026-08-01）
   const [sending, setSending] = useState(false);
   const [err,     setErr]     = useState("");
   const [shk,     setShk]     = useState(false);
@@ -101,6 +102,18 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
     });
     setSending(false);
     if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
+    // すでにアカウントを持っている人が、間違えて新規登録から入ってきた場合を見分ける（2026-08-01たきと指示）。
+    // 判定は認証を通った"本人"についてだけ行う＝メールアドレスの存在をログイン前に外へ漏らさない。
+    //   ①auth.usersの作成時刻が5分以上前＝この操作で作られたのではない
+    //   ②account_holders行がある＝当サービスの登録が済んでいる
+    let existed = false;
+    try {
+      const created = data.user?.created_at ? new Date(data.user.created_at).getTime() : 0;
+      existed = !!created && (Date.now() - created > 5 * 60 * 1000);
+      const { data: ah } = await supabase.from("account_holders").select("id").eq("auth_id", data.user.id).maybeSingle();
+      if (ah) existed = true;
+    } catch {}
+    setAlreadyRegistered(existed);
     // 認証成功→そのままは通さず、パスワード設定へ（次回からメール＋パスワードでログインできるように）
     setAuthedUser(data.user);
     setPw(""); setPw2(""); setErr("");
@@ -174,6 +187,12 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
           ) : view === "otp" ? (
             /* ── 新規登録①：メールアドレス→6桁コード送信 ── */
             <div className="fade-in">
+              {/* すでに持っている人が間違えて新規登録に入ることがあるので先に伝える（2026-08-01たきと指示）。
+                  ここでは「そのアドレスが登録済みか」は出さない＝ログイン前にアカウントの有無を漏らさない */}
+              <p className="f-sans" style={{ fontSize:11, color:C.dim, lineHeight:1.8, marginBottom:14, background:"#F7F7F7", borderRadius:8, padding:"10px 12px" }}>
+                すでにアカウントをお持ちの方も、この画面から同じメールアドレスでログインできます。<br/>
+                アカウントが二重に作られることはありません。
+              </p>
               <div style={{ marginBottom:20 }}>
                 <label className="lbl f-sans">メールアドレス</label>
                 <input className="field f-sans" type="email" placeholder="your@email.com"
@@ -235,12 +254,24 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
           ) : (
             /* ── 新規登録③：パスワード設定（次回からメール＋パスワードでログイン） ── */
             <div className="fade-in">
-              <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
-                <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
-                  メールの確認ができました。<br/>
-                  次回からのログインに使うパスワードを設定してください。
-                </p>
-              </div>
+              {/* すでにアカウントを持っていた人には、その旨をはっきり出す（2026-08-01たきと指示）。
+                  新しく作られていないこと・パスワードは設定し直せることを明記し、そのまま進む道も用意する */}
+              {alreadyRegistered ? (
+                <div style={{ padding:"12px 14px",background:"#FFF8E7",borderRadius:8,border:"1px solid #F0E0B8",marginBottom:18 }}>
+                  <p className="f-sans" style={{ fontSize:12,color:"#8A6D1D",lineHeight:1.9 }}>
+                    <strong>このメールアドレスのアカウントは、すでにお持ちです。</strong><br/>
+                    新しく作られてはいません。いまログインした状態です。<br/>
+                    パスワードを忘れた場合は、ここで設定し直せます。
+                  </p>
+                </div>
+              ) : (
+                <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
+                  <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
+                    メールの確認ができました。<br/>
+                    次回からのログインに使うパスワードを設定してください。
+                  </p>
+                </div>
+              )}
               <div style={{ marginBottom:16 }}>
                 <label className="lbl f-sans">パスワード（8文字以上）</label>
                 <div style={{ position:"relative" }}>
@@ -263,8 +294,17 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
               </div>
               <button className="btn-primary" style={{ width:"100%" }}
                 disabled={!pw||!pw2||sending} onClick={submitPassword}>
-                {sending ? "設定中…" : "設定してはじめる"}
+                {sending ? "設定中…" : alreadyRegistered ? "パスワードを設定し直す" : "設定してはじめる"}
               </button>
+              {/* 既存アカウントの人は、パスワードを変えずにそのまま入れる道を残す */}
+              {alreadyRegistered && (
+                <div style={{ textAlign:"center", marginTop:16 }}>
+                  <button onClick={()=>completeLogin(authedUser)} disabled={sending} className="f-sans"
+                    style={{ background:"none",border:"none",fontSize:12,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
+                    パスワードは変えずに、このまま続ける →
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
