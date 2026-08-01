@@ -231,21 +231,41 @@ const CONSIGNOR_FIELDS = [
   { k:"consignor_corp_no",    l:"法人番号（任意）" },
   { k:"consignor_invoice_no", l:"インボイス登録番号（任意）" },
   { k:"consignor_rep_name",   l:"代表者名" },
-  { k:"consignor_address",    l:"住所・所在地" },
+  { k:"consignor_zip",        l:"郵便番号", ph:"例：7793300" },
+  { k:"consignor_pref",       l:"都道府県" },
+  { k:"consignor_city",       l:"市区町村" },
+  { k:"consignor_addr",       l:"番地・建物名" },
   { k:"consignor_phone",      l:"電話番号" },
   { k:"consignor_email",      l:"メールアドレス" },
   { k:"consignor_emergency",  l:"緊急連絡先", ph:"氏名・続柄・電話番号" },
   { k:"consignor_billing",    l:"振込・請求に必要な基本情報", ta:true, ph:"銀行名・支店・口座種別・口座番号・名義など" },
 ];
-// 掲載プレビュー・印刷に反映する公開系の項目（緊急連絡先・振込情報は内部用so反映しない）
-const CONSIGNOR_PUBLIC_KEYS = ["consignor_name","consignor_trade_name","consignor_corp_no","consignor_invoice_no","consignor_rep_name","consignor_address","consignor_phone","consignor_email"];
+// 掲載プレビュー・印刷に反映する公開系の項目（緊急連絡先・振込情報は内部用so反映しない）。
+// 住所は4分割の入力から保存時に合成した consignor_address（〒＋都道府県市区町村番地）を使う
+const CONSIGNOR_PUBLIC_FIELDS = [
+  { k:"consignor_name",       l:"氏名または法人名" },
+  { k:"consignor_trade_name", l:"屋号" },
+  { k:"consignor_corp_no",    l:"法人番号" },
+  { k:"consignor_invoice_no", l:"インボイス登録番号" },
+  { k:"consignor_rep_name",   l:"代表者名" },
+  { k:"consignor_address",    l:"住所・所在地" },
+  { k:"consignor_phone",      l:"電話番号" },
+  { k:"consignor_email",      l:"メールアドレス" },
+];
+// 住所の合成（4分割→1行）。全分割が空なら ""（保存側で既存値を残す判定に使う）
+const composeConsignorAddress = (f) => {
+  const body = [f.consignor_pref, f.consignor_city, f.consignor_addr].map(x => (x || "").trim()).filter(Boolean).join("");
+  if (!body) return "";
+  const zip = (f.consignor_zip || "").trim();
+  return (zip ? "〒" + zip + " " : "") + body;
+};
 
 // 設定ページのボックス設計（2026-07-31たきと指示「ボックス設計にして。タップで入力ボックス展開」）。
 // 10項目を6ボックスに束ねる。v=ボックスに出す代表値のキー
 const CONSIGNOR_BOXES = [
   { k:"name",      l:"氏名・名称",   keys:["consignor_name","consignor_trade_name","consignor_rep_name"], v:"consignor_name" },
   { k:"numbers",   l:"事業者番号",   keys:["consignor_corp_no","consignor_invoice_no"], v:"consignor_invoice_no" },
-  { k:"address",   l:"住所・所在地", keys:["consignor_address"], v:"consignor_address" },
+  { k:"address",   l:"住所・所在地", keys:["consignor_zip","consignor_pref","consignor_city","consignor_addr"], v:"consignor_city" },
   { k:"contact",   l:"連絡先",       keys:["consignor_phone","consignor_email"], v:"consignor_phone" },
   { k:"emergency", l:"緊急連絡先",   keys:["consignor_emergency"], v:"consignor_emergency" },
   { k:"billing",   l:"振込・請求",   keys:["consignor_billing"], v:"consignor_billing" },
@@ -258,24 +278,41 @@ function ConsignorInfoEdit() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editBox, setEditBox] = useState(null); // 開いている入力ボックス（CONSIGNOR_BOXESのk）
+  const [zipBusy, setZipBusy] = useState(false);
+  const [zipError, setZipError] = useState("");
+  // 郵便番号→住所の自動入力（zipcloud・求人フローstep3と同じ）。都道府県・市区町村を埋め、町域は番地欄の頭に
+  const searchZip = async () => {
+    const z = (form?.consignor_zip || "").replace(/[^0-9]/g, "");
+    if (z.length !== 7) { setZipError("郵便番号は7桁で入力してください"); return; }
+    setZipBusy(true); setZipError("");
+    try {
+      const res = await fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + z);
+      const j = await res.json();
+      const r = j && j.results && j.results[0];
+      if (!r) { setZipError("住所が見つかりませんでした"); }
+      else setForm(p => ({ ...p, consignor_zip: z, consignor_pref: r.address1 || "", consignor_city: r.address2 || "", consignor_addr: (p.consignor_addr || "").trim() ? p.consignor_addr : (r.address3 || "") }));
+    } catch { setZipError("検索に失敗しました。通信環境をご確認ください"); }
+    setZipBusy(false);
+  };
   useEffect(() => {
     (async () => {
       const empty = CONSIGNOR_FIELDS.reduce((a, f) => { a[f.k] = ""; return a; }, {});
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setForm(empty); return; }
-        const { data } = await supabase.from("consignment_profiles").select(CONSIGNOR_FIELDS.map(f => f.k).join(",")).eq("auth_id", session.user.id).maybeSingle();
+        const { data } = await supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         const cur = { ...empty, ...(data || {}) };
-        // 初回シード（空欄のみ）：新規登録①の本人確認情報から
-        if (!cur.consignor_name || !cur.consignor_address || !cur.consignor_phone || !cur.consignor_email) {
+        // 初回シード（空欄のみ）：新規登録①の本人確認情報から。
+        // 住所は4分割入力so郵便番号だけ下敷きに（1行住所の機械分割はしない＝day4教訓・表記ゆれで壊れる）
+        if (!cur.consignor_name || !cur.consignor_zip || !cur.consignor_phone || !cur.consignor_email) {
           try {
             const { data: ah } = await supabase.from("account_holders")
-              .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
+              .select("full_name,company_name,postal_code,contact_phone,contact_email")
               .eq("auth_id", session.user.id).maybeSingle();
             if (ah) {
               if (!cur.consignor_name) cur.consignor_name = (ah.company_name || "").trim() || (ah.full_name || "").trim();
               if (!cur.consignor_rep_name && (ah.company_name || "").trim()) cur.consignor_rep_name = (ah.full_name || "").trim();
-              if (!cur.consignor_address) cur.consignor_address = [(ah.postal_code || "").trim() ? "〒" + ah.postal_code.trim() : "", (ah.address || "").trim()].filter(Boolean).join(" ");
+              if (!cur.consignor_zip) cur.consignor_zip = (ah.postal_code || "").trim().replace(/[^0-9]/g, "");
               if (!cur.consignor_phone) cur.consignor_phone = (ah.contact_phone || "").trim();
               if (!cur.consignor_email) cur.consignor_email = (ah.contact_email || "").trim() || (session.user.email || "");
             }
@@ -293,6 +330,8 @@ function ConsignorInfoEdit() {
       if (!session) { setSaving(false); return; }
       const payload = { auth_id: session.user.id, updated_at: new Date().toISOString() };
       CONSIGNOR_FIELDS.forEach(f => { payload[f.k] = (form[f.k] || "").trim(); });
+      const composed = composeConsignorAddress(payload);
+      if (composed) payload.consignor_address = composed; // 全分割が空なら既存の合成値を残す（旧データ保全）
       const { error } = await supabase.from("consignment_profiles").upsert(payload, { onConflict: "auth_id" });
       if (error) alert("保存に失敗しました：" + error.message);
       else { setSaved(true); setTimeout(() => setSaved(false), 2200); }
@@ -329,13 +368,25 @@ function ConsignorInfoEdit() {
             {boxFields.map(f => (
               <div key={f.k} style={{ marginBottom:10 }}>
                 <label className="lbl f-sans">{f.l}</label>
-                {f.ta ? (
+                {f.k === "consignor_zip" ? (
+                  <div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <input className="field f-sans" inputMode="numeric" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value.replace(/[^0-9]/g, "") }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0, flex:1 }} />
+                      <button type="button" onClick={searchZip} disabled={zipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{zipBusy ? "検索中…" : "住所を検索"}</button>
+                    </div>
+                    {zipError && <p className="f-sans" style={{ fontSize:11, color:"#111111", fontWeight:700, margin:"6px 0 0" }}>{zipError}</p>}
+                  </div>
+                ) : f.ta ? (
                   <textarea className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
                 ) : (
                   <input className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
                 )}
               </div>
             ))}
+            {/* 旧・1行住所の保存値（分割入力が空のうちだけ参考表示。機械分割はしない＝day4教訓） */}
+            {editBox === "address" && (form.consignor_address || "").trim() && !composeConsignorAddress(form) && (
+              <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>現在の保存値：{form.consignor_address}（分割して入力し直すと置き換わります）</p>
+            )}
             <button onClick={async ()=>{ await save(); setEditBox(null); }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", marginTop:4, opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
           </div>
         </div>
@@ -485,7 +536,7 @@ export function ConsignmentRoom() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const { data } = await supabase.from("consignment_profiles").select(CONSIGNOR_FIELDS.map(f => f.k).join(",")).eq("auth_id", session.user.id).maybeSingle();
+        const { data } = await supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         setConsignor(data || null);
       } catch {}
     })();
@@ -768,12 +819,12 @@ export function ConsignmentRoom() {
             <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 危険情報</p>
             <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{(spec.hazards || []).length ? (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・") : "特になし"}</p>
           </div>
-          {consignor && CONSIGNOR_PUBLIC_KEYS.some(k => (consignor[k] || "").trim()) && (
+          {consignor && CONSIGNOR_PUBLIC_FIELDS.some(f => (consignor[f.k] || "").trim()) && (
             <div style={{ marginBottom:14 }}>
               <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 委託者（発注者）</p>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
                 <tbody>
-                  {CONSIGNOR_FIELDS.filter(f => CONSIGNOR_PUBLIC_KEYS.includes(f.k) && (consignor[f.k] || "").trim()).map(f => (
+                  {CONSIGNOR_PUBLIC_FIELDS.filter(f => (consignor[f.k] || "").trim()).map(f => (
                     <tr key={f.k}>
                       <td style={{ border:"1px solid #999", padding:"7px 10px", width:170, background:"#F5F5F5", fontWeight:700 }}>{f.l}</td>
                       <td style={{ border:"1px solid #999", padding:"7px 10px" }}>{consignor[f.k]}</td>
@@ -1000,11 +1051,11 @@ export function ConsignmentRoom() {
               ))}
             </div>
             {/* 委託者情報（設定ページから自動反映・2026-07-31たきと指示。緊急連絡先・振込情報は内部用so出さない） */}
-            {consignor && CONSIGNOR_PUBLIC_KEYS.some(k => (consignor[k] || "").trim()) && (
+            {consignor && CONSIGNOR_PUBLIC_FIELDS.some(f => (consignor[f.k] || "").trim()) && (
               <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>委託者情報（設定ページから自動反映）</p>
                 <div style={{ display:"grid", gap:6 }}>
-                  {CONSIGNOR_FIELDS.filter(f => CONSIGNOR_PUBLIC_KEYS.includes(f.k) && (consignor[f.k] || "").trim()).map(f => (
+                  {CONSIGNOR_PUBLIC_FIELDS.filter(f => (consignor[f.k] || "").trim()).map(f => (
                     <div key={f.k} style={{ display:"flex", gap:10 }}>
                       <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:96, flexShrink:0 }}>{f.l}</span>
                       <span className="f-sans" style={{ fontSize:12, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{consignor[f.k]}</span>
