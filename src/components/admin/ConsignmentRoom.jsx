@@ -393,11 +393,27 @@ function ConsignorInfoEdit() {
           if (!nd.cmn_bank && data.consignor_bank) { nd.cmn_bank = data.consignor_bank; nd.cmn_bank_branch = data.consignor_bank_branch || ""; nd.cmn_account_type = data.consignor_account_type || ""; nd.cmn_account_no = data.consignor_account_no || ""; nd.cmn_account_name = data.consignor_account_name || ""; }
           if (!nd.cmn_emergency && data.consignor_emergency) nd.cmn_emergency = data.consignor_emergency;
         }
-        setCtype((data && data.consignor_type) || "");
-        setD(nd);
+        // リロード対策（2026-07-31たきと報告「リロードしたとき入力内容がクリアされる」）：
+        // 入力中の下書き（localStorage・自動保存）があればDB値の上に重ねて復元。
+        // ステップと種別も戻す＝中断した場所から再開（求人フローと同じ作法）
+        let draft = null;
+        try { draft = JSON.parse(localStorage.getItem("cb_consignorDraft_v1") || "null"); } catch {}
+        if (draft && draft.d) {
+          setCtype(draft.t || (data && data.consignor_type) || "");
+          if (draft.t && Number.isInteger(draft.s)) setCstep(draft.s);
+          setD({ ...nd, ...draft.d });
+        } else {
+          setCtype((data && data.consignor_type) || "");
+          setD(nd);
+        }
       } catch { setD({}); }
     })();
   }, []);
+  // 自動下書き保存：入力・ステップ移動のたびにlocalStorageへ（保存成功で消す）
+  useEffect(() => {
+    if (!d) return;
+    try { localStorage.setItem("cb_consignorDraft_v1", JSON.stringify({ t: ctype, s: cstep, d })); } catch {}
+  }, [d, ctype, cstep]);
   const setV = (k, v) => setD(p => ({ ...p, [k]: v }));
   // 種別を選ぶ：旧v1列を下敷きに（空欄のみ）→次ページへ
   const pickType = (t) => {
@@ -461,7 +477,10 @@ function ConsignorInfoEdit() {
         auth_id: session.user.id, consignor_type: ctype, consignor_data: d, updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       if (error) alert("保存に失敗しました：" + error.message);
-      else { setSaved(true); setTimeout(() => setSaved(false), 2600); }
+      else {
+        try { localStorage.removeItem("cb_consignorDraft_v1"); } catch {} // 保存成功＝DBが真実の座so下書きは消す
+        setSaved(true); setTimeout(() => setSaved(false), 2600);
+      }
     } catch { alert("保存に失敗しました。"); }
     setSaving(false);
   };
