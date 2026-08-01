@@ -238,7 +238,11 @@ const CONSIGNOR_FIELDS = [
   { k:"consignor_phone",      l:"電話番号" },
   { k:"consignor_email",      l:"メールアドレス" },
   { k:"consignor_emergency",  l:"緊急連絡先", ph:"氏名・続柄・電話番号" },
-  { k:"consignor_billing",    l:"振込・請求に必要な基本情報", ta:true, ph:"銀行名・支店・口座種別・口座番号・名義など" },
+  { k:"consignor_bank",         l:"銀行名", ph:"例：阿波銀行" },
+  { k:"consignor_bank_branch",  l:"支店名", ph:"例：鴨島支店" },
+  { k:"consignor_account_type", l:"口座種別", sel:["普通","当座"] },
+  { k:"consignor_account_no",   l:"口座番号", ph:"例：1234567" },
+  { k:"consignor_account_name", l:"口座名義（カナ）", ph:"例：フクイ タキト" },
 ];
 // 掲載プレビュー・印刷に反映する公開系の項目（緊急連絡先・振込情報は内部用so反映しない）。
 // 住所は4分割の入力から保存時に合成した consignor_address（〒＋都道府県市区町村番地）を使う
@@ -259,6 +263,11 @@ const composeConsignorAddress = (f) => {
   const zip = (f.consignor_zip || "").trim();
   return (zip ? "〒" + zip + " " : "") + body;
 };
+// 振込情報の合成（5分割→1行）。全分割が空なら ""（保存側で既存値を残す判定に使う）
+const composeConsignorBilling = (f) => {
+  return [f.consignor_bank, f.consignor_bank_branch, f.consignor_account_type, f.consignor_account_no, f.consignor_account_name]
+    .map(x => (x || "").trim()).filter(Boolean).join(" ");
+};
 
 // 設定ページのボックス設計（2026-07-31たきと指示「ボックス設計にして。タップで入力ボックス展開」）。
 // 10項目を6ボックスに束ねる。v=ボックスに出す代表値のキー
@@ -268,7 +277,7 @@ const CONSIGNOR_BOXES = [
   { k:"address",   l:"住所・所在地", keys:["consignor_zip","consignor_pref","consignor_city","consignor_addr"], v:"consignor_city" },
   { k:"contact",   l:"連絡先",       keys:["consignor_phone","consignor_email"], v:"consignor_phone" },
   { k:"emergency", l:"緊急連絡先",   keys:["consignor_emergency"], v:"consignor_emergency" },
-  { k:"billing",   l:"振込・請求",   keys:["consignor_billing"], v:"consignor_billing" },
+  { k:"billing",   l:"振込・請求",   keys:["consignor_bank","consignor_bank_branch","consignor_account_type","consignor_account_no","consignor_account_name"], v:"consignor_bank" },
 ];
 
 // 委託者情報の設定フォーム（ブラック・アイコンなし）。初回は account_holders から氏名・住所・
@@ -332,6 +341,8 @@ function ConsignorInfoEdit() {
       CONSIGNOR_FIELDS.forEach(f => { payload[f.k] = (form[f.k] || "").trim(); });
       const composed = composeConsignorAddress(payload);
       if (composed) payload.consignor_address = composed; // 全分割が空なら既存の合成値を残す（旧データ保全）
+      const composedBilling = composeConsignorBilling(payload);
+      if (composedBilling) payload.consignor_billing = composedBilling; // 同上
       const { error } = await supabase.from("consignment_profiles").upsert(payload, { onConflict: "auth_id" });
       if (error) alert("保存に失敗しました：" + error.message);
       else { setSaved(true); setTimeout(() => setSaved(false), 2200); }
@@ -368,13 +379,24 @@ function ConsignorInfoEdit() {
             {boxFields.map(f => (
               <div key={f.k} style={{ marginBottom:10 }}>
                 <label className="lbl f-sans">{f.l}</label>
-                {f.k === "consignor_zip" ? (
+                {f.k === "consignor_account_no" ? (
+                  <input className="field f-sans" inputMode="numeric" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value.replace(/[^0-9]/g, "") }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+                ) : f.k === "consignor_zip" ? (
                   <div>
                     <div style={{ display:"flex", gap:8 }}>
                       <input className="field f-sans" inputMode="numeric" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value.replace(/[^0-9]/g, "") }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0, flex:1 }} />
                       <button type="button" onClick={searchZip} disabled={zipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{zipBusy ? "検索中…" : "住所を検索"}</button>
                     </div>
                     {zipError && <p className="f-sans" style={{ fontSize:11, color:"#111111", fontWeight:700, margin:"6px 0 0" }}>{zipError}</p>}
+                  </div>
+                ) : f.sel ? (
+                  <div style={{ display:"flex", gap:8 }}>
+                    {f.sel.map(opt => {
+                      const on = form[f.k] === opt;
+                      return (
+                        <button key={opt} type="button" onClick={()=>setForm(p=>({ ...p, [f.k]: on ? "" : opt }))} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+                      );
+                    })}
                   </div>
                 ) : f.ta ? (
                   <textarea className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
@@ -383,9 +405,12 @@ function ConsignorInfoEdit() {
                 )}
               </div>
             ))}
-            {/* 旧・1行住所の保存値（分割入力が空のうちだけ参考表示。機械分割はしない＝day4教訓） */}
+            {/* 旧・1行の保存値（分割入力が空のうちだけ参考表示。機械分割はしない＝day4教訓） */}
             {editBox === "address" && (form.consignor_address || "").trim() && !composeConsignorAddress(form) && (
               <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>現在の保存値：{form.consignor_address}（分割して入力し直すと置き換わります）</p>
+            )}
+            {editBox === "billing" && (form.consignor_billing || "").trim() && !composeConsignorBilling(form) && (
+              <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>現在の保存値：{form.consignor_billing}（分割して入力し直すと置き換わります）</p>
             )}
             <button onClick={async ()=>{ await save(); setEditBox(null); }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", marginTop:4, opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
           </div>
