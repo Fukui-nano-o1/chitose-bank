@@ -639,7 +639,17 @@ export function ConsignmentRoom() {
   // 草の配置は入室ごとに抽選（毎回違うパターン・たきと指示）。再レンダーでは変えない＝useStateの初期化で1回だけ
   const [entranceGrass] = useState(makeConsignGrass);
   const [vines] = useState(makeConsignVines); // 背景の蔓も入室ごとに抽選
-  const [sky] = useState(() => computeSky(new Date())); // 背景の空（朝昼夜・太陽/月の位置は入室時刻から）
+  const [sky, setSky] = useState(() => computeSky(new Date())); // 背景の空（朝昼夜・太陽/月の位置）
+  // 時間経過で太陽/月を動かす（2026-07-31たきと指示）：毎分再計算。移動はCSS transitionで滑らかに
+  useEffect(() => {
+    const iv = setInterval(() => setSky(computeSky(new Date())), 60000);
+    return () => clearInterval(iv);
+  }, []);
+  // 夜の星（月を煌びやかに・2026-07-31たきと指示）：上空に瞬く星を入室ごとに抽選
+  const [skyStars] = useState(() => Array.from({ length: 14 }, () => ({
+    x: +(2 + Math.random() * 96).toFixed(1), y: +(2 + Math.random() * 30).toFixed(1),
+    s: +(1.5 + Math.random() * 2.2).toFixed(1), dur: +(1.8 + Math.random() * 2.2).toFixed(1), delay: +(Math.random() * 3).toFixed(1),
+  })));
   // 画面最上端（ステータスバー/ブラウザの帯）まで空に染める（2026-07-31たきと指示「背景を画面上限まで」）：
   // アプリが描けない上端の帯は theme-color と html背景から色を拾うOS/ブラウザが多い。
   // 委託ページ表示中だけ空の不透明色(chrome)に切替え、退室時に元へ戻す
@@ -654,7 +664,7 @@ export function ConsignmentRoom() {
       if (meta && prevMeta != null) meta.setAttribute("content", prevMeta);
       document.documentElement.style.backgroundColor = prevHtmlBg;
     };
-  }, [cTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cTab, sky.chrome]); // eslint-disable-line react-hooks/exhaustive-deps
   const [wind, setWind] = useState(null); // 委託地の現在の風（Open-Meteo・{speed:km/h, dir:度(吹いてくる向き)}）
   // 四隅の蔓：大きさだけ隅ごとに抽選（140〜220px）。向きは四隅で固定＝反転で使い回す
   const [cornerSizes] = useState(() => Array.from({ length: 4 }, () => Math.round(140 + Math.random() * 80)));
@@ -1048,7 +1058,13 @@ export function ConsignmentRoom() {
           蔓より奥（z-index:-2）に敷く。上端から色が差し込み、下は透明に抜ける */}
       {cTab !== "new" && (
       <div className="consign-sky" aria-hidden="true" style={{ background: `linear-gradient(to bottom, ${sky.skyTop} 0%, rgba(255,255,255,0) 44%)` }}>
-        <div className="consign-sky-orb" style={{ left: sky.left + "%", top: sky.top + "%", background: sky.orb, boxShadow: `0 0 44px 12px ${sky.glow}` }} />
+        {sky.isNight && skyStars.map((st, i) => (
+          <span key={i} className="consign-star" style={{ left: st.x + "%", top: st.y + "%", width: st.s, height: st.s, animationDuration: st.dur + "s", animationDelay: "-" + st.delay + "s" }} />
+        ))}
+        <div className={"consign-sky-orb" + (sky.isNight ? " consign-sky-orb--moon" : "")} style={{ left: sky.left + "%", top: sky.top + "%", background: sky.orb,
+          boxShadow: sky.isNight
+            ? `0 0 16px 4px rgba(255,255,255,0.95), 0 0 60px 18px ${sky.glow}, 0 0 130px 46px rgba(185,205,255,0.28)`
+            : `0 0 44px 12px ${sky.glow}` }} />
       </div>
       )}
       {/* 背景の環境：画面上端から垂れ下がる黒い草の蔓（2026-07-31たきと指示）。

@@ -834,7 +834,16 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
    揺れは上端（吊り元）を軸にゆっくり・周期は1本ずつJSXで変える（風のばらつき） */
 /* 背景の空（2026-07-31たきと指示）：朝昼夜の色帯＋太陽/月。蔓(-1)より奥の -2 に敷く＝内容の下・余白と上端に見える */
 .consign-sky { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
-.consign-sky-orb { position: absolute; width: 60px; height: 60px; border-radius: 50%; transform: translate(-50%, -50%); }
+.consign-sky-orb { position: absolute; width: 60px; height: 60px; border-radius: 50%; transform: translate(-50%, -50%);
+  transition: left 2s linear, top 2s linear; /* 毎分の再計算を滑らかに繋ぐ＝時間経過で動いて見える */ }
+/* 夜の月（2026-07-31たきと指示「月を煌びやかに」）：多層の光輪＋ゆっくり脈動。transformは位置決めに
+   使用中sofilterで輝度を揺らす */
+.consign-sky-orb--moon { animation: consignMoonGlow 2.8s ease-in-out infinite; }
+@keyframes consignMoonGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
+/* 夜空の星：小さな白点が瞬く（配置・周期はJSXで抽選） */
+.consign-star { position: absolute; background: #fff; border-radius: 50%;
+  box-shadow: 0 0 6px 1px rgba(255,255,255,0.8); animation: consignTwinkle ease-in-out infinite; }
+@keyframes consignTwinkle { 0%, 100% { opacity: 0.15; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.15); } }
 /* 揺れは実際の風で可変（2026-07-31たきと指示「風速や風向きで靡く向き・激しさを変える」）：
    --sway-center=風向きの傾き（右+/左-）、--sway-amp=風速の揺れ幅。JSX側でインライン上書き。
    既定（風データ未取得/取得失敗時）は中央0・振幅2.5＝従来のゆるやかな揺れ */
@@ -882,6 +891,7 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 @media (prefers-reduced-motion: reduce) {
   .consign-entrance { display: none; }
   .consign-vines svg { animation: none; }
+  .consign-sky-orb--moon, .consign-star { animation: none; }
 }
 /* チャット表示中：フッター（サポート等）も隠し、ページ側のスクロールを止めて
    チャットのスクロールと画面のスクロールを1本に統一する（2026-07-22） */
