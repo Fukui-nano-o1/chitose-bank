@@ -647,6 +647,25 @@ export function ConsignmentRoom() {
     const iv = setInterval(() => setSky(computeSky(new Date())), 60000);
     return () => clearInterval(iv);
   }, []);
+  // 入力中に背景がずれない固定（2026-07-31たきと報告「入力するとき背景が上にずれて太陽が見えない」）：
+  // iOSはキーボードが開くと画面ごと上にパンし、fixedの背景（空・蔓）も一緒に押し上げられる。
+  // visualViewport の offsetTop分だけ背景を下へ平行移動し、見えている画面に貼り付け直す＝背景は変わらない。
+  // 四隅の蔓は容器をtransformするとfixedな子の基準が壊れるため対象外（額縁so実害なし）
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const move = () => {
+      const y = vv.offsetTop || 0;
+      document.querySelectorAll(".consign-sky, .consign-vines").forEach(el => { el.style.transform = y ? `translateY(${y}px)` : ""; });
+    };
+    vv.addEventListener("resize", move);
+    vv.addEventListener("scroll", move);
+    return () => {
+      vv.removeEventListener("resize", move);
+      vv.removeEventListener("scroll", move);
+      document.querySelectorAll(".consign-sky, .consign-vines").forEach(el => { el.style.transform = ""; });
+    };
+  }, []);
   // 夜の星（月を煌びやかに・2026-07-31たきと指示）：上空に瞬く星を入室ごとに抽選
   const [skyStars] = useState(() => Array.from({ length: 14 }, () => ({
     x: +(2 + Math.random() * 96).toFixed(1), y: +(2 + Math.random() * 30).toFixed(1),
