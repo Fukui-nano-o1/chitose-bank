@@ -1,5 +1,5 @@
 // 委託 準備室（#/admin/consignment・管理者専用・分割3-Aで切り出し2026-07-24）。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { ymdLocal } from "../../lib/utils";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
@@ -212,7 +212,18 @@ const makeConsignVines = () => {
 };
 
 export function ConsignmentRoom() {
-  const [cTab, setCTab] = useState("list"); // list=一覧（トップ画・さがすと同じ設計）/ deal=案件ダッシュボード（2026-07-31たきと指示）
+  // 画面切替はURLで裏打ちする（2026-08-01たきと報告「スワイプで前のページに戻らない」の根治）：
+  // 一覧=#/admin/consignment／新規=#/admin/consignment/new／案件=#/admin/consignment/deal/{id}。
+  // openDeal/newDealはhashを進め、実際の画面切替はhashchangeが担う＝スワイプ・ブラウザ戻るが
+  // そのまま「一覧へ戻る」になる（さがす→求人詳細と同じ作法）
+  const readConsignView = () => {
+    const h = window.location.hash.replace(/^#\/?/, "");
+    const m = h.match(/^admin\/consignment\/deal\/([0-9a-f-]+)$/);
+    if (m) return { view: "deal", id: m[1] };
+    if (h === "admin/consignment/new") return { view: "new" };
+    return { view: "list" };
+  };
+  const [cTab, setCTab] = useState(() => readConsignView().view === "list" ? "list" : "deal"); // list=一覧（トップ画・さがすと同じ設計）/ deal=案件ダッシュボード（2026-07-31たきと指示）
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示）：群れ①が生え切ってから②、②の後に③＝三段のリズム。
   // 線(0.22s)→①右下(0.10s〜)→②左中(0.45s〜)→③右上(0.80s〜)→幕が開く(1.20s+0.5s)
@@ -262,6 +273,7 @@ export function ConsignmentRoom() {
     (pr.data || []).forEach(r => { const a = agg[r.deal_id] || { hours: 0, boxes: 0, days: new Set() }; a.hours += Number(r.hours || 0); a.boxes += Number(r.yield_boxes || 0); if (r.work_date) a.days.add(r.work_date); agg[r.deal_id] = a; });
     const out = {}; Object.entries(agg).forEach(([k, v]) => { out[k] = { hours: v.hours, boxes: v.boxes, days: v.days.size }; });
     setProgAgg(out);
+    return dl.data || [];
   };
   const loadProgress = async (id) => {
     if (!id) { setProg([]); setSummary(null); return; }
@@ -275,17 +287,8 @@ export function ConsignmentRoom() {
   // トップの大プロフィールカード用（農家プロフィール入口と同じ構造・2026-07-31たきと指示）。
   // 名刺の中身は employer_profiles の自分の行から（このページはprops無しなので自分で引く）
   const [empMini, setEmpMini] = useState(null);
-  useEffect(() => {
-    loadDeals();
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const { data } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
-        setEmpMini(data || null);
-      } catch {}
-    })();
-  }, []);
+  // ★mount時の読み込み（loadDeals・名刺・リロード復元）は openDealState の定義より後ろに置いた
+  //   effectが担う（no-use-before-define対応＝「呼ぶ側・effectを下げる」の作法・2026-07-29教訓）
   const setF = (k, v) => setSpec(p => ({ ...p, [k]: v }));
   // 写真アップロード（consignment-photos バケット・管理者のみ書込＝RLSで担保）。
   // 複数選択可・spec.photos に {url} で追記。job-photos の作法に準拠
@@ -337,7 +340,11 @@ export function ConsignmentRoom() {
       } else {
         const { data, error } = await supabase.from("consignment_deals").insert(payload).select("*").single();
         if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return; }
-        if (data) { setEditId(data.id); setCurDeal(data); }
+        if (data) {
+          setEditId(data.id); setCurDeal(data);
+          // URLを /new → /deal/{id} に置換（pushしない＝スワイプ/戻る1回で一覧へ帰れるまま）
+          try { window.history.replaceState(null, "", "#/admin/consignment/deal/" + data.id); } catch {}
+        }
         await loadDeals();
       }
     } catch { alert("保存に失敗しました。"); }
@@ -377,8 +384,39 @@ export function ConsignmentRoom() {
     await loadProgress(editId);
     setBusy(false);
   };
-  const openDeal = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
-  const newDeal = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("deal"); };
+  const openDealState = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
+  const newDealState = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("deal"); };
+  const openDeal = (d) => { openDealState(d); window.location.hash = "/admin/consignment/deal/" + d.id; };
+  const newDeal = () => { newDealState(); window.location.hash = "/admin/consignment/new"; };
+  // mount時の読み込み：一覧＋名刺。URLが /deal/{id} のままのリロードは取得行でその案件を開き直す
+  useEffect(() => {
+    (async () => {
+      const rows = await loadDeals();
+      const c0 = readConsignView();
+      if (c0.view === "deal") { const d0 = (rows || []).find(x => x.id === c0.id); if (d0) openDealState(d0); }
+    })();
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
+        setEmpMini(data || null);
+      } catch {}
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // スワイプ・戻る・URL直打ちの全部をここで受ける。dealsはクロージャで凍るためrefで最新を持つ
+  const dealsRef = useRef([]);
+  useEffect(() => { dealsRef.current = deals; }, [deals]);
+  useEffect(() => {
+    const onHash = () => {
+      const c = readConsignView();
+      if (c.view === "list") { setCTab("list"); loadDeals(); }
+      else if (c.view === "new") { newDealState(); }
+      else { const d = dealsRef.current.find(x => x.id === c.id); if (d) openDealState(d); }
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // 合意後にフォームを変更したか（保存済みspec vs 凍結snapshot・基本/テキスト項目で比較）
   const specKeys = [...CONSIGN_BASIC_FIELDS.map(f => f.k), ...CONSIGN_TEXT_FIELDS.map(f => f.k)];
   const pick = (o) => specKeys.reduce((a, k) => { a[k] = (o || {})[k] || ""; return a; }, {});
@@ -549,7 +587,7 @@ export function ConsignmentRoom() {
         <div className="fade-in">
           {/* ダッシュボードの戻り＝一覧へ（さがすの詳細→一覧と同じ動線）。一覧は開き直しで最新化 */}
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-            <button onClick={()=>{ setCTab("list"); loadDeals(); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
+            <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
             <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{editId ? ((spec.field_name || "（圃場未記入）") + "　" + [spec.crop, spec.task].filter(Boolean).join(" ")) : "新しい委託"}</span>
           </div>
 
