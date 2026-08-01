@@ -580,7 +580,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
             <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容）・項目をタップで編集できます</p>
-            <FarmerProfilePreview me={me} table={table} withTrust={table === "employer_profiles"} onEdit={()=>setShowPreview(false)}
+            <FarmerProfilePreview me={me} table={table} withTrust={table === "employer_profiles"} black={black} onEdit={()=>setShowPreview(false)}
               onEditItem={(key)=>{ setShowPreview(false); setEditFromPreview(true); setEditBox(key); }} />
           </div>
         </div>
@@ -592,7 +592,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 // プレビューの統一（2026-07-25たきと指示）：実際の求人詳細で雇い手アイコンをタップした時に出る
 // EmployerPreviewSheet（App.jsx）と同一の情報・構造（農園紹介タイトル→信頼カード→待遇チップ→紹介お題）で表示する。
 // データは本人行（employer_profiles）＋employer_trust_info＝働き手が見るものと同じ形。項目タップ編集は廃止（編集はボックス格子から）
-function FarmerProfilePreview({ me, onEdit, onEditItem, table = "employer_profiles", withTrust = true }) {
+function FarmerProfilePreview({ me, onEdit, onEditItem, table = "employer_profiles", withTrust = true, black = false }) {
   const [data, setData] = useState(null);
   const [trust, setTrust] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -619,11 +619,11 @@ function FarmerProfilePreview({ me, onEdit, onEditItem, table = "employer_profil
       <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{data?.nickname ? `${data.nickname}の農園紹介` : "農園紹介"}</p>
       {data ? (
         <>
-          <FarmerTrustCard profile={data} trust={trust} />
+          <FarmerTrustCard profile={data} trust={trust} black={black} />
           {perkBadges(data).length > 0 && (
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
               {perkBadges(data).map(b => (
-                <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
+                <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{black ? b.replace(/^\S+\s/, "") : b}</span>
               ))}
             </div>
           )}

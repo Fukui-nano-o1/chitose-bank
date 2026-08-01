@@ -99,8 +99,11 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
 // (avatar/nickname/style/ask)を返す。働き手側（求人詳細等）は渡さない＝従来どおり表示専用
 // extraBadges（任意）：待遇バッジ等、呼び出し元が持つタグをこのカードのタグ行に合流させる。
 // 渡さない画面（求人詳細など）は従来どおり呼び出し元が自前で並べる＝表示は不変
-export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges }) {
+// black（任意・2026-07-31たきと指示）：委託プレビュー用の黒テーマ。緑→黒・絵文字アイコンは出さない。
+// 既定false＝求人詳細・雇い手プレビュー等の既存画面は不変
+export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false }) {
   if (!profile) return null;
+  const AC = black ? "#111111" : "#00A86B";
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
   const cur = onEditItem ? { cursor:"pointer" } : {};
   const qa = farmHostQa(profile);
@@ -109,20 +112,20 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...cur }}>
-          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} />
+        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid " + AC, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...cur }}>
+          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} bg={black ? "#111111" : undefined} />
         </div>
         <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, minWidth:0, ...cur }}>{profile.nickname ? profile.nickname + "さん" : "農園名未設定"}</p>
       </div>
       {okTrust && trust.want_again_workers > 0 && (
-        <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>🌟また働きたい×{trust.want_again_workers}</p>
+        <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>{black ? "" : "🌟"}また働きたい×{trust.want_again_workers}</p>
       )}
       {okTrust && trust.completed_hires > 0 && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>これまでに{trust.completed_hires}人を受け入れました</p>
       )}
       {/* 公開中＝いま募集している求人（→公開中タブ）／実績＝日程が終了した求人（→過去の実績タブ）。混同させない（2026-07-24） */}
       {okTrust && trust.open_jobs > 0 && (
-        <p onClick={onTapOpenJobs || undefined} role={onTapOpenJobs ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapOpenJobs ? "#00A86B" : "#717171", fontWeight: onTapOpenJobs ? 600 : 400, margin:"0 0 6px", ...(onTapOpenJobs ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
+        <p onClick={onTapOpenJobs || undefined} role={onTapOpenJobs ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapOpenJobs ? AC : "#717171", fontWeight: onTapOpenJobs ? 600 : 400, margin:"0 0 6px", ...(onTapOpenJobs ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
           公開中：{trust.open_jobs}件{onTapOpenJobs ? " →" : ""}
         </p>
       )}
@@ -133,7 +136,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         </p>
       )}
       {okTrust && (trust.ended_jobs || 0) > 0 && (
-        <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapExperience ? "#00A86B" : "#717171", fontWeight: onTapExperience ? 600 : 400, margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
+        <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapExperience ? AC : "#717171", fontWeight: onTapExperience ? 600 : 400, margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
           実績：{trust.ended_jobs}件{onTapExperience ? " →" : ""}
         </p>
       )}
@@ -143,7 +146,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
             <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{trust.member_since}から</span>
           )}
           {trust.id_checked && (
-            <span className="f-sans" style={{ fontSize:11, color:"#00A86B", fontWeight:600 }}>✓ 本人確認済み</span>
+            <span className="f-sans" style={{ fontSize:11, color:AC, fontWeight:600 }}>✓ 本人確認済み</span>
           )}
         </div>
       )}
@@ -170,13 +173,13 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
           <div style={{ marginTop:12 }}>
             <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
               {styleLabel && (
-                <span {...tap("style")} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...cur }}>🤝 {styleLabel}</span>
+                <span {...tap("style")} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...cur }}>{black ? "" : "🤝 "}{styleLabel}</span>
               )}
               {insChips.map(it => (
-                <span key={it.k} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", background:"#E6F7EF", borderRadius:20, padding:"4px 10px" }}>🛡 {it.chip}</span>
+                <span key={it.k} className="f-sans" style={{ fontSize:12, fontWeight:600, color: black ? "#111111" : "#0B6B4F", background: black ? "#EEEEEE" : "#E6F7EF", borderRadius:20, padding:"4px 10px" }}>{black ? "" : "🛡 "}{it.chip}</span>
               ))}
               {perks.map(b => (
-                <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>{b}</span>
+                <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>{black ? b.replace(/^\S+\s/, "") : b}</span>
               ))}
             </div>
             {insChips.length > 0 && (
