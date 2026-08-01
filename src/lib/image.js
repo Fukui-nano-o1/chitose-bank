@@ -35,12 +35,22 @@ export async function uploadJobPhoto(supabase, file, { bucket = "job-photos", pa
   const base = pathPrefix + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
   let full = file, thumb = null;
   try {
-    if (file && file.type && file.type.startsWith("image/")) {
-      const bitmap = await createImageBitmap(file);
-      full = await encodeBitmap(bitmap, file, 1600, 0.8);
+    let src = file;
+    // iPhoneのHEIC/HEIFはブラウザがcreateImageBitmapでデコードできず、これまでは
+    // 例外→原本のまま（＝無圧縮の巨大ファイル）を上げていた。アバターと同様に
+    // まずheic2anyでjpegへデコードしてから圧縮する（HEICのときだけ動的import）
+    const isHeic = /\.(heic|heif)$/i.test(file?.name || "") || /heic|heif/i.test(file?.type || "");
+    if (isHeic) {
+      const heic2any = (await import("heic2any")).default;
+      const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+      src = Array.isArray(converted) ? converted[0] : converted;
+    }
+    if (src && (!src.type || src.type.startsWith("image/"))) {
+      const bitmap = await createImageBitmap(src);
+      full = await encodeBitmap(bitmap, src, 1600, 0.8);
       // 軽量サムネ（2026-07-25たきと指示「画質荒くてもいいからすぐ」）：320px/品質0.5。
       // 一覧・応募者ページ等の小さい表示はこちらを読む（原寸の1/10以下）
-      if (withThumb) thumb = await encodeBitmap(bitmap, file, 320, 0.5);
+      if (withThumb) thumb = await encodeBitmap(bitmap, src, 320, 0.5);
       bitmap.close?.();
     }
   } catch { full = file; thumb = null; }
