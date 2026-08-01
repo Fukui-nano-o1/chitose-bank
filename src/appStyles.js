@@ -834,10 +834,16 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 /* 背景の空（2026-07-31たきと指示）：朝昼夜の色帯＋太陽/月。蔓(-1)より奥の -2 に敷く＝内容の下・余白と上端に見える */
 .consign-sky { position: fixed; inset: 0; z-index: -2; pointer-events: none; overflow: hidden; }
 .consign-sky-orb { position: absolute; width: 60px; height: 60px; border-radius: 50%; transform: translate(-50%, -50%); }
-.consign-vines { position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; }
+/* 揺れは実際の風で可変（2026-07-31たきと指示「風速や風向きで靡く向き・激しさを変える」）：
+   --sway-center=風向きの傾き（右+/左-）、--sway-amp=風速の揺れ幅。JSX側でインライン上書き。
+   既定（風データ未取得/取得失敗時）は中央0・振幅2.5＝従来のゆるやかな揺れ */
+.consign-vines { position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; --sway-center: 0; --sway-amp: 2.5; }
 .consign-vines svg { position: absolute; top: 0; overflow: visible;
   transform-origin: top center; animation: consignSway ease-in-out infinite alternate; }
-@keyframes consignSway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
+@keyframes consignSway {
+  from { transform: rotate(calc((var(--sway-center) - var(--sway-amp)) * 1deg)); }
+  to   { transform: rotate(calc((var(--sway-center) + var(--sway-amp)) * 1deg)); }
+}
 /* 四隅の蔓：角を抱く飾り（額縁）。揺らさない・操作を妨げない・内容の下に敷く */
 .consign-corners svg { position: fixed; z-index: -1; pointer-events: none; overflow: visible; }
 /* 委託ページの入力（2026-07-31たきと指示）：文字も入力ボックスの縁もブラック。

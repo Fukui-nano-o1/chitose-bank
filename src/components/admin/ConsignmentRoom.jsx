@@ -258,6 +258,7 @@ export function ConsignmentRoom() {
   const [entranceGrass] = useState(makeConsignGrass);
   const [vines] = useState(makeConsignVines); // 背景の蔓も入室ごとに抽選
   const [sky] = useState(() => computeSky(new Date())); // 背景の空（朝昼夜・太陽/月の位置は入室時刻から）
+  const [wind, setWind] = useState(null); // 委託地の現在の風（Open-Meteo・{speed:km/h, dir:度(吹いてくる向き)}）
   // 四隅の蔓：大きさだけ隅ごとに抽選（140〜220px）。向きは四隅で固定＝反転で使い回す
   const [cornerSizes] = useState(() => Array.from({ length: 4 }, () => Math.round(140 + Math.random() * 80)));
   useEffect(() => {
@@ -265,6 +266,20 @@ export function ConsignmentRoom() {
     const t = setTimeout(() => setEntrance(false), 1950);
     return () => clearTimeout(t);
   }, [entrance]);
+  // 委託地（徳島県吉野川市）の現在の風を取得（Open-Meteo・無料/キー不要/CORS可）。
+  // 失敗時は wind=null のまま＝既定のゆるやかな揺れにフォールバック（zipcloudと同じくクライアント取得）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=34.066&longitude=134.366&current=wind_speed_10m,wind_direction_10m");
+        const j = await res.json();
+        const c = j && j.current;
+        if (!cancelled && c) setWind({ speed: Number(c.wind_speed_10m) || 0, dir: Number(c.wind_direction_10m) || 0 });
+      } catch { /* 取得失敗は既定の揺れのまま */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [spec, setSpec] = useState({ ...CONSIGN_EMPTY });
   const [editId, setEditId] = useState(null);
   const [curDeal, setCurDeal] = useState(null); // 開いている案件の全行（status/agreed_at/inspected_at/paid_at/spec_snapshot等）
@@ -447,6 +462,13 @@ export function ConsignmentRoom() {
   const changedAfterAgree = !!(curDeal && curDeal.spec_snapshot && JSON.stringify(pick(curDeal.spec)) !== JSON.stringify(pick(curDeal.spec_snapshot)));
   const snapAtLabel = curDeal?.snapshot_at ? new Date(curDeal.snapshot_at).toLocaleString("ja-JP") : "";
   const hasDeposit = !!(spec.advance && String(spec.advance).trim());
+  // 風→蔓の靡き（2026-07-31たきと指示）：向き=東西成分で左右に傾け、強さ=風速で揺れ幅と速さを増す。
+  // dir は「吹いてくる向き」so東向きの押し＝-sin(dir)（西風→右へ／東風→左へ）。未取得は0＝従来のゆるやか
+  const windSpeed = wind ? wind.speed : 0;                 // km/h
+  const windEast = wind ? -Math.sin(wind.dir * Math.PI / 180) : 0; // +右 / -左
+  const swayAmp = Math.min(16, 2.5 + windSpeed * 0.35);   // 揺れ幅（度）
+  const swayCenter = +(windEast * Math.min(14, windSpeed * 0.5)).toFixed(1); // 傾き中心（度・風向き）
+  const windMult = Math.min(3, 1 + windSpeed * 0.05);     // 揺れの速さ倍率（風速で速く）
 
   if (printOpen) {
     return (
@@ -498,11 +520,11 @@ export function ConsignmentRoom() {
       </div>
       {/* 背景の環境：画面上端から垂れ下がる黒い草の蔓（2026-07-31たきと指示）。
           z-index:-1でページ内容の下に敷く（白いカードの裏に自然に隠れる）。ゆっくり揺れる */}
-      <div className="consign-vines" aria-hidden="true">
+      <div className="consign-vines" aria-hidden="true" style={{ "--sway-center": swayCenter, "--sway-amp": swayAmp }}>
         {vines.map((sp, i) => {
           const d = CONSIGN_VINES[sp.v];
           return (
-            <svg key={i} viewBox="0 0 60 120" style={{ left: sp.x + "%", height: sp.h, width: sp.h / 2, animationDuration: sp.dur + "s", animationDelay: "-" + sp.delay + "s" }}>
+            <svg key={i} viewBox="0 0 60 120" style={{ left: sp.x + "%", height: sp.h, width: sp.h / 2, animationDuration: (sp.dur / windMult).toFixed(2) + "s", animationDelay: "-" + sp.delay + "s" }}>
               <g transform={sp.flip ? "translate(60 0) scale(-1 1)" : undefined}>
                 {d.stems.map((st, k) => (
                   <path key={k} d={st} fill="none" stroke="#D0D0D0" strokeWidth="2.4" strokeLinecap="round" />
