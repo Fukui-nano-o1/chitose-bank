@@ -252,7 +252,7 @@ const CONSIGNOR_IND_FIELDS = [
   { k:"ind_biz_addr_detail", l:"事業所の番地・建物名", hideWhenSame:true },
   { k:"ind_biz_desc",  l:"主な事業内容", ph:"例：ブロッコリー栽培・出荷" },
   { k:"ind_biz_since", l:"開業年月", ph:"例：2020年4月" },
-  { k:"ind_invoice",   l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁" },
+  { k:"ind_invoice",   l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁", help:"消費税のインボイス制度に登録した事業者の番号です（「T」＋13桁）。登録していなければ空欄で構いません。記載すると、受託者（相手）が消費税の仕入税額控除を受けられるため、請求書に印字されます。番号は国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
   { k:"ind_docs",      l:"本人確認書類（メモ）", ta:true, ph:"例：運転免許証を確認済み" },
 ];
 const CONSIGNOR_CORP_FIELDS = [
@@ -266,7 +266,7 @@ const CONSIGNOR_CORP_FIELDS = [
   { k:"corp_addr_detail", l:"番地・建物名" },
   { k:"corp_phone",   l:"代表電話番号" },
   { k:"corp_email",   l:"法人メールアドレス" },
-  { k:"corp_invoice", l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁" },
+  { k:"corp_invoice", l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁", help:"消費税のインボイス制度に登録した事業者の番号です（「T」＋13桁）。登録していなければ空欄で構いません。記載すると、受託者（相手）が消費税の仕入税額控除を受けられるため、請求書に印字されます。番号は国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
   { h:"代表者情報" },
   { k:"corp_rep_title", l:"代表者役職", ph:"例：代表取締役" },
   { k:"corp_rep_name",  l:"代表者氏名" },
@@ -347,6 +347,7 @@ function ConsignorInfoEdit() {
   const [saved, setSaved] = useState(false);
   const [zipBusy, setZipBusy] = useState("");
   const [zipError, setZipError] = useState("");
+  const [helpKey, setHelpKey] = useState(null); // ？を開いている項目（helpの説明コメント表示）
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
   const steps = ctype === "corporate" ? ["type","corp","staff","terms","confirm"] : ["type","ind","terms","confirm"];
@@ -464,13 +465,25 @@ function ConsignorInfoEdit() {
     } catch { alert("保存に失敗しました。"); }
     setSaving(false);
   };
-  // 入力欄1つの描画（sel=ピル・zip=検索ボタン付き・num=数字のみ・ta=複数行）
+  // 入力欄1つの描画（sel=ピル・zip=検索ボタン付き・num=数字のみ・ta=複数行・help=？で説明開閉）
   const renderCF = (f) => {
     if (f.h) return <p key={"h" + f.h} className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"18px 0 8px" }}>{f.h}</p>;
     if (f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ") return null;
     return (
       <div key={f.k} style={{ marginBottom:10 }}>
+        {f.help ? (
+          <div>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <button type="button" onClick={()=>setHelpKey(v => v === f.k ? null : f.k)} aria-label="説明を表示" className="f-sans" style={{ flexShrink:0, width:18, height:18, borderRadius:"50%", border:"1.5px solid #111111", background: helpKey === f.k ? "#111111" : "#fff", color: helpKey === f.k ? "#fff" : "#111111", fontSize:11, fontWeight:800, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0 }}>？</button>
+              <label className="lbl f-sans" style={{ marginBottom:0 }}>{f.l}</label>
+            </div>
+            {helpKey === f.k && (
+              <p className="f-sans" style={{ fontSize:11, color:"#111111", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:"6px 0 8px", lineHeight:1.7 }}>{f.help}</p>
+            )}
+          </div>
+        ) : (
         <label className="lbl f-sans">{f.l}</label>
+        )}
         {f.sel ? (
           <div>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
