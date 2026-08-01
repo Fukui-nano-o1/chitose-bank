@@ -1202,7 +1202,7 @@ export default function App(){
   const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
-  const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/consignment"); } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19）
+  const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/consignment"); } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19。/profile 等のサブページ含む）
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
   // 仮応募の成功ページ（#/apply/pending・第15弾・2026-07-30）。応募系の全画面ページは
   // applyPage 1変数にまとめる＝各タブの描画式に付けるガードが1つで済む（オーバーレイ描画の鉄則）
