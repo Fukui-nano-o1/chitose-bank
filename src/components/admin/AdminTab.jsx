@@ -607,11 +607,12 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"legacy",  e:"📦", l:"旧事業データ" },
             { k:"system",  e:"⚙️", l:"システム" },
             { k:"survey",  e:"📊", l:"きっかけ" },
+            { k:"working", e:"🛠", l:"仕事中" },
             { k:"boxlist", e:"🗂", l:"ボックス一覧" },
             { k:"notices", e:"📢", l:"お知らせ一覧" },
             { k:"consign", e:"🚩", l:"委託 準備室" },
           ].map(c => (
-            <button key={c.k} onClick={()=>{ if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else if (c.k === "consign") { window.location.hash = "/admin/consignment"; } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button key={c.k} onClick={()=>{ if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else if (c.k === "consign") { window.location.hash = "/admin/consignment"; } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <span style={{ fontSize:36, lineHeight:1 }}>{c.e}</span>
               <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>

@@ -1669,3 +1669,21 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
   履歴のみ存在）だった。恒久物so今回のmigrationで版管理へ写経し正本をrepo側に統一（2026-07-21ルール）。
 ・schema_migrations（20260801011236）とrepoファイル名を一致させて同期済み。mainへpush済み。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-01 仕事中専用ページを管理画面に設置（#/admin/working）━━━
+【目的】運営の見守り（憲法1条・売り物＝安心）：作業当日に何が起きているかを1画面で把握する管理者専用ページ。
+【DB】admin_working_jobs() RPC（migration 20260801032328・security definer + app_admins ゲート・読み取り専用）。
+  admin_list_contracts と同型。2バケットを返す：
+  ・working＝status='working' のマッチ（開始が古い順）。開始/開始確認/保険準備/完了/終了確認の各時刻・自動開始/出欠つき
+  ・upcoming＝採用済み・未開始（status='approved' かつ terms_confirmed_worker/farmer 双方あり・started_at=null。開始日の近い順）
+  名前は当事者名（wp/ep.nickname）を返す＝管理者専用RPCなのでデータ憲法のクライアント全件配信禁止に当たらない
+  （admin_list_contracts が既に当事者名を返すのと同じ扱い）。revoke all + grant execute のみ。
+【フロント】components/admin/AdminWorkingRoom.jsx（新規・lazyChunk）。作業中＝赤系ボーダー・まもなく開始＝緑系。
+  各カード：作物絵文字＋作業／働き手⇄農家／📅日程（agreed_dates優先・無ければ求人日程）／時刻チェック行／求人リンク(#/work/job/{No.})。
+  読み取り専用＝ここからの書き込みは一切なし（保存・入力の管理者ゲート論点に非該当）。
+【配線】App.jsx：lazyChunk import／workingRoom state（#/admin/working で真）／onHash・readHashTab・tab同期ガード
+  （委託準備室 consignRoom と同じ4点セット）／AdminTab描画を !consignRoom&&!workingRoom でガード。
+  入口：管理タブ「その他」格子に 🛠 仕事中 カードを追加（→ #/admin/working）。
+【検証】build+lint(0 error・新規コードの警告なし)+dist chunk生成+RPC内側クエリの実データ確認（upcoming 4件）まで。
+  現状 working=0件（status=working のマッチが無い）so空状態表示。実機目視は未実施。
+━━━ ここまで ━━━
