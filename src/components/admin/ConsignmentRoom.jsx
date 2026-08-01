@@ -77,7 +77,7 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", hazards:[], hazard_other:"", special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", hazards:[], hazard_other:"", photos:[], special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名" },
@@ -223,6 +223,7 @@ export function ConsignmentRoom() {
   const [status, setStatus] = useState("draft");
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [deals, setDeals] = useState([]);
   const [progAgg, setProgAgg] = useState({}); // 台帳の要約用：deal_id→{hours,boxes,days}
@@ -271,6 +272,25 @@ export function ConsignmentRoom() {
     })();
   }, []);
   const setF = (k, v) => setSpec(p => ({ ...p, [k]: v }));
+  // 写真アップロード（consignment-photos バケット・管理者のみ書込＝RLSで担保）。
+  // 複数選択可・spec.photos に {url} で追記。job-photos の作法に準拠
+  const handlePhotoFiles = async (files) => {
+    const list = files ? Array.from(files) : [];
+    if (!list.length) return;
+    setPhotoUploading(true);
+    try {
+      for (const file of list) {
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `consign_${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("consignment-photos").upload(path, file, { upsert: false });
+        if (upErr) { alert("写真のアップロードに失敗しました：" + upErr.message); continue; }
+        const { data: pub } = supabase.storage.from("consignment-photos").getPublicUrl(path);
+        setSpec(p => ({ ...p, photos: [...(p.photos || []), { url: pub.publicUrl }] }));
+      }
+    } catch { alert("写真のアップロードに失敗しました。"); }
+    setPhotoUploading(false);
+  };
+  const removePhoto = (i) => setSpec(p => ({ ...p, photos: (p.photos || []).filter((_, k) => k !== i) }));
   const refreshCur = async (id) => {
     const { data } = await supabase.from("consignment_deals").select("*").eq("id", id).maybeSingle();
     if (data) { setCurDeal(data); setStatus(data.status || "draft"); }
@@ -278,6 +298,7 @@ export function ConsignmentRoom() {
   };
   const save = async () => {
     if (saving) return;
+    if ((spec.photos || []).length < 3) { alert("掲載には写真が最低3枚必要です。"); return; }
     setSaving(true);
     try {
       const payload = { spec: { ...spec, crop: CONSIGN_CROP, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
@@ -681,6 +702,25 @@ export function ConsignmentRoom() {
               )}
             </div>
           </div>
+          {/* 写真（最低3枚・掲載の顔。consignment-photos バケット） */}
+          <div style={{ marginBottom:10 }}>
+            <label className="lbl f-sans">写真（最低3枚）</label>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {(spec.photos || []).map((ph, i) => (
+                <div key={i} style={{ position:"relative", width:96, height:96, borderRadius:10, overflow:"hidden", border:"1px solid #E5E5E5" }}>
+                  <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  <button type="button" onClick={()=>removePhoto(i)} className="f-sans" style={{ position:"absolute", top:2, right:2, width:22, height:22, borderRadius:"50%", background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", fontSize:14, lineHeight:1, cursor:"pointer" }}>×</button>
+                </div>
+              ))}
+              <label className="f-sans" style={{ width:96, height:96, borderRadius:10, border:"1px dashed #B0B0B0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: photoUploading ? "default" : "pointer", fontSize:12, color:"#111111", gap:2 }}>
+                {photoUploading ? "…" : (<><span style={{ fontSize:22, lineHeight:1 }}>＋</span>写真</>)}
+                <input type="file" accept="image/*" multiple onChange={e=>{ handlePhotoFiles(e.target.files); e.target.value=""; }} style={{ display:"none" }} disabled={photoUploading} />
+              </label>
+            </div>
+            <p className="f-sans" style={{ fontSize:11, margin:"6px 0 0", color: (spec.photos || []).length >= 3 ? "#999999" : "#111111", fontWeight: (spec.photos || []).length >= 3 ? 400 : 700 }}>
+              {(spec.photos || []).length}枚（掲載には最低3枚必要です）
+            </p>
+          </div>
           {/* 特約（掲載順の最後） */}
           {CONSIGN_TEXT_FIELDS.filter(f => f.k === "special").map(f => (
             <div key={f.k} style={{ marginBottom:10 }}>
@@ -725,7 +765,12 @@ export function ConsignmentRoom() {
             const ag = progAgg[d.id]; const area = dealAreaA(d);
             const hpa = ag && area ? hoursPer10a(ag.hours, area) : null;
             return (
-              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
+                {s.photos && s.photos[0] && s.photos[0].url && (
+                  <div style={{ margin:"-16px -16px 12px", height:150, overflow:"hidden" }}>
+                    <img src={s.photos[0].url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  </div>
+                )}
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                   <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
                   <span className="f-sans" style={{ fontSize:11, color:"#111111" }}>{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
