@@ -9,7 +9,8 @@ import { ToggleSwitch } from "./ToggleSwitch";
 
 // table/avatarDir で保存先を差し替え可能（2026-07-31たきと指示・委託専用プロフィールが同じ項目/配置で
 // 別テーブルに保存するため）。既定は雇い手プロフィール（employer_profiles・avatarは avatars/employer/）＝現行不変
-export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_profiles", avatarDir = "employer" }) {
+// black=委託の黒テーマ（2026-07-31たきと指示）：ボックスのアイコンを消し、縁をブラックに。既定false＝雇い手側は不変
+export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_profiles", avatarDir = "employer", black = false }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState(""); // 紹介・PRボックスは廃止（2026-07-16）。既存データ保全のためstateと保存は温存
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -322,10 +323,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
         ].map(b => (
           // 未入力ボックスは赤影アニメで促す（2026-07-16）
-          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
-            {b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>}
+          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: black ? "1px solid #111111" : "1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+            {!black && (b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>)}
             <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
-            <span style={{ fontSize:11, color: b.v ? "#00A86B" : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
+            <span style={{ fontSize:11, color: b.v ? (black ? "#111111" : "#00A86B") : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
           </button>
         ))}
       </div>
