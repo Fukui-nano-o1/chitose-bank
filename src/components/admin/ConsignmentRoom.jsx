@@ -349,6 +349,7 @@ function ConsignorInfoEdit() {
   const [zipBusy, setZipBusy] = useState("");
   const [zipError, setZipError] = useState("");
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
+  const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
   const steps = ctype === "corporate" ? ["type","corp","staff","terms","confirm"] : ["type","ind","terms","confirm"];
   const stepKey = steps[Math.min(cstep, steps.length - 1)];
   const STEP_META = {
@@ -366,6 +367,15 @@ function ConsignorInfoEdit() {
         if (!session) { setD({}); return; }
         const { data } = await supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         rowRef.current = data || null;
+        // 新規登録①の本人確認情報を引き継ぎの下敷きに（2026-07-31たきと指示）。
+        // ★黙って書面へ流し込まない：フォームの初期値に入れるだけで、確認ページを経て
+        //   本人が「保存する」を押した時に確定する＝本人の意思で契約書面に載せる形（2026-07-27作法）
+        try {
+          const { data: ah } = await supabase.from("account_holders")
+            .select("full_name,postal_code,address,birth_date,entity_type,contact_email,contact_phone,company_name,company_number")
+            .eq("auth_id", session.user.id).maybeSingle();
+          setAhInfo(ah || null);
+        } catch {}
         const nd = { ...((data && data.consignor_data) || {}) };
         // 旧v1の分割振込・緊急連絡先を下敷きに（空欄のみ・保存は本人が押した時だけ）
         if (data) {
@@ -381,19 +391,31 @@ function ConsignorInfoEdit() {
   // 種別を選ぶ：旧v1列を下敷きに（空欄のみ）→次ページへ
   const pickType = (t) => {
     const row = rowRef.current || {};
+    const ah = ahInfo || {};
+    const ahZip = (ah.postal_code || "").replace(/[^0-9]/g, "");
     setD(p => {
       const n = { ...p };
       const put = (k, v) => { if (!(n[k] || "").trim() && (v || "").trim()) n[k] = v; };
       if (t === "individual") {
-        put("ind_name", row.consignor_name); put("ind_trade", row.consignor_trade_name);
-        put("ind_zip", row.consignor_zip); put("ind_pref", row.consignor_pref); put("ind_city", row.consignor_city); put("ind_addr", row.consignor_addr);
-        put("ind_phone", row.consignor_phone); put("ind_email", row.consignor_email); put("ind_invoice", row.consignor_invoice_no);
+        put("ind_name", row.consignor_name); put("ind_name", ah.full_name);
+        put("ind_trade", row.consignor_trade_name);
+        put("ind_birth", ah.birth_date);
+        put("ind_zip", row.consignor_zip); put("ind_zip", ahZip);
+        put("ind_pref", row.consignor_pref); put("ind_city", row.consignor_city); put("ind_addr", row.consignor_addr);
+        put("ind_phone", row.consignor_phone); put("ind_phone", ah.contact_phone);
+        put("ind_email", row.consignor_email); put("ind_email", ah.contact_email);
+        put("ind_invoice", row.consignor_invoice_no);
       } else {
-        put("corp_name", row.consignor_name); put("corp_no", row.consignor_corp_no);
-        put("corp_zip", row.consignor_zip); put("corp_pref", row.consignor_pref); put("corp_city", row.consignor_city); put("corp_addr", row.consignor_addr);
-        put("corp_phone", row.consignor_phone); put("corp_email", row.consignor_email); put("corp_invoice", row.consignor_invoice_no);
-        put("corp_rep_name", row.consignor_rep_name);
+        put("corp_name", row.consignor_name); put("corp_name", ah.company_name);
+        put("corp_no", row.consignor_corp_no); put("corp_no", ah.company_number);
+        put("corp_zip", row.consignor_zip); put("corp_zip", ahZip);
+        put("corp_pref", row.consignor_pref); put("corp_city", row.consignor_city); put("corp_addr", row.consignor_addr);
+        put("corp_phone", row.consignor_phone); put("corp_phone", ah.contact_phone);
+        put("corp_email", row.consignor_email); put("corp_email", ah.contact_email);
+        put("corp_invoice", row.consignor_invoice_no);
+        put("corp_rep_name", row.consignor_rep_name); put("corp_rep_name", ah.full_name);
       }
+      put("cmn_notify_email", ah.contact_email);
       return n;
     });
     setCtype(t); setCstep(1);
@@ -483,6 +505,9 @@ function ConsignorInfoEdit() {
       {/* 1. 委託者の種類（消費者としての個人と混ざらないよう「個人事業者」と表記） */}
       {stepKey === "type" && (
         <div style={{ display:"grid", gap:12 }}>
+          {ahInfo?.entity_type && (
+            <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:0 }}>新規登録の区分：{ahInfo.entity_type === "corporate" ? "法人" : "個人事業者"}（選び直せます）</p>
+          )}
           {[["individual","個人事業者","氏名で契約し、屋号を持てます。担当者ページは省略されます。"],["corporate","法人","契約の当事者は法人。代表者と担当者を分けて登録します。"]].map(([t, l, de]) => (
             <button key={t} onClick={()=>pickType(t)} className="f-sans" style={{ textAlign:"left", background: ctype === t ? "#111111" : "#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", cursor:"pointer" }}>
               <span style={{ display:"block", fontSize:17, fontWeight:800, color: ctype === t ? "#fff" : "#111111" }}>{l}</span>
@@ -492,8 +517,18 @@ function ConsignorInfoEdit() {
         </div>
       )}
 
-      {stepKey === "ind" && CONSIGNOR_IND_FIELDS.map(renderCF)}
-      {stepKey === "corp" && CONSIGNOR_CORP_FIELDS.map(renderCF)}
+      {stepKey === "ind" && (<>
+        {CONSIGNOR_IND_FIELDS.map(renderCF)}
+        {(ahInfo?.address || "").trim() && !((d.ind_pref || "") + (d.ind_city || "") + (d.ind_addr || "")).trim() && (
+          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>新規登録の住所：{ahInfo.address}（郵便番号の「住所を検索」で分割入力できます）</p>
+        )}
+      </>)}
+      {stepKey === "corp" && (<>
+        {CONSIGNOR_CORP_FIELDS.map(renderCF)}
+        {(ahInfo?.address || "").trim() && !((d.corp_pref || "") + (d.corp_city || "") + (d.corp_addr || "")).trim() && (
+          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>新規登録の住所：{ahInfo.address}（郵便番号の「住所を検索」で分割入力できます）</p>
+        )}
+      </>)}
       {stepKey === "staff" && CONSIGNOR_STAFF_FIELDS.map(renderCF)}
       {stepKey === "terms" && CONSIGNOR_TERMS_FIELDS.map(renderCF)}
 
