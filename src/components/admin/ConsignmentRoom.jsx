@@ -236,18 +236,16 @@ const CONSIGNOR_IND_FIELDS = [
   { k:"ind_kana",  l:"氏名フリガナ" },
   { k:"ind_trade", l:"屋号（任意）" },
   { k:"ind_birth", l:"生年月日", ph:"例：1990年1月1日" },
-  { k:"ind_zip",   l:"郵便番号", zip:{ pref:"ind_pref", city:"ind_city", addr:"ind_addr" }, ph:"例：7793300" },
-  { k:"ind_pref",  l:"都道府県" },
-  { k:"ind_city",  l:"市区町村" },
-  { k:"ind_addr",  l:"番地・建物名" },
+  { k:"ind_zip",         l:"郵便番号", zip:{ main:"ind_addr_main" }, ph:"例：7793300" },
+  { k:"ind_addr_main",   l:"住所", ph:"例：徳島県吉野川市鴨島町鴨島" },
+  { k:"ind_addr_detail", l:"番地・建物名" },
   { k:"ind_phone", l:"電話番号" },
   { k:"ind_email", l:"メールアドレス" },
   { h:"事業情報" },
   { k:"ind_biz_same", l:"事業所所在地", sel:["自宅住所と同じ"], note:"自宅と別の場所なら、選択を外して下に入力してください" },
-  { k:"ind_biz_zip",  l:"事業所の郵便番号", zip:{ pref:"ind_biz_pref", city:"ind_biz_city", addr:"ind_biz_addr" }, ph:"例：7793300", hideWhenSame:true },
-  { k:"ind_biz_pref", l:"事業所の都道府県", hideWhenSame:true },
-  { k:"ind_biz_city", l:"事業所の市区町村", hideWhenSame:true },
-  { k:"ind_biz_addr", l:"事業所の番地・建物名", hideWhenSame:true },
+  { k:"ind_biz_zip",         l:"事業所の郵便番号", zip:{ main:"ind_biz_addr_main" }, ph:"例：7793300", hideWhenSame:true },
+  { k:"ind_biz_addr_main",   l:"事業所の住所", ph:"例：徳島県吉野川市鴨島町鴨島", hideWhenSame:true },
+  { k:"ind_biz_addr_detail", l:"事業所の番地・建物名", hideWhenSame:true },
   { k:"ind_biz_desc",  l:"主な事業内容", ph:"例：ブロッコリー栽培・出荷" },
   { k:"ind_biz_since", l:"開業年月", ph:"例：2020年4月" },
   { k:"ind_invoice",   l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁" },
@@ -261,10 +259,9 @@ const CONSIGNOR_CORP_FIELDS = [
   { k:"corp_kana", l:"法人名フリガナ" },
   { k:"corp_kind", l:"法人種別", sel:CORP_KINDS },
   { k:"corp_no",   l:"法人番号", num:true, ph:"13桁" },
-  { k:"corp_zip",  l:"郵便番号", zip:{ pref:"corp_pref", city:"corp_city", addr:"corp_addr" }, ph:"例：7793300" },
-  { k:"corp_pref", l:"都道府県（本店所在地）" },
-  { k:"corp_city", l:"市区町村（本店所在地）" },
-  { k:"corp_addr", l:"番地・建物名（本店所在地）" },
+  { k:"corp_zip",         l:"郵便番号", zip:{ main:"corp_addr_main" }, ph:"例：7793300" },
+  { k:"corp_addr_main",   l:"本店所在地", ph:"例：徳島県吉野川市鴨島町鴨島" },
+  { k:"corp_addr_detail", l:"番地・建物名" },
   { k:"corp_phone",   l:"代表電話番号" },
   { k:"corp_email",   l:"法人メールアドレス" },
   { k:"corp_invoice", l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁" },
@@ -322,18 +319,18 @@ const CONSIGNOR_PUBLIC_FIELDS = [
 const consignorPartyRows = (row) => {
   if (!row) return [];
   const d = row.consignor_data || {};
-  const compose = (zip, pref, city, addr) => {
-    const body = [d[pref], d[city], d[addr]].map(x => (x || "").trim()).filter(Boolean).join("");
+  const compose = (zip, main, detail) => {
+    const body = [(d[main] || "").trim(), (d[detail] || "").trim()].filter(Boolean).join(" ");
     if (!body) return "";
     const z = (d[zip] || "").trim();
     return (z ? "〒" + z + " " : "") + body;
   };
   if (row.consignor_type === "individual") {
-    return [["住所", compose("ind_zip","ind_pref","ind_city","ind_addr")], ["氏名", (d.ind_name || "").trim()], ["屋号", (d.ind_trade || "").trim()]].filter(r => r[1]);
+    return [["住所", compose("ind_zip","ind_addr_main","ind_addr_detail")], ["氏名", (d.ind_name || "").trim()], ["屋号", (d.ind_trade || "").trim()]].filter(r => r[1]);
   }
   if (row.consignor_type === "corporate") {
     const rep = [(d.corp_rep_title || "").trim(), (d.corp_rep_name || "").trim()].filter(Boolean).join(" ");
-    return [["所在地", compose("corp_zip","corp_pref","corp_city","corp_addr")], ["法人名", (d.corp_name || "").trim()], ["代表者", rep]].filter(r => r[1]);
+    return [["所在地", compose("corp_zip","corp_addr_main","corp_addr_detail")], ["法人名", (d.corp_name || "").trim()], ["代表者", rep]].filter(r => r[1]);
   }
   // 種別未選択＝旧v1データのフォールバック
   return CONSIGNOR_PUBLIC_FIELDS.filter(f => (row[f.k] || "").trim()).map(f => [f.l, row[f.k]]);
@@ -377,6 +374,17 @@ function ConsignorInfoEdit() {
           setAhInfo(ah || null);
         } catch {}
         const nd = { ...((data && data.consignor_data) || {}) };
+        // 旧v2キー（4分割 pref/city/addr）からの移行：住所(main)へ併合。旧addrには町域が
+        // 入っていた（番地ではない）ため main 側に寄せる。番地・建物名は本人が入力し直す
+        const mig = (mainK, prefK, cityK, addrK) => {
+          if (!(nd[mainK] || "").trim()) {
+            const m = [nd[prefK], nd[cityK], nd[addrK]].map(x => (x || "").trim()).filter(Boolean).join("");
+            if (m) nd[mainK] = m;
+          }
+        };
+        mig("ind_addr_main", "ind_pref", "ind_city", "ind_addr");
+        mig("ind_biz_addr_main", "ind_biz_pref", "ind_biz_city", "ind_biz_addr");
+        mig("corp_addr_main", "corp_pref", "corp_city", "corp_addr");
         // 旧v1の分割振込・緊急連絡先を下敷きに（空欄のみ・保存は本人が押した時だけ）
         if (data) {
           if (!nd.cmn_bank && data.consignor_bank) { nd.cmn_bank = data.consignor_bank; nd.cmn_bank_branch = data.consignor_bank_branch || ""; nd.cmn_account_type = data.consignor_account_type || ""; nd.cmn_account_no = data.consignor_account_no || ""; nd.cmn_account_name = data.consignor_account_name || ""; }
@@ -396,12 +404,19 @@ function ConsignorInfoEdit() {
     setD(p => {
       const n = { ...p };
       const put = (k, v) => { if (!(n[k] || "").trim() && (v || "").trim()) n[k] = v; };
+      // 新規登録の住所は「住所(〜町名) ＋ 半角スペース ＋ 番地・建物名」で保存されている（AccountHolderFormの
+      // 保存形式）。既知の区切りなので最初のスペースで2分割して引き継ぐ＝番地まで正確に渡る
+      const ahAddr = (ah.address || "").trim();
+      const sp = ahAddr.indexOf(" ");
+      const ahMain = sp > 0 ? ahAddr.slice(0, sp) : ahAddr;
+      const ahDetail = sp > 0 ? ahAddr.slice(sp + 1) : "";
+      const v1Main = [row.consignor_pref, row.consignor_city, row.consignor_addr].map(x => (x || "").trim()).filter(Boolean).join("");
       if (t === "individual") {
         put("ind_name", row.consignor_name); put("ind_name", ah.full_name);
         put("ind_trade", row.consignor_trade_name);
         put("ind_birth", ah.birth_date);
         put("ind_zip", row.consignor_zip); put("ind_zip", ahZip);
-        put("ind_pref", row.consignor_pref); put("ind_city", row.consignor_city); put("ind_addr", row.consignor_addr);
+        put("ind_addr_main", v1Main); put("ind_addr_main", ahMain); put("ind_addr_detail", ahDetail);
         put("ind_phone", row.consignor_phone); put("ind_phone", ah.contact_phone);
         put("ind_email", row.consignor_email); put("ind_email", ah.contact_email);
         put("ind_invoice", row.consignor_invoice_no);
@@ -409,7 +424,7 @@ function ConsignorInfoEdit() {
         put("corp_name", row.consignor_name); put("corp_name", ah.company_name);
         put("corp_no", row.consignor_corp_no); put("corp_no", ah.company_number);
         put("corp_zip", row.consignor_zip); put("corp_zip", ahZip);
-        put("corp_pref", row.consignor_pref); put("corp_city", row.consignor_city); put("corp_addr", row.consignor_addr);
+        put("corp_addr_main", v1Main); put("corp_addr_main", ahMain); put("corp_addr_detail", ahDetail);
         put("corp_phone", row.consignor_phone); put("corp_phone", ah.contact_phone);
         put("corp_email", row.consignor_email); put("corp_email", ah.contact_email);
         put("corp_invoice", row.consignor_invoice_no);
@@ -429,7 +444,7 @@ function ConsignorInfoEdit() {
       const j = await res.json();
       const r = j && j.results && j.results[0];
       if (!r) setZipError("住所が見つかりませんでした");
-      else setD(p => ({ ...p, [f.k]: z, [f.zip.pref]: r.address1 || "", [f.zip.city]: r.address2 || "", [f.zip.addr]: (p[f.zip.addr] || "").trim() ? p[f.zip.addr] : (r.address3 || "") }));
+      else setD(p => ({ ...p, [f.k]: z, [f.zip.main]: (r.address1 || "") + (r.address2 || "") + (r.address3 || "") }));
     } catch { setZipError("検索に失敗しました。通信環境をご確認ください"); }
     setZipBusy("");
   };
@@ -519,13 +534,13 @@ function ConsignorInfoEdit() {
 
       {stepKey === "ind" && (<>
         {CONSIGNOR_IND_FIELDS.map(renderCF)}
-        {(ahInfo?.address || "").trim() && !((d.ind_pref || "") + (d.ind_city || "") + (d.ind_addr || "")).trim() && (
+        {(ahInfo?.address || "").trim() && !((d.ind_addr_main || "") + (d.ind_addr_detail || "")).trim() && (
           <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>新規登録の住所：{ahInfo.address}（郵便番号の「住所を検索」で分割入力できます）</p>
         )}
       </>)}
       {stepKey === "corp" && (<>
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
-        {(ahInfo?.address || "").trim() && !((d.corp_pref || "") + (d.corp_city || "") + (d.corp_addr || "")).trim() && (
+        {(ahInfo?.address || "").trim() && !((d.corp_addr_main || "") + (d.corp_addr_detail || "")).trim() && (
           <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>新規登録の住所：{ahInfo.address}（郵便番号の「住所を検索」で分割入力できます）</p>
         )}
       </>)}
