@@ -1652,3 +1652,20 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
 ・no-use-before-define 以外のlint警告（exhaustive-deps 等）は warn のまま。手を付けていない
 ・未使用15件（書き込み専用state）を消すかは、CLAUDE.mdの残置方針と合わせて別途判断
 ━━━ ここまで ━━━
+
+━━━ 2026-08-01 cron失敗メールの調査（auto-start-work・job startup timeout）━━━
+【結論：auto_start_work自体は健全・修理不要】
+・失敗＝2026-07-31 15:05 UTC（＝08/01 00:05 JST）の1回。job_pid=null＝pg_cronが背景ワーカーを
+  起動できなかった一過性の失敗（関数のSQLエラーではない）。前後の毎時実行(14:05/16:05)も次の01:05も
+  成功。auto_start_workは冪等（started_at=nullの採用済みを毎時走査し開始時刻超過分を開始・
+  started_atはv_dueにバックデート）so、1回飛んでも次の毎時実行が必ず取りこぼしを回収＝データ被害ゼロ。
+・同種"job startup timeout"は14日で2件のみ・別ジョブにも発生（session-summary 07/28）＝Supabase infra起因。
+【調査中の確認】session-summaryのwindow-in-agg 909連続失敗は07/27に既修理(20260727122329)・現在成功。
+【修理＝watchdogの誤報抑制】migration 20260801011236_cron_watchdog_suppress_transient_startup_timeout。
+・cron_watchdogは「return_message='job startup timeout' かつ 直前の同一ジョブ実行が成功」の孤立・
+  自己回復ケースのみ通知しない。連続失敗（ワーカー枯渇の継続）や本物のSQLエラーは従来どおり必ず通知。
+・実データで検証：08/01 00:05の該当失敗→抑制／session-summaryのSQLエラー909件→全てALARM維持。
+・cron_watchdogはこれまでrepo migrationに無くDB直接適用のみ（DB側に20260724124814_cron_watchdogの
+  履歴のみ存在）だった。恒久物so今回のmigrationで版管理へ写経し正本をrepo側に統一（2026-07-21ルール）。
+・schema_migrations（20260801011236）とrepoファイル名を一致させて同期済み。mainへpush済み。
+━━━ ここまで ━━━
