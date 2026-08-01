@@ -1,5 +1,6 @@
 // 汎用トグルスイッチ（分割・段階2で切り出し・2026-07-24）：プロフィール編集・保険ページ等で共用。
-export function ToggleSwitch({ checked, onChange, label }) {
+// accent=ON時の色（既定は緑・委託の黒テーマ用に差し替え可・2026-07-31）
+export function ToggleSwitch({ checked, onChange, label, accent = "#00A86B" }) {
   return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0" }}>
       <span className="f-sans" style={{ fontSize:14, color:"#222" }}>{label}</span>
@@ -12,7 +13,7 @@ export function ToggleSwitch({ checked, onChange, label }) {
         style={{
           width:48, height:28, borderRadius:14, flexShrink:0,
           border:"none", padding:3, cursor:"pointer",
-          background: checked ? "#00A86B" : "#CCC",
+          background: checked ? accent : "#CCC",
           transition:"background .15s",
         }}
       >

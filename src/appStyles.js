@@ -853,6 +853,9 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
   border-color: #111 !important; color: #111 !important; }
 .cb-consign-page .field:focus { border-color: #111 !important; box-shadow: 0 0 0 3px rgba(17,17,17,0.12) !important; }
 .cb-consign-page .lbl { color: #111 !important; }
+/* 委託ページ内の主ボタン（保存する等）も黒に（2026-07-31たきと指示「すべて、ブラックで統一」）。
+   編集モーダルはDOM上 .cb-consign-page の子孫なのでこの継承で拾える */
+.cb-consign-page .btn-primary { background: #111111 !important; }
 /* 動きを減らす設定の端末では、入場演出は出さず・蔓は揺らさず静止で置く */
 @media (prefers-reduced-motion: reduce) {
   .consign-entrance { display: none; }

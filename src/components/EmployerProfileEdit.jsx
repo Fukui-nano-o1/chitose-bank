@@ -13,6 +13,9 @@ import { ToggleSwitch } from "./ToggleSwitch";
 // seedFrom=初回の引き継ぎ元テーブル（2026-07-31たきと指示「はじめは農家プロフィールの入力内容を引き継ぐ。保存先は別々」）。
 // 自分の行が未作成のときだけ seedFrom から読んでフォームに初期値を入れる。保存は本人が押した時だけ・保存先は table のまま
 export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_profiles", avatarDir = "employer", black = false, seedFrom = null }) {
+  // アクセント色（2026-07-31たきと指示「すべて、ブラックで統一」）：black時は緑→黒・淡緑→淡グレー
+  const AC = black ? "#111111" : "#00A86B";
+  const ACS = black ? "#EEEEEE" : "#E6F7EF";
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState(""); // 紹介・PRボックスは廃止（2026-07-16）。既存データ保全のためstateと保存は温存
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -350,7 +353,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         ))}
       </div>
       {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>保存しました ✓</p>
+        <p className="f-sans" style={{ fontSize:12, color:AC, textAlign:"center", marginTop:14 }}>保存しました ✓</p>
       )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
@@ -360,13 +363,13 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       {editBox && (
       <div onClick={closeEditBox} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:"16px 16px calc(64px + 10px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .2s ease" }}>{/* 下余白=下部フッター64px+10px：編集ボックスがフッターに重ならない（2026-07-16） */}
       <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-      <button onClick={closeEditBox} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
+      <button onClick={closeEditBox} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1, ...(black ? { color:"#111111" } : {}) }}>✕</button>
 
       {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
-        <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
-          <Avatar url={avatarUrl} name={nickname} size={64} />
+        <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid " + AC, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+          <Avatar url={avatarUrl} name={nickname} size={64} bg={black ? "#111111" : undefined} />
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
@@ -389,7 +392,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         新規登録で入力した内容を初期値にしています。
       </p>
       <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
-        style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
+        style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
         {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
       </button>
       <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎 ／ 千歳農園" maxLength={100}
@@ -406,7 +409,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         新規登録で入力した住所を初期値にしています。
       </p>
       <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
-        style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
+        style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
         {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
       </button>
       <input value={recruiterAddress} onChange={e=>setRecruiterAddress(e.target.value)} placeholder="例：〒779-3401 徳島県吉野川市山川町〇〇1-2-3" maxLength={200}
@@ -418,7 +421,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>ここで設定した内容は、あなたが出す全ての求人に共通して表示されます。</p>
       <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
-          <ToggleSwitch label="送迎" checked={hasTransport} onChange={setHasTransport} />
+          <ToggleSwitch accent={AC} label="送迎" checked={hasTransport} onChange={setHasTransport} />
           {hasTransport && (
             <div style={{ marginLeft:16, paddingBottom:12 }}>
               <input value={transportArea} onChange={e=>setTransportArea(e.target.value)} placeholder="例：吉野川市内" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
@@ -426,7 +429,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           )}
         </div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
-          <ToggleSwitch label="駐車場" checked={hasParking} onChange={setHasParking} />
+          <ToggleSwitch accent={AC} label="駐車場" checked={hasParking} onChange={setHasParking} />
           {hasParking && (
             <div style={{ marginLeft:16, paddingBottom:12, display:"flex", alignItems:"center", gap:8 }}>
               <input type="number" value={parkingCapacity} onChange={e=>setParkingCapacity(e.target.value)} placeholder="3" className="field f-sans" style={{ width:80, fontSize:13 }} />
@@ -435,23 +438,23 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           )}
         </div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
-          <ToggleSwitch label="通勤手当" checked={hasCommuteAllowance} onChange={setHasCommuteAllowance} />
+          <ToggleSwitch accent={AC} label="通勤手当" checked={hasCommuteAllowance} onChange={setHasCommuteAllowance} />
           {hasCommuteAllowance && (
             <div style={{ marginLeft:16, paddingBottom:12 }}>
               <input value={commuteAllowanceDetail} onChange={e=>setCommuteAllowanceDetail(e.target.value)} placeholder="例：上限500円 / 実費支給" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
             </div>
           )}
         </div>
-        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch label="賞与" checked={hasBonus} onChange={setHasBonus} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="賞与" checked={hasBonus} onChange={setHasBonus} /></div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
-          <ToggleSwitch label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} />
+          <ToggleSwitch accent={AC} label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} />
           {employerPaysSupplies && (
             <div style={{ marginLeft:16, paddingBottom:12 }}>
               <input value={suppliesCap} onChange={e=>setSuppliesCap(e.target.value)} placeholder="上限の設定（例：上限1,000円まで / 軍手・長靴のみ）" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
             </div>
           )}
         </div>
-        <div><ToggleSwitch label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
+        <div><ToggleSwitch accent={AC} label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
       </>)}
 
@@ -471,7 +474,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
               <b>入力した内容は、あなたの求人ページに「募集者情報」として表示されます。</b>
             </p>
             <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
-              style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
+              style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
               {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
             </button>
             {/* 氏名・名称は「✏️氏名・名称」ボックスへ移した（2026-07-27・重複解消） */}
@@ -554,9 +557,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
                   className="f-sans"
                   style={{
                     padding:"8px 16px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
-                    border: interactionStyle === opt.value ? "1.5px solid #00A86B" : "1px solid #EBEBEB",
-                    background: interactionStyle === opt.value ? "#E6F7EF" : "#fff",
-                    color: interactionStyle === opt.value ? "#00A86B" : "#222",
+                    border: interactionStyle === opt.value ? "1.5px solid " + AC : "1px solid #EBEBEB",
+                    background: interactionStyle === opt.value ? ACS : "#fff",
+                    color: interactionStyle === opt.value ? AC : "#222",
                   }}
                 >{opt.label}</button>
               ))}
