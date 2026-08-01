@@ -473,7 +473,7 @@ export function ConsignmentRoom() {
 
   if (printOpen) {
     return (
-      <div className="cb-consign-page" style={{ maxWidth:760, margin:"0 auto", padding:"24px 16px 120px" }}>
+      <div className="cb-consign-page" style={{ maxWidth:760, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
         <div className="no-print" style={{ display:"flex", gap:8, marginBottom:16 }}>
           <button onClick={()=>setPrintOpen(false)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#111111", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻る</button>
           <button onClick={()=>window.print()} className="f-sans" style={{ padding:"9px 20px", fontSize:13, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>印刷する</button>
@@ -513,7 +513,7 @@ export function ConsignmentRoom() {
   }
 
   return (
-    <div className="cb-consign-page fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px" }}>
+    <div className="cb-consign-page fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
       {/* 背景の空（2026-07-31たきと指示）：朝昼夜の色＋太陽/月が時刻で左→右に移動。
           蔓より奥（z-index:-2）に敷く。上端から色が差し込み、下は透明に抜ける */}
       <div className="consign-sky" aria-hidden="true" style={{ background: `linear-gradient(to bottom, ${sky.skyTop} 0%, rgba(255,255,255,0) 44%)` }}>

@@ -909,7 +909,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       {/* 終了ボタン（押すと保存して終了／保存せずに終了／キャンセルの3択モーダルを開く） */}
       {!embedded && step !== 12 && step !== 11 && step !== 0 && step !== 6 && (
         <button onClick={() => setShowExitModal(true)} disabled={draftSaving} className="f-sans" style={{
-          position:"absolute", top:step > 0 ? 24 : 16, right:20,
+          position:"absolute", top:`calc(${step > 0 ? 24 : 16}px + env(safe-area-inset-top, 0px))`, right:20,
           background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"8px 18px",
           fontSize:13, color:"#222", fontWeight:600, cursor:"pointer", zIndex:2,
           boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
@@ -944,7 +944,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         : { height:"100%", overflowY:"auto" })}>
         <div key={step} className={stepAnim || "fade-in"}
           onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && stepAnim.startsWith("step-in")) setStepAnim(""); }}
-          style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "64px 20px calc(76px + env(safe-area-inset-bottom, 0px))" : "56px 20px 40px") }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px） */}
+          style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "calc(64px + env(safe-area-inset-top, 0px)) 20px calc(76px + env(safe-area-inset-bottom, 0px))" : "calc(56px + env(safe-area-inset-top, 0px)) 20px 40px") }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px）。上余白はblack-translucent対応でsafe-area加算（2026-07-31） */}
 
           {/* ── HOME ── */}
           {step === 0 && (

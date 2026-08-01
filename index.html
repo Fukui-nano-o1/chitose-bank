@@ -11,7 +11,9 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- black-translucent＝ステータスバーを透明にしてアプリを画面最上端まで描く（2026-07-31たきと指示
+         「トップが切れている。画面最大限に使え」）。時計と重なるページは env(safe-area-inset-top) で逃がす -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="chitose-bank" />
     <!-- 起動を速くする（2026-07-27たきと指示「リロードが遅い」）：
          ① 接続の下ごしらえ（DNS+TLS）を先に済ませる。SupabaseはJSが動くまで叩かれないため、
