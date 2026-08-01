@@ -74,13 +74,11 @@ export function AdminUpcomingRoom() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  // 見出し・セクションバー・件数・空状態ボックスは置かない（2026-08-01たきと指示
+  // 「まもなく開始ページにスクショの要素は必要ない」＝内容は該当する求人のカードのみ）。
+  // 読み込み中・権限なし・失敗・0件は最小の1行テキストだけ（直URLで開いた時に白紙に見えないための最低限）
   return (
     <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
-      <div style={{ marginBottom:6 }}>
-        <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>⏳ まもなく開始</p>
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>開始まで1週間を切ったマッチの見守り</p>
-      </div>
-
       {state === null && (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
       )}
@@ -91,15 +89,9 @@ export function AdminUpcomingRoom() {
         <p className="f-sans" style={{ textAlign:"center", color:"#E24B4A", fontSize:13, padding:"48px 0" }}>読み込みに失敗しました。ページを開き直してください</p>
       )}
 
-      {state && typeof state === "object" && (<>
-        {/* ── まもなく開始（採用済み・未開始） ── */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, margin:"22px 0 12px" }}>
-          <span style={{ width:4, height:16, borderRadius:2, background:"#00897B" }} />
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>まもなく開始 <span style={{ color:"#00897B" }}>{state.upcoming.length}</span></p>
-        </div>
-        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 12px" }}>採用が決まり、開始1週間前になったマッチ（開始日の近い順）</p>
-        {state.upcoming.length === 0 ? (
-          <div className="f-sans" style={{ background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:14, padding:"24px 16px", textAlign:"center", color:"#999", fontSize:13 }}>1週間以内に始まるマッチはありません</div>
+      {state && typeof state === "object" && (
+        state.upcoming.length === 0 ? (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>1週間以内に始まるマッチはありません</p>
         ) : state.upcoming.map(item => (
           <div key={item.application_id} className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid #00897B" }}>
             <CardHead item={item} />
@@ -110,8 +102,8 @@ export function AdminUpcomingRoom() {
               <CheckRow label="保険の準備" at={item.insurance_prepared_at} />
             </div>
           </div>
-        ))}
-      </>)}
+        ))
+      )}
     </div>
   );
 }
