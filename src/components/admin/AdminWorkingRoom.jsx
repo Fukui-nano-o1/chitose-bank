@@ -1,6 +1,7 @@
 // 仕事中専用ページ（#/admin/working・管理者専用・2026-08-01）。
-// 「今まさに作業が進んでいるマッチ（status=working）」と「まもなく開始（採用済み・未開始）」を
-// 運営が一望する見守りページ。売り物＝安心（憲法1条）＝作業当日に何が起きているかを運営が把握できること。
+// 「今まさに作業が進んでいるマッチ（status=working）」と「本日開始（採用済み・当日が作業日）」を
+// 運営が一望する見守りページ。後日の採用済み（まもなく開始）は出さない（当日分のみ・たきと指示）。
+// 売り物＝安心（憲法1条）＝作業当日に何が起きているかを運営が把握できること。
 // 読み取り専用（admin_working_jobs RPC・security definer + app_admins ゲート）。ここからの書き込みは無し。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
@@ -116,7 +117,7 @@ export function AdminWorkingRoom() {
     <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
       <div style={{ marginBottom:6 }}>
         <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>🛠 仕事中</p>
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>進行中のマッチと、まもなく始まる仕事の見守り</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>いま進行中の仕事の見守り（作業中と本日開始）</p>
       </div>
 
       {state === null && (
@@ -130,10 +131,9 @@ export function AdminWorkingRoom() {
       )}
 
       {state && typeof state === "object" && (() => {
-        // 「仕事が始まる日」の採用済みマッチ（本日開始）は、まもなく開始ではなく仕事中側にトップ展開する。
-        // まもなく開始からは当日分を除外＝二重展開を防ぎ、仕事中を優先させる（当日は仕事中が正）。
+        // 「仕事が始まる日」の採用済みマッチ（本日開始）は仕事中として展開する。
+        // 後日の採用済み（まもなく開始）はこのページには出さない（2026-08-01たきと指示・当日分のみ）。
         const todayUpcoming = state.upcoming.filter(isTodayWork);
-        const futureUpcoming = state.upcoming.filter(it => !isTodayWork(it));
         const workingCount = state.working.length + todayUpcoming.length;
         return (<>
         {/* ── 仕事中（status=working ＋ 本日開始の採用済み） ── */}
@@ -147,26 +147,6 @@ export function AdminWorkingRoom() {
           {todayUpcoming.map(item => <WorkCard key={item.application_id} item={item} today />)}
           {state.working.map(item => <WorkCard key={item.application_id} item={item} />)}
         </>)}
-
-        {/* ── まもなく開始（採用済み・未開始・後日）。当日分は上の仕事中へ昇格済みso除外 ── */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, margin:"28px 0 12px" }}>
-          <span style={{ width:4, height:16, borderRadius:2, background:"#00897B" }} />
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>まもなく開始 <span style={{ color:"#00897B" }}>{futureUpcoming.length}</span></p>
-        </div>
-        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 12px" }}>採用が決まり、後日の作業日を待っているマッチ（開始日の近い順）</p>
-        {futureUpcoming.length === 0 ? (
-          <div className="f-sans" style={{ background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:14, padding:"24px 16px", textAlign:"center", color:"#999", fontSize:13 }}>後日に始まるマッチはありません</div>
-        ) : futureUpcoming.map(item => (
-          <div key={item.application_id} className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid #00897B" }}>
-            <CardHead item={item} />
-            <PartyLine item={item} />
-            <p className="f-sans" style={{ fontSize:12, color:"#444", margin:"8px 0 10px" }}>📅 {scheduleLabel(item)}</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:6, background:"#FAFAFA", borderRadius:10, padding:"10px 12px" }}>
-              <CheckRow label="採用" at={item.hired_at} />
-              <CheckRow label="保険の準備" at={item.insurance_prepared_at} />
-            </div>
-          </div>
-        ))}
         </>);
       })()}
     </div>
