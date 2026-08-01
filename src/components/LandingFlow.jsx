@@ -3,7 +3,7 @@
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { compressImage } from "../lib/image";
+import { uploadJobPhoto } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS } from "../lib/utils";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
@@ -1328,29 +1328,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                         const room = 10 - jobPhotos.length;
                         const queue = files.slice(0, room);
                         setPhotoUploading(true);
-                        const uploaded = [];
-                        for (const file of queue) {
-                          try {
-                            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-                            const path = 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                            const upFile = await compressImage(file); // アップロード前に圧縮（2026-07-16）
-                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
-                            if (upErr) throw upErr;
-                            const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                            // 軽量サムネ（2026-07-25たきと指示「画質荒くてもいいからすぐ」）：320px/品質0.5を同時生成。
-                            // 一覧・応募者ページ等の小さい表示はこちらを読む（原寸の1/10以下）。失敗しても本体は成立（thumbなし）
-                            let thumbUrl = "";
-                            try {
-                              const thumbFile = await compressImage(file, 320, 0.5);
-                              const thumbPath = 'thumb_' + path;
-                              const { error: thErr } = await supabase.storage.from('job-photos').upload(thumbPath, thumbFile, { contentType: thumbFile.type || undefined });
-                              if (!thErr) { const { data: thUrl } = supabase.storage.from('job-photos').getPublicUrl(thumbPath); thumbUrl = thUrl?.publicUrl || ""; }
-                            } catch {}
-                            if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "", ...(thumbUrl ? { thumb: thumbUrl } : {}) });
-                          } catch (err) {
-                            console.error('photo upload failed', file.name, err);
-                          }
-                        }
+                        // 全ファイルを並列アップロード（各ファイル内も原寸＋サムネを並列・デコード1回）
+                        const results = await Promise.all(queue.map(file =>
+                          uploadJobPhoto(supabase, file).catch(err => { console.error('photo upload failed', file.name, err); return null; })
+                        ));
+                        const uploaded = results.filter(r => r && r.url).map(r => ({ caption: "", ...r }));
                         if (uploaded.length > 0) setJobPhotos(prev => [...prev, ...uploaded]);
                         if (uploaded.length < queue.length) {
                           alert(`${queue.length - uploaded.length}枚のアップロードに失敗しました。通信環境を確認して、もう一度お試しください。`);
@@ -1373,29 +1355,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                         if (files.length === 0) return;
                         const queue = files.slice(0, 10);
                         setPhotoUploading(true);
-                        const uploaded = [];
-                        for (const file of queue) {
-                          try {
-                            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-                            const path = 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                            const upFile = await compressImage(file); // アップロード前に圧縮（2026-07-16）
-                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
-                            if (upErr) throw upErr;
-                            const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                            // 軽量サムネ（2026-07-25たきと指示「画質荒くてもいいからすぐ」）：320px/品質0.5を同時生成。
-                            // 一覧・応募者ページ等の小さい表示はこちらを読む（原寸の1/10以下）。失敗しても本体は成立（thumbなし）
-                            let thumbUrl = "";
-                            try {
-                              const thumbFile = await compressImage(file, 320, 0.5);
-                              const thumbPath = 'thumb_' + path;
-                              const { error: thErr } = await supabase.storage.from('job-photos').upload(thumbPath, thumbFile, { contentType: thumbFile.type || undefined });
-                              if (!thErr) { const { data: thUrl } = supabase.storage.from('job-photos').getPublicUrl(thumbPath); thumbUrl = thUrl?.publicUrl || ""; }
-                            } catch {}
-                            if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl, caption: "", ...(thumbUrl ? { thumb: thumbUrl } : {}) });
-                          } catch (err) {
-                            console.error('photo upload failed', file.name, err);
-                          }
-                        }
+                        // 全ファイルを並列アップロード（各ファイル内も原寸＋サムネを並列・デコード1回）
+                        const results = await Promise.all(queue.map(file =>
+                          uploadJobPhoto(supabase, file).catch(err => { console.error('photo upload failed', file.name, err); return null; })
+                        ));
+                        const uploaded = results.filter(r => r && r.url).map(r => ({ caption: "", ...r }));
                         if (uploaded.length > 0) setJobPhotos(prev => [...prev, ...uploaded]);
                         if (uploaded.length < queue.length) {
                           alert(`${queue.length - uploaded.length}枚のアップロードに失敗しました。通信環境を確認して、もう一度お試しください。`);
@@ -1519,18 +1483,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                                   if (files.length === 0) return;
                                   const room = 2 - (place.photos?.length || 0);
                                   const queue = files.slice(0, room);
-                                  const uploaded = [];
-                                  for (const file of queue) {
-                                    try {
-                                      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-                                      const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                                      const upFile = await compressImage(file); // アップロード前に圧縮（2026-07-16）
-                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
-                                      if (upErr) throw upErr;
-                                      const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                                      if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl });
-                                    } catch (err) { console.error('danger photo upload failed', err); }
-                                  }
+                                  const results = await Promise.all(queue.map(file =>
+                                    uploadJobPhoto(supabase, file, { pathPrefix: 'danger_', withThumb: false }).catch(err => { console.error('danger photo upload failed', err); return null; })
+                                  ));
+                                  const uploaded = results.filter(r => r && r.url).map(r => ({ url: r.url }));
                                   if (uploaded.length > 0) setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: [...(p.photos||[]), ...uploaded] } : p));
                                   if (uploaded.length < queue.length) { alert('一部の写真のアップロードに失敗しました。もう一度お試しください。'); }
                                   e.target.value = '';
@@ -1571,18 +1527,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                                   if (files.length === 0) return;
                                   const room = 2 - (task.photos?.length || 0);
                                   const queue = files.slice(0, room);
-                                  const uploaded = [];
-                                  for (const file of queue) {
-                                    try {
-                                      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-                                      const path = 'danger_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '.' + ext;
-                                      const upFile = await compressImage(file); // アップロード前に圧縮（2026-07-16）
-                                      const { error: upErr } = await supabase.storage.from('job-photos').upload(path, upFile, { contentType: upFile.type || undefined });
-                                      if (upErr) throw upErr;
-                                      const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
-                                      if (urlData?.publicUrl) uploaded.push({ url: urlData.publicUrl });
-                                    } catch (err) { console.error('danger photo upload failed', err); }
-                                  }
+                                  const results = await Promise.all(queue.map(file =>
+                                    uploadJobPhoto(supabase, file, { pathPrefix: 'danger_', withThumb: false }).catch(err => { console.error('danger photo upload failed', err); return null; })
+                                  ));
+                                  const uploaded = results.filter(r => r && r.url).map(r => ({ url: r.url }));
                                   if (uploaded.length > 0) setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: [...(t.photos||[]), ...uploaded] } : t));
                                   if (uploaded.length < queue.length) { alert('一部の写真のアップロードに失敗しました。もう一度お試しください。'); }
                                   e.target.value = '';

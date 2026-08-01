@@ -1,21 +1,62 @@
 // 画像のクライアント圧縮（2026-07-26 LandingFlowから共有層へ移動）：求人写真・ヘルプのスクショ等、
 // アップロード前に必ず通す。原寸4MB級が「白いまま読み込み待ち」になる問題と転送量（egress）対策の両方。
 // 圧縮に失敗したら原本をそのまま返す（古いブラウザ等でも壊れない）
+// デコード済みビットマップから指定サイズのJPEG Fileを作る（compressImageの中核・デコード結果を使い回す用）
+async function encodeBitmap(bitmap, srcFile, maxSide, quality) {
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  if (scale >= 1 && srcFile.size < 600 * 1024) return srcFile; // 十分小さい画像は無加工
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+  const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", quality));
+  if (!blob || blob.size >= srcFile.size) return srcFile; // 逆に大きくなったら原本
+  return new File([blob], (srcFile.name || "photo").replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+}
+
 export async function compressImage(file, maxSide = 1600, quality = 0.8) {
   try {
     if (!file || !file.type || !file.type.startsWith("image/")) return file;
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-    if (scale >= 1 && file.size < 600 * 1024) return file; // 十分小さい画像は無加工
-    const w = Math.max(1, Math.round(bitmap.width * scale));
-    const h = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
-    const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", quality));
-    if (!blob || blob.size >= file.size) return file; // 逆に大きくなったら原本
-    return new File([blob], (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+    const out = await encodeBitmap(bitmap, file, maxSide, quality);
+    bitmap.close?.();
+    return out;
   } catch { return file; }
+}
+
+// 求人写真を1枚アップロード（2026-08-01・体感速度改善）。旧実装は1ファイルにつき
+// 「圧縮→upload→（同じファイルを再デコードして）サムネ圧縮→upload」を直列に行い、
+// さらに呼び出し側でもファイルごとに直列だったため複数枚で非常に遅かった。ここでは
+// (1)デコードは1回だけ・原寸とサムネで使い回す (2)原寸とサムネのuploadを並列に投げる。
+// 呼び出し側で Promise.all すれば全ファイルも並列になる。
+// 返り値: { url, thumb? }（withThumb=false の危険箇所写真は { url } のみ）
+export async function uploadJobPhoto(supabase, file, { bucket = "job-photos", pathPrefix = "job_", withThumb = true } = {}) {
+  const base = pathPrefix + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+  let full = file, thumb = null;
+  try {
+    if (file && file.type && file.type.startsWith("image/")) {
+      const bitmap = await createImageBitmap(file);
+      full = await encodeBitmap(bitmap, file, 1600, 0.8);
+      // 軽量サムネ（2026-07-25たきと指示「画質荒くてもいいからすぐ」）：320px/品質0.5。
+      // 一覧・応募者ページ等の小さい表示はこちらを読む（原寸の1/10以下）
+      if (withThumb) thumb = await encodeBitmap(bitmap, file, 320, 0.5);
+      bitmap.close?.();
+    }
+  } catch { full = file; thumb = null; }
+  const fullPath = base + ".jpg";
+  const thumbPath = "thumb_" + base + ".jpg";
+  const jobs = [supabase.storage.from(bucket).upload(fullPath, full, { contentType: full.type || undefined })];
+  if (thumb) jobs.push(supabase.storage.from(bucket).upload(thumbPath, thumb, { contentType: thumb.type || undefined }));
+  const [fullRes, thumbRes] = await Promise.all(jobs);
+  if (fullRes.error) throw fullRes.error;
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fullPath);
+  let thumbUrl = "";
+  if (thumb && thumbRes && !thumbRes.error) {
+    const { data } = supabase.storage.from(bucket).getPublicUrl(thumbPath);
+    thumbUrl = data?.publicUrl || "";
+  }
+  return { url: urlData?.publicUrl || "", ...(thumbUrl ? { thumb: thumbUrl } : {}) };
 }
 
 // バケット内の全画像を再帰列挙（2026-07-26・一括軽量化用）。フォルダはid=nullで返るので潜る
