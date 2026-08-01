@@ -222,14 +222,15 @@ const computeSky = (now) => {
   const leftOf = (prog) => 8 + prog * 84;                    // 横位置%（8→92）
   if (h >= 5 && h < 19) {
     const prog = (h - 5) / 14;
-    let skyTop, orb, glow;
-    if (h < 10)      { skyTop = "rgba(255,214,168,0.55)"; orb = "#FFC46B"; glow = "rgba(255,196,107,0.55)"; } // 朝
-    else if (h < 15) { skyTop = "rgba(198,228,255,0.50)"; orb = "#FFE27A"; glow = "rgba(255,226,122,0.60)"; } // 昼
-    else             { skyTop = "rgba(255,176,124,0.55)"; orb = "#FF8A4C"; glow = "rgba(255,138,76,0.55)"; }  // 夕
-    return { isNight: false, left: leftOf(prog), top: arc(prog), skyTop, orb, glow };
+    let skyTop, orb, glow, chrome;
+    // chrome＝skyTopを白地に重ねた不透明色。画面最上端（ステータスバー/ブラウザの帯）を空と同色に染める用
+    if (h < 10)      { skyTop = "rgba(255,214,168,0.55)"; orb = "#FFC46B"; glow = "rgba(255,196,107,0.55)"; chrome = "#FFE8CF"; } // 朝
+    else if (h < 15) { skyTop = "rgba(198,228,255,0.50)"; orb = "#FFE27A"; glow = "rgba(255,226,122,0.60)"; chrome = "#E3F1FF"; } // 昼
+    else             { skyTop = "rgba(255,176,124,0.55)"; orb = "#FF8A4C"; glow = "rgba(255,138,76,0.55)"; chrome = "#FFD4B7"; }  // 夕
+    return { isNight: false, left: leftOf(prog), top: arc(prog), skyTop, orb, glow, chrome };
   }
   const prog = (((h - 19) + 24) % 24) / 10; // 夜（19→翌5）
-  return { isNight: true, left: leftOf(prog), top: arc(prog), skyTop: "rgba(28,32,60,0.60)", orb: "#E8ECF5", glow: "rgba(200,210,235,0.50)" };
+  return { isNight: true, left: leftOf(prog), top: arc(prog), skyTop: "rgba(28,32,60,0.60)", orb: "#E8ECF5", glow: "rgba(200,210,235,0.50)", chrome: "#77798A" };
 };
 
 export function ConsignmentRoom() {
@@ -259,6 +260,20 @@ export function ConsignmentRoom() {
   const [entranceGrass] = useState(makeConsignGrass);
   const [vines] = useState(makeConsignVines); // 背景の蔓も入室ごとに抽選
   const [sky] = useState(() => computeSky(new Date())); // 背景の空（朝昼夜・太陽/月の位置は入室時刻から）
+  // 画面最上端（ステータスバー/ブラウザの帯）まで空に染める（2026-07-31たきと指示「背景を画面上限まで」）：
+  // アプリが描けない上端の帯は theme-color と html背景から色を拾うOS/ブラウザが多い。
+  // 委託ページ表示中だけ空の不透明色(chrome)に切替え、退室時に元へ戻す
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const prevMeta = meta ? meta.getAttribute("content") : null;
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+    if (meta) meta.setAttribute("content", sky.chrome);
+    document.documentElement.style.backgroundColor = sky.chrome;
+    return () => {
+      if (meta && prevMeta != null) meta.setAttribute("content", prevMeta);
+      document.documentElement.style.backgroundColor = prevHtmlBg;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [wind, setWind] = useState(null); // 委託地の現在の風（Open-Meteo・{speed:km/h, dir:度(吹いてくる向き)}）
   // 四隅の蔓：大きさだけ隅ごとに抽選（140〜220px）。向きは四隅で固定＝反転で使い回す
   const [cornerSizes] = useState(() => Array.from({ length: 4 }, () => Math.round(140 + Math.random() * 80)));
