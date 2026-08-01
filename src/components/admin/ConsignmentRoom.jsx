@@ -4,7 +4,6 @@ import { supabase } from "../../lib/supabase";
 import { ymdLocal } from "../../lib/utils";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
 import { CalendarView } from "../CalendarView";
-import { EmployerProfileEdit } from "../EmployerProfileEdit";
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
@@ -223,6 +222,92 @@ const makeConsignVines = () => {
   }));
 };
 
+// ── 委託者情報（2026-07-31たきと指示）：原則変更しない本人・事業者情報。
+//    設定ページ（#/admin/consignment/profile）で入力し、案件作成（確認STEP5・印刷仕様書）に自動反映する。
+//    保存先は consignment_profiles の consignor_* 列（管理者専用RLS）
+const CONSIGNOR_FIELDS = [
+  { k:"consignor_name",       l:"氏名または法人名" },
+  { k:"consignor_trade_name", l:"屋号" },
+  { k:"consignor_corp_no",    l:"法人番号（任意）" },
+  { k:"consignor_invoice_no", l:"インボイス登録番号（任意）" },
+  { k:"consignor_rep_name",   l:"代表者名" },
+  { k:"consignor_address",    l:"住所・所在地" },
+  { k:"consignor_phone",      l:"電話番号" },
+  { k:"consignor_email",      l:"メールアドレス" },
+  { k:"consignor_emergency",  l:"緊急連絡先", ph:"氏名・続柄・電話番号" },
+  { k:"consignor_billing",    l:"振込・請求に必要な基本情報", ta:true, ph:"銀行名・支店・口座種別・口座番号・名義など" },
+];
+// 掲載プレビュー・印刷に反映する公開系の項目（緊急連絡先・振込情報は内部用so反映しない）
+const CONSIGNOR_PUBLIC_KEYS = ["consignor_name","consignor_trade_name","consignor_corp_no","consignor_invoice_no","consignor_rep_name","consignor_address","consignor_phone","consignor_email"];
+
+// 委託者情報の設定フォーム（ブラック・アイコンなし）。初回は account_holders から氏名・住所・
+// 電話・メールを下敷きに（空欄のみ埋める・保存は本人が押した時だけ＝雇い手プロフィールと同じ作法）
+function ConsignorInfoEdit() {
+  const [form, setForm] = useState(null); // null=読み込み中
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const empty = CONSIGNOR_FIELDS.reduce((a, f) => { a[f.k] = ""; return a; }, {});
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setForm(empty); return; }
+        const { data } = await supabase.from("consignment_profiles").select(CONSIGNOR_FIELDS.map(f => f.k).join(",")).eq("auth_id", session.user.id).maybeSingle();
+        const cur = { ...empty, ...(data || {}) };
+        // 初回シード（空欄のみ）：新規登録①の本人確認情報から
+        if (!cur.consignor_name || !cur.consignor_address || !cur.consignor_phone || !cur.consignor_email) {
+          try {
+            const { data: ah } = await supabase.from("account_holders")
+              .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
+              .eq("auth_id", session.user.id).maybeSingle();
+            if (ah) {
+              if (!cur.consignor_name) cur.consignor_name = (ah.company_name || "").trim() || (ah.full_name || "").trim();
+              if (!cur.consignor_rep_name && (ah.company_name || "").trim()) cur.consignor_rep_name = (ah.full_name || "").trim();
+              if (!cur.consignor_address) cur.consignor_address = [(ah.postal_code || "").trim() ? "〒" + ah.postal_code.trim() : "", (ah.address || "").trim()].filter(Boolean).join(" ");
+              if (!cur.consignor_phone) cur.consignor_phone = (ah.contact_phone || "").trim();
+              if (!cur.consignor_email) cur.consignor_email = (ah.contact_email || "").trim() || (session.user.email || "");
+            }
+          } catch {}
+        }
+        setForm(cur);
+      } catch { setForm(empty); }
+    })();
+  }, []);
+  const save = async () => {
+    if (saving || !form) return;
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSaving(false); return; }
+      const payload = { auth_id: session.user.id, updated_at: new Date().toISOString() };
+      CONSIGNOR_FIELDS.forEach(f => { payload[f.k] = (form[f.k] || "").trim(); });
+      const { error } = await supabase.from("consignment_profiles").upsert(payload, { onConflict: "auth_id" });
+      if (error) alert("保存に失敗しました：" + error.message);
+      else { setSaved(true); setTimeout(() => setSaved(false), 2200); }
+    } catch { alert("保存に失敗しました。"); }
+    setSaving(false);
+  };
+  if (!form) return <p className="f-sans" style={{ fontSize:13, color:"#999999", textAlign:"center", padding:"24px 0" }}>読み込み中…</p>;
+  return (
+    <div>
+      <p className="f-sans" style={{ fontSize:13, color:"#111111", margin:"0 0 16px", lineHeight:1.7 }}>原則変更しない委託者情報です。案件の確認ページと印刷仕様書に自動で反映されます。</p>
+      {CONSIGNOR_FIELDS.map(f => (
+        <div key={f.k} style={{ marginBottom:10 }}>
+          <label className="lbl f-sans">{f.l}</label>
+          {f.ta ? (
+            <textarea className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+          ) : (
+            <input className="field f-sans" value={form[f.k]} onChange={e=>setForm(p=>({ ...p, [f.k]: e.target.value }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+          )}
+        </div>
+      ))}
+      <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>緊急連絡先・振込情報は内部用です（掲載や印刷には出ません）。</p>
+      <button onClick={save} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
+      {saved && <p className="f-sans" style={{ fontSize:12, color:"#111111", textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
+    </div>
+  );
+}
+
 // 背景の空（2026-07-31たきと指示「背景に太陽追加。朝昼夜を演出。時間によって太陽が左から右に移動」）。
 // 現在のJST時刻から、太陽（昼）／月（夜）の位置（左→右）と空の色（朝昼夕夜）を決める。
 // 昼＝5〜19時（14h）で太陽が左8%→右92%へ弧を描く。夜＝19〜翌5時（10h）は月が左→右。
@@ -356,6 +441,19 @@ export function ConsignmentRoom() {
   // トップの大プロフィールカード用（農家プロフィール入口と同じ構造・2026-07-31たきと指示）。
   // 名刺の中身は employer_profiles の自分の行から（このページはprops無しなので自分で引く）
   const [empMini, setEmpMini] = useState(null);
+  // 委託者情報（設定ページの保存値・確認STEP5と印刷仕様書へ自動反映）。設定ページから戻るたびに再読込
+  const [consignor, setConsignor] = useState(null);
+  useEffect(() => {
+    if (cTab === "profile") return; // 設定ページ自身はフォーム側が読む
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from("consignment_profiles").select(CONSIGNOR_FIELDS.map(f => f.k).join(",")).eq("auth_id", session.user.id).maybeSingle();
+        setConsignor(data || null);
+      } catch {}
+    })();
+  }, [cTab]);
   // ★mount時の読み込み（loadDeals・名刺・リロード復元）は openDealState の定義より後ろに置いた
   //   effectが担う（no-use-before-define対応＝「呼ぶ側・effectを下げる」の作法・2026-07-29教訓）
   const setF = (k, v) => setSpec(p => ({ ...p, [k]: v }));
@@ -634,6 +732,21 @@ export function ConsignmentRoom() {
             <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 危険情報</p>
             <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{(spec.hazards || []).length ? (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・") : "特になし"}</p>
           </div>
+          {consignor && CONSIGNOR_PUBLIC_KEYS.some(k => (consignor[k] || "").trim()) && (
+            <div style={{ marginBottom:14 }}>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 委託者（発注者）</p>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                <tbody>
+                  {CONSIGNOR_FIELDS.filter(f => CONSIGNOR_PUBLIC_KEYS.includes(f.k) && (consignor[f.k] || "").trim()).map(f => (
+                    <tr key={f.k}>
+                      <td style={{ border:"1px solid #999", padding:"7px 10px", width:170, background:"#F5F5F5", fontWeight:700 }}>{f.l}</td>
+                      <td style={{ border:"1px solid #999", padding:"7px 10px" }}>{consignor[f.k]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <div style={{ marginTop:18 }}>
             <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 6px" }}>■ 定型条項（全仕様書共通）</p>
             {CONSIGN_FIXED_CLAUSES.map(c => (
@@ -773,13 +886,13 @@ export function ConsignmentRoom() {
       </button>
       </div>)}
 
-      {/* 委託専用プロフィール（#/admin/consignment/profile・2026-07-31たきと指示）。
-          雇い手プロフィールと同じ項目・ボックス配置（EmployerProfileEditを流用）だが、
-          保存先だけ別テーブル consignment_profiles（avatarは avatars/consignment/）＝雇い手とは独立 */}
+      {/* 委託者情報の設定ページ（#/admin/consignment/profile・2026-07-31たきと指示）。
+          原則変更しない本人・事業者情報を入力し、案件作成（確認STEP5・印刷仕様書）に自動反映する。
+          保存先は consignment_profiles の consignor_* 列（雇い手プロフィールとは独立） */}
       {cTab === "profile" && (
         <div className="fade-in">
           <button onClick={()=>{ setCTab("list"); window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 委託一覧</button>
-          <EmployerProfileEdit me={empMini || {}} table="consignment_profiles" avatarDir="consignment" black seedFrom="employer_profiles" />
+          <ConsignorInfoEdit />
         </div>
       )}
 
@@ -850,6 +963,20 @@ export function ConsignmentRoom() {
                 </div>
               ))}
             </div>
+            {/* 委託者情報（設定ページから自動反映・2026-07-31たきと指示。緊急連絡先・振込情報は内部用so出さない） */}
+            {consignor && CONSIGNOR_PUBLIC_KEYS.some(k => (consignor[k] || "").trim()) && (
+              <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
+                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>委託者情報（設定ページから自動反映）</p>
+                <div style={{ display:"grid", gap:6 }}>
+                  {CONSIGNOR_FIELDS.filter(f => CONSIGNOR_PUBLIC_KEYS.includes(f.k) && (consignor[f.k] || "").trim()).map(f => (
+                    <div key={f.k} style={{ display:"flex", gap:10 }}>
+                      <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:96, flexShrink:0 }}>{f.l}</span>
+                      <span className="f-sans" style={{ fontSize:12, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{consignor[f.k]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
               {CONSIGN_FIXED_CLAUSES.map(c => (
