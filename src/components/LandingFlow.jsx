@@ -770,7 +770,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           || !filledText(ep.nickname)
           || !filledText(ep.place_city)
           || !(ep.has_transport || ep.has_parking || ep.has_commute_allowance || ep.has_bonus || ep.employer_pays_supplies || ep.accessory_ok)
-          || ep.staff_count == null || String(ep.staff_count).trim() === ""
           || !filledText(ep.owner_comment, ep.intro_path, ep.intro_joy, ep.intro_crops, ep.intro_atmosphere, ep.intro_message)
           || !filledText(ep.unique_point, ep.always_do, ep.break_style)
           || !filledText(ep.interaction_style);

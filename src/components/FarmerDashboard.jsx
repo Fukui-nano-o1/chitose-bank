@@ -245,7 +245,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     } catch (e) { alert("保存に失敗しました：" + (e?.message || "不明")); }
     finally { setInsSaving(false); }
   };
-  // 未設定の項目数（編集ページの8ボックス基準）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
+  // 未設定の項目数（編集ページの7ボックス基準・従業員数は削除済み2026-08-01）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
   // 核（アイコン・農園名・作業場所）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（紹介PR→作業場所に差替・2026-07-16）
   const empUnsetReq = empMini ? [
     !!empMini.avatar_url,
@@ -254,11 +254,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   ].filter(x => !x).length : 3;
   const empUnsetCount = empMini ? empUnsetReq + [
     !!(empMini.has_transport || empMini.has_parking || empMini.has_commute_allowance || empMini.has_bonus || empMini.employer_pays_supplies || empMini.accessory_ok),
-    empMini.staff_count !== null && empMini.staff_count !== undefined && empMini.staff_count !== "",
     [empMini.intro_path, empMini.intro_joy, empMini.intro_crops, empMini.intro_atmosphere, empMini.intro_message, empMini.owner_comment].some(t => t && String(t).trim()),
     [empMini.unique_point, empMini.always_do, empMini.break_style].some(t => t && String(t).trim()),
     !!empMini.interaction_style,
-  ].filter(x => !x).length : 8;
+  ].filter(x => !x).length : 7;
   // 自由記述の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中（差し戻し済み）=赤帯（修正のためタップは可能）
   const empHasPending = !!(empMini && empMini.texts_pending && Object.keys(empMini.texts_pending).length > 0);
   const empReview = empHasPending ? "pending" : (empMini?.texts_revision_requested_at ? "revision" : null);

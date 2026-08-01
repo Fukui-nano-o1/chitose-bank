@@ -42,7 +42,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [introAtmosphere, setIntroAtmosphere] = useState("");
   const [introMessage, setIntroMessage] = useState("");
   const [ownerComment, setOwnerComment] = useState("");
-  const [staffCount, setStaffCount] = useState("");
   // 募集者の情報（2026-07-27たきと指示）：氏名または名称／住所・所在地／連絡先。
   // ★求人ページの「募集者情報」として公開する（2026-07-27改定・法令上の明示事項）。
   //   経路は job_employer_profile（求人詳細用RPC）。一覧用のemployer_profiles_publicには載せない
@@ -182,7 +181,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setIntroAtmosphere(tp.intro_atmosphere ?? data.intro_atmosphere ?? "");
           setIntroMessage(tp.intro_message ?? data.intro_message ?? "");
           setOwnerComment(tp.owner_comment ?? data.owner_comment ?? "");
-          setStaffCount(data.staff_count != null ? String(data.staff_count) : "");
           setRecruiterName(data.recruiter_name || "");
           setRecruiterAddress(data.recruiter_address || "");
           setRecruiterContact(data.recruiter_contact || "");
@@ -211,7 +209,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setBreakStyle(tp.break_style ?? data.break_style ?? "");
           setInteractionStyle(data.interaction_style ?? "");
           // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
-          const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || (data.staff_count != null && data.staff_count !== "") || data.unique_point || data.always_do || data.break_style || data.interaction_style);
+          const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || data.unique_point || data.always_do || data.break_style || data.interaction_style);
           if (hasIntroContent) setIntroOpen(true);
         }
       } catch {}
@@ -299,8 +297,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const closeEditBox = () => setEditBox(null);
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
-  // black（委託）では 従業員数・関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
-  const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","staff","intro","ask","style"];
+  // black（委託）では 関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
+  // 従業員数(staff)は全面削除（2026-08-01たきと指示）
+  const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","intro","ask","style"];
   const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
@@ -308,7 +307,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!composeRecruiterAddress()
     : k === "perks" ? perksOn.length > 0
-    : k === "staff" ? staffCount !== "" : k === "intro" ? introFilled > 0
+    : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
   );
   const nextUnfilledBox = (afterKey) => {
@@ -348,7 +347,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         has_transport: hasTransport, has_parking: hasParking, has_commute_allowance: hasCommuteAllowance,
         has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
-        staff_count: staffCount === "" ? null : Number(staffCount),
         // 住所・所在地：分割値をそのまま保存し、表示用の1行（recruiter_address）は合成して保存（2026-08-01）。
         // 分割欄が全て空の既存利用者は composeRecruiterAddress が旧1行値を返す＝消えない
         recruiter_name: recruiterName.trim(), recruiter_address: composeRecruiterAddress(), recruiter_contact: recruiterContact.trim(),
@@ -400,12 +398,11 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"nickname", e:"✏️", l:"氏名・名称",     req:true, v: recruiterName },
           { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: composeRecruiterAddress() },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
-          { k:"staff",    e:"👥", l:"従業員数",       v: staffCount !== "" ? `${staffCount}人` : "" },
           { k:"recruiter", e:"🧾", l:"連絡先",         req:true, v: recruiterContact },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
-        ].filter(b => !black || !["staff","intro","ask","style"].includes(b.k)).map(b => (
+        ].filter(b => !black || !["intro","ask","style"].includes(b.k)).map(b => (
           // 未入力ボックスは赤影アニメで促す（2026-07-16）
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: black ? "1px solid #111111" : "1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
             {!black && (b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>)}
@@ -548,15 +545,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </div>
       </>)}
 
-      {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を従業員数/農園紹介/問いかけ/関わり方の各ボックスに分割 */}
-      {editBox==="staff" && (<>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>従業員数（任意）</label>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-              <input type="number" value={staffCount} onChange={e=>setStaffCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
-              <span className="f-sans" style={{ fontSize:13, color:"#717171" }}>人</span>
-            </div>
-      </>)}
-
+      {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を農園紹介/問いかけ/関わり方の各ボックスに分割 */}
+      {/* 従業員数ボックスは削除（2026-08-01たきと指示）。DB列staff_countと既存データは残置 */}
       {editBox==="recruiter" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>募集者の情報</label>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
