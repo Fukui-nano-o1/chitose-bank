@@ -106,8 +106,9 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
   const AC = black ? "#111111" : "#00A86B";
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
   const cur = onEditItem ? { cursor:"pointer" } : {};
-  const qa = farmHostQa(profile);
-  const styleLabel = interactionStyleLabel(profile.interaction_style);
+  // black（委託）では 問いかけQ&A・関わり方チップを出さない（2026-07-31たきと指示・委託に該当ボックスが無いため）
+  const qa = black ? [] : farmHostQa(profile);
+  const styleLabel = black ? "" : interactionStyleLabel(profile.interaction_style);
   const okTrust = !!(trust && trust.ok);
   return (
     <div>

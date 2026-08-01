@@ -240,7 +240,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const closeEditBox = () => setEditBox(null);
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
-  const BOX_ORDER = ["avatar","nickname","place","perks","staff","intro","ask","style"];
+  // black（委託）では 関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
+  const BOX_ORDER = black ? ["avatar","nickname","place","perks","staff"] : ["avatar","nickname","place","perks","staff","intro","ask","style"];
   const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
@@ -341,7 +342,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
-        ].map(b => (
+        ].filter(b => !black || !["intro","ask","style"].includes(b.k)).map(b => (
           // 未入力ボックスは赤影アニメで促す（2026-07-16）
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: black ? "1px solid #111111" : "1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
             {!black && (b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>)}
@@ -609,7 +610,7 @@ function FarmerProfilePreview({ me, table = "employer_profiles", withTrust = tru
   }, []);
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
   if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
-  const topics = data ? farmIntroTopics(data) : [];
+  const topics = (data && !black) ? farmIntroTopics(data) : []; // black（委託）は代表よりを出さない（2026-07-31たきと指示）
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:400 }}>
       <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{data?.nickname ? `${data.nickname}の農園紹介` : "農園紹介"}</p>
