@@ -641,7 +641,7 @@ export function ConsignmentRoom() {
       {cTab === "profile" && (
         <div className="fade-in">
           <button onClick={()=>{ setCTab("list"); window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 委託一覧</button>
-          <EmployerProfileEdit me={empMini || {}} table="consignment_profiles" avatarDir="consignment" black />
+          <EmployerProfileEdit me={empMini || {}} table="consignment_profiles" avatarDir="consignment" black seedFrom="employer_profiles" />
         </div>
       )}
 

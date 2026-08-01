@@ -10,7 +10,9 @@ import { ToggleSwitch } from "./ToggleSwitch";
 // table/avatarDir で保存先を差し替え可能（2026-07-31たきと指示・委託専用プロフィールが同じ項目/配置で
 // 別テーブルに保存するため）。既定は雇い手プロフィール（employer_profiles・avatarは avatars/employer/）＝現行不変
 // black=委託の黒テーマ（2026-07-31たきと指示）：ボックスのアイコンを消し、縁をブラックに。既定false＝雇い手側は不変
-export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_profiles", avatarDir = "employer", black = false }) {
+// seedFrom=初回の引き継ぎ元テーブル（2026-07-31たきと指示「はじめは農家プロフィールの入力内容を引き継ぐ。保存先は別々」）。
+// 自分の行が未作成のときだけ seedFrom から読んでフォームに初期値を入れる。保存は本人が押した時だけ・保存先は table のまま
+export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_profiles", avatarDir = "employer", black = false, seedFrom = null }) {
   const [nickname, setNickname] = useState("");
   const [pr, setPr] = useState(""); // 紹介・PRボックスは廃止（2026-07-16）。既存データ保全のためstateと保存は温存
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -84,7 +86,14 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        const { data } = await supabase.from(table).select("*").eq("auth_id", session.user.id).maybeSingle();
+        let { data } = await supabase.from(table).select("*").eq("auth_id", session.user.id).maybeSingle();
+        // 初回引き継ぎ：自分の行が無ければ seedFrom（農家プロフィール）を初期値として読む。
+        // 行は作らない＝保存は本人が押した時だけ。承認済み控えは空にする（この表にはまだ何も保存されていない）
+        let seeded = false;
+        if (!data && seedFrom) {
+          const { data: sd } = await supabase.from(seedFrom).select("*").eq("auth_id", session.user.id).maybeSingle();
+          if (sd) { data = sd; seeded = true; }
+        }
         if (data) {
           setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || "");
           setPlaceZip(data.place_zip || ""); setPlacePref(data.place_prefecture || ""); setPlaceCity(data.place_city || "");
@@ -104,6 +113,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             unique_point: data.unique_point ?? "", always_do: data.always_do ?? "", break_style: data.break_style ?? "",
             transport_area: data.transport_area ?? "", commute_allowance_detail: data.commute_allowance_detail ?? "", supplies_cap: data.supplies_cap ?? "",
           };
+          if (seeded) approvedTextsRef.current = {};
           setCommuteAllowanceDetail(tp.commute_allowance_detail ?? (data.commute_allowance_detail || ""));
           setSuppliesCap(tp.supplies_cap ?? (data.supplies_cap || ""));
           setTransportArea(tp.transport_area ?? (data.transport_area || ""));
@@ -265,6 +275,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       };
       const textsPending = {};
       Object.keys(desiredTexts).forEach(k => { if (desiredTexts[k] !== (approvedTextsRef.current[k] ?? "")) textsPending[k] = desiredTexts[k]; });
+      // 審査フロー（texts_pending→運営承認）は employer_profiles 専用。別テーブル（委託＝管理者専用レーン）は
+      // 審査UIが無く pending が永久に滞留するため、自由記述を本欄へ直接保存する
+      const reviewFlow = table === "employer_profiles";
       const { error } = await supabase.from(table).upsert({
         auth_id: session.user.id,
         // 表示名(nickname)は既存の値を尊重し、空のときだけ氏名・名称で埋める（チャット等の「〇〇さん」が空にならないように）
@@ -277,10 +290,16 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         staff_count: staffCount === "" ? null : Number(staffCount),
         recruiter_name: recruiterName.trim(), recruiter_address: recruiterAddress.trim(), recruiter_contact: recruiterContact.trim(),
         interaction_style: interactionStyle || null,
-        texts_pending: textsPending,
-        texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
-        // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
-        ...(Object.keys(textsPending).length > 0 ? { texts_revision_requested_at: null } : {}),
+        ...(reviewFlow ? {
+          texts_pending: textsPending,
+          texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
+          // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
+          ...(Object.keys(textsPending).length > 0 ? { texts_revision_requested_at: null } : {}),
+        } : {
+          ...desiredTexts,
+          texts_pending: {},
+          texts_submitted_at: null,
+        }),
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
