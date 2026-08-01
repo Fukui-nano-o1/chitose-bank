@@ -68,7 +68,7 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", hazards:[], hazard_other:"", special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名" },
@@ -84,6 +84,10 @@ const CONSIGN_BASIC_FIELDS = [
 // 作業は3択・複数選択可（2026-07-31たきと指示）。値は「・」区切りの文字列で spec.task に保存
 // ＝印刷・凍結スナップショット・カード表示（いずれも spec.task を文字列で読む）を変更せずに済む
 const CONSIGN_TASKS = ["収穫", "検品", "出荷"];
+
+// 危険情報はチェック式（2026-07-31たきと指示・自由記述だと書かれず埋もれるため）。
+// 選択は spec.hazards（配列）、その他の自由記述は spec.hazard_other に保存
+const CONSIGN_HAZARDS = ["電柵あり", "急斜面", "ぬかるみ", "農薬散布後", "その他"];
 
 const CONSIGN_TEXT_FIELDS = [
   { k:"inspection", l:"検収基準", ph:"例：2L以上・軸2cm・コンテナ渡し" },
@@ -351,6 +355,10 @@ export function ConsignmentRoom() {
               <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{spec[f.k] || "　"}</p>
             </div>
           ))}
+          <div style={{ marginBottom:14 }}>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 危険情報</p>
+            <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{(spec.hazards || []).length ? (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・") : "特になし"}</p>
+          </div>
           <div style={{ marginTop:18 }}>
             <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 6px" }}>■ 定型条項（全仕様書共通）</p>
             {CONSIGN_FIXED_CLAUSES.map(c => (
@@ -637,7 +645,36 @@ export function ConsignmentRoom() {
               )}
             </div>
           ))}
-          {CONSIGN_TEXT_FIELDS.map(f => (
+          {/* 検収基準・圃場条件（特約は危険情報の後・掲載順どおり） */}
+          {CONSIGN_TEXT_FIELDS.filter(f => f.k !== "special").map(f => (
+            <div key={f.k} style={{ marginBottom:10 }}>
+              <label className="lbl f-sans">{f.l}</label>
+              <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+            </div>
+          ))}
+          {/* 危険情報（チェック式・その他は自由記述を展開） */}
+          <div style={{ marginBottom:10 }}>
+            <label className="lbl f-sans">危険情報</label>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {CONSIGN_HAZARDS.map(h => {
+                const on = (spec.hazards || []).includes(h);
+                return (
+                  <button key={h} type="button" onClick={()=>{
+                    const cur = spec.hazards || [];
+                    setF("hazards", cur.includes(h) ? cur.filter(x => x !== h) : [...cur, h]);
+                  }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, textAlign:"left", padding:"10px 14px", fontSize:14, fontWeight:600, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>
+                    <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: on ? "none" : "2px solid #C8C8C8", background: on ? "#fff" : "transparent", color:"#111111" }}>{on ? "✓" : ""}</span>
+                    {h}
+                  </button>
+                );
+              })}
+              {(spec.hazards || []).includes("その他") && (
+                <input className="field f-sans" value={spec.hazard_other || ""} onChange={e=>setF("hazard_other", e.target.value)} placeholder="その他の危険（自由記述）" style={{ fontSize:13, marginBottom:0 }} />
+              )}
+            </div>
+          </div>
+          {/* 特約（掲載順の最後） */}
+          {CONSIGN_TEXT_FIELDS.filter(f => f.k === "special").map(f => (
             <div key={f.k} style={{ marginBottom:10 }}>
               <label className="lbl f-sans">{f.l}</label>
               <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
@@ -693,6 +730,11 @@ export function ConsignmentRoom() {
                 <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {[s.region, s.area_a ? s.area_a + "a" : "", s.deadline ? "期限 " + s.deadline : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
                 </p>
+                {(s.hazards || []).length > 0 && (
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    ⚠ {(s.hazards || []).map(h => h === "その他" && s.hazard_other ? "その他（" + s.hazard_other + "）" : h).join("・")}
+                  </p>
+                )}
                 <ConsignStepper deal={d} />
                 {ag && (ag.hours > 0 || ag.days > 0) && (
                   <p className="f-sans" style={{ fontSize:11, color:"#111111", fontWeight:700, margin:"-8px 0 6px" }}>履行：実働{ag.hours}h・{ag.days}日{ag.boxes > 0 ? `・${ag.boxes}箱` : ""}{hpa != null ? `　10aあたり ${hpa}h` : ""}</p>
