@@ -856,7 +856,18 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 /* 委託ページ内の主ボタン（保存する等）も黒に（2026-07-31たきと指示「すべて、ブラックで統一」）。
    編集モーダルはDOM上 .cb-consign-page の子孫なのでこの継承で拾える */
 .cb-consign-page .btn-primary { background: #111111 !important; }
-/* 動きを減らす設定の端末では、入場演出は出さず・蔓は揺らさず静止で置く */
+/* 退場演出（2026-07-31たきと指示・新しく委託を出す→ウィザードへ）：
+   蔓(0〜0.5s)→太陽と空(0.4〜0.9s)→名刺・ボックス・文言(0.8〜1.2s)の順に画面外へ。
+   蔓は各svgでなく容器ごと持ち上げる（svg個々のsway用インラインduration/delayに勝てないため。
+   容器は高さ0soパーセントでなくvhで動かす）。四隅は額縁soその場でフェード */
+.consign-leaving .consign-vines { animation: consignVinesExit .5s ease-in forwards; }
+@keyframes consignVinesExit { to { transform: translateY(-110vh); } }
+.consign-leaving .consign-corners { opacity: 0; transition: opacity .45s ease-in; }
+.consign-leaving .consign-sky { animation: consignSkyExit .5s ease-in .4s forwards; }
+@keyframes consignSkyExit { to { transform: translateY(-105%); opacity: 0; } }
+.consign-leaving .consign-list-content { animation: consignContentExit .4s ease-in .8s forwards; }
+@keyframes consignContentExit { to { transform: translateY(24px); opacity: 0; } }
+/* 動きを減らす設定の端末では、入場演出は出さず・蔓は揺らさず静止で置く（退場演出はJS側で即遷移に分岐） */
 @media (prefers-reduced-motion: reduce) {
   .consign-entrance { display: none; }
   .consign-vines svg { animation: none; }

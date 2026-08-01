@@ -278,13 +278,14 @@ export function ConsignmentRoom() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const prevMeta = meta ? meta.getAttribute("content") : null;
     const prevHtmlBg = document.documentElement.style.backgroundColor;
-    if (meta) meta.setAttribute("content", sky.chrome);
-    document.documentElement.style.backgroundColor = sky.chrome;
+    const col = cTab === "new" ? "#FFFFFF" : sky.chrome; // ウィザードは背景ホワイト統一（2026-07-31たきと指示）
+    if (meta) meta.setAttribute("content", col);
+    document.documentElement.style.backgroundColor = col;
     return () => {
       if (meta && prevMeta != null) meta.setAttribute("content", prevMeta);
       document.documentElement.style.backgroundColor = prevHtmlBg;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const [wind, setWind] = useState(null); // 委託地の現在の風（Open-Meteo・{speed:km/h, dir:度(吹いてくる向き)}）
   // 四隅の蔓：大きさだけ隅ごとに抽選（140〜220px）。向きは四隅で固定＝反転で使い回す
   const [cornerSizes] = useState(() => Array.from({ length: 4 }, () => Math.round(140 + Math.random() * 80)));
@@ -316,6 +317,7 @@ export function ConsignmentRoom() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [showDeadlineCal, setShowDeadlineCal] = useState(false);
   const [wizStep, setWizStep] = useState(1); // 新規ウィザードの現在ステップ（1〜5・cTab==="new"時のみ有効）
+  const [leaving, setLeaving] = useState(false); // 退場演出中（新しく委託を出す→蔓→太陽→中身の順に画面外へ・2026-07-31たきと指示）
   const [printOpen, setPrintOpen] = useState(false);
   const [deals, setDeals] = useState([]);
   const [progAgg, setProgAgg] = useState({}); // 台帳の要約用：deal_id→{hours,boxes,days}
@@ -454,7 +456,15 @@ export function ConsignmentRoom() {
   const openDealState = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
   const newDealState = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setWizStep(1); setCTab("new"); };
   const openDeal = (d) => { openDealState(d); window.location.hash = "/admin/consignment/deal/" + d.id; };
-  const newDeal = () => { newDealState(); window.location.hash = "/admin/consignment/new"; };
+  // 新しく委託を出す：まず蔓が画面外へ→次に太陽→最後に名刺・ボックス・文言が退場→ウィザードへ（2026-07-31たきと指示）。
+  // 振り付けはCSS（.consign-leaving）。動きを減らす設定の端末は演出なしで即遷移
+  const newDeal = () => {
+    if (leaving) return;
+    let reduce = false; try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch {}
+    if (reduce) { newDealState(); window.location.hash = "/admin/consignment/new"; return; }
+    setLeaving(true);
+    setTimeout(() => { setLeaving(false); newDealState(); window.location.hash = "/admin/consignment/new"; }, 1250);
+  };
   // mount時の読み込み：一覧＋名刺。URLが /deal/{id} のままのリロードは取得行でその案件を開き直す
   useEffect(() => {
     (async () => {
@@ -626,14 +636,17 @@ export function ConsignmentRoom() {
   }
 
   return (
-    <div className="cb-consign-page fade-in" style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
+    <div className={"cb-consign-page fade-in" + (leaving ? " consign-leaving" : "")} style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
       {/* 背景の空（2026-07-31たきと指示）：朝昼夜の色＋太陽/月が時刻で左→右に移動。
           蔓より奥（z-index:-2）に敷く。上端から色が差し込み、下は透明に抜ける */}
+      {cTab !== "new" && (
       <div className="consign-sky" aria-hidden="true" style={{ background: `linear-gradient(to bottom, ${sky.skyTop} 0%, rgba(255,255,255,0) 44%)` }}>
         <div className="consign-sky-orb" style={{ left: sky.left + "%", top: sky.top + "%", background: sky.orb, boxShadow: `0 0 44px 12px ${sky.glow}` }} />
       </div>
+      )}
       {/* 背景の環境：画面上端から垂れ下がる黒い草の蔓（2026-07-31たきと指示）。
           z-index:-1でページ内容の下に敷く（白いカードの裏に自然に隠れる）。ゆっくり揺れる */}
+      {cTab !== "new" && (
       <div className="consign-vines" aria-hidden="true" style={{ "--sway-center": swayCenter, "--sway-amp": swayAmp }}>
         {vines.map((sp, i) => {
           const d = CONSIGN_VINES[sp.v];
@@ -651,8 +664,10 @@ export function ConsignmentRoom() {
           );
         })}
       </div>
+      )}
       {/* 四隅の蔓（2026-07-31たきと指示）：角を抱くように這う。左上の形を反転で4隅に配る。
           -6pxのはみ出し＝紙の外から蔓が入り込んでいる見え方。揺らさない（額縁は静かに） */}
+      {cTab !== "new" && (
       <div className="consign-corners" aria-hidden="true">
         {[
           { pos: { top: -6, left: -6 },     tr: "" },
@@ -670,6 +685,7 @@ export function ConsignmentRoom() {
           </svg>
         ))}
       </div>
+      )}
       {/* 入場演出：黒幕＋白線→草の群れが右→左→右と下から上へ→幕が上下に開いてフィールド展開。
           群れは所属する幕の中に描く＝幕が開くと群れごと退場する */}
       {entrance && (
@@ -720,7 +736,7 @@ export function ConsignmentRoom() {
       )}
       {/* トップ画=一覧（さがすページと同じ設計・2026-07-31たきと指示）：カードの一覧→タップで
           案件ダッシュボード(deal)へ。←戻る・見出し・入口カードは一覧側だけに出す */}
-      {cTab === "list" && (<>
+      {cTab === "list" && (<div className="consign-list-content">
       {/* 戻り先は雇い手プロフィール入口（2026-07-31たきと指示・管理タブではない）：
           入口カード「新しく委託を出す」が置いてある場所へ帰る。ラベルも「← 戻る」に */}
       <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
@@ -745,7 +761,7 @@ export function ConsignmentRoom() {
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:16, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>5つのステップで掲載まで進みます。</span>
       </button>
-      </>)}
+      </div>)}
 
       {/* 委託専用プロフィール（#/admin/consignment/profile・2026-07-31たきと指示）。
           雇い手プロフィールと同じ項目・ボックス配置（EmployerProfileEditを流用）だが、
@@ -1011,7 +1027,7 @@ export function ConsignmentRoom() {
       )}
 
       {cTab === "list" && (
-        <div className="fade-in">
+        <div className="fade-in consign-list-content">
           {deals.length === 0 ? (
             <p className="f-sans" style={{ fontSize:13, color:"#111111", textAlign:"center", padding:"32px 0" }}>まだ委託がありません。「新しく委託を出す」から始めましょう。</p>
           ) : (
