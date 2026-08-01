@@ -70,18 +70,11 @@ export function AdminWorkingRoom() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const back = () => { window.location.hash = "/admin"; };
-
   return (
     <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
-      <button onClick={back} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#222", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 管理へ戻る</button>
-
-      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:6 }}>
-        <div>
-          <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>🛠 仕事中</p>
-          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>進行中のマッチと、まもなく始まる仕事の見守り</p>
-        </div>
-        <button onClick={() => { setState(null); load(); }} className="f-sans" style={{ padding:"8px 14px", borderRadius:10, border:"1px solid #EBEBEB", background:"#fff", fontSize:12, fontWeight:600, color:"#222", cursor:"pointer", flexShrink:0 }}>🔄 更新</button>
+      <div style={{ marginBottom:6 }}>
+        <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>🛠 仕事中</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>進行中のマッチと、まもなく始まる仕事の見守り</p>
       </div>
 
       {state === null && (
@@ -91,7 +84,7 @@ export function AdminWorkingRoom() {
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>管理者のみが閲覧できます</p>
       )}
       {state === "error" && (
-        <p className="f-sans" style={{ textAlign:"center", color:"#E24B4A", fontSize:13, padding:"48px 0" }}>読み込みに失敗しました。更新を押してください</p>
+        <p className="f-sans" style={{ textAlign:"center", color:"#E24B4A", fontSize:13, padding:"48px 0" }}>読み込みに失敗しました。ページを開き直してください</p>
       )}
 
       {state && typeof state === "object" && (<>
