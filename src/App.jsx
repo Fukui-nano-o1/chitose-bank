@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { supabase } from "./lib/supabase";
-import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges } from "./lib/utils";
+import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, startsWithinDays } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
@@ -1263,6 +1263,22 @@ export default function App(){
       else { setOpenAccountForm(false); window.location.hash = "/login"; }
     });
   }, []);
+  // まもなく開始をトップページに（2026-08-01たきと指示・いまは管理者のみ）：
+  // サイト/アプリを開いた時、開始1週間以内のマッチがあれば #/admin/upcoming に着地する。
+  // URL直打ち（ディープリンク・#/work/job/… や #/chat/… 等）で開いた時は行き先を奪わない
+  //（initialHashTab=null＝既定着地の時だけ）。判定は1アプリ起動につき1回（ログアウト時はreloadで起動し直すため実質毎回）
+  const upcomingLandingChecked = useRef(false);
+  useEffect(() => {
+    if (upcomingLandingChecked.current || !me || !isAdmin(me) || initialHashTab !== null) return;
+    upcomingLandingChecked.current = true;
+    (async () => {
+      try {
+        const { data } = await supabase.rpc("admin_working_jobs");
+        if (data?.ok && (data.upcoming || []).some(it => startsWithinDays(it, 7))) window.location.hash = "/admin/upcoming";
+      } catch { /* 失敗時は通常の着地のまま（見守りページは管理タブからも開ける） */ }
+    })();
+  }, [me]); // eslint-disable-line react-hooks/exhaustive-deps -- initialHashTab は起動時定数
+
   // 規約v2・プラポリv2 全面改定バナー（7日間限定・2026-07-21〜07-28）。閉じるとlocalStorageで再表示しない
   const [legalV2BannerDismissed,setLegalV2BannerDismissed]=useState(()=>{ try { return localStorage.getItem("cb_legalv2_banner_dismissed")==="1"; } catch { return false; } });
   const showLegalV2Banner = (() => {

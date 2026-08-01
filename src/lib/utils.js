@@ -8,6 +8,22 @@ export const isAdmin = (user) => user?.email === ADMIN_EMAIL;
 // ローカル時刻基準の "YYYY-MM-DD"（toISOString はUTC変換でJSTでは前日にズレる＝date_start保存バグの原因。必ずこちらを使う）
 export const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
+// ── まもなく開始の表示窓（#/admin/upcoming・2026-08-01たきと指示「開始1週間前から展開」）──
+// 実施日＝合意日程（agreed_dates）の最初の日、無ければ求人の開始日（admin_working_jobs RPC の upcoming 行を想定）。
+// 日程未設定は窓に入らない（仕事中ページ #/admin/working の「まもなく開始」には全件出るので、そちらで見える）
+export const upcomingStartYmd = (item) => {
+  const ad = item?.agreed_dates;
+  if (Array.isArray(ad) && ad.length) return [...ad].map(String).sort()[0];
+  return item?.date_start || null;
+};
+// 開始日が days 日以内（過ぎているものも含む＝開始日到来後・自動開始前の取りこぼしも見せる）
+export const startsWithinDays = (item, days = 7) => {
+  const start = upcomingStartYmd(item);
+  if (!start) return false;
+  const limit = new Date(); limit.setDate(limit.getDate() + days);
+  return start <= ymdLocal(limit);
+};
+
 // ── 求人の状態の定義（唯一のソース・2026-07-27たきと指示「終了は終了、下書きは下書き」）──
 // 曖昧なまま各所でstatus文字列だけを見ていると、終了した求人が下書き扱いで出る等の食い違いが起きる。
 // 判定はここに集約し、各画面はこの関数を使う。引数は jobs 行（date_start/date_end/work_time/status/opened_at）

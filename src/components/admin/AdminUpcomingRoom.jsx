@@ -1,10 +1,12 @@
 // まもなく開始ページ（#/admin/upcoming・管理者専用・2026-08-01）。
-// 「採用が決まり、作業日を待っているマッチ（status=approved・双方契約確認済み・未開始）」を
-// 運営が一望する見守りページ。仕事中専用ページ（AdminWorkingRoom）と同じ設計・同じRPCを流用する。
+// 「採用が決まり、作業日を待っているマッチ（status=approved・双方契約確認済み・未開始）」のうち、
+// 開始1週間前の窓に入ったものだけを一望する見守りページ（たきと指示「1週間前から展開」）。
+// 該当があれば、サイトを開いた時のトップページとして展開する（着地の判定は App.jsx 側・startsWithinDays を共用）。
+// 仕事中専用ページ（AdminWorkingRoom）と同じ設計・同じRPCを流用する。
 // 読み取り専用（admin_working_jobs RPC・security definer + app_admins ゲート）。ここからの書き込みは無し。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
-import { CROP_OPTIONS, dateRangeLabel } from "../../lib/utils";
+import { CROP_OPTIONS, dateRangeLabel, startsWithinDays } from "../../lib/utils";
 import { Dots } from "../ui";
 
 const cropIcon = (crop) => CROP_OPTIONS.find(c => c.name === crop)?.icon || "🌱";
@@ -63,11 +65,12 @@ function CardHead({ item }) {
 export function AdminUpcomingRoom() {
   const [state, setState] = useState(null); // null=読み込み中 | {upcoming} | "error" | "denied"
   const load = useCallback(async () => {
-    // 仕事中専用ページと同じ RPC（admin_working_jobs）を流用。返り値の upcoming バケットのみを使う
+    // 仕事中専用ページと同じ RPC（admin_working_jobs）を流用。返り値の upcoming バケットのうち、
+    // 開始1週間以内（過ぎた未開始も含む）の該当求人だけを表示する
     const { data, error } = await supabase.rpc("admin_working_jobs");
     if (error) { setState("error"); return; }
     if (!data?.ok) { setState(data?.reason === "not_admin" ? "denied" : "error"); return; }
-    setState({ upcoming: data.upcoming || [] });
+    setState({ upcoming: (data.upcoming || []).filter(it => startsWithinDays(it, 7)) });
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -75,7 +78,7 @@ export function AdminUpcomingRoom() {
     <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
       <div style={{ marginBottom:6 }}>
         <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>⏳ まもなく開始</p>
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>採用が決まり、作業日を待っているマッチの見守り</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>開始まで1週間を切ったマッチの見守り</p>
       </div>
 
       {state === null && (
@@ -94,9 +97,9 @@ export function AdminUpcomingRoom() {
           <span style={{ width:4, height:16, borderRadius:2, background:"#00897B" }} />
           <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>まもなく開始 <span style={{ color:"#00897B" }}>{state.upcoming.length}</span></p>
         </div>
-        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 12px" }}>採用が決まり、作業日を待っているマッチ（開始日の近い順）</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 12px" }}>採用が決まり、開始1週間前になったマッチ（開始日の近い順）</p>
         {state.upcoming.length === 0 ? (
-          <div className="f-sans" style={{ background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:14, padding:"24px 16px", textAlign:"center", color:"#999", fontSize:13 }}>開始待ちのマッチはありません</div>
+          <div className="f-sans" style={{ background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:14, padding:"24px 16px", textAlign:"center", color:"#999", fontSize:13 }}>1週間以内に始まるマッチはありません</div>
         ) : state.upcoming.map(item => (
           <div key={item.application_id} className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid #00897B" }}>
             <CardHead item={item} />
