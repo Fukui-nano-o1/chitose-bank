@@ -34,6 +34,15 @@ const CONSIGN_STATUS = [
   { k:"done",      l:"完了",   bg:"#F3F3F3", fg:"#999999" },
 ];
 
+// 募集状況（掲載画面に出す状態）＝内部statusから自動導出（2026-07-31たきと指示・二重管理しない）。
+// 内部 draft→募集中／agreed→募集終了（受託者決定）／working・inspected・paid→作業中／done→完了
+const consignRecruitState = (status) => {
+  if (status === "done") return { l:"完了", bg:"#F3F3F3", fg:"#999999" };
+  if (["working", "inspected", "paid"].includes(status)) return { l:"作業中", bg:"#3A3A3A", fg:"#FFFFFF" };
+  if (status === "agreed") return { l:"募集終了", bg:"#E5E5E5", fg:"#444444" };
+  return { l:"募集中", bg:"#111111", fg:"#FFFFFF" }; // draft（既定）＝掲載中・応募受付
+};
+
 // 進行ステッパー（FlowBarと同じ視覚文法。色だけブラック：黒の✓＝完了・黒リング＝現在地・グレー＝未着手）
 function ConsignStepper({ deal }) {
   const { done, active } = consignStepState(deal);
@@ -321,7 +330,6 @@ export function ConsignmentRoom() {
   };
   const openDeal = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
   const newDeal = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("deal"); };
-  const stBadge = (k) => CONSIGN_STATUS.find(s => s.k === k) || CONSIGN_STATUS[0];
   // 合意後にフォームを変更したか（保存済みspec vs 凍結snapshot・基本/テキスト項目で比較）
   const specKeys = [...CONSIGN_BASIC_FIELDS.map(f => f.k), ...CONSIGN_TEXT_FIELDS.map(f => f.k)];
   const pick = (o) => specKeys.reduce((a, k) => { a[k] = (o || {})[k] || ""; return a; }, {});
@@ -713,7 +721,7 @@ export function ConsignmentRoom() {
           <div style={{ display:"grid", gap:14 }}>
           {deals.map(d => {
             const s = d.spec || {};
-            const st = stBadge(d.status);
+            const st = consignRecruitState(d.status);
             const ag = progAgg[d.id]; const area = dealAreaA(d);
             const hpa = ag && area ? hoursPer10a(ag.hours, area) : null;
             return (
