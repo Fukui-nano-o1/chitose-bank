@@ -113,6 +113,17 @@ const CONSIGN_TASKS = ["収穫", "検品", "出荷"];
 // 選択は spec.hazards（配列）、その他の自由記述は spec.hazard_other に保存
 const CONSIGN_HAZARDS = ["電柵あり", "急斜面", "ぬかるみ", "農薬散布後", "その他"];
 
+// 新規委託ウィザード（2026-07-31たきと指示）：「入力順」でなく「契約が成立するまでの思考順」。
+// 受託者の頭の中＝何やる？→できる？→いくら？→いつ？→危なくない？→応募 に合わせた5ステップ。
+// 1ページ1つの問い（最低限の情報UI・最大限のUX）
+const CONSIGN_WIZ_STEPS = [
+  { t:"案件概要",   q:"何を頼みますか？",             d:"どんな仕事なのかを3秒で理解できるように。" },
+  { t:"作業仕様",   q:"どう終われば完了ですか？",     d:"揉めない仕様をつくります。" },
+  { t:"報酬",       q:"いくら払いますか？",           d:"受託者が応募するか判断する情報です。" },
+  { t:"日程・安全", q:"いつやりますか？危険は？",     d:"受託可能かの判断と、事故防止のために。" },
+  { t:"確認・掲載", q:"内容を確認して掲載します",     d:"掲載ミスを防ぐ最終チェックです。" },
+];
+
 const CONSIGN_TEXT_FIELDS = [
   { k:"inspection", l:"検収基準", ph:"例：2L以上・軸2cm・コンテナ渡し" },
   { k:"field_cond", l:"圃場条件", ph:"残渣・傾斜・進入路など" },
@@ -247,7 +258,7 @@ export function ConsignmentRoom() {
     if (h === "admin/consignment/profile") return { view: "profile" };
     return { view: "list" };
   };
-  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "profile" ? "profile" : "deal"; }); // list=一覧 / deal=案件ダッシュボード / profile=委託専用プロフィール
+  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "profile" ? "profile" : v === "new" ? "new" : "deal"; }); // list=一覧 / deal=案件ダッシュボード / profile=委託専用プロフィール
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示）：群れ①が生え切ってから②、②の後に③＝三段のリズム。
   // 線(0.22s)→①右下(0.10s〜)→②左中(0.45s〜)→③右上(0.80s〜)→幕が開く(1.20s+0.5s)
@@ -304,6 +315,7 @@ export function ConsignmentRoom() {
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [showDeadlineCal, setShowDeadlineCal] = useState(false);
+  const [wizStep, setWizStep] = useState(1); // 新規ウィザードの現在ステップ（1〜5・cTab==="new"時のみ有効）
   const [printOpen, setPrintOpen] = useState(false);
   const [deals, setDeals] = useState([]);
   const [progAgg, setProgAgg] = useState({}); // 台帳の要約用：deal_id→{hours,boxes,days}
@@ -382,18 +394,18 @@ export function ConsignmentRoom() {
     await loadDeals();
   };
   const save = async () => {
-    if (saving) return;
-    if ((spec.photos || []).length < 3) { alert("掲載には写真が最低3枚必要です。"); return; }
+    if (saving) return false;
+    if ((spec.photos || []).length < 3) { alert("掲載には写真が最低3枚必要です。"); return false; }
     setSaving(true);
     try {
       const payload = { spec: { ...spec, crop: CONSIGN_CROP, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
       if (editId) {
         const { error } = await supabase.from("consignment_deals").update(payload).eq("id", editId);
-        if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return; }
+        if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return false; }
         await refreshCur(editId);
       } else {
         const { data, error } = await supabase.from("consignment_deals").insert(payload).select("*").single();
-        if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return; }
+        if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return false; }
         if (data) {
           setEditId(data.id); setCurDeal(data);
           // URLを /new → /deal/{id} に置換（pushしない＝スワイプ/戻る1回で一覧へ帰れるまま）
@@ -401,8 +413,9 @@ export function ConsignmentRoom() {
         }
         await loadDeals();
       }
-    } catch { alert("保存に失敗しました。"); }
+    } catch { alert("保存に失敗しました。"); setSaving(false); return false; }
     setSaving(false);
+    return true;
   };
   // 状態を1つ進める共通処理（合意/前金/作業中/検収/支払/完了）。パッチをupdate→現行行を取り直す
   const advance = async (patch, confirmMsg) => {
@@ -439,7 +452,7 @@ export function ConsignmentRoom() {
     setBusy(false);
   };
   const openDealState = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
-  const newDealState = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setCTab("deal"); };
+  const newDealState = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setWizStep(1); setCTab("new"); };
   const openDeal = (d) => { openDealState(d); window.location.hash = "/admin/consignment/deal/" + d.id; };
   const newDeal = () => { newDealState(); window.location.hash = "/admin/consignment/new"; };
   // mount時の読み込み：一覧＋名刺。URLが /deal/{id} のままのリロードは取得行でその案件を開き直す
@@ -485,6 +498,91 @@ export function ConsignmentRoom() {
   const swayAmp = Math.min(16, 2.5 + windSpeed * 0.35);   // 揺れ幅（度）
   const swayCenter = +(windEast * Math.min(14, windSpeed * 0.5)).toFixed(1); // 傾き中心（度・風向き）
   const windMult = Math.min(3, 1 + windSpeed * 0.05);     // 揺れの速さ倍率（風速で速く）
+
+  // ── 入力部品（案件ダッシュボード(deal)と新規ウィザード(new)で共用・2026-07-31）──
+  const renderBasicField = (f) => (
+            <div key={f.k} style={{ marginBottom:10 }}>
+              <label className="lbl f-sans">{f.l}</label>
+              {f.k === "crop" ? (
+                // ブロッコリー固定（入力不可）。この委託はブロッコリーのみ
+                <div><span className="f-sans" style={{ display:"inline-block", padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff" }}>{CONSIGN_CROP}</span></div>
+              ) : f.k === "deadline" ? (
+                // 履行期限＝開始+終了の日付範囲。同じ欄をタップでカレンダー展開（ブラック）
+                <div>
+                  <button type="button" onClick={()=>setShowDeadlineCal(v => !v)} className="field f-sans" style={{ width:"100%", textAlign:"left", fontSize:14, marginBottom:0, cursor:"pointer", background:"#fff", color: spec.date_start ? "#111111" : "#999999" }}>
+                    {spec.date_start ? deadlineLabel(spec.date_start, spec.date_end) : "タップして期間を選択"}
+                  </button>
+                  {showDeadlineCal && (
+                    <CalendarView accent="#111111" accentSoft="#EEEEEE" hideHints start={parseYmd(spec.date_start)} end={parseYmd(spec.date_end)} onSelect={onDeadlineSelect} />
+                  )}
+                  <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"6px 0 0" }}>1回目のタップで開始日、2回目で終了日。終了日を選ばなければ開始日のみ。</p>
+                </div>
+              ) : f.k === "task" ? (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  {CONSIGN_TASKS.map(t => {
+                    const sel = (spec.task ? spec.task.split("・").filter(Boolean) : []).includes(t);
+                    return (
+                      <button key={t} type="button" onClick={()=>{
+                        const cur = spec.task ? spec.task.split("・").filter(Boolean) : [];
+                        const next = cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t];
+                        setF("task", CONSIGN_TASKS.filter(x => next.includes(x)).join("・"));
+                      }} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: sel ? "2px solid #111111" : "1px solid #D0D0D0", background: sel ? "#111111" : "#fff", color: sel ? "#fff" : "#111111" }}>{t}</button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+              )}
+            </div>
+  );
+  const renderTextField = (f) => (
+            <div key={f.k} style={{ marginBottom:10 }}>
+              <label className="lbl f-sans">{f.l}</label>
+              <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+            </div>
+  );
+  const renderHazards = () => (
+          <div style={{ marginBottom:10 }}>
+            <label className="lbl f-sans">危険情報</label>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {CONSIGN_HAZARDS.map(h => {
+                const on = (spec.hazards || []).includes(h);
+                return (
+                  <button key={h} type="button" onClick={()=>{
+                    const cur = spec.hazards || [];
+                    setF("hazards", cur.includes(h) ? cur.filter(x => x !== h) : [...cur, h]);
+                  }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, textAlign:"left", padding:"10px 14px", fontSize:14, fontWeight:600, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>
+                    <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: on ? "none" : "2px solid #C8C8C8", background: on ? "#fff" : "transparent", color:"#111111" }}>{on ? "✓" : ""}</span>
+                    {h}
+                  </button>
+                );
+              })}
+              {(spec.hazards || []).includes("その他") && (
+                <input className="field f-sans" value={spec.hazard_other || ""} onChange={e=>setF("hazard_other", e.target.value)} placeholder="その他の危険（自由記述）" style={{ fontSize:13, marginBottom:0 }} />
+              )}
+            </div>
+          </div>
+  );
+  const renderPhotos = () => (
+          <div style={{ marginBottom:10 }}>
+            <label className="lbl f-sans">写真（最低3枚）</label>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {(spec.photos || []).map((ph, i) => (
+                <div key={i} style={{ position:"relative", width:96, height:96, borderRadius:10, overflow:"hidden", border:"1px solid #E5E5E5" }}>
+                  <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  <button type="button" onClick={()=>removePhoto(i)} className="f-sans" style={{ position:"absolute", top:2, right:2, width:22, height:22, borderRadius:"50%", background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", fontSize:14, lineHeight:1, cursor:"pointer" }}>×</button>
+                </div>
+              ))}
+              <label className="f-sans" style={{ width:96, height:96, borderRadius:10, border:"1px dashed #B0B0B0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: photoUploading ? "default" : "pointer", fontSize:12, color:"#111111", gap:2 }}>
+                {photoUploading ? "…" : (<><span style={{ fontSize:22, lineHeight:1 }}>＋</span>写真</>)}
+                <input type="file" accept="image/*" multiple onChange={e=>{ handlePhotoFiles(e.target.files); e.target.value=""; }} style={{ display:"none" }} disabled={photoUploading} />
+              </label>
+            </div>
+            <p className="f-sans" style={{ fontSize:11, margin:"6px 0 0", color: (spec.photos || []).length >= 3 ? "#999999" : "#111111", fontWeight: (spec.photos || []).length >= 3 ? 400 : 700 }}>
+              {(spec.photos || []).length}枚（掲載には最低3枚必要です）
+            </p>
+          </div>
+  );
 
   if (printOpen) {
     return (
@@ -640,13 +738,12 @@ export function ConsignmentRoom() {
       {/* 新しく委託を出す（2026-07-31たきと指示・農家の「新しく求人を出す」と同じワイドカード）。
           配色はブラック＝委託・受託の世界（求人・求職のオレンジ／ミドリとは分ける）。アイコンは置かない。
           管理者のみ：この部屋自体が admin ゲートの内側で、consignment_deals のRLSも app_admins 限定。
-          ★行き先は今は既存の「新規作成」（白紙の仕様書）。次の工程で、求人フローと同じ並びの
-            委託フロー（#/admin/consignment/new）に差し替える＝この onClick 1行だけの変更で済む */}
+          行き先は新規委託ウィザード（#/admin/consignment/new・思考順5ステップ） */}
       <button onClick={newDeal} className="f-sans" style={{ position:"relative", overflow:"hidden", width:"100%", margin:"0 0 16px", background:"#111111", border:"none", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
         {/* カードの角を這う白い蔓（2026-07-31たきと指示）。文字はzIndexで蔓の上に */}
         <VineCorner flip size={110} style={{ top:-6, right:-6, opacity:0.5 }} />
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:16, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
-        <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>仕様書を白紙から作ります。</span>
+        <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>5つのステップで掲載まで進みます。</span>
       </button>
       </>)}
 
@@ -657,6 +754,91 @@ export function ConsignmentRoom() {
         <div className="fade-in">
           <button onClick={()=>{ setCTab("list"); window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 委託一覧</button>
           <EmployerProfileEdit me={empMini || {}} table="consignment_profiles" avatarDir="consignment" black seedFrom="employer_profiles" />
+        </div>
+      )}
+
+      {/* ═══ 新規委託ウィザード（#/admin/consignment/new・2026-07-31たきと指示）═══
+          「入力順」でなく「契約が成立するまでの思考順」＝受託者の頭の中
+          （何やる？→できる？→いくら？→いつ？→危なくない？→応募）に合わせた5ステップ。
+          1ページ1つの問い。入力部品は案件ダッシュボードと共用（renderBasicField等） */}
+      {cTab === "new" && (
+        <div className="fade-in">
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+            <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else setWizStep(v => v - 1); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
+            <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111" }}>{wizStep}/5　{CONSIGN_WIZ_STEPS[wizStep-1].t}</span>
+          </div>
+          {/* 進捗（5分割の黒バー） */}
+          <div style={{ display:"flex", gap:4, marginBottom:18 }}>
+            {CONSIGN_WIZ_STEPS.map((st, i) => (
+              <div key={st.t} style={{ flex:1, height:4, borderRadius:2, background: i < wizStep ? "#111111" : "#E5E5E5" }} />
+            ))}
+          </div>
+          {/* 1ページ1つの問い */}
+          <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{CONSIGN_WIZ_STEPS[wizStep-1].q}</h2>
+          <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 18px" }}>{CONSIGN_WIZ_STEPS[wizStep-1].d}</p>
+
+          {/* STEP1 案件概要：何を頼むのか */}
+          {wizStep === 1 && (<>
+            {["crop","task","field_name","region","area_a"].map(k => renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === k)))}
+            {renderPhotos()}
+          </>)}
+          {/* STEP2 作業仕様：どう終われば完了か */}
+          {wizStep === 2 && (<>{CONSIGN_TEXT_FIELDS.map(renderTextField)}</>)}
+          {/* STEP3 報酬：いくら払うのか */}
+          {wizStep === 3 && (<>
+            {["unit_price_10a","advance"].map(k => renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === k)))}
+            {/* 報酬イメージ（単価×面積の自動計算・派生表示so保存しない） */}
+            {(() => { const u = Number(spec.unit_price_10a), a = Number(spec.area_a);
+              return (u > 0 && a > 0) ? (
+                <div style={{ background:"#111111", borderRadius:12, padding:"14px 16px", marginTop:4 }}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#B9B9B9", margin:"0 0 2px" }}>報酬イメージ（単価 × 面積{a}a）</p>
+                  <p className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#fff", margin:0 }}>約 {Math.round(u * a / 10).toLocaleString()}円</p>
+                </div>
+              ) : (
+                <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"4px 0 0" }}>単価を入れると、面積（{spec.area_a ? spec.area_a + "a" : "未入力"}）から報酬イメージを自動計算します。</p>
+              ); })()}
+          </>)}
+          {/* STEP4 日程・安全：いつ・危険情報 */}
+          {wizStep === 4 && (<>
+            {renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === "deadline"))}
+            {renderHazards()}
+          </>)}
+          {/* STEP5 確認・掲載：公開前チェック（プレビュー＋定型条項＋掲載） */}
+          {wizStep === 5 && (<>
+            {(spec.photos || []).length > 0 && (
+              <div style={{ display:"flex", gap:6, overflowX:"auto", marginBottom:12 }}>
+                {(spec.photos || []).map((ph, i) => (
+                  <img key={i} src={ph.url} alt="" style={{ width:84, height:84, objectFit:"cover", borderRadius:10, flexShrink:0, border:"1px solid #E5E5E5" }} />
+                ))}
+              </div>
+            )}
+            <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12, display:"grid", gap:8 }}>
+              {[...CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]),
+                ...CONSIGN_TEXT_FIELDS.map(f => [f.l, spec[f.k]]),
+                ["危険情報", (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・")],
+                ["写真", (spec.photos || []).length > 0 ? (spec.photos || []).length + "枚" : ""],
+              ].map(([l, v]) => (
+                <div key={l} style={{ display:"flex", gap:10 }}>
+                  <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:96, flexShrink:0 }}>{l}</span>
+                  <span className="f-sans" style={{ fontSize:12, color: v ? "#111111" : "#C0C0C0", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{v || "未入力"}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
+              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
+              {CONSIGN_FIXED_CLAUSES.map(c => (
+                <p key={c} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.8, margin:0 }}>・{c}</p>
+              ))}
+            </div>
+          </>)}
+
+          <div style={{ marginTop:20 }}>
+            {wizStep < 5 ? (
+              <button onClick={()=>setWizStep(v => v + 1)} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+            ) : (
+              <button onClick={async ()=>{ const ok = await save(); if (ok) window.location.hash = "/admin/consignment"; }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "掲載中..." : "掲載する（募集を開始）"}</button>
+            )}
+          </div>
         </div>
       )}
 
@@ -794,95 +976,15 @@ export function ConsignmentRoom() {
             </div>
           )}
 
-          {CONSIGN_BASIC_FIELDS.map(f => (
-            <div key={f.k} style={{ marginBottom:10 }}>
-              <label className="lbl f-sans">{f.l}</label>
-              {f.k === "crop" ? (
-                // ブロッコリー固定（入力不可）。この委託はブロッコリーのみ
-                <div><span className="f-sans" style={{ display:"inline-block", padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff" }}>{CONSIGN_CROP}</span></div>
-              ) : f.k === "deadline" ? (
-                // 履行期限＝開始+終了の日付範囲。同じ欄をタップでカレンダー展開（ブラック）
-                <div>
-                  <button type="button" onClick={()=>setShowDeadlineCal(v => !v)} className="field f-sans" style={{ width:"100%", textAlign:"left", fontSize:14, marginBottom:0, cursor:"pointer", background:"#fff", color: spec.date_start ? "#111111" : "#999999" }}>
-                    {spec.date_start ? deadlineLabel(spec.date_start, spec.date_end) : "タップして期間を選択"}
-                  </button>
-                  {showDeadlineCal && (
-                    <CalendarView accent="#111111" accentSoft="#EEEEEE" hideHints start={parseYmd(spec.date_start)} end={parseYmd(spec.date_end)} onSelect={onDeadlineSelect} />
-                  )}
-                  <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"6px 0 0" }}>1回目のタップで開始日、2回目で終了日。終了日を選ばなければ開始日のみ。</p>
-                </div>
-              ) : f.k === "task" ? (
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  {CONSIGN_TASKS.map(t => {
-                    const sel = (spec.task ? spec.task.split("・").filter(Boolean) : []).includes(t);
-                    return (
-                      <button key={t} type="button" onClick={()=>{
-                        const cur = spec.task ? spec.task.split("・").filter(Boolean) : [];
-                        const next = cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t];
-                        setF("task", CONSIGN_TASKS.filter(x => next.includes(x)).join("・"));
-                      }} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: sel ? "2px solid #111111" : "1px solid #D0D0D0", background: sel ? "#111111" : "#fff", color: sel ? "#fff" : "#111111" }}>{t}</button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
-              )}
-            </div>
-          ))}
+          {CONSIGN_BASIC_FIELDS.map(renderBasicField)}
           {/* 検収基準・圃場条件（特約は危険情報の後・掲載順どおり） */}
-          {CONSIGN_TEXT_FIELDS.filter(f => f.k !== "special").map(f => (
-            <div key={f.k} style={{ marginBottom:10 }}>
-              <label className="lbl f-sans">{f.l}</label>
-              <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
-            </div>
-          ))}
+          {CONSIGN_TEXT_FIELDS.filter(f => f.k !== "special").map(renderTextField)}
           {/* 危険情報（チェック式・その他は自由記述を展開） */}
-          <div style={{ marginBottom:10 }}>
-            <label className="lbl f-sans">危険情報</label>
-            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {CONSIGN_HAZARDS.map(h => {
-                const on = (spec.hazards || []).includes(h);
-                return (
-                  <button key={h} type="button" onClick={()=>{
-                    const cur = spec.hazards || [];
-                    setF("hazards", cur.includes(h) ? cur.filter(x => x !== h) : [...cur, h]);
-                  }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, textAlign:"left", padding:"10px 14px", fontSize:14, fontWeight:600, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>
-                    <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: on ? "none" : "2px solid #C8C8C8", background: on ? "#fff" : "transparent", color:"#111111" }}>{on ? "✓" : ""}</span>
-                    {h}
-                  </button>
-                );
-              })}
-              {(spec.hazards || []).includes("その他") && (
-                <input className="field f-sans" value={spec.hazard_other || ""} onChange={e=>setF("hazard_other", e.target.value)} placeholder="その他の危険（自由記述）" style={{ fontSize:13, marginBottom:0 }} />
-              )}
-            </div>
-          </div>
+          {renderHazards()}
           {/* 写真（最低3枚・掲載の顔。consignment-photos バケット） */}
-          <div style={{ marginBottom:10 }}>
-            <label className="lbl f-sans">写真（最低3枚）</label>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-              {(spec.photos || []).map((ph, i) => (
-                <div key={i} style={{ position:"relative", width:96, height:96, borderRadius:10, overflow:"hidden", border:"1px solid #E5E5E5" }}>
-                  <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
-                  <button type="button" onClick={()=>removePhoto(i)} className="f-sans" style={{ position:"absolute", top:2, right:2, width:22, height:22, borderRadius:"50%", background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", fontSize:14, lineHeight:1, cursor:"pointer" }}>×</button>
-                </div>
-              ))}
-              <label className="f-sans" style={{ width:96, height:96, borderRadius:10, border:"1px dashed #B0B0B0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: photoUploading ? "default" : "pointer", fontSize:12, color:"#111111", gap:2 }}>
-                {photoUploading ? "…" : (<><span style={{ fontSize:22, lineHeight:1 }}>＋</span>写真</>)}
-                <input type="file" accept="image/*" multiple onChange={e=>{ handlePhotoFiles(e.target.files); e.target.value=""; }} style={{ display:"none" }} disabled={photoUploading} />
-              </label>
-            </div>
-            <p className="f-sans" style={{ fontSize:11, margin:"6px 0 0", color: (spec.photos || []).length >= 3 ? "#999999" : "#111111", fontWeight: (spec.photos || []).length >= 3 ? 400 : 700 }}>
-              {(spec.photos || []).length}枚（掲載には最低3枚必要です）
-            </p>
-          </div>
+          {renderPhotos()}
           {/* 特約（掲載順の最後） */}
-          {CONSIGN_TEXT_FIELDS.filter(f => f.k === "special").map(f => (
-            <div key={f.k} style={{ marginBottom:10 }}>
-              <label className="lbl f-sans">{f.l}</label>
-              <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
-            </div>
-          ))}
+          {CONSIGN_TEXT_FIELDS.filter(f => f.k === "special").map(renderTextField)}
           <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", margin:"14px 0" }}>
             <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
             {CONSIGN_FIXED_CLAUSES.map(c => (
