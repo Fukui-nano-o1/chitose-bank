@@ -19,33 +19,29 @@ export function WorkerDeclarationBoxes({ selfDeclared, setSelfDeclared }) {
     ...WORKER_DECLARATIONS.filter(it => !selfDeclared.includes(it.k)),
   ]);
   return (
-    <div>
-      <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -20px", padding:"2px 20px" }}>
-        {ordered.map(it => {
-          const on = selfDeclared.includes(it.k);
-          const open = openKey === it.k;
-          return (
-            <button key={it.k} type="button" onClick={()=>setOpenKey(open ? null : it.k)}
-              className="f-sans" style={{ flexShrink:0, maxWidth:200, background: open ? "#00A86B" : "#F7F7F7", border:"1px solid " + (open || on ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
-              <span style={{ display:"block", fontSize:13, fontWeight:700, color: open ? "#fff" : "#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{it.chip}</span>
+    /* 縦一列・全幅（2026-08-03たきと指示「縦一列だ。横幅は大きくとろう」）。展開はタップした箱の直下 */
+    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+      {ordered.map(it => {
+        const on = selfDeclared.includes(it.k);
+        const open = openKey === it.k;
+        return (
+          <div key={it.k}>
+            <button type="button" onClick={()=>setOpenKey(open ? null : it.k)}
+              className="f-sans" style={{ display:"block", width:"100%", boxSizing:"border-box", background: open ? "#00A86B" : "#F7F7F7", border:"1px solid " + (open || on ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer", textAlign:"left" }}>
+              <span style={{ display:"block", fontSize:14, fontWeight:700, color: open ? "#fff" : "#222" }}>{it.label}</span>
               <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? "#00A86B" : "#B0B0B0", marginTop:2 }}>{on ? "申告ずみ ✓" : "未申告"}</span>
             </button>
-          );
-        })}
-      </div>
-      {openKey && (() => {
-        const it = WORKER_DECLARATIONS.find(x => x.k === openKey);
-        if (!it) return null;
-        const on = selfDeclared.includes(openKey);
-        return (
-          /* 展開したボックス：この申告のON/OFFをその場で切り替える（保存はページ/モーダル共通の「保存する」） */
-          <div className="fade-in" style={{ marginTop:12, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"6px 14px 14px" }}>
-            <ToggleSwitch label={it.label} checked={on} onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, openKey])] : prev.filter(x => x !== openKey))} />
-            <button type="button" onClick={()=>setOpenKey(null)} className="f-sans" style={{ marginTop:10, padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.5 }}>自己申告です。運営が確認するものではありません。</p>
+            {open && (
+              /* 展開したボックス：この申告のON/OFFをその場で切り替える（保存はページ/モーダル共通の「保存する」） */
+              <div className="fade-in" style={{ marginTop:8, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"6px 14px 14px" }}>
+                <ToggleSwitch label={it.label} checked={on} onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
+                <button type="button" onClick={()=>setOpenKey(null)} className="f-sans" style={{ marginTop:10, padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.5 }}>自己申告です。運営が確認するものではありません。</p>
+              </div>
+            )}
           </div>
         );
-      })()}
+      })}
     </div>
   );
 }
