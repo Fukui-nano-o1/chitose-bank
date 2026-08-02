@@ -181,8 +181,9 @@ function EmergencyStagePanel({ items, role }) {
   const phaseOf = (e) => e.application_id ? appPhaseKey({ status: e.application_status,
     terms_confirmed_worker_at: e.terms_confirmed_worker_at, terms_confirmed_farmer_at: e.terms_confirmed_farmer_at }) : null;
   const titleOf = (e) => [e.crop, e.task].filter(Boolean).join(" ") || `求人 #${e.job_number}`;
-  // 相手アイコンの下地は相手の役割色（農家から見た相手=働き手=橙／働き手から見た相手=農家=緑）
-  const partnerBg = role === "farmer" ? ROLE_ORANGE : ROLE_GREEN;
+  // 相手アイコンは相手の役割色で統一（2026-08-02たきと指示「働き手のアイコンはオレンジ。農家はミドリ」）：
+  // リングも未設定時の下地も役割色（チャットの役割色枠と同じ規約・2026-07-22）。段階は下のラベル文字色が担う
+  const partnerColor = role === "farmer" ? ROLE_ORANGE : ROLE_GREEN;
   return (
     <>
       <div style={{ display:"grid", gap:10 }}>
@@ -200,11 +201,11 @@ function EmergencyStagePanel({ items, role }) {
                   <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{e.job_number}</span>
                 </span>
               </button>
-              {/* 右：相手のアイコン＋段階（緊急連絡は相手に送るもの＝誰宛かを主役に。リングは段階色） */}
+              {/* 右：相手のアイコン＋段階（緊急連絡は相手に送るもの＝誰宛かを主役に。アイコンは役割色） */}
               <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
                 <button onClick={()=>setBoxItem(e)} className="f-sans"
                   style={{ width:72, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
-                  <Avatar url={e.partner_avatar} name={e.partner_name || "？"} size={52} ring={APP_PHASE_COLOR[phase] || "#00A86B"} bg={partnerBg} />
+                  <Avatar url={e.partner_avatar} name={e.partner_name || "？"} size={52} ring={partnerColor} bg={partnerColor} />
                   <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color:"#222", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.partner_name ? e.partner_name + "さん" : "相手"}</span>
                   {phase && <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:APP_PHASE_COLOR[phase] || "#00A86B", marginTop:1, cursor:"pointer" }}>{APP_PHASE_LABEL[phase] || ""}</span>}
                 </button>
