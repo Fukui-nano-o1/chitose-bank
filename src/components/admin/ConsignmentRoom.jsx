@@ -337,6 +337,7 @@ function ConsignorInfoEdit() {
   const [zipBusy, setZipBusy] = useState("");
   const [zipError, setZipError] = useState("");
   const [helpKey, setHelpKey] = useState(null); // ？を開いている項目（helpの説明コメント表示）
+  const [confirmAgree, setConfirmAgree] = useState(false); // 確認ページの同意チェック（2026-07-31たきと指示・未チェックでは保存不可）
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
   const steps = ["type", ctype === "corporate" ? "corp" : "ind", "terms", "confirm"]; // 担当者は法人ページに統合（2026-07-31たきと指示）
@@ -417,6 +418,7 @@ function ConsignorInfoEdit() {
     if (!d) return;
     try { localStorage.setItem("cb_consignorDraft_v1", JSON.stringify({ t: ctype, s: cstep, d })); } catch {}
   }, [d, ctype, cstep]);
+  useEffect(() => { if (stepKey !== "confirm") setConfirmAgree(false); }, [stepKey]); // 確認のたびに改めてチェックさせる
   const setV = (k, v) => setD(p => ({ ...p, [k]: v }));
   // 種別を選ぶ：旧v1列を下敷きに（空欄のみ）→次ページへ
   const pickType = (t) => {
@@ -678,9 +680,14 @@ function ConsignorInfoEdit() {
         <div style={{ marginTop:20 }}>
           {stepKey !== "confirm" ? (
             <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
-          ) : (
-            <button onClick={save} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
-          )}
+          ) : (<>
+            {/* 最終同意（2026-07-31たきと指示）：チェックするまで保存できない */}
+            <button type="button" onClick={()=>setConfirmAgree(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: confirmAgree ? "2px solid #111111" : "1px solid #D0D0D0", background: confirmAgree ? "#111111" : "#fff", color: confirmAgree ? "#fff" : "#111111", marginBottom:10 }}>
+              <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: confirmAgree ? "none" : "2px solid #C8C8C8", background: confirmAgree ? "#fff" : "transparent", color:"#111111" }}>{confirmAgree ? "✓" : ""}</span>
+              この情報を委託者情報として使用します
+            </button>
+            <button onClick={save} disabled={saving || !confirmAgree} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: confirmAgree ? "pointer" : "not-allowed", opacity: (saving || !confirmAgree) ? 0.4 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
+          </>)}
           {saved && <p className="f-sans" style={{ fontSize:12, color:"#111111", textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
         </div>
       )}
