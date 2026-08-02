@@ -2,6 +2,7 @@
 // リロード直後はネットワーク0本で骨格を描く→裏で本物を取得して差分適用（stale-while-revalidate）。
 // チャット一覧のchatCache（メモリ・リロードで消える）の永続版。
 // 規則：①保存するのは本人の自分用データのみ ②ログアウトで全消去（clearSnapshots）③壊れたJSONは黙って捨てる
+import { clearCache } from "./viewCache";
 const PREFIX = "cb_snap_";
 
 export const snapGet = (key) => {
@@ -14,4 +15,7 @@ export const clearSnapshots = () => {
   try {
     Object.keys(localStorage).filter(k => k.startsWith(PREFIX)).forEach(k => localStorage.removeItem(k));
   } catch {}
+  // 画面キャッシュ（viewCache・2026-08-02からsessionStorage永続）も同時に消す。
+  // ログアウト後に別人がログインしても前の人のデータが残らない（規則②の適用範囲を揃える）
+  clearCache();
 };
