@@ -328,7 +328,7 @@ const consignorPartyRows = (row) => {
 
 // 登録情報の委託機能での利用同意（2026-08-02たきと指示）：曖昧な「引き継いでよいですか」ではなく、
 // 何の情報を・何の目的で・誰に・いつ見せるかまで示して同意を取る。同意文を変えたら版数を更新（再同意）
-const CONSIGNOR_CONSENT_VERSION = "consignment-data-v1-2026-08";
+const CONSIGNOR_CONSENT_VERSION = "consignment-data-v2-2026-08"; // v2=2026-08-02 チェック文言改定・種別自動分岐
 const CONSIGNOR_CONSENT_TEXT = "新規登録時に登録した氏名・法人名、住所、メールアドレスその他の登録情報を、委託者情報の作成、委託案件の掲載、取引条件の明示、契約書の作成および取引相手への必要な範囲での開示に利用します。";
 // 開示範囲は段階別に明示：掲載と同時に全登録者へ詳細を公開しない。必要な相手へ必要になった段階で開示する
 const CONSIGNOR_DISCLOSURE_STAGES = [
@@ -336,6 +336,43 @@ const CONSIGNOR_DISCLOSURE_STAGES = [
   { t:"受注申込後・条件調整時", items:["委託者の名称", "担当者名", "メールまたはサイト内連絡先", "案件に必要な圃場情報"] },
   { t:"発注確定後", items:["法的氏名または法人名", "詳細住所・所在地", "代表者情報", "連絡先", "正確な圃場所在地", "契約書記載事項"] },
 ];
+
+// 種別に応じた下敷き（2026-08-02たきと指示・区分は新規登録の entity_type を唯一の正として自動分岐）。
+// 旧v1列→無ければ新規登録①の順で空欄のみ埋める。新規登録の住所は「住所＋半角スペース＋番地」の
+// 既知形式so最初のスペースで2分割（未知形式の機械分割ではない）
+const seedConsignorData = (n, t, row, ah) => {
+  const put = (k, v) => { if (!(n[k] || "").trim() && (v || "").trim()) n[k] = v; };
+  const ahZip = (ah.postal_code || "").replace(/[^0-9]/g, "");
+  const ahAddr = (ah.address || "").trim();
+  const sp = ahAddr.indexOf(" ");
+  const ahMain = sp > 0 ? ahAddr.slice(0, sp) : ahAddr;
+  const ahDetail = sp > 0 ? ahAddr.slice(sp + 1) : "";
+  const v1Main = [row.consignor_pref, row.consignor_city, row.consignor_addr].map(x => (x || "").trim()).filter(Boolean).join("");
+  if (t === "individual") {
+    put("ind_name", row.consignor_name); put("ind_name", ah.full_name);
+    put("ind_trade", row.consignor_trade_name);
+    put("ind_birth", ah.birth_date);
+    put("ind_zip", row.consignor_zip); put("ind_zip", ahZip);
+    put("ind_addr_main", v1Main); put("ind_addr_main", ahMain); put("ind_addr_detail", ahDetail);
+    put("ind_phone", row.consignor_phone); put("ind_phone", ah.contact_phone);
+    put("ind_email", row.consignor_email); put("ind_email", ah.contact_email);
+    put("ind_invoice", row.consignor_invoice_no);
+    if (!(n.ind_has_trade || "").trim() && (n.ind_trade || "").trim()) n.ind_has_trade = "屋号あり";
+    if (!(n.ind_has_invoice || "").trim() && (n.ind_invoice || "").trim()) n.ind_has_invoice = "登録あり";
+  } else {
+    put("corp_name", row.consignor_name); put("corp_name", ah.company_name);
+    put("corp_no", row.consignor_corp_no); put("corp_no", ah.company_number);
+    put("corp_zip", row.consignor_zip); put("corp_zip", ahZip);
+    put("corp_addr_main", v1Main); put("corp_addr_main", ahMain); put("corp_addr_detail", ahDetail);
+    put("corp_phone", row.consignor_phone); put("corp_phone", ah.contact_phone);
+    put("corp_email", row.consignor_email); put("corp_email", ah.contact_email);
+    put("corp_invoice", row.consignor_invoice_no);
+    put("corp_rep_name", row.consignor_rep_name); // 登録者≠代表者のことがあるso登録者名では埋めない
+    if (!(n.staff_use_registrant || "").trim()) n.staff_use_registrant = "登録者を使用";
+    if (!(n.corp_has_invoice || "").trim() && (n.corp_invoice || "").trim()) n.corp_has_invoice = "登録あり";
+  }
+  return n;
+};
 
 // 委託者情報の設定フロー（ブラック・アイコンなし・1ページ1つの問い）
 function ConsignorInfoEdit() {
@@ -355,7 +392,9 @@ function ConsignorInfoEdit() {
   const [consentSaving, setConsentSaving] = useState(false);
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
-  const steps = ["type", ctype === "corporate" ? "corp" : "ind", "confirm"]; // 連絡設定ページは廃止・担当者は法人ページに統合
+  // 種類選択ページは廃止（2026-08-02たきと指示）：entity_type から自動分岐。
+  // フォールバック＝entity_type 未登録の旧データ・破損時のみ種類ページを出す（通常ユーザーには見せない）
+  const steps = [...(ctype ? [] : ["type"]), ctype === "corporate" ? "corp" : "ind", "confirm"];
   const stepKey = steps[Math.min(cstep, steps.length - 1)];
   const STEP_META = {
     type:    { t:"委託者の種類",   q:"個人事業者ですか、法人ですか？", de:"種類によって入力ページが分かれます。" },
@@ -411,14 +450,15 @@ function ConsignorInfoEdit() {
         // ステップと種別も戻す＝中断した場所から再開（求人フローと同じ作法）
         let draft = null;
         try { draft = JSON.parse(localStorage.getItem("cb_consignorDraft_v1") || "null"); } catch {}
-        if (draft && draft.d) {
-          setCtype(draft.t || (data && data.consignor_type) || "");
-          if (draft.t && Number.isInteger(draft.s)) setCstep(draft.s);
-          setD({ ...nd, ...draft.d });
-        } else {
-          setCtype((data && data.consignor_type) || "");
-          setD(nd);
-        }
+        // 区分は新規登録の entity_type が唯一の正（2026-08-02たきと指示）。委託フローで再選択させない
+        // ＝新規登録と委託で別人格になるのを防ぐ。entity_type が無い旧データだけ種類ページへフォールバック
+        const ent = (ahRow && (ahRow.entity_type === "corporate" || ahRow.entity_type === "individual")) ? ahRow.entity_type : "";
+        const t = ent || (draft && draft.t) || (data && data.consignor_type) || "";
+        let merged = (draft && draft.d) ? { ...nd, ...draft.d } : nd;
+        if (t) merged = seedConsignorData(merged, t, data || {}, ahRow || {}); // 自動分岐＝下敷きも自動で適用
+        setCtype(t);
+        if (draft && Number.isInteger(draft.s)) setCstep(draft.s);
+        setD(merged);
       } catch { setD({}); }
     })();
   }, []);
@@ -450,46 +490,11 @@ function ConsignorInfoEdit() {
   };
   const setV = (k, v) => setD(p => ({ ...p, [k]: v }));
   // 種別を選ぶ：旧v1列を下敷きに（空欄のみ）→次ページへ
+  // 種別ページは廃止＝通常は読み込み時に自動分岐（下記seedConsignorData）。
+  // pickType は entity_type 未登録の旧データ専用のフォールバック（例外処理）
   const pickType = (t) => {
-    const row = rowRef.current || {};
-    const ah = ahInfo || {};
-    const ahZip = (ah.postal_code || "").replace(/[^0-9]/g, "");
-    setD(p => {
-      const n = { ...p };
-      const put = (k, v) => { if (!(n[k] || "").trim() && (v || "").trim()) n[k] = v; };
-      // 新規登録の住所は「住所(〜町名) ＋ 半角スペース ＋ 番地・建物名」で保存されている（AccountHolderFormの
-      // 保存形式）。既知の区切りなので最初のスペースで2分割して引き継ぐ＝番地まで正確に渡る
-      const ahAddr = (ah.address || "").trim();
-      const sp = ahAddr.indexOf(" ");
-      const ahMain = sp > 0 ? ahAddr.slice(0, sp) : ahAddr;
-      const ahDetail = sp > 0 ? ahAddr.slice(sp + 1) : "";
-      const v1Main = [row.consignor_pref, row.consignor_city, row.consignor_addr].map(x => (x || "").trim()).filter(Boolean).join("");
-      if (t === "individual") {
-        put("ind_name", row.consignor_name); put("ind_name", ah.full_name);
-        put("ind_trade", row.consignor_trade_name);
-        put("ind_birth", ah.birth_date);
-        put("ind_zip", row.consignor_zip); put("ind_zip", ahZip);
-        put("ind_addr_main", v1Main); put("ind_addr_main", ahMain); put("ind_addr_detail", ahDetail);
-        put("ind_phone", row.consignor_phone); put("ind_phone", ah.contact_phone);
-        put("ind_email", row.consignor_email); put("ind_email", ah.contact_email);
-        put("ind_invoice", row.consignor_invoice_no);
-        if (!(n.ind_has_trade || "").trim() && (n.ind_trade || "").trim()) n.ind_has_trade = "屋号あり";
-        if (!(n.ind_has_invoice || "").trim() && (n.ind_invoice || "").trim()) n.ind_has_invoice = "登録あり";
-      } else {
-        put("corp_name", row.consignor_name); put("corp_name", ah.company_name);
-        put("corp_no", row.consignor_corp_no); put("corp_no", ah.company_number);
-        put("corp_zip", row.consignor_zip); put("corp_zip", ahZip);
-        put("corp_addr_main", v1Main); put("corp_addr_main", ahMain); put("corp_addr_detail", ahDetail);
-        put("corp_phone", row.consignor_phone); put("corp_phone", ah.contact_phone);
-        put("corp_email", row.consignor_email); put("corp_email", ah.contact_email);
-        put("corp_invoice", row.consignor_invoice_no);
-        put("corp_rep_name", row.consignor_rep_name); // 登録者≠代表者のことがあるso登録者名では埋めない
-        if (!(n.staff_use_registrant || "").trim()) n.staff_use_registrant = "登録者を使用"; // 初期選択（2026-07-31たきと指示）
-        if (!(n.corp_has_invoice || "").trim() && (n.corp_invoice || "").trim()) n.corp_has_invoice = "登録あり";
-      }
-      return n;
-    });
-    setCtype(t); setCstep(1); window.scrollTo(0, 0);
+    setD(p => seedConsignorData({ ...p }, t, rowRef.current || {}, ahInfo || {}));
+    setCtype(t); setCstep(0); window.scrollTo(0, 0);
   };
   const searchZipInto = async (f) => {
     const z = (d[f.k] || "").replace(/[^0-9]/g, "");
@@ -632,7 +637,7 @@ function ConsignorInfoEdit() {
     ].filter(r => (r[1] || "").trim());
     return (
       <div>
-        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>登録情報の利用について</h2>
+        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{ahInfo?.entity_type ? (isCorp ? "法人として委託を掲載します" : "個人事業者として委託を掲載します") : "登録情報の利用について"}</h2>
         <p className="f-sans" style={{ fontSize:13, color:"#111111", lineHeight:1.8, margin:"0 0 16px" }}>{CONSIGNOR_CONSENT_TEXT}</p>
         {/* ① 引き継ぐ登録情報 */}
         <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 12px" }}>
@@ -658,10 +663,13 @@ function ConsignorInfoEdit() {
         {/* ③ 必須チェック（初期未選択） */}
         <button type="button" onClick={()=>setConsentChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: consentChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: consentChecked ? "#111111" : "#fff", color: consentChecked ? "#fff" : "#111111", marginBottom:12 }}>
           <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: consentChecked ? "none" : "2px solid #C8C8C8", background: consentChecked ? "#fff" : "transparent", color:"#111111" }}>{consentChecked ? "✓" : ""}</span>
-          登録情報を委託機能で利用することと、表示・開示される範囲を確認し、同意します
+          新規登録時の情報を、委託者情報の作成、契約条件の明示および取引相手への必要な範囲での開示に利用することを確認しました
         </button>
-        {/* ④ 開始 */}
-        <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
+        {/* ④ ボタンは2つ：登録情報を修正（アカウント側へ）／委託掲載を始める */}
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={()=>{ window.location.hash = "/profile"; }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+          <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
+        </div>
       </div>
     );
   }
@@ -685,9 +693,7 @@ function ConsignorInfoEdit() {
       {/* 1. 委託者の種類（消費者としての個人と混ざらないよう「個人事業者」と表記） */}
       {stepKey === "type" && (
         <div style={{ display:"grid", gap:12 }}>
-          {ahInfo?.entity_type && (
-            <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:0 }}>新規登録の区分：{ahInfo.entity_type === "corporate" ? "法人" : "個人事業者"}（選び直せます）</p>
-          )}
+          <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:0 }}>新規登録に区分が登録されていないため、ここで選択します（通常は表示されません）。</p>
           {[["individual","個人事業者","氏名で契約し、屋号を持てます。担当者ページは省略されます。"],["corporate","法人","契約の当事者は法人。法人情報は新規登録から引き継ぎます。"]].map(([t, l, de]) => (
             <button key={t} onClick={()=>pickType(t)} className="f-sans" style={{ textAlign:"left", background: ctype === t ? "#111111" : "#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", cursor:"pointer" }}>
               <span style={{ display:"block", fontSize:17, fontWeight:800, color: ctype === t ? "#fff" : "#111111" }}>{l}</span>
@@ -698,10 +704,12 @@ function ConsignorInfoEdit() {
       )}
 
       {stepKey === "ind" && (<>
-        {/* 引き継ぎボックスは削除（2026-08-02たきと指示）＝引き継ぎ内容は初回の同意ゲートで提示済み */}
+        {/* 区分は読み取り専用ラベル（2026-08-02たきと指示・委託フロー内では変更させない） */}
+        <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>現在の登録区分：個人事業者（区分の変更は登録情報から）</p>
         {CONSIGNOR_IND_FIELDS.map(renderCF)}
       </>)}
       {stepKey === "corp" && (<>
+        <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>現在の登録区分：法人（区分の変更は登録情報から）</p>
         {/* 引き継ぎボックスは削除（2026-08-02たきと指示）＝引き継ぎ内容は初回の同意ゲートで既に提示済み。
             法人番号のチェックデジット警告だけは残す（公的情報との照合・不一致時のみ表示） */}
         {corpNoCheckOk(d.corp_no) === false && (
