@@ -10,10 +10,12 @@ import { AutoSkeleton } from "./ui";
 // 経験（作物×作業×どのくらい）の横スワイプ入力（2026-08-03たきと指示「横スワイプ・指に連動」）：
 // ネイティブの横スクロール（overflow-x）＝指の動きにそのまま追従し、scroll-snapでカード単位に止まる
 // （チャットの求人No.ボックス・確認ページカルーセルと同じ作法）。カード1枚=1経験・末尾に追加カード（最大5）。
-// WorkerProfileEditの経験・資格ボックスと#/experienceページの両方から使う共有部品
-export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries }) {
+// WorkerProfileEditの経験・資格ボックスと#/experienceページの両方から使う共有部品。
+// selfDeclared/setSelfDeclared を渡すと、帯の末尾に「免許・資格・保険方針」パネルを横並びで設置する
+// （2026-08-03たきと指示「免許・資格・保険方針の横に設置。移動は横スワイプ。指連動」＝同じ帯を指でスワイプして行き来）
+export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDeclared, setSelfDeclared }) {
   return (
-    <div style={{ display:"flex", gap:10, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollSnapType:"x mandatory", margin:"0 -20px", padding:"2px 20px 6px" }}>
+    <div style={{ display:"flex", alignItems:"flex-start", gap:10, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollSnapType:"x mandatory", margin:"0 -20px", padding:"2px 20px 6px" }}>
       <datalist id="cb-crop-opts-expswipe">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
       {expEntries.map((e, i) => (
         <div key={i} style={{ flexShrink:0, width:"min(300px, 82%)", scrollSnapAlign:"start", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", boxSizing:"border-box", position:"relative" }}>
@@ -32,7 +34,14 @@ export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries }) {
       ))}
       {expEntries.length < 5 && (
         <button type="button" onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans"
-          style={{ flexShrink:0, width: expEntries.length === 0 ? "100%" : 140, scrollSnapAlign:"start", background:"none", border:"1px dashed #C8C8C8", borderRadius:14, padding:"12px", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, minHeight:expEntries.length === 0 ? 72 : 120, boxSizing:"border-box" }}>＋ 経験を追加</button>
+          style={{ flexShrink:0, width: expEntries.length === 0 ? "min(300px, 82%)" : 140, scrollSnapAlign:"start", background:"none", border:"1px dashed #C8C8C8", borderRadius:14, padding:"12px", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, minHeight:expEntries.length === 0 ? 72 : 120, boxSizing:"border-box" }}>＋ 経験を追加</button>
+      )}
+      {/* 免許・資格・保険方針パネル：経験カードの横・同じ帯の末尾（縦一列ボックスをワイドカード1枚に収める） */}
+      {selfDeclared && setSelfDeclared && (
+        <div style={{ flexShrink:0, width:"min(320px, 88%)", scrollSnapAlign:"start", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", boxSizing:"border-box" }}>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>免許・資格・保険方針</p>
+          <WorkerDeclarationBoxes selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
+        </div>
       )}
     </div>
   );
@@ -124,16 +133,10 @@ export function WorkerExperiencePage() {
       {loading ? (
         <AutoSkeleton fallbackHeight={84} fallbackCount={4} /> /* 読み込み中は入力欄の仮配置（2026-07-27） */
       ) : (<>
-        {/* 経験の構造化申告（作物×作業×どのくらい・最大5）：横スワイプのカード式（2026-08-03たきと指示） */}
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）</p>
+        {/* 経験（最大5）＋免許・資格・保険方針：同じ帯に横並び・横スワイプで移動（2026-08-03たきと指示） */}
+        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）・免許・資格・保険方針</p>
         <div style={{ marginBottom:20 }}>
-          <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} />
-        </div>
-
-        {/* 免許・資格・保険方針（自己申告）：トグル行リスト→保険申告と同じ横1列ボックスに（2026-08-02たきと指示） */}
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"4px 0 8px" }}>免許・資格・保険方針</p>
-        <div style={{ marginBottom:20 }}>
-          <WorkerDeclarationBoxes selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
+          <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
         </div>
 
         {/* その他の作業（旧「経験のある作業」＝既存データがある人だけ残置。空の人には構造化のみ） */}

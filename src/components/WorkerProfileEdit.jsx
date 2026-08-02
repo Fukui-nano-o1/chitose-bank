@@ -7,7 +7,7 @@ import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
 import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
-import { WorkerDeclarationBoxes, WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage";
+import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
 
 const PR_PROMPTS = [
@@ -474,15 +474,10 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {editBox==="declared" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>経験・資格（自己申告）</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
-      {/* 横スワイプのカード式（2026-08-03たきと指示「指に連動」＝ネイティブ横スクロール＋snap） */}
-      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）</p>
+      {/* 経験カード＋免許・資格・保険方針パネル：同じ帯に横並び・横スワイプで移動（2026-08-03たきと指示・指連動＝ネイティブ横スクロール＋snap） */}
+      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）・免許・資格・保険方針</p>
       <div style={{ marginBottom:16 }}>
-        <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} />
-      </div>
-      {/* 保険申告と同じ横1列ボックス（2026-08-02たきと指示）：タップで開いてその場で申告 */}
-      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"4px 0 8px" }}>免許・資格・保険方針</p>
-      <div style={{ marginBottom:16 }}>
-        <WorkerDeclarationBoxes selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
+        <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
       </div>
       {/* 旧「経験のある作業」＝既存データがある人だけ残置表示（専用ページと同じ扱い） */}
       {experiencedTasks.length > 0 && (<>
