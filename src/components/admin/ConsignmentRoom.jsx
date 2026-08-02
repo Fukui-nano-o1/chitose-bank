@@ -484,7 +484,9 @@ function ConsignorInfoEdit() {
       if (error) alert("保存に失敗しました：" + error.message);
       else {
         try { localStorage.removeItem("cb_consignorDraft_v1"); } catch {} // 保存成功＝DBが真実の座so下書きは消す
-        setSaved(true); setTimeout(() => setSaved(false), 2600);
+        // 保存したら委託のトップ（一覧）へ戻る（2026-07-31たきと指示）。✓を一瞬見せてから
+        setSaved(true);
+        setTimeout(() => { window.location.hash = "/admin/consignment"; }, 600);
       }
     } catch { alert("保存に失敗しました。"); }
     setSaving(false);
