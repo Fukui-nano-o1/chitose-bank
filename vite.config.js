@@ -52,6 +52,24 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
             },
           },
+          // Google Fonts（2026-08-02・更新時間の短縮）：index.htmlの<link rel="stylesheet">は
+          // 描画ブロッキングで、SWキャッシュが無いとリロードのたびネット往復を待ってから
+          // 初回描画になっていた。CSSはキャッシュ即返し＋裏で更新（StaleWhileRevalidate）、
+          // フォント実体(woff2)は内容不変なのでCacheFirstで1年保持
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-css' },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-woff',
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
