@@ -92,7 +92,7 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", pay_method:"", inspection:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名", ph:"例：川向こうの畑" },
@@ -103,6 +103,8 @@ const CONSIGN_BASIC_FIELDS = [
   { k:"deadline",       l:"履行期限" },
   { k:"unit_price_10a", l:"単価（10aあたり・円）", ph:"例：15000" },
   { k:"advance",        l:"着手金（前払金・円）", ph:"例：10000" },
+  // 支払いは案件ごとの取引条件（2026-08-02たきと指示・利用者の属性ではない）。文言は希望でなく断定形
+  { k:"pay_method",     l:"この案件の支払方法" },
 ];
 
 // 作業は3択・複数選択可（2026-07-31たきと指示）。値は「・」区切りの文字列で spec.task に保存
@@ -271,14 +273,14 @@ const CONSIGNOR_CORP_FIELDS = [
   { k:"corp_invoice", l:"適格請求書発行事業者登録番号", ph:"例：T1234567890123", corpInvoiceOnly:true, help:"「T」＋13桁の番号です。国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
 ];
 
-// ③連絡・支払設定（確定版・2026-07-31たきと指示）：標準の現場連絡先／標準支払方法／通知先メール
-// （別メールを使う場合のみ入力）。削除＝続柄・委託者の銀行口座5項目・保険加入状況（保存済み値はjsonbに残置）
+// ③連絡設定（2026-08-02たきと指示で支払方法も削除）：標準の現場連絡先／通知先メール（別メール使用時のみ入力）。
+// 支払いは利用者の属性ではなく案件ごとの取引条件＝支払方法は案件作成時に選ぶ（spec.pay_method）。
+// 銀行口座は、銀行振込で契約成立した後に受託者（受け取る側）だけが登録・共有する（将来の受託者側機能）。
+// 削除済み＝続柄・銀行口座5項目・保険加入状況・標準支払方法（保存済み値はjsonbに残置）
 const CONSIGNOR_TERMS_FIELDS = [
   { h:"標準の現場連絡先" },
   { k:"cmn_emergency_name",  l:"氏名", ph:"例：千歳 花子" },
   { k:"cmn_emergency_phone", l:"電話番号", ph:"例：090-1234-5678" },
-  { h:"支払" },
-  { k:"cmn_pay_method", l:"標準支払方法", sel:["銀行振込","現金"] },
   { h:"通知" },
   { k:"cmn_notify_use", l:"通知先メール", sel:["登録メールを使用","別のメールを使用"], note:"別のメールを使う場合のみ、下に入力します" },
   { k:"cmn_notify_email", l:"通知先メールアドレス", ph:"例：taro@example.com", notifyDiff:true },
@@ -364,7 +366,7 @@ function ConsignorInfoEdit() {
     type:    { t:"委託者の種類",   q:"個人事業者ですか、法人ですか？", de:"種類によって入力ページが分かれます。" },
     ind:     { t:"個人事業者情報", q:"委託で新しく必要な情報だけ入力してください", de:"氏名・住所・メールは新規登録から引き継ぎます。契約書には法的な氏名が印字されます。" },
     corp:    { t:"法人情報",       q:"委託で新しく必要な情報だけ入力してください", de:"法人名・法人番号・本店所在地・メールは新規登録から引き継ぎます。契約の当事者は法人です。" },
-    terms:   { t:"連絡・支払設定", q:"連絡と支払の設定をしてください", de:"現場連絡先・支払方法・通知先メールの既定を設定します。" },
+    terms:   { t:"連絡設定", q:"連絡の設定をしてください", de:"現場連絡先と通知先メールの既定を設定します。" },
     confirm: { t:"登録内容確認",   q:"内容を確認して保存します", de:"案件の確認ページと印刷仕様書に自動で反映されます。" },
   };
   useEffect(() => {
@@ -678,8 +680,8 @@ function ConsignorInfoEdit() {
   }
   const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
-    ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS], ["連絡・支払設定", CONSIGNOR_TERMS_FIELDS]]
-    : [["個人事業者情報", CONSIGNOR_IND_FIELDS], ["連絡・支払設定", CONSIGNOR_TERMS_FIELDS]];
+    ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS], ["連絡設定", CONSIGNOR_TERMS_FIELDS]]
+    : [["個人事業者情報", CONSIGNOR_IND_FIELDS], ["連絡設定", CONSIGNOR_TERMS_FIELDS]];
   return (
     <div>
       {/* 進捗（黒バー）＋ステップ見出し */}
@@ -1170,7 +1172,16 @@ export function ConsignmentRoom() {
   const renderBasicField = (f) => (
             <div key={f.k} style={{ marginBottom:10 }}>
               <label className="lbl f-sans">{f.l}</label>
-              {f.k === "crop" ? (
+              {f.k === "pay_method" ? (
+                <div style={{ display:"flex", gap:8 }}>
+                  {["銀行振込", "現金"].map(opt => {
+                    const on = spec.pay_method === opt;
+                    return (
+                      <button key={opt} type="button" onClick={()=>setF("pay_method", on ? "" : opt)} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+                    );
+                  })}
+                </div>
+              ) : f.k === "crop" ? (
                 // ブロッコリー固定（入力不可）。この委託はブロッコリーのみ
                 <div><span className="f-sans" style={{ display:"inline-block", padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff" }}>{CONSIGN_CROP}</span></div>
               ) : f.k === "deadline" ? (
@@ -1502,7 +1513,7 @@ export function ConsignmentRoom() {
           </>)}
           {/* STEP3 報酬：いくら払うのか */}
           {wizStep === 3 && (<>
-            {["unit_price_10a","advance"].map(k => renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === k)))}
+            {["unit_price_10a","advance","pay_method"].map(k => renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === k)))}
             {/* 報酬イメージ（単価×面積の自動計算・派生表示so保存しない） */}
             {(() => { const u = Number(spec.unit_price_10a), a = Number(spec.area_a);
               return (u > 0 && a > 0) ? (
@@ -1523,7 +1534,7 @@ export function ConsignmentRoom() {
               { k:"cmn_fee_bearer", l:"振込手数料の負担", sel:["委託者負担","受託者負担"], cashSkip:true },
               { k:"cmn_inspect",    l:"標準検収期間", ph:"例：作業完了から3日以内" },
               { k:"cmn_cancel",     l:"標準キャンセル条件", ta:true, ph:"例：開始3日前までの通知は無償、以後は着手金を上限に精算" },
-            ].filter(f => !(cd[f.k] || "").trim() && !(f.cashSkip && cd.cmn_pay_method === "現金"));
+            ].filter(f => !(cd[f.k] || "").trim() && !(f.cashSkip && spec.pay_method === "現金"));
             if (!STD.length) return null;
             return (
               <div style={{ marginTop:18 }}>
