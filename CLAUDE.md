@@ -1911,3 +1911,28 @@ SupabaseがnanoインスタンスsoコールドスパイクでRPCが時々2〜6�
 【検証】build+lint 0 error（31警告=既存のみ）。実機：アプリを完全終了→開き直して一覧が即出るか・
 並びが数秒後に飛び替わらないか・ログアウト→別アカウントで前の一覧が見えないか（公開データなので実害無いが確認）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続) 賃金支払条件の構造化保存（固定ポリシーのデータ化）━━━
+【内容】ハードコード注記で宣言していた固定支払ポリシーを jobs へ確定保存し、
+公開求人〜契約terms_snapshotまで一気通貫の証拠にした。入力UIは封印のまま（解禁していない）。
+【DB（migration 20260802220154・適用済み・repo同期済み）】
+・jobs に pay_method/pay_timing/wage_closing_rule（text＋値域CHECK。正式値は
+  cash / same_day_after_work / each_workday の3つのみ。weekly/monthly/bank_transfer/consult等は定義しない）
+・掲載時スナップショットトリガーを改名：trg_job_recruiter_info → trg_job_publish_snapshot
+ （トリガー名 job_publish_snapshot・機能変更なし・募集者/待遇/保険の固定と同じ発火条件で3列を固定値で確定保存。
+   pending→open承認では再処理しない）
+・バックフィル：open6件+pending1件へ「既に画面表示されていた固定ポリシーの転記」。closed/draft/既存terms_snapshotは不変
+・jobs_publish_snapshot_check を拡張：pending/open は3列が固定値であることも必須（draft/closedのNULL許容）
+・jobs_public/admin_preview_job に3列を末尾追加（同数・同順ルール）。employer_public_jobsはjp.*で自動追従
+【フロント】lib/utils に PAY_METHOD_LABELS/PAY_TIMING_LABELS/WAGE_CLOSING_RULE_LABELS/
+PAY_TERMS_UNKNOWN/payTermsLine()/CURRENT_PAY_POLICY を集約（日本語の再ハードコード禁止・
+NULL/未知コードは「支払条件を確認できません」・フォールバック禁止）。mapJobPublicRowに3項目追加。
+表示置換6箇所：さがす一覧注記・応募パネル・応募ボタン直下（JobSearchMapView）・審査プレビュー
+（AdminJobPreview）・確認ページ・掲載ボトムシート（LandingFlow・draftは共通定数から固定ポリシー表示）。
+ChatView契約確認カードに「賃金締切」「支払」2行を追加（双方確認の対象に）。
+【検証】ロールバック付きDOブロックで実測：draft NULL可→申請で3列固定・既存固定（募集者/待遇/保険）維持・
+pending→open不変・INSERT直pending転写・プロフィール無しは従来エラー・to_jsonbに3列包含＝全合格。
+バックフィル後 open/pending のNULL=0。build+lint 0 error
+【残課題】住所分割不整合（recruitBox）／perks再申請問題（編集値と確定値の分離）／支払条件入力UIの解禁は
+届出・設計を経て別途（「相談して決める」は復活禁止・LandingFlow封印ブロックのコメント参照）
+━━━ ここまで ━━━

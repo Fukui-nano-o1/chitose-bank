@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uploadJobPhoto } from "../lib/image";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS } from "../lib/utils";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
@@ -1278,6 +1278,12 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                   </p>
                 )}
               </div>
+              {/* 支払いタイミング・支払方法の入力UIは封印中（解禁禁止・2026-08-02確認）。
+                  支払条件は固定ポリシー（各作業日の作業終了後・現金手渡し）として掲載申請時に
+                  jobsへ確定保存される（trg_job_publish_snapshot）。下の選択肢のうち
+                  「週末まとめ払い」「月末締め・翌月払い」「銀行振込」「相談して決める」は
+                  正式な選択肢として扱わない＝解禁時は締切日・支払日・同意処理を含めて別途設計する。
+                  特に「相談して決める」は契約成立時に支払方法が未確定のまま残るため復活させないこと */}
               {false && (
               <div style={{ marginBottom:14, marginTop:14 }}>
                 <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>支払いタイミング</label>
@@ -1866,7 +1872,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                         </div>
                       ))}
                     </div>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
+                    {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
+                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>{payTermsLine(CURRENT_PAY_POLICY)}</p>
                   </div>
 
                   {/* 農家プロフィールカード（詳細ページと同一構造：アバター・自己紹介・待遇。
@@ -2148,7 +2155,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                     {!publishChecks.every(Boolean) && (
                       <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
                     )}
-                    <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
+                    {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
+                    <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>{payTermsLine(CURRENT_PAY_POLICY)}</p>
                     <p className="f-sans" style={{ fontSize:13, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:0 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
                   </div>
                 </div>

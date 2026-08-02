@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
-import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort } from "../lib/utils";
+import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort, payTermsLine } from "../lib/utils";
 import { Carousel, JobFlagBadges, DangerItem, Dots } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
@@ -271,7 +271,8 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
                 </div>
               ))}
             </div>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
+            {/* 掲載時に確定保存された支払条件を表示（2026-08-02・ハードコード廃止） */}
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>{payTermsLine(job)}</p>
           </div>
 
           {/* 作業説明 */}

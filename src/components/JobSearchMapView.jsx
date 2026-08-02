@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
-import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb } from "../lib/utils";
+import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
@@ -708,10 +708,11 @@ export function JobSearchMapView({ onRegister, me }) {
           ))}
         </div>
       </div>
-      {/* 支払いの注記（2026-07-27たきと指示で最上部から求人一覧の一番下へ移植） */}
+      {/* 支払いの注記（2026-07-27たきと指示で最上部から求人一覧の一番下へ移植）。
+          一覧全体の原則案内なので個別求人の保存値ではなく共通定数（現在の固定ポリシー）から導出（2026-08-02） */}
       <div style={{ padding:"7px 12px", background:"#F7F7F7", borderRadius:8, marginTop:12 }}>
         <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
-          お支払いは、作業当日の現金手渡しが原則です。
+          お支払いは、{PAY_TIMING_LABELS[CURRENT_PAY_POLICY.payTiming]}の{PAY_METHOD_LABELS[CURRENT_PAY_POLICY.payMethod]}が原則です。
         </p>
       </div>
       </>)}
@@ -857,7 +858,8 @@ export function JobSearchMapView({ onRegister, me }) {
                     </div>
                   ))}
                 </div>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>支払方法：当日現金手渡し</p>
+                {/* 掲載時に確定保存された支払条件を表示（2026-08-02・ハードコード廃止） */}
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>{payTermsLine(selectedJob)}</p>
               </div>
 
               {/* 集合場所の表示は詳細ページから削除（2026-07-16）。承認後の共有はチャットの「はじめる前の確認」カードに一本化 */}
@@ -1021,7 +1023,8 @@ export function JobSearchMapView({ onRegister, me }) {
                 className="btn-primary f-sans"
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14, ...(hideApply ? { background:"#EBEBEB", color:"#717171" } : applyBtnStyle) }}
               >{hideApply ? closedLabel : applyBtnLabel}</button>
-              <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8 }}>お支払いは現金手渡し、作業当日のお支払いとなります。</p>
+              {/* 掲載時に確定保存された支払条件を表示（2026-08-02・ハードコード廃止） */}
+              <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8 }}>{payTermsLine(selectedJob)}</p>
 
               {/* 補足文 */}
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:0, marginTop:10 }}>

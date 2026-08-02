@@ -238,6 +238,25 @@ export function dateRangeLabel(startStr, endStr) {
 // カルーセル・ライトボックス・審査プレビューは原寸(url)のままにすること（画質が要る画面）
 export const photoThumb = (p) => !p ? null : (typeof p === "string" ? p : (p.thumb || p.url || null));
 
+// ── 賃金支払条件（2026-08-02・固定ポリシーの構造化保存）─────────────────────
+// 内部値はコード値（jobs.pay_method / pay_timing / wage_closing_rule）。表示ラベルはここに集約し、
+// 各コンポーネントへ同じ日本語を再ハードコードしない。
+// 現在の正式な値は cash / same_day_after_work / each_workday の3つのみ。
+// 「相談して決める」「銀行振込」「週末/月末払い」は正式な選択肢として扱わない
+// （封印中の入力UIの残置ラベルであり、解禁時は締切日・支払日・同意処理を含めて別途設計する）
+export const PAY_METHOD_LABELS = { cash: "現金手渡し" };
+export const PAY_TIMING_LABELS = { same_day_after_work: "各作業日の作業終了後" };
+export const WAGE_CLOSING_RULE_LABELS = { each_workday: "各作業日" };
+export const PAY_TERMS_UNKNOWN = "支払条件を確認できません";
+// 1行要約「支払：各作業日の作業終了後・現金手渡し」。NULL・未知コードは推測表示せず「確認できません」
+// （プロフィールや旧stateへのフォールバック禁止）
+export function payTermsLine(j) {
+  const t = PAY_TIMING_LABELS[j?.payTiming], m = PAY_METHOD_LABELS[j?.payMethod];
+  return (t && m) ? `支払：${t}・${m}` : PAY_TERMS_UNKNOWN;
+}
+// 現在の固定ポリシー（draftの確認ページ・掲載シート＝DB列が入る前のプレビュー表示に使う）
+export const CURRENT_PAY_POLICY = { payMethod: "cash", payTiming: "same_day_after_work", wageClosingRule: "each_workday" };
+
 // jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
 // さがす一覧・求人詳細・管理者プレビューで共通利用
 export function mapJobPublicRow(j) {
@@ -272,7 +291,8 @@ export function mapJobPublicRow(j) {
     commuteTime: j.commute_time || "", jobBody: j.notes || "",
     cautions: j.cautions || "",
     wanted: "", items: j.belongings || "",
-    payTiming: "", payMethod: "",
+    // 賃金支払条件（2026-08-02）：掲載申請時にトリガーが固定ポリシーを確定保存した値。表示はコード値→ラベル変換のみ
+    payMethod: j.pay_method || "", payTiming: j.pay_timing || "", wageClosingRule: j.wage_closing_rule || "",
     dateStart: j.date_start ? new Date(j.date_start) : null,
     dateEnd: j.date_end ? new Date(j.date_end) : null,
     dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),

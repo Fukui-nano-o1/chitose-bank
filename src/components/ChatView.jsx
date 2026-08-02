@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
-  CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, photoThumb } from "../lib/utils";
+  CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, photoThumb,
+  payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { chatCache } from "../lib/chatCache";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
@@ -483,6 +484,10 @@ export function ChatView({ applicationId, onBack }) {
           { label:"持ち物",   value: disp(confirmJob.items) },
           { label:"注意・備考", value: disp(confirmJob.cautions) },
           { label:"報酬",     value: confirmJob.pay ? payLabel(confirmJob) : EMPTY_MARK },
+          // 賃金支払条件（2026-08-02）：掲載時にjobsへ確定保存された3列を双方確認の対象に含める。
+          // NULL・未知コードは「支払条件を確認できません」（推測表示・現在値フォールバック禁止）
+          { label:"賃金締切", value: WAGE_CLOSING_RULE_LABELS[confirmJob.wageClosingRule] || PAY_TERMS_UNKNOWN },
+          { label:"支払",     value: payTermsLine(confirmJob).replace(/^支払：/, "") },
           { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
           { label:"保険",     value: insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません" },
         ];
