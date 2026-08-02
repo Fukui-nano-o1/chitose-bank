@@ -469,7 +469,7 @@ function ConsignFieldsPane({ fields, onReload }) {
         // region＝正式住所（都道府県〜町域・郵便番号検索から）。番地はdata.addr_detailに分離
         region: (form.addr_main || "").trim(), area_a: String(form.area_a || "").trim(),
         data: { zip: (form.zip || "").replace(/[^0-9]/g, ""), addr_detail: (form.addr_detail || "").trim(),
-          facility_parking: form.facility_parking || "", facility_toilet: form.facility_toilet || "", facility_rest: form.facility_rest || "", facility_lend: form.facility_lend || "" },
+          facility_parking: form.facility_parking || "", facility_toilet: form.facility_toilet || "", facility_rest: form.facility_rest || "" },
         updated_at: new Date().toISOString(),
       };
       const { error } = form.id
@@ -489,7 +489,6 @@ function ConsignFieldsPane({ fields, onReload }) {
   const facSummary = (f) => {
     const d = f.data || {};
     const parts = CONSIGN_FIELD_FACILITIES.filter(([k]) => (d[k] || "").trim()).map(([k, l]) => l + d[k]);
-    if ((d.facility_lend || "").trim()) parts.push("貸与：" + d.facility_lend.trim());
     return parts.join("・");
   };
   // ── 入力フォーム（新規・編集共用）──
@@ -536,8 +535,6 @@ function ConsignFieldsPane({ fields, onReload }) {
           </div>
         ))}
       </div>
-      <label className="lbl f-sans">貸与できる道具・機械</label>
-      <textarea className="field f-sans" value={form.facility_lend || ""} onChange={e=>fset("facility_lend", e.target.value)} placeholder="例：軽トラ・コンテナ・収穫ナイフ" rows={2} style={{ fontSize:14.3, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
       <div style={{ display:"flex", gap:8, marginTop:16 }}>
         <button onClick={()=>setForm(null)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
         <button onClick={saveField} disabled={fSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: fSaving ? 0.6 : 1 }}>{fSaving ? "保存中..." : "保存する"}</button>
@@ -564,6 +561,56 @@ function ConsignFieldsPane({ fields, onReload }) {
         </div>
       ))}
       <button onClick={()=>setForm({})} className="f-sans" style={{ width:"100%", padding:"16px", fontSize:15.4, fontWeight:800, borderRadius:14, background:"#111111", color:"#fff", border:"none", cursor:"pointer", marginTop:6 }}>＋ 圃場を登録する</button>
+    </div>
+  );
+}
+
+// ── 貸与できる道具・機械・設備（2026-08-02たきと指示・圃場の設備の貸与欄から移植）──
+// プロフィールのスワイプ3枚目。委託者単位の登録簿（正本= consignor_data.cmn_lend_items）。
+// 案件側は読み取り表示＋掲載時に写し（spec.facility_lend）を凍結する
+function ConsignLendPane({ consignor, onSaved }) {
+  const items = (((consignor || {}).consignor_data || {}).cmn_lend_items) || [];
+  const [input, setInput] = useState("");
+  const [lBusy, setLBusy] = useState(false);
+  const persist = async (next) => {
+    if (lBusy) return;
+    setLBusy(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setLBusy(false); return; }
+      const merged = { ...((consignor && consignor.consignor_data) || {}), cmn_lend_items: next };
+      const { error } = await supabase.from("consignment_profiles").upsert({
+        auth_id: session.user.id, consignor_data: merged, updated_at: new Date().toISOString(),
+      }, { onConflict: "auth_id" });
+      if (error) alert("保存に失敗しました：" + error.message);
+      else onSaved({ ...(consignor || {}), consignor_data: merged });
+    } catch { alert("保存に失敗しました。"); }
+    setLBusy(false);
+  };
+  const add = () => {
+    const v = input.trim();
+    if (!v) return;
+    if (items.includes(v)) { setInput(""); return; }
+    persist([...items, v]); setInput("");
+  };
+  const del = (i) => persist(items.filter((_, k) => k !== i));
+  return (
+    <div>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>貸与できる道具・機械・設備</h2>
+      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>ここで登録した内容が、委託の作成ページと仕様書に自動で反映されます。</p>
+      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+        <input className="field f-sans" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") add(); }} placeholder="例：軽トラ" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
+        <button type="button" onClick={add} disabled={lBusy || !input.trim()} className="f-sans" style={{ flexShrink:0, padding:"0 18px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (lBusy || !input.trim()) ? 0.4 : 1 }}>追加</button>
+      </div>
+      {items.length === 0 && (
+        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>登録された道具・機械・設備はまだありません。</p>
+      )}
+      {items.map((it, i) => (
+        <div key={it} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#fff", border:"1px solid #111111", borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
+          <span className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{it}</span>
+          <button type="button" onClick={()=>del(i)} disabled={lBusy} className="f-sans" style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", border:"1px solid #D0D0D0", background:"#fff", color:"#999999", fontSize:14.3, fontWeight:700, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1332,7 +1379,7 @@ export function ConsignmentRoom() {
         auth_id: session.user.id, name,
         region: existing ? existing.region : (sp.region || "").trim(),
         area_a: String(sp.area_a || "").trim(),
-        data: { ...exd, facility_parking: sp.facility_parking || "", facility_toilet: sp.facility_toilet || "", facility_rest: sp.facility_rest || "", facility_lend: sp.facility_lend || "" },
+        data: { ...exd, facility_parking: sp.facility_parking || "", facility_toilet: sp.facility_toilet || "", facility_rest: sp.facility_rest || "" },
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id,name" });
       loadFields();
@@ -1351,9 +1398,11 @@ export function ConsignmentRoom() {
       facility_parking: fd.facility_parking || p.facility_parking,
       facility_toilet: fd.facility_toilet || p.facility_toilet,
       facility_rest: fd.facility_rest || p.facility_rest,
-      facility_lend: fd.facility_lend || p.facility_lend,
     }));
   };
+  // 貸与できる道具・機械・設備（2026-08-02たきと指示・圃場の設備から移植）：委託者単位の登録簿。
+  // 正本= consignment_profiles.consignor_data.cmn_lend_items。案件には掲載時に写し（spec.facility_lend）が凍結される
+  const lendItems = (((consignor || {}).consignor_data || {}).cmn_lend_items) || [];
   // 委託機能利用特約（2026-08-02たきと指示）：「新しく委託を出す」タップで初回ゲートとして展開。
   // 同意済み（版数一致）なら右上の浮遊ボックスからいつでも再読できる
   const termsOk = !!(consignor && consignor.consignment_terms_consent && consignor.consignment_terms_consent_version === CONSIGN_TERMS_VERSION);
@@ -1459,7 +1508,7 @@ export function ConsignmentRoom() {
     if ((spec.photos || []).length < 3) { alert("掲載には写真が最低3枚必要です。"); return false; }
     setSaving(true);
     try {
-      const payload = { spec: { ...spec, crop: CONSIGN_CROP, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
+      const payload = { spec: { ...spec, crop: CONSIGN_CROP, facility_lend: lendItems.length ? lendItems.join("・") : (spec.facility_lend || ""), fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
       if (editId) {
         const { error } = await supabase.from("consignment_deals").update(payload).eq("id", editId);
         if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return false; }
@@ -1639,8 +1688,11 @@ export function ConsignmentRoom() {
           </div>
         ))}
       </div>
-      <label className="lbl f-sans">貸与できる道具・機械</label>
-      <textarea className="field f-sans" value={spec.facility_lend || ""} onChange={e=>setF("facility_lend", e.target.value)} placeholder="例：軽トラ・コンテナ・収穫ナイフ" rows={2} style={{ fontSize:14.3, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+      <label className="lbl f-sans">貸与できる道具・機械・設備</label>
+      {/* 入力はプロフィールの貸与ページへ移植（2026-08-02たきと指示）。ここは登録簿の読み取り表示のみ */}
+      <div className="f-sans" style={{ fontSize:14.3, color: lendItems.length ? "#111111" : "#999999", background:"#F7F7F7", border:"1px solid #E5E5E5", borderRadius:10, padding:"12px 14px", lineHeight:1.7 }}>
+        {lendItems.length ? lendItems.join("・") : (spec.facility_lend || "").trim() || "未登録（名刺タップ→貸与ページで登録できます）"}
+      </div>
     </div>
   );
   // ── 入力部品（案件ダッシュボード(deal)と新規ウィザード(new)で共用・2026-07-31）──
@@ -1973,18 +2025,24 @@ export function ConsignmentRoom() {
             if (!s0) return;
             const t = e.changedTouches[0];
             const dx = t.clientX - s0.x, dy = t.clientY - s0.y;
-            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) setProfilePane(dx < 0 ? "fields" : "info");
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+              const panes = ["info", "fields", "lend"];
+              const i = panes.indexOf(profilePane);
+              setProfilePane(panes[Math.min(panes.length - 1, Math.max(0, i + (dx < 0 ? 1 : -1)))]);
+            }
           }}>
           <button onClick={()=>{ setCTab("list"); window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 委託一覧</button>
           <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-            {[["info","委託者情報"],["fields","委託圃場"]].map(([k, l]) => {
+            {[["info","委託者情報"],["fields","委託圃場"],["lend","貸与機材"]].map(([k, l]) => {
               const on = profilePane === k;
               return (
                 <button key={k} type="button" onClick={()=>setProfilePane(k)} className="f-sans" style={{ padding:"9px 18px", fontSize:14.3, fontWeight:700, borderRadius:20, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{l}</button>
               );
             })}
           </div>
-          {profilePane === "info" ? <ConsignorInfoEdit /> : <ConsignFieldsPane fields={fields} onReload={loadFields} />}
+          {profilePane === "info" && <ConsignorInfoEdit />}
+          {profilePane === "fields" && <ConsignFieldsPane fields={fields} onReload={loadFields} />}
+          {profilePane === "lend" && <ConsignLendPane consignor={consignor} onSaved={(merged)=>{ setConsignor(merged); setCache("consign:consignor", merged); }} />}
         </div>
       )}
 
@@ -2120,7 +2178,7 @@ export function ConsignmentRoom() {
               {[...CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]),
                 ...CONSIGN_TEXT_FIELDS.map(f => [f.l, spec[f.k]]),
                 ["圃場の設備", [["駐車場", spec.facility_parking], ["トイレ", spec.facility_toilet], ["休憩場所", spec.facility_rest]].filter(([, v]) => v).map(([l, v]) => l + v).join("・")],
-                ["貸与できる道具・機械", spec.facility_lend],
+                ["貸与できる道具・機械・設備", lendItems.join("・") || spec.facility_lend],
                 ["危険情報", (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・")],
                 ["当日の現場連絡先", spec.onsite_contact_mode === "別の連絡先を使用" ? [spec.onsite_name, spec.onsite_phone].map(x => (x || "").trim()).filter(Boolean).join(" ") : "登録情報を使用"],
                 ["写真", (spec.photos || []).length > 0 ? (spec.photos || []).length + "枚" : ""],
