@@ -7,7 +7,7 @@ import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, CROP_OPTIONS, TASK_OPTIONS } from "../lib/utils"; // CROP/TASK_OPTIONS＝経験・資格ボックス（2026-08-02再ボックス化）で使用
 import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
-import { ToggleSwitch } from "./ToggleSwitch";
+import { WorkerDeclarationBoxes } from "./WorkerExperiencePage";
 import { WorkerTrustCard } from "./TrustCards";
 
 const PR_PROMPTS = [
@@ -495,13 +495,10 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {expEntries.length < 5 && (
         <button onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, marginBottom:16 }}>＋ 経験を追加</button>
       )}
-      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"4px 0 6px" }}>免許・資格・保険方針</p>
-      <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
-        {WORKER_DECLARATIONS.map((it, i) => (
-          <div key={it.k} style={{ borderBottom: i < WORKER_DECLARATIONS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
-            <ToggleSwitch label={it.label} checked={selfDeclared.includes(it.k)} onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
-          </div>
-        ))}
+      {/* 保険申告と同じ横1列ボックス（2026-08-02たきと指示）：タップで開いてその場で申告 */}
+      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"4px 0 8px" }}>免許・資格・保険方針</p>
+      <div style={{ marginBottom:16 }}>
+        <WorkerDeclarationBoxes selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
       </div>
       {/* 旧「経験のある作業」＝既存データがある人だけ残置表示（専用ページと同じ扱い） */}
       {experiencedTasks.length > 0 && (<>

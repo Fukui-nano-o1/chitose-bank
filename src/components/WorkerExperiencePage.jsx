@@ -7,6 +7,49 @@ import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AutoSkeleton } from "./ui";
 
+// 免許・資格・保険方針の申告ボックス（2026-08-02たきと指示「保険申告と同じ構造に」）：
+// 雇い手の保険の準備（FarmerDashboard 2026-07-29）と同じ横1列の箱＋タップでその場に開いて申告する構造。
+// 箱の色の規則も同じ（既定=グレー／申告ずみ=縁だけ緑／開いている=全体が緑）。申告ずみを先頭に並べる
+// （並びは開いた時点で固定＝保険側がsaved基準で並べ替えるのと同じく、入力中に箱が飛び跳ねない）。
+// WorkerProfileEditの経験・資格ボックスと#/experienceページの両方から使う共有部品
+export function WorkerDeclarationBoxes({ selfDeclared, setSelfDeclared }) {
+  const [openKey, setOpenKey] = useState(null);
+  const [ordered] = useState(() => [
+    ...selfDeclared.map(k => WORKER_DECLARATIONS.find(x => x.k === k)).filter(Boolean),
+    ...WORKER_DECLARATIONS.filter(it => !selfDeclared.includes(it.k)),
+  ]);
+  return (
+    <div>
+      <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -20px", padding:"2px 20px" }}>
+        {ordered.map(it => {
+          const on = selfDeclared.includes(it.k);
+          const open = openKey === it.k;
+          return (
+            <button key={it.k} type="button" onClick={()=>setOpenKey(open ? null : it.k)}
+              className="f-sans" style={{ flexShrink:0, maxWidth:200, background: open ? "#00A86B" : "#F7F7F7", border:"1px solid " + (open || on ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
+              <span style={{ display:"block", fontSize:13, fontWeight:700, color: open ? "#fff" : "#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{it.chip}</span>
+              <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? "#00A86B" : "#B0B0B0", marginTop:2 }}>{on ? "申告ずみ ✓" : "未申告"}</span>
+            </button>
+          );
+        })}
+      </div>
+      {openKey && (() => {
+        const it = WORKER_DECLARATIONS.find(x => x.k === openKey);
+        if (!it) return null;
+        const on = selfDeclared.includes(openKey);
+        return (
+          /* 展開したボックス：この申告のON/OFFをその場で切り替える（保存はページ/モーダル共通の「保存する」） */
+          <div className="fade-in" style={{ marginTop:12, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"6px 14px 14px" }}>
+            <ToggleSwitch label={it.label} checked={on} onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, openKey])] : prev.filter(x => x !== openKey))} />
+            <button type="button" onClick={()=>setOpenKey(null)} className="f-sans" style={{ marginTop:10, padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.5 }}>自己申告です。運営が確認するものではありません。</p>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 export function WorkerExperiencePage() {
   const [expEntries, setExpEntries] = useState([]);       // 経験の構造化申告 {crop,task,duration}（最大5）
   const [selfDeclared, setSelfDeclared] = useState([]);   // できること・資格（key配列）
@@ -77,14 +120,10 @@ export function WorkerExperiencePage() {
           <button onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, marginBottom:20 }}>＋ 経験を追加</button>
         )}
 
-        {/* 免許・資格・保険方針（自己申告トグル） */}
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"4px 0 6px" }}>免許・資格・保険方針</p>
-        <div style={{ marginBottom:20, borderTop:"1px solid #EBEBEB" }}>
-          {WORKER_DECLARATIONS.map((it, i) => (
-            <div key={it.k} style={{ borderBottom: i < WORKER_DECLARATIONS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
-              <ToggleSwitch label={it.label} checked={selfDeclared.includes(it.k)} onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
-            </div>
-          ))}
+        {/* 免許・資格・保険方針（自己申告）：トグル行リスト→保険申告と同じ横1列ボックスに（2026-08-02たきと指示） */}
+        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"4px 0 8px" }}>免許・資格・保険方針</p>
+        <div style={{ marginBottom:20 }}>
+          <WorkerDeclarationBoxes selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
         </div>
 
         {/* その他の作業（旧「経験のある作業」＝既存データがある人だけ残置。空の人には構造化のみ） */}
