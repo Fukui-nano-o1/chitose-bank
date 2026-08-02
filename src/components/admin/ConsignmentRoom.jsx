@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { ymdLocal } from "../../lib/utils";
+import { getCache, setCache } from "../../lib/viewCache";
+import { snapGet } from "../../lib/snapshot";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
 import { CalendarView } from "../CalendarView";
 import { AdminNav } from "./AdminNav";
@@ -910,8 +912,10 @@ export function ConsignmentRoom() {
   const [stdTerms, setStdTerms] = useState({});
   const [returning, setReturning] = useState(false); // 帰還演出中（ウィザード→一覧に戻るとき、退場の逆再生＝中身→太陽→蔓・2026-07-31たきと指示）
   const [printOpen, setPrintOpen] = useState(false);
-  const [deals, setDeals] = useState([]);
-  const [progAgg, setProgAgg] = useState({}); // 台帳の要約用：deal_id→{hours,boxes,days}
+  // 前回内容で即描画→裏で最新に差し替え（2026-08-02たきと指示「委託ページの更新が遅い」）。
+  // このページだけviewCache未導入で、引き下げ更新のたび台帳・進捗・名刺を白紙から取り直していた
+  const [deals, setDeals] = useState(() => getCache("consign:deals") ?? []);
+  const [progAgg, setProgAgg] = useState(() => getCache("consign:progAgg") ?? {}); // 台帳の要約用：deal_id→{hours,boxes,days}
   const [busy, setBusy] = useState(false);
   const todayJst = () => { try { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); } catch { return new Date().toISOString().slice(0, 10); } };
   // 日次進捗（作業中）
@@ -927,11 +931,11 @@ export function ConsignmentRoom() {
       supabase.from("consignment_deals").select("*").order("created_at", { ascending: false }),
       supabase.from("consignment_progress").select("deal_id,hours,yield_boxes,work_date"),
     ]);
-    setDeals(dl.data || []);
+    setDeals(dl.data || []); setCache("consign:deals", dl.data || []);
     const agg = {};
     (pr.data || []).forEach(r => { const a = agg[r.deal_id] || { hours: 0, boxes: 0, days: new Set() }; a.hours += Number(r.hours || 0); a.boxes += Number(r.yield_boxes || 0); if (r.work_date) a.days.add(r.work_date); agg[r.deal_id] = a; });
     const out = {}; Object.entries(agg).forEach(([k, v]) => { out[k] = { hours: v.hours, boxes: v.boxes, days: v.days.size }; });
-    setProgAgg(out);
+    setProgAgg(out); setCache("consign:progAgg", out);
     return dl.data || [];
   };
   const loadProgress = async (id) => {
@@ -945,9 +949,11 @@ export function ConsignmentRoom() {
   };
   // トップの大プロフィールカード用（農家プロフィール入口と同じ構造・2026-07-31たきと指示）。
   // 名刺の中身は employer_profiles の自分の行から（このページはprops無しなので自分で引く）
-  const [empMini, setEmpMini] = useState(null);
+  // 名刺はviewCache→（アプリ再起動後は）FarmerDashboardが保存したsnapshot(empMini)→nullの順で即表示。
+  // ここからsnapshotへは書かない（このページのempMiniは2列だけの縮小形so、全列形の正本を上書きしない）
+  const [empMini, setEmpMini] = useState(() => getCache("consign:empMini") ?? snapGet("empMini") ?? null);
   // 委託者情報（設定ページの保存値・確認STEP5と印刷仕様書へ自動反映）。設定ページから戻るたびに再読込
-  const [consignor, setConsignor] = useState(null);
+  const [consignor, setConsignor] = useState(() => getCache("consign:consignor") ?? null);
   useEffect(() => {
     if (cTab === "profile") return; // 設定ページ自身はフォーム側が読む
     (async () => {
@@ -955,7 +961,7 @@ export function ConsignmentRoom() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         const { data } = await supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        setConsignor(data || null);
+        setConsignor(data || null); setCache("consign:consignor", data || null);
       } catch {}
     })();
   }, [cTab]);
@@ -1085,16 +1091,26 @@ export function ConsignmentRoom() {
   // mount時の読み込み：一覧＋名刺。URLが /deal/{id} のままのリロードは取得行でその案件を開き直す
   useEffect(() => {
     (async () => {
-      const rows = await loadDeals();
+      // 案件ビューへの復元は、キャッシュにあれば一覧の取得を待たず即開く（2026-08-02）。
+      // 開けた場合は取得後の再オープンをしない（開いた直後の入力を最新データで上書きしない）
       const c0 = readConsignView();
-      if (c0.view === "deal") { const d0 = (rows || []).find(x => x.id === c0.id); if (d0) openDealState(d0); }
+      let opened = false;
+      if (c0.view === "deal") {
+        const cached = (getCache("consign:deals") ?? []).find(x => x.id === c0.id);
+        if (cached) { openDealState(cached); opened = true; }
+      }
+      const rows = await loadDeals();
+      if (!opened) {
+        const c1 = readConsignView();
+        if (c1.view === "deal") { const d0 = (rows || []).find(x => x.id === c1.id); if (d0) openDealState(d0); }
+      }
     })();
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         const { data } = await supabase.from("employer_profiles").select("nickname,avatar_url").eq("auth_id", session.user.id).maybeSingle();
-        setEmpMini(data || null);
+        setEmpMini(data || null); setCache("consign:empMini", data || null);
       } catch {}
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
