@@ -613,7 +613,9 @@ function ConsignorInfoEdit() {
             ))}
           </div>
           {confirmGroups.map(([gl, fields]) => {
-            const rows = fields.filter(f => !f.h && (d[f.k] || "").trim() && !(f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ") && !(f.bankOnly && (d.cmn_pay_method || "") === "現金")).map(f => [f.l, d[f.k]]);
+            // 登録内容は全て出す（2026-07-31たきと指示）：未入力もグレーで明示。
+            // 条件で無効な項目（事業所=自宅と同じ・現金払いの振込欄）と案内文は出さない
+            const rows = fields.filter(f => !f.h && !f.info && !(f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ") && !(f.bankOnly && (d.cmn_pay_method || "") === "現金")).map(f => [f.l, d[f.k]]);
             if (!rows.length) return null;
             return (
               <div key={gl} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
@@ -622,7 +624,7 @@ function ConsignorInfoEdit() {
                   {rows.map(([l, v]) => (
                     <div key={l} style={{ display:"flex", gap:10 }}>
                       <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:110, flexShrink:0 }}>{l}</span>
-                      <span className="f-sans" style={{ fontSize:12, color:"#111111", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{v}</span>
+                      <span className="f-sans" style={{ fontSize:12, color: (v || "").trim() ? "#111111" : "#C0C0C0", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{(v || "").trim() || "未入力"}</span>
                     </div>
                   ))}
                 </div>
