@@ -711,14 +711,7 @@ function ConsignorInfoEdit() {
       )}
 
       {stepKey === "ind" && (<>
-        {/* 新規登録から引き継ぐ項目は聞き直さない（2026-07-31たきと指示）＝表示だけ */}
-        <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 14px" }}>
-          <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>新規登録から引き継ぎ（入力不要）</span>
-          <span style={{ display:"block" }}>氏名：{(d.ind_name || "").trim() || "未登録"}</span>
-          <span style={{ display:"block" }}>住所：{[d.ind_addr_main, d.ind_addr_detail].map(x => (x || "").trim()).filter(Boolean).join(" ") || "未登録"}</span>
-          <span style={{ display:"block" }}>メール：{(d.ind_email || "").trim() || "未登録"}</span>
-          {(ahInfo?.contact_phone || "").trim() ? <span style={{ display:"block" }}>電話：{(d.ind_phone || "").trim()}</span> : null}
-        </div>
+        {/* 引き継ぎボックスは削除（2026-08-02たきと指示）＝引き継ぎ内容は初回の同意ゲートで提示済み */}
         {CONSIGNOR_IND_FIELDS.map(renderCF)}
       </>)}
       {stepKey === "corp" && (<>
