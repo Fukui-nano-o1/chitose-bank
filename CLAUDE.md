@@ -1811,3 +1811,25 @@ publicバケットなので公開範囲は不変。DB適用済み・repo migrati
   規則はsnapshot.jsに準拠（本人の自分用データのみ・ログアウトでclearSnapshotsが全消去・SWRで裏更新）
 ・本当の初回（プロフィール作成直後の初訪問等）だけは従来どおり読み込み待ち＝正しい挙動
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続5) 応募者ページの読み込みを1往復に（my_farm_applicants）＋farm:wp未書き込みバグ修理 ━━━
+【症状】応募者ページの復元が遅い（たきと報告）。
+【原因】①読み込みが getSession→第1波(my_todo_items＋applications)→第2波(reviews＋worker_profiles＋
+worker_trust_info_bulk＋interview_question_sends)の直列2波・計6本で、スケルトン解除(setAppsLoading(false))が
+第2波の完了後だった ②farm:wp（応募者の名前・アイコンのキャッシュ）は初期stateで読むだけで
+setCacheがどこにも無く、毎回ネット待ちになっていた（読むだけの死にキャッシュ）。
+【対処】
+・DB：my_farm_applicants() 新設（migration 20260802044535）。apps/todo/reviewed_ids/qsent_ids/
+  profiles/trust を1つのjsonで返す。★SECURITY INVOKER＝各テーブルのRLSがそのまま適用され、
+  見える範囲は従来のクライアント直叩きと機械的に同一（権限判定の写経を持たない設計）。
+  内部で呼ぶ my_todo_items / worker_trust_info_bulk は既存SECURITY DEFINERのゲートがそのまま生きる。
+  authenticated専用（anonはEXECUTE拒否・has_function_privilegeで確認済み）。実測87ms・18KB。
+・フロント：応募者ローダーを1RPCに書き換え。loadQSentIds関数は廃止（qsent_idsに統合）。
+  farm:wpのsetCache書き込みを追加（死にキャッシュの修理）。ディープリンク着地3種
+  （cb_emergencyAppId/cb_completeAppId/cb_agreeAppId）は無変更でappDataを参照。
+【効果】初回（キャッシュ無し）＝スケルトンが1往復ぶんで解除・名前も同時に揃う。
+2回目以降＝viewCache(sessionStorage)から即描画→裏で1RPC差し替え。
+【検証】build+lint 0 error・RPC実データ実行（apps11/todo3/qsent4/profiles4/trust4）・anon拒否確認。
+実機目視は未実施→確認：応募者ページを開いて承認待ち/面接中等のカード・名前・質問送信済みバッジ・
+評価済み判定・今日ページからの「完了して評価する」着地が従来どおり動くか
+━━━ ここまで ━━━

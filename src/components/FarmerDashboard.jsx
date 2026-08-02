@@ -107,13 +107,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     } catch (e) { alert("削除に失敗しました：" + (e?.message || "不明")); }
   };
   const [qSentAppIds, setQSentAppIds] = useState(() => new Set());
-  const loadQSentIds = async (appIds) => {
-    try {
-      if (!appIds.length) return;
-      const { data: iqs } = await supabase.from("interview_question_sends").select("application_id").in("application_id", appIds);
-      setQSentAppIds(new Set((iqs || []).map(r => r.application_id)));
-    } catch {}
-  };
+  // loadQSentIds（質問送信済みの個別取得）は廃止（2026-08-02）：my_farm_applicants の qsent_ids に統合
 
   const sendInterviewQuestions = async (setId) => {
     if (!sendQTarget || sendingQ) return;
@@ -705,49 +699,30 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (jobTab !== "applicants") return;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        // 未対応（＝こちらの番）の応募を、やること・バッジと同じ単一ソース my_todo_items から導出（2026-07-26たきと指示）。
+        // 1往復に集約（2026-08-02たきと指示「応募者ページの復元も遅い」）：従来は getSession→
+        // ①やること＋応募一覧→②評価＋プロフィール＋信頼情報（＋質問送信済み）の直列2波・計6本で、
+        // 全部返るまでスケルトンのままだった。my_farm_applicants（SECURITY INVOKER＝各テーブルの
+        // RLSがそのまま適用・見える範囲は従来の直叩きと同一）が全部まとめて返す
+        const { data: bundle, error } = await supabase.rpc("my_farm_applicants");
+        if (error || !bundle) { setAppsLoading(false); return; }
+        const appData = bundle.apps || [];
+        // 未対応（＝こちらの番）の応募＝やること・バッジと同じ単一ソース my_todo_items 由来（2026-07-26たきと指示）。
         // hireは除外：承認後ずっと出続ける段so、質問送信後の「働き手の回答待ち」でも跳ね続けてしまう。
         // 除外すると流れが正しく出る＝承認直後はinterview(質問を送る)で跳ね、送ったら静止（働き手の番）、
         // 働き手が答えるとchat(未読)で再び跳ねる。やることリスト側のhireはそのまま（表示だけの調整）
-        // やることと応募は互いに独立なので同時に投げる（2026-07-27たきと指示「直列を並列に」）
-        const [todoRes, appRes] = await Promise.all([
-          supabase.rpc("my_todo_items").then(r => r, () => ({ data: [] })),
-          supabase.from("applications").select("*").eq("farmer_id", session.user.id).order("created_at", { ascending: false }),
-        ]);
-        setTodoAppIds(new Set((todoRes.data || [])
-          .filter(t => t.my_role === "farmer" && t.application_id && t.stage !== "hire")
-          .map(t => t.application_id)));
-        const appData = appRes.data;
-        if (!appData) { setAppsLoading(false); return; }
+        setTodoAppIds(new Set((bundle.todo || []).filter(t => t.stage !== "hire").map(t => t.application_id)));
         setDbApplicants(appData);
-        loadQSentIds(appData.map(x => x.id));
-        // 自分が書いた評価（お仕事の流れバーの「評価」段の判定）。RLS「review select own」で自分の行のみ返る
-        const doneIds = appData.filter(a => a.status === "completed").map(a => a.id);
-        // 応募者のプロフィールと信頼情報。プロフィールは手元に無い人だけ、信頼情報は
-        // 実績が進むので毎回まとめて（worker_trust_info_bulk＝1往復。2026-07-29）
-        const appWorkerIds = [...new Set(appData.map(a => a.worker_id).filter(Boolean))];
-        const missing = appWorkerIds.filter(id => !workerProfiles[id]);
-        const [rvRes, wpRes, wTrustRes] = await Promise.all([
-          doneIds.length
-            ? supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).in("application_id", doneIds).then(r => r, () => ({ data: [] }))
-            : Promise.resolve({ data: [] }),
-          missing.length > 0
-            ? supabase.from("worker_profiles").select("*").in("auth_id", missing)
-            : Promise.resolve({ data: [] }),
-          appWorkerIds.length > 0
-            ? supabase.rpc('worker_trust_info_bulk', { p_worker_ids: appWorkerIds }).then(r => r, () => ({ data: null }))
-            : Promise.resolve({ data: null }),
-        ]);
-        setReviewedAppIds(new Set((rvRes.data || []).map(r => r.application_id)));
-        if (wpRes.data && wpRes.data.length > 0) {
-          setWorkerProfiles(prev => { const m = { ...prev }; wpRes.data.forEach(wp => { m[wp.auth_id] = wp; }); return m; });
+        setQSentAppIds(new Set(bundle.qsent_ids || []));
+        // 自分が書いた評価（お仕事の流れバーの「評価」段の判定）。RLS「review select own」で自分の行のみ
+        setReviewedAppIds(new Set(bundle.reviewed_ids || []));
+        if (Array.isArray(bundle.profiles) && bundle.profiles.length > 0) {
+          // farm:wp はこれまで読むだけで書かれておらず、名前・アイコンが毎回ネット待ちだった（2026-08-02修理）
+          setWorkerProfiles(prev => { const m = { ...prev }; bundle.profiles.forEach(wp => { m[wp.auth_id] = wp; }); setCache("farm:wp", m); return m; });
         }
-        if (wTrustRes.data) {
-          // 返り値は { worker_id: {ok,...} }。権限の無いidはキーごと入らない（DB側で1人ずつ判定）
+        if (bundle.trust) {
+          // { worker_id: {ok,...} }。権限の無いidはキーごと入らない（DB側で1人ずつ判定）
           const trustMap = {};
-          Object.entries(wTrustRes.data).forEach(([wid, v]) => { if (v && v.ok) trustMap[wid] = v; });
+          Object.entries(bundle.trust).forEach(([wid, v]) => { if (v && v.ok) trustMap[wid] = v; });
           setWorkerTrust(trustMap); setCache("farm:trust", trustMap);
         }
         // ここから下は、今日ページ・緊急連絡メールからの着地（応募が手元に揃ってから判定する）。
