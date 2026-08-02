@@ -142,10 +142,11 @@ const CONSIGN_SPRIGS = [
 // 群れの土台＝3つの縄張り（振り付けは固定：右→左→右の順に下から上へ・2026-07-31たきと指示）。
 // 中央に寄って見えないよう、株の根元は必ず端の側に置く（右群れ=右端0〜38%・左群れ=左端0〜38%。
 // 負値も許す＝画面外へはみ出してよい）。panel=どちらの幕に所属するか（幕が開くとき群れごと退場）。
+// 順番はまず太陽→次に草（2026-07-31たきと指示「まず太陽を出してから草を出そう」）
 const CONSIGN_CLUSTER_BASES = [
-  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10, delay: 0.10 }, // ①右・下段（草）
-  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75, delay: 0.45 }, // ②左・中段（草）
-  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20, delay: 0.80, kind: "sun" }, // ③上段＝夏仕様の白い太陽（2026-07-31たきと指示・草から置換）
+  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20, delay: 0.10, kind: "sun" }, // ①上段＝白い太陽が先
+  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10, delay: 0.45 }, // ②右・下段（草）
+  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75, delay: 0.80 }, // ③左・中段（草）
 ];
 // 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
 // 以前の「決め打ち＝再現性」はこの指示で上書き）。全てのパターンを毎回変える（たきと指示）：
@@ -668,8 +669,8 @@ export function ConsignmentRoom() {
   };
   const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "profile" ? "profile" : v === "new" ? "new" : "deal"; }); // list=一覧 / deal=案件ダッシュボード / profile=委託専用プロフィール
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
-  // ステップ展開（2026-07-31たきと指示）：群れ①が生え切ってから②、②の後に③＝三段のリズム。
-  // 線(0.22s)→①右下(0.10s〜)→②左中(0.45s〜)→③右上(0.80s〜)→幕が開く(1.20s+0.5s)
+  // ステップ展開（2026-07-31たきと指示・順序改定「まず太陽→草」）：
+  // 線(0.22s)→①太陽・上段(0.10s〜)→②草・右下(0.45s〜)→③草・左中(0.80s〜)→幕が開く(1.20s+0.5s)
   // ＝約1.7sで終演、1.95sでDOMから外す。
   // 動きを減らす設定の端末では最初から出さない（CSS側のprefers-reduced-motionと二重の判定）
   const [entrance, setEntrance] = useState(() => {
