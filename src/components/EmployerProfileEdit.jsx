@@ -1,5 +1,6 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。雇い手プロフィール編集＋プレビュー（FarmerProfilePreviewは本ファイル専用）。
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges } from "../lib/utils";
@@ -419,7 +420,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       )}
 
       {/* ═══ 編集モーダル（各ボックスの中身。保存はモーダル内の「保存する」＝全項目upsert） ═══ */}
-      {editBox && (
+      {/* document.bodyへポータル（2026-08-01）：祖先がtransformを持つとfixedの基準がその祖先になり、
+          オーバーレイが画面下端まで届かず白い帯が出る（AdminJobPreviewと同じ不具合・同じ根治法） */}
+      {editBox && createPortal(
       /* cb-lock-scroll＝展開中は背後ページのスクロールを固定し、下部バー・浮遊☰・役割トグルを隠す
          （2026-08-01たきと指示「ボックスが前面・展開中は画面スクロール停止」・FarmerDashboardの各シートと同作法） */
       <div onClick={closeEditBox} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px 16px", animation:"fadeIn .2s ease" }}>{/* 上下20pxの余白を残して中央（2026-08-01たきと指示）。maxHeight:100%＝余白を差し引いた高さが上限 */}
@@ -652,7 +655,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
       </div>
       </div>
-      )}
+      , document.body)}
 
       {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
       {showPreview && (

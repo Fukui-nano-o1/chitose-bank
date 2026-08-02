@@ -1,6 +1,7 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。働き手プロフィール編集＋プレビュー（WorkerProfilePreviewは本ファイル専用）。
 // 専用定数（PR_PROMPTS・Q&A20問・興味/言語/作業強度の選択肢）も同居。
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
@@ -376,7 +377,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       )}
 
       {/* ═══ 編集モーダル（各ボックスの中身。保存はモーダル内の「保存する」＝全項目upsert） ═══ */}
-      {editBox && (
+      {/* document.bodyへポータル（2026-08-01）：祖先がtransformを持つとfixedの基準がその祖先になり、
+          オーバーレイが画面下端まで届かず白い帯が出る（AdminJobPreviewと同じ不具合・同じ根治法） */}
+      {editBox && createPortal(
       /* cb-lock-scroll＝展開中は背後ページのスクロールを固定し、下部バー・浮遊☰・役割トグルを隠す
          （2026-08-01たきと指示「ボックスが前面・展開中は画面スクロール停止」・雇い手側と同作法） */
       <div onClick={closeEditBox} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px 16px", animation:"fadeIn .2s ease" }}>{/* 上下20pxの余白を残して中央（2026-08-01たきと指示・雇い手側と同一）。maxHeight:100%＝余白を差し引いた高さが上限 */}
@@ -572,7 +575,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       )}
       </div>
       </div>
-      )}
+      , document.body)}
 
       {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
       {showPreview && (
