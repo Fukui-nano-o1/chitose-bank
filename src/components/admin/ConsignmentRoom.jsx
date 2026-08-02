@@ -305,24 +305,36 @@ const corpNoCheckOk = (v) => {
 };
 
 // 契約書の当事者欄（確認STEP5・印刷仕様書に自動反映）。種別で印字を出し分ける（2026-07-31たきと指示）：
-// 個人事業者＝住所・氏名・屋号／法人＝所在地・法人名・代表者（役職＋氏名）。担当者は当事者欄に出さない
-const consignorPartyRows = (row) => {
-  if (!row) return [];
-  const d = row.consignor_data || {};
+// 個人事業者＝住所・氏名・屋号／法人＝所在地・法人名・代表者（役職＋氏名）。担当者は当事者欄に出さない。
+// 身元（氏名・法人名・住所）は account_holders＝唯一の正から読む（2026-08-02たきと確定指示・
+// consignor_data へ複製しない）。ah に値が無い旧データのみ consignor_data の旧キーで代替。
+// ※これは「現在情報」の表示。成立済み契約の当事者欄は terms_snapshot（凍結値）を参照すること
+const consignorPartyRows = (row, ah) => {
+  if (!row && !ah) return [];
+  const d = (row && row.consignor_data) || {};
+  const a = ah || {};
+  const ahAddr = (() => {
+    const body = (a.address || "").trim();
+    if (!body) return "";
+    const z = (a.postal_code || "").trim();
+    return (z ? "〒" + z + " " : "") + body;
+  })();
   const compose = (zip, main, detail) => {
     const body = [(d[main] || "").trim(), (d[detail] || "").trim()].filter(Boolean).join(" ");
     if (!body) return "";
     const z = (d[zip] || "").trim();
     return (z ? "〒" + z + " " : "") + body;
   };
-  if (row.consignor_type === "individual") {
-    return [["住所", compose("ind_zip","ind_addr_main","ind_addr_detail")], ["氏名", (d.ind_name || "").trim()], ["屋号", (d.ind_trade || "").trim()]].filter(r => r[1]);
+  const t = (row && row.consignor_type) || a.entity_type || "";
+  if (t === "individual") {
+    return [["住所", ahAddr || compose("ind_zip","ind_addr_main","ind_addr_detail")], ["氏名", (a.full_name || "").trim() || (d.ind_name || "").trim()], ["屋号", (d.ind_trade || "").trim()]].filter(r => r[1]);
   }
-  if (row.consignor_type === "corporate") {
+  if (t === "corporate") {
     const rep = [(d.corp_rep_title || "").trim(), (d.corp_rep_name || "").trim()].filter(Boolean).join(" ");
-    return [["所在地", compose("corp_zip","corp_addr_main","corp_addr_detail")], ["法人名", (d.corp_name || "").trim()], ["代表者", rep]].filter(r => r[1]);
+    return [["所在地", ahAddr || compose("corp_zip","corp_addr_main","corp_addr_detail")], ["法人名", (a.company_name || "").trim() || (d.corp_name || "").trim()], ["代表者", rep]].filter(r => r[1]);
   }
   // 種別未選択＝旧v1データのフォールバック
+  if (!row) return [];
   return CONSIGNOR_PUBLIC_FIELDS.filter(f => (row[f.k] || "").trim()).map(f => [f.l, row[f.k]]);
 };
 
@@ -338,39 +350,33 @@ const CONSIGNOR_DISCLOSURE_STAGES = [
 ];
 
 // 種別に応じた下敷き（2026-08-02たきと指示・区分は新規登録の entity_type を唯一の正として自動分岐）。
-// 旧v1列→無ければ新規登録①の順で空欄のみ埋める。新規登録の住所は「住所＋半角スペース＋番地」の
-// 既知形式so最初のスペースで2分割（未知形式の機械分割ではない）
-const seedConsignorData = (n, t, row, ah) => {
+// ★身元（氏名・法人名・住所・法人番号・メール）は複製しない（2026-08-02たきと確定指示・
+//   account_holders が唯一の正＝表示は consignorPartyRows / ahInfo が直接参照する）。
+// ここで埋めるのは委託固有の項目（屋号・インボイス・代表者・担当者）だけ。旧v1列から空欄のみ埋める
+const seedConsignorData = (n, t, row) => {
   const put = (k, v) => { if (!(n[k] || "").trim() && (v || "").trim()) n[k] = v; };
-  const ahZip = (ah.postal_code || "").replace(/[^0-9]/g, "");
-  const ahAddr = (ah.address || "").trim();
-  const sp = ahAddr.indexOf(" ");
-  const ahMain = sp > 0 ? ahAddr.slice(0, sp) : ahAddr;
-  const ahDetail = sp > 0 ? ahAddr.slice(sp + 1) : "";
-  const v1Main = [row.consignor_pref, row.consignor_city, row.consignor_addr].map(x => (x || "").trim()).filter(Boolean).join("");
   if (t === "individual") {
-    put("ind_name", row.consignor_name); put("ind_name", ah.full_name);
     put("ind_trade", row.consignor_trade_name);
-    put("ind_birth", ah.birth_date);
-    put("ind_zip", row.consignor_zip); put("ind_zip", ahZip);
-    put("ind_addr_main", v1Main); put("ind_addr_main", ahMain); put("ind_addr_detail", ahDetail);
-    put("ind_phone", row.consignor_phone); put("ind_phone", ah.contact_phone);
-    put("ind_email", row.consignor_email); put("ind_email", ah.contact_email);
+    put("ind_phone", row.consignor_phone); // 新規登録に電話が無い場合の補完入力（あれば欄ごと非表示）
     put("ind_invoice", row.consignor_invoice_no);
     if (!(n.ind_has_trade || "").trim() && (n.ind_trade || "").trim()) n.ind_has_trade = "屋号あり";
     if (!(n.ind_has_invoice || "").trim() && (n.ind_invoice || "").trim()) n.ind_has_invoice = "登録あり";
   } else {
-    put("corp_name", row.consignor_name); put("corp_name", ah.company_name);
-    put("corp_no", row.consignor_corp_no); put("corp_no", ah.company_number);
-    put("corp_zip", row.consignor_zip); put("corp_zip", ahZip);
-    put("corp_addr_main", v1Main); put("corp_addr_main", ahMain); put("corp_addr_detail", ahDetail);
-    put("corp_phone", row.consignor_phone); put("corp_phone", ah.contact_phone);
-    put("corp_email", row.consignor_email); put("corp_email", ah.contact_email);
     put("corp_invoice", row.consignor_invoice_no);
     put("corp_rep_name", row.consignor_rep_name); // 登録者≠代表者のことがあるso登録者名では埋めない
     if (!(n.staff_use_registrant || "").trim()) n.staff_use_registrant = "登録者を使用";
     if (!(n.corp_has_invoice || "").trim() && (n.corp_invoice || "").trim()) n.corp_has_invoice = "登録あり";
   }
+  return n;
+};
+
+// consignment_profiles に保存しない身元キー（account_holders が唯一の正・2026-08-02たきと確定指示）。
+// 旧データに残っていても保存時に取り除く＝二重管理を根絶（表示の旧データ代替は consignorPartyRows 側）
+const CONSIGNOR_IDENTITY_KEYS = ["ind_name","ind_birth","ind_zip","ind_addr_main","ind_addr_detail","ind_email",
+  "corp_name","corp_no","corp_zip","corp_addr_main","corp_addr_detail","corp_phone","corp_email"];
+const stripConsignorIdentity = (obj) => {
+  const n = { ...obj };
+  CONSIGNOR_IDENTITY_KEYS.forEach(k => { delete n[k]; });
   return n;
 };
 
@@ -462,7 +468,7 @@ function ConsignorInfoEdit() {
         const ent = (ahRow && (ahRow.entity_type === "corporate" || ahRow.entity_type === "individual")) ? ahRow.entity_type : "";
         const t = ent || (draft && draft.t) || (data && data.consignor_type) || "";
         let merged = (draft && draft.d) ? { ...nd, ...draft.d } : nd;
-        if (t) merged = seedConsignorData(merged, t, data || {}, ahRow || {}); // 自動分岐＝下敷きも自動で適用
+        if (t) merged = seedConsignorData(merged, t, data || {}); // 自動分岐＝下敷きも自動で適用（身元は複製しない）
         setCtype(t);
         const okC = !!(data && data.consignment_data_consent && data.consignment_data_consent_version === CONSIGNOR_CONSENT_VERSION);
         if (okC && draft && Number.isInteger(draft.s)) setCstep(draft.s); // 未同意ならステップ1（引き継ぎ確認）から
@@ -502,7 +508,7 @@ function ConsignorInfoEdit() {
     const addr = (ah.address || "").trim();
     const sp = addr.indexOf(" ");
     setRegForm({
-      full_name: ah.full_name || "", company_name: ah.company_name || "", company_number: ah.company_number || "",
+      full_name: ah.full_name || "", company_name: ah.company_name || "",
       birth_date: ah.birth_date || "", postal_code: (ah.postal_code || "").replace(/[^0-9]/g, ""),
       addr_main: sp > 0 ? addr.slice(0, sp) : addr, addr_detail: sp > 0 ? addr.slice(sp + 1) : "",
       contact_phone: ah.contact_phone || "", contact_email: ah.contact_email || "",
@@ -522,7 +528,10 @@ function ConsignorInfoEdit() {
     } catch { setRegZipError("検索に失敗しました。通信環境をご確認ください"); }
     setRegZipBusy(false);
   };
-  // 保存：account_holders（唯一の正）を本人権限で更新し、委託側の派生値（d）にも上書きで再反映
+  // 保存：account_holders（唯一の正）を変更元タグ付きRPCで更新（2026-08-02たきと確定指示・
+  // 変更履歴 account_holder_changes に 前後の値・日時・変更者・変更元=consignment_reg_edit が残る）。
+  // entity_type / company_number は通常編集禁止（DBトリガーでも拒否）＝patch に含めない。
+  // 委託側 d への身元コピーは廃止（身元は consignor_data に持たない・表示は ahInfo を直接参照）
   const saveRegEdit = async () => {
     if (regSaving || !regForm) return;
     setRegSaving(true);
@@ -537,26 +546,12 @@ function ConsignorInfoEdit() {
         birth_date: regForm.birth_date.trim() || null,
         contact_phone: regForm.contact_phone.trim() || null,
         contact_email: regForm.contact_email.trim() || null,
-        ...(ctype === "corporate" ? { company_name: regForm.company_name.trim(), company_number: regForm.company_number.trim() } : {}),
+        ...(ctype === "corporate" ? { company_name: regForm.company_name.trim() } : {}),
       };
-      const { error } = await supabase.from("account_holders").update(patch).eq("auth_id", session.user.id);
-      if (error) { alert("保存に失敗しました：" + error.message); setRegSaving(false); return; }
-      const newAh = { ...(ahInfo || {}), ...patch };
-      setAhInfo(newAh);
-      // 登録＝唯一の正なので、派生している委託側の身元項目は新しい値で上書きして復元
-      setD(p => {
-        const n = { ...p };
-        if (ctype === "corporate") {
-          n.corp_name = newAh.company_name || ""; n.corp_no = newAh.company_number || "";
-          n.corp_zip = newAh.postal_code || ""; n.corp_addr_main = regForm.addr_main.trim(); n.corp_addr_detail = regForm.addr_detail.trim();
-          n.corp_phone = newAh.contact_phone || ""; n.corp_email = newAh.contact_email || "";
-        } else {
-          n.ind_name = newAh.full_name || ""; n.ind_birth = newAh.birth_date || "";
-          n.ind_zip = newAh.postal_code || ""; n.ind_addr_main = regForm.addr_main.trim(); n.ind_addr_detail = regForm.addr_detail.trim();
-          n.ind_phone = newAh.contact_phone || n.ind_phone || ""; n.ind_email = newAh.contact_email || "";
-        }
-        return n;
-      });
+      const { data: r, error } = await supabase.rpc("update_account_holder_self",
+        { p_patch: patch, p_source: "consignment_reg_edit" });
+      if (error || !(r && r.ok)) { alert("保存に失敗しました：" + (error?.message || (r && r.reason) || "不明なエラー")); setRegSaving(false); return; }
+      setAhInfo(a => ({ ...(a || {}), ...patch }));
       setEditReg(false); window.scrollTo(0, 0);
     } catch { alert("保存に失敗しました。"); }
     setRegSaving(false);
@@ -566,7 +561,7 @@ function ConsignorInfoEdit() {
   // 種別ページは廃止＝通常は読み込み時に自動分岐（下記seedConsignorData）。
   // pickType は entity_type 未登録の旧データ専用のフォールバック（例外処理）
   const pickType = (t) => {
-    setD(p => seedConsignorData({ ...p }, t, rowRef.current || {}, ahInfo || {}));
+    setD(p => seedConsignorData({ ...p }, t, rowRef.current || {}));
     setCtype(t); setCstep(0); window.scrollTo(0, 0);
   };
   const searchZipInto = async (f) => {
@@ -588,8 +583,19 @@ function ConsignorInfoEdit() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
+      // 新規登録に電話が無く、委託フローで入力された場合は account_holders（唯一の正）へ書き戻す
+      // （変更元タグ付きRPC経由＝変更履歴に consignment_flow として残る）
+      const flowPhone = (d.ind_phone || "").trim();
+      if (ctype === "individual" && flowPhone && !(ahInfo?.contact_phone || "").trim()) {
+        try {
+          const { data: r } = await supabase.rpc("update_account_holder_self",
+            { p_patch: { contact_phone: flowPhone }, p_source: "consignment_flow" });
+          if (r && r.ok) setAhInfo(a => ({ ...(a || {}), contact_phone: flowPhone }));
+        } catch {}
+      }
+      // 身元キーは保存しない（account_holders が唯一の正・2026-08-02たきと確定指示）
       const { error } = await supabase.from("consignment_profiles").upsert({
-        auth_id: session.user.id, consignor_type: ctype, consignor_data: d, updated_at: new Date().toISOString(),
+        auth_id: session.user.id, consignor_type: ctype, consignor_data: stripConsignorIdentity(d), updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       if (error) alert("保存に失敗しました：" + error.message);
       else {
@@ -620,8 +626,9 @@ function ConsignorInfoEdit() {
       if (!/^T\d{13}$/.test(v)) return "「T」＋13桁の形式で入力してください（例：T1234567890123）";
       if (k === "corp_invoice") {
         const digits = v.slice(1);
-        const cn = (d.corp_no || "").trim();
-        if (/^\d{13}$/.test(cn) && digits !== cn) return "法人の登録番号は「T＋法人番号」です。引き継いだ法人番号と一致していません";
+        // 法人番号は account_holders（唯一の正）を照合先に（旧データのみ consignor_data の残置値）
+        const cn = ((ahInfo?.company_number || d.corp_no || "") + "").trim();
+        if (/^\d{13}$/.test(cn) && digits !== cn) return "法人の登録番号は「T＋法人番号」です。登録されている法人番号と一致していません";
         if (corpNoCheckOk(digits) === false) return "番号の検査用数字（チェックデジット）が合いません。公表サイトでご確認ください";
       }
     }
@@ -711,7 +718,12 @@ function ConsignorInfoEdit() {
         <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 16px" }}>新規登録の情報（唯一の正）を修正します。保存すると委託者情報にも反映されます。区分（個人事業者/法人）はここでは変更できません。</p>
         {isCorp ? (<>
           {regField("company_name", "法人名", { ph:"例：株式会社千歳農園" })}
-          {regField("company_number", "法人番号", { num:true, ph:"例：1234567890123（13桁）" })}
+          {/* 法人番号は通常編集禁止（2026-08-02たきと確定指示・DBトリガーでも拒否）＝読み取り専用表示 */}
+          <div style={{ marginBottom:10 }}>
+            <label className="lbl f-sans">法人番号</label>
+            <div className="f-sans" style={{ fontSize:14, color:"#111111", background:"#F7F7F7", border:"1px solid #E5E5E5", borderRadius:10, padding:"12px 14px" }}>{(ahInfo?.company_number || "").trim() || "未登録"}</div>
+            <p className="f-sans" style={{ fontSize:10, color:"#999999", margin:"4px 0 0" }}>法人番号の変更は運営にお問い合わせください。</p>
+          </div>
         </>) : (<>
           {regField("full_name", "氏名", { ph:"例：千歳 太郎" })}
           {regField("birth_date", "生年月日", { ph:"例：1990-01-01" })}
@@ -833,9 +845,9 @@ function ConsignorInfoEdit() {
         <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>現在の登録区分：法人（区分の変更は登録情報から）</p>
         {/* 引き継ぎボックスは削除（2026-08-02たきと指示）＝引き継ぎ内容は初回の同意ゲートで既に提示済み。
             法人番号のチェックデジット警告だけは残す（公的情報との照合・不一致時のみ表示） */}
-        {corpNoCheckOk(d.corp_no) === false && (
-          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#111111", margin:"0 0 10px" }}>⚠ 引き継いだ法人番号（{d.corp_no}）の検査用数字が合いません。新規登録の情報をご確認ください。</p>
-        )}
+        {(() => { const cn = ((ahInfo?.company_number || d.corp_no || "") + "").trim(); return corpNoCheckOk(cn) === false && (
+          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#111111", margin:"0 0 10px" }}>⚠ 登録されている法人番号（{cn}）の検査用数字が合いません。修正は運営にお問い合わせください。</p>
+        ); })()}
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
       </>)}
       {/* 登録内容確認（入力済みのみ表示）＋契約書の当事者欄プレビュー */}
@@ -843,7 +855,7 @@ function ConsignorInfoEdit() {
         <div>
           <div style={{ background:"#111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
             <p className="f-sans" style={{ fontSize:11, color:"#B9B9B9", margin:"0 0 6px" }}>契約書の委託者欄（印字イメージ）</p>
-            {consignorPartyRows({ consignor_type: ctype, consignor_data: d }).map(([l, v]) => (
+            {consignorPartyRows({ consignor_type: ctype, consignor_data: d }, ahInfo).map(([l, v]) => (
               <p key={l} className="f-sans" style={{ fontSize:13, color:"#fff", margin:"0 0 2px" }}>{l}：{v}</p>
             ))}
           </div>
@@ -1081,16 +1093,24 @@ export function ConsignmentRoom() {
   // 名刺はviewCache→（アプリ再起動後は）FarmerDashboardが保存したsnapshot(empMini)→nullの順で即表示。
   // ここからsnapshotへは書かない（このページのempMiniは2列だけの縮小形so、全列形の正本を上書きしない）
   const [empMini, setEmpMini] = useState(() => getCache("consign:empMini") ?? snapGet("empMini") ?? null);
-  // 委託者情報（設定ページの保存値・確認STEP5と印刷仕様書へ自動反映）。設定ページから戻るたびに再読込
+  // 委託者情報（設定ページの保存値・確認STEP5と印刷仕様書へ自動反映）。設定ページから戻るたびに再読込。
+  // 身元（氏名・法人名・住所）は account_holders＝唯一の正から並行取得（2026-08-02たきと確定指示）
   const [consignor, setConsignor] = useState(() => getCache("consign:consignor") ?? null);
+  const [consignAh, setConsignAh] = useState(() => getCache("consign:ah") ?? null);
   useEffect(() => {
     if (cTab === "profile") return; // 設定ページ自身はフォーム側が読む
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const { data } = await supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        const [{ data }, { data: ah }] = await Promise.all([
+          supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
+          supabase.from("account_holders")
+            .select("full_name,postal_code,address,entity_type,contact_email,contact_phone,company_name,company_number")
+            .eq("auth_id", session.user.id).maybeSingle(),
+        ]);
         setConsignor(data || null); setCache("consign:consignor", data || null);
+        setConsignAh(ah || null); setCache("consign:ah", ah || null);
       } catch {}
     })();
   }, [cTab]);
@@ -1449,12 +1469,12 @@ export function ConsignmentRoom() {
             <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 危険情報</p>
             <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{(spec.hazards || []).length ? (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・") : "特になし"}</p>
           </div>
-          {consignorPartyRows(consignor).length > 0 && (
+          {consignorPartyRows(consignor, consignAh).length > 0 && (
             <div style={{ marginBottom:14 }}>
               <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 委託者（発注者）</p>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
                 <tbody>
-                  {consignorPartyRows(consignor).map(([l, v]) => (
+                  {consignorPartyRows(consignor, consignAh).map(([l, v]) => (
                     <tr key={l}>
                       <td style={{ border:"1px solid #999", padding:"7px 10px", width:170, background:"#F5F5F5", fontWeight:700 }}>{l}</td>
                       <td style={{ border:"1px solid #999", padding:"7px 10px" }}>{v}</td>
@@ -1750,11 +1770,11 @@ export function ConsignmentRoom() {
               ))}
             </div>
             {/* 委託者情報（設定ページから自動反映・2026-07-31たきと指示。緊急連絡先・振込情報は内部用so出さない） */}
-            {consignorPartyRows(consignor).length > 0 && (
+            {consignorPartyRows(consignor, consignAh).length > 0 && (
               <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>委託者（設定ページから自動反映・種別で印字を出し分け）</p>
                 <div style={{ display:"grid", gap:6 }}>
-                  {consignorPartyRows(consignor).map(([l, v]) => (
+                  {consignorPartyRows(consignor, consignAh).map(([l, v]) => (
                     <div key={l} style={{ display:"flex", gap:10 }}>
                       <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:96, flexShrink:0 }}>{l}</span>
                       <span className="f-sans" style={{ fontSize:12, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{v}</span>
