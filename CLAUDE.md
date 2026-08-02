@@ -1989,3 +1989,22 @@ clearCache全消去・破損JSON/不正シェイプ拒否。build+lint 0 error�
 ②空ボックスタップで説明＋空状態が出るか ③専用ページの行ボタンから従来の実行・遷移
 （承認/質問回答/採用/完了評価/保険報告/開始確認/面接回答送信）が動くか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続11) 緊急連絡の専用ページをステータス構造に（7329a83）━━━
+【たきと指示】「緊急連絡先のページ。ステータスと同じ構造に」
+【実装（TodayPage.jsx）】#/calendar/todo/t_emergency をステータスページ(#/saved・SavedJobsView)と
+同じカード構造に刷新：EmergencyStagePanel（モジュールレベル・フォーカス消失バグ対策の定義位置規則遵守）。
+・カード＝左:求人トップ写真（3:4固定・タイトル/#No.を下部オーバーレイ）／右:相手のアイコン＋段階ラベル
+　（appPhaseKey導出・リング=段階色・タップでopenPhaseInfo。アイコン下地=相手の役割色：農家→橙/働き手→緑）
+・カードタップ→下からのシート（cb-sheet-up・ステータスページのboxJobと同じ作法）：現在地バナー
+　（APP_PHASE_LABEL/COLOR/DESC）＋求人要約（写真88px・#No・地域・日程・勤務時間・相手）＋
+　ContractPartyName（契約成立後のみ本名）＋操作ボタン=⚠️緊急連絡（赤・主役→/emergency/{id}）・
+　💬チャット（CHAT_ELIGIBLE_STATUSES時のみ）・求人ページを見る（cb_jobBackTo=/calendar）
+・データは既存のtEmergency（get_my_calendar_jobs entries由来。photos/partner_name/terms_confirmed_*を持つ。
+　partner_avatarは返らないためアイコンは名前頭文字にフォールバック）。DB変更なし
+・他の用件ページはTodoStagePanelのまま。t_emergency行にあったPunchGapNotice/DeclaredBadgeの表示は
+　このページからは外れた（開始確認・完了ページ側には残る）＝気になるならシートへ追加可
+【検証】build成功・lint 0 error（TodayPageの警告2件=既存exhaustive-deps）・distに新文言包含をgrep確認。
+実機目視は未実施→確認：①今日ページ⚠️ボックス→カード一覧の表示（写真・相手・段階）②カードタップで
+シート→⚠️緊急連絡から従来の緊急連絡モーダルに着地するか ③チャット/求人ページボタン ④空状態の表示
+━━━ ここまで ━━━
