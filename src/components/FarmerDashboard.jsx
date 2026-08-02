@@ -1249,7 +1249,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft" })}
                 className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
+                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
                   {/* タブ名（作成中）と同じ帯は出さない（2026-07-25たきと指示・重複排除）。タブと違う状態＝審査中だけ帯を出す */}
                   {d.status === "pending" && <StatusRibbon label="審査中" color="#C77700" />}
                 </div>
@@ -1291,7 +1291,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               return (
               <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
+                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
                   {/* 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」に加え、
                       区画見出し「終了（N）」があるので終了の帯も出さない（写真のグレースケール＋🍂で十分伝わる） */}
                   {!ended && d.status !== "open" && <StatusRibbon label={d.status==="draft" ? "一時非公開" : "審査中"} color={d.status==="draft" ? "#757575" : "#C77700"} />}
@@ -1505,7 +1505,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft" })}
               className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"grayscale(40%)" }} /> : "🍂"}
+                {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"grayscale(40%)" }} /> : "🍂"}
                 <StatusRibbon label="期限切れ" color="#9E9E9E" />
               </div>
               <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>

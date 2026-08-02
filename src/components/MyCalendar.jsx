@@ -200,7 +200,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                     <button key={j.job_number} onClick={()=>{ setDraftPrompt(null); window.location.hash = "/work/edit/" + j.job_number; }}
                       className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                       <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
-                        {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                        {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
                         <StatusRibbonLeft label="下書き" color="#717171" />
                       </div>
                       <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", margin:0, padding:"7px 8px 9px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>

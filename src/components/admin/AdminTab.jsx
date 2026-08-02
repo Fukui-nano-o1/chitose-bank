@@ -747,7 +747,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                   {u.avatar_url
-                    ? <img src={u.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: u.mod_state && u.mod_state !== "active" ? "grayscale(1) opacity(0.6)" : "none" }} />
+                    ? <img loading="lazy" src={u.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: u.mod_state && u.mod_state !== "active" ? "grayscale(1) opacity(0.6)" : "none" }} />
                     : <Avatar url={null} name={u.nickname || u.email_masked || "？"} size={64} />}
                   {/* 状態マーク（右上）：停止/追放＞通報＞確認待ち＞未ログインの優先順で1つだけ */}
                   {(u.mod_state && u.mod_state !== "active") ? (
@@ -1017,7 +1017,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 className="f-sans cb-urgent-card"
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
                   <StatusRibbon label="審査待ち" color="#C77700" />
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>
@@ -1064,7 +1064,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                   {w.avatar_url
-                    ? <img src={w.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    ? <img loading="lazy" src={w.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                     : <Avatar url={null} name={w.nickname || "？"} size={64} />}
                   <StatusRibbon label="審査待ち" color="#C77700" />
                 </div>
@@ -1418,7 +1418,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                   </div>
                   {Array.isArray(s.photos) && s.photos.length > 0 && (
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:12 }}>
-                      {s.photos.map((p, i) => { const u = typeof p === "string" ? p : p?.url; return u ? <img key={i} src={u} alt="" style={{ width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid #EEE" }} /> : null; })}
+                      {s.photos.map((p, i) => { const u = typeof p === "string" ? p : p?.url; return u ? <img loading="lazy" key={i} src={u} alt="" style={{ width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid #EEE" }} /> : null; })}
                     </div>
                   )}
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"14px 0 0" }}>この記録は採用時に凍結されており、変更できません（争いの証跡）。</p>

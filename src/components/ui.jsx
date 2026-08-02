@@ -52,7 +52,7 @@ export function DangerItem({ icon, label, desc, photos, onPhotoClick }) {
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {list.map((src, k) => (
             <div key={k} style={{ position:"relative", borderRadius:8, overflow:"hidden" }}>
-              <img src={src} alt="" onClick={onPhotoClick ? () => onPhotoClick(src) : undefined} style={{ width:"100%", height:190, objectFit:"cover", display:"block", cursor: onPhotoClick ? "pointer" : "default" }} />
+              <img loading="lazy" src={src} alt="" onClick={onPhotoClick ? () => onPhotoClick(src) : undefined} style={{ width:"100%", height:190, objectFit:"cover", display:"block", cursor: onPhotoClick ? "pointer" : "default" }} />
               {k === 0 && desc && String(desc).trim() && (
                 <div className="f-sans" style={{ position:"absolute", bottom:0, left:0, right:0, padding:"26px 16px 12px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:13, fontWeight:600, textAlign:"center", lineHeight:1.6, boxSizing:"border-box" }}>{desc}</div>
               )}
@@ -75,7 +75,7 @@ export function DangerItem({ icon, label, desc, photos, onPhotoClick }) {
 export const Avatar = ({ url, name, size = 40, ring, bg }) => {
   const ringStyle = ring ? { border: "2px solid " + ring, boxSizing: "border-box" } : {};
   return url
-    ? <img src={url} alt="" width={size} height={size}
+    ? <img loading="lazy" src={url} alt="" width={size} height={size}
         style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", flexShrink:0, ...ringStyle }} />
     : <div style={{ width:size, height:size, borderRadius:"50%", background: bg || ring || "#00A86B",
         color:"#fff", display:"flex", alignItems:"center", justifyContent:"center",

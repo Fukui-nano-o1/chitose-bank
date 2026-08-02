@@ -79,7 +79,7 @@ function InterviewReplyPanel({ items, accent, onAnswered }) {
                     <>
                       <div style={{ display:"flex", gap:10, padding:"10px 12px 8px", alignItems:"center" }}>
                         <div style={{ width:48, height:48, borderRadius:8, background:"#F0F0F0", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, overflow:"hidden" }}>
-                          {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                          {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
                         </div>
                         <div style={{ minWidth:0 }}>
                           <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || "求人"}</p>

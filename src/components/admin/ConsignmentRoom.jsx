@@ -1039,7 +1039,7 @@ export function ConsignmentRoom() {
             <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
               {(spec.photos || []).map((ph, i) => (
                 <div key={i} style={{ position:"relative", width:96, height:96, borderRadius:10, overflow:"hidden", border:"1px solid #E5E5E5" }}>
-                  <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  <img loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                   <button type="button" onClick={()=>removePhoto(i)} className="f-sans" style={{ position:"absolute", top:2, right:2, width:22, height:22, borderRadius:"50%", background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", fontSize:14, lineHeight:1, cursor:"pointer" }}>×</button>
                 </div>
               ))}
@@ -1321,7 +1321,7 @@ export function ConsignmentRoom() {
             {(spec.photos || []).length > 0 && (
               <div style={{ display:"flex", gap:6, overflowX:"auto", marginBottom:12 }}>
                 {(spec.photos || []).map((ph, i) => (
-                  <img key={i} src={ph.url} alt="" style={{ width:84, height:84, objectFit:"cover", borderRadius:10, flexShrink:0, border:"1px solid #E5E5E5" }} />
+                  <img loading="lazy" key={i} src={ph.url} alt="" style={{ width:84, height:84, objectFit:"cover", borderRadius:10, flexShrink:0, border:"1px solid #E5E5E5" }} />
                 ))}
               </div>
             )}
@@ -1552,7 +1552,7 @@ export function ConsignmentRoom() {
               <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
                 {s.photos && s.photos[0] && s.photos[0].url && (
                   <div style={{ margin:"-16px -16px 12px", height:150, overflow:"hidden" }}>
-                    <img src={s.photos[0].url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                    <img loading="lazy" src={s.photos[0].url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                   </div>
                 )}
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>

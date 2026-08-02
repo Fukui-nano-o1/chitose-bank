@@ -638,7 +638,7 @@ export function ChatView({ applicationId, onBack }) {
                   const p0 = jobBox.job.photos?.[0];
                   const src = typeof p0 === "string" ? p0 : p0?.url;
                   return src
-                    ? <img src={src} alt="" style={{ width:"100%", height:170, objectFit:"cover", display:"block", borderRadius:"16px 16px 0 0" }} />
+                    ? <img loading="lazy" src={src} alt="" style={{ width:"100%", height:170, objectFit:"cover", display:"block", borderRadius:"16px 16px 0 0" }} />
                     : <div style={{ width:"100%", height:170, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48, borderRadius:"16px 16px 0 0" }}>🌾</div>;
                 })()}
                 <div style={{ padding:"14px 18px 18px" }} className="f-sans">

@@ -1373,7 +1373,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                   {jobPhotos.length > 0 && (
                     <div>
                       <div style={{ position:"relative", marginBottom:10 }}>
-                        <img src={jobPhotos[0].url} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
+                        <img loading="lazy" src={jobPhotos[0].url} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
                         <span className="f-sans" style={{ position:"absolute", top:10, left:10, padding:"4px 12px", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, fontWeight:700, borderRadius:8 }}>カバー</span>
                         <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== 0))} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:15, cursor:"pointer", lineHeight:1 }}>×</button>
                       </div>
@@ -1384,7 +1384,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                             const idx = i + 1;
                             return (
                               <div key={idx} style={{ position:"relative", width:"calc(50% - 4px)" }}>
-                                <img src={p.url} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
+                                <img loading="lazy" src={p.url} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
                                 <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== idx))} style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:"50%", border:"none", background:"#222", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                               </div>
                             );
@@ -1430,7 +1430,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
             <div onScroll={e => { const w = e.currentTarget.clientWidth; if (w > 0) setSelectedPhotoIndex(Math.max(0, Math.min(jobPhotos.length - 1, Math.round(e.currentTarget.scrollLeft / w)))); }}
               style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:14, touchAction:"pan-x pan-y", overscrollBehaviorX:"contain", transform:"translateZ(0)", marginBottom:8 }}>
               {jobPhotos.map((p, i) => (
-                <img key={i} src={p.url} alt={`写真${i+1}`} style={{ flexShrink:0, width:"100%", height:200, objectFit:"cover", borderRadius:14, scrollSnapAlign:"start" }} />
+                <img loading="lazy" key={i} src={p.url} alt={`写真${i+1}`} style={{ flexShrink:0, width:"100%", height:200, objectFit:"cover", borderRadius:14, scrollSnapAlign:"start" }} />
               ))}
             </div>
             <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:10 }}>
@@ -1470,7 +1470,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                             const ph = place.photos?.[k];
                             return ph ? (
                               <div key={k} style={{ position:"relative", flex:1, height:90, borderRadius:10, overflow:"hidden", border:"1px solid #EEE" }}>
-                                <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                                <img loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                                 <button onClick={() => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: p.photos.filter((_, x) => x !== k) } : p))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                               </div>
                             ) : (
@@ -1514,7 +1514,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                             const ph = task.photos?.[k];
                             return ph ? (
                               <div key={k} style={{ position:"relative", flex:1, height:90, borderRadius:10, overflow:"hidden", border:"1px solid #EEE" }}>
-                                <img src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                                <img loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                                 <button onClick={() => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: t.photos.filter((_, x) => x !== k) } : t))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                               </div>
                             ) : (
@@ -1761,7 +1761,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                           ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => (
                               <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:392, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
                                 <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>
-                                <img src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
+                                <img loading="lazy" src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
                                 {p.caption && (
                                   <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
                                 )}
@@ -1792,7 +1792,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                           {jobPhotos.map((p, i) => (
                             <div key={i} style={{ flexShrink:0, width:76 }}>
                               <div style={{ position:"relative", width:76, height:76, borderRadius:8, overflow:"hidden", border: i === 0 ? "2px solid #00A86B" : "1px solid #EBEBEB" }}>
-                                <img src={p.url} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                                <img loading="lazy" src={p.url} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                                 {i === 0 && <span className="f-sans" style={{ position:"absolute", top:4, left:4, fontSize:9, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:6, padding:"1px 5px" }}>表紙</span>}
                               </div>
                               <div style={{ display:"flex", gap:4, marginTop:4 }}>

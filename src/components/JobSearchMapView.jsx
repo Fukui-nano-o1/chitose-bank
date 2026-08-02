@@ -756,7 +756,7 @@ export function JobSearchMapView({ onRegister, me }) {
                         display:"flex", alignItems:"center", justifyContent:"center", fontSize:72,
                         scrollSnapAlign:"start", position:"relative", overflow:"hidden",
                       }}>
-                        <img src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                        <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                         {cap && (
                           <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, lineHeight:1.6, boxSizing:"border-box" }}>{cap}</div>
                         )}
@@ -1200,7 +1200,7 @@ export function JobSearchMapView({ onRegister, me }) {
             {/* ★aspectRatioで場所を先に確保する（2026-07-27・日程チップの誤タップ修理）。
                 高さ未指定だと画像の読み込み完了時に下の内容（来られる日のチップ）が一段ずり下がり、
                 狙った位置に別のチップが来る＝「押していない日が選ばれる」誤作動になっていた */}
-            <img src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
+            <img loading="lazy" src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
               width={1000} height={750} style={{ display:"block", width:"100%", height:"auto", aspectRatio:"1000 / 750", borderRadius:12, background:"#F7F7F7" }} />
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"14px 0 0" }}>
               応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
@@ -1289,7 +1289,7 @@ export function JobSearchMapView({ onRegister, me }) {
                   const src = typeof p0 === "string" ? p0 : p0?.url;
                   const icon = CROP_OPTIONS.find(c => likeDone.crop && likeDone.crop.includes(c.name))?.icon || "🌱";
                   return src
-                    ? <img src={src} alt="" style={{ width:"100%", height:150, objectFit:"cover", display:"block" }} />
+                    ? <img loading="lazy" src={src} alt="" style={{ width:"100%", height:150, objectFit:"cover", display:"block" }} />
                     : <div style={{ width:"100%", height:150, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44 }}>{icon}</div>;
                 })()}
                 <div style={{ padding:"10px 14px 12px" }}>
@@ -1415,7 +1415,7 @@ export function JobSearchMapView({ onRegister, me }) {
                               <div key={r.job_number} style={{ gridColumn:"1 / -1", position:"relative", background:"#F7F7F7", borderRadius:12, padding:10, display:"flex", gap:10, alignItems:"flex-start" }}>
                                 <button onClick={()=>setPastJobsFocus(null)} aria-label="閉じる" style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:"50%", background:"#fff", border:"none", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                                 <div style={{ width:84, height:84, borderRadius:10, overflow:"hidden", flexShrink:0, background:"#EBEBEB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
-                                  {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
+                                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
                                 </div>
                                 <div style={{ flex:1, minWidth:0, paddingRight:24 }}>
                                   <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -1436,7 +1436,7 @@ export function JobSearchMapView({ onRegister, me }) {
                           return (
                             <button key={r.job_number} onClick={()=>setPastJobsFocus(r.job_number)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#F7F7F7", border:"none", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
-                                {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
+                                {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
                                 {/* 状態帯は「すべて」タブでのみ表示。公開中/過去の実績タブは絞り込み済みで帯が冗長（2026-07-24） */}
                                 {pastJobsTab === "all" && <StatusRibbon label={ended ? "終了" : "公開中"} color={ended ? "#9E9E9E" : "#00A86B"} />}
                                 {/* 概要は写真の上に重ねる。黒の半透明グラデで写真の明暗を問わず白文字を読ませる（2026-07-23） */}

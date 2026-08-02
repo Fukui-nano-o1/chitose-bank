@@ -221,7 +221,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
                         scrollSnapAlign:"start", position:"relative", overflow:"hidden",
                       }}>
                         {job.photos.length > 0
-                          ? <img src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                          ? <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                           : photo}
                         {cap && (
                           <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, boxSizing:"border-box" }}>{cap}</div>

@@ -273,7 +273,7 @@ export function SavedJobsView({ me }) {
                 {/* 求人の要約（写真・タイトル・#No.・日程・地域） */}
                 <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
                   <div style={{ flexShrink:0, width:88, height:88, borderRadius:12, overflow:"hidden", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
-                    {photoOf(r) ? <img src={photoOf(r)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                    {photoOf(r) ? <img loading="lazy" src={photoOf(r)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
                   </div>
                   <div style={{ minWidth:0 }}>
                     <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{titleOf(r)}</p>

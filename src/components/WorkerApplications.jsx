@@ -597,7 +597,7 @@ export function WorkerApplications({ filter, me }) {
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px 14px", cursor:"pointer" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                   <div style={{ width:52, height:52, borderRadius:10, background:"#F7F7F7", flexShrink:0, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>
-                    {photo ? <img src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                    {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</p>
