@@ -1281,7 +1281,10 @@ export default function App(){
         // 結果をキャッシュに置く（2026-08-02・更新時間の短縮）：着地先のまもなく開始／仕事中ページが
         // 同じRPCをもう一度待たずに即描画できる（起動でRPCが2回直列に走っていた無駄の解消）
         if (data?.ok) setCache("admin:workingJobs", data);
-        if (data?.ok && (data.upcoming || []).some(it => startsWithinDays(it, 7))) window.location.hash = "/admin/upcoming";
+        // RPCが返るまでの数秒間にユーザーが別ページへ移動していたら着地させない（2026-08-02）：
+        // 「開いた時の着地」であって、操作中の引き戻しはしない。判定は今のhashで行う
+        const _nowTab = readHashTab();
+        if (data?.ok && (data.upcoming || []).some(it => startsWithinDays(it, 7)) && (_nowTab === null || _nowTab === "search")) window.location.hash = "/admin/upcoming";
       } catch { /* 失敗時は通常の着地のまま（見守りページは管理タブからも開ける） */ }
     })();
   }, [me]); // eslint-disable-line react-hooks/exhaustive-deps -- initialHashTab は起動時定数
@@ -1520,7 +1523,11 @@ export default function App(){
         f = [loggedIn];
         setMe({ ...loggedIn, id: session.user.id });
         const _onNewJobFlow = (() => { const h = window.location.hash.replace(/^#\/?/, ""); return h === "work/new" || h.startsWith("work/new/"); })();
-        if (!initialHashTab && !_onNewJobFlow) setTab("search"); // hash無しの時はさがすへ（デフォルトタブ）
+        // hash無しの時はさがすへ（デフォルトタブ）。ただし更新中（この復元が返るまでの数秒間）に
+        // ユーザーが別タブへ移動していたら行き先を奪わない（2026-08-02）：initialHashTabは起動瞬間の
+        // 記録なので、移動済みかどうかは「今のhash」で判定する
+        const _nowTab = readHashTab();
+        if (!initialHashTab && !_onNewJobFlow && (_nowTab === null || _nowTab === "search")) setTab("search");
       } else {
         // farmers行なし＝働き手または初回。最小形の me でログインさせる（段階1と同じ形）。
         // account_holders未登録ならneedsAccountHolderゲートが後段で①フォームを自動表示する。
