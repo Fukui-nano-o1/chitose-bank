@@ -246,7 +246,7 @@ const CONSIGNOR_IND_FIELDS = [
   { k:"ind_trade_kana", l:"屋号フリガナ", ph:"例：チトセノウエン", tradeOnly:true },
   { k:"ind_phone", l:"電話番号", ph:"例：090-1234-5678", phoneIfMissing:true },
   { h:"事業所所在地" },
-  { k:"ind_biz_same", l:"事業所所在地は自宅と異なりますか？", sel:["自宅と同じ","自宅と異なる"] },
+  { k:"ind_biz_same", l:"事業所所在地は自宅と異なりますか？", cl:"事業所所在地", sel:["自宅と同じ","自宅と異なる"] },
   { k:"ind_biz_zip",         l:"事業所の郵便番号", zip:{ main:"ind_biz_addr_main" }, ph:"例：7793300", bizDiff:true },
   { k:"ind_biz_addr_main",   l:"事業所の住所", ph:"例：徳島県吉野川市鴨島町鴨島", bizDiff:true },
   { k:"ind_biz_addr_detail", l:"事業所の番地・建物名", ph:"例：337-4", bizDiff:true },
@@ -863,7 +863,8 @@ function ConsignorInfoEdit() {
           {confirmGroups.map(([gl, fields]) => {
             // 登録内容は全て出す（2026-07-31たきと指示）：未入力もグレーで明示。
             // 条件で無効な項目（事業所=自宅と同じ・現金払いの振込欄）と案内文は出さない
-            const rows = fields.filter(f => !f.h && !f.info && !f.staffAuto && !cfHidden(f)).map(f => [f.l, d[f.k]]);
+            // 確認ページは「項目名：値」形式で統一（2026-08-02たきと指示）＝質問文の項目は cl（確認用の短いラベル）で出す
+            const rows = fields.filter(f => !f.h && !f.info && !f.staffAuto && !cfHidden(f)).map(f => [f.cl || f.l, d[f.k]]);
             if (!rows.length) return null;
             return (
               <div key={gl} style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
