@@ -390,6 +390,12 @@ function ConsignorInfoEdit() {
   const [consentChecked, setConsentChecked] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
   const [consentSaving, setConsentSaving] = useState(false);
+  // 登録情報の修正は委託ページ内で完結（2026-08-02たきと指示）。フォームは保存済みの値を復元して開く
+  const [editReg, setEditReg] = useState(false);
+  const [regForm, setRegForm] = useState(null);
+  const [regSaving, setRegSaving] = useState(false);
+  const [regZipBusy, setRegZipBusy] = useState(false);
+  const [regZipError, setRegZipError] = useState("");
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
   // ステップ1＝引き継ぎチェック（2026-08-02たきと指示）。種類選択ページは廃止＝entity_typeから自動分岐。
@@ -489,6 +495,71 @@ function ConsignorInfoEdit() {
       else { setConsentOk(true); setCstep(v => v + 1); window.scrollTo(0, 0); }
     } catch { alert("同意の記録に失敗しました。"); }
     setConsentSaving(false);
+  };
+  // 登録情報の修正フォームを開く：account_holders の保存済み値を復元（住所は既知形式で2分割）
+  const openRegEdit = () => {
+    const ah = ahInfo || {};
+    const addr = (ah.address || "").trim();
+    const sp = addr.indexOf(" ");
+    setRegForm({
+      full_name: ah.full_name || "", company_name: ah.company_name || "", company_number: ah.company_number || "",
+      birth_date: ah.birth_date || "", postal_code: (ah.postal_code || "").replace(/[^0-9]/g, ""),
+      addr_main: sp > 0 ? addr.slice(0, sp) : addr, addr_detail: sp > 0 ? addr.slice(sp + 1) : "",
+      contact_phone: ah.contact_phone || "", contact_email: ah.contact_email || "",
+    });
+    setRegZipError(""); setEditReg(true); window.scrollTo(0, 0);
+  };
+  const regZipSearch = async () => {
+    const z = (regForm?.postal_code || "").replace(/[^0-9]/g, "");
+    if (z.length !== 7) { setRegZipError("郵便番号は7桁で入力してください"); return; }
+    setRegZipBusy(true); setRegZipError("");
+    try {
+      const res = await fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + z);
+      const j = await res.json();
+      const r = j && j.results && j.results[0];
+      if (!r) setRegZipError("住所が見つかりませんでした");
+      else setRegForm(f => ({ ...f, postal_code: z, addr_main: (r.address1 || "") + (r.address2 || "") + (r.address3 || "") }));
+    } catch { setRegZipError("検索に失敗しました。通信環境をご確認ください"); }
+    setRegZipBusy(false);
+  };
+  // 保存：account_holders（唯一の正）を本人権限で更新し、委託側の派生値（d）にも上書きで再反映
+  const saveRegEdit = async () => {
+    if (regSaving || !regForm) return;
+    setRegSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setRegSaving(false); return; }
+      const composedAddr = [regForm.addr_main.trim(), regForm.addr_detail.trim()].filter(Boolean).join(" ");
+      const patch = {
+        full_name: regForm.full_name.trim(),
+        postal_code: regForm.postal_code.trim(),
+        address: composedAddr,
+        birth_date: regForm.birth_date.trim() || null,
+        contact_phone: regForm.contact_phone.trim() || null,
+        contact_email: regForm.contact_email.trim() || null,
+        ...(ctype === "corporate" ? { company_name: regForm.company_name.trim(), company_number: regForm.company_number.trim() } : {}),
+      };
+      const { error } = await supabase.from("account_holders").update(patch).eq("auth_id", session.user.id);
+      if (error) { alert("保存に失敗しました：" + error.message); setRegSaving(false); return; }
+      const newAh = { ...(ahInfo || {}), ...patch };
+      setAhInfo(newAh);
+      // 登録＝唯一の正なので、派生している委託側の身元項目は新しい値で上書きして復元
+      setD(p => {
+        const n = { ...p };
+        if (ctype === "corporate") {
+          n.corp_name = newAh.company_name || ""; n.corp_no = newAh.company_number || "";
+          n.corp_zip = newAh.postal_code || ""; n.corp_addr_main = regForm.addr_main.trim(); n.corp_addr_detail = regForm.addr_detail.trim();
+          n.corp_phone = newAh.contact_phone || ""; n.corp_email = newAh.contact_email || "";
+        } else {
+          n.ind_name = newAh.full_name || ""; n.ind_birth = newAh.birth_date || "";
+          n.ind_zip = newAh.postal_code || ""; n.ind_addr_main = regForm.addr_main.trim(); n.ind_addr_detail = regForm.addr_detail.trim();
+          n.ind_phone = newAh.contact_phone || n.ind_phone || ""; n.ind_email = newAh.contact_email || "";
+        }
+        return n;
+      });
+      setEditReg(false); window.scrollTo(0, 0);
+    } catch { alert("保存に失敗しました。"); }
+    setRegSaving(false);
   };
   const setV = (k, v) => setD(p => ({ ...p, [k]: v }));
   // 種別を選ぶ：旧v1列を下敷きに（空欄のみ）→次ページへ
@@ -625,6 +696,46 @@ function ConsignorInfoEdit() {
       <p className="f-sans" style={{ fontSize:13, color:"#999999", margin:0 }}>読み込み中…</p>
     </div>
   );
+  // ── 登録情報の修正（委託ページ内で完結・2026-08-02たきと指示）。保存済みの値を復元して編集 ──
+  if (editReg && regForm) {
+    const isCorp = ctype === "corporate";
+    const regField = (k, l, opts = {}) => (
+      <div key={k} style={{ marginBottom:10 }}>
+        <label className="lbl f-sans">{l}</label>
+        <input className="field f-sans" inputMode={opts.num ? "numeric" : undefined} value={regForm[k]} onChange={e=>setRegForm(f => ({ ...f, [k]: opts.num ? e.target.value.replace(/[^0-9]/g, "") : e.target.value }))} placeholder={opts.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+      </div>
+    );
+    return (
+      <div>
+        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>登録情報の修正</h2>
+        <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 16px" }}>新規登録の情報（唯一の正）を修正します。保存すると委託者情報にも反映されます。区分（個人事業者/法人）はここでは変更できません。</p>
+        {isCorp ? (<>
+          {regField("company_name", "法人名", { ph:"例：株式会社千歳農園" })}
+          {regField("company_number", "法人番号", { num:true, ph:"例：1234567890123（13桁）" })}
+        </>) : (<>
+          {regField("full_name", "氏名", { ph:"例：千歳 太郎" })}
+          {regField("birth_date", "生年月日", { ph:"例：1990-01-01" })}
+        </>)}
+        <div style={{ marginBottom:10 }}>
+          <label className="lbl f-sans">郵便番号</label>
+          <div style={{ display:"flex", gap:8 }}>
+            <input className="field f-sans" inputMode="numeric" value={regForm.postal_code} onChange={e=>setRegForm(f => ({ ...f, postal_code: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="例：7793300" style={{ fontSize:14, marginBottom:0, flex:1 }} />
+            <button type="button" onClick={regZipSearch} disabled={regZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{regZipBusy ? "検索中…" : "住所を検索"}</button>
+          </div>
+          {regZipError && <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{regZipError}</p>}
+        </div>
+        {regField("addr_main", isCorp ? "本店所在地" : "住所", { ph:"例：徳島県吉野川市鴨島町鴨島" })}
+        {regField("addr_detail", "番地・建物名", { ph:"例：337-4 千歳ハイツ101" })}
+        {isCorp && regField("full_name", "登録者氏名", { ph:"例：千歳 太郎" })}
+        {regField("contact_phone", "電話番号", { ph:"例：090-1234-5678" })}
+        {regField("contact_email", "メールアドレス", { ph:"例：taro@example.com" })}
+        <div style={{ display:"flex", gap:8, marginTop:16 }}>
+          <button onClick={()=>{ setEditReg(false); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
+          <button onClick={saveRegEdit} disabled={regSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: regSaving ? 0.6 : 1 }}>{regSaving ? "保存中..." : "保存する"}</button>
+        </div>
+      </div>
+    );
+  }
   const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
     ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS]]
@@ -683,7 +794,7 @@ function ConsignorInfoEdit() {
             <>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 12px" }}>✓ 同意済みです（記録済み・{CONSIGNOR_CONSENT_VERSION}）</p>
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={()=>{ window.location.hash = "/profile"; }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+                <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
                 <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
               </div>
             </>
@@ -694,7 +805,7 @@ function ConsignorInfoEdit() {
                 新規登録時の情報を、委託者情報の作成、契約条件の明示および取引相手への必要な範囲での開示に利用することを確認しました
               </button>
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={()=>{ window.location.hash = "/profile"; }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+                <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
                 <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
               </div>
             </>
