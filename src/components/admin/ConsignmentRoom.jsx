@@ -236,7 +236,7 @@ const CONSIGNOR_IND_FIELDS = [
   { h:"本人情報" },
   { k:"ind_name",  l:"氏名", ph:"例：千歳 太郎" },
   { k:"ind_kana",  l:"氏名フリガナ", ph:"例：チトセ タロウ" },
-  { k:"ind_trade", l:"屋号（任意）", ph:"例：千歳農園" },
+  { k:"ind_trade", l:"屋号", ph:"例：千歳農園" },
   { k:"ind_trade_kana", l:"屋号フリガナ", ph:"例：チトセノウエン" },
   { k:"ind_birth", l:"生年月日", ph:"例：1990年1月1日" },
   { k:"ind_zip",         l:"郵便番号", zip:{ main:"ind_addr_main" }, ph:"例：7793300" },
