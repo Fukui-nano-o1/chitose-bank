@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 // ★座標は町域レベルの重心（geocodeTown）で、番地は含まれない＝ピンを立てても精度は上がらない。
 //   ピンは「この辺り」を1点で読み取れるようにする表示上の目印。
 //   正確な集合場所は従来どおり、承認後にチャットで当事者だけに伝える（CLAUDE.md・住所の段階的開示）。
-export function JobLocationMap({ lat, lng, radius, label }) {
+export function JobLocationMap({ lat, lng, radius, label, mapQuery }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
 
@@ -91,8 +91,14 @@ export function JobLocationMap({ lat, lng, radius, label }) {
         {/* 地図上の注記ボックス（本名・詳細住所は公開しません。）は削除（2026-07-31たきと指示）。
             開示の説明は地図の下の1行に残る */}
         {/* Googleマップで開く（2026-07-31たきと指示・右上に配置）：箱をタップで別タブへ。
-            渡す座標はこの地図と同じ町域の重心＝番地は渡さない（開示の粒度は変わらない） */}
-        <a href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`} target="_blank" rel="noopener noreferrer"
+            住所文字列（郵便番号＋都道府県＋市区町村＋町域・番地は含まない）を渡し、Google側で
+            ジオコーディングさせる（2026-08-02）。緯度経度（geocodeTownの町域重心）を渡すと
+            重心のずれがそのまま位置ずれになるため。mapQueryが無い旧呼び出しは従来どおり座標。
+            番地を渡さない＝開示の粒度は町域のまま（CLAUDE.md・住所の段階的開示）で不変。 */}
+        <a href={(mapQuery && mapQuery.trim())
+              ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery.trim())}`
+              : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`}
+          target="_blank" rel="noopener noreferrer"
           className="f-sans" style={{ position:"absolute", right:12, top:12, zIndex:3, display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 13px", fontSize:12, fontWeight:700, color:"#222", textDecoration:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.16)", whiteSpace:"nowrap" }}>
           Googleマップ <span style={{ color:"#00A86B" }}>→</span>
         </a>

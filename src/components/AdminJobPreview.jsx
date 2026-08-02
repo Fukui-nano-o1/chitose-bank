@@ -345,7 +345,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           {/* 地図（集合場所のおおよその範囲・円のみ） */}
           <div style={{ position:"relative", width:"100%", marginBottom:20, borderRadius:12, ...revOutline("場所・地図") }}>
             {revChip("場所・地図")}
-            <JobLocationMap lat={job.lat} lng={job.lng} radius={job.radius} label={job.region} />
+            <JobLocationMap lat={job.lat} lng={job.lng} radius={job.radius} label={job.region} mapQuery={job.region} />
           </div>
 
           {/* 開催期間カレンダー */}

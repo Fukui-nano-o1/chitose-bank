@@ -1022,6 +1022,7 @@ export function JobSearchMapView({ onRegister, me }) {
               lng={selectedJob.lng}
               radius={selectedJob.radius}
               label={selectedJob.region}
+              mapQuery={selectedJob.region}
             />
           </div>
 

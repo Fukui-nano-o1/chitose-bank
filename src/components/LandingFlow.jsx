@@ -2053,7 +2053,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               {/* ═══ 地図（集合場所のおおよその範囲・円のみ。求人詳細ページのJobLocationMapと同一構造。
                    旧Googleマップ風ダミーは廃止(2026-07-14)。座標は住所からgeocodeTownで取得(保存時と同じ手順) ═══ */}
               <div style={{ maxWidth:870, margin:"0 auto 5px" }}>
-                <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion} />
+                <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion}
+                  mapQuery={[farmerZip && farmerZip.trim(), farmerPref, farmerCity, farmerTown].filter(Boolean).join(" ")} />
               </div>
 
               {/* 開催期間カレンダー（地図の下・2026-07-16・詳細ページと同じ） */}
