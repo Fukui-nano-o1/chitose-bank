@@ -439,7 +439,23 @@ const CONSIGN_FIELD_FACILITIES = [["facility_parking","駐車場"],["facility_to
 function ConsignFieldsPane({ fields, onReload }) {
   const [form, setForm] = useState(null); // null=一覧 / {}=新規 / {id,...}=編集
   const [fSaving, setFSaving] = useState(false);
+  const [fZipBusy, setFZipBusy] = useState(false);
+  const [fZipError, setFZipError] = useState("");
   const fset = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  // 圃場の住所は正式なもの（2026-08-02たきと指示）：郵便番号→zipcloudで住所を自動入力＋番地は手入力
+  const fZipSearch = async () => {
+    const z = (form?.zip || "").replace(/[^0-9]/g, "");
+    if (z.length !== 7) { setFZipError("郵便番号は7桁で入力してください"); return; }
+    setFZipBusy(true); setFZipError("");
+    try {
+      const res = await fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + z);
+      const j = await res.json();
+      const r = j && j.results && j.results[0];
+      if (!r) setFZipError("住所が見つかりませんでした");
+      else setForm(f => ({ ...f, zip: z, addr_main: (r.address1 || "") + (r.address2 || "") + (r.address3 || "") }));
+    } catch { setFZipError("検索に失敗しました。通信環境をご確認ください"); }
+    setFZipBusy(false);
+  };
   const saveField = async () => {
     if (fSaving || !form) return;
     const name = (form.name || "").trim();
@@ -450,8 +466,10 @@ function ConsignFieldsPane({ fields, onReload }) {
       if (!session) { setFSaving(false); return; }
       const row = {
         auth_id: session.user.id, name,
-        region: (form.region || "").trim(), area_a: String(form.area_a || "").trim(),
-        data: { facility_parking: form.facility_parking || "", facility_toilet: form.facility_toilet || "", facility_rest: form.facility_rest || "", facility_lend: form.facility_lend || "" },
+        // region＝正式住所（都道府県〜町域・郵便番号検索から）。番地はdata.addr_detailに分離
+        region: (form.addr_main || "").trim(), area_a: String(form.area_a || "").trim(),
+        data: { zip: (form.zip || "").replace(/[^0-9]/g, ""), addr_detail: (form.addr_detail || "").trim(),
+          facility_parking: form.facility_parking || "", facility_toilet: form.facility_toilet || "", facility_rest: form.facility_rest || "", facility_lend: form.facility_lend || "" },
         updated_at: new Date().toISOString(),
       };
       const { error } = form.id
@@ -483,9 +501,22 @@ function ConsignFieldsPane({ fields, onReload }) {
         <label className="lbl f-sans">圃場の呼び名</label>
         <input className="field f-sans" value={form.name || ""} onChange={e=>fset("name", e.target.value)} placeholder="例：川向こうの畑" style={{ fontSize:15.4, marginBottom:0 }} />
       </div>
+      {/* 正式住所（2026-08-02たきと指示）：郵便番号から検索。新規登録と同じ3分割（郵便番号/住所/番地） */}
       <div style={{ marginBottom:10 }}>
-        <label className="lbl f-sans">地域（市町村まで）</label>
-        <input className="field f-sans" value={form.region || ""} onChange={e=>fset("region", e.target.value)} placeholder="例：徳島県吉野川市" style={{ fontSize:15.4, marginBottom:0 }} />
+        <label className="lbl f-sans">郵便番号</label>
+        <div style={{ display:"flex", gap:8 }}>
+          <input className="field f-sans" inputMode="numeric" value={form.zip || ""} onChange={e=>fset("zip", e.target.value.replace(/[^0-9]/g, ""))} placeholder="例：7793300" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
+          <button type="button" onClick={fZipSearch} disabled={fZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{fZipBusy ? "検索中…" : "住所を検索"}</button>
+        </div>
+        {fZipError && <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{fZipError}</p>}
+      </div>
+      <div style={{ marginBottom:10 }}>
+        <label className="lbl f-sans">住所</label>
+        <input className="field f-sans" value={form.addr_main || ""} onChange={e=>fset("addr_main", e.target.value)} placeholder="例：徳島県吉野川市鴨島町鴨島" style={{ fontSize:15.4, marginBottom:0 }} />
+      </div>
+      <div style={{ marginBottom:10 }}>
+        <label className="lbl f-sans">番地・字</label>
+        <input className="field f-sans" value={form.addr_detail || ""} onChange={e=>fset("addr_detail", e.target.value)} placeholder="例：337-4" style={{ fontSize:15.4, marginBottom:0 }} />
       </div>
       <div style={{ marginBottom:10 }}>
         <label className="lbl f-sans">面積（a）</label>
@@ -524,10 +555,10 @@ function ConsignFieldsPane({ fields, onReload }) {
       {fields.map(f => (
         <div key={f.id} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
           <p className="f-sans" style={{ fontSize:15.4, fontWeight:800, color:"#111111", margin:0 }}>{f.name}</p>
-          <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:"4px 0 0" }}>{[f.region, f.area_a ? f.area_a + "a" : ""].filter(Boolean).join("・") || "地域・面積 未入力"}</p>
+          <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:"4px 0 0" }}>{[((f.data || {}).zip ? "〒" + f.data.zip + " " : "") + [f.region, (f.data || {}).addr_detail].filter(Boolean).join(" "), f.area_a ? f.area_a + "a" : ""].filter(x => (x || "").trim()).join("・") || "住所・面積 未入力"}</p>
           {facSummary(f) && <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"4px 0 0" }}>{facSummary(f)}</p>}
           <div style={{ display:"flex", gap:8, marginTop:10 }}>
-            <button onClick={()=>setForm({ id: f.id, name: f.name, region: f.region, area_a: f.area_a, ...(f.data || {}) })} className="f-sans" style={{ padding:"8px 16px", fontSize:13.2, fontWeight:700, borderRadius:10, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>編集</button>
+            <button onClick={()=>setForm({ id: f.id, name: f.name, addr_main: f.region, area_a: f.area_a, ...(f.data || {}) })} className="f-sans" style={{ padding:"8px 16px", fontSize:13.2, fontWeight:700, borderRadius:10, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>編集</button>
             <button onClick={()=>delField(f)} className="f-sans" style={{ padding:"8px 16px", fontSize:13.2, fontWeight:700, borderRadius:10, background:"#fff", color:"#999999", border:"1px solid #D0D0D0", cursor:"pointer" }}>削除</button>
           </div>
         </div>
@@ -1293,10 +1324,15 @@ export function ConsignmentRoom() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      // 既存の圃場＝正式住所（region/zip/番地・圃場ペインで登録）を保持し、面積・設備だけ更新する。
+      // ウィザードの地域欄は掲載用の粗い表記so、正式住所を上書きしない（2026-08-02たきと指示）
+      const existing = fields.find(x => x.name === name);
+      const exd = (existing && existing.data) || {};
       await supabase.from("consignment_fields").upsert({
         auth_id: session.user.id, name,
-        region: (sp.region || "").trim(), area_a: String(sp.area_a || "").trim(),
-        data: { facility_parking: sp.facility_parking || "", facility_toilet: sp.facility_toilet || "", facility_rest: sp.facility_rest || "", facility_lend: sp.facility_lend || "" },
+        region: existing ? existing.region : (sp.region || "").trim(),
+        area_a: String(sp.area_a || "").trim(),
+        data: { ...exd, facility_parking: sp.facility_parking || "", facility_toilet: sp.facility_toilet || "", facility_rest: sp.facility_rest || "", facility_lend: sp.facility_lend || "" },
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id,name" });
       loadFields();
