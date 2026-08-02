@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { INSURANCE_ITEMS, insuranceToggle, photoThumb } from "../lib/utils";
+import { prefetchSearchJobs } from "../lib/searchJobs";
 import { isIOS } from "../lib/push";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { Dots } from "./ui";
@@ -117,6 +118,10 @@ export function VisitEntrance({ me }) {
         setJobs(data || []);
       } catch {}
     })();
+    // 玄関の先読み（2026-08-02たきと指示）：訪問者が同意文を読んでいる数秒の間に、さがす一覧を
+    // 取得してキャッシュへ。「同意して見てみる」タップ後のさがすが即描画になる（初訪問の体感対策）。
+    // キャッシュが既にあれば何もしない（prefetchSearchJobs内で判定）
+    prefetchSearchJobs();
   }, []);
   // 玄関に着いた時点で既に同意済み/ログイン済みなら、退避先（あれば）へ、無ければ検索へ直行
   const nextDest = () => {

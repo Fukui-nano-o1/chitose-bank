@@ -7,6 +7,7 @@ import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
+import { fetchPublicJobs, shuffleArr, readSeenNewIds, recordSeenNewIds } from "../lib/searchJobs";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { JobLocationMap } from "./JobLocationMap";
@@ -145,18 +146,13 @@ export function JobSearchMapView({ onRegister, me }) {
     setTimeout(() => { setReportDone(false); closeReportModal(); }, 1500);
   };
   useEffect(() => {
-    // 訪問者モード（2026-07-24）：jobs_publicはanon許可so未ログインでも公開面を読める
+    // 訪問者モード（2026-07-24）：jobs_publicはanon許可so未ログインでも公開面を読める。
+    // 取得・並び規則（新着上位＋ランダム・既読記録）は lib/searchJobs に一本化（玄関の先読みと共有・2026-08-02）
     (async () => {
       try {
-        const { data, error } = await supabase.from("jobs_public").select("*").order("job_number",{ascending:false});
-        if (!error && data) {
-          const mapped = data.map(mapJobPublicRow);
-          // 並び順（2026-07-24たきと指示）：一覧・その他の求人はランダム。新着（掲載3日以内）は
-          // この端末で「初めて見る時だけ」上位に配置（cb_seenNewJobsに既読記録＝二度目からは通常のランダム枠）。
-          // シャッフルは読み込み時に1回＝表示中に並びが飛ばない
-          const shuffleArr = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-          let seen = []; try { seen = JSON.parse(localStorage.getItem("cb_seenNewJobs") || "[]"); } catch {}
-          const seenSet = new Set(seen);
+        const mapped = await fetchPublicJobs();
+        if (mapped) {
+          const seenSet = new Set(readSeenNewIds());
           const freshNew = mapped.filter(j => j.isNew && !seenSet.has(j.id));
           const rest = mapped.filter(j => !(j.isNew && !seenSet.has(j.id)));
           setDbJobs(prev => {
@@ -175,7 +171,7 @@ export function JobSearchMapView({ onRegister, me }) {
             setCache("search:jobs", list);
             return list;
           });
-          if (freshNew.length) { try { localStorage.setItem("cb_seenNewJobs", JSON.stringify([...seen, ...freshNew.map(j => j.id)].slice(-300))); } catch {} }
+          if (freshNew.length) recordSeenNewIds(freshNew.map(j => j.id));
         }
       } catch {}
     })();
