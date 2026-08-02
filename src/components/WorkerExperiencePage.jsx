@@ -1,46 +1,68 @@
 // 📋 経験・できること（自己申告）専用ページ（#/experience・2026-07-25たきと指示）：
 // 働き手プロフィール編集のボックスモーダルから独立ページへ（保険の準備 #/insurance と同型）。
 // worker_profiles の experience_entries / self_declared / experienced_tasks を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AutoSkeleton } from "./ui";
 
-// 経験（作物×作業×どのくらい）の横スワイプ入力（2026-08-03たきと指示「横スワイプ・指に連動」）：
-// ネイティブの横スクロール（overflow-x）＝指の動きにそのまま追従し、scroll-snapでカード単位に止まる
-// （チャットの求人No.ボックス・確認ページカルーセルと同じ作法）。カード1枚=1経験・末尾に追加カード（最大5）。
-// WorkerProfileEditの経験・資格ボックスと#/experienceページの両方から使う共有部品。
-// selfDeclared/setSelfDeclared を渡すと、帯の末尾に「免許・資格・保険方針」パネルを横並びで設置する
-// （2026-08-03たきと指示「免許・資格・保険方針の横に設置。移動は横スワイプ。指連動」＝同じ帯を指でスワイプして行き来）
+// 経験＋免許・資格・保険方針のページ切替スワイプ（2026-08-03たきと指示「ページを切り替えろ。1ページに詰め込むな」）：
+// 全幅1枚ずつのページをネイティブ横スクロール（指の動きにそのまま追従）＋scroll-snapで1ページずつ切り替える。
+// ページ構成＝[経験1]…[経験N][＋経験を追加][免許・資格・保険方針]。下にページドット。
+// WorkerProfileEditの経験・資格ボックスと#/experienceページの両方から使う共有部品
 export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDeclared, setSelfDeclared }) {
+  const scrollRef = useRef(null);
+  const [pageIdx, setPageIdx] = useState(0);
+  const pageCount = expEntries.length + (expEntries.length < 5 ? 1 : 0) + (selfDeclared && setSelfDeclared ? 1 : 0);
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setPageIdx(Math.max(0, Math.min(pageCount - 1, Math.round(el.scrollLeft / el.clientWidth))));
+  };
+  // ページの器（全幅・snap）。隣ページとの見た目の隙間はpaddingRightで作る（幅計算を1ページ=clientWidthに保つ）
+  const paneStyle = { flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", paddingRight:10, alignSelf:"flex-start" };
   return (
-    <div style={{ display:"flex", alignItems:"flex-start", gap:10, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollSnapType:"x mandatory", margin:"0 -20px", padding:"2px 20px 6px" }}>
-      <datalist id="cb-crop-opts-expswipe">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
-      {expEntries.map((e, i) => (
-        <div key={i} style={{ flexShrink:0, width:"min(300px, 82%)", scrollSnapAlign:"start", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", boxSizing:"border-box", position:"relative" }}>
-          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 8px" }}>経験 {i + 1}</p>
-          <button type="button" onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:8, background:"#fff", border:"1px solid #EBEBEB", color:"#999", fontSize:14, cursor:"pointer" }}>×</button>
-          <input list="cb-crop-opts-expswipe" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))} placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
-          <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }}>
-            <option value="">作業</option>
-            {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-          </select>
-          <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:0 }}>
-            <option value="">どのくらい</option>
-            {["少し","1〜2シーズン","3シーズン以上"].map(dv => <option key={dv} value={dv}>{dv}</option>)}
-          </select>
-        </div>
-      ))}
-      {expEntries.length < 5 && (
-        <button type="button" onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans"
-          style={{ flexShrink:0, width: expEntries.length === 0 ? "min(300px, 82%)" : 140, scrollSnapAlign:"start", background:"none", border:"1px dashed #C8C8C8", borderRadius:14, padding:"12px", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, minHeight:expEntries.length === 0 ? 72 : 120, boxSizing:"border-box" }}>＋ 経験を追加</button>
-      )}
-      {/* 免許・資格・保険方針パネル：経験カードの横・同じ帯の末尾（縦一列ボックスをワイドカード1枚に収める） */}
-      {selfDeclared && setSelfDeclared && (
-        <div style={{ flexShrink:0, width:"min(320px, 88%)", scrollSnapAlign:"start", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", boxSizing:"border-box" }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>免許・資格・保険方針</p>
-          <WorkerDeclarationBoxes selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
+    <div>
+      <div ref={scrollRef} onScroll={onScroll} style={{ display:"flex", alignItems:"flex-start", overflowX:"auto", WebkitOverflowScrolling:"touch", scrollSnapType:"x mandatory" }}>
+        <datalist id="cb-crop-opts-expswipe">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
+        {expEntries.map((e, i) => (
+          <div key={i} style={paneStyle}>
+            <div style={{ background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", position:"relative" }}>
+              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 8px" }}>経験 {i + 1}</p>
+              <button type="button" onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:8, background:"#fff", border:"1px solid #EBEBEB", color:"#999", fontSize:14, cursor:"pointer" }}>×</button>
+              <input list="cb-crop-opts-expswipe" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))} placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
+              <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }}>
+                <option value="">作業</option>
+                {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+              </select>
+              <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:0 }}>
+                <option value="">どのくらい</option>
+                {["少し","1〜2シーズン","3シーズン以上"].map(dv => <option key={dv} value={dv}>{dv}</option>)}
+              </select>
+            </div>
+          </div>
+        ))}
+        {expEntries.length < 5 && (
+          <div style={paneStyle}>
+            <button type="button" onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans"
+              style={{ display:"block", width:"100%", background:"none", border:"1px dashed #C8C8C8", borderRadius:14, padding:"12px", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, minHeight:72, boxSizing:"border-box" }}>＋ 経験を追加</button>
+          </div>
+        )}
+        {/* 免許・資格・保険方針＝最終ページ（縦一列ボックスの全幅ページ） */}
+        {selfDeclared && setSelfDeclared && (
+          <div style={paneStyle}>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>免許・資格・保険方針</p>
+            <WorkerDeclarationBoxes selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
+          </div>
+        )}
+      </div>
+      {/* ページドット（現在地） */}
+      {pageCount > 1 && (
+        <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:10 }}>
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <span key={i} style={{ width:6, height:6, borderRadius:"50%", background: i === pageIdx ? "#00A86B" : "#D8D8D8" }} />
+          ))}
         </div>
       )}
     </div>
