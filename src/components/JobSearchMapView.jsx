@@ -7,7 +7,6 @@ import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
-import { snapGet, snapSet } from "../lib/snapshot";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { JobLocationMap } from "./JobLocationMap";
@@ -91,10 +90,9 @@ export function JobSearchMapView({ onRegister, me }) {
   }, [selectedJob?.id, me]);
   // 前回の一覧が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）
   // さがす一覧はアプリを完全に終了した後の起動でも前回内容を即描画する（2026-08-02たきと指示
-  // 「サイトを落としてから入ると遅い」）。sessionStorageのviewCacheに無ければlocalStorageの
-  // snapshotから復元→裏で最新に差し替え。jobs_publicは公開データ（anon可・個人情報なし）なので
-  // snapshot規則①「本人の自分用データのみ」より弱い扱いで保存してよい。ログアウトで消える点は同じ
-  const [dbJobs, setDbJobs] = useState(() => getCache("search:jobs") ?? snapGet("searchJobs") ?? null);
+  // 「サイトを落としてから入ると遅い」）。viewCache自体がlocalStorage永続（本人スコープ・
+  // ログアウトで全消去・表示専用）になったので、ここはgetCacheを読むだけでよい
+  const [dbJobs, setDbJobs] = useState(() => getCache("search:jobs") ?? null);
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("search");
   const [dangerLightbox, setDangerLightbox] = useState(null);
@@ -174,7 +172,7 @@ export function JobSearchMapView({ onRegister, me }) {
             } else {
               list = [...shuffleArr(freshNew), ...shuffleArr(rest)];
             }
-            setCache("search:jobs", list); snapSet("searchJobs", list);
+            setCache("search:jobs", list);
             return list;
           });
           if (freshNew.length) { try { localStorage.setItem("cb_seenNewJobs", JSON.stringify([...seen, ...freshNew.map(j => j.id)].slice(-300))); } catch {} }
