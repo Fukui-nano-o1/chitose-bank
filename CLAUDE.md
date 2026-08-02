@@ -1936,3 +1936,25 @@ pending→open不変・INSERT直pending転写・プロフィール無しは従�
 【残課題】住所分割不整合（recruitBox）／perks再申請問題（編集値と確定値の分離）／支払条件入力UIの解禁は
 届出・設計を経て別途（「相談して決める」は復活禁止・LandingFlow封印ブロックのコメント参照）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続9) viewCacheのlocalStorage化＝全ページ冷間復元＋安全設計 — 規則 ━━━
+【たきと指示】「localStorage保存は悪意ある利用をされても問題ないように」「大企業並みの復元を全ページに」
+【実装】lib/viewCache.js を sessionStorage→localStorage（キー cb_viewCache_v2_<uid先頭8桁>／未ログインanon）。
+アプリ完全終了後の起動でも、viewCacheを使う全ページ（さがす/お仕事タブ求人面・応募者/今日/応募状況/
+プロフィール入口/いいね/委託/管理見守り）が前回内容で即描画→裏で最新化。旧v1(sessionStorage)は
+一度きり自動移行。JobSearchMapViewのsearchJobs snapshot二重保存は廃止（viewCache本体が永続so不要）。
+【安全設計（規則として維持・新機能でも遵守）】
+1. キャッシュ・snapshotは【表示専用】。権限判定・DBへの書き込み値・クエリの絞り込み条件の「正」に
+   使わない。実権限は常にサーバー（RLS/app_admins/SECURITY DEFINERゲート）＝端末内で改ざんされても
+   自分の画面が乱れるだけで、他人のデータ閲覧にも書き込みにも届かない
+2. 本人スコープ：保存キーにauth id（先頭8桁）。起動時に他スコープの残骸を削除＝同じ端末の
+   別アカウントから前の人のキャッシュは読めない
+3. ログアウトで全消去（clearSnapshots→clearCache()＝スコープ違い含む全キー）
+4. 壊れたJSON・object以外のシェイプは黙って捨てる。2MB超は書かない（quota保護）
+5. HTML直挿入の禁止を維持：dangerouslySetInnerHTML/innerHTMLは全ソース不使用（2026-08-02 grep確認）。
+   キャッシュ経由の文字列はReactの標準エスケープで必ず文字として描画される
+【意図的な対象外】チャット（メッセージ本文）＝端末に永続させない（メモリキャッシュのみ維持）
+【検証】nodeシミュレーション5ケース合格：別アカウント遮断・他スコープ掃除・v1移行・
+clearCache全消去・破損JSON/不正シェイプ拒否。build+lint 0 error。
+実機確認：アプリ完全終了→起動で各ページが即出るか／ログアウト→cb_viewCache_v2_*が消えるか
+━━━ ここまで ━━━
