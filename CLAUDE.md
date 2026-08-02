@@ -1751,3 +1751,18 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
 ②ログアウト→別アカウントで前の内容が見えないか ③管理者起動→まもなく開始ページが即描画か
 【メモ】pull-to-refresh自体（reloadする設計）は不変。新デプロイの取り込み機能を兼ねているため
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続) 画像の遅延読み込み（見えていない写真を読まない・①）━━━
+・調査結果：更新後の残り待ち時間の主因は写真（job-photos実測：415枚・平均396KB・最大4.9MB）。
+  一覧・詳細は画面外のカードの写真まで一斉ダウンロードしていた。DBデータは無罪（jobs_public
+  全件select(*)でも12KB）。JSのファイル分割は済みでこれ以上の効果は薄い（SWキャッシュ済み）
+・対処①：一覧・カルーセル・サムネの<img>31箇所に loading="lazy"（JobCard/JobSearchMapView/
+  FarmerDashboard/LandingFlow/ChatView/TodayPage/WorkerApplications/SavedJobsView/MyCalendar/
+  ui(Carousel・Avatar)/AdminTab/ConsignmentRoom/AdminJobPreview）。
+  モーダル・ライトボックス・QR等「開いた瞬間に見えている単発画像」は対象外
+・残タスク②（本命・未着手）：カード用サムネイル。アップロード時に幅640px縮小版を並行保存し
+  カードはサムネ表示（転送1/8）。既存415枚は管理タブrecompressBucketの仕組みを流用して一括生成。
+  SupabaseのURL画像変換はPro課金機能なので自前サムネで行く。写真の保存構造[{url,caption}]に
+  thumb_url追加を伴う中工事＝着手前にたきと合図
+・残タスク③（将来）：求人が数百件になったら一覧のページング＋カード用列だけのビュー
+━━━ ここまで ━━━
