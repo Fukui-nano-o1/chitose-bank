@@ -435,7 +435,6 @@ const stripConsignorIdentity = (obj) => {
 
 // ── 委託圃場の登録（2026-08-02たきと指示）：プロフィールのスワイプ2枚目。ここで登録した圃場は
 //    新規委託ウィザードSTEP1で呼び出せる。ウィザードで入力した圃場も掲載時に自動登録（同名upsert）──
-const CONSIGN_FIELD_FACILITIES = [["facility_parking","駐車場"],["facility_toilet","トイレ"],["facility_rest","休憩場所"]];
 function ConsignFieldsPane({ fields, onReload }) {
   const [form, setForm] = useState(null); // null=一覧 / {}=新規 / {id,...}=編集
   const [fSaving, setFSaving] = useState(false);
@@ -468,8 +467,7 @@ function ConsignFieldsPane({ fields, onReload }) {
         auth_id: session.user.id, name,
         // region＝正式住所（都道府県〜町域・郵便番号検索から）。番地はdata.addr_detailに分離
         region: (form.addr_main || "").trim(), area_a: String(form.area_a || "").trim(),
-        data: { zip: (form.zip || "").replace(/[^0-9]/g, ""), addr_detail: (form.addr_detail || "").trim(),
-          facility_parking: form.facility_parking || "", facility_toilet: form.facility_toilet || "", facility_rest: form.facility_rest || "" },
+        data: { zip: (form.zip || "").replace(/[^0-9]/g, ""), addr_detail: (form.addr_detail || "").trim() },
         updated_at: new Date().toISOString(),
       };
       const { error } = form.id
@@ -485,11 +483,6 @@ function ConsignFieldsPane({ fields, onReload }) {
     const { error } = await supabase.from("consignment_fields").delete().eq("id", f.id);
     if (error) { alert("削除に失敗しました：" + error.message); return; }
     onReload();
-  };
-  const facSummary = (f) => {
-    const d = f.data || {};
-    const parts = CONSIGN_FIELD_FACILITIES.filter(([k]) => (d[k] || "").trim()).map(([k, l]) => l + d[k]);
-    return parts.join("・");
   };
   // ── 入力フォーム（新規・編集共用）──
   if (form) return (
@@ -521,20 +514,6 @@ function ConsignFieldsPane({ fields, onReload }) {
         <label className="lbl f-sans">面積（a）</label>
         <input className="field f-sans" inputMode="numeric" value={form.area_a || ""} onChange={e=>fset("area_a", e.target.value.replace(/[^0-9.]/g, ""))} placeholder="例：30" style={{ fontSize:15.4, marginBottom:0 }} />
       </div>
-      <label className="lbl f-sans">圃場の設備</label>
-      <div style={{ display:"grid", gap:8, marginBottom:10 }}>
-        {CONSIGN_FIELD_FACILITIES.map(([k, l]) => (
-          <div key={k} style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <span className="f-sans" style={{ fontSize:14.3, color:"#111111", minWidth:72 }}>{l}</span>
-            {["あり","なし"].map(opt => {
-              const on = (form[k] || "") === opt;
-              return (
-                <button key={opt} type="button" onClick={()=>fset(k, on ? "" : opt)} className="f-sans" style={{ padding:"7px 16px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
       <div style={{ display:"flex", gap:8, marginTop:16 }}>
         <button onClick={()=>setForm(null)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
         <button onClick={saveField} disabled={fSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: fSaving ? 0.6 : 1 }}>{fSaving ? "保存中..." : "保存する"}</button>
@@ -553,7 +532,6 @@ function ConsignFieldsPane({ fields, onReload }) {
         <div key={f.id} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
           <p className="f-sans" style={{ fontSize:15.4, fontWeight:800, color:"#111111", margin:0 }}>{f.name}</p>
           <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:"4px 0 0" }}>{[((f.data || {}).zip ? "〒" + f.data.zip + " " : "") + [f.region, (f.data || {}).addr_detail].filter(Boolean).join(" "), f.area_a ? f.area_a + "a" : ""].filter(x => (x || "").trim()).join("・") || "住所・面積 未入力"}</p>
-          {facSummary(f) && <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"4px 0 0" }}>{facSummary(f)}</p>}
           <div style={{ display:"flex", gap:8, marginTop:10 }}>
             <button onClick={()=>setForm({ id: f.id, name: f.name, addr_main: f.region, area_a: f.area_a, ...(f.data || {}) })} className="f-sans" style={{ padding:"8px 16px", fontSize:13.2, fontWeight:700, borderRadius:10, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>編集</button>
             <button onClick={()=>delField(f)} className="f-sans" style={{ padding:"8px 16px", fontSize:13.2, fontWeight:700, borderRadius:10, background:"#fff", color:"#999999", border:"1px solid #D0D0D0", cursor:"pointer" }}>削除</button>
@@ -1379,7 +1357,7 @@ export function ConsignmentRoom() {
         auth_id: session.user.id, name,
         region: existing ? existing.region : (sp.region || "").trim(),
         area_a: String(sp.area_a || "").trim(),
-        data: { ...exd, facility_parking: sp.facility_parking || "", facility_toilet: sp.facility_toilet || "", facility_rest: sp.facility_rest || "" },
+        data: { ...exd },
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id,name" });
       loadFields();
@@ -1390,14 +1368,10 @@ export function ConsignmentRoom() {
   const profTouchRef = useRef(null);
   // 登録済みの圃場をウィザードへ呼び出す（STEP1）。空欄は現在値を残す＝上書きは自由
   const applyField = (f) => {
-    const fd = f.data || {};
     setSpec(p => ({ ...p,
       field_name: f.name,
       region: f.region || p.region,
       area_a: f.area_a || p.area_a,
-      facility_parking: fd.facility_parking || p.facility_parking,
-      facility_toilet: fd.facility_toilet || p.facility_toilet,
-      facility_rest: fd.facility_rest || p.facility_rest,
     }));
   };
   // 貸与できる道具・機械・設備（2026-08-02たきと指示・圃場の設備から移植）：委託者単位の登録簿。
