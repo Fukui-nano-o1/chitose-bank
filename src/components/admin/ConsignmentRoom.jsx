@@ -289,13 +289,13 @@ const CONSIGNOR_TERMS_FIELDS = [
   { k:"cmn_emergency_phone",    l:"電話番号", ph:"例：090-1234-5678" },
   { h:"支払" },
   { k:"cmn_pay_method", l:"標準支払方法", sel:["銀行振込","現金"] },
-  { k:"cmn_bank",         l:"銀行名", ph:"例：阿波銀行" },
-  { k:"cmn_bank_branch",  l:"支店名", ph:"例：鴨島支店" },
-  { k:"cmn_account_type", l:"口座種別", sel:["普通","当座"] },
-  { k:"cmn_account_no",   l:"口座番号", num:true, ph:"例：1234567" },
-  { k:"cmn_account_name", l:"口座名義（カナ）", ph:"例：チトセ タロウ" },
+  { k:"cmn_bank",         l:"銀行名", ph:"例：阿波銀行", bankOnly:true },
+  { k:"cmn_bank_branch",  l:"支店名", ph:"例：鴨島支店", bankOnly:true },
+  { k:"cmn_account_type", l:"口座種別", sel:["普通","当座"], bankOnly:true },
+  { k:"cmn_account_no",   l:"口座番号", num:true, ph:"例：1234567", bankOnly:true },
+  { k:"cmn_account_name", l:"口座名義（カナ）", ph:"例：チトセ タロウ", bankOnly:true },
   { k:"cmn_pay_due",    l:"標準支払期限", ph:"例：検収後7日以内" },
-  { k:"cmn_fee_bearer", l:"振込手数料の負担", sel:["委託者負担","受託者負担"] },
+  { k:"cmn_fee_bearer", l:"振込手数料の負担", sel:["委託者負担","受託者負担"], bankOnly:true },
   { h:"取引条件" },
   { k:"cmn_cancel",  l:"標準キャンセル条件", ta:true, ph:"例：開始3日前までの通知は無償、以後は着手金を上限に精算" },
   { k:"cmn_inspect", l:"標準検収期間", ph:"例：作業完了から3日以内" },
@@ -493,6 +493,7 @@ function ConsignorInfoEdit() {
   const renderCF = (f) => {
     if (f.h) return <p key={"h" + f.h} className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"18px 0 8px" }}>{f.h}</p>;
     if (f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ") return null;
+    if (f.bankOnly && (d.cmn_pay_method || "") === "現金") return null; // 現金払いなら銀行振込の入力は伏せる（2026-07-31たきと指示）
     return (
       <div key={f.k} style={{ marginBottom:10 }}>
         {f.help ? (
@@ -606,7 +607,7 @@ function ConsignorInfoEdit() {
             ))}
           </div>
           {confirmGroups.map(([gl, fields]) => {
-            const rows = fields.filter(f => !f.h && (d[f.k] || "").trim() && !(f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ")).map(f => [f.l, d[f.k]]);
+            const rows = fields.filter(f => !f.h && (d[f.k] || "").trim() && !(f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ") && !(f.bankOnly && (d.cmn_pay_method || "") === "現金")).map(f => [f.l, d[f.k]]);
             if (!rows.length) return null;
             return (
               <div key={gl} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
