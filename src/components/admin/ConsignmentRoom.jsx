@@ -387,6 +387,9 @@ function ConsignorInfoEdit() {
   const [cstep, setCstep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // 保存済みなら名刺タップの行き先は「委託プロフィールページ」＝保存内容の表示（2026-08-02たきと指示）。
+  // 未保存・下書き編集中はこれまで通り設定フロー（ウィザード）を出す
+  const [viewing, setViewing] = useState(false);
   const [zipBusy, setZipBusy] = useState("");
   const [zipError, setZipError] = useState("");
   const [helpKey, setHelpKey] = useState(null); // ？を開いている項目（helpの説明コメント表示）
@@ -472,15 +475,18 @@ function ConsignorInfoEdit() {
         setCtype(t);
         const okC = !!(data && data.consignment_data_consent && data.consignment_data_consent_version === CONSIGNOR_CONSENT_VERSION);
         if (okC && draft && Number.isInteger(draft.s)) setCstep(draft.s); // 未同意ならステップ1（引き継ぎ確認）から
+        // 保存済み（種別確定＋同意済み）で下書きが無ければプロフィール表示モード（2026-08-02たきと指示）
+        setViewing(!!(data && data.consignor_type) && okC && !draft);
         setD(merged);
       } catch { setD({}); }
     })();
   }, []);
-  // 自動下書き保存：入力・ステップ移動のたびにlocalStorageへ（保存成功で消す）
+  // 自動下書き保存：入力・ステップ移動のたびにlocalStorageへ（保存成功で消す）。
+  // プロフィール表示モード中は書かない（見ただけで下書きが生まれ、次回ウィザードに戻ってしまうため）
   useEffect(() => {
-    if (!d) return;
+    if (!d || viewing) return;
     try { localStorage.setItem("cb_consignorDraft_v1", JSON.stringify({ t: ctype, s: cstep, d })); } catch {}
-  }, [d, ctype, cstep]);
+  }, [d, ctype, cstep, viewing]);
   useEffect(() => { if (stepKey !== "confirm") setConfirmAgree(false); }, [stepKey]); // 確認のたびに改めてチェックさせる
   // 同意ログの保存（consent/at/version/user_id・行動記録の憲法＝時刻列の追記）
   const agreeConsent = async () => {
@@ -748,10 +754,71 @@ function ConsignorInfoEdit() {
       </div>
     );
   }
-  const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
     ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS]]
     : [["個人事業者情報", CONSIGNOR_IND_FIELDS]];
+  // 統合ボックス（2026-08-02たきと指示「3つのボックスを1つに」）：印字イメージ・入力内容・
+  // 連絡先/通知先を罫線区切りのセクションで1枚に収める。確認ステップとプロフィール表示ページで共用
+  const renderProfileBox = () => (
+    <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
+      <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>契約書の委託者欄（印字イメージ）</p>
+      {consignorPartyRows({ consignor_type: ctype, consignor_data: d }, ahInfo).map(([l, v]) => (
+        <p key={l} className="f-sans" style={{ fontSize:13, color:"#111111", margin:"0 0 2px" }}>{l}：{v}</p>
+      ))}
+      {confirmGroups.map(([gl, fields]) => {
+        // 登録内容は全て出す（2026-07-31たきと指示）：未入力もグレーで明示。
+        // 条件で無効な項目（事業所=自宅と同じ・現金払いの振込欄）と案内文は出さない
+        // 確認ページは「項目名：値」形式で統一（2026-08-02たきと指示）＝質問文の項目は cl（確認用の短いラベル）で出す
+        const rows = fields.filter(f => !f.h && !f.info && !f.staffAuto && !cfHidden(f)).map(f => [f.cl || f.l, d[f.k]]);
+        if (!rows.length) return null;
+        return (
+          <div key={gl} style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
+            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>{gl}</p>
+            <div style={{ display:"grid", gap:6 }}>
+              {rows.map(([l, v]) => (
+                <div key={l} style={{ display:"flex", gap:10 }}>
+                  <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:110, flexShrink:0 }}>{l}</span>
+                  <span className="f-sans" style={{ fontSize:12, color: (v || "").trim() ? "#111111" : "#C0C0C0", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{(v || "").trim() || "未入力"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {/* 連絡先・通知先＝登録情報から自動（このフローでは聞かない・2026-08-02たきと指示）。
+          当日の現場連絡先の上書きは委託案件ごと（ウィザードの日程・安全） */}
+      {(() => {
+        const diffStaff = ctype === "corporate" && (d.staff_use_registrant || "登録者を使用") === "別の担当者";
+        const cName = diffStaff ? (d.staff_name || "").trim() : (ahInfo?.full_name || "").trim();
+        const cPhone = ctype === "corporate" ? ((ahInfo?.contact_phone || "").trim()) : (((ahInfo?.contact_phone || "").trim()) || (d.ind_phone || "").trim());
+        const cMail = diffStaff ? (d.staff_email || "").trim() : "";
+        return (
+          <div style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
+            <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>連絡先</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cName || "未登録"}</p>
+            {(cPhone || cMail) && <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cPhone || cMail}</p>}
+            <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"8px 0 2px" }}>通知先</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>登録メールアドレス</p>
+            <p className="f-sans" style={{ fontSize:10, color:"#999999", margin:"6px 0 0" }}>変更は登録情報から行います。案件当日だけ別の連絡先を使う場合は、委託の作成時に指定できます。</p>
+          </div>
+        );
+      })()}
+    </div>
+  );
+  // ── 委託プロフィールページ（保存済みの表示・2026-08-02たきと指示「保存した後の名刺タップは
+  //    委託プロフィールページに遷移」）。編集はここから明示的にウィザードへ入る ──
+  if (viewing) return (
+    <div>
+      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>委託者情報</h2>
+      <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 16px" }}>契約書・印刷仕様書に自動で反映される登録内容です。</p>
+      {renderProfileBox()}
+      <div style={{ display:"flex", gap:8, marginTop:16 }}>
+        <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+        <button onClick={()=>{ setViewing(false); setCstep(steps.indexOf(ctype === "corporate" ? "corp" : "ind")); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>内容を編集</button>
+      </div>
+    </div>
+  );
+  const meta = STEP_META[stepKey];
   return (
     <div>
       {/* 進捗（黒バー）＋ステップ見出し */}
@@ -851,56 +918,7 @@ function ConsignorInfoEdit() {
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
       </>)}
       {/* 登録内容確認（入力済みのみ表示）＋契約書の当事者欄プレビュー */}
-      {stepKey === "confirm" && (
-        <div>
-          {/* 1ボックスに統合（2026-08-02たきと指示「3つのボックスを1つに」）：
-              印字イメージ・入力内容・連絡先/通知先を罫線区切りのセクションで1枚に収める */}
-          <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
-            <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>契約書の委託者欄（印字イメージ）</p>
-            {consignorPartyRows({ consignor_type: ctype, consignor_data: d }, ahInfo).map(([l, v]) => (
-              <p key={l} className="f-sans" style={{ fontSize:13, color:"#111111", margin:"0 0 2px" }}>{l}：{v}</p>
-            ))}
-          {confirmGroups.map(([gl, fields]) => {
-            // 登録内容は全て出す（2026-07-31たきと指示）：未入力もグレーで明示。
-            // 条件で無効な項目（事業所=自宅と同じ・現金払いの振込欄）と案内文は出さない
-            // 確認ページは「項目名：値」形式で統一（2026-08-02たきと指示）＝質問文の項目は cl（確認用の短いラベル）で出す
-            const rows = fields.filter(f => !f.h && !f.info && !f.staffAuto && !cfHidden(f)).map(f => [f.cl || f.l, d[f.k]]);
-            if (!rows.length) return null;
-            return (
-              <div key={gl} style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
-                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>{gl}</p>
-                <div style={{ display:"grid", gap:6 }}>
-                  {rows.map(([l, v]) => (
-                    <div key={l} style={{ display:"flex", gap:10 }}>
-                      <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:110, flexShrink:0 }}>{l}</span>
-                      <span className="f-sans" style={{ fontSize:12, color: (v || "").trim() ? "#111111" : "#C0C0C0", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{(v || "").trim() || "未入力"}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-          {/* 連絡先・通知先＝登録情報から自動（このフローでは聞かない・2026-08-02たきと指示）。
-              当日の現場連絡先の上書きは委託案件ごと（ウィザードの日程・安全） */}
-          {(() => {
-            const diffStaff = ctype === "corporate" && (d.staff_use_registrant || "登録者を使用") === "別の担当者";
-            const cName = diffStaff ? (d.staff_name || "").trim() : (ahInfo?.full_name || "").trim();
-            const cPhone = ctype === "corporate" ? ((ahInfo?.contact_phone || "").trim()) : (((ahInfo?.contact_phone || "").trim()) || (d.ind_phone || "").trim());
-            const cMail = diffStaff ? (d.staff_email || "").trim() : "";
-            return (
-              <div style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
-                <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>連絡先</p>
-                <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cName || "未登録"}</p>
-                {(cPhone || cMail) && <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cPhone || cMail}</p>}
-                <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"8px 0 2px" }}>通知先</p>
-                <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>登録メールアドレス</p>
-                <p className="f-sans" style={{ fontSize:10, color:"#999999", margin:"6px 0 0" }}>変更は登録情報から行います。案件当日だけ別の連絡先を使う場合は、委託の作成時に指定できます。</p>
-              </div>
-            );
-          })()}
-          </div>
-        </div>
-      )}
+      {stepKey === "confirm" && <div>{renderProfileBox()}</div>}
 
       {/* ナビ（次へ／保存する） */}
       {stepKey !== "type" && stepKey !== "consent" && (
