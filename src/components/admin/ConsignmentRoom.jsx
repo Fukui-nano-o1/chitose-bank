@@ -853,19 +853,20 @@ function ConsignorInfoEdit() {
       {/* 登録内容確認（入力済みのみ表示）＋契約書の当事者欄プレビュー */}
       {stepKey === "confirm" && (
         <div>
-          <div style={{ background:"#111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
-            <p className="f-sans" style={{ fontSize:11, color:"#B9B9B9", margin:"0 0 6px" }}>契約書の委託者欄（印字イメージ）</p>
+          {/* 1ボックスに統合（2026-08-02たきと指示「3つのボックスを1つに」）：
+              印字イメージ・入力内容・連絡先/通知先を罫線区切りのセクションで1枚に収める */}
+          <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
+            <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>契約書の委託者欄（印字イメージ）</p>
             {consignorPartyRows({ consignor_type: ctype, consignor_data: d }, ahInfo).map(([l, v]) => (
-              <p key={l} className="f-sans" style={{ fontSize:13, color:"#fff", margin:"0 0 2px" }}>{l}：{v}</p>
+              <p key={l} className="f-sans" style={{ fontSize:13, color:"#111111", margin:"0 0 2px" }}>{l}：{v}</p>
             ))}
-          </div>
           {confirmGroups.map(([gl, fields]) => {
             // 登録内容は全て出す（2026-07-31たきと指示）：未入力もグレーで明示。
             // 条件で無効な項目（事業所=自宅と同じ・現金払いの振込欄）と案内文は出さない
             const rows = fields.filter(f => !f.h && !f.info && !f.staffAuto && !cfHidden(f)).map(f => [f.l, d[f.k]]);
             if (!rows.length) return null;
             return (
-              <div key={gl} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
+              <div key={gl} style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>{gl}</p>
                 <div style={{ display:"grid", gap:6 }}>
                   {rows.map(([l, v]) => (
@@ -886,7 +887,7 @@ function ConsignorInfoEdit() {
             const cPhone = ctype === "corporate" ? ((ahInfo?.contact_phone || "").trim()) : (((ahInfo?.contact_phone || "").trim()) || (d.ind_phone || "").trim());
             const cMail = diffStaff ? (d.staff_email || "").trim() : "";
             return (
-              <div style={{ background:"#F7F7F7", borderRadius:10, padding:"12px 14px", marginBottom:12 }}>
+              <div style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
                 <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>連絡先</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cName || "未登録"}</p>
                 {(cPhone || cMail) && <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cPhone || cMail}</p>}
@@ -896,6 +897,7 @@ function ConsignorInfoEdit() {
               </div>
             );
           })()}
+          </div>
         </div>
       )}
 
