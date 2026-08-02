@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { CROP_OPTIONS, dateRangeLabel, ymdLocal, isWorkDayToday } from "../../lib/utils";
+import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
 
 const cropIcon = (crop) => CROP_OPTIONS.find(c => c.name === crop)?.icon || "🌱";
@@ -104,11 +105,18 @@ function WorkCard({ item, today }) {
 }
 
 export function AdminWorkingRoom() {
-  const [state, setState] = useState(null); // null=読み込み中 | {working, upcoming} | "error" | "denied"
+  // 前回結果（App.jsxの着地判定・まもなく開始ページと共用のキャッシュ）があれば即描画し、
+  // 裏で最新に差し替える（2026-08-02・更新時間の短縮）
+  const [state, setState] = useState(() => {
+    const d = getCache("admin:workingJobs");
+    return d?.ok ? { working: d.working || [], upcoming: d.upcoming || [] } : null;
+  }); // null=読み込み中 | {working, upcoming} | "error" | "denied"
   const load = useCallback(async () => {
     const { data, error } = await supabase.rpc("admin_working_jobs");
-    if (error) { setState("error"); return; }
+    // 裏の再取得が失敗しても、キャッシュ表示中ならそのまま保つ（エラー画面で上書きしない）
+    if (error) { setState(prev => (prev && typeof prev === "object") ? prev : "error"); return; }
     if (!data?.ok) { setState(data?.reason === "not_admin" ? "denied" : "error"); return; }
+    setCache("admin:workingJobs", data);
     setState({ working: data.working || [], upcoming: data.upcoming || [] });
   }, []);
   useEffect(() => { load(); }, [load]);

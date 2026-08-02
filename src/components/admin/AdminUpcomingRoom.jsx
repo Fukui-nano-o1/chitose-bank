@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { CROP_OPTIONS, dateRangeLabel, startsWithinDays } from "../../lib/utils";
+import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
 
 const cropIcon = (crop) => CROP_OPTIONS.find(c => c.name === crop)?.icon || "🌱";
@@ -63,13 +64,20 @@ function CardHead({ item }) {
 }
 
 export function AdminUpcomingRoom() {
-  const [state, setState] = useState(null); // null=読み込み中 | {upcoming} | "error" | "denied"
+  // 前回結果（App.jsxの着地判定が置いたものを含む）があれば読み込み中を出さず即描画し、
+  // 裏で最新に差し替える（2026-08-02・更新時間の短縮。起動時にRPCが2回直列に走っていた無駄の解消）
+  const [state, setState] = useState(() => {
+    const d = getCache("admin:workingJobs");
+    return d?.ok ? { upcoming: (d.upcoming || []).filter(it => startsWithinDays(it, 7)) } : null;
+  }); // null=読み込み中 | {upcoming} | "error" | "denied"
   const load = useCallback(async () => {
     // 仕事中専用ページと同じ RPC（admin_working_jobs）を流用。返り値の upcoming バケットのうち、
     // 開始1週間以内（過ぎた未開始も含む）の該当求人だけを表示する
     const { data, error } = await supabase.rpc("admin_working_jobs");
-    if (error) { setState("error"); return; }
+    // 裏の再取得が失敗しても、キャッシュ表示中ならそのまま保つ（エラー画面で上書きしない）
+    if (error) { setState(prev => (prev && typeof prev === "object") ? prev : "error"); return; }
     if (!data?.ok) { setState(data?.reason === "not_admin" ? "denied" : "error"); return; }
+    setCache("admin:workingJobs", data);
     setState({ upcoming: (data.upcoming || []).filter(it => startsWithinDays(it, 7)) });
   }, []);
   useEffect(() => { load(); }, [load]);

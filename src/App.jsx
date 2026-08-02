@@ -53,6 +53,7 @@ import { compressImage } from "./lib/image";
 import { peekApplyReturn } from "./lib/applyReturn";
 import { armLoginReturn, takeLoginReturn } from "./lib/loginReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
+import { setCache } from "./lib/viewCache";
 
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 
@@ -1274,6 +1275,9 @@ export default function App(){
     (async () => {
       try {
         const { data } = await supabase.rpc("admin_working_jobs");
+        // 結果をキャッシュに置く（2026-08-02・更新時間の短縮）：着地先のまもなく開始／仕事中ページが
+        // 同じRPCをもう一度待たずに即描画できる（起動でRPCが2回直列に走っていた無駄の解消）
+        if (data?.ok) setCache("admin:workingJobs", data);
         if (data?.ok && (data.upcoming || []).some(it => startsWithinDays(it, 7))) window.location.hash = "/admin/upcoming";
       } catch { /* 失敗時は通常の着地のまま（見守りページは管理タブからも開ける） */ }
     })();
