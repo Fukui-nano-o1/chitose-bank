@@ -1850,3 +1850,17 @@ setCacheがどこにも無く、毎回ネット待ちになっていた（読む
 お仕事タブの作成中/公開中/期限切れ・求人カードの❓バッジ・お仕事タブから求人詳細への遷移・
 詳細の農家プロフィールカード表示
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続7) 委託ページの更新が遅い件の修理（viewCache導入）━━━
+【原因】ConsignmentRoomは主要ページで唯一viewCache未導入。引き下げ更新（リロード）のたびに
+台帳(consignment_deals)・進捗集計(consignment_progress)・名刺(employer_profiles)・
+委託者情報(consignment_profiles)を白紙から取り直し、返るまで空表示だった。
+【対処】consign:deals / consign:progAgg / consign:empMini / consign:consignor をviewCache
+（sessionStorage永続）でSWR化。名刺はviewCacheが無い時（アプリ再起動後）は
+FarmerDashboardのsnapshot(empMini)からも即表示（★このページのempMiniは2列の縮小形なので
+snapshotへは書かない＝全列形の正本を上書きしない）。案件ビュー（#/admin/consignment/deal/…）の
+リロード復元も、キャッシュに該当案件があれば一覧の取得を待たず即開く（開けた場合は取得後の
+再オープンをしない＝開いた直後の入力を上書きしない）。
+【検証】build+lint 0 error・grep配線確認。実機目視は未実施→確認：委託ページを引き下げ更新して
+台帳が即出るか・案件を開いた状態のリロード復元・設定ページの委託者情報の保存と反映
+━━━ ここまで ━━━
