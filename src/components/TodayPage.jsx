@@ -2,7 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
-import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb } from "../lib/utils";
+import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb,
+  appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
+import { openPhaseInfo } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
@@ -165,6 +167,107 @@ function NewApplicantsPanel({ items, onTap }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// 緊急連絡の専用ページ（2026-08-02たきと指示「ステータスと同じ構造に」）：
+// ステータスページ(#/saved・SavedJobsView)と同じカード構造＝左:求人トップ写真＋タイトル/#No.オーバーレイ／
+// 右:相手のアイコン＋段階ラベル。カードタップでボックス（下からのシート）が開き、
+// 実行（⚠️緊急連絡・チャット・求人ページ）はシート内のボタンが担う。
+// ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされる（フォーカス消失バグの同族）
+function EmergencyStagePanel({ items, role }) {
+  const [boxItem, setBoxItem] = useState(null); // 展開中のボックス（ステータスページのboxJobと同じ作法）
+  // 段階はステータスページと同じ導出（appPhaseKey＝帯の唯一のソース。entriesはterms_confirmed_*を持つ）
+  const phaseOf = (e) => e.application_id ? appPhaseKey({ status: e.application_status,
+    terms_confirmed_worker_at: e.terms_confirmed_worker_at, terms_confirmed_farmer_at: e.terms_confirmed_farmer_at }) : null;
+  const titleOf = (e) => [e.crop, e.task].filter(Boolean).join(" ") || `求人 #${e.job_number}`;
+  // 相手アイコンの下地は相手の役割色（農家から見た相手=働き手=橙／働き手から見た相手=農家=緑）
+  const partnerBg = role === "farmer" ? ROLE_ORANGE : ROLE_GREEN;
+  return (
+    <>
+      <div style={{ display:"grid", gap:10 }}>
+        {items.map(e => {
+          const photo = photoThumb(e.photos?.[0]);
+          const phase = phaseOf(e);
+          return (
+            <div key={e.application_id} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
+              {/* 左：求人のトップ写真。タイトル・#No.を写真下部に重ねる（ステータスページと同じ作法・枠は3:4固定） */}
+              <button onClick={()=>setBoxItem(e)} aria-label="この仕事の緊急連絡を開く" className="f-sans"
+                style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
+                  <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{titleOf(e)}</span>
+                  <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{e.job_number}</span>
+                </span>
+              </button>
+              {/* 右：相手のアイコン＋段階（緊急連絡は相手に送るもの＝誰宛かを主役に。リングは段階色） */}
+              <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <button onClick={()=>setBoxItem(e)} className="f-sans"
+                  style={{ width:72, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                  <Avatar url={e.partner_avatar} name={e.partner_name || "？"} size={52} ring={APP_PHASE_COLOR[phase] || "#00A86B"} bg={partnerBg} />
+                  <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color:"#222", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.partner_name ? e.partner_name + "さん" : "相手"}</span>
+                  {phase && <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:APP_PHASE_COLOR[phase] || "#00A86B", marginTop:1, cursor:"pointer" }}>{APP_PHASE_LABEL[phase] || ""}</span>}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* ═══ カードタップで展開するボックス（ステータスページのシートと同じ作法） ═══ */}
+      {boxItem && (() => {
+        const e = boxItem;
+        const phase = phaseOf(e);
+        const c = APP_PHASE_COLOR[phase] || "#717171";
+        const photo = photoThumb(e.photos?.[0]);
+        const dateLabel = e.date_start ? (e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start)) : "未設定";
+        const chatOk = !!(e.application_id && CHAT_ELIGIBLE_STATUSES.includes(e.application_status));
+        return (
+          <div onClick={()=>setBoxItem(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            <div onClick={ev=>ev.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+                <button onClick={()=>setBoxItem(null)} aria-label="閉じる" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              </div>
+              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+                {/* 現在地バナー（ステータスページと同じ・段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
+                {phase && (
+                  <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{APP_PHASE_LABEL[phase] || ""}</p>
+                    {APP_PHASE_DESC[phase] && (
+                      <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[phase]}</p>
+                    )}
+                  </div>
+                )}
+                {/* 求人の要約（写真・タイトル・#No.・地域・日程・勤務時間・相手） */}
+                <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
+                  <div style={{ flexShrink:0, width:88, height:88, borderRadius:12, overflow:"hidden", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
+                    {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                  </div>
+                  <div style={{ minWidth:0 }}>
+                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{titleOf(e)}</p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"2px 0 0" }}>#{e.job_number}{e.town ? "　" + e.town : ""}</p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📅 {dateLabel}{e.work_time ? "　🕒" + e.work_time : ""}</p>
+                    {e.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>相手 {e.partner_name}さん</p>}
+                  </div>
+                </div>
+                {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
+                {e.application_id && <ContractPartyName applicationId={e.application_id} showPending={false} style={{ margin:"0 0 12px", paddingLeft:2 }} />}
+                {/* 操作（ステータスページのボタン群と同じ位置づけ。主役＝緊急連絡） */}
+                <div style={{ display:"grid", gap:8 }}>
+                  <button onClick={()=>{ setBoxItem(null); window.location.hash = "/emergency/" + e.application_id; }} className="f-sans"
+                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⚠️ 緊急連絡をする →</button>
+                  {chatOk && (
+                    <button onClick={()=>{ setBoxItem(null); window.location.hash = "/chat/" + e.application_id; }} className="f-sans"
+                      style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+                  )}
+                  <button onClick={()=>{ setBoxItem(null); try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }} className="f-sans"
+                    style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>求人ページを見る</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </>
   );
 }
 
@@ -600,6 +703,9 @@ export function TodayPage({ me, defaultRole }) {
           </div>
         ) : pageStage === "approve" ? (
           <NewApplicantsPanel items={pItems} onTap={(t)=>runTodo(TODO_META.approve, t)} />
+        ) : pageStage === "t_emergency" ? (
+          /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示） */
+          <EmergencyStagePanel items={pItems} role={role} />
         ) : pageStage === "w_interview" ? (
           <InterviewReplyPanel items={pItems} accent={accent} onAnswered={(id)=>{ removeTodo(id, "w_interview"); setAnsweredDone(true); }} />
         ) : (
