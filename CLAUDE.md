@@ -1788,3 +1788,17 @@ DBでjobs.photosにthumbが入ったか（select photos from jobs limit 3）
 【メモ】thumbファイルはCDNキャッシュ(1h)があるため、旧320px→640px差し替え直後は
 一部端末で最大1時間古いサムネが出ることがある（実害なし・自然解消）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続3) サムネ後埋め70枚全滅の原因と修理（job-photosのSELECTポリシー欠落）━━━
+【症状】管理タブ「カード用サムネ生成」実行→ 70枚中0枚生成・失敗70。
+【原因】job-photos バケットに SELECT ポリシーが1枚も無かった（insert/update/deleteのみ）。
+publicバケットの「表示」は公開URL(/object/public/)で通るためアプリ画面は無事だが、
+storage APIの download()/list()（認証エンドポイント）はRLSで全拒否＝ツールのダウンロードが全滅。
+既存の「画像一括軽量化（job-photos）」も同じ理由で最初から動いていなかったはず。
+【修理】migration 20260802042622_job_photos_authenticated_read＝
+create policy "job-photos authenticated read" for select to authenticated using (bucket_id='job-photos')。
+publicバケットなので公開範囲は不変。DB適用済み・repo migrationへ写経済み・履歴表同期確認済み。
+【教訓】publicバケット＝「読める」ではない。公開URLとstorage API（download/list）は別の扉で、
+後者はSELECTポリシーが要る。バケット新設時はread含む4枚セットで作ること。
+【★たきと再実行待ち】管理タブ「カード用サムネ生成」をもう一度タップ（冪等・再実行安全）
+━━━ ここまで ━━━
