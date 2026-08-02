@@ -259,9 +259,11 @@ const CONSIGNOR_CORP_FIELDS = [
   { h:"代表者" },
   { k:"corp_rep_title", l:"代表者役職", ph:"例：代表取締役" },
   { k:"corp_rep_name",  l:"代表者氏名", ph:"例：千歳 太郎" },
+  // 連絡担当者（2026-07-31たきと指示）：登録者を使用＝自動反映のみ（担当者名=登録者氏名・
+  // メール=登録メール・電話番号は入力させない）／別の担当者＝名前とメールだけ入力（電話は初期設定では不要）
   { h:"連絡担当者" },
   { k:"staff_use_registrant", l:"連絡担当者", sel:["登録者を使用","別の担当者"], note:"新規登録した本人が窓口なら「登録者を使用」のままで構いません" },
-  { k:"staff_phone", l:"担当者電話番号", ph:"例：090-1234-5678" },
+  { k:"staff_auto", staffAuto:true },
   { k:"staff_name",  l:"担当者名", ph:"例：千歳 花子", staffDiff:true },
   { k:"staff_email", l:"担当者メールアドレス", ph:"例：hanako@example.com", staffDiff:true },
   { h:"インボイス" },
@@ -455,7 +457,6 @@ function ConsignorInfoEdit() {
         put("corp_email", row.consignor_email); put("corp_email", ah.contact_email);
         put("corp_invoice", row.consignor_invoice_no);
         put("corp_rep_name", row.consignor_rep_name); // 登録者≠代表者のことがあるso登録者名では埋めない
-        put("staff_phone", ah.contact_phone);
         if (!(n.staff_use_registrant || "").trim()) n.staff_use_registrant = "登録者を使用"; // 初期選択（2026-07-31たきと指示）
         if (!(n.corp_has_invoice || "").trim() && (n.corp_invoice || "").trim()) n.corp_has_invoice = "登録あり";
       }
@@ -529,6 +530,16 @@ function ConsignorInfoEdit() {
     if (f.info) return (
       <div key={f.k} className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.7, margin:"0 0 10px" }}>{f.info}</div>
     );
+    if (f.staffAuto) {
+      if ((d.staff_use_registrant || "登録者を使用") === "別の担当者") return null;
+      return (
+        <div key={f.k} className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 10px" }}>
+          <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>登録者を連絡担当者として使用（自動反映・入力不要）</span>
+          <span style={{ display:"block" }}>担当者名：{(ahInfo?.full_name || "").trim() || "未登録"}</span>
+          <span style={{ display:"block" }}>担当者メール：{(ahInfo?.contact_email || d.corp_email || "").trim() || "未登録"}</span>
+        </div>
+      );
+    }
     return (
       <div key={f.k} style={{ marginBottom:10 }}>
         {f.help ? (
@@ -655,7 +666,7 @@ function ConsignorInfoEdit() {
           {confirmGroups.map(([gl, fields]) => {
             // 登録内容は全て出す（2026-07-31たきと指示）：未入力もグレーで明示。
             // 条件で無効な項目（事業所=自宅と同じ・現金払いの振込欄）と案内文は出さない
-            const rows = fields.filter(f => !f.h && !f.info && !cfHidden(f)).map(f => [f.l, d[f.k]]);
+            const rows = fields.filter(f => !f.h && !f.info && !f.staffAuto && !cfHidden(f)).map(f => [f.l, d[f.k]]);
             if (!rows.length) return null;
             return (
               <div key={gl} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
