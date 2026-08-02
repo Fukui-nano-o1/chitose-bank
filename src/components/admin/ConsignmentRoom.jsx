@@ -329,6 +329,17 @@ const consignorPartyRows = (row) => {
   return CONSIGNOR_PUBLIC_FIELDS.filter(f => (row[f.k] || "").trim()).map(f => [f.l, row[f.k]]);
 };
 
+// 登録情報の委託機能での利用同意（2026-08-02たきと指示）：曖昧な「引き継いでよいですか」ではなく、
+// 何の情報を・何の目的で・誰に・いつ見せるかまで示して同意を取る。同意文を変えたら版数を更新（再同意）
+const CONSIGNOR_CONSENT_VERSION = "consignment-data-v1-2026-08";
+const CONSIGNOR_CONSENT_TEXT = "新規登録時に登録した氏名・法人名、住所、メールアドレスその他の登録情報を、委託者情報の作成、委託案件の掲載、取引条件の明示、契約書の作成および取引相手への必要な範囲での開示に利用します。";
+// 開示範囲は段階別に明示：掲載と同時に全登録者へ詳細を公開しない。必要な相手へ必要になった段階で開示する
+const CONSIGNOR_DISCLOSURE_STAGES = [
+  { t:"掲載時", items:["【個人事業者】氏名または屋号・市町村までの所在地・サイト内連絡手段", "【法人】法人名・本店所在地の市町村・サイト内連絡手段"] },
+  { t:"受注申込後・条件調整時", items:["委託者の名称", "担当者名", "メールまたはサイト内連絡先", "案件に必要な圃場情報"] },
+  { t:"発注確定後", items:["法的氏名または法人名", "詳細住所・所在地", "代表者情報", "連絡先", "正確な圃場所在地", "契約書記載事項"] },
+];
+
 // 委託者情報の設定フロー（ブラック・アイコンなし・1ページ1つの問い）
 function ConsignorInfoEdit() {
   const [ctype, setCtype] = useState("");   // "individual" | "corporate" | ""
@@ -340,6 +351,11 @@ function ConsignorInfoEdit() {
   const [zipError, setZipError] = useState("");
   const [helpKey, setHelpKey] = useState(null); // ？を開いている項目（helpの説明コメント表示）
   const [confirmAgree, setConfirmAgree] = useState(false); // 確認ページの同意チェック（2026-07-31たきと指示・未チェックでは保存不可）
+  // 登録情報の利用同意（初回ゲート）：チェックは初期未選択・版数一致の同意が無ければフローに入れない
+  const [consentOk, setConsentOk] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [scopeOpen, setScopeOpen] = useState(false);
+  const [consentSaving, setConsentSaving] = useState(false);
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
   const steps = ["type", ctype === "corporate" ? "corp" : "ind", "terms", "confirm"]; // 担当者は法人ページに統合（2026-07-31たきと指示）
@@ -358,6 +374,7 @@ function ConsignorInfoEdit() {
         if (!session) { setD({}); return; }
         const { data } = await supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         rowRef.current = data || null;
+        setConsentOk(!!(data && data.consignment_data_consent && data.consignment_data_consent_version === CONSIGNOR_CONSENT_VERSION));
         // 新規登録①の本人確認情報を引き継ぎの下敷きに（2026-07-31たきと指示）。
         // ★黙って書面へ流し込まない：フォームの初期値に入れるだけで、確認ページを経て
         //   本人が「保存する」を押した時に確定する＝本人の意思で契約書面に載せる形（2026-07-27作法）
@@ -421,6 +438,26 @@ function ConsignorInfoEdit() {
     try { localStorage.setItem("cb_consignorDraft_v1", JSON.stringify({ t: ctype, s: cstep, d })); } catch {}
   }, [d, ctype, cstep]);
   useEffect(() => { if (stepKey !== "confirm") setConfirmAgree(false); }, [stepKey]); // 確認のたびに改めてチェックさせる
+  // 同意ログの保存（consent/at/version/user_id・行動記録の憲法＝時刻列の追記）
+  const agreeConsent = async () => {
+    if (consentSaving || !consentChecked) return;
+    setConsentSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setConsentSaving(false); return; }
+      const { error } = await supabase.from("consignment_profiles").upsert({
+        auth_id: session.user.id,
+        consignment_data_consent: true,
+        consignment_data_consent_at: new Date().toISOString(),
+        consignment_data_consent_version: CONSIGNOR_CONSENT_VERSION,
+        consignment_data_consent_user_id: session.user.id,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "auth_id" });
+      if (error) alert("同意の記録に失敗しました：" + error.message);
+      else setConsentOk(true);
+    } catch { alert("同意の記録に失敗しました。"); }
+    setConsentSaving(false);
+  };
   const setV = (k, v) => setD(p => ({ ...p, [k]: v }));
   // 種別を選ぶ：旧v1列を下敷きに（空欄のみ）→次ページへ
   const pickType = (t) => {
@@ -592,6 +629,53 @@ function ConsignorInfoEdit() {
       <p className="f-sans" style={{ fontSize:13, color:"#999999", margin:0 }}>読み込み中…</p>
     </div>
   );
+  // ── 初回同意ゲート（2026-08-02たきと指示）：①引き継ぐ登録情報 ②公開・開示範囲 ③必須チェック1個
+  //    ④「委託掲載を始める」。再入力は不要だが、無言で転用もしない ──
+  if (!consentOk) {
+    const isCorp = ahInfo?.entity_type === "corporate";
+    const inheritRows = [
+      ["区分", isCorp ? "法人" : "個人事業者"],
+      isCorp ? ["法人名", ahInfo?.company_name] : ["氏名", ahInfo?.full_name],
+      ...(isCorp ? [["登録者氏名", ahInfo?.full_name], ["法人番号", ahInfo?.company_number]] : []),
+      ["住所", ahInfo?.address],
+      ["メールアドレス", ahInfo?.contact_email],
+      ...((ahInfo?.contact_phone || "").trim() ? [["電話番号", ahInfo?.contact_phone]] : []),
+    ].filter(r => (r[1] || "").trim());
+    return (
+      <div>
+        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>登録情報の利用について</h2>
+        <p className="f-sans" style={{ fontSize:13, color:"#111111", lineHeight:1.8, margin:"0 0 16px" }}>{CONSIGNOR_CONSENT_TEXT}</p>
+        {/* ① 引き継ぐ登録情報 */}
+        <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 12px" }}>
+          <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>引き継ぐ登録情報</span>
+          {inheritRows.map(([l, v]) => <span key={l} style={{ display:"block" }}>{l}：{v}</span>)}
+          {inheritRows.length === 0 && <span style={{ display:"block", color:"#999999" }}>新規登録の情報が見つかりませんでした</span>}
+        </div>
+        {/* ② 公開・開示範囲（段階別）：タップで展開 */}
+        <button type="button" onClick={()=>setScopeOpen(v => !v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border:"1px solid #111111", background:"#fff", color:"#111111", marginBottom: scopeOpen ? 8 : 12 }}>
+          {scopeOpen ? "▾" : "▸"} 表示・開示される情報を確認
+        </button>
+        {scopeOpen && (
+          <div style={{ border:"1px solid #111111", borderRadius:10, padding:"12px 14px", marginBottom:12 }}>
+            {CONSIGNOR_DISCLOSURE_STAGES.map(st => (
+              <div key={st.t} style={{ marginBottom:10 }}>
+                <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{st.t}</p>
+                {st.items.map(it => <p key={it} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.7, margin:0 }}>・{it}</p>)}
+              </div>
+            ))}
+            <p className="f-sans" style={{ fontSize:11, color:"#999999", lineHeight:1.7, margin:0 }}>詳細な住所や電話番号を掲載と同時に公開することはありません。必要な相手へ、必要になった段階で開示します。</p>
+          </div>
+        )}
+        {/* ③ 必須チェック（初期未選択） */}
+        <button type="button" onClick={()=>setConsentChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: consentChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: consentChecked ? "#111111" : "#fff", color: consentChecked ? "#fff" : "#111111", marginBottom:12 }}>
+          <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: consentChecked ? "none" : "2px solid #C8C8C8", background: consentChecked ? "#fff" : "transparent", color:"#111111" }}>{consentChecked ? "✓" : ""}</span>
+          登録情報を委託機能で利用することと、表示・開示される範囲を確認し、同意します
+        </button>
+        {/* ④ 開始 */}
+        <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
+      </div>
+    );
+  }
   const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
     ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS], ["連絡・支払設定", CONSIGNOR_TERMS_FIELDS]]
