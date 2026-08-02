@@ -5,9 +5,9 @@ import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
-import { WORKER_DECLARATIONS, CROP_OPTIONS, TASK_OPTIONS } from "../lib/utils"; // CROP/TASK_OPTIONS＝経験・資格ボックス（2026-08-02再ボックス化）で使用
+import { WORKER_DECLARATIONS, TASK_OPTIONS } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
 import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
-import { WorkerDeclarationBoxes } from "./WorkerExperiencePage";
+import { WorkerDeclarationBoxes, WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage";
 import { WorkerTrustCard } from "./TrustCards";
 
 const PR_PROMPTS = [
@@ -474,27 +474,11 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {editBox==="declared" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>経験・資格（自己申告）</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
+      {/* 横スワイプのカード式（2026-08-03たきと指示「指に連動」＝ネイティブ横スクロール＋snap） */}
       <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）</p>
-      <datalist id="cb-crop-opts-expbox">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
-      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:8 }}>
-        {expEntries.map((e, i) => (
-          <div key={i} style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center" }}>
-            <input list="cb-crop-opts-expbox" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))} placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:13, flex:"1 1 120px", minWidth:0, marginBottom:0 }} />
-            <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, flex:"1 1 90px", minWidth:0, marginBottom:0 }}>
-              <option value="">作業</option>
-              {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-            </select>
-            <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, flex:"1 1 110px", minWidth:0, marginBottom:0 }}>
-              <option value="">どのくらい</option>
-              {["少し","1〜2シーズン","3シーズン以上"].map(dv => <option key={dv} value={dv}>{dv}</option>)}
-            </select>
-            <button onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ flexShrink:0, width:30, height:30, borderRadius:8, background:"#F5F5F5", border:"none", color:"#999", fontSize:15, cursor:"pointer" }}>×</button>
-          </div>
-        ))}
+      <div style={{ marginBottom:16 }}>
+        <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} />
       </div>
-      {expEntries.length < 5 && (
-        <button onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, marginBottom:16 }}>＋ 経験を追加</button>
-      )}
       {/* 保険申告と同じ横1列ボックス（2026-08-02たきと指示）：タップで開いてその場で申告 */}
       <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"4px 0 8px" }}>免許・資格・保険方針</p>
       <div style={{ marginBottom:16 }}>

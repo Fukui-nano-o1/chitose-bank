@@ -7,6 +7,37 @@ import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AutoSkeleton } from "./ui";
 
+// 経験（作物×作業×どのくらい）の横スワイプ入力（2026-08-03たきと指示「横スワイプ・指に連動」）：
+// ネイティブの横スクロール（overflow-x）＝指の動きにそのまま追従し、scroll-snapでカード単位に止まる
+// （チャットの求人No.ボックス・確認ページカルーセルと同じ作法）。カード1枚=1経験・末尾に追加カード（最大5）。
+// WorkerProfileEditの経験・資格ボックスと#/experienceページの両方から使う共有部品
+export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries }) {
+  return (
+    <div style={{ display:"flex", gap:10, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollSnapType:"x mandatory", margin:"0 -20px", padding:"2px 20px 6px" }}>
+      <datalist id="cb-crop-opts-expswipe">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
+      {expEntries.map((e, i) => (
+        <div key={i} style={{ flexShrink:0, width:"min(300px, 82%)", scrollSnapAlign:"start", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", boxSizing:"border-box", position:"relative" }}>
+          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 8px" }}>経験 {i + 1}</p>
+          <button type="button" onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:8, background:"#fff", border:"1px solid #EBEBEB", color:"#999", fontSize:14, cursor:"pointer" }}>×</button>
+          <input list="cb-crop-opts-expswipe" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))} placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
+          <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }}>
+            <option value="">作業</option>
+            {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+          </select>
+          <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:0 }}>
+            <option value="">どのくらい</option>
+            {["少し","1〜2シーズン","3シーズン以上"].map(dv => <option key={dv} value={dv}>{dv}</option>)}
+          </select>
+        </div>
+      ))}
+      {expEntries.length < 5 && (
+        <button type="button" onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans"
+          style={{ flexShrink:0, width: expEntries.length === 0 ? "100%" : 140, scrollSnapAlign:"start", background:"none", border:"1px dashed #C8C8C8", borderRadius:14, padding:"12px", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, minHeight:expEntries.length === 0 ? 72 : 120, boxSizing:"border-box" }}>＋ 経験を追加</button>
+      )}
+    </div>
+  );
+}
+
 // 免許・資格・保険方針の申告ボックス（2026-08-02たきと指示「保険申告と同じ構造に」）：
 // 雇い手の保険の準備（FarmerDashboard 2026-07-29）と同じ横1列の箱＋タップでその場に開いて申告する構造。
 // 箱の色の規則も同じ（既定=グレー／申告ずみ=縁だけ緑／開いている=全体が緑）。申告ずみを先頭に並べる
@@ -93,28 +124,11 @@ export function WorkerExperiencePage() {
       {loading ? (
         <AutoSkeleton fallbackHeight={84} fallbackCount={4} /> /* 読み込み中は入力欄の仮配置（2026-07-27） */
       ) : (<>
-        {/* 経験の構造化申告（作物×作業×どのくらい・最大5） */}
+        {/* 経験の構造化申告（作物×作業×どのくらい・最大5）：横スワイプのカード式（2026-08-03たきと指示） */}
         <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）</p>
-        <datalist id="cb-crop-opts-exp">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
-        <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:8 }}>
-          {expEntries.map((e, i) => (
-            <div key={i} style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center" }}>
-              <input list="cb-crop-opts-exp" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))} placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:13, flex:"1 1 120px", minWidth:0, marginBottom:0 }} />
-              <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, flex:"1 1 90px", minWidth:0, marginBottom:0 }}>
-                <option value="">作業</option>
-                {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-              </select>
-              <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, flex:"1 1 110px", minWidth:0, marginBottom:0 }}>
-                <option value="">どのくらい</option>
-                {["少し","1〜2シーズン","3シーズン以上"].map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <button onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ flexShrink:0, width:30, height:30, borderRadius:8, background:"#F5F5F5", border:"none", color:"#999", fontSize:15, cursor:"pointer" }}>×</button>
-            </div>
-          ))}
+        <div style={{ marginBottom:20 }}>
+          <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} />
         </div>
-        {expEntries.length < 5 && (
-          <button onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, marginBottom:20 }}>＋ 経験を追加</button>
-        )}
 
         {/* 免許・資格・保険方針（自己申告）：トグル行リスト→保険申告と同じ横1列ボックスに（2026-08-02たきと指示） */}
         <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"4px 0 8px" }}>免許・資格・保険方針</p>
