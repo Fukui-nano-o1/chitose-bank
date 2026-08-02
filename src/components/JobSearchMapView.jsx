@@ -288,6 +288,19 @@ export function JobSearchMapView({ onRegister, me }) {
     const found = jobList.find(j => j.id === jn);
     if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); clearApplyReturn(); return; }
     if (dbJobs && dbJobs.length > 0) clearApplyReturn();
+    // 一覧の到着を待たず、該当求人だけ先に1行引いて詳細を出す（2026-08-02・求人ページの体感）。
+    // ディープリンク（#/work/job/N・お仕事タブや通知からの遷移）は従来、全求人一覧の取得完了まで
+    // 白いままだった。1行なら数KBで先に返る。後から一覧が届いたら上の found 経路が同じ求人で上書きする
+    if (!dbJobs) {
+      let cancelled = false;
+      (async () => {
+        try {
+          const { data } = await supabase.from("jobs_public").select("*").eq("job_number", jn).maybeSingle();
+          if (!cancelled && data) { setSelectedJob(prev => prev || mapJobPublicRow(data)); setDetailTab(m[2] || "content"); clearApplyReturn(); }
+        } catch {}
+      })();
+      return () => { cancelled = true; };
+    }
   }, [dbJobs]);
   useEffect(() => {
     const onHash = () => {
@@ -342,14 +355,14 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!selectedJob) { setEmpEmployer(null); setEmpTrust(null); return; }
     let cancelled = false;
     (async () => {
-      try {
-        const { data } = await supabase.rpc('job_employer_profile', { p_job_number: selectedJob.id });
-        if (!cancelled) setEmpEmployer((data && data[0]) || null);
-      } catch { if (!cancelled) setEmpEmployer(null); }
-      try {
-        const { data: trust } = await supabase.rpc('job_employer_trust_info', { p_job_number: selectedJob.id });
-        if (!cancelled) setEmpTrust(trust || null);
-      } catch { if (!cancelled) setEmpTrust(null); }
+      // 依存のない2本は並列で（2026-08-02・更新時間の短縮：直列2往復→1往復ぶんの待ちに）
+      const [profRes, trustRes] = await Promise.all([
+        Promise.resolve(supabase.rpc('job_employer_profile', { p_job_number: selectedJob.id })).catch(() => ({ data: null })),
+        Promise.resolve(supabase.rpc('job_employer_trust_info', { p_job_number: selectedJob.id })).catch(() => ({ data: null })),
+      ]);
+      if (cancelled) return;
+      setEmpEmployer((profRes.data && profRes.data[0]) || null);
+      setEmpTrust(trustRes.data || null);
     })();
     return () => { cancelled = true; };
   }, [selectedJob?.id]);
