@@ -862,9 +862,12 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 /* 委託ページの入力（2026-07-31たきと指示）：文字も入力ボックスの縁もブラック。
    .field の既定（縁#EBEBEB・文字#222・ラベルはグレー）をこのページだけ黒に上書き */
 .cb-consign-page .field, .cb-consign-page textarea.field, .cb-consign-page select.field {
-  border-color: #111 !important; color: #111 !important; }
+  border-color: #111 !important; color: #111 !important; font-size: 15.4px; }
 .cb-consign-page .field:focus { border-color: #111 !important; box-shadow: 0 0 0 3px rgba(17,17,17,0.12) !important; }
-.cb-consign-page .lbl { color: #111 !important; }
+/* 委託ページの文字は全体の1.1倍で統一（2026-08-02たきと指示）。インラインfontSizeは
+   ConsignmentRoom.jsx側で一括1.1倍済み＝ここはクラス既定値（.lbl 10px→11px／.field 14px→15.4px）の追従。
+   インライン指定がある要素はインラインが勝つ（!importantを付けない理由） */
+.cb-consign-page .lbl { color: #111 !important; font-size: 11px; }
 /* 委託ページ内の主ボタン（保存する等）も黒に（2026-07-31たきと指示「すべて、ブラックで統一」）。
    編集モーダルはDOM上 .cb-consign-page の子孫なのでこの継承で拾える */
 .cb-consign-page .btn-primary { background: #111111 !important; }

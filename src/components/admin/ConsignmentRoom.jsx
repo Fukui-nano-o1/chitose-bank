@@ -70,11 +70,11 @@ function ConsignStepper({ deal }) {
         return (
           <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
             {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#111111" : "#E5E5E5" }} />}
-            <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
+            <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, boxSizing:"border-box",
               background: isDone ? "#111111" : "#fff", border: isDone ? "none" : isActive ? "2px solid #111111" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#111111" : "#C8C8C8" }}>
               {isDone ? "✓" : ""}
             </div>
-            <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#111111" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
+            <span className="f-sans" style={{ fontSize:9.9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#111111" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
           </div>
         );
       })}
@@ -376,14 +376,14 @@ const CONSIGN_TERMS_CHECK = "私は、委託機能利用特約、利用規約お
 function ConsignTermsBody() {
   return (<>
     {CONSIGN_TERMS_INTRO.map(p => (
-      <p key={p} className="f-sans" style={{ fontSize:13, color:"#111111", lineHeight:1.8, margin:"0 0 10px" }}>{p}</p>
+      <p key={p} className="f-sans" style={{ fontSize:14.3, color:"#111111", lineHeight:1.8, margin:"0 0 10px" }}>{p}</p>
     ))}
     <div style={{ border:"1px solid #111111", borderRadius:14, padding:"14px 16px", margin:"4px 0 14px" }}>
       {CONSIGN_TERMS_SECTIONS.map((sec, i) => (
         <div key={sec.t} style={ i === 0 ? {} : { borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{sec.t}</p>
+          <p className="f-sans" style={{ fontSize:14.3, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{sec.t}</p>
           {sec.ps.map(p => (
-            <p key={p} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.8, margin:"0 0 6px" }}>{p}</p>
+            <p key={p} className="f-sans" style={{ fontSize:13.2, color:"#111111", lineHeight:1.8, margin:"0 0 6px" }}>{p}</p>
           ))}
         </div>
       ))}
@@ -695,15 +695,15 @@ function ConsignorInfoEdit() {
   };
   // 入力欄1つの描画（sel=ピル・zip=検索ボタン付き・num=数字のみ・ta=複数行・help=？で説明開閉）
   const renderCF = (f) => {
-    if (f.h) return <p key={"h" + f.h} className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"18px 0 8px" }}>{f.h}</p>;
+    if (f.h) return <p key={"h" + f.h} className="f-sans" style={{ fontSize:14.3, fontWeight:800, color:"#111111", margin:"18px 0 8px" }}>{f.h}</p>;
     if (!f.h && !f.info && cfHidden(f)) return null;
     if (f.info) return (
-      <div key={f.k} className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.7, margin:"0 0 10px" }}>{f.info}</div>
+      <div key={f.k} className="f-sans" style={{ fontSize:13.2, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.7, margin:"0 0 10px" }}>{f.info}</div>
     );
     if (f.staffAuto) {
       if ((d.staff_use_registrant || "登録者を使用") === "別の担当者") return null;
       return (
-        <div key={f.k} className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 10px" }}>
+        <div key={f.k} className="f-sans" style={{ fontSize:13.2, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 10px" }}>
           <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>登録者を連絡担当者として使用（自動反映・入力不要）</span>
           <span style={{ display:"block" }}>担当者名：{(ahInfo?.full_name || "").trim() || "未登録"}</span>
           <span style={{ display:"block" }}>担当者メール：{(ahInfo?.contact_email || d.corp_email || "").trim() || "未登録"}</span>
@@ -715,11 +715,11 @@ function ConsignorInfoEdit() {
         {f.help ? (
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <button type="button" onClick={()=>setHelpKey(v => v === f.k ? null : f.k)} aria-label="説明を表示" className="f-sans" style={{ flexShrink:0, width:18, height:18, borderRadius:"50%", border:"1.5px solid #111111", background: helpKey === f.k ? "#111111" : "#fff", color: helpKey === f.k ? "#fff" : "#111111", fontSize:11, fontWeight:800, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0 }}>？</button>
+              <button type="button" onClick={()=>setHelpKey(v => v === f.k ? null : f.k)} aria-label="説明を表示" className="f-sans" style={{ flexShrink:0, width:18, height:18, borderRadius:"50%", border:"1.5px solid #111111", background: helpKey === f.k ? "#111111" : "#fff", color: helpKey === f.k ? "#fff" : "#111111", fontSize:12.1, fontWeight:800, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0 }}>？</button>
               <label className="lbl f-sans" style={{ marginBottom:0 }}>{f.l}</label>
             </div>
             {helpKey === f.k && (
-              <p className="f-sans" style={{ fontSize:11, color:"#111111", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:"6px 0 8px", lineHeight:1.7 }}>{f.help}</p>
+              <p className="f-sans" style={{ fontSize:12.1, color:"#111111", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:"6px 0 8px", lineHeight:1.7 }}>{f.help}</p>
             )}
           </div>
         ) : (
@@ -731,35 +731,35 @@ function ConsignorInfoEdit() {
               {f.sel.map(opt => {
                 const on = (d[f.k] || "") === opt;
                 return (
-                  <button key={opt} type="button" onClick={()=>setV(f.k, on ? "" : opt)} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+                  <button key={opt} type="button" onClick={()=>setV(f.k, on ? "" : opt)} className="f-sans" style={{ padding:"9px 18px", fontSize:15.4, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
                 );
               })}
             </div>
-            {f.note && <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"6px 0 0" }}>{f.note}</p>}
+            {f.note && <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"6px 0 0" }}>{f.note}</p>}
           </div>
         ) : f.zip ? (
           <div>
             <div style={{ display:"flex", gap:8 }}>
-              <input className="field f-sans" inputMode="numeric" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value.replace(/[^0-9]/g, ""))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0, flex:1 }} />
-              <button type="button" onClick={()=>searchZipInto(f)} disabled={zipBusy === f.k} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{zipBusy === f.k ? "検索中…" : "住所を検索"}</button>
+              <input className="field f-sans" inputMode="numeric" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value.replace(/[^0-9]/g, ""))} placeholder={f.ph || ""} style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
+              <button type="button" onClick={()=>searchZipInto(f)} disabled={zipBusy === f.k} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{zipBusy === f.k ? "検索中…" : "住所を検索"}</button>
             </div>
-            {zipError && <p className="f-sans" style={{ fontSize:11, color:"#111111", fontWeight:700, margin:"6px 0 0" }}>{zipError}</p>}
+            {zipError && <p className="f-sans" style={{ fontSize:12.1, color:"#111111", fontWeight:700, margin:"6px 0 0" }}>{zipError}</p>}
           </div>
         ) : f.num ? (
-          <input className="field f-sans" inputMode="numeric" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value.replace(/[^0-9]/g, ""))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+          <input className="field f-sans" inputMode="numeric" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value.replace(/[^0-9]/g, ""))} placeholder={f.ph || ""} style={{ fontSize:15.4, marginBottom:0 }} />
         ) : f.ta ? (
-          <textarea className="field f-sans" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value)} placeholder={f.ph || ""} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+          <textarea className="field f-sans" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value)} placeholder={f.ph || ""} rows={3} style={{ fontSize:14.3, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
         ) : (
-          <input className="field f-sans" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+          <input className="field f-sans" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:15.4, marginBottom:0 }} />
         )}
-        {(() => { const w = cfWarn(f.k); return w ? <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>⚠ {w}</p> : null; })()}
+        {(() => { const w = cfWarn(f.k); return w ? <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>⚠ {w}</p> : null; })()}
       </div>
     );
   };
   // 読み込み中は画面中央に配置（2026-07-31たきと指示）
   if (!d) return (
     <div style={{ minHeight:"55vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <p className="f-sans" style={{ fontSize:13, color:"#999999", margin:0 }}>読み込み中…</p>
+      <p className="f-sans" style={{ fontSize:14.3, color:"#999999", margin:0 }}>読み込み中…</p>
     </div>
   );
   // ── 登録情報の修正（委託ページ内で完結・2026-08-02たきと指示）。保存済みの値を復元して編集 ──
@@ -768,20 +768,20 @@ function ConsignorInfoEdit() {
     const regField = (k, l, opts = {}) => (
       <div key={k} style={{ marginBottom:10 }}>
         <label className="lbl f-sans">{l}</label>
-        <input className="field f-sans" inputMode={opts.num ? "numeric" : undefined} value={regForm[k]} onChange={e=>setRegForm(f => ({ ...f, [k]: opts.num ? e.target.value.replace(/[^0-9]/g, "") : e.target.value }))} placeholder={opts.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+        <input className="field f-sans" inputMode={opts.num ? "numeric" : undefined} value={regForm[k]} onChange={e=>setRegForm(f => ({ ...f, [k]: opts.num ? e.target.value.replace(/[^0-9]/g, "") : e.target.value }))} placeholder={opts.ph || ""} style={{ fontSize:15.4, marginBottom:0 }} />
       </div>
     );
     return (
       <div>
-        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>登録情報の修正</h2>
-        <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 16px" }}>新規登録の情報（唯一の正）を修正します。保存すると委託者情報にも反映されます。区分（個人事業者/法人）はここでは変更できません。</p>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>登録情報の修正</h2>
+        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>新規登録の情報（唯一の正）を修正します。保存すると委託者情報にも反映されます。区分（個人事業者/法人）はここでは変更できません。</p>
         {isCorp ? (<>
           {regField("company_name", "法人名", { ph:"例：株式会社千歳農園" })}
           {/* 法人番号は通常編集禁止（2026-08-02たきと確定指示・DBトリガーでも拒否）＝読み取り専用表示 */}
           <div style={{ marginBottom:10 }}>
             <label className="lbl f-sans">法人番号</label>
-            <div className="f-sans" style={{ fontSize:14, color:"#111111", background:"#F7F7F7", border:"1px solid #E5E5E5", borderRadius:10, padding:"12px 14px" }}>{(ahInfo?.company_number || "").trim() || "未登録"}</div>
-            <p className="f-sans" style={{ fontSize:10, color:"#999999", margin:"4px 0 0" }}>法人番号の変更は運営にお問い合わせください。</p>
+            <div className="f-sans" style={{ fontSize:15.4, color:"#111111", background:"#F7F7F7", border:"1px solid #E5E5E5", borderRadius:10, padding:"12px 14px" }}>{(ahInfo?.company_number || "").trim() || "未登録"}</div>
+            <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"4px 0 0" }}>法人番号の変更は運営にお問い合わせください。</p>
           </div>
         </>) : (<>
           {regField("full_name", "氏名", { ph:"例：千歳 太郎" })}
@@ -790,10 +790,10 @@ function ConsignorInfoEdit() {
         <div style={{ marginBottom:10 }}>
           <label className="lbl f-sans">郵便番号</label>
           <div style={{ display:"flex", gap:8 }}>
-            <input className="field f-sans" inputMode="numeric" value={regForm.postal_code} onChange={e=>setRegForm(f => ({ ...f, postal_code: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="例：7793300" style={{ fontSize:14, marginBottom:0, flex:1 }} />
-            <button type="button" onClick={regZipSearch} disabled={regZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{regZipBusy ? "検索中…" : "住所を検索"}</button>
+            <input className="field f-sans" inputMode="numeric" value={regForm.postal_code} onChange={e=>setRegForm(f => ({ ...f, postal_code: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="例：7793300" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
+            <button type="button" onClick={regZipSearch} disabled={regZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{regZipBusy ? "検索中…" : "住所を検索"}</button>
           </div>
-          {regZipError && <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{regZipError}</p>}
+          {regZipError && <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{regZipError}</p>}
         </div>
         {regField("addr_main", isCorp ? "本店所在地" : "住所", { ph:"例：徳島県吉野川市鴨島町鴨島" })}
         {regField("addr_detail", "番地・建物名", { ph:"例：337-4 千歳ハイツ101" })}
@@ -801,8 +801,8 @@ function ConsignorInfoEdit() {
         {regField("contact_phone", "電話番号", { ph:"例：090-1234-5678" })}
         {regField("contact_email", "メールアドレス", { ph:"例：taro@example.com" })}
         <div style={{ display:"flex", gap:8, marginTop:16 }}>
-          <button onClick={()=>{ setEditReg(false); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
-          <button onClick={saveRegEdit} disabled={regSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: regSaving ? 0.6 : 1 }}>{regSaving ? "保存中..." : "保存する"}</button>
+          <button onClick={()=>{ setEditReg(false); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
+          <button onClick={saveRegEdit} disabled={regSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: regSaving ? 0.6 : 1 }}>{regSaving ? "保存中..." : "保存する"}</button>
         </div>
       </div>
     );
@@ -814,9 +814,9 @@ function ConsignorInfoEdit() {
   // 連絡先/通知先を罫線区切りのセクションで1枚に収める。確認ステップとプロフィール表示ページで共用
   const renderProfileBox = () => (
     <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
-      <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>契約書の委託者欄（印字イメージ）</p>
+      <p className="f-sans" style={{ fontSize:12.1, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>契約書の委託者欄（印字イメージ）</p>
       {consignorPartyRows({ consignor_type: ctype, consignor_data: d }, ahInfo).map(([l, v]) => (
-        <p key={l} className="f-sans" style={{ fontSize:13, color:"#111111", margin:"0 0 2px" }}>{l}：{v}</p>
+        <p key={l} className="f-sans" style={{ fontSize:14.3, color:"#111111", margin:"0 0 2px" }}>{l}：{v}</p>
       ))}
       {confirmGroups.map(([gl, fields]) => {
         // 登録内容は全て出す（2026-07-31たきと指示）：未入力もグレーで明示。
@@ -826,12 +826,12 @@ function ConsignorInfoEdit() {
         if (!rows.length) return null;
         return (
           <div key={gl} style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
-            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>{gl}</p>
+            <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>{gl}</p>
             <div style={{ display:"grid", gap:6 }}>
               {rows.map(([l, v]) => (
                 <div key={l} style={{ display:"flex", gap:10 }}>
-                  <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:110, flexShrink:0 }}>{l}</span>
-                  <span className="f-sans" style={{ fontSize:12, color: (v || "").trim() ? "#111111" : "#C0C0C0", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{(v || "").trim() || "未入力"}</span>
+                  <span className="f-sans" style={{ fontSize:12.1, color:"#999999", minWidth:110, flexShrink:0 }}>{l}</span>
+                  <span className="f-sans" style={{ fontSize:13.2, color: (v || "").trim() ? "#111111" : "#C0C0C0", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{(v || "").trim() || "未入力"}</span>
                 </div>
               ))}
             </div>
@@ -847,12 +847,12 @@ function ConsignorInfoEdit() {
         const cMail = diffStaff ? (d.staff_email || "").trim() : "";
         return (
           <div style={{ borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
-            <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>連絡先</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cName || "未登録"}</p>
-            {(cPhone || cMail) && <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cPhone || cMail}</p>}
-            <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"8px 0 2px" }}>通知先</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>登録メールアドレス</p>
-            <p className="f-sans" style={{ fontSize:10, color:"#999999", margin:"6px 0 0" }}>変更は登録情報から行います。案件当日だけ別の連絡先を使う場合は、委託の作成時に指定できます。</p>
+            <p className="f-sans" style={{ fontSize:12.1, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>連絡先</p>
+            <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:0 }}>{cName || "未登録"}</p>
+            {(cPhone || cMail) && <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:0 }}>{cPhone || cMail}</p>}
+            <p className="f-sans" style={{ fontSize:12.1, fontWeight:800, color:"#111111", margin:"8px 0 2px" }}>通知先</p>
+            <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:0 }}>登録メールアドレス</p>
+            <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"6px 0 0" }}>変更は登録情報から行います。案件当日だけ別の連絡先を使う場合は、委託の作成時に指定できます。</p>
           </div>
         );
       })()}
@@ -862,12 +862,12 @@ function ConsignorInfoEdit() {
   //    委託プロフィールページに遷移」）。編集はここから明示的にウィザードへ入る ──
   if (viewing) return (
     <div>
-      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>委託者情報</h2>
-      <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 16px" }}>契約書・印刷仕様書に自動で反映される登録内容です。</p>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>委託者情報</h2>
+      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>契約書・印刷仕様書に自動で反映される登録内容です。</p>
       {renderProfileBox()}
       <div style={{ display:"flex", gap:8, marginTop:16 }}>
-        <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
-        <button onClick={()=>{ setViewing(false); setCstep(steps.indexOf(ctype === "corporate" ? "corp" : "ind")); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>内容を編集</button>
+        <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+        <button onClick={()=>{ setViewing(false); setCstep(steps.indexOf(ctype === "corporate" ? "corp" : "ind")); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>内容を編集</button>
       </div>
     </div>
   );
@@ -876,14 +876,14 @@ function ConsignorInfoEdit() {
     <div>
       {/* 進捗（黒バー）＋ステップ見出し */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-        {cstep > 0 && <button onClick={()=>{ setCstep(v => v - 1); window.scrollTo(0, 0); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 前へ</button>}
-        <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111" }}>{cstep + 1}/{steps.length}　{meta.t}</span>
+        {cstep > 0 && <button onClick={()=>{ setCstep(v => v - 1); window.scrollTo(0, 0); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 前へ</button>}
+        <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111" }}>{cstep + 1}/{steps.length}　{meta.t}</span>
       </div>
       <div style={{ display:"flex", gap:4, marginBottom:18 }}>
         {steps.map((st, i) => <div key={st} style={{ flex:1, height:4, borderRadius:2, background: i <= cstep ? "#111111" : "#E5E5E5" }} />)}
       </div>
-      <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{meta.q}</h2>
-      <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 18px" }}>{meta.de}</p>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{meta.q}</h2>
+      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 18px" }}>{meta.de}</p>
 
       {/* 1. 委託者の種類（消費者としての個人と混ざらないよう「個人事業者」と表記） */}
       {/* ステップ1＝引き継ぎチェック（2026-08-02たきと指示）：引き継ぐ情報と利用・開示範囲を確認。
@@ -900,45 +900,45 @@ function ConsignorInfoEdit() {
         ].filter(r => (r[1] || "").trim());
         return (<>
           {ahInfo?.entity_type && (
-            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{isCorp ? "法人として委託を掲載します" : "個人事業者として委託を掲載します"}</p>
+            <p className="f-sans" style={{ fontSize:16.5, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{isCorp ? "法人として委託を掲載します" : "個人事業者として委託を掲載します"}</p>
           )}
-          <p className="f-sans" style={{ fontSize:13, color:"#111111", lineHeight:1.8, margin:"0 0 14px" }}>{CONSIGNOR_CONSENT_TEXT}</p>
-          <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 12px" }}>
+          <p className="f-sans" style={{ fontSize:14.3, color:"#111111", lineHeight:1.8, margin:"0 0 14px" }}>{CONSIGNOR_CONSENT_TEXT}</p>
+          <div className="f-sans" style={{ fontSize:13.2, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 12px" }}>
             <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>引き継ぐ登録情報</span>
             {inheritRows.map(([l, v]) => <span key={l} style={{ display:"block" }}>{l}：{v}</span>)}
             {inheritRows.length === 0 && <span style={{ display:"block", color:"#999999" }}>新規登録の情報が見つかりませんでした</span>}
           </div>
-          <button type="button" onClick={()=>setScopeOpen(v => !v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border:"1px solid #111111", background:"#fff", color:"#111111", marginBottom: scopeOpen ? 8 : 12 }}>
+          <button type="button" onClick={()=>setScopeOpen(v => !v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border:"1px solid #111111", background:"#fff", color:"#111111", marginBottom: scopeOpen ? 8 : 12 }}>
             {scopeOpen ? "▾" : "▸"} 表示・開示される情報を確認
           </button>
           {scopeOpen && (
             <div style={{ border:"1px solid #111111", borderRadius:10, padding:"12px 14px", marginBottom:12 }}>
               {CONSIGNOR_DISCLOSURE_STAGES.map(st => (
                 <div key={st.t} style={{ marginBottom:10 }}>
-                  <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{st.t}</p>
-                  {st.items.map(it => <p key={it} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.7, margin:0 }}>・{it}</p>)}
+                  <p className="f-sans" style={{ fontSize:13.2, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{st.t}</p>
+                  {st.items.map(it => <p key={it} className="f-sans" style={{ fontSize:13.2, color:"#111111", lineHeight:1.7, margin:0 }}>・{it}</p>)}
                 </div>
               ))}
-              <p className="f-sans" style={{ fontSize:11, color:"#999999", lineHeight:1.7, margin:0 }}>詳細な住所や電話番号を掲載と同時に公開することはありません。必要な相手へ、必要になった段階で開示します。</p>
+              <p className="f-sans" style={{ fontSize:12.1, color:"#999999", lineHeight:1.7, margin:0 }}>詳細な住所や電話番号を掲載と同時に公開することはありません。必要な相手へ、必要になった段階で開示します。</p>
             </div>
           )}
           {consentOk ? (
             <>
-              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 12px" }}>✓ 同意済みです（記録済み・{CONSIGNOR_CONSENT_VERSION}）</p>
+              <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 12px" }}>✓ 同意済みです（記録済み・{CONSIGNOR_CONSENT_VERSION}）</p>
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
-                <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+                <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+                <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
               </div>
             </>
           ) : (
             <>
-              <button type="button" onClick={()=>setConsentChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: consentChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: consentChecked ? "#111111" : "#fff", color: consentChecked ? "#fff" : "#111111", marginBottom:12 }}>
-                <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: consentChecked ? "none" : "2px solid #C8C8C8", background: consentChecked ? "#fff" : "transparent", color:"#111111" }}>{consentChecked ? "✓" : ""}</span>
+              <button type="button" onClick={()=>setConsentChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: consentChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: consentChecked ? "#111111" : "#fff", color: consentChecked ? "#fff" : "#111111", marginBottom:12 }}>
+                <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13.2, fontWeight:800, border: consentChecked ? "none" : "2px solid #C8C8C8", background: consentChecked ? "#fff" : "transparent", color:"#111111" }}>{consentChecked ? "✓" : ""}</span>
                 新規登録時の情報を、委託者情報の作成、契約条件の明示および取引相手への必要な範囲での開示に利用することを確認しました
               </button>
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
-                <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
+                <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+                <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
               </div>
             </>
           )}
@@ -946,11 +946,11 @@ function ConsignorInfoEdit() {
       })()}
       {stepKey === "type" && (
         <div style={{ display:"grid", gap:12 }}>
-          <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:0 }}>新規登録に区分が登録されていないため、ここで選択します（通常は表示されません）。</p>
+          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>新規登録に区分が登録されていないため、ここで選択します（通常は表示されません）。</p>
           {[["individual","個人事業者","氏名で契約し、屋号を持てます。担当者ページは省略されます。"],["corporate","法人","契約の当事者は法人。法人情報は新規登録から引き継ぎます。"]].map(([t, l, de]) => (
             <button key={t} onClick={()=>pickType(t)} className="f-sans" style={{ textAlign:"left", background: ctype === t ? "#111111" : "#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", cursor:"pointer" }}>
-              <span style={{ display:"block", fontSize:17, fontWeight:800, color: ctype === t ? "#fff" : "#111111" }}>{l}</span>
-              <span style={{ display:"block", fontSize:12, color: ctype === t ? "#B9B9B9" : "#717171", marginTop:4, lineHeight:1.6 }}>{de}</span>
+              <span style={{ display:"block", fontSize:18.7, fontWeight:800, color: ctype === t ? "#fff" : "#111111" }}>{l}</span>
+              <span style={{ display:"block", fontSize:13.2, color: ctype === t ? "#B9B9B9" : "#717171", marginTop:4, lineHeight:1.6 }}>{de}</span>
             </button>
           ))}
         </div>
@@ -958,15 +958,15 @@ function ConsignorInfoEdit() {
 
       {stepKey === "ind" && (<>
         {/* 区分は読み取り専用ラベル（2026-08-02たきと指示・委託フロー内では変更させない） */}
-        <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>現在の登録区分：個人事業者（区分の変更は登録情報から）</p>
+        <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 12px" }}>現在の登録区分：個人事業者（区分の変更は登録情報から）</p>
         {CONSIGNOR_IND_FIELDS.map(renderCF)}
       </>)}
       {stepKey === "corp" && (<>
-        <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>現在の登録区分：法人（区分の変更は登録情報から）</p>
+        <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 12px" }}>現在の登録区分：法人（区分の変更は登録情報から）</p>
         {/* 引き継ぎボックスは削除（2026-08-02たきと指示）＝引き継ぎ内容は初回の同意ゲートで既に提示済み。
             法人番号のチェックデジット警告だけは残す（公的情報との照合・不一致時のみ表示） */}
         {(() => { const cn = ((ahInfo?.company_number || d.corp_no || "") + "").trim(); return corpNoCheckOk(cn) === false && (
-          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#111111", margin:"0 0 10px" }}>⚠ 登録されている法人番号（{cn}）の検査用数字が合いません。修正は運営にお問い合わせください。</p>
+          <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"0 0 10px" }}>⚠ 登録されている法人番号（{cn}）の検査用数字が合いません。修正は運営にお問い合わせください。</p>
         ); })()}
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
       </>)}
@@ -977,16 +977,16 @@ function ConsignorInfoEdit() {
       {stepKey !== "type" && stepKey !== "consent" && (
         <div style={{ marginTop:20 }}>
           {stepKey !== "confirm" ? (
-            <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+            <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
           ) : (<>
             {/* 最終同意（2026-07-31たきと指示）：チェックするまで保存できない */}
-            <button type="button" onClick={()=>setConfirmAgree(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: confirmAgree ? "2px solid #111111" : "1px solid #D0D0D0", background: confirmAgree ? "#111111" : "#fff", color: confirmAgree ? "#fff" : "#111111", marginBottom:10 }}>
-              <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: confirmAgree ? "none" : "2px solid #C8C8C8", background: confirmAgree ? "#fff" : "transparent", color:"#111111" }}>{confirmAgree ? "✓" : ""}</span>
+            <button type="button" onClick={()=>setConfirmAgree(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: confirmAgree ? "2px solid #111111" : "1px solid #D0D0D0", background: confirmAgree ? "#111111" : "#fff", color: confirmAgree ? "#fff" : "#111111", marginBottom:10 }}>
+              <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13.2, fontWeight:800, border: confirmAgree ? "none" : "2px solid #C8C8C8", background: confirmAgree ? "#fff" : "transparent", color:"#111111" }}>{confirmAgree ? "✓" : ""}</span>
               この情報を委託者情報として使用します
             </button>
-            <button onClick={save} disabled={saving || !confirmAgree} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: confirmAgree ? "pointer" : "not-allowed", opacity: (saving || !confirmAgree) ? 0.4 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
+            <button onClick={save} disabled={saving || !confirmAgree} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: confirmAgree ? "pointer" : "not-allowed", opacity: (saving || !confirmAgree) ? 0.4 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
           </>)}
-          {saved && <p className="f-sans" style={{ fontSize:12, color:"#111111", textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
+          {saved && <p className="f-sans" style={{ fontSize:13.2, color:"#111111", textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
         </div>
       )}
     </div>
@@ -1424,15 +1424,15 @@ export function ConsignmentRoom() {
           {["登録情報を使用", "別の連絡先を使用"].map(opt => {
             const on = mode === opt;
             return (
-              <button key={opt} type="button" onClick={()=>setF("onsite_contact_mode", opt)} className="f-sans" style={{ padding:"9px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+              <button key={opt} type="button" onClick={()=>setF("onsite_contact_mode", opt)} className="f-sans" style={{ padding:"9px 14px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
             );
           })}
         </div>
         {mode === "別の連絡先を使用" && (<>
           <label className="lbl f-sans">氏名</label>
-          <input className="field f-sans" value={spec.onsite_name || ""} onChange={e=>setF("onsite_name", e.target.value)} placeholder="例：千歳 花子" style={{ fontSize:14, marginBottom:8 }} />
+          <input className="field f-sans" value={spec.onsite_name || ""} onChange={e=>setF("onsite_name", e.target.value)} placeholder="例：千歳 花子" style={{ fontSize:15.4, marginBottom:8 }} />
           <label className="lbl f-sans">電話番号</label>
-          <input className="field f-sans" value={spec.onsite_phone || ""} onChange={e=>setF("onsite_phone", e.target.value)} placeholder="例：090-1234-5678" style={{ fontSize:14, marginBottom:0 }} />
+          <input className="field f-sans" value={spec.onsite_phone || ""} onChange={e=>setF("onsite_phone", e.target.value)} placeholder="例：090-1234-5678" style={{ fontSize:15.4, marginBottom:0 }} />
         </>)}
       </div>
     );
@@ -1444,18 +1444,18 @@ export function ConsignmentRoom() {
       <div style={{ display:"grid", gap:8, marginBottom:10 }}>
         {[["facility_parking","駐車場"],["facility_toilet","トイレ"],["facility_rest","休憩場所"]].map(([k, l]) => (
           <div key={k} style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <span className="f-sans" style={{ fontSize:13, color:"#111111", minWidth:72 }}>{l}</span>
+            <span className="f-sans" style={{ fontSize:14.3, color:"#111111", minWidth:72 }}>{l}</span>
             {["あり","なし"].map(opt => {
               const on = spec[k] === opt;
               return (
-                <button key={opt} type="button" onClick={()=>setF(k, on ? "" : opt)} className="f-sans" style={{ padding:"7px 16px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+                <button key={opt} type="button" onClick={()=>setF(k, on ? "" : opt)} className="f-sans" style={{ padding:"7px 16px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
               );
             })}
           </div>
         ))}
       </div>
       <label className="lbl f-sans">貸与できる道具・機械</label>
-      <textarea className="field f-sans" value={spec.facility_lend || ""} onChange={e=>setF("facility_lend", e.target.value)} placeholder="例：軽トラ・コンテナ・収穫ナイフ" rows={2} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+      <textarea className="field f-sans" value={spec.facility_lend || ""} onChange={e=>setF("facility_lend", e.target.value)} placeholder="例：軽トラ・コンテナ・収穫ナイフ" rows={2} style={{ fontSize:14.3, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
     </div>
   );
   // ── 入力部品（案件ダッシュボード(deal)と新規ウィザード(new)で共用・2026-07-31）──
@@ -1467,23 +1467,23 @@ export function ConsignmentRoom() {
                   {["銀行振込", "現金"].map(opt => {
                     const on = spec.pay_method === opt;
                     return (
-                      <button key={opt} type="button" onClick={()=>setF("pay_method", on ? "" : opt)} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+                      <button key={opt} type="button" onClick={()=>setF("pay_method", on ? "" : opt)} className="f-sans" style={{ padding:"9px 18px", fontSize:15.4, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
                     );
                   })}
                 </div>
               ) : f.k === "crop" ? (
                 // ブロッコリー固定（入力不可）。この委託はブロッコリーのみ
-                <div><span className="f-sans" style={{ display:"inline-block", padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff" }}>{CONSIGN_CROP}</span></div>
+                <div><span className="f-sans" style={{ display:"inline-block", padding:"9px 18px", fontSize:15.4, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff" }}>{CONSIGN_CROP}</span></div>
               ) : f.k === "deadline" ? (
                 // 履行期限＝開始+終了の日付範囲。同じ欄をタップでカレンダー展開（ブラック）
                 <div>
-                  <button type="button" onClick={()=>setShowDeadlineCal(v => !v)} className="field f-sans" style={{ width:"100%", textAlign:"left", fontSize:14, marginBottom:0, cursor:"pointer", background:"#fff", color: spec.date_start ? "#111111" : "#999999" }}>
+                  <button type="button" onClick={()=>setShowDeadlineCal(v => !v)} className="field f-sans" style={{ width:"100%", textAlign:"left", fontSize:15.4, marginBottom:0, cursor:"pointer", background:"#fff", color: spec.date_start ? "#111111" : "#999999" }}>
                     {spec.date_start ? deadlineLabel(spec.date_start, spec.date_end) : "タップして期間を選択"}
                   </button>
                   {showDeadlineCal && (
                     <CalendarView accent="#111111" accentSoft="#EEEEEE" hideHints start={parseYmd(spec.date_start)} end={parseYmd(spec.date_end)} onSelect={onDeadlineSelect} />
                   )}
-                  <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"6px 0 0" }}>1回目のタップで開始日、2回目で終了日。終了日を選ばなければ開始日のみ。</p>
+                  <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"6px 0 0" }}>1回目のタップで開始日、2回目で終了日。終了日を選ばなければ開始日のみ。</p>
                 </div>
               ) : f.k === "task" ? (
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -1494,19 +1494,19 @@ export function ConsignmentRoom() {
                         const cur = spec.task ? spec.task.split("・").filter(Boolean) : [];
                         const next = cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t];
                         setF("task", CONSIGN_TASKS.filter(x => next.includes(x)).join("・"));
-                      }} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: sel ? "2px solid #111111" : "1px solid #D0D0D0", background: sel ? "#111111" : "#fff", color: sel ? "#fff" : "#111111" }}>{t}</button>
+                      }} className="f-sans" style={{ padding:"9px 18px", fontSize:15.4, fontWeight:700, borderRadius:10, cursor:"pointer", border: sel ? "2px solid #111111" : "1px solid #D0D0D0", background: sel ? "#111111" : "#fff", color: sel ? "#fff" : "#111111" }}>{t}</button>
                     );
                   })}
                 </div>
               ) : (
-                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+                <input className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:15.4, marginBottom:0 }} />
               )}
             </div>
   );
   const renderTextField = (f) => (
             <div key={f.k} style={{ marginBottom:10 }}>
               <label className="lbl f-sans">{f.l}</label>
-              <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+              <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:14.3, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
             </div>
   );
   const renderHazards = () => (
@@ -1519,14 +1519,14 @@ export function ConsignmentRoom() {
                   <button key={h} type="button" onClick={()=>{
                     const cur = spec.hazards || [];
                     setF("hazards", cur.includes(h) ? cur.filter(x => x !== h) : [...cur, h]);
-                  }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, textAlign:"left", padding:"10px 14px", fontSize:14, fontWeight:600, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>
-                    <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: on ? "none" : "2px solid #C8C8C8", background: on ? "#fff" : "transparent", color:"#111111" }}>{on ? "✓" : ""}</span>
+                  }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, textAlign:"left", padding:"10px 14px", fontSize:15.4, fontWeight:600, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>
+                    <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13.2, fontWeight:800, border: on ? "none" : "2px solid #C8C8C8", background: on ? "#fff" : "transparent", color:"#111111" }}>{on ? "✓" : ""}</span>
                     {h}
                   </button>
                 );
               })}
               {(spec.hazards || []).includes("その他") && (
-                <input className="field f-sans" value={spec.hazard_other || ""} onChange={e=>setF("hazard_other", e.target.value)} placeholder="その他の危険（自由記述）" style={{ fontSize:13, marginBottom:0 }} />
+                <input className="field f-sans" value={spec.hazard_other || ""} onChange={e=>setF("hazard_other", e.target.value)} placeholder="その他の危険（自由記述）" style={{ fontSize:14.3, marginBottom:0 }} />
               )}
             </div>
           </div>
@@ -1538,15 +1538,15 @@ export function ConsignmentRoom() {
               {(spec.photos || []).map((ph, i) => (
                 <div key={i} style={{ position:"relative", width:96, height:96, borderRadius:10, overflow:"hidden", border:"1px solid #E5E5E5" }}>
                   <img loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
-                  <button type="button" onClick={()=>removePhoto(i)} className="f-sans" style={{ position:"absolute", top:2, right:2, width:22, height:22, borderRadius:"50%", background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", fontSize:14, lineHeight:1, cursor:"pointer" }}>×</button>
+                  <button type="button" onClick={()=>removePhoto(i)} className="f-sans" style={{ position:"absolute", top:2, right:2, width:22, height:22, borderRadius:"50%", background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", fontSize:15.4, lineHeight:1, cursor:"pointer" }}>×</button>
                 </div>
               ))}
-              <label className="f-sans" style={{ width:96, height:96, borderRadius:10, border:"1px dashed #B0B0B0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: photoUploading ? "default" : "pointer", fontSize:12, color:"#111111", gap:2 }}>
-                {photoUploading ? "…" : (<><span style={{ fontSize:22, lineHeight:1 }}>＋</span>写真</>)}
+              <label className="f-sans" style={{ width:96, height:96, borderRadius:10, border:"1px dashed #B0B0B0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: photoUploading ? "default" : "pointer", fontSize:13.2, color:"#111111", gap:2 }}>
+                {photoUploading ? "…" : (<><span style={{ fontSize:24.2, lineHeight:1 }}>＋</span>写真</>)}
                 <input type="file" accept="image/*" multiple onChange={e=>{ handlePhotoFiles(e.target.files); e.target.value=""; }} style={{ display:"none" }} disabled={photoUploading} />
               </label>
             </div>
-            <p className="f-sans" style={{ fontSize:11, margin:"6px 0 0", color: (spec.photos || []).length >= 3 ? "#999999" : "#111111", fontWeight: (spec.photos || []).length >= 3 ? 400 : 700 }}>
+            <p className="f-sans" style={{ fontSize:12.1, margin:"6px 0 0", color: (spec.photos || []).length >= 3 ? "#999999" : "#111111", fontWeight: (spec.photos || []).length >= 3 ? 400 : 700 }}>
               {(spec.photos || []).length}枚（掲載には最低3枚必要です）
             </p>
           </div>
@@ -1556,13 +1556,13 @@ export function ConsignmentRoom() {
     return (
       <div className="cb-consign-page" style={{ maxWidth:760, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
         <div className="no-print" style={{ display:"flex", gap:8, marginBottom:16 }}>
-          <button onClick={()=>setPrintOpen(false)} className="f-sans" style={{ padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#111111", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻る</button>
-          <button onClick={()=>window.print()} className="f-sans" style={{ padding:"9px 20px", fontSize:13, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>印刷する</button>
+          <button onClick={()=>setPrintOpen(false)} className="f-sans" style={{ padding:"9px 16px", fontSize:14.3, fontWeight:600, background:"#fff", color:"#111111", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻る</button>
+          <button onClick={()=>window.print()} className="f-sans" style={{ padding:"9px 20px", fontSize:14.3, fontWeight:700, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>印刷する</button>
         </div>
         <div className="consign-print" style={{ background:"#fff", border:"1px solid #DDD", borderRadius:4, padding:"32px 28px", fontFamily:"serif", color:"#111" }}>
-          <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, textAlign:"center", margin:"0 0 4px" }}>農作業委託 仕様書</h1>
-          <p className="f-sans" style={{ fontSize:11, color:"#666", textAlign:"center", margin:"0 0 20px" }}>chitose-bank 委託準備室</p>
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, marginBottom:18 }}>
+          <h1 className="f-sans" style={{ fontSize:24.2, fontWeight:800, textAlign:"center", margin:"0 0 4px" }}>農作業委託 仕様書</h1>
+          <p className="f-sans" style={{ fontSize:12.1, color:"#666", textAlign:"center", margin:"0 0 20px" }}>chitose-bank 委託準備室</p>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14.3, marginBottom:18 }}>
             <tbody>
               {CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]).map(([l, v]) => (
                 <tr key={l}>
@@ -1574,18 +1574,18 @@ export function ConsignmentRoom() {
           </table>
           {CONSIGN_TEXT_FIELDS.map(f => (
             <div key={f.k} style={{ marginBottom:14 }}>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ {f.l}</p>
-              <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{spec[f.k] || "　"}</p>
+              <p className="f-sans" style={{ fontSize:14.3, fontWeight:700, margin:"0 0 4px" }}>■ {f.l}</p>
+              <p style={{ fontSize:14.3, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{spec[f.k] || "　"}</p>
             </div>
           ))}
           <div style={{ marginBottom:14 }}>
-            <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 危険情報</p>
-            <p style={{ fontSize:13, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{(spec.hazards || []).length ? (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・") : "特になし"}</p>
+            <p className="f-sans" style={{ fontSize:14.3, fontWeight:700, margin:"0 0 4px" }}>■ 危険情報</p>
+            <p style={{ fontSize:14.3, lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", border:"1px solid #999", padding:"8px 10px", minHeight:36 }}>{(spec.hazards || []).length ? (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・") : "特になし"}</p>
           </div>
           {consignorPartyRows(consignor, consignAh).length > 0 && (
             <div style={{ marginBottom:14 }}>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 4px" }}>■ 委託者（発注者）</p>
-              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+              <p className="f-sans" style={{ fontSize:14.3, fontWeight:700, margin:"0 0 4px" }}>■ 委託者（発注者）</p>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14.3 }}>
                 <tbody>
                   {consignorPartyRows(consignor, consignAh).map(([l, v]) => (
                     <tr key={l}>
@@ -1598,9 +1598,9 @@ export function ConsignmentRoom() {
             </div>
           )}
           <div style={{ marginTop:18 }}>
-            <p className="f-sans" style={{ fontSize:13, fontWeight:700, margin:"0 0 6px" }}>■ 定型条項（全仕様書共通）</p>
+            <p className="f-sans" style={{ fontSize:14.3, fontWeight:700, margin:"0 0 6px" }}>■ 定型条項（全仕様書共通）</p>
             {CONSIGN_FIXED_CLAUSES.map(c => (
-              <p key={c} style={{ fontSize:12, lineHeight:1.9, margin:0 }}>・{c}</p>
+              <p key={c} style={{ fontSize:13.2, lineHeight:1.9, margin:0 }}>・{c}</p>
             ))}
           </div>
         </div>
@@ -1612,17 +1612,17 @@ export function ConsignmentRoom() {
     <div className={"cb-consign-page fade-in" + (leaving ? " consign-leaving" : "") + (returning ? " consign-returning" : "")} style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
       {/* 委託機能利用特約：同意後は右上の浮遊ボックスからいつでも再読できる（2026-08-02たきと指示） */}
       {termsOk && !leaving && (
-        <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ position:"fixed", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, zIndex:60, background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:11, fontWeight:800, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,0,0,0.25)" }}>利用特約</button>
+        <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ position:"fixed", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, zIndex:60, background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:12.1, fontWeight:800, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,0,0,0.25)" }}>利用特約</button>
       )}
       {termsModal && (
         <div onClick={()=>setTermsModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:70, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:560, width:"100%", maxHeight:"80vh", overflowY:"auto", padding:"20px 18px", boxSizing:"border-box" }}>
-            <h3 className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>委託機能を利用する前に</h3>
+            <h3 className="f-sans" style={{ fontSize:17.6, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>委託機能を利用する前に</h3>
             <ConsignTermsBody />
             {consignor?.consignment_terms_consent_at && (
-              <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>✓ 同意済み：{new Date(consignor.consignment_terms_consent_at).toLocaleString("ja-JP")}（{consignor.consignment_terms_consent_version}）</p>
+              <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 12px" }}>✓ 同意済み：{new Date(consignor.consignment_terms_consent_at).toLocaleString("ja-JP")}（{consignor.consignment_terms_consent_version}）</p>
             )}
-            <button onClick={()=>setTermsModal(false)} className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>閉じる</button>
+            <button onClick={()=>setTermsModal(false)} className="f-sans" style={{ width:"100%", padding:"13px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>閉じる</button>
           </div>
         </div>
       )}
@@ -1752,15 +1752,15 @@ export function ConsignmentRoom() {
       <AdminNav current="consignment" />
       {/* 戻り先は雇い手プロフィール入口（2026-07-31たきと指示・管理タブではない）：
           入口カード「新しく委託を出す」が置いてある場所へ帰る。ラベルも「← 戻る」に */}
-      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
+      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
       {/* 大プロフィールカード（農家プロフィール入口と同じ構造・2026-07-31たきと指示。カラーはブラック：
           緑2px枠→黒2px枠・役割ピル「農家」→「委託主」。反転⇄はプレビュー相当が無いので置かない） */}
       {/* 名刺タップで委託専用プロフィールページへ遷移（2026-07-31たきと指示・雇い手プロフィールではない） */}
       <button type="button" onClick={openProfile} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12, cursor:"pointer" }}>
         <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
         <span style={{ textAlign:"center" }}>
-          <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
-          <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:"#111111", borderRadius:20, padding:"3px 14px" }}>委託主</span>
+          <span className="f-sans" style={{ display:"block", fontSize:24.2, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
+          <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:14.3, fontWeight:800, color:"#fff", background:"#111111", borderRadius:20, padding:"3px 14px" }}>委託主</span>
         </span>
       </button>
 
@@ -1771,8 +1771,8 @@ export function ConsignmentRoom() {
       <button onClick={newDeal} className="f-sans" style={{ position:"relative", overflow:"hidden", width:"100%", margin:"0 0 16px", background:"#111111", border:"none", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
         {/* カードの角を這う白い蔓（2026-07-31たきと指示）。文字はzIndexで蔓の上に */}
         <VineCorner flip size={110} style={{ top:-6, right:-6, opacity:0.5 }} />
-        <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:16, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
-        <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>5つのステップで掲載まで進みます。</span>
+        <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:17.6, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
+        <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:14.3, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>5つのステップで掲載まで進みます。</span>
       </button>
       </div>)}
 
@@ -1781,7 +1781,7 @@ export function ConsignmentRoom() {
           保存先は consignment_profiles の consignor_* 列（雇い手プロフィールとは独立） */}
       {cTab === "profile" && (
         <div className="fade-in">
-          <button onClick={()=>{ setCTab("list"); window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 委託一覧</button>
+          <button onClick={()=>{ setCTab("list"); window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 委託一覧</button>
           <ConsignorInfoEdit />
         </div>
       )}
@@ -1790,15 +1790,15 @@ export function ConsignmentRoom() {
           本文はたきと起草の文言そのまま。同意で consignment_terms_consent* に版数付きで記録 */}
       {cTab === "new" && !termsOk && (
         <div className="fade-in">
-          <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
-          <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>委託機能を利用する前に</h2>
-          <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 18px" }}>業務委託の契約に関する大切な確認です。はじめに特約をご確認ください。</p>
+          <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
+          <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>委託機能を利用する前に</h2>
+          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 18px" }}>業務委託の契約に関する大切な確認です。はじめに特約をご確認ください。</p>
           <ConsignTermsBody />
-          <button type="button" onClick={()=>setTermsChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: termsChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: termsChecked ? "#111111" : "#fff", color: termsChecked ? "#fff" : "#111111", marginBottom:12, lineHeight:1.7 }}>
-            <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: termsChecked ? "none" : "2px solid #C8C8C8", background: termsChecked ? "#fff" : "transparent", color:"#111111" }}>{termsChecked ? "✓" : ""}</span>
+          <button type="button" onClick={()=>setTermsChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: termsChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: termsChecked ? "#111111" : "#fff", color: termsChecked ? "#fff" : "#111111", marginBottom:12, lineHeight:1.7 }}>
+            <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13.2, fontWeight:800, border: termsChecked ? "none" : "2px solid #C8C8C8", background: termsChecked ? "#fff" : "transparent", color:"#111111" }}>{termsChecked ? "✓" : ""}</span>
             {CONSIGN_TERMS_CHECK}
           </button>
-          <button onClick={agreeTerms} disabled={termsSaving || !termsChecked} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: termsChecked ? "pointer" : "not-allowed", opacity: (termsSaving || !termsChecked) ? 0.4 : 1 }}>{termsSaving ? "記録中..." : "同意して進む"}</button>
+          <button onClick={agreeTerms} disabled={termsSaving || !termsChecked} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: termsChecked ? "pointer" : "not-allowed", opacity: (termsSaving || !termsChecked) ? 0.4 : 1 }}>{termsSaving ? "記録中..." : "同意して進む"}</button>
         </div>
       )}
 
@@ -1809,8 +1809,8 @@ export function ConsignmentRoom() {
       {cTab === "new" && termsOk && (
         <div className="fade-in">
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-            <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else { setWizStep(v => v - 1); window.scrollTo(0, 0); } }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
-            <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111" }}>{wizStep}/5　{CONSIGN_WIZ_STEPS[wizStep-1].t}</span>
+            <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else { setWizStep(v => v - 1); window.scrollTo(0, 0); } }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
+            <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111" }}>{wizStep}/5　{CONSIGN_WIZ_STEPS[wizStep-1].t}</span>
           </div>
           {/* 進捗（5分割の黒バー） */}
           <div style={{ display:"flex", gap:4, marginBottom:18 }}>
@@ -1819,8 +1819,8 @@ export function ConsignmentRoom() {
             ))}
           </div>
           {/* 1ページ1つの問い */}
-          <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{CONSIGN_WIZ_STEPS[wizStep-1].q}</h2>
-          <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 18px" }}>{CONSIGN_WIZ_STEPS[wizStep-1].d}</p>
+          <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{CONSIGN_WIZ_STEPS[wizStep-1].q}</h2>
+          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 18px" }}>{CONSIGN_WIZ_STEPS[wizStep-1].d}</p>
 
           {/* STEP1 案件概要：何を頼むのか */}
           {wizStep === 1 && (<>
@@ -1840,11 +1840,11 @@ export function ConsignmentRoom() {
             {(() => { const u = Number(spec.unit_price_10a), a = Number(spec.area_a);
               return (u > 0 && a > 0) ? (
                 <div style={{ background:"#111111", borderRadius:12, padding:"14px 16px", marginTop:4 }}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#B9B9B9", margin:"0 0 2px" }}>報酬イメージ（単価 × 面積{a}a）</p>
-                  <p className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#fff", margin:0 }}>約 {Math.round(u * a / 10).toLocaleString()}円</p>
+                  <p className="f-sans" style={{ fontSize:12.1, color:"#B9B9B9", margin:"0 0 2px" }}>報酬イメージ（単価 × 面積{a}a）</p>
+                  <p className="f-sans" style={{ fontSize:24.2, fontWeight:800, color:"#fff", margin:0 }}>約 {Math.round(u * a / 10).toLocaleString()}円</p>
                 </div>
               ) : (
-                <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"4px 0 0" }}>単価を入れると、面積（{spec.area_a ? spec.area_a + "a" : "未入力"}）から報酬イメージを自動計算します。</p>
+                <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"4px 0 0" }}>単価を入れると、面積（{spec.area_a ? spec.area_a + "a" : "未入力"}）から報酬イメージを自動計算します。</p>
               ); })()}
           </>)}
           {/* 標準取引条件（初回のみ・2026-07-31たきと指示）：委託者情報では聞かず、
@@ -1860,8 +1860,8 @@ export function ConsignmentRoom() {
             if (!STD.length) return null;
             return (
               <div style={{ marginTop:18 }}>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>標準取引条件（初回のみ設定）</p>
-                <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>今後の委託にも自動で適用されます。</p>
+                <p className="f-sans" style={{ fontSize:14.3, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>標準取引条件（初回のみ設定）</p>
+                <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 10px" }}>今後の委託にも自動で適用されます。</p>
                 {STD.map(f => (
                   <div key={f.k} style={{ marginBottom:10 }}>
                     <label className="lbl f-sans">{f.l}</label>
@@ -1870,14 +1870,14 @@ export function ConsignmentRoom() {
                         {f.sel.map(opt => {
                           const on = (stdTerms[f.k] || "") === opt;
                           return (
-                            <button key={opt} type="button" onClick={()=>setStdTerms(p2 => ({ ...p2, [f.k]: on ? "" : opt }))} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+                            <button key={opt} type="button" onClick={()=>setStdTerms(p2 => ({ ...p2, [f.k]: on ? "" : opt }))} className="f-sans" style={{ padding:"9px 18px", fontSize:15.4, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
                           );
                         })}
                       </div>
                     ) : f.ta ? (
-                      <textarea className="field f-sans" value={stdTerms[f.k] || ""} onChange={e=>setStdTerms(p2 => ({ ...p2, [f.k]: e.target.value }))} placeholder={f.ph || ""} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+                      <textarea className="field f-sans" value={stdTerms[f.k] || ""} onChange={e=>setStdTerms(p2 => ({ ...p2, [f.k]: e.target.value }))} placeholder={f.ph || ""} rows={3} style={{ fontSize:14.3, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
                     ) : (
-                      <input className="field f-sans" value={stdTerms[f.k] || ""} onChange={e=>setStdTerms(p2 => ({ ...p2, [f.k]: e.target.value }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+                      <input className="field f-sans" value={stdTerms[f.k] || ""} onChange={e=>setStdTerms(p2 => ({ ...p2, [f.k]: e.target.value }))} placeholder={f.ph || ""} style={{ fontSize:15.4, marginBottom:0 }} />
                     )}
                   </div>
                 ))}
@@ -1909,38 +1909,38 @@ export function ConsignmentRoom() {
                 ["写真", (spec.photos || []).length > 0 ? (spec.photos || []).length + "枚" : ""],
               ].map(([l, v]) => (
                 <div key={l} style={{ display:"flex", gap:10 }}>
-                  <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:96, flexShrink:0 }}>{l}</span>
-                  <span className="f-sans" style={{ fontSize:12, color: v ? "#111111" : "#C0C0C0", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{v || "未入力"}</span>
+                  <span className="f-sans" style={{ fontSize:12.1, color:"#999999", minWidth:96, flexShrink:0 }}>{l}</span>
+                  <span className="f-sans" style={{ fontSize:13.2, color: v ? "#111111" : "#C0C0C0", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{v || "未入力"}</span>
                 </div>
               ))}
             </div>
             {/* 委託者情報（設定ページから自動反映・2026-07-31たきと指示。緊急連絡先・振込情報は内部用so出さない） */}
             {consignorPartyRows(consignor, consignAh).length > 0 && (
               <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
-                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>委託者（設定ページから自動反映・種別で印字を出し分け）</p>
+                <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>委託者（設定ページから自動反映・種別で印字を出し分け）</p>
                 <div style={{ display:"grid", gap:6 }}>
                   {consignorPartyRows(consignor, consignAh).map(([l, v]) => (
                     <div key={l} style={{ display:"flex", gap:10 }}>
-                      <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:96, flexShrink:0 }}>{l}</span>
-                      <span className="f-sans" style={{ fontSize:12, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{v}</span>
+                      <span className="f-sans" style={{ fontSize:12.1, color:"#999999", minWidth:96, flexShrink:0 }}>{l}</span>
+                      <span className="f-sans" style={{ fontSize:13.2, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{v}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
             <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
-              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
+              <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
               {CONSIGN_FIXED_CLAUSES.map(c => (
-                <p key={c} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.8, margin:0 }}>・{c}</p>
+                <p key={c} className="f-sans" style={{ fontSize:13.2, color:"#111111", lineHeight:1.8, margin:0 }}>・{c}</p>
               ))}
             </div>
           </>)}
 
           <div style={{ marginTop:20 }}>
             {wizStep < 5 ? (
-              <button onClick={()=>{ setWizStep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+              <button onClick={()=>{ setWizStep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
             ) : (
-              <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "掲載中..." : "掲載する（募集を開始）"}</button>
+              <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "掲載中..." : "掲載する（募集を開始）"}</button>
             )}
           </div>
         </div>
@@ -1950,8 +1950,8 @@ export function ConsignmentRoom() {
         <div className="fade-in">
           {/* ダッシュボードの戻り＝一覧へ（さがすの詳細→一覧と同じ動線）。一覧は開き直しで最新化 */}
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-            <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
-            <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{editId ? ((spec.field_name || "（圃場未記入）") + "　" + [spec.crop, spec.task].filter(Boolean).join(" ")) : "新しい委託"}</span>
+            <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 一覧</button>
+            <span className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{editId ? ((spec.field_name || "（圃場未記入）") + "　" + [spec.crop, spec.task].filter(Boolean).join(" ")) : "新しい委託"}</span>
           </div>
 
           {/* ── 全行程の進行（保存済みの案件のみ）：ステッパー＋現在の状態に応じたアクション ── */}
@@ -1961,26 +1961,26 @@ export function ConsignmentRoom() {
 
               {/* 合意（下書き→合意）：仕様書を凍結 */}
               {curDeal.status === "draft" && (
-                <button onClick={makeAgreed} disabled={busy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{busy ? "..." : "合意にする（仕様書を凍結）"}</button>
+                <button onClick={makeAgreed} disabled={busy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:15.4, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{busy ? "..." : "合意にする（仕様書を凍結）"}</button>
               )}
 
               {/* 合意時の仕様書（凍結・契約記録と同じ方式） */}
               {curDeal.spec_snapshot && (
                 <details style={{ marginTop: curDeal.status === "draft" ? 12 : 0 }}>
-                  <summary className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", cursor:"pointer" }}>合意時の仕様書（凍結・{snapAtLabel}）</summary>
+                  <summary className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", cursor:"pointer" }}>合意時の仕様書（凍結・{snapAtLabel}）</summary>
                   <div style={{ marginTop:10, background:"#FAFAFA", border:"1px solid #E5E5E5", borderRadius:10, padding:"10px 12px", display:"grid", gap:6 }}>
                     {[...CONSIGN_BASIC_FIELDS, ...CONSIGN_TEXT_FIELDS].map(f => {
                       const v = (curDeal.spec_snapshot || {})[f.k];
                       return v ? (
                         <div key={f.k} style={{ display:"flex", gap:10 }}>
-                          <span className="f-sans" style={{ fontSize:11, color:"#999999", minWidth:96, flexShrink:0 }}>{f.l}</span>
-                          <span className="f-sans" style={{ fontSize:12, color:"#111111", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{v}</span>
+                          <span className="f-sans" style={{ fontSize:12.1, color:"#999999", minWidth:96, flexShrink:0 }}>{f.l}</span>
+                          <span className="f-sans" style={{ fontSize:13.2, color:"#111111", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{v}</span>
                         </div>
                       ) : null;
                     })}
                   </div>
                   {changedAfterAgree && (
-                    <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"8px 0 0" }}>※ 合意後の変更あり（上のフォームは凍結内容と異なります）</p>
+                    <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"8px 0 0" }}>※ 合意後の変更あり（上のフォームは凍結内容と異なります）</p>
                   )}
                 </details>
               )}
@@ -1989,43 +1989,43 @@ export function ConsignmentRoom() {
               {(curDeal.status === "agreed") && hasDeposit && (
                 <div style={{ marginTop:12 }}>
                   {curDeal.spec?.deposit_received_at ? (
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", margin:0 }}>✓ 着手金 受領済み（{curDeal.spec.deposit_received_at}）</p>
+                    <p className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", margin:0 }}>✓ 着手金 受領済み（{curDeal.spec.deposit_received_at}）</p>
                   ) : (
-                    <button onClick={receiveDeposit} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>着手金を受領した（{Number(spec.advance).toLocaleString()}円）</button>
+                    <button onClick={receiveDeposit} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>着手金を受領した（{Number(spec.advance).toLocaleString()}円）</button>
                   )}
                 </div>
               )}
 
               {/* 作業を開始（合意→作業中） */}
               {curDeal.status === "agreed" && (
-                <button onClick={startWork} disabled={busy} className="f-sans" style={{ width:"100%", marginTop:12, padding:"12px", fontSize:14, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>作業を開始する（作業中にする）</button>
+                <button onClick={startWork} disabled={busy} className="f-sans" style={{ width:"100%", marginTop:12, padding:"12px", fontSize:15.4, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>作業を開始する（作業中にする）</button>
               )}
 
               {/* 検収（作業中→検収済） */}
               {curDeal.status === "working" && (
                 <div style={{ marginTop:12 }}>
-                  <input className="field f-sans" value={inspectNote} onChange={e=>setInspectNote(e.target.value)} placeholder="検収メモ（任意・基準の可否など）" style={{ fontSize:13, marginBottom:8 }} />
-                  <button onClick={doInspect} disabled={busy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✓ 検収した</button>
+                  <input className="field f-sans" value={inspectNote} onChange={e=>setInspectNote(e.target.value)} placeholder="検収メモ（任意・基準の可否など）" style={{ fontSize:14.3, marginBottom:8 }} />
+                  <button onClick={doInspect} disabled={busy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:15.4, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✓ 検収した</button>
                 </div>
               )}
 
               {/* 支払（検収済→支払済） */}
               {curDeal.status === "inspected" && (
-                <button onClick={doPay} disabled={busy} className="f-sans" style={{ width:"100%", marginTop:12, padding:"12px", fontSize:14, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>残金を支払った</button>
+                <button onClick={doPay} disabled={busy} className="f-sans" style={{ width:"100%", marginTop:12, padding:"12px", fontSize:15.4, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>残金を支払った</button>
               )}
 
               {/* 完了（支払済→完了）＋振り返り */}
               {curDeal.status === "paid" && (
                 <div style={{ marginTop:12 }}>
-                  <textarea className="field f-sans" value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="振り返りメモ（次回への気づき・任意）" rows={2} style={{ fontSize:13, marginBottom:8, resize:"vertical" }} />
-                  <button onClick={doComplete} disabled={busy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>完了にする</button>
+                  <textarea className="field f-sans" value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="振り返りメモ（次回への気づき・任意）" rows={2} style={{ fontSize:14.3, marginBottom:8, resize:"vertical" }} />
+                  <button onClick={doComplete} disabled={busy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:15.4, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>完了にする</button>
                 </div>
               )}
               {curDeal.status === "done" && (
-                <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#111111", margin:0, textAlign:"center" }}>この委託は完了しています{curDeal.spec?.reflection ? "" : ""}</p>
+                <p className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", margin:0, textAlign:"center" }}>この委託は完了しています{curDeal.spec?.reflection ? "" : ""}</p>
               )}
               {curDeal.status === "done" && curDeal.spec?.reflection && (
-                <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"8px 0 0", whiteSpace:"pre-wrap" }}>振り返り：{curDeal.spec.reflection}</p>
+                <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:"8px 0 0", whiteSpace:"pre-wrap" }}>振り返り：{curDeal.spec.reflection}</p>
               )}
             </div>
           )}
@@ -2033,7 +2033,7 @@ export function ConsignmentRoom() {
           {/* ── 日次進捗（作業中以降）：履行サマリー＋1行フォーム＋日別一覧 ── */}
           {editId && curDeal && ["working","inspected","paid","done"].includes(curDeal.status) && (
             <div style={{ border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px", marginBottom:16, background:"#fff" }}>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>日次進捗</p>
+              <p className="f-sans" style={{ fontSize:14.3, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>日次進捗</p>
               {summary && (
                 <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
                   {[
@@ -2044,8 +2044,8 @@ export function ConsignmentRoom() {
                     ["10aあたり", summary.hours_per_10a != null ? `${summary.hours_per_10a}h` : "—"],
                   ].map(([l, v]) => (
                     <div key={l} style={{ flex:"1 0 30%", background:"#F7F7F7", borderRadius:10, padding:"8px 10px", textAlign:"center" }}>
-                      <span className="f-sans" style={{ display:"block", fontSize:10, color:"#B0B0B0" }}>{l}</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#111111" }}>{v}</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:11, color:"#B0B0B0" }}>{l}</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:15.4, fontWeight:800, color:"#111111" }}>{v}</span>
                     </div>
                   ))}
                 </div>
@@ -2053,23 +2053,23 @@ export function ConsignmentRoom() {
               {curDeal.status === "working" && (
                 <div style={{ background:"#F9FAFB", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
-                    <div><label className="lbl f-sans" style={{ fontSize:11 }}>日付</label><input type="date" className="field f-sans" value={pForm.work_date} onChange={e=>setPForm(p=>({...p, work_date:e.target.value}))} style={{ fontSize:13, marginBottom:0 }} /></div>
-                    <div><label className="lbl f-sans" style={{ fontSize:11 }}>実働時間(h)</label><input inputMode="decimal" className="field f-sans" value={pForm.hours} onChange={e=>setPForm(p=>({...p, hours:e.target.value.replace(/[^0-9.]/g,"")}))} placeholder="例：6.5" style={{ fontSize:13, marginBottom:0 }} /></div>
-                    <div><label className="lbl f-sans" style={{ fontSize:11 }}>人数</label><input inputMode="numeric" className="field f-sans" value={pForm.workers} onChange={e=>setPForm(p=>({...p, workers:e.target.value.replace(/[^0-9]/g,"")}))} placeholder="例：3" style={{ fontSize:13, marginBottom:0 }} /></div>
-                    <div><label className="lbl f-sans" style={{ fontSize:11 }}>収量（箱）</label><input inputMode="numeric" className="field f-sans" value={pForm.yield_boxes} onChange={e=>setPForm(p=>({...p, yield_boxes:e.target.value.replace(/[^0-9]/g,"")}))} placeholder="例：40" style={{ fontSize:13, marginBottom:0 }} /></div>
+                    <div><label className="lbl f-sans" style={{ fontSize:12.1 }}>日付</label><input type="date" className="field f-sans" value={pForm.work_date} onChange={e=>setPForm(p=>({...p, work_date:e.target.value}))} style={{ fontSize:14.3, marginBottom:0 }} /></div>
+                    <div><label className="lbl f-sans" style={{ fontSize:12.1 }}>実働時間(h)</label><input inputMode="decimal" className="field f-sans" value={pForm.hours} onChange={e=>setPForm(p=>({...p, hours:e.target.value.replace(/[^0-9.]/g,"")}))} placeholder="例：6.5" style={{ fontSize:14.3, marginBottom:0 }} /></div>
+                    <div><label className="lbl f-sans" style={{ fontSize:12.1 }}>人数</label><input inputMode="numeric" className="field f-sans" value={pForm.workers} onChange={e=>setPForm(p=>({...p, workers:e.target.value.replace(/[^0-9]/g,"")}))} placeholder="例：3" style={{ fontSize:14.3, marginBottom:0 }} /></div>
+                    <div><label className="lbl f-sans" style={{ fontSize:12.1 }}>収量（箱）</label><input inputMode="numeric" className="field f-sans" value={pForm.yield_boxes} onChange={e=>setPForm(p=>({...p, yield_boxes:e.target.value.replace(/[^0-9]/g,"")}))} placeholder="例：40" style={{ fontSize:14.3, marginBottom:0 }} /></div>
                   </div>
-                  <input className="field f-sans" value={pForm.note} onChange={e=>setPForm(p=>({...p, note:e.target.value}))} placeholder="メモ（任意）" style={{ fontSize:13, marginBottom:8 }} />
-                  <button onClick={addProgress} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>＋ 進捗を記録</button>
+                  <input className="field f-sans" value={pForm.note} onChange={e=>setPForm(p=>({...p, note:e.target.value}))} placeholder="メモ（任意）" style={{ fontSize:14.3, marginBottom:8 }} />
+                  <button onClick={addProgress} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>＋ 進捗を記録</button>
                 </div>
               )}
               {prog.length === 0 ? (
-                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", padding:"12px 0", margin:0 }}>日次の記録はまだありません</p>
+                <p className="f-sans" style={{ fontSize:13.2, color:"#B0B0B0", textAlign:"center", padding:"12px 0", margin:0 }}>日次の記録はまだありません</p>
               ) : (
                 <div style={{ display:"grid", gap:6 }}>
                   {prog.map(r => (
                     <div key={r.id} style={{ display:"flex", gap:10, alignItems:"baseline", borderBottom:"1px solid #F7F7F7", paddingBottom:6 }}>
-                      <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", minWidth:78, flexShrink:0 }}>{r.work_date}</span>
-                      <span className="f-sans" style={{ fontSize:12, color:"#111111", flex:1, minWidth:0 }}>
+                      <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", minWidth:78, flexShrink:0 }}>{r.work_date}</span>
+                      <span className="f-sans" style={{ fontSize:13.2, color:"#111111", flex:1, minWidth:0 }}>
                         {[r.hours != null ? `${r.hours}h` : null, r.workers != null ? `${r.workers}人` : null, r.yield_boxes != null ? `${r.yield_boxes}箱` : null].filter(Boolean).join("・")}
                         {r.note ? `　${r.note}` : ""}
                       </span>
@@ -2092,26 +2092,26 @@ export function ConsignmentRoom() {
           {/* 特約（掲載順の最後） */}
           {CONSIGN_TEXT_FIELDS.filter(f => f.k === "special").map(renderTextField)}
           <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", margin:"14px 0" }}>
-            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
+            <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 6px" }}>定型条項（編集不可・全仕様書に印字）</p>
             {CONSIGN_FIXED_CLAUSES.map(c => (
-              <p key={c} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.8, margin:0 }}>・{c}</p>
+              <p key={c} className="f-sans" style={{ fontSize:13.2, color:"#111111", lineHeight:1.8, margin:0 }}>・{c}</p>
             ))}
           </div>
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
             <div style={{ flex:1 }}>
               <label className="lbl f-sans">状態（手動上書き・通常は上のボタンで進める）</label>
-              <select className="field f-sans" value={status} onChange={e=>setStatus(e.target.value)} style={{ fontSize:13, marginBottom:0 }}>
+              <select className="field f-sans" value={status} onChange={e=>setStatus(e.target.value)} style={{ fontSize:14.3, marginBottom:0 }}>
                 {CONSIGN_STATUS.map(s => <option key={s.k} value={s.k}>{s.l}</option>)}
               </select>
             </div>
           </div>
           <div style={{ marginBottom:14 }}>
             <label className="lbl f-sans">メモ（内部用・仕様書には印字されない）</label>
-            <textarea className="field f-sans" value={memo} onChange={e=>setMemo(e.target.value)} rows={2} style={{ fontSize:13, marginBottom:0, resize:"vertical" }} />
+            <textarea className="field f-sans" value={memo} onChange={e=>setMemo(e.target.value)} rows={2} style={{ fontSize:14.3, marginBottom:0, resize:"vertical" }} />
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={save} disabled={saving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : (editId ? "更新を保存" : "保存")}</button>
-            <button onClick={()=>setPrintOpen(true)} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #222", borderRadius:12, cursor:"pointer" }}>印刷ビュー</button>
+            <button onClick={save} disabled={saving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : (editId ? "更新を保存" : "保存")}</button>
+            <button onClick={()=>setPrintOpen(true)} className="f-sans" style={{ flex:1, padding:"13px", fontSize:15.4, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #222", borderRadius:12, cursor:"pointer" }}>印刷ビュー</button>
           </div>
         </div>
       )}
@@ -2119,7 +2119,7 @@ export function ConsignmentRoom() {
       {cTab === "list" && (
         <div className="fade-in consign-list-content">
           {deals.length === 0 ? (
-            <p className="f-sans" style={{ fontSize:13, color:"#111111", textAlign:"center", padding:"32px 0" }}>まだ委託がありません。「新しく委託を出す」から始めましょう。</p>
+            <p className="f-sans" style={{ fontSize:14.3, color:"#111111", textAlign:"center", padding:"32px 0" }}>まだ委託がありません。「新しく委託を出す」から始めましょう。</p>
           ) : (
           <div style={{ display:"grid", gap:14 }}>
           {deals.map(d => {
@@ -2135,25 +2135,25 @@ export function ConsignmentRoom() {
                   </div>
                 )}
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                  <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
-                  <span className="f-sans" style={{ fontSize:11, color:"#111111" }}>{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
-                  <span style={{ marginLeft:"auto", fontSize:14, color:"#B0B0B0" }}>›</span>
+                  <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:12.1, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
+                  <span className="f-sans" style={{ fontSize:12.1, color:"#111111" }}>{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
+                  <span style={{ marginLeft:"auto", fontSize:15.4, color:"#B0B0B0" }}>›</span>
                 </div>
-                <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#111", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                <p className="f-sans" style={{ fontSize:17.6, fontWeight:800, color:"#111", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {s.field_name || "（圃場未記入）"}
-                  <span style={{ fontWeight:600, fontSize:13, color:"#111111" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
+                  <span style={{ fontWeight:600, fontSize:14.3, color:"#111111" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
                 </p>
-                <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {[s.region, s.area_a ? s.area_a + "a" : "", s.deadline ? "期限 " + s.deadline : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
                 </p>
                 {(s.hazards || []).length > 0 && (
-                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     ⚠ {(s.hazards || []).map(h => h === "その他" && s.hazard_other ? "その他（" + s.hazard_other + "）" : h).join("・")}
                   </p>
                 )}
                 <ConsignStepper deal={d} />
                 {ag && (ag.hours > 0 || ag.days > 0) && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#111111", fontWeight:700, margin:"-8px 0 6px" }}>履行：実働{ag.hours}h・{ag.days}日{ag.boxes > 0 ? `・${ag.boxes}箱` : ""}{hpa != null ? `　10aあたり ${hpa}h` : ""}</p>
+                  <p className="f-sans" style={{ fontSize:12.1, color:"#111111", fontWeight:700, margin:"-8px 0 6px" }}>履行：実働{ag.hours}h・{ag.days}日{ag.boxes > 0 ? `・${ag.boxes}箱` : ""}{hpa != null ? `　10aあたり ${hpa}h` : ""}</p>
                 )}
               </button>
             );
