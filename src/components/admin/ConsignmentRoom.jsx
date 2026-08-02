@@ -452,7 +452,7 @@ function ConsignorInfoEdit() {
       put("cmn_notify_email", ah.contact_email);
       return n;
     });
-    setCtype(t); setCstep(1);
+    setCtype(t); setCstep(1); window.scrollTo(0, 0);
   };
   const searchZipInto = async (f) => {
     const z = (d[f.k] || "").replace(/[^0-9]/g, "");
@@ -542,7 +542,7 @@ function ConsignorInfoEdit() {
     <div>
       {/* 進捗（黒バー）＋ステップ見出し */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-        {cstep > 0 && <button onClick={()=>setCstep(v => v - 1)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 前へ</button>}
+        {cstep > 0 && <button onClick={()=>{ setCstep(v => v - 1); window.scrollTo(0, 0); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 前へ</button>}
         <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111" }}>{cstep + 1}/{steps.length}　{meta.t}</span>
       </div>
       <div style={{ display:"flex", gap:4, marginBottom:18 }}>
@@ -615,7 +615,7 @@ function ConsignorInfoEdit() {
       {stepKey !== "type" && (
         <div style={{ marginTop:20 }}>
           {stepKey !== "confirm" ? (
-            <button onClick={()=>setCstep(v => v + 1)} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+            <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
           ) : (
             <button onClick={save} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
           )}
@@ -1277,7 +1277,7 @@ export function ConsignmentRoom() {
       {cTab === "new" && (
         <div className="fade-in">
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-            <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else setWizStep(v => v - 1); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
+            <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else { setWizStep(v => v - 1); window.scrollTo(0, 0); } }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
             <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111" }}>{wizStep}/5　{CONSIGN_WIZ_STEPS[wizStep-1].t}</span>
           </div>
           {/* 進捗（5分割の黒バー） */}
@@ -1361,7 +1361,7 @@ export function ConsignmentRoom() {
 
           <div style={{ marginTop:20 }}>
             {wizStep < 5 ? (
-              <button onClick={()=>setWizStep(v => v + 1)} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+              <button onClick={()=>{ setWizStep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
             ) : (
               <button onClick={async ()=>{ const ok = await save(); if (ok) window.location.hash = "/admin/consignment"; }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "掲載中..." : "掲載する（募集を開始）"}</button>
             )}
