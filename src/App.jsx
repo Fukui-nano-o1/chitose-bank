@@ -2340,7 +2340,7 @@ export default function App(){
               // 行き先の決め方は afterLoginGo に一本化（緊急連絡→応募の戻り先→発火したページ→既定）
               afterLoginGo();
             }}/>)}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ConsignmentRoom/></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<Suspense fallback={<div style={{ minHeight:"70vh", display:"flex", alignItems:"center", justifyContent:"center" }}><p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, margin:0 }}>読み込み中<Dots /></p></div>}><ConsignmentRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&workingRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminWorkingRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&upcomingRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminUpcomingRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&!workingRoom&&!upcomingRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminTab

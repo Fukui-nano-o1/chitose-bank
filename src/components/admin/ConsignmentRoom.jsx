@@ -538,7 +538,12 @@ function ConsignorInfoEdit() {
       </div>
     );
   };
-  if (!d) return <p className="f-sans" style={{ fontSize:13, color:"#999999", textAlign:"center", padding:"24px 0" }}>読み込み中…</p>;
+  // 読み込み中は画面中央に配置（2026-07-31たきと指示）
+  if (!d) return (
+    <div style={{ minHeight:"55vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <p className="f-sans" style={{ fontSize:13, color:"#999999", margin:0 }}>読み込み中…</p>
+    </div>
+  );
   const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
     ? [["法人情報・代表者・確認書類", CONSIGNOR_CORP_FIELDS], ["連絡担当者", CONSIGNOR_STAFF_FIELDS], ["標準取引条件", CONSIGNOR_TERMS_FIELDS]]
