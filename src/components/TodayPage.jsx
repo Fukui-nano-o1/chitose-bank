@@ -401,6 +401,15 @@ export function TodayPage({ me, defaultRole }) {
     .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
     .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
   const dual = hasWorker && hasFarmer;
+  // 用件ごとの専用ページ（2026-07-25たきと指示）：#/calendar/todo/{stage}。ボックスタップで遷移・←で今日へ戻る。
+  // ★宣言位置：下のスワイプeffectが[pageStage]依存を持つため、effectより前に置く（no-use-before-define対策・2026-08-02）
+  const readTodoStage = () => { const mt = window.location.hash.replace(/^#\/?/, "").match(/^calendar\/todo\/([a-z_]+)$/); return mt ? mt[1] : null; };
+  const [pageStage, setPageStage] = useState(readTodoStage());
+  useEffect(() => {
+    const on = () => setPageStage(readTodoStage());
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
   // 横スワイプで働き手⇄農家（雇い手）を切替（両役持ちのみ・2026-07-25）。
   // なめらか化（同日改修）：①追従はsetStateせずDOMのtransformを直接書く（毎フレーム再レンダーを排除）
   // ②ジェスチャ開始8pxで縦/横を1回だけ判定する方向ロック（縦と誤認識しない）
@@ -422,7 +431,12 @@ export function TodayPage({ me, defaultRole }) {
   const switchRoleRef = useRef(switchRole); switchRoleRef.current = switchRole;
   useEffect(() => {
     const el = rootRef.current; if (!el) return;
-    const onStart = (ev) => { const t = ev.touches[0]; if (t) gestureRef.current = { x: t.clientX, y: t.clientY, lock: null }; };
+    const onStart = (ev) => {
+      // オーバーレイ（下からのシート・モーダル＝.cb-lock-scroll）内で始まったタッチは奪わない
+      // （緊急連絡ページのボックス展開中に背後の役割が切り替わる事故の防止・2026-08-02）
+      if (ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll")) { gestureRef.current = null; return; }
+      const t = ev.touches[0]; if (t) gestureRef.current = { x: t.clientX, y: t.clientY, lock: null };
+    };
     const onMove = (ev) => {
       const g = gestureRef.current; if (!g || !dualRef.current) return;
       const t = ev.touches[0]; if (!t) return;
@@ -463,8 +477,24 @@ export function TodayPage({ me, defaultRole }) {
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, []);
+    // pageStage依存（2026-08-02）：本体⇄専用ページでrootの実DOMが差し替わるため、
+    // 遷移のたびに現在のroot（本体 or 緊急連絡ページ）へリスナーを張り直す
+  }, [pageStage]);
   const accent = role === "worker" ? ROLE_ORANGE : ROLE_GREEN;
+  // 役割タブ（両役を持つ人だけ・タップでも切替可）：今日ページ本体と緊急連絡の専用ページで共用（2026-08-02）。
+  // 構造は求人タブ（作成中⇄公開中）と同型＝横幅いっぱい均等・白地・選択中は太枠＋太字。枠色のみ役割カラー
+  const roleTabsRow = dual ? (
+    <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
+      {[{ k:"worker", l:"働き手", c:ROLE_ORANGE }, { k:"farmer", l:"農家", c:ROLE_GREEN }].map(t => (
+        <button key={t.k} onClick={()=>switchRole(t.k)} className="f-sans" style={{
+          flex:1, padding:"11px 0", borderRadius:12, cursor:"pointer", background:"#fff",
+          border: role === t.k ? "2px solid " + t.c : "1px solid #EBEBEB",
+          fontSize:14, fontWeight: role === t.k ? 800 : 600,
+          color: role === t.k ? t.c : "#999",
+        }}>{t.l}</button>
+      ))}
+    </div>
+  ) : null;
 
   // TodayCardコンポーネントは削除（2026-07-25統合）：役割はstage="today"の行（チャット主ボタン・⚠️緊急連絡・求人チップ）へ
 
@@ -548,14 +578,6 @@ export function TodayPage({ me, defaultRole }) {
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
   // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（求人チップで識別）
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
-  // 用件ごとの専用ページ（2026-07-25たきと指示）：#/calendar/todo/{stage}。ボックスタップで遷移・←で今日へ戻る
-  const readTodoStage = () => { const mt = window.location.hash.replace(/^#\/?/, "").match(/^calendar\/todo\/([a-z_]+)$/); return mt ? mt[1] : null; };
-  const [pageStage, setPageStage] = useState(readTodoStage());
-  useEffect(() => {
-    const on = () => setPageStage(readTodoStage());
-    window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
-  }, []);
   // 面接の回答を送信してリストが空になった時は「送信完了しました。」を出す（2026-07-26たきと指示。ページを離れたらリセット）
   const [answeredDone, setAnsweredDone] = useState(false);
   useEffect(() => { setAnsweredDone(false); }, [pageStage]);
@@ -682,8 +704,13 @@ export function TodayPage({ me, defaultRole }) {
   if (pageStage && TODO_META[pageStage]) {
     const pm = TODO_META[pageStage];
     const pItems = todayStageItems(pageStage) || todos.filter(t => t.stage === pageStage);
+    // 緊急連絡は農家と働き手でページを分ける（2026-08-02たきと指示）：役割タブ＋横スワイプ（指連動）で切替。
+    // スワイプ機構は今日ページ本体と同一（rootRefのネイティブリスナー＋contentRefへのtransform直書き＝
+    // 指に追従・50px以上で切替成立・slideKey更新でスライドイン・両役持ちのみ）。他の用件ページは従来どおり単ページ
+    const swipeStage = pageStage === "t_emergency";
     return (
-      <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
+      <div ref={swipeStage ? rootRef : undefined}
+        style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", ...(swipeStage ? { overflowX:"hidden", touchAction:"pan-y" } : {}) }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 16px" }}>
           <button onClick={()=>{ window.location.hash = "/calendar"; }} aria-label="今日へ戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 6px", lineHeight:1 }}>←</button>
           <h2 className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:18, fontWeight:800, color:"#222", margin:0, flex:1, minWidth:0 }}>
@@ -691,9 +718,13 @@ export function TodayPage({ me, defaultRole }) {
           </h2>
           {/* 件数バッジは廃止（2026-07-26たきと指示：ページ内で通知は不要。件数は今日ページのボックスが示す） */}
         </div>
+        {/* 農家⇄働き手の切替タブ（緊急連絡のみ・両役持ちのみ表示。スワイプと同じswitchRoleを共有） */}
+        {swipeStage && roleTabsRow}
         {/* 用件の説明（2026-08-02新設）：全ボックスが専用ページへのリンクになったため、
             該当0件で開いても「何のページか」が分かるように各用件の一言説明を置く */}
         {pm.desc && <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"-6px 0 16px", paddingLeft:38 }}>{pm.desc}</p>}
+        <div key={swipeStage ? slideKey : "static"} ref={swipeStage ? contentRef : undefined}
+          style={swipeStage && slideDir ? { animation: `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` } : undefined}>
         {loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>
         ) : pItems.length === 0 ? (
@@ -711,6 +742,7 @@ export function TodayPage({ me, defaultRole }) {
         ) : (
           <TodoStagePanel stage={pageStage} items={pItems} />
         )}
+        </div>
         {corrApp && <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />}
       </div>
     );
@@ -719,21 +751,8 @@ export function TodayPage({ me, defaultRole }) {
   return (
     <div ref={rootRef} style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden", touchAction:"pan-y" }}>
       {/* 見出し「📆 今日」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示すため冗長 */}
-      {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示。
-          構造は求人タブ（作成中⇄公開中）と同型＝横幅いっぱい均等・白地・選択中は太枠＋太字
-          （2026-07-26たきと指示）。枠色のみ役割カラー（目印限定の既定・黒でなく橙/緑） */}
-      {dual && (
-        <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
-          {[{ k:"worker", l:"働き手", c:ROLE_ORANGE }, { k:"farmer", l:"農家", c:ROLE_GREEN }].map(t => (
-            <button key={t.k} onClick={()=>switchRole(t.k)} className="f-sans" style={{
-              flex:1, padding:"11px 0", borderRadius:12, cursor:"pointer", background:"#fff",
-              border: role === t.k ? "2px solid " + t.c : "1px solid #EBEBEB",
-              fontSize:14, fontWeight: role === t.k ? 800 : 600,
-              color: role === t.k ? t.c : "#999",
-            }}>{t.l}</button>
-          ))}
-        </div>
-      )}
+      {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示（roleTabsRow＝共通化・2026-08-02） */}
+      {roleTabsRow}
       {/* 役割コンテンツ：ドラッグ追従はcontentRefへのtransform直書き（再レンダーなし）。切替成立時はkey更新でスライドイン再生 */}
       <div key={slideKey} ref={contentRef} style={{
         animation: slideDir ? `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` : undefined,
