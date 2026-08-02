@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
+import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
 import { Avatar } from "./ui";
@@ -64,7 +65,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   }, []);
   const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"返事待ち", approved:"きょうの仕事" };
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
-  const [wMini, setWMini] = useState(() => getCache("hub:wMini") ?? null);
+  // 名刺の氏名・アイコンを読み込み前から出す（2026-08-02たきと指示「名刺の氏名が未設定で長時間表示される」）：
+  // viewCache（sessionStorage・アプリ終了で消える）に無ければ、snapshot（localStorage・本人の自分用データ・
+  // ログアウトで全消去）から前回のプロフィールを即表示し、裏の再取得で最新に差し替える
+  const [wMini, setWMini] = useState(() => getCache("hub:wMini") ?? snapGet("wMini") ?? null);
   const [wAppCounts, setWAppCounts] = useState(() => getCache("hub:wCounts") ?? { applying:0, approved:0 });
   const [wTopBack, setWTopBack] = useState(() => { try { return localStorage.getItem("cb_wTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
@@ -90,7 +94,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
           supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
         ]);
         if (cancelled) return;
-        if (wp) { setWMini(wp); setCache("hub:wMini", wp); }
+        if (wp) { setWMini(wp); setCache("hub:wMini", wp); snapSet("wMini", wp); }
         // 承認済みバッジは未対応（手続きが残っている応募）のみ計上。完了・評価済みまで数えると
         // バッジが常時点灯し、新しい要対応があっても気づけなくなるため（2026-07-16）
         if (apps) {

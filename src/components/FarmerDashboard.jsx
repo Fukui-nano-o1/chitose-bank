@@ -15,6 +15,7 @@ import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 import ContractPartyName from "./ContractPartyName";
 import { getCache, setCache } from "../lib/viewCache";
+import { snapGet, snapSet } from "../lib/snapshot";
 
 // 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
 const APP_FILTER_KEYS = ["all","applied","interview","active","completed"];
@@ -197,7 +198,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 応募者ページの一覧はappGridRef（スワイプ判定用）と共用なので、ref付き要素を測る版を使う
   useSkeletonProbeOn(appGridRef, (jobTab === "applicants" && !appsLoading) ? "farmList:applicants" : null);
   const skelActiveRef = useSkeletonProbe("farmActive");
-  const [empMini, setEmpMini] = useState(() => getCache("farm:empMini") ?? null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
+  // 名刺の氏名・アイコンを読み込み前から出す（2026-08-02たきと指示）：viewCacheに無ければsnapshot
+  // （localStorage・本人の自分用データ・ログアウトで全消去）から前回値を即表示→裏で最新に差し替え
+  const [empMini, setEmpMini] = useState(() => getCache("farm:empMini") ?? snapGet("empMini") ?? null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
   const [empTrust, setEmpTrust] = useState(() => getCache("farm:empTrust") ?? null); // 名刺カード裏面＝本物のプレビュー（FarmerTrustCard）用の信頼情報
   const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
@@ -240,7 +243,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       insItems.forEach(k => { const t = (insNotes[k] || "").trim(); if (t) pruned[k] = t; });
       const { error } = await supabase.from("employer_profiles").upsert({ auth_id: session.user.id, insurance_items: insItems, insurance_notes: pruned, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
       if (error) throw error;
-      setEmpMini(prev => { const nx = { ...(prev || {}), insurance_items: insItems, insurance_notes: pruned }; setCache("farm:empMini", nx); return nx; });
+      setEmpMini(prev => { const nx = { ...(prev || {}), insurance_items: insItems, insurance_notes: pruned }; setCache("farm:empMini", nx); snapSet("empMini", nx); return nx; });
       setInsOpenKey(null);
     } catch (e) { alert("保存に失敗しました：" + (e?.message || "不明")); }
     finally { setInsSaving(false); }
@@ -282,7 +285,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         ]);
         const epMini = epRes.data, tI = trustRes.data, rosterData = rosterRes.data;
         setEmpTrust(tI && tI.ok ? tI : null); setCache("farm:empTrust", tI && tI.ok ? tI : null);
-        if (epMini) { setEmpMini(epMini); setCache("farm:empMini", epMini); }
+        if (epMini) { setEmpMini(epMini); setCache("farm:empMini", epMini); snapSet("empMini", epMini); }
         if (rosterData && rosterData.length > 0) {
           const { data: rosterWp } = await supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", rosterData.map(r => r.worker_id));
           const wpMap = {};
