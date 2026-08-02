@@ -300,17 +300,17 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     jobsLoadedRef.current = true;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setDraftsLoading(false); return; }
-        // 自分の求人を一括取得し、日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
-        // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い
-        // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。固定列SELECTに入れ忘れると一時非公開が作成中へ落ちる
-        const { data: allJobs, error } = await supabase.from("jobs")
-          .select("job_number,crop,task,date_label,prefecture,city,pay_type,hourly_wage,daily_wage,photos,status,date_start,date_end,work_time,opened_at")
-          .eq("farmer_id", session.user.id).order("job_number",{ascending:false});
+        // 1往復に集約（2026-08-02たきと指示「求人ページも遅い」）：従来は getSession→自分のjobs取得→
+        // 未回答質問集計の直列で、スケルトン解除が最後だった。my_farm_jobs（SECURITY INVOKER＝RLSそのまま）
+        // が求人と未回答質問数をまとめて返す
+        const { data: bundle, error } = await supabase.rpc("my_farm_jobs");
+        const allJobs = bundle?.jobs;
         if (!error && allJobs) {
           const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos }]));
           setJobInfoMap(jim); setCache("farm:jobInfo", jim);
+          // 自分の求人を日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
+          // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い。
+          // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。RPC側の固定列から落とさないこと。
           // 判定は lib/utils に一本化（2026-07-27たきと指示）：終了＝日程が過ぎた（statusより優先）／
           // 一時非公開＝掲載歴ありのdraft／下書き＝掲載歴なし・日程も未過去のdraft。ここで独自に書かない
           const isPast = isJobEnded;
@@ -319,16 +319,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           setDbDrafts(allJobs.filter(j => (isJobDraft(j) || (j.status === "pending" && !isPast(j)))));
           setDbActive(allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j)));
           setDbExpired(allJobs.filter(isPast));
-          // 未回答の質問数を集計（第10弾）：自分の求人の、回答なし・非表示でない質問
-          try {
-            const nums = allJobs.map(j => j.job_number);
-            if (nums.length > 0) {
-              const { data: qs } = await supabase.from("job_questions").select("job_number").is("answer", null).eq("hidden", false).in("job_number", nums);
-              const m = {};
-              (qs || []).forEach(q => { m[q.job_number] = (m[q.job_number] || 0) + 1; });
-              setQUnansweredMap(m); setCache("farm:qUnanswered", m);
-            }
-          } catch {}
+          // 未回答の質問数（第10弾）：{ job_number: 件数 }。参照側の qUnansweredMap[j.job_number] は
+          // 数値添字でもJSがキーを文字列化するので、jsonの文字列キーのままで一致する
+          const m = bundle.q_unanswered || {};
+          setQUnansweredMap(m); setCache("farm:qUnanswered", m);
         }
       } catch {}
       setDraftsLoading(false);
