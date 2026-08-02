@@ -269,24 +269,17 @@ const CONSIGNOR_CORP_FIELDS = [
   { k:"corp_invoice", l:"適格請求書発行事業者登録番号", ph:"例：T1234567890123", corpInvoiceOnly:true, help:"「T」＋13桁の番号です。国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
 ];
 
+// ③連絡・支払設定（確定版・2026-07-31たきと指示）：標準の現場連絡先／標準支払方法／通知先メール
+// （別メールを使う場合のみ入力）。削除＝続柄・委託者の銀行口座5項目・保険加入状況（保存済み値はjsonbに残置）
 const CONSIGNOR_TERMS_FIELDS = [
-  { h:"緊急連絡先" },
-  { k:"cmn_emergency_name",     l:"氏名", ph:"例：千歳 花子" },
-  { k:"cmn_emergency_relation", l:"続柄", ph:"例：妻・父・友人" },
-  { k:"cmn_emergency_phone",    l:"電話番号", ph:"例：090-1234-5678" },
+  { h:"標準の現場連絡先" },
+  { k:"cmn_emergency_name",  l:"氏名", ph:"例：千歳 花子" },
+  { k:"cmn_emergency_phone", l:"電話番号", ph:"例：090-1234-5678" },
   { h:"支払" },
   { k:"cmn_pay_method", l:"標準支払方法", sel:["銀行振込","現金"] },
-  { k:"cmn_bank",         l:"銀行名", ph:"例：阿波銀行", bankOnly:true },
-  { k:"cmn_bank_branch",  l:"支店名", ph:"例：鴨島支店", bankOnly:true },
-  { k:"cmn_account_type", l:"口座種別", sel:["普通","当座"], bankOnly:true },
-  { k:"cmn_account_no",   l:"口座番号", num:true, ph:"例：1234567", bankOnly:true },
-  { k:"cmn_account_name", l:"口座名義（カナ）", ph:"例：チトセ タロウ", bankOnly:true },
-  // 標準支払期限・振込手数料負担・標準検収期間・標準キャンセル条件は、ここでは聞かず
-  // 「委託掲載を初めて行うとき」にウィザード内で設定する（2026-07-31たきと指示・cmn_*キーは共通）。
-  // 圃場設備（駐車場・トイレ・休憩場所・貸与道具）は圃場登録時＝案件作成の作業仕様で案件ごとに設定
-  { h:"その他" },
-  { k:"cmn_insurance",    l:"保険加入状況", ph:"例：農業経営収入保険・労災上乗せ加入" },
-  { k:"cmn_notify_email", l:"通知先メールアドレス", ph:"例：taro@example.com" },
+  { h:"通知" },
+  { k:"cmn_notify_use", l:"通知先メール", sel:["登録メールを使用","別のメールを使用"], note:"別のメールを使う場合のみ、下に入力します" },
+  { k:"cmn_notify_email", l:"通知先メールアドレス", ph:"例：taro@example.com", notifyDiff:true },
 ];
 
 // 旧v1（一枚フォーム）の公開項目＝種別未選択の既存データ表示用フォールバック
@@ -300,6 +293,17 @@ const CONSIGNOR_PUBLIC_FIELDS = [
   { k:"consignor_phone",      l:"電話番号" },
   { k:"consignor_email",      l:"メールアドレス" },
 ];
+
+// 法人番号の検査用数字（チェックデジット）検証＝公的情報との照合（2026-07-31たきと指示）。
+// 国税庁の算式：13桁の先頭1桁＝9−（基礎番号12桁の偶数位の和×2＋奇数位の和）mod 9（位は右から数える）。
+// 13桁でない場合は null（判定対象外）を返す
+const corpNoCheckOk = (v) => {
+  const t = (v || "").replace(/[^0-9]/g, "");
+  if (t.length !== 13) return null;
+  let even = 0, odd = 0;
+  t.slice(1).split("").forEach((c, i) => { const pos = 12 - i; if (pos % 2 === 0) even += Number(c); else odd += Number(c); });
+  return 9 - ((even * 2 + odd) % 9) === Number(t[0]);
+};
 
 // 契約書の当事者欄（確認STEP5・印刷仕様書に自動反映）。種別で印字を出し分ける（2026-07-31たきと指示）：
 // 個人事業者＝住所・氏名・屋号／法人＝所在地・法人名・代表者（役職＋氏名）。担当者は当事者欄に出さない
@@ -341,7 +345,7 @@ function ConsignorInfoEdit() {
     type:    { t:"委託者の種類",   q:"個人事業者ですか、法人ですか？", de:"種類によって入力ページが分かれます。" },
     ind:     { t:"個人事業者情報", q:"委託で新しく必要な情報だけ入力してください", de:"氏名・住所・メールは新規登録から引き継ぎます。契約書には法的な氏名が印字されます。" },
     corp:    { t:"法人情報",       q:"委託で新しく必要な情報だけ入力してください", de:"法人名・法人番号・本店所在地・メールは新規登録から引き継ぎます。契約の当事者は法人です。" },
-    terms:   { t:"標準取引条件",   q:"いつもの取引条件を設定してください", de:"案件作成時の既定値になります。" },
+    terms:   { t:"連絡・支払設定", q:"連絡と支払の設定をしてください", de:"現場連絡先・支払方法・通知先メールの既定を設定します。" },
     confirm: { t:"登録内容確認",   q:"内容を確認して保存します", de:"案件の確認ページと印刷仕様書に自動で反映されます。" },
   };
   useEffect(() => {
@@ -354,11 +358,13 @@ function ConsignorInfoEdit() {
         // 新規登録①の本人確認情報を引き継ぎの下敷きに（2026-07-31たきと指示）。
         // ★黙って書面へ流し込まない：フォームの初期値に入れるだけで、確認ページを経て
         //   本人が「保存する」を押した時に確定する＝本人の意思で契約書面に載せる形（2026-07-27作法）
+        let ahRow = null;
         try {
           const { data: ah } = await supabase.from("account_holders")
             .select("full_name,postal_code,address,birth_date,entity_type,contact_email,contact_phone,company_name,company_number")
             .eq("auth_id", session.user.id).maybeSingle();
-          setAhInfo(ah || null);
+          ahRow = ah || null;
+          setAhInfo(ahRow);
         } catch {}
         const nd = { ...((data && data.consignor_data) || {}) };
         // 旧v2キー（4分割 pref/city/addr）からの移行：住所(main)へ併合。旧addrには町域が
@@ -379,6 +385,12 @@ function ConsignorInfoEdit() {
         else if (!(nd.ind_biz_same || "").trim() && (nd.ind_biz_addr_main || "").trim()) nd.ind_biz_same = "自宅と異なる";
         if (!(nd.corp_has_invoice || "").trim() && (nd.corp_invoice || "").trim()) nd.corp_has_invoice = "登録あり";
         if (!(nd.staff_use_registrant || "").trim()) nd.staff_use_registrant = (nd.staff_name || "").trim() ? "別の担当者" : "登録者を使用";
+        // 通知先メール：保存済みのメールが登録メールと違う時だけ「別のメールを使用」に倒す
+        if (!(nd.cmn_notify_use || "").trim()) {
+          const regMail = ((ahRow && ahRow.contact_email) || "").trim();
+          const nm = (nd.cmn_notify_email || "").trim();
+          nd.cmn_notify_use = (nm && nm !== regMail) ? "別のメールを使用" : "登録メールを使用";
+        }
         // 旧v1の分割振込・緊急連絡先を下敷きに（空欄のみ・保存は本人が押した時だけ）
         if (data) {
           if (!nd.cmn_bank && data.consignor_bank) { nd.cmn_bank = data.consignor_bank; nd.cmn_bank_branch = data.consignor_bank_branch || ""; nd.cmn_account_type = data.consignor_account_type || ""; nd.cmn_account_no = data.consignor_account_no || ""; nd.cmn_account_name = data.consignor_account_name || ""; }
@@ -445,7 +457,6 @@ function ConsignorInfoEdit() {
         if (!(n.staff_use_registrant || "").trim()) n.staff_use_registrant = "登録者を使用"; // 初期選択（2026-07-31たきと指示）
         if (!(n.corp_has_invoice || "").trim() && (n.corp_invoice || "").trim()) n.corp_has_invoice = "登録あり";
       }
-      put("cmn_notify_email", ah.contact_email);
       return n;
     });
     setCtype(t); setCstep(1); window.scrollTo(0, 0);
@@ -492,8 +503,23 @@ function ConsignorInfoEdit() {
     (f.invoiceOnly && (d.ind_has_invoice || "") !== "登録あり") ||
     (f.staffDiff && (d.staff_use_registrant || "登録者を使用") !== "別の担当者") ||
     (f.corpInvoiceOnly && (d.corp_has_invoice || "") !== "登録あり") ||
-    (f.bankOnly && (d.cmn_pay_method || "") === "現金")
+    (f.notifyDiff && (d.cmn_notify_use || "登録メールを使用") !== "別のメールを使用")
   );
+  // 公的情報との照合（2026-07-31たきと指示）：インボイス番号の形式・法人番号との一致・チェックデジット
+  const cfWarn = (k) => {
+    const v = (d[k] || "").trim();
+    if (!v) return "";
+    if (k === "ind_invoice" || k === "corp_invoice") {
+      if (!/^T\d{13}$/.test(v)) return "「T」＋13桁の形式で入力してください（例：T1234567890123）";
+      if (k === "corp_invoice") {
+        const digits = v.slice(1);
+        const cn = (d.corp_no || "").trim();
+        if (/^\d{13}$/.test(cn) && digits !== cn) return "法人の登録番号は「T＋法人番号」です。引き継いだ法人番号と一致していません";
+        if (corpNoCheckOk(digits) === false) return "番号の検査用数字（チェックデジット）が合いません。公表サイトでご確認ください";
+      }
+    }
+    return "";
+  };
   // 入力欄1つの描画（sel=ピル・zip=検索ボタン付き・num=数字のみ・ta=複数行・help=？で説明開閉）
   const renderCF = (f) => {
     if (f.h) return <p key={"h" + f.h} className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"18px 0 8px" }}>{f.h}</p>;
@@ -543,6 +569,7 @@ function ConsignorInfoEdit() {
         ) : (
           <input className="field f-sans" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
         )}
+        {(() => { const w = cfWarn(f.k); return w ? <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>⚠ {w}</p> : null; })()}
       </div>
     );
   };
@@ -554,8 +581,8 @@ function ConsignorInfoEdit() {
   );
   const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
-    ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS], ["標準取引条件", CONSIGNOR_TERMS_FIELDS]]
-    : [["個人事業者情報", CONSIGNOR_IND_FIELDS], ["標準取引条件", CONSIGNOR_TERMS_FIELDS]];
+    ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS], ["連絡・支払設定", CONSIGNOR_TERMS_FIELDS]]
+    : [["個人事業者情報", CONSIGNOR_IND_FIELDS], ["連絡・支払設定", CONSIGNOR_TERMS_FIELDS]];
   return (
     <div>
       {/* 進捗（黒バー）＋ステップ見出し */}
@@ -600,7 +627,7 @@ function ConsignorInfoEdit() {
         <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 14px" }}>
           <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>新規登録から引き継ぎ（入力不要）</span>
           <span style={{ display:"block" }}>法人名：{(d.corp_name || "").trim() || "未登録"}</span>
-          <span style={{ display:"block" }}>法人番号：{(d.corp_no || "").trim() || "未登録"}</span>
+          <span style={{ display:"block" }}>法人番号：{(d.corp_no || "").trim() || "未登録"}{corpNoCheckOk(d.corp_no) === false ? "　⚠ 検査用数字が合いません（要確認）" : ""}</span>
           <span style={{ display:"block" }}>本店所在地：{[(d.corp_zip || "").trim() ? "〒" + d.corp_zip.trim() : "", (d.corp_addr_main || "").trim(), (d.corp_addr_detail || "").trim()].filter(Boolean).join(" ") || "未登録"}</span>
           <span style={{ display:"block" }}>登録担当者名：{(ahInfo?.full_name || "").trim() || "未登録"}</span>
           <span style={{ display:"block" }}>メール：{(d.corp_email || "").trim() || "未登録"}</span>
@@ -642,7 +669,7 @@ function ConsignorInfoEdit() {
               </div>
             );
           })}
-          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>緊急連絡先・振込口座・確認書類メモは内部用です（掲載や印刷には出ません）。</p>
+          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>現場連絡先・通知先メールは掲載や印刷には出ません（契約時に相手へ個別に伝えます）。</p>
         </div>
       )}
 
