@@ -371,6 +371,26 @@ const CONSIGN_TERMS_SECTIONS = [
 ];
 const CONSIGN_TERMS_CHECK = "私は、委託機能利用特約、利用規約およびプライバシーポリシーを確認し、その内容に同意します。";
 
+// 特約本文（前文＋5条・黒枠1ボックス）。「新しく委託を出す」タップ時の初回ゲートと、
+// 同意後の右上浮遊ボックス（モーダル再読）で共用（2026-08-02たきと指示）
+function ConsignTermsBody() {
+  return (<>
+    {CONSIGN_TERMS_INTRO.map(p => (
+      <p key={p} className="f-sans" style={{ fontSize:13, color:"#111111", lineHeight:1.8, margin:"0 0 10px" }}>{p}</p>
+    ))}
+    <div style={{ border:"1px solid #111111", borderRadius:14, padding:"14px 16px", margin:"4px 0 14px" }}>
+      {CONSIGN_TERMS_SECTIONS.map((sec, i) => (
+        <div key={sec.t} style={ i === 0 ? {} : { borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{sec.t}</p>
+          {sec.ps.map(p => (
+            <p key={p} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.8, margin:"0 0 6px" }}>{p}</p>
+          ))}
+        </div>
+      ))}
+    </div>
+  </>);
+}
+
 // 登録情報の委託機能での利用同意（2026-08-02たきと指示）：曖昧な「引き継いでよいですか」ではなく、
 // 何の情報を・何の目的で・誰に・いつ見せるかまで示して同意を取る。同意文を変えたら版数を更新（再同意）
 const CONSIGNOR_CONSENT_VERSION = "consignment-data-v2-2026-08"; // v2=2026-08-02 チェック文言改定・種別自動分岐
@@ -427,10 +447,6 @@ function ConsignorInfoEdit() {
   const [zipError, setZipError] = useState("");
   const [helpKey, setHelpKey] = useState(null); // ？を開いている項目（helpの説明コメント表示）
   const [confirmAgree, setConfirmAgree] = useState(false); // 確認ページの同意チェック（2026-07-31たきと指示・未チェックでは保存不可）
-  // 委託機能利用特約（最初のゲート・2026-08-02たきと指示）：版数一致の同意が無ければ特約ページから
-  const [termsOk, setTermsOk] = useState(false);
-  const [termsChecked, setTermsChecked] = useState(false);
-  const [termsSaving, setTermsSaving] = useState(false);
   // 登録情報の利用同意（初回ゲート）：チェックは初期未選択・版数一致の同意が無ければフローに入れない
   const [consentOk, setConsentOk] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
@@ -446,10 +462,9 @@ function ConsignorInfoEdit() {
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
   // ステップ1＝引き継ぎチェック（2026-08-02たきと指示）。種類選択ページは廃止＝entity_typeから自動分岐。
   // フォールバック＝entity_type 未登録の旧データ・破損時のみ種類ページを出す（通常ユーザーには見せない）
-  const steps = [...(termsOk ? [] : ["terms"]), "consent", ...(ctype ? [] : ["type"]), ctype === "corporate" ? "corp" : "ind", "confirm"];
+  const steps = ["consent", ...(ctype ? [] : ["type"]), ctype === "corporate" ? "corp" : "ind", "confirm"];
   const stepKey = steps[Math.min(cstep, steps.length - 1)];
   const STEP_META = {
-    terms:   { t:"委託機能利用特約", q:"委託機能を利用する前に", de:"業務委託の契約に関する大切な確認です。はじめに特約をご確認ください。" },
     consent: { t:"引き継ぎ確認",   q:"登録情報の引き継ぎを確認してください", de:"新規登録の情報を委託者情報に引き継ぎます。再入力は不要です。" },
     type:    { t:"委託者の種類",   q:"個人事業者ですか、法人ですか？", de:"種類によって入力ページが分かれます。" },
     ind:     { t:"個人事業者情報", q:"委託で新しく必要な情報だけ入力してください", de:"氏名・住所・メールは新規登録から引き継ぎます。契約書には法的な氏名が印字されます。" },
@@ -463,7 +478,6 @@ function ConsignorInfoEdit() {
         if (!session) { setD({}); return; }
         const { data } = await supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         rowRef.current = data || null;
-        setTermsOk(!!(data && data.consignment_terms_consent && data.consignment_terms_consent_version === CONSIGN_TERMS_VERSION));
         setConsentOk(!!(data && data.consignment_data_consent && data.consignment_data_consent_version === CONSIGNOR_CONSENT_VERSION));
         // 新規登録①の本人確認情報を引き継ぎの下敷きに（2026-07-31たきと指示）。
         // ★黙って書面へ流し込まない：フォームの初期値に入れるだけで、確認ページを経て
@@ -512,11 +526,10 @@ function ConsignorInfoEdit() {
         let merged = (draft && draft.d) ? { ...nd, ...draft.d } : nd;
         if (t) merged = seedConsignorData(merged, t, data || {}); // 自動分岐＝下敷きも自動で適用（身元は複製しない）
         setCtype(t);
-        const okT = !!(data && data.consignment_terms_consent && data.consignment_terms_consent_version === CONSIGN_TERMS_VERSION);
         const okC = !!(data && data.consignment_data_consent && data.consignment_data_consent_version === CONSIGNOR_CONSENT_VERSION);
-        if (okT && okC && draft && Number.isInteger(draft.s)) setCstep(draft.s); // 未同意なら特約→引き継ぎ確認から
-        // 保存済み（特約・引き継ぎ同意済み＋種別確定）で下書きが無ければプロフィール表示モード（2026-08-02たきと指示）
-        setViewing(!!(data && data.consignor_type) && okT && okC && !draft);
+        if (okC && draft && Number.isInteger(draft.s)) setCstep(draft.s); // 未同意ならステップ1（引き継ぎ確認）から
+        // 保存済み（種別確定＋同意済み）で下書きが無ければプロフィール表示モード（2026-08-02たきと指示）
+        setViewing(!!(data && data.consignor_type) && okC && !draft);
         setD(merged);
       } catch { setD({}); }
     })();
@@ -528,27 +541,6 @@ function ConsignorInfoEdit() {
     try { localStorage.setItem("cb_consignorDraft_v1", JSON.stringify({ t: ctype, s: cstep, d })); } catch {}
   }, [d, ctype, cstep, viewing]);
   useEffect(() => { if (stepKey !== "confirm") setConfirmAgree(false); }, [stepKey]); // 確認のたびに改めてチェックさせる
-  // 特約同意の記録（terms/at/version/user_id・行動記録の憲法＝時刻列の追記）。
-  // 同意すると steps から "terms" が消え、cstep=0 のまま次ページ（引き継ぎ確認）が出る
-  const agreeTerms = async () => {
-    if (termsSaving || !termsChecked) return;
-    setTermsSaving(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setTermsSaving(false); return; }
-      const { error } = await supabase.from("consignment_profiles").upsert({
-        auth_id: session.user.id,
-        consignment_terms_consent: true,
-        consignment_terms_consent_at: new Date().toISOString(),
-        consignment_terms_consent_version: CONSIGN_TERMS_VERSION,
-        consignment_terms_consent_user_id: session.user.id,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
-      if (error) alert("同意の記録に失敗しました：" + error.message);
-      else { setTermsOk(true); window.scrollTo(0, 0); }
-    } catch { alert("同意の記録に失敗しました。"); }
-    setTermsSaving(false);
-  };
   // 同意ログの保存（consent/at/version/user_id・行動記録の憲法＝時刻列の追記）
   const agreeConsent = async () => {
     if (consentSaving || !consentChecked) return;
@@ -893,29 +885,6 @@ function ConsignorInfoEdit() {
       <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{meta.q}</h2>
       <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 18px" }}>{meta.de}</p>
 
-      {/* 0. 委託機能利用特約（2026-08-02たきと指示・最初のゲート）：本文はたきと起草の文言そのまま。
-          同意で consignment_terms_consent* に版数付きで記録（行動記録の憲法） */}
-      {stepKey === "terms" && (<>
-        {CONSIGN_TERMS_INTRO.map(p => (
-          <p key={p} className="f-sans" style={{ fontSize:13, color:"#111111", lineHeight:1.8, margin:"0 0 10px" }}>{p}</p>
-        ))}
-        <div style={{ border:"1px solid #111111", borderRadius:14, padding:"14px 16px", margin:"4px 0 14px" }}>
-          {CONSIGN_TERMS_SECTIONS.map((sec, i) => (
-            <div key={sec.t} style={ i === 0 ? {} : { borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{sec.t}</p>
-              {sec.ps.map(p => (
-                <p key={p} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.8, margin:"0 0 6px" }}>{p}</p>
-              ))}
-            </div>
-          ))}
-        </div>
-        <button type="button" onClick={()=>setTermsChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: termsChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: termsChecked ? "#111111" : "#fff", color: termsChecked ? "#fff" : "#111111", marginBottom:12, lineHeight:1.7 }}>
-          <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: termsChecked ? "none" : "2px solid #C8C8C8", background: termsChecked ? "#fff" : "transparent", color:"#111111" }}>{termsChecked ? "✓" : ""}</span>
-          {CONSIGN_TERMS_CHECK}
-        </button>
-        <button onClick={agreeTerms} disabled={termsSaving || !termsChecked} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: termsChecked ? "pointer" : "not-allowed", opacity: (termsSaving || !termsChecked) ? 0.4 : 1 }}>{termsSaving ? "記録中..." : "同意して進む"}</button>
-      </>)}
-
       {/* 1. 委託者の種類（消費者としての個人と混ざらないよう「個人事業者」と表記） */}
       {/* ステップ1＝引き継ぎチェック（2026-08-02たきと指示）：引き継ぐ情報と利用・開示範囲を確認。
           同意ログは初回のみ記録（版数一致の同意があれば「次へ」だけ） */}
@@ -1005,7 +974,7 @@ function ConsignorInfoEdit() {
       {stepKey === "confirm" && <div>{renderProfileBox()}</div>}
 
       {/* ナビ（次へ／保存する） */}
-      {stepKey !== "type" && stepKey !== "consent" && stepKey !== "terms" && (
+      {stepKey !== "type" && stepKey !== "consent" && (
         <div style={{ marginTop:20 }}>
           {stepKey !== "confirm" ? (
             <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
@@ -1113,7 +1082,7 @@ export function ConsignmentRoom() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const prevMeta = meta ? meta.getAttribute("content") : null;
     const prevHtmlBg = document.documentElement.style.backgroundColor;
-    const col = cTab === "new" ? "#FFFFFF" : sky.chrome; // ウィザードは背景ホワイト統一（2026-07-31たきと指示）
+    const col = (cTab === "new" || cTab === "profile") ? "#FFFFFF" : sky.chrome; // ウィザード・プロフィールは背景ホワイト統一（2026-07-31/2026-08-02たきと指示）
     if (meta) meta.setAttribute("content", col);
     document.documentElement.style.backgroundColor = col;
     return () => {
@@ -1202,6 +1171,36 @@ export function ConsignmentRoom() {
   // 身元（氏名・法人名・住所）は account_holders＝唯一の正から並行取得（2026-08-02たきと確定指示）
   const [consignor, setConsignor] = useState(() => getCache("consign:consignor") ?? null);
   const [consignAh, setConsignAh] = useState(() => getCache("consign:ah") ?? null);
+  // 委託機能利用特約（2026-08-02たきと指示）：「新しく委託を出す」タップで初回ゲートとして展開。
+  // 同意済み（版数一致）なら右上の浮遊ボックスからいつでも再読できる
+  const termsOk = !!(consignor && consignor.consignment_terms_consent && consignor.consignment_terms_consent_version === CONSIGN_TERMS_VERSION);
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [termsSaving, setTermsSaving] = useState(false);
+  const [termsModal, setTermsModal] = useState(false);
+  const agreeTerms = async () => {
+    if (termsSaving || !termsChecked) return;
+    setTermsSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setTermsSaving(false); return; }
+      const patch = {
+        auth_id: session.user.id,
+        consignment_terms_consent: true,
+        consignment_terms_consent_at: new Date().toISOString(),
+        consignment_terms_consent_version: CONSIGN_TERMS_VERSION,
+        consignment_terms_consent_user_id: session.user.id,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from("consignment_profiles").upsert(patch, { onConflict: "auth_id" });
+      if (error) alert("同意の記録に失敗しました：" + error.message);
+      else {
+        const merged = { ...(consignor || {}), ...patch };
+        setConsignor(merged); setCache("consign:consignor", merged);
+        window.scrollTo(0, 0);
+      }
+    } catch { alert("同意の記録に失敗しました。"); }
+    setTermsSaving(false);
+  };
   useEffect(() => {
     if (cTab === "profile") return; // 設定ページ自身はフォーム側が読む
     (async () => {
@@ -1342,6 +1341,15 @@ export function ConsignmentRoom() {
     setLeaving(true);
     setTimeout(() => { setLeaving(false); newDealState(); window.location.hash = "/admin/consignment/new"; }, 1250);
   };
+  // 名刺タップ→委託プロフィールページ：新しく委託を出すと同じ退場演出（蔓→太陽→中身）で遷移し、
+  // プロフィールは背景ホワイト（2026-08-02たきと指示）
+  const openProfile = () => {
+    if (leaving) return;
+    let reduce = false; try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch {}
+    if (reduce) { setCTab("profile"); window.location.hash = "/admin/consignment/profile"; return; }
+    setLeaving(true);
+    setTimeout(() => { setLeaving(false); setCTab("profile"); window.location.hash = "/admin/consignment/profile"; }, 1250);
+  };
   // mount時の読み込み：一覧＋名刺。URLが /deal/{id} のままのリロードは取得行でその案件を開き直す
   useEffect(() => {
     (async () => {
@@ -1378,7 +1386,7 @@ export function ConsignmentRoom() {
       const c = readConsignView();
       if (c.view === "list") {
         // ウィザードからの帰還＝退場演出の逆再生（中身→太陽→蔓）。戻るタップも指スワイプもhash経由でここに来る
-        if (cTabRef.current === "new") {
+        if (cTabRef.current === "new" || cTabRef.current === "profile") {
           let reduce = false; try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch {}
           if (!reduce) { setReturning(true); setTimeout(() => setReturning(false), 1300); }
         }
@@ -1602,9 +1610,25 @@ export function ConsignmentRoom() {
 
   return (
     <div className={"cb-consign-page fade-in" + (leaving ? " consign-leaving" : "") + (returning ? " consign-returning" : "")} style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
+      {/* 委託機能利用特約：同意後は右上の浮遊ボックスからいつでも再読できる（2026-08-02たきと指示） */}
+      {termsOk && !leaving && (
+        <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ position:"fixed", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, zIndex:60, background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:11, fontWeight:800, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,0,0,0.25)" }}>利用特約</button>
+      )}
+      {termsModal && (
+        <div onClick={()=>setTermsModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:70, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:560, width:"100%", maxHeight:"80vh", overflowY:"auto", padding:"20px 18px", boxSizing:"border-box" }}>
+            <h3 className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>委託機能を利用する前に</h3>
+            <ConsignTermsBody />
+            {consignor?.consignment_terms_consent_at && (
+              <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>✓ 同意済み：{new Date(consignor.consignment_terms_consent_at).toLocaleString("ja-JP")}（{consignor.consignment_terms_consent_version}）</p>
+            )}
+            <button onClick={()=>setTermsModal(false)} className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>閉じる</button>
+          </div>
+        </div>
+      )}
       {/* 背景の空（2026-07-31たきと指示）：朝昼夜の色＋太陽/月が時刻で左→右に移動。
           蔓より奥（z-index:-2）に敷く。上端から色が差し込み、下は透明に抜ける */}
-      {cTab !== "new" && (
+      {cTab !== "new" && cTab !== "profile" && (
       <div className="consign-sky" aria-hidden="true" style={{ background: `linear-gradient(to bottom, ${sky.skyTop} 0%, rgba(255,255,255,0) 44%)` }}>
         {sky.isNight && skyStars.map((st, i) => (
           <span key={i} className="consign-star" style={{ left: st.x + "%", top: st.y + "%", width: st.s, height: st.s, animationDuration: st.dur + "s", animationDelay: "-" + st.delay + "s" }} />
@@ -1633,7 +1657,7 @@ export function ConsignmentRoom() {
       )}
       {/* 背景の環境：画面上端から垂れ下がる黒い草の蔓（2026-07-31たきと指示）。
           z-index:-1でページ内容の下に敷く（白いカードの裏に自然に隠れる）。ゆっくり揺れる */}
-      {cTab !== "new" && (
+      {cTab !== "new" && cTab !== "profile" && (
       <div className="consign-vines" aria-hidden="true" style={{ "--sway-center": swayCenter, "--sway-amp": swayAmp }}>
         {vines.map((sp, i) => {
           const d = CONSIGN_VINES[sp.v];
@@ -1654,7 +1678,7 @@ export function ConsignmentRoom() {
       )}
       {/* 四隅の蔓（2026-07-31たきと指示）：角を抱くように這う。左上の形を反転で4隅に配る。
           -6pxのはみ出し＝紙の外から蔓が入り込んでいる見え方。揺らさない（額縁は静かに） */}
-      {cTab !== "new" && (
+      {cTab !== "new" && cTab !== "profile" && (
       <div className="consign-corners" aria-hidden="true">
         {[
           { pos: { top: -6, left: -6 },     tr: "" },
@@ -1732,7 +1756,7 @@ export function ConsignmentRoom() {
       {/* 大プロフィールカード（農家プロフィール入口と同じ構造・2026-07-31たきと指示。カラーはブラック：
           緑2px枠→黒2px枠・役割ピル「農家」→「委託主」。反転⇄はプレビュー相当が無いので置かない） */}
       {/* 名刺タップで委託専用プロフィールページへ遷移（2026-07-31たきと指示・雇い手プロフィールではない） */}
-      <button type="button" onClick={()=>{ setCTab("profile"); window.location.hash = "/admin/consignment/profile"; }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12, cursor:"pointer" }}>
+      <button type="button" onClick={openProfile} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12, cursor:"pointer" }}>
         <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
         <span style={{ textAlign:"center" }}>
           <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
@@ -1762,11 +1786,27 @@ export function ConsignmentRoom() {
         </div>
       )}
 
+      {/* 委託機能利用特約（2026-08-02たきと指示）：「新しく委託を出す」タップ時に展開する初回ゲート。
+          本文はたきと起草の文言そのまま。同意で consignment_terms_consent* に版数付きで記録 */}
+      {cTab === "new" && !termsOk && (
+        <div className="fade-in">
+          <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
+          <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>委託機能を利用する前に</h2>
+          <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 18px" }}>業務委託の契約に関する大切な確認です。はじめに特約をご確認ください。</p>
+          <ConsignTermsBody />
+          <button type="button" onClick={()=>setTermsChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: termsChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: termsChecked ? "#111111" : "#fff", color: termsChecked ? "#fff" : "#111111", marginBottom:12, lineHeight:1.7 }}>
+            <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: termsChecked ? "none" : "2px solid #C8C8C8", background: termsChecked ? "#fff" : "transparent", color:"#111111" }}>{termsChecked ? "✓" : ""}</span>
+            {CONSIGN_TERMS_CHECK}
+          </button>
+          <button onClick={agreeTerms} disabled={termsSaving || !termsChecked} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: termsChecked ? "pointer" : "not-allowed", opacity: (termsSaving || !termsChecked) ? 0.4 : 1 }}>{termsSaving ? "記録中..." : "同意して進む"}</button>
+        </div>
+      )}
+
       {/* ═══ 新規委託ウィザード（#/admin/consignment/new・2026-07-31たきと指示）═══
           「入力順」でなく「契約が成立するまでの思考順」＝受託者の頭の中
           （何やる？→できる？→いくら？→いつ？→危なくない？→応募）に合わせた5ステップ。
           1ページ1つの問い。入力部品は案件ダッシュボードと共用（renderBasicField等） */}
-      {cTab === "new" && (
+      {cTab === "new" && termsOk && (
         <div className="fade-in">
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
             <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else { setWizStep(v => v - 1); window.scrollTo(0, 0); } }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
