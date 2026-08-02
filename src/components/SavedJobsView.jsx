@@ -7,7 +7,7 @@
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, calFmtDate, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
+import { ymdLocal, calFmtDate, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
@@ -119,7 +119,7 @@ export function SavedJobsView({ me }) {
   // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる
   if (rows === null) return <div style={{ paddingTop:4 }}><AutoSkeleton shapeKey="saved" /></div>;
 
-  const photoOf = (r) => (r.photos && r.photos[0]) ? (typeof r.photos[0] === "string" ? r.photos[0] : (r.photos[0].thumb || r.photos[0].url)) : null;
+  const photoOf = (r) => photoThumb(r.photos?.[0]);
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
   // 応募行の形（appPhaseKeyは status＋terms_confirmed_* から段階を導く。帯の唯一のソース）
   const appOf = (r) => r.application_id ? {

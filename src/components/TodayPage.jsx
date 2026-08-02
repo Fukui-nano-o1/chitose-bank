@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
-import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel } from "../lib/utils";
+import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb } from "../lib/utils";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
@@ -74,7 +74,7 @@ function InterviewReplyPanel({ items, accent, onAnswered }) {
                   <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", padding:"14px 0", margin:0 }}>読み込み中<Dots /></p>
                 ) : jobInfo[t.job_number] ? (() => {
                   const j = jobInfo[t.job_number];
-                  const photo = j.photos && j.photos[0] ? (typeof j.photos[0] === "string" ? j.photos[0] : j.photos[0]?.url) : null;
+                  const photo = photoThumb(j.photos?.[0]);
                   return (
                     <>
                       <div style={{ display:"flex", gap:10, padding:"10px 12px 8px", alignItems:"center" }}>

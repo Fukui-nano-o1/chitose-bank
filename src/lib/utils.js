@@ -233,6 +233,11 @@ export function dateRangeLabel(startStr, endStr) {
   return `${fmt(start, { omitYear: inYear })} 〜 ${fmt(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
 }
 
+// カード・サムネ表示用：写真1枚（{url,thumb,caption} または旧string形式）から軽量サムネURLを選ぶ
+// （2026-08-02・転送量対策②）。thumbが無い古い写真は原寸へフォールバック。詳細ページの
+// カルーセル・ライトボックス・審査プレビューは原寸(url)のままにすること（画質が要る画面）
+export const photoThumb = (p) => !p ? null : (typeof p === "string" ? p : (p.thumb || p.url || null));
+
 // jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
 // さがす一覧・求人詳細・管理者プレビューで共通利用
 export function mapJobPublicRow(j) {

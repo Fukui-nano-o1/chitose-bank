@@ -2,7 +2,7 @@
 // /#/visit は印刷物に焼かれた恒久URL＝ルート文字列・遷移先の意味を変えない（CLAUDE.md絶対遵守）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
+import { INSURANCE_ITEMS, insuranceToggle, photoThumb } from "../lib/utils";
 import { isIOS } from "../lib/push";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { Dots } from "./ui";
@@ -143,7 +143,7 @@ export function VisitEntrance({ me }) {
             <div className="cb-visit-strip" style={{ animationDuration: Math.max(18, jobs.length * 5) + "s" }}>
               {strip.map((j, i) => {
                 const p0 = j.photos && j.photos[0];
-                const photo = p0 ? (typeof p0 === "string" ? p0 : (p0.thumb || p0.url)) : null;
+                const photo = photoThumb(p0);
                 const title = [j.crop, j.task].filter(Boolean).join(" ") || "農作業";
                 const wage = j.pay_type === "日給" ? Number(j.daily_wage) || 0 : Number(j.hourly_wage) || 0;
                 const pay = wage ? (j.pay_type === "日給" ? "日給" : "時給") + wage.toLocaleString() + "円" : "";

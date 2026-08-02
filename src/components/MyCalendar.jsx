@@ -4,7 +4,7 @@
 // 選んだ日の求人をどう見せるかは置き場所を持つページ側（応募者ページ）の仕事＝onDayTapJobsで渡す。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, isJobDraft, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
+import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, isJobDraft, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, photoThumb } from "../lib/utils";
 import { StatusRibbonLeft, NoticeJumpText } from "./ui";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
@@ -195,7 +195,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
               <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"0 0 14px" }}>作成途中の求人があります。カードをタップすると、続きから再開できます。</p>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
                 {draftPrompt.map(j => {
-                  const photo = j.photos && j.photos[0] ? (typeof j.photos[0] === "string" ? j.photos[0] : j.photos[0]?.url) : null;
+                  const photo = photoThumb(j.photos?.[0]);
                   return (
                     <button key={j.job_number} onClick={()=>{ setDraftPrompt(null); window.location.hash = "/work/edit/" + j.job_number; }}
                       className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>

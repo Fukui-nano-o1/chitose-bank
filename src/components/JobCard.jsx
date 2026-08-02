@@ -1,5 +1,5 @@
 // 求人カード（分割・段階2後半・2026-07-24）：さがす一覧・関連求人・いいね一覧で共用。
-import { payLabel, dateRangeLabel, CROP_OPTIONS } from "../lib/utils";
+import { payLabel, dateRangeLabel, CROP_OPTIONS, photoThumb } from "../lib/utils";
 import { Avatar, StatusRibbonLeft } from "./ui";
 
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
@@ -7,7 +7,7 @@ import { Avatar, StatusRibbonLeft } from "./ui";
 export function JobCard({ job, variant, saved, onToggleSave }) {
   const isList = variant === "list";
   const p0 = job.photos?.[0];
-  const topSrc = typeof p0 === "string" ? p0 : p0?.url;
+  const topSrc = photoThumb(p0); // カードは軽量サムネ（thumbが無い古い写真は原寸へフォールバック）
   const cropIcon = CROP_OPTIONS.find(c => job.crop && job.crop.includes(c.name))?.icon || "🌱";
   const photoHeight = isList ? 220 : 220;
   // Airbnb風：写真は四隅を丸く（枠なしカード・2026-07-19）

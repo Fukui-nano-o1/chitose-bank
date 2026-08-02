@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket } from "../../lib/image";
-import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man } from "../../lib/utils";
+import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, photoThumb } from "../../lib/utils";
 import { Avatar, LinkifiedText, StatusRibbon, Dots } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
 
@@ -1011,7 +1011,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         ) : (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
           {pendingJobs.map(j => {
-            const photo = j.photos && j.photos[0] ? (typeof j.photos[0] === "string" ? j.photos[0] : j.photos[0]?.url) : null;
+            const photo = photoThumb(j.photos?.[0]);
             return (
               <button key={j.job_number} onClick={()=>setPreviewJobNumber(j.job_number)}
                 className="f-sans cb-urgent-card"

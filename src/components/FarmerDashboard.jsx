@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -1244,7 +1244,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           (() => {
             // 作成中と審査中をセクションで分離（2026-07-16）。審査中は閲覧のみ（再開/削除は作成中のみ）
             const renderDraftCard = (d) => {
-              const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+              const photo = photoThumb(d.photos?.[0]);
               return (
               <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft" })}
                 className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
@@ -1287,7 +1287,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             // 審査中(pending)と公開中(open)をセクションで分離（2026-07-16）。
             // 終了（作業日程が過ぎた求人）も公開中ボックスに残す（2026-07-22）＝endedフラグで灰色帯「終了」
             const renderActiveJobCard = (d, ended=false) => {
-              const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+              const photo = photoThumb(d.photos?.[0]);
               return (
               <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
@@ -1417,7 +1417,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
                   // 表示は軽量サムネ優先（2026-07-25）：thumbが無い旧写真は原寸URLへフォールバック
                   const p0 = info.photos && info.photos[0];
-                  const photo = p0 ? (typeof p0 === "string" ? p0 : (p0.thumb || p0.url)) : null;
+                  const photo = photoThumb(p0);
                   // 終端求人の暗幕設計（2026-07-25たきと指示・完了も失効と同じ設計）：
                   // 日程が過ぎた求人は、完了記録あり＝「完了」／なし＝「失効」の暗幕＋中央ラベル＋タップ無反応
                   const jobEnd = info.date_end || info.date_start;
@@ -1500,7 +1500,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           </div>
         ) : (
           dbExpired.map(d => {
-            const photo = d.photos && d.photos[0] ? (typeof d.photos[0] === "string" ? d.photos[0] : d.photos[0]?.url) : null;
+            const photo = photoThumb(d.photos?.[0]);
             return (
             <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft" })}
               className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>

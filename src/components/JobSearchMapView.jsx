@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
-import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges } from "../lib/utils";
+import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
@@ -1287,7 +1287,7 @@ export function JobSearchMapView({ onRegister, me }) {
               <div style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff" }}>
                 {(() => {
                   const p0 = likeDone.photos?.[0];
-                  const src = typeof p0 === "string" ? p0 : p0?.url;
+                  const src = photoThumb(p0);
                   const icon = CROP_OPTIONS.find(c => likeDone.crop && likeDone.crop.includes(c.name))?.icon || "🌱";
                   return src
                     ? <img loading="lazy" src={src} alt="" style={{ width:"100%", height:150, objectFit:"cover", display:"block" }} />
@@ -1407,7 +1407,7 @@ export function JobSearchMapView({ onRegister, me }) {
                       ) : (
                       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
                         {ordered.map(({ r, ended }) => {
-                          const photo = r.photos && r.photos[0] ? (typeof r.photos[0] === "string" ? r.photos[0] : r.photos[0]?.url) : null;
+                          const photo = photoThumb(r.photos?.[0]);
                           const isFocus = focusIdx >= 0 && r.job_number === pastJobsFocus;
                           if (isFocus) {
                             // 展開概要カード：最前列（グリッド全幅）。人数は集計値のみ・0は「ー」

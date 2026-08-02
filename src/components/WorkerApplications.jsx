@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
-import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow } from "../lib/utils";
+import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow, photoThumb } from "../lib/utils";
 import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { YesNoPill, AutoSkeleton, useSkeletonProbe, DeclaredBadge, PunchGapNotice } from "./ui";
@@ -590,7 +590,7 @@ export function WorkerApplications({ filter, me }) {
         <div ref={skelRef} style={{ display:"grid", gap:12 }}>
           {apps.map(a => {
             const job = jobDates[a.job_number] || {};
-            const photo = job.photos && job.photos[0] ? (typeof job.photos[0] === "string" ? job.photos[0] : job.photos[0]?.url) : null;
+            const photo = photoThumb(job.photos?.[0]);
             return (
               <button key={a.id} onClick={()=>setSheetAppId(a.id)}
                 className={"f-sans" + (isAppDone(a) ? "" : " cb-urgent-card")}
