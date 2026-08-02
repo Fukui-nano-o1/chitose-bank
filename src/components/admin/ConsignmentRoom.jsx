@@ -92,7 +92,7 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", hazards:[], hazard_other:"", photos:[], special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", inspection:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名", ph:"例：川向こうの畑" },
@@ -281,16 +281,9 @@ const CONSIGNOR_TERMS_FIELDS = [
   { k:"cmn_account_type", l:"口座種別", sel:["普通","当座"], bankOnly:true },
   { k:"cmn_account_no",   l:"口座番号", num:true, ph:"例：1234567", bankOnly:true },
   { k:"cmn_account_name", l:"口座名義（カナ）", ph:"例：チトセ タロウ", bankOnly:true },
-  { k:"cmn_pay_due",    l:"標準支払期限", ph:"例：検収後7日以内" },
-  { k:"cmn_fee_bearer", l:"振込手数料の負担", sel:["委託者負担","受託者負担"], bankOnly:true },
-  { h:"取引条件" },
-  { k:"cmn_cancel",  l:"標準キャンセル条件", ta:true, ph:"例：開始3日前までの通知は無償、以後は着手金を上限に精算" },
-  { k:"cmn_inspect", l:"標準検収期間", ph:"例：作業完了から3日以内" },
-  { h:"現場の設備" },
-  { k:"cmn_parking", l:"駐車場", sel:["あり","なし"] },
-  { k:"cmn_toilet",  l:"トイレ", sel:["あり","なし"] },
-  { k:"cmn_rest",    l:"休憩場所", sel:["あり","なし"] },
-  { k:"cmn_lend",    l:"貸与できる機械・道具", ta:true, ph:"例：軽トラ・コンテナ・収穫ナイフ" },
+  // 標準支払期限・振込手数料負担・標準検収期間・標準キャンセル条件は、ここでは聞かず
+  // 「委託掲載を初めて行うとき」にウィザード内で設定する（2026-07-31たきと指示・cmn_*キーは共通）。
+  // 圃場設備（駐車場・トイレ・休憩場所・貸与道具）は圃場登録時＝案件作成の作業仕様で案件ごとに設定
   { h:"その他" },
   { k:"cmn_insurance",    l:"保険加入状況", ph:"例：農業経営収入保険・労災上乗せ加入" },
   { k:"cmn_notify_email", l:"通知先メールアドレス", ph:"例：taro@example.com" },
@@ -797,6 +790,9 @@ export function ConsignmentRoom() {
   const [showDeadlineCal, setShowDeadlineCal] = useState(false);
   const [wizStep, setWizStep] = useState(1); // 新規ウィザードの現在ステップ（1〜5・cTab==="new"時のみ有効）
   const [leaving, setLeaving] = useState(false); // 退場演出中（新しく委託を出す→蔓→太陽→中身の順に画面外へ・2026-07-31たきと指示）
+  // 標準取引条件（支払期限・手数料負担・検収期間・キャンセル条件）は委託掲載を初めて行うときに
+  // ウィザード内で設定する（2026-07-31たきと指示）。未設定の項目だけSTEP3に出し、掲載時に委託者情報へ保存
+  const [stdTerms, setStdTerms] = useState({});
   const [returning, setReturning] = useState(false); // 帰還演出中（ウィザード→一覧に戻るとき、退場の逆再生＝中身→太陽→蔓・2026-07-31たきと指示）
   const [printOpen, setPrintOpen] = useState(false);
   const [deals, setDeals] = useState([]);
@@ -870,6 +866,19 @@ export function ConsignmentRoom() {
     setPhotoUploading(false);
   };
   const removePhoto = (i) => setSpec(p => ({ ...p, photos: (p.photos || []).filter((_, k) => k !== i) }));
+  // 初回掲載で入力した標準取引条件を委託者情報(consignor_data)へ保存（空欄は書かない・既存値は上書きしない）
+  const saveStdTerms = async () => {
+    const entries = Object.entries(stdTerms).filter(([, v]) => (v || "").trim());
+    if (!entries.length) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const merged = { ...((consignor && consignor.consignor_data) || {}) };
+      entries.forEach(([k, v]) => { if (!(merged[k] || "").trim()) merged[k] = v.trim(); });
+      await supabase.from("consignment_profiles").upsert({ auth_id: session.user.id, consignor_data: merged, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      setConsignor(c => c ? { ...c, consignor_data: merged } : { consignor_data: merged });
+    } catch {}
+  };
   // 履行期限のカレンダー選択（1回目=開始／2回目=終了／開始より前=選び直し）。
   // raw(date_start/date_end)とラベル(deadline)を同時に更新
   const onDeadlineSelect = (dt) => {
@@ -1011,6 +1020,27 @@ export function ConsignmentRoom() {
   const swayCenter = +(windEast * Math.min(14, windSpeed * 0.5)).toFixed(1); // 傾き中心（度・風向き）
   const windMult = Math.min(3, 1 + windSpeed * 0.05);     // 揺れの速さ倍率（風速で速く）
 
+  // 圃場設備（2026-07-31たきと指示「圃場設備は圃場登録時に設定」＝案件ごと・spec保存）
+  const renderFacilities = () => (
+    <div style={{ marginBottom:10 }}>
+      <label className="lbl f-sans">圃場の設備</label>
+      <div style={{ display:"grid", gap:8, marginBottom:10 }}>
+        {[["facility_parking","駐車場"],["facility_toilet","トイレ"],["facility_rest","休憩場所"]].map(([k, l]) => (
+          <div key={k} style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span className="f-sans" style={{ fontSize:13, color:"#111111", minWidth:72 }}>{l}</span>
+            {["あり","なし"].map(opt => {
+              const on = spec[k] === opt;
+              return (
+                <button key={opt} type="button" onClick={()=>setF(k, on ? "" : opt)} className="f-sans" style={{ padding:"7px 16px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <label className="lbl f-sans">貸与できる道具・機械</label>
+      <textarea className="field f-sans" value={spec.facility_lend || ""} onChange={e=>setF("facility_lend", e.target.value)} placeholder="例：軽トラ・コンテナ・収穫ナイフ" rows={2} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+    </div>
+  );
   // ── 入力部品（案件ダッシュボード(deal)と新規ウィザード(new)で共用・2026-07-31）──
   const renderBasicField = (f) => (
             <div key={f.k} style={{ marginBottom:10 }}>
@@ -1339,8 +1369,12 @@ export function ConsignmentRoom() {
             {["crop","task","field_name","region","area_a"].map(k => renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === k)))}
             {renderPhotos()}
           </>)}
-          {/* STEP2 作業仕様：どう終われば完了か */}
-          {wizStep === 2 && (<>{CONSIGN_TEXT_FIELDS.map(renderTextField)}</>)}
+          {/* STEP2 作業仕様：どう終われば完了か（圃場設備は圃場登録時＝ここで案件ごとに設定） */}
+          {wizStep === 2 && (<>
+            {CONSIGN_TEXT_FIELDS.filter(f => f.k !== "special").map(renderTextField)}
+            {renderFacilities()}
+            {CONSIGN_TEXT_FIELDS.filter(f => f.k === "special").map(renderTextField)}
+          </>)}
           {/* STEP3 報酬：いくら払うのか */}
           {wizStep === 3 && (<>
             {["unit_price_10a","advance"].map(k => renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === k)))}
@@ -1355,6 +1389,43 @@ export function ConsignmentRoom() {
                 <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"4px 0 0" }}>単価を入れると、面積（{spec.area_a ? spec.area_a + "a" : "未入力"}）から報酬イメージを自動計算します。</p>
               ); })()}
           </>)}
+          {/* 標準取引条件（初回のみ・2026-07-31たきと指示）：委託者情報では聞かず、
+              初めての掲載時にここで設定→掲載と同時に委託者情報(consignor_data)へ保存＝次回から出ない */}
+          {wizStep === 3 && (() => {
+            const cd = (consignor && consignor.consignor_data) || {};
+            const STD = [
+              { k:"cmn_pay_due",    l:"標準支払期限", ph:"例：検収後7日以内" },
+              { k:"cmn_fee_bearer", l:"振込手数料の負担", sel:["委託者負担","受託者負担"], cashSkip:true },
+              { k:"cmn_inspect",    l:"標準検収期間", ph:"例：作業完了から3日以内" },
+              { k:"cmn_cancel",     l:"標準キャンセル条件", ta:true, ph:"例：開始3日前までの通知は無償、以後は着手金を上限に精算" },
+            ].filter(f => !(cd[f.k] || "").trim() && !(f.cashSkip && cd.cmn_pay_method === "現金"));
+            if (!STD.length) return null;
+            return (
+              <div style={{ marginTop:18 }}>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>標準取引条件（初回のみ設定）</p>
+                <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>今後の委託にも自動で適用されます。</p>
+                {STD.map(f => (
+                  <div key={f.k} style={{ marginBottom:10 }}>
+                    <label className="lbl f-sans">{f.l}</label>
+                    {f.sel ? (
+                      <div style={{ display:"flex", gap:8 }}>
+                        {f.sel.map(opt => {
+                          const on = (stdTerms[f.k] || "") === opt;
+                          return (
+                            <button key={opt} type="button" onClick={()=>setStdTerms(p2 => ({ ...p2, [f.k]: on ? "" : opt }))} className="f-sans" style={{ padding:"9px 18px", fontSize:14, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+                          );
+                        })}
+                      </div>
+                    ) : f.ta ? (
+                      <textarea className="field f-sans" value={stdTerms[f.k] || ""} onChange={e=>setStdTerms(p2 => ({ ...p2, [f.k]: e.target.value }))} placeholder={f.ph || ""} rows={3} style={{ fontSize:13, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
+                    ) : (
+                      <input className="field f-sans" value={stdTerms[f.k] || ""} onChange={e=>setStdTerms(p2 => ({ ...p2, [f.k]: e.target.value }))} placeholder={f.ph || ""} style={{ fontSize:14, marginBottom:0 }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           {/* STEP4 日程・安全：いつ・危険情報 */}
           {wizStep === 4 && (<>
             {renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === "deadline"))}
@@ -1372,6 +1443,8 @@ export function ConsignmentRoom() {
             <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12, display:"grid", gap:8 }}>
               {[...CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]),
                 ...CONSIGN_TEXT_FIELDS.map(f => [f.l, spec[f.k]]),
+                ["圃場の設備", [["駐車場", spec.facility_parking], ["トイレ", spec.facility_toilet], ["休憩場所", spec.facility_rest]].filter(([, v]) => v).map(([l, v]) => l + v).join("・")],
+                ["貸与できる道具・機械", spec.facility_lend],
                 ["危険情報", (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・")],
                 ["写真", (spec.photos || []).length > 0 ? (spec.photos || []).length + "枚" : ""],
               ].map(([l, v]) => (
@@ -1407,7 +1480,7 @@ export function ConsignmentRoom() {
             {wizStep < 5 ? (
               <button onClick={()=>{ setWizStep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
             ) : (
-              <button onClick={async ()=>{ const ok = await save(); if (ok) window.location.hash = "/admin/consignment"; }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "掲載中..." : "掲載する（募集を開始）"}</button>
+              <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "掲載中..." : "掲載する（募集を開始）"}</button>
             )}
           </div>
         </div>
@@ -1550,6 +1623,7 @@ export function ConsignmentRoom() {
           {CONSIGN_BASIC_FIELDS.map(renderBasicField)}
           {/* 検収基準・圃場条件（特約は危険情報の後・掲載順どおり） */}
           {CONSIGN_TEXT_FIELDS.filter(f => f.k !== "special").map(renderTextField)}
+          {renderFacilities()}
           {/* 危険情報（チェック式・その他は自由記述を展開） */}
           {renderHazards()}
           {/* 写真（最低3枚・掲載の顔。consignment-photos バケット） */}
