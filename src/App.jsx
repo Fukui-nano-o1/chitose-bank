@@ -1154,8 +1154,11 @@ export default function App(){
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.from("worker_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle();
-        const { data: ep } = await supabase.from("employer_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle();
+        // 依存のない2本は並列で（2026-08-02・更新時間の短縮：直列2往復→1往復ぶんの待ちに）
+        const [{ data }, { data: ep }] = await Promise.all([
+          supabase.from("worker_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle(),
+          supabase.from("employer_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle(),
+        ]);
         if (!cancelled) setMeAvatar({ url: data?.avatar_url || "", name: data?.nickname || me.name || "", empUrl: ep?.avatar_url || "", empName: ep?.nickname || me.name || "" });
       } catch {}
     })();
