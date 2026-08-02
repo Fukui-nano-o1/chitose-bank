@@ -251,32 +251,24 @@ const CONSIGNOR_IND_FIELDS = [
   { k:"ind_invoice", l:"適格請求書発行事業者登録番号", ph:"例：T1234567890123", invoiceOnly:true, help:"「T」＋13桁の番号です。国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
 ];
 
+// 法人が委託掲載で新たに聞くのは原則これだけ（2026-07-31たきと指示）：
+// 代表者役職・氏名／担当者電話番号／登録者を連絡担当者として使用するか（初期選択=使用する）／
+// 別担当者の場合のみ担当者名・電話・メール／インボイス登録の有無・登録番号。
+// 法人名・法人番号・本店郵便番号・本店所在地・登録担当者名・登録メールは新規登録①から自動反映（聞き直さない）
 const CONSIGNOR_CORP_FIELDS = [
-  { h:"法人情報" },
-  { k:"corp_name", l:"法人名", ph:"例：株式会社千歳農園" },
-  { k:"corp_kana", l:"法人名フリガナ", ph:"例：チトセノウエン" },
-  { k:"corp_kind", l:"法人種別", sel:CORP_KINDS },
-  { k:"corp_no",   l:"法人番号", num:true, ph:"例：1234567890123（13桁）" },
-  { k:"corp_zip",         l:"郵便番号", zip:{ main:"corp_addr_main" }, ph:"例：7793300" },
-  { k:"corp_addr_main",   l:"本店所在地", ph:"例：徳島県吉野川市鴨島町鴨島" },
-  { k:"corp_addr_detail", l:"番地・建物名", ph:"例：337-4 千歳ビル2F" },
-  { k:"corp_phone",   l:"代表電話番号", ph:"例：0883-12-3456" },
-  { k:"corp_email",   l:"法人メールアドレス", ph:"例：info@example.com" },
-  { k:"corp_invoice", l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁", help:"消費税のインボイス制度に登録した事業者の番号です（「T」＋13桁）。登録していなければ空欄で構いません。記載すると、受託者（相手）が消費税の仕入税額控除を受けられるため、請求書に印字されます。番号は国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
-  { h:"代表者情報" },
+  { h:"代表者" },
   { k:"corp_rep_title", l:"代表者役職", ph:"例：代表取締役" },
   { k:"corp_rep_name",  l:"代表者氏名", ph:"例：千歳 太郎" },
-  { k:"corp_rep_kana",  l:"代表者氏名フリガナ", ph:"例：チトセ タロウ" },
-  { h:"確認書類" },
-  { k:"corp_docs_info", info:"確認書類（登記事項証明書・担当者の権限確認・法人名義の確認資料）は、運営者宛てに郵送でお送りください。ファイルの添付・アップロードは受け付けていません。宛先は運営者からご案内します。" },
-  { k:"corp_docs", l:"郵送の記録（メモ）", ta:true, ph:"例：2026年8月1日 発送／8月3日 受領（登記事項証明書）" },
-];
-const CONSIGNOR_STAFF_FIELDS = [
-  { k:"staff_name",  l:"担当者名", ph:"例：千歳 花子" },
-  { k:"staff_dept",  l:"所属部署・役職", ph:"例：総務部・課長" },
+  { h:"連絡担当者" },
+  { k:"staff_use_registrant", l:"連絡担当者", sel:["登録者を使用","別の担当者"], note:"新規登録した本人が窓口なら「登録者を使用」のままで構いません" },
   { k:"staff_phone", l:"担当者電話番号", ph:"例：090-1234-5678" },
-  { k:"staff_email", l:"担当者メールアドレス", ph:"例：hanako@example.com" },
+  { k:"staff_name",  l:"担当者名", ph:"例：千歳 花子", staffDiff:true },
+  { k:"staff_email", l:"担当者メールアドレス", ph:"例：hanako@example.com", staffDiff:true },
+  { h:"インボイス" },
+  { k:"corp_has_invoice", l:"インボイス登録の有無", sel:["登録あり","登録なし"], help:"消費税のインボイス制度に登録した事業者かどうかです。登録していなければ「登録なし」で構いません。登録番号を記載すると、受託者（相手）が消費税の仕入税額控除を受けられるため、請求書に印字されます。" },
+  { k:"corp_invoice", l:"適格請求書発行事業者登録番号", ph:"例：T1234567890123", corpInvoiceOnly:true, help:"「T」＋13桁の番号です。国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
 ];
+
 const CONSIGNOR_TERMS_FIELDS = [
   { h:"緊急連絡先" },
   { k:"cmn_emergency_name",     l:"氏名", ph:"例：千歳 花子" },
@@ -350,13 +342,12 @@ function ConsignorInfoEdit() {
   const [helpKey, setHelpKey] = useState(null); // ？を開いている項目（helpの説明コメント表示）
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
-  const steps = ctype === "corporate" ? ["type","corp","staff","terms","confirm"] : ["type","ind","terms","confirm"];
+  const steps = ["type", ctype === "corporate" ? "corp" : "ind", "terms", "confirm"]; // 担当者は法人ページに統合（2026-07-31たきと指示）
   const stepKey = steps[Math.min(cstep, steps.length - 1)];
   const STEP_META = {
     type:    { t:"委託者の種類",   q:"個人事業者ですか、法人ですか？", de:"種類によって入力ページが分かれます。" },
     ind:     { t:"個人事業者情報", q:"委託で新しく必要な情報だけ入力してください", de:"氏名・住所・メールは新規登録から引き継ぎます。契約書には法的な氏名が印字されます。" },
-    corp:    { t:"法人情報",       q:"法人と代表者の情報を入力してください", de:"契約の当事者は法人です。" },
-    staff:   { t:"連絡担当者",     q:"連絡窓口となる担当者を入力してください", de:"担当者は連絡欄に使います（契約当事者欄には出ません）。" },
+    corp:    { t:"法人情報",       q:"委託で新しく必要な情報だけ入力してください", de:"法人名・法人番号・本店所在地・メールは新規登録から引き継ぎます。契約の当事者は法人です。" },
     terms:   { t:"標準取引条件",   q:"いつもの取引条件を設定してください", de:"案件作成時の既定値になります。" },
     confirm: { t:"登録内容確認",   q:"内容を確認して保存します", de:"案件の確認ページと印刷仕様書に自動で反映されます。" },
   };
@@ -393,6 +384,8 @@ function ConsignorInfoEdit() {
         if (!(nd.ind_has_invoice || "").trim() && (nd.ind_invoice || "").trim()) nd.ind_has_invoice = "登録あり";
         if (nd.ind_biz_same === "自宅住所と同じ") nd.ind_biz_same = "自宅と同じ";
         else if (!(nd.ind_biz_same || "").trim() && (nd.ind_biz_addr_main || "").trim()) nd.ind_biz_same = "自宅と異なる";
+        if (!(nd.corp_has_invoice || "").trim() && (nd.corp_invoice || "").trim()) nd.corp_has_invoice = "登録あり";
+        if (!(nd.staff_use_registrant || "").trim()) nd.staff_use_registrant = (nd.staff_name || "").trim() ? "別の担当者" : "登録者を使用";
         // 旧v1の分割振込・緊急連絡先を下敷きに（空欄のみ・保存は本人が押した時だけ）
         if (data) {
           if (!nd.cmn_bank && data.consignor_bank) { nd.cmn_bank = data.consignor_bank; nd.cmn_bank_branch = data.consignor_bank_branch || ""; nd.cmn_account_type = data.consignor_account_type || ""; nd.cmn_account_no = data.consignor_account_no || ""; nd.cmn_account_name = data.consignor_account_name || ""; }
@@ -454,7 +447,10 @@ function ConsignorInfoEdit() {
         put("corp_phone", row.consignor_phone); put("corp_phone", ah.contact_phone);
         put("corp_email", row.consignor_email); put("corp_email", ah.contact_email);
         put("corp_invoice", row.consignor_invoice_no);
-        put("corp_rep_name", row.consignor_rep_name); put("corp_rep_name", ah.full_name);
+        put("corp_rep_name", row.consignor_rep_name); // 登録者≠代表者のことがあるso登録者名では埋めない
+        put("staff_phone", ah.contact_phone);
+        if (!(n.staff_use_registrant || "").trim()) n.staff_use_registrant = "登録者を使用"; // 初期選択（2026-07-31たきと指示）
+        if (!(n.corp_has_invoice || "").trim() && (n.corp_invoice || "").trim()) n.corp_has_invoice = "登録あり";
       }
       put("cmn_notify_email", ah.contact_email);
       return n;
@@ -501,6 +497,8 @@ function ConsignorInfoEdit() {
     (f.phoneIfMissing && !!(ahInfo?.contact_phone || "").trim()) ||
     (f.bizDiff && (d.ind_biz_same || "") !== "自宅と異なる") ||
     (f.invoiceOnly && (d.ind_has_invoice || "") !== "登録あり") ||
+    (f.staffDiff && (d.staff_use_registrant || "登録者を使用") !== "別の担当者") ||
+    (f.corpInvoiceOnly && (d.corp_has_invoice || "") !== "登録あり") ||
     (f.bankOnly && (d.cmn_pay_method || "") === "現金")
   );
   // 入力欄1つの描画（sel=ピル・zip=検索ボタン付き・num=数字のみ・ta=複数行・help=？で説明開閉）
@@ -563,7 +561,7 @@ function ConsignorInfoEdit() {
   );
   const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
-    ? [["法人情報・代表者・確認書類", CONSIGNOR_CORP_FIELDS], ["連絡担当者", CONSIGNOR_STAFF_FIELDS], ["標準取引条件", CONSIGNOR_TERMS_FIELDS]]
+    ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS], ["標準取引条件", CONSIGNOR_TERMS_FIELDS]]
     : [["個人事業者情報", CONSIGNOR_IND_FIELDS], ["標準取引条件", CONSIGNOR_TERMS_FIELDS]];
   return (
     <div>
@@ -584,7 +582,7 @@ function ConsignorInfoEdit() {
           {ahInfo?.entity_type && (
             <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:0 }}>新規登録の区分：{ahInfo.entity_type === "corporate" ? "法人" : "個人事業者"}（選び直せます）</p>
           )}
-          {[["individual","個人事業者","氏名で契約し、屋号を持てます。担当者ページは省略されます。"],["corporate","法人","契約の当事者は法人。代表者と担当者を分けて登録します。"]].map(([t, l, de]) => (
+          {[["individual","個人事業者","氏名で契約し、屋号を持てます。担当者ページは省略されます。"],["corporate","法人","契約の当事者は法人。法人情報は新規登録から引き継ぎます。"]].map(([t, l, de]) => (
             <button key={t} onClick={()=>pickType(t)} className="f-sans" style={{ textAlign:"left", background: ctype === t ? "#111111" : "#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", cursor:"pointer" }}>
               <span style={{ display:"block", fontSize:17, fontWeight:800, color: ctype === t ? "#fff" : "#111111" }}>{l}</span>
               <span style={{ display:"block", fontSize:12, color: ctype === t ? "#B9B9B9" : "#717171", marginTop:4, lineHeight:1.6 }}>{de}</span>
@@ -605,12 +603,17 @@ function ConsignorInfoEdit() {
         {CONSIGNOR_IND_FIELDS.map(renderCF)}
       </>)}
       {stepKey === "corp" && (<>
+        {/* 新規登録から自動反映（聞き直さない）＝表示だけ（2026-07-31たきと指示） */}
+        <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 14px" }}>
+          <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>新規登録から引き継ぎ（入力不要）</span>
+          <span style={{ display:"block" }}>法人名：{(d.corp_name || "").trim() || "未登録"}</span>
+          <span style={{ display:"block" }}>法人番号：{(d.corp_no || "").trim() || "未登録"}</span>
+          <span style={{ display:"block" }}>本店所在地：{[(d.corp_zip || "").trim() ? "〒" + d.corp_zip.trim() : "", (d.corp_addr_main || "").trim(), (d.corp_addr_detail || "").trim()].filter(Boolean).join(" ") || "未登録"}</span>
+          <span style={{ display:"block" }}>登録担当者名：{(ahInfo?.full_name || "").trim() || "未登録"}</span>
+          <span style={{ display:"block" }}>メール：{(d.corp_email || "").trim() || "未登録"}</span>
+        </div>
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
-        {(ahInfo?.address || "").trim() && !((d.corp_addr_main || "") + (d.corp_addr_detail || "")).trim() && (
-          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>新規登録の住所：{ahInfo.address}（郵便番号の「住所を検索」で分割入力できます）</p>
-        )}
       </>)}
-      {stepKey === "staff" && CONSIGNOR_STAFF_FIELDS.map(renderCF)}
       {stepKey === "terms" && (<>
         {CONSIGNOR_TERMS_FIELDS.map(renderCF)}
         {(d.cmn_emergency || "").trim() && !((d.cmn_emergency_name || "") + (d.cmn_emergency_relation || "") + (d.cmn_emergency_phone || "")).trim() && (
