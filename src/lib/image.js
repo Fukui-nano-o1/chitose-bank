@@ -48,9 +48,9 @@ export async function uploadJobPhoto(supabase, file, { bucket = "job-photos", pa
     if (src && (!src.type || src.type.startsWith("image/"))) {
       const bitmap = await createImageBitmap(src);
       full = await encodeBitmap(bitmap, src, 1600, 0.8);
-      // 軽量サムネ（2026-07-25たきと指示「画質荒くてもいいからすぐ」）：320px/品質0.5。
-      // 一覧・応募者ページ等の小さい表示はこちらを読む（原寸の1/10以下）
-      if (withThumb) thumb = await encodeBitmap(bitmap, src, 320, 0.5);
+      // 軽量サムネ：640px/品質0.65（2026-08-02・②で320px/0.5から拡大）。従来は小さいサムネ専用
+      // だったが、さがす一覧カードの顔（幅いっぱい表示）にも使うため640pxへ。それでも原寸の1/6程度
+      if (withThumb) thumb = await encodeBitmap(bitmap, src, 640, 0.65);
       bitmap.close?.();
     }
   } catch { full = file; thumb = null; }
@@ -106,4 +106,52 @@ export async function recompressBucket(supabase, bucket, { maxSide = 1600, quali
     } catch { /* この1枚は飛ばして続行 */ }
   }
   return { candidates: files.length, replaced, savedBytes };
+}
+
+// 既存の求人写真へのサムネ後埋め（管理者用・2026-08-02・②）：jobs.photos の各写真について
+// 640pxサムネを生成して thumb_<元ファイル名> に保存し、jsonbへ thumb URL を書き戻す。
+// ・thumbのパスは元ファイル名から機械的に決まる＝uploadJobPhotoの命名規則と同一
+// ・同一パスへupsert＝再実行しても増殖しない（冪等）。旧320px世代のthumbもURL不変のまま中身が640pxに置き換わる
+// ・失敗した写真は飛ばして続行（元のentryを保持＝原寸フォールバックが効き続ける）
+// ・危険箇所写真（danger_）はカード表示が無いので対象外
+export async function generateJobPhotoThumbs(supabase, { maxSide = 640, quality = 0.65, bucket = "job-photos", onProgress } = {}) {
+  const { data: rows, error } = await supabase.from("jobs").select("id, photos");
+  if (error) return { error: error.message };
+  const jobsWithPhotos = (rows || []).filter(r => Array.isArray(r.photos) && r.photos.length > 0);
+  const total = jobsWithPhotos.reduce((n, r) => n + r.photos.length, 0);
+  let done = 0, made = 0, failed = 0, updatedJobs = 0;
+  for (const row of jobsWithPhotos) {
+    let changed = false;
+    const next = [];
+    for (const p of row.photos) {
+      done++; onProgress?.(done, total);
+      const url = typeof p === "string" ? p : p?.url;
+      const marker = "/" + bucket + "/";
+      const at = url ? url.indexOf(marker) : -1;
+      if (at < 0) { next.push(p); continue; } // このバケットの写真でなければ触らない
+      const path = decodeURIComponent(url.slice(at + marker.length).split("?")[0]);
+      const name = path.split("/").pop();
+      try {
+        const { data: blob, error: dlErr } = await supabase.storage.from(bucket).download(path);
+        if (dlErr || !blob) { failed++; next.push(p); continue; }
+        const file = new File([blob], name, { type: blob.type || "image/jpeg" });
+        const small = await compressImage(file, maxSide, quality);
+        const thumbPath = path.replace(/[^/]+$/, "thumb_" + name);
+        const { error: upErr } = await supabase.storage.from(bucket).upload(thumbPath, small, { upsert: true, contentType: small.type || "image/jpeg" });
+        if (upErr) { failed++; next.push(p); continue; }
+        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(thumbPath);
+        const thumbUrl = urlData?.publicUrl || "";
+        if (!thumbUrl) { failed++; next.push(p); continue; }
+        made++;
+        const entry = typeof p === "string" ? { url } : { ...p };
+        if (entry.thumb !== thumbUrl) { entry.thumb = thumbUrl; changed = true; }
+        next.push(entry);
+      } catch { failed++; next.push(p); }
+    }
+    if (changed) {
+      const { error: upErr } = await supabase.from("jobs").update({ photos: next }).eq("id", row.id);
+      if (!upErr) updatedJobs++;
+    }
+  }
+  return { total, made, failed, updatedJobs };
 }

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
-import { recompressBucket } from "../../lib/image";
+import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, photoThumb } from "../../lib/utils";
 import { Avatar, LinkifiedText, StatusRibbon, Dots } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
@@ -182,6 +182,18 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [imgOptRunning, setImgOptRunning] = useState("");   // 実行中のバケット名
   const [imgOptProgress, setImgOptProgress] = useState(""); // "3/12"
   const [imgOptResults, setImgOptResults] = useState({});   // bucket → {candidates, replaced, savedBytes}
+  // カード用サムネの後埋め（2026-08-02・②）：既存jobs.photosに640pxサムネを生成しjsonbへ書き戻す
+  const [thumbGenRunning, setThumbGenRunning] = useState(false);
+  const [thumbGenProgress, setThumbGenProgress] = useState("");
+  const [thumbGenResult, setThumbGenResult] = useState(null);
+  const runThumbGen = async () => {
+    if (thumbGenRunning || imgOptRunning) return;
+    if (!window.confirm("求人写真のカード用サムネ（640px）を一括生成し、jobsのphotosに書き戻します。再実行しても増殖しません。よろしいですか？")) return;
+    setThumbGenRunning(true); setThumbGenProgress("");
+    const r = await generateJobPhotoThumbs(supabase, { onProgress: (d, t) => setThumbGenProgress(`${d}/${t}`) });
+    setThumbGenRunning(false); setThumbGenProgress("");
+    setThumbGenResult(r);
+  };
   const runRecompress = async (bucket, maxSide, quality) => {
     if (imgOptRunning) return;
     // window.confirm と書くこと：同じスコープに確認モーダル用の state `confirm`（{msg,onOk}）があり、
@@ -1600,6 +1612,20 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                   </span>
                 </div>
               ))}
+              {/* カード用サムネの後埋め（2026-08-02・②）：一覧カードは軽量サムネ(thumb)を読む。
+                  thumbが無い既存写真（サムネ導入前のアップロード分）へ640pxサムネを生成する */}
+              <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                <button onClick={runThumbGen} disabled={thumbGenRunning || !!imgOptRunning} className="f-sans" style={{ padding:"9px 16px", fontSize:12, fontWeight:700, background: thumbGenRunning ? "#EBEBEB" : "#00A86B", color: thumbGenRunning ? "#717171" : "#fff", border:"none", borderRadius:10, cursor: (thumbGenRunning || imgOptRunning) ? "default" : "pointer" }}>
+                  {thumbGenRunning ? `生成中 ${thumbGenProgress}…` : "カード用サムネ生成（job-photos）"}
+                </button>
+                <span className="f-sans" style={{ fontSize:11, color:"#999" }}>
+                  {thumbGenResult
+                    ? (thumbGenResult.error
+                        ? `失敗：${thumbGenResult.error}`
+                        : `完了：${thumbGenResult.total}枚中 ${thumbGenResult.made}枚生成（失敗${thumbGenResult.failed}・求人${thumbGenResult.updatedJobs}件更新）`)
+                    : "一覧カードの転送を軽くする（640px・既存写真の後埋め・再実行OK）"}
+                </span>
+              </div>
             </div>
           </Card>
         </div>
