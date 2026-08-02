@@ -1724,3 +1724,30 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
 ・残るのは【作業中】1セクション＝status=working ＋ 本日開始（採用済み・当日が作業日・isTodayWork昇格）。
 ・RPC admin_working_jobs は不変（upcomingは返るがクライアントで当日分だけ使う）。DBも不変。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02 更新（引き下げ更新）の時間短縮：原因特定と対処（4コミット）━━━
+【原因の特定】引き下げ更新の実体は window.location.reload()＝アプリ全体の再起動。十数秒の内訳：
+① 最大要因＝画面キャッシュ(viewCache)がメモリのみ→リロードで全消去→全ページがスケルトンに戻り、
+   データ取得が全部返るまで内容が出ない
+② Google FontsのCSSが描画ブロッキングかつSWキャッシュ対象外＝リロードのたびネット往復を待って初回描画
+③ 管理者は起動時に admin_working_jobs が直列2回（着地判定→着地先ページで再取得）
+④ ヘッダーアバターの worker/employer_profiles が直列2往復
+⑤ DB側の実行自体は温まっていれば速い（実測：my_nav_badges 7〜19ms・my_todo_items 4ms・
+   admin_working_jobs 3ms・jobs_public50件 17ms）。ただしpg_stat_statementsでは
+   コールド時にmax 2〜6.5秒のスパイクあり（nanoインスタンス起因・SQL改修は不要と判断）
+【対処（すべて実装・push済み）】
+1. viewCacheをsessionStorageへ永続化（8840f05）：リロード直後から前回内容で即描画→裏で最新に
+   差し替え（既存SWR思想の拡張・snapshot.jsのmeと同型）。書き込みは300msデバウンス。
+   アプリ完全終了で消える＝古いデータを長期に抱えない性質は維持。ログアウトはclearSnapshots経由で
+   viewCacheも全消去（別人ログインに前の人のデータを残さない）
+2. Google FontsをSWのruntimeCachingでキャッシュ（aa602a1）：CSS=StaleWhileRevalidate／
+   woff2=CacheFirst1年。リロード時の描画ブロッキング往復を排除
+3. admin_working_jobs二重取得の解消（068162f）：着地判定の結果を viewCache("admin:workingJobs") に
+   置き、まもなく開始／仕事中ページは初期stateで読んで即描画→裏で再取得。裏の再取得が失敗しても
+   キャッシュ表示をエラー画面で上書きしない
+4. ヘッダーアバター取得を並列化（fc8b241）：直列2往復→Promise.allで1往復ぶんに
+【検証状態】build+lint(0 error)+grep+nodeでの保存/復元/クリアのシミュレーションまで。
+実機目視は未実施→確認項目：①引き下げ更新後、スケルトンでなく前回内容が即出るか
+②ログアウト→別アカウントで前の内容が見えないか ③管理者起動→まもなく開始ページが即描画か
+【メモ】pull-to-refresh自体（reloadする設計）は不変。新デプロイの取り込み機能を兼ねているため
+━━━ ここまで ━━━
