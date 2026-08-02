@@ -280,7 +280,14 @@ export function mapJobPublicRow(j) {
     fullPayGuarantee: !!j.full_pay_guarantee,
     beginnerOk: !!j.beginner_ok,
     instantApproveRepeat: !!j.instant_approve_repeat,
-    perks: j.perks || null, // この求人だけの待遇上書き（NULL=農家プロフィールの待遇・2026-07-18）
+    // 待遇（2026-08-02改定）：掲載申請時にDBトリガーがプロフィール10項目＋求人固有上書きを合成して
+    // jobs.perksへ確定保存する＝公開求人はこの値だけを見る（employer_profilesの現在値へのフォールバック禁止）。
+    // NULLは掲載前のdraftのみ（確認ページはプレビューとしてプロフィール待遇を初期値に使う・従来どおり）
+    perks: j.perks || null,
+    // 保険（2026-08-02新設）：掲載申請時に凍結した {items, notes, snapshot_at}。
+    // NULL＝スナップショット導入前のレガシー求人＝「保険情報を確認できません」を表示（現在値への代用禁止）
+    insuranceSnapshot: j.insurance_snapshot || null,
+    profileSnapshotAt: j.profile_snapshot_at || "",
     // 写真の無い求人の表紙に出す求人者のアイコン（2026-07-30たきと指示）。jobs_publicに2列追加済み。
     // 公開範囲は増えていない＝同じ2項目は job_employer_profile が求人詳細で既に返している
     employerName: j.employer_nickname || "",

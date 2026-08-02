@@ -1864,3 +1864,31 @@ snapshotへは書かない＝全列形の正本を上書きしない）。案件
 【検証】build+lint 0 error・grep配線確認。実機目視は未実施→確認：委託ページを引き下げ更新して
 台帳が即出るか・案件を開いた状態のリロード復元・設定ページの委託者情報の保存と反映
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02 掲載時スナップショット（待遇・保険）＝公開求人のライブ参照根治 ━━━
+【問題】公開求人の待遇（jobs.perks=NULL時）と保険が employer_profiles の現在値をライブ参照
+＝プロフィール変更で公開済み求人の表示が変わっていた。募集者3項目は2026-07-30転写済みだったが、
+転写トリガーがBEFORE UPDATE限定でINSERT直pendingに穴があった。
+【DB（migration 20260802125755・適用済み・repo同期済み）】
+・jobs に insurance_snapshot(jsonb {items,notes,snapshot_at})・profile_snapshot_at を追加
+・trg_job_recruiter_info を BEFORE INSERT OR UPDATE 化＋拡張：draft→pending/open（または直INSERT）時に
+  募集者3項目・待遇perks（プロフィール10項目を土台に求人固有上書き（旧jobs.perks）を重ねた合成＝NULLを残さない）・
+  insurance_snapshot・profile_snapshot_at を確定保存。pending→open（運営承認）では再取得しない＝申請時の値を維持
+・既存 pending 1件＋open 6件をバックフィル。closed/draft は不変（推測補完なし）。既存 terms_snapshot 不変
+・jobs_public に2列を末尾追加。admin_preview_job も同数・同順更新（2026-07-22ルール）。
+  employer_public_jobs は select jp.* so自動追従
+・CHECK制約 jobs_publish_snapshot_check：pending/open は perks・insurance_snapshot・募集者3項目必須
+  （closed/draft のNULLは許容する部分条件）
+【フロント】mapJobPublicRow に insuranceSnapshot/profileSnapshotAt 追加。JobSearchMapView：
+待遇バッジ・待遇表は jobs.perks 単独参照（empEmployerとのマージ廃止）、保険タブは insuranceSnapshot のみ
+（snapshot無しのレガシー＝タブ非表示・直リンク時「保険情報を確認できません」）。
+draft確認ページ（LandingFlow step11）はプレビューとしてプロフィール現在値の初期値表示を維持（仕様）。
+nickname/avatar/紹介文章・農園紹介モーダルの信頼カード（🛡チップ含む）は現在プロフィール表示のまま（仕様）。
+【再申請の挙動（実測）】draft へ戻して再申請すると募集者・保険は最新プロフィールで再固定。
+perks は前回確定値が求人固有上書きとして維持される（確認ページの表示と一致）。プロフィール待遇を
+反映し直すには確認ページ待遇編集の「保存（プロフィールにも反映）」＝jobPerks=NULL化を通す
+【検証】トリガーはロールバック付きDOブロックで6ケース実測（継承/全false固定/一部上書き/保険凍結/
+INSERT直pending転写/再申請再固定）＝全合格・テスト行は残置ゼロ確認。build+lint 0 error
+【残課題】①住所分割の不整合（LandingFlow recruitBoxが1行recruiter_addressのみ更新・分割列を書かない）
+②支払方法・支払いタイミングのDB保存（列なし）＝いずれも着手禁止指示により未着手
+━━━ ここまで ━━━

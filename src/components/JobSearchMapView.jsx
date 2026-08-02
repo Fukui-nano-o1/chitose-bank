@@ -787,21 +787,26 @@ export function JobSearchMapView({ onRegister, me }) {
           })()}
 
           {/* 仕事の内容 / 保険 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
-          <ContentQSwipeArea value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(empEmployer?.insurance_items) && empEmployer.insurance_items.length > 0}>
-          <ContentQTabs value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(empEmployer?.insurance_items) && empEmployer.insurance_items.length > 0} />
+          {/* 保険は掲載時凍結のinsuranceSnapshotのみを見る（2026-08-02・プロフィール現在値へのフォールバック禁止）。
+              snapshotが無いレガシー求人はタブ非表示＋直リンク時は「保険情報を確認できません」 */}
+          <ContentQSwipeArea value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(selectedJob.insuranceSnapshot?.items) && selectedJob.insuranceSnapshot.items.length > 0}>
+          <ContentQTabs value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(selectedJob.insuranceSnapshot?.items) && selectedJob.insuranceSnapshot.items.length > 0} />
           {detailTab === "questions" ? (
             <JobQuestions jobNumber={selectedJob.id} me={me} />
-          ) : (detailTab === "insurance" && Array.isArray(empEmployer?.insurance_items) && empEmployer.insurance_items.length > 0) ? (
-            <InsurancePanel employer={empEmployer} />
+          ) : (detailTab === "insurance" && !selectedJob.insuranceSnapshot) ? (
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", padding:"24px 4px" }}>保険情報を確認できません</p>
+          ) : (detailTab === "insurance" && Array.isArray(selectedJob.insuranceSnapshot?.items) && selectedJob.insuranceSnapshot.items.length > 0) ? (
+            <InsurancePanel employer={{ insurance_items: selectedJob.insuranceSnapshot.items, insurance_notes: selectedJob.insuranceSnapshot.notes }} />
           ) : (<>
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}</h2>
             {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
-            {(selectedJob.beginnerOk || selectedJob.experiencedPreferred || selectedJob.instantApproveRepeat || perkBadges(selectedJob.perks ? { ...(empEmployer || {}), ...selectedJob.perks } : empEmployer).length > 0) && (
+            {/* 待遇は掲載時に確定保存されたjobs.perksのみを見る（2026-08-02・プロフィール現在値とのマージ廃止） */}
+            {(selectedJob.beginnerOk || selectedJob.experiencedPreferred || selectedJob.instantApproveRepeat || perkBadges(selectedJob.perks).length > 0) && (
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
                 <JobFlagBadges beginner={selectedJob.beginnerOk} expert={selectedJob.experiencedPreferred} repeat={selectedJob.instantApproveRepeat} />
-                {perkBadges(selectedJob.perks ? { ...(empEmployer || {}), ...selectedJob.perks } : empEmployer).map(b => (
+                {perkBadges(selectedJob.perks).map(b => (
                   <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
                 ))}
               </div>
@@ -860,7 +865,7 @@ export function JobSearchMapView({ onRegister, me }) {
               )}
 
               {empEmployer && empEmployer.nickname && (() => {
-                const pk = selectedJob.perks ? { ...empEmployer, ...selectedJob.perks } : empEmployer; // 求人ごとの待遇上書き（2026-07-18）
+                const pk = selectedJob.perks || {}; // 掲載時に確定保存された待遇のみ（2026-08-02・プロフィール現在値とのマージ廃止）
                 const perkRows = [
                   { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
                   { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
