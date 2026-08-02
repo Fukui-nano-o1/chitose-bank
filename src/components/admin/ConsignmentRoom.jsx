@@ -232,31 +232,25 @@ const makeConsignVines = () => {
 const CORP_KINDS = ["株式会社", "合同会社", "農事組合法人", "その他"];
 
 // 入力欄の定義（h=小見出し/ta=複数行/sel=ピル選択/num=数字のみ/zip=郵便番号検索付き/note=補足）
+// 個人事業者が委託掲載で新たに聞くのは原則これだけ（2026-07-31たきと指示）：
+// 屋号の有無・屋号／電話番号（新規登録に無い場合のみ）／事業所所在地（自宅と異なる場合のみ）／
+// インボイス登録の有無・登録番号。氏名・フリガナ・生年月日・住所・メールは新規登録①から引き継ぐ（聞き直さない）
 const CONSIGNOR_IND_FIELDS = [
-  { h:"本人情報" },
-  { k:"ind_name",  l:"氏名", ph:"例：千歳 太郎" },
-  { k:"ind_kana",  l:"氏名フリガナ", ph:"例：チトセ タロウ" },
-  { k:"ind_trade", l:"屋号", ph:"例：千歳農園" },
-  { k:"ind_trade_kana", l:"屋号フリガナ", ph:"例：チトセノウエン" },
-  { k:"ind_birth", l:"生年月日", ph:"例：1990年1月1日" },
-  { k:"ind_zip",         l:"郵便番号", zip:{ main:"ind_addr_main" }, ph:"例：7793300" },
-  { k:"ind_addr_main",   l:"住所", ph:"例：徳島県吉野川市鴨島町鴨島" },
-  { k:"ind_addr_detail", l:"番地・建物名", ph:"例：337-4 千歳ハイツ101" },
-  { k:"ind_phone", l:"電話番号", ph:"例：090-1234-5678" },
-  { k:"ind_email", l:"メールアドレス", ph:"例：taro@example.com" },
-  { h:"事業情報" },
-  { k:"ind_biz_same", l:"事業所所在地", sel:["自宅住所と同じ"], note:"自宅と別の場所なら、選択を外して下に入力してください" },
-  { k:"ind_biz_zip",         l:"事業所の郵便番号", zip:{ main:"ind_biz_addr_main" }, ph:"例：7793300", hideWhenSame:true },
-  { k:"ind_biz_addr_main",   l:"事業所の住所", ph:"例：徳島県吉野川市鴨島町鴨島", hideWhenSame:true },
-  { k:"ind_biz_addr_detail", l:"事業所の番地・建物名", ph:"例：337-4", hideWhenSame:true },
-  { k:"ind_biz_desc",  l:"主な事業内容", ph:"例：ブロッコリー栽培・出荷" },
-  { k:"ind_biz_since", l:"開業年月", ph:"例：2020年4月" },
-  { k:"ind_invoice",   l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁", help:"消費税のインボイス制度に登録した事業者の番号です（「T」＋13桁）。登録していなければ空欄で構いません。記載すると、受託者（相手）が消費税の仕入税額控除を受けられるため、請求書に印字されます。番号は国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
-  // 確認書類は郵送で受け取る（2026-07-31たきと指示「ファイルはダメだ。僕宛に郵送するようにしよう」）。
-  // 宛先の詳細住所はコードに書かない（利用規約第1条＝所在地の詳細は求めに応じ開示・リポジトリ公開もあるため）
-  { k:"ind_docs_info", info:"本人確認書類（運転免許証・マイナンバーカードの写し等）は、運営者宛てに郵送でお送りください。ファイルの添付・アップロードは受け付けていません。宛先は運営者からご案内します。" },
-  { k:"ind_docs",      l:"郵送の記録（メモ）", ta:true, ph:"例：2026年8月1日 発送／8月3日 受領（運転免許証の写し）" },
+  { h:"屋号" },
+  { k:"ind_has_trade", l:"屋号の有無", sel:["屋号あり","屋号なし"] },
+  { k:"ind_trade", l:"屋号", ph:"例：千歳農園", tradeOnly:true },
+  { k:"ind_trade_kana", l:"屋号フリガナ", ph:"例：チトセノウエン", tradeOnly:true },
+  { k:"ind_phone", l:"電話番号", ph:"例：090-1234-5678", phoneIfMissing:true },
+  { h:"事業所所在地" },
+  { k:"ind_biz_same", l:"事業所所在地は自宅と異なりますか？", sel:["自宅と同じ","自宅と異なる"] },
+  { k:"ind_biz_zip",         l:"事業所の郵便番号", zip:{ main:"ind_biz_addr_main" }, ph:"例：7793300", bizDiff:true },
+  { k:"ind_biz_addr_main",   l:"事業所の住所", ph:"例：徳島県吉野川市鴨島町鴨島", bizDiff:true },
+  { k:"ind_biz_addr_detail", l:"事業所の番地・建物名", ph:"例：337-4", bizDiff:true },
+  { h:"インボイス" },
+  { k:"ind_has_invoice", l:"インボイス登録の有無", sel:["登録あり","登録なし"], help:"消費税のインボイス制度に登録した事業者かどうかです。登録していなければ「登録なし」で構いません。登録番号を記載すると、受託者（相手）が消費税の仕入税額控除を受けられるため、請求書に印字されます。" },
+  { k:"ind_invoice", l:"適格請求書発行事業者登録番号", ph:"例：T1234567890123", invoiceOnly:true, help:"「T」＋13桁の番号です。国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
 ];
+
 const CONSIGNOR_CORP_FIELDS = [
   { h:"法人情報" },
   { k:"corp_name", l:"法人名", ph:"例：株式会社千歳農園" },
@@ -360,7 +354,7 @@ function ConsignorInfoEdit() {
   const stepKey = steps[Math.min(cstep, steps.length - 1)];
   const STEP_META = {
     type:    { t:"委託者の種類",   q:"個人事業者ですか、法人ですか？", de:"種類によって入力ページが分かれます。" },
-    ind:     { t:"個人事業者情報", q:"本人と事業の情報を入力してください", de:"契約書には法的な氏名が印字されます。" },
+    ind:     { t:"個人事業者情報", q:"委託で新しく必要な情報だけ入力してください", de:"氏名・住所・メールは新規登録から引き継ぎます。契約書には法的な氏名が印字されます。" },
     corp:    { t:"法人情報",       q:"法人と代表者の情報を入力してください", de:"契約の当事者は法人です。" },
     staff:   { t:"連絡担当者",     q:"連絡窓口となる担当者を入力してください", de:"担当者は連絡欄に使います（契約当事者欄には出ません）。" },
     terms:   { t:"標準取引条件",   q:"いつもの取引条件を設定してください", de:"案件作成時の既定値になります。" },
@@ -394,6 +388,11 @@ function ConsignorInfoEdit() {
         mig("ind_addr_main", "ind_pref", "ind_city", "ind_addr");
         mig("ind_biz_addr_main", "ind_biz_pref", "ind_biz_city", "ind_biz_addr");
         mig("corp_addr_main", "corp_pref", "corp_city", "corp_addr");
+        // 有無フラグの導出（値があるのに未選択のとき）と、旧「自宅住所と同じ」表記の移行
+        if (!(nd.ind_has_trade || "").trim() && (nd.ind_trade || "").trim()) nd.ind_has_trade = "屋号あり";
+        if (!(nd.ind_has_invoice || "").trim() && (nd.ind_invoice || "").trim()) nd.ind_has_invoice = "登録あり";
+        if (nd.ind_biz_same === "自宅住所と同じ") nd.ind_biz_same = "自宅と同じ";
+        else if (!(nd.ind_biz_same || "").trim() && (nd.ind_biz_addr_main || "").trim()) nd.ind_biz_same = "自宅と異なる";
         // 旧v1の分割振込・緊急連絡先を下敷きに（空欄のみ・保存は本人が押した時だけ）
         if (data) {
           if (!nd.cmn_bank && data.consignor_bank) { nd.cmn_bank = data.consignor_bank; nd.cmn_bank_branch = data.consignor_bank_branch || ""; nd.cmn_account_type = data.consignor_account_type || ""; nd.cmn_account_no = data.consignor_account_no || ""; nd.cmn_account_name = data.consignor_account_name || ""; }
@@ -445,6 +444,8 @@ function ConsignorInfoEdit() {
         put("ind_phone", row.consignor_phone); put("ind_phone", ah.contact_phone);
         put("ind_email", row.consignor_email); put("ind_email", ah.contact_email);
         put("ind_invoice", row.consignor_invoice_no);
+        if (!(n.ind_has_trade || "").trim() && (n.ind_trade || "").trim()) n.ind_has_trade = "屋号あり";
+        if (!(n.ind_has_invoice || "").trim() && (n.ind_invoice || "").trim()) n.ind_has_invoice = "登録あり";
       } else {
         put("corp_name", row.consignor_name); put("corp_name", ah.company_name);
         put("corp_no", row.consignor_corp_no); put("corp_no", ah.company_number);
@@ -492,11 +493,20 @@ function ConsignorInfoEdit() {
     } catch { alert("保存に失敗しました。"); }
     setSaving(false);
   };
+  // 条件表示の一元判定（入力欄と登録内容確認の両方が使う）：
+  // tradeOnly=屋号ありのみ／phoneIfMissing=新規登録に電話が無い場合のみ／
+  // bizDiff=事業所が自宅と異なる場合のみ／invoiceOnly=インボイス登録ありのみ／bankOnly=銀行振込のみ
+  const cfHidden = (f) => (
+    (f.tradeOnly && (d.ind_has_trade || "") !== "屋号あり") ||
+    (f.phoneIfMissing && !!(ahInfo?.contact_phone || "").trim()) ||
+    (f.bizDiff && (d.ind_biz_same || "") !== "自宅と異なる") ||
+    (f.invoiceOnly && (d.ind_has_invoice || "") !== "登録あり") ||
+    (f.bankOnly && (d.cmn_pay_method || "") === "現金")
+  );
   // 入力欄1つの描画（sel=ピル・zip=検索ボタン付き・num=数字のみ・ta=複数行・help=？で説明開閉）
   const renderCF = (f) => {
     if (f.h) return <p key={"h" + f.h} className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"18px 0 8px" }}>{f.h}</p>;
-    if (f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ") return null;
-    if (f.bankOnly && (d.cmn_pay_method || "") === "現金") return null; // 現金払いなら銀行振込の入力は伏せる（2026-07-31たきと指示）
+    if (!f.h && !f.info && cfHidden(f)) return null;
     if (f.info) return (
       <div key={f.k} className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.7, margin:"0 0 10px" }}>{f.info}</div>
     );
@@ -584,10 +594,15 @@ function ConsignorInfoEdit() {
       )}
 
       {stepKey === "ind" && (<>
+        {/* 新規登録から引き継ぐ項目は聞き直さない（2026-07-31たきと指示）＝表示だけ */}
+        <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 14px" }}>
+          <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>新規登録から引き継ぎ（入力不要）</span>
+          <span style={{ display:"block" }}>氏名：{(d.ind_name || "").trim() || "未登録"}</span>
+          <span style={{ display:"block" }}>住所：{[d.ind_addr_main, d.ind_addr_detail].map(x => (x || "").trim()).filter(Boolean).join(" ") || "未登録"}</span>
+          <span style={{ display:"block" }}>メール：{(d.ind_email || "").trim() || "未登録"}</span>
+          {(ahInfo?.contact_phone || "").trim() ? <span style={{ display:"block" }}>電話：{(d.ind_phone || "").trim()}</span> : null}
+        </div>
         {CONSIGNOR_IND_FIELDS.map(renderCF)}
-        {(ahInfo?.address || "").trim() && !((d.ind_addr_main || "") + (d.ind_addr_detail || "")).trim() && (
-          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>新規登録の住所：{ahInfo.address}（郵便番号の「住所を検索」で分割入力できます）</p>
-        )}
       </>)}
       {stepKey === "corp" && (<>
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
@@ -615,7 +630,7 @@ function ConsignorInfoEdit() {
           {confirmGroups.map(([gl, fields]) => {
             // 登録内容は全て出す（2026-07-31たきと指示）：未入力もグレーで明示。
             // 条件で無効な項目（事業所=自宅と同じ・現金払いの振込欄）と案内文は出さない
-            const rows = fields.filter(f => !f.h && !f.info && !(f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ") && !(f.bankOnly && (d.cmn_pay_method || "") === "現金")).map(f => [f.l, d[f.k]]);
+            const rows = fields.filter(f => !f.h && !f.info && !cfHidden(f)).map(f => [f.l, d[f.k]]);
             if (!rows.length) return null;
             return (
               <div key={gl} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
