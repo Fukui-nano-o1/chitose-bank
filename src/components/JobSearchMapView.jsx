@@ -7,6 +7,7 @@ import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
+import { snapGet, snapSet } from "../lib/snapshot";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { JobLocationMap } from "./JobLocationMap";
@@ -89,7 +90,11 @@ export function JobSearchMapView({ onRegister, me }) {
     return () => { cancelled = true; };
   }, [selectedJob?.id, me]);
   // 前回の一覧が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）
-  const [dbJobs, setDbJobs] = useState(() => getCache("search:jobs") ?? null);
+  // さがす一覧はアプリを完全に終了した後の起動でも前回内容を即描画する（2026-08-02たきと指示
+  // 「サイトを落としてから入ると遅い」）。sessionStorageのviewCacheに無ければlocalStorageの
+  // snapshotから復元→裏で最新に差し替え。jobs_publicは公開データ（anon可・個人情報なし）なので
+  // snapshot規則①「本人の自分用データのみ」より弱い扱いで保存してよい。ログアウトで消える点は同じ
+  const [dbJobs, setDbJobs] = useState(() => getCache("search:jobs") ?? snapGet("searchJobs") ?? null);
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("search");
   const [dangerLightbox, setDangerLightbox] = useState(null);
@@ -156,12 +161,29 @@ export function JobSearchMapView({ onRegister, me }) {
           const seenSet = new Set(seen);
           const freshNew = mapped.filter(j => j.isNew && !seenSet.has(j.id));
           const rest = mapped.filter(j => !(j.isNew && !seenSet.has(j.id)));
-          { const _list = [...shuffleArr(freshNew), ...shuffleArr(rest)]; setDbJobs(_list); setCache("search:jobs", _list); }
+          setDbJobs(prev => {
+            let list;
+            if (prev && prev.length) {
+              // 前回内容を表示中＝並びを保ったまま中身だけ最新に差し替える（2026-08-02）。
+              // 毎回シャッフルし直すと、即描画した目の前のカードが数秒後に飛び替わって見えるため。
+              // 消えた求人は落ち、新しい求人は先頭に入る
+              const freshById = new Map(mapped.map(j => [j.id, j]));
+              const kept = prev.filter(j => freshById.has(j.id)).map(j => freshById.get(j.id));
+              const keptIds = new Set(kept.map(j => j.id));
+              list = [...shuffleArr(mapped.filter(j => !keptIds.has(j.id))), ...kept];
+            } else {
+              list = [...shuffleArr(freshNew), ...shuffleArr(rest)];
+            }
+            setCache("search:jobs", list); snapSet("searchJobs", list);
+            return list;
+          });
           if (freshNew.length) { try { localStorage.setItem("cb_seenNewJobs", JSON.stringify([...seen, ...freshNew.map(j => j.id)].slice(-300))); } catch {} }
         }
       } catch {}
     })();
-  }, [me]);
+    // meのオブジェクトでなくidを依存に（2026-08-02）：セッション復元のsetMeで識別子が毎回変わり、
+    // 1起動につき全件取得が2回走っていた
+  }, [me?.id]);
   const jobList = dbJobs || [];
   // ── Airbnb風検索（2026-07-27たきと指示・骨格②の段階解禁を運営判断で前倒し）：
   // 上部ピルバー→タップで全画面パネル。なにを（作物・作業）／どこで（地域）／いつ（月）の3セクションを
