@@ -252,7 +252,10 @@ const CONSIGNOR_IND_FIELDS = [
   { k:"ind_biz_desc",  l:"主な事業内容", ph:"例：ブロッコリー栽培・出荷" },
   { k:"ind_biz_since", l:"開業年月", ph:"例：2020年4月" },
   { k:"ind_invoice",   l:"適格請求書発行事業者登録番号（任意）", ph:"T＋13桁", help:"消費税のインボイス制度に登録した事業者の番号です（「T」＋13桁）。登録していなければ空欄で構いません。記載すると、受託者（相手）が消費税の仕入税額控除を受けられるため、請求書に印字されます。番号は国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
-  { k:"ind_docs",      l:"本人確認書類（メモ）", ta:true, ph:"例：運転免許証を確認済み" },
+  // 確認書類は郵送で受け取る（2026-07-31たきと指示「ファイルはダメだ。僕宛に郵送するようにしよう」）。
+  // 宛先の詳細住所はコードに書かない（利用規約第1条＝所在地の詳細は求めに応じ開示・リポジトリ公開もあるため）
+  { k:"ind_docs_info", info:"本人確認書類（運転免許証・マイナンバーカードの写し等）は、運営者宛てに郵送でお送りください。ファイルの添付・アップロードは受け付けていません。宛先は運営者からご案内します。" },
+  { k:"ind_docs",      l:"郵送の記録（メモ）", ta:true, ph:"例：2026年8月1日 発送／8月3日 受領（運転免許証の写し）" },
 ];
 const CONSIGNOR_CORP_FIELDS = [
   { h:"法人情報" },
@@ -271,7 +274,8 @@ const CONSIGNOR_CORP_FIELDS = [
   { k:"corp_rep_name",  l:"代表者氏名", ph:"例：千歳 太郎" },
   { k:"corp_rep_kana",  l:"代表者氏名フリガナ", ph:"例：チトセ タロウ" },
   { h:"確認書類" },
-  { k:"corp_docs", l:"確認書類（メモ）", ta:true, ph:"例：登記事項証明書・担当者の権限確認・法人名義の確認資料" },
+  { k:"corp_docs_info", info:"確認書類（登記事項証明書・担当者の権限確認・法人名義の確認資料）は、運営者宛てに郵送でお送りください。ファイルの添付・アップロードは受け付けていません。宛先は運営者からご案内します。" },
+  { k:"corp_docs", l:"郵送の記録（メモ）", ta:true, ph:"例：2026年8月1日 発送／8月3日 受領（登記事項証明書）" },
 ];
 const CONSIGNOR_STAFF_FIELDS = [
   { k:"staff_name",  l:"担当者名", ph:"例：千歳 花子" },
@@ -493,6 +497,9 @@ function ConsignorInfoEdit() {
     if (f.h) return <p key={"h" + f.h} className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"18px 0 8px" }}>{f.h}</p>;
     if (f.hideWhenSame && (d.ind_biz_same || "") === "自宅住所と同じ") return null;
     if (f.bankOnly && (d.cmn_pay_method || "") === "現金") return null; // 現金払いなら銀行振込の入力は伏せる（2026-07-31たきと指示）
+    if (f.info) return (
+      <div key={f.k} className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.7, margin:"0 0 10px" }}>{f.info}</div>
+    );
     return (
       <div key={f.k} style={{ marginBottom:10 }}>
         {f.help ? (
