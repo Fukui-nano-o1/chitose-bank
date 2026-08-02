@@ -378,40 +378,51 @@ export function TodayPage({ me, defaultRole }) {
       try { sessionStorage.setItem("cb_openCalendar", "1"); } catch {}
       return role === "farmer" ? "/profile/employer/applicants" : "/saved";
     } },
-    t_emergency: { icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id },
+    t_emergency: { icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id,
+                   desc:"遅刻・欠勤・中止など、作業当日の急な連絡をする窓口です。採用が決まった仕事から使えます。" },
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
-    revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number },
+    revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number,
+                   desc:"運営から求人内容の修正のお願いが届いたとき、ここから直して再申請します。" },
     // 求人への質問（2026-07-27たきと指示）：公開Q&A（job_questions）の未回答＝求人カードの❓Nと同じ母集団。
     // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ
-    question:    { icon:"💬", title:"求人への質問",         btn:"回答する →",       nav: e => {
+    question:    { icon:"💬", title:"求人への質問",         btn:"回答する →",
+                   desc:"あなたの求人に届いた質問に回答します。回答は求人ページに公開されます。", nav: e => {
       // 出どころ＝カレンダー（今日）：求人詳細の浮遊「←戻る」ボックスを出さない目印（2026-07-27たきと指示）
       try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
       return "/work/job/" + e.job_number + "/questions"; // タブ指定つきURL（リロードしても質問タブのまま）
     } },
     // 新着の応募（2026-07-26たきと指示・同日改定）：タップでお祝いパネル（NewApplicantsPanel）を展開。
     // 行タップで応募者ページへ「応募中」フィルタ着地＝どの求人に誰が応募したかを応募者ページの求人カード設計で見せる
-    approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",   expand:true, nav: () => { try { sessionStorage.setItem("cb_appFilter", "applied"); } catch {} return "/profile/employer/applicants"; } },
+    approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",
+                   desc:"あなたの求人に新しく届いた応募を確認します。承認すると面接に進めます。",
+                   nav: () => { try { sessionStorage.setItem("cb_appFilter", "applied"); } catch {} return "/profile/employer/applicants"; } },
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
     // 日程変更が必要な時だけ応募者ページの働く日モーダル（set_agreed_dates・cb_agreeAppId着地は温存）で行う
     // interview/hire（2026-07-25たきと指示）：チャットの質問集シート・採用ボタンを今日のリストへ移設。
     // チャットは「アクションの報告（自動送信）＋直接やりとりが必要な時だけ」の最小役割に寄せていく
-    interview:   { icon:"❓", title:"面接の質問を送る",     btn:"質問を送る →",     qset:true },
+    interview:   { icon:"❓", title:"面接の質問を送る",     btn:"質問を送る →",     qset:true,
+                   desc:"承認した応募者に面接の質問を送ります。質問と回答はチャットに証跡として残ります。" },
     // 採用する（2026-07-27たきと指示）：その場実行をやめ、応募者ページの「面接中」タブへ直行。
     // 採用の実行は応募者シートの🤝採用するボタン（二重予約警告つき）が担う
-    hire:        { icon:"🤝", title:"採用する",             btn:"採用する →",       direct:true, nav: () => { try { sessionStorage.setItem("cb_appFilter", "interview"); } catch {} return "/profile/employer/applicants"; } },
-    insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance" },
+    hire:        { icon:"🤝", title:"採用する",             btn:"採用する →",
+                   desc:"面接を終えた応募者を採用します。実行は応募者ページの🤝採用するボタン（二重予約の警告つき）です。",
+                   nav: () => { try { sessionStorage.setItem("cb_appFilter", "interview"); } catch {} return "/profile/employer/applicants"; } },
+    insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance",
+                   desc:"作業前に、保険の準備ができたことを報告します。報告した時刻が記録に残ります。" },
     // 開始を確認／来なかった の2択（2026-07-30たきと指摘「働き手がこなかった場合の措置がない」）。
     // 来なかった時に「開始を確認」しか道が無いのは、事実と違う記録を迫ることになる。altは
     // 応募者ページの完了モーダル（働き手は来ましたか？→来なかった＝欠勤記録・72時間の異議申立つき）へ直行する
     confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start",
+                   desc:"働き手が現場に来て作業が始まったことを確認します。来なかった場合の記録もここからできます。",
                    alt: { label:"来なかった", flag:"cb_completeAppId", to:"/profile/employer/applicants",
                           before: () => { try { sessionStorage.setItem("cb_appFilter", "active"); } catch {} } } },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
     // 完了して評価する（2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
     // 行タップ（専用ページ経由）でも同じ着地。cb_completeAppId は評価モーダルの自動展開用に併せて渡す
-    complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     direct:true, flag:"cb_completeAppId", to:"/profile/employer/applicants",
+    complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants",
+                   desc:"作業の完了を記録して、働き手を評価します。完了の記録から3日以内は評価だけ後からもできます。",
                    before: () => { try { sessionStorage.setItem("cb_appFilter", "completed"); } catch {} } },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
@@ -420,12 +431,15 @@ export function TodayPage({ me, defaultRole }) {
     // 求職の修正（2026-07-27たきと指示・枠のみ先行）：農家側 revision の働き手版。
     // 求職カード（求職一覧＝Phase2b）の実装後に、運営からの修正依頼をmy_todo_itemsが返す想定。
     // 中身（遷移先・実行内容）は未定so nav/rpc は持たせない＝現状は常に「該当なし」の薄い箱として並ぶ
-    w_revision:  { icon:"📝", title:"求職に修正のお願い", btn:"修正する →" },
-    w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
+    w_revision:  { icon:"📝", title:"求職に修正のお願い", btn:"修正する →",
+                   desc:"運営から求職内容の修正のお願いが届いたとき、ここから直します。" },
+    w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する",
+                   desc:"農家から届いた面接の質問に、その場で返事します。返信はチャットにも残ります。" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
     // w_start（作業を開始する）は廃止（2026-07-27たきと指示）：開始時刻が来たらDB側のcron
     // auto_start_work() が自動で開始を記録するため、働き手に押させる箱を置かない
     // 採用済みなら終了の箱も開ける（2026-07-27たきと指示）。行き先は件数に依らず同じso直行(direct)
-    w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   direct:true, nav: () => "/profile/worker/approved" },
+    w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
+                   desc:"仕事の終了を確認して、農家を評価します。評価は承認済みの応募一覧から行います。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
@@ -477,21 +491,22 @@ export function TodayPage({ me, defaultRole }) {
     // 農家は「求人の下書き保存・掲載をした時から」＝応募がゼロでも自分の求人があれば開ける（jobCount）。
     // 働き手は自分の予定（応募・いいね等）が1つでもあれば開ける
     const calendarReady = entries.some(e => e.my_role === role) || mine.length > 0 || (role === "farmer" && jobCount > 0);
-    const enabled = m.always ? calendarReady : n > 0;
+    // 各ボックス＝専用ページ(#/calendar/todo/{stage})へのリンクに統一（2026-08-02たきと指示
+    // 「各ボックスの遷移先を新設。リンクも新設」）。1件直行・direct直行・該当なしタップ不可は廃止：
+    // 該当0件でも専用ページ（用件の説明＋空状態）へ行ける。実行・個別遷移は専用ページの行が担う。
+    // カレンダー（always）だけは従来どおりカレンダー面へ直行（専用ページを挟まない）
+    const enabled = m.always ? calendarReady : true;
+    const dim = m.always ? !calendarReady : n === 0; // 該当なしは薄表示のまま（何の用事が来うるかの地図の役目は維持）
     const onTapBox = () => {
-      if (!enabled) return; // 該当なしボックスは表示のみ（何の用事が来うるかの地図）
-      if (m.always) { window.location.hash = m.nav(); return; } // カレンダーは常に直行
-      // 遷移系で1件だけなら直接遷移（余計なワンタップを挟まない）。direct指定は件数に関わらず直行
-      // （採用する＝応募者ページの面接中タブが一覧の役目・2026-07-27）。expand指定は件数に関わらず
-      // 専用ページを展開（新着の応募＝お祝いパネルを必ず見せる・2026-07-26）。それ以外は用件の専用ページへ
-      if ((n === 1 || m.direct) && (m.nav || m.flag) && !m.expand) { runTodo(m, items[0]); return; }
+      if (!enabled) return;
+      if (m.always) { window.location.hash = m.nav(); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (
       <button onClick={onTapBox} disabled={!enabled} className="f-sans" style={{
         position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:18,
         padding:"24px 10px 18px", textAlign:"center", cursor: enabled ? "pointer" : "default", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
-        opacity: enabled ? 1 : 0.45,
+        opacity: dim ? 0.45 : 1,
       }}>
         {n > 0 && <span aria-label={"残り" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>}
         <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>{m.icon}</span>
@@ -573,6 +588,9 @@ export function TodayPage({ me, defaultRole }) {
           </h2>
           {/* 件数バッジは廃止（2026-07-26たきと指示：ページ内で通知は不要。件数は今日ページのボックスが示す） */}
         </div>
+        {/* 用件の説明（2026-08-02新設）：全ボックスが専用ページへのリンクになったため、
+            該当0件で開いても「何のページか」が分かるように各用件の一言説明を置く */}
+        {pm.desc && <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"-6px 0 16px", paddingLeft:38 }}>{pm.desc}</p>}
         {loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>
         ) : pItems.length === 0 ? (
