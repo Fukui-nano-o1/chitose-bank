@@ -1766,3 +1766,25 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
   thumb_url追加を伴う中工事＝着手前にたきと合図
 ・残タスク③（将来）：求人が数百件になったら一覧のページング＋カード用列だけのビュー
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続2) カード用サムネイル（②）完成 ━━━
+【現状把握】アップロード側は2026-08-01に既にサムネ生成済み（uploadJobPhotoが{url,thumb}を返す）
+だったが、表示側でthumbを読むのは3箇所だけ・既存写真70枚中62枚はthumb無しだった。
+【実装（2コミット）】
+1. 表示側の一本化：lib/utilsに photoThumb(p) を新設（thumb||url・旧string形式対応・無ければnull）。
+   カード・サムネ表示14箇所（JobCard/JobSearchMapView関連カード/ChatView求人ボックス/TodayPage/
+   WorkerApplications/MyCalendar/FarmerDashboard×4/AdminTab/SavedJobsView/VisitAndInsurance）を
+   photoThumbに置換。thumbが無い古い写真は原寸フォールバック＝壊れない。
+   【原寸のまま残す画面（意図的）】詳細ページのカルーセル・危険箇所写真・ライトボックス・
+   審査プレビュー（AdminJobPreview）＝画質が要る画面。ここをthumbにしないこと
+2. 生成側：uploadJobPhotoのサムネを320px/0.5→640px/0.65へ（カードの顔として使うため）。
+   既存写真の後埋め＝lib/image.js generateJobPhotoThumbs（jobs.photos全走査→640pxサムネを
+   thumb_<元名>へupsert→jsonbにthumb書き戻し。冪等・旧320px世代もURL不変で中身だけ640pxに更新）。
+   入口＝管理タブ＞その他＞システム＞画像「カード用サムネ生成（job-photos）」ボタン
+【★たきとの実行待ち】管理タブの上記ボタンを1回タップ（70枚・数分・進捗表示あり）。
+実行するまで既存写真のカードは原寸のまま（フォールバックで表示は壊れない）。
+実行後、さがす一覧の転送が約1/6〜1/8になる。確認＝カード表示が視覚的に問題ないか・
+DBでjobs.photosにthumbが入ったか（select photos from jobs limit 3）
+【メモ】thumbファイルはCDNキャッシュ(1h)があるため、旧320px→640px差し替え直後は
+一部端末で最大1時間古いサムネが出ることがある（実害なし・自然解消）
+━━━ ここまで ━━━
