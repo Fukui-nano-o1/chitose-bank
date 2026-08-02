@@ -283,7 +283,10 @@ const CONSIGNOR_STAFF_FIELDS = [
   { k:"staff_email", l:"担当者メールアドレス" },
 ];
 const CONSIGNOR_TERMS_FIELDS = [
-  { k:"cmn_emergency",  l:"緊急連絡先", ph:"氏名・続柄・電話番号" },
+  { h:"緊急連絡先" },
+  { k:"cmn_emergency_name",     l:"氏名" },
+  { k:"cmn_emergency_relation", l:"続柄", ph:"例：妻・父・友人" },
+  { k:"cmn_emergency_phone",    l:"電話番号" },
   { h:"支払" },
   { k:"cmn_pay_method", l:"標準支払方法", sel:["銀行振込","現金"] },
   { k:"cmn_bank",         l:"銀行名", ph:"例：阿波銀行" },
@@ -581,7 +584,12 @@ function ConsignorInfoEdit() {
         )}
       </>)}
       {stepKey === "staff" && CONSIGNOR_STAFF_FIELDS.map(renderCF)}
-      {stepKey === "terms" && CONSIGNOR_TERMS_FIELDS.map(renderCF)}
+      {stepKey === "terms" && (<>
+        {CONSIGNOR_TERMS_FIELDS.map(renderCF)}
+        {(d.cmn_emergency || "").trim() && !((d.cmn_emergency_name || "") + (d.cmn_emergency_relation || "") + (d.cmn_emergency_phone || "")).trim() && (
+          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>緊急連絡先の現在の保存値:{d.cmn_emergency}(分割して入力し直すと置き換わります)</p>
+        )}
+      </>)}
 
       {/* 登録内容確認（入力済みのみ表示）＋契約書の当事者欄プレビュー */}
       {stepKey === "confirm" && (
