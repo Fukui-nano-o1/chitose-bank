@@ -289,7 +289,7 @@ const CONSIGNOR_TERMS_FIELDS = [
   { k:"cmn_bank_branch",  l:"支店名", ph:"例：鴨島支店" },
   { k:"cmn_account_type", l:"口座種別", sel:["普通","当座"] },
   { k:"cmn_account_no",   l:"口座番号", num:true, ph:"例：1234567" },
-  { k:"cmn_account_name", l:"口座名義（カナ）", ph:"例：フクイ タキト" },
+  { k:"cmn_account_name", l:"口座名義（カナ）", ph:"例：チトセ タロウ" },
   { k:"cmn_pay_due",    l:"標準支払期限", ph:"例：検収後7日以内" },
   { k:"cmn_fee_bearer", l:"振込手数料の負担", sel:["委託者負担","受託者負担"] },
   { h:"取引条件" },
