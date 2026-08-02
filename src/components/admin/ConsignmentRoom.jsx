@@ -720,15 +720,11 @@ function ConsignorInfoEdit() {
         {CONSIGNOR_IND_FIELDS.map(renderCF)}
       </>)}
       {stepKey === "corp" && (<>
-        {/* 新規登録から自動反映（聞き直さない）＝表示だけ（2026-07-31たきと指示） */}
-        <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 14px" }}>
-          <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>新規登録から引き継ぎ（入力不要）</span>
-          <span style={{ display:"block" }}>法人名：{(d.corp_name || "").trim() || "未登録"}</span>
-          <span style={{ display:"block" }}>法人番号：{(d.corp_no || "").trim() || "未登録"}{corpNoCheckOk(d.corp_no) === false ? "　⚠ 検査用数字が合いません（要確認）" : ""}</span>
-          <span style={{ display:"block" }}>本店所在地：{[(d.corp_zip || "").trim() ? "〒" + d.corp_zip.trim() : "", (d.corp_addr_main || "").trim(), (d.corp_addr_detail || "").trim()].filter(Boolean).join(" ") || "未登録"}</span>
-          <span style={{ display:"block" }}>登録担当者名：{(ahInfo?.full_name || "").trim() || "未登録"}</span>
-          <span style={{ display:"block" }}>メール：{(d.corp_email || "").trim() || "未登録"}</span>
-        </div>
+        {/* 引き継ぎボックスは削除（2026-08-02たきと指示）＝引き継ぎ内容は初回の同意ゲートで既に提示済み。
+            法人番号のチェックデジット警告だけは残す（公的情報との照合・不一致時のみ表示） */}
+        {corpNoCheckOk(d.corp_no) === false && (
+          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#111111", margin:"0 0 10px" }}>⚠ 引き継いだ法人番号（{d.corp_no}）の検査用数字が合いません。新規登録の情報をご確認ください。</p>
+        )}
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
       </>)}
       {stepKey === "terms" && (<>
