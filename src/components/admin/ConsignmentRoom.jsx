@@ -92,7 +92,7 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", pay_method:"", inspection:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", pay_method:"", onsite_contact_mode:"", onsite_name:"", onsite_phone:"", inspection:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名", ph:"例：川向こうの畑" },
@@ -273,18 +273,11 @@ const CONSIGNOR_CORP_FIELDS = [
   { k:"corp_invoice", l:"適格請求書発行事業者登録番号", ph:"例：T1234567890123", corpInvoiceOnly:true, help:"「T」＋13桁の番号です。国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
 ];
 
-// ③連絡設定（2026-08-02たきと指示で支払方法も削除）：標準の現場連絡先／通知先メール（別メール使用時のみ入力）。
-// 支払いは利用者の属性ではなく案件ごとの取引条件＝支払方法は案件作成時に選ぶ（spec.pay_method）。
-// 銀行口座は、銀行振込で契約成立した後に受託者（受け取る側）だけが登録・共有する（将来の受託者側機能）。
-// 削除済み＝続柄・銀行口座5項目・保険加入状況・標準支払方法（保存済み値はjsonbに残置）
-const CONSIGNOR_TERMS_FIELDS = [
-  { h:"標準の現場連絡先" },
-  { k:"cmn_emergency_name",  l:"氏名", ph:"例：千歳 花子" },
-  { k:"cmn_emergency_phone", l:"電話番号", ph:"例：090-1234-5678" },
-  { h:"通知" },
-  { k:"cmn_notify_use", l:"通知先メール", sel:["登録メールを使用","別のメールを使用"], note:"別のメールを使う場合のみ、下に入力します" },
-  { k:"cmn_notify_email", l:"通知先メールアドレス", ph:"例：taro@example.com", notifyDiff:true },
-];
+// ③連絡設定ページは廃止（2026-08-02たきと指示「このページは初期設定から削除してよい」）。
+// 恒久的な連絡情報＝新規登録から自動引き継ぎ（個人=登録者氏名・電話・登録メール／法人=登録担当者）。
+// 案件当日の現場連絡先＝委託ごとに必要なら変更（新規委託ウィザードの日程・安全に設置）。
+// 通知メール＝登録メールを自動使用（委託ごとに変える実益はほぼ無い）。
+// 同じ情報をもう一度書かせるページは記憶力試験でしかなく、委託の品質を上げない。
 
 // 旧v1（一枚フォーム）の公開項目＝種別未選択の既存データ表示用フォールバック
 const CONSIGNOR_PUBLIC_FIELDS = [
@@ -360,13 +353,12 @@ function ConsignorInfoEdit() {
   const [consentSaving, setConsentSaving] = useState(false);
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
-  const steps = ["type", ctype === "corporate" ? "corp" : "ind", "terms", "confirm"]; // 担当者は法人ページに統合（2026-07-31たきと指示）
+  const steps = ["type", ctype === "corporate" ? "corp" : "ind", "confirm"]; // 連絡設定ページは廃止・担当者は法人ページに統合
   const stepKey = steps[Math.min(cstep, steps.length - 1)];
   const STEP_META = {
     type:    { t:"委託者の種類",   q:"個人事業者ですか、法人ですか？", de:"種類によって入力ページが分かれます。" },
     ind:     { t:"個人事業者情報", q:"委託で新しく必要な情報だけ入力してください", de:"氏名・住所・メールは新規登録から引き継ぎます。契約書には法的な氏名が印字されます。" },
     corp:    { t:"法人情報",       q:"委託で新しく必要な情報だけ入力してください", de:"法人名・法人番号・本店所在地・メールは新規登録から引き継ぎます。契約の当事者は法人です。" },
-    terms:   { t:"連絡設定", q:"連絡の設定をしてください", de:"現場連絡先と通知先メールの既定を設定します。" },
     confirm: { t:"登録内容確認",   q:"内容を確認して保存します", de:"案件の確認ページと印刷仕様書に自動で反映されます。" },
   };
   useEffect(() => {
@@ -407,12 +399,6 @@ function ConsignorInfoEdit() {
         else if (!(nd.ind_biz_same || "").trim() && (nd.ind_biz_addr_main || "").trim()) nd.ind_biz_same = "自宅と異なる";
         if (!(nd.corp_has_invoice || "").trim() && (nd.corp_invoice || "").trim()) nd.corp_has_invoice = "登録あり";
         if (!(nd.staff_use_registrant || "").trim()) nd.staff_use_registrant = (nd.staff_name || "").trim() ? "別の担当者" : "登録者を使用";
-        // 通知先メール：保存済みのメールが登録メールと違う時だけ「別のメールを使用」に倒す
-        if (!(nd.cmn_notify_use || "").trim()) {
-          const regMail = ((ahRow && ahRow.contact_email) || "").trim();
-          const nm = (nd.cmn_notify_email || "").trim();
-          nd.cmn_notify_use = (nm && nm !== regMail) ? "別のメールを使用" : "登録メールを使用";
-        }
         // 旧v1の分割振込・緊急連絡先を下敷きに（空欄のみ・保存は本人が押した時だけ）
         if (data) {
           if (!nd.cmn_bank && data.consignor_bank) { nd.cmn_bank = data.consignor_bank; nd.cmn_bank_branch = data.consignor_bank_branch || ""; nd.cmn_account_type = data.consignor_account_type || ""; nd.cmn_account_no = data.consignor_account_no || ""; nd.cmn_account_name = data.consignor_account_name || ""; }
@@ -544,8 +530,7 @@ function ConsignorInfoEdit() {
     (f.bizDiff && (d.ind_biz_same || "") !== "自宅と異なる") ||
     (f.invoiceOnly && (d.ind_has_invoice || "") !== "登録あり") ||
     (f.staffDiff && (d.staff_use_registrant || "登録者を使用") !== "別の担当者") ||
-    (f.corpInvoiceOnly && (d.corp_has_invoice || "") !== "登録あり") ||
-    (f.notifyDiff && (d.cmn_notify_use || "登録メールを使用") !== "別のメールを使用")
+    (f.corpInvoiceOnly && (d.corp_has_invoice || "") !== "登録あり")
   );
   // 公的情報との照合（2026-07-31たきと指示）：インボイス番号の形式・法人番号との一致・チェックデジット
   const cfWarn = (k) => {
@@ -680,8 +665,8 @@ function ConsignorInfoEdit() {
   }
   const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
-    ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS], ["連絡設定", CONSIGNOR_TERMS_FIELDS]]
-    : [["個人事業者情報", CONSIGNOR_IND_FIELDS], ["連絡設定", CONSIGNOR_TERMS_FIELDS]];
+    ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS]]
+    : [["個人事業者情報", CONSIGNOR_IND_FIELDS]];
   return (
     <div>
       {/* 進捗（黒バー）＋ステップ見出し */}
@@ -722,13 +707,6 @@ function ConsignorInfoEdit() {
         )}
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
       </>)}
-      {stepKey === "terms" && (<>
-        {CONSIGNOR_TERMS_FIELDS.map(renderCF)}
-        {(d.cmn_emergency || "").trim() && !((d.cmn_emergency_name || "") + (d.cmn_emergency_relation || "") + (d.cmn_emergency_phone || "")).trim() && (
-          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 10px" }}>緊急連絡先の現在の保存値:{d.cmn_emergency}(分割して入力し直すと置き換わります)</p>
-        )}
-      </>)}
-
       {/* 登録内容確認（入力済みのみ表示）＋契約書の当事者欄プレビュー */}
       {stepKey === "confirm" && (
         <div>
@@ -757,7 +735,24 @@ function ConsignorInfoEdit() {
               </div>
             );
           })}
-          <p className="f-sans" style={{ fontSize:11, color:"#999999", margin:"0 0 12px" }}>現場連絡先・通知先メールは掲載や印刷には出ません（契約時に相手へ個別に伝えます）。</p>
+          {/* 連絡先・通知先＝登録情報から自動（このフローでは聞かない・2026-08-02たきと指示）。
+              当日の現場連絡先の上書きは委託案件ごと（ウィザードの日程・安全） */}
+          {(() => {
+            const diffStaff = ctype === "corporate" && (d.staff_use_registrant || "登録者を使用") === "別の担当者";
+            const cName = diffStaff ? (d.staff_name || "").trim() : (ahInfo?.full_name || "").trim();
+            const cPhone = ctype === "corporate" ? ((ahInfo?.contact_phone || "").trim()) : (((ahInfo?.contact_phone || "").trim()) || (d.ind_phone || "").trim());
+            const cMail = diffStaff ? (d.staff_email || "").trim() : "";
+            return (
+              <div style={{ background:"#F7F7F7", borderRadius:10, padding:"12px 14px", marginBottom:12 }}>
+                <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>連絡先</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cName || "未登録"}</p>
+                {(cPhone || cMail) && <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>{cPhone || cMail}</p>}
+                <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#111111", margin:"8px 0 2px" }}>通知先</p>
+                <p className="f-sans" style={{ fontSize:12, color:"#111111", margin:0 }}>登録メールアドレス</p>
+                <p className="f-sans" style={{ fontSize:10, color:"#999999", margin:"6px 0 0" }}>変更は登録情報から行います。案件当日だけ別の連絡先を使う場合は、委託の作成時に指定できます。</p>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1140,6 +1135,30 @@ export function ConsignmentRoom() {
   const swayCenter = +(windEast * Math.min(14, windSpeed * 0.5)).toFixed(1); // 傾き中心（度・風向き）
   const windMult = Math.min(3, 1 + windSpeed * 0.05);     // 揺れの速さ倍率（風速で速く）
 
+  // 当日の現場連絡先（2026-08-02たきと指示）：恒久連絡先は登録情報から自動＝案件ごとに必要なときだけ上書き。
+  // 法人では登録担当者と圃場へ来る担当者が違うことがある。個人でも当日だけ家族・従業員を連絡先にする場合がある
+  const renderOnsiteContact = () => {
+    const mode = spec.onsite_contact_mode || "登録情報を使用";
+    return (
+      <div style={{ marginBottom:10 }}>
+        <label className="lbl f-sans">当日の現場連絡先</label>
+        <div style={{ display:"flex", gap:8, marginBottom: mode === "別の連絡先を使用" ? 8 : 0 }}>
+          {["登録情報を使用", "別の連絡先を使用"].map(opt => {
+            const on = mode === opt;
+            return (
+              <button key={opt} type="button" onClick={()=>setF("onsite_contact_mode", opt)} className="f-sans" style={{ padding:"9px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{opt}</button>
+            );
+          })}
+        </div>
+        {mode === "別の連絡先を使用" && (<>
+          <label className="lbl f-sans">氏名</label>
+          <input className="field f-sans" value={spec.onsite_name || ""} onChange={e=>setF("onsite_name", e.target.value)} placeholder="例：千歳 花子" style={{ fontSize:14, marginBottom:8 }} />
+          <label className="lbl f-sans">電話番号</label>
+          <input className="field f-sans" value={spec.onsite_phone || ""} onChange={e=>setF("onsite_phone", e.target.value)} placeholder="例：090-1234-5678" style={{ fontSize:14, marginBottom:0 }} />
+        </>)}
+      </div>
+    );
+  };
   // 圃場設備（2026-07-31たきと指示「圃場設備は圃場登録時に設定」＝案件ごと・spec保存）
   const renderFacilities = () => (
     <div style={{ marginBottom:10 }}>
@@ -1559,6 +1578,7 @@ export function ConsignmentRoom() {
           {wizStep === 4 && (<>
             {renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === "deadline"))}
             {renderHazards()}
+            {renderOnsiteContact()}
           </>)}
           {/* STEP5 確認・掲載：公開前チェック（プレビュー＋定型条項＋掲載） */}
           {wizStep === 5 && (<>
@@ -1575,6 +1595,7 @@ export function ConsignmentRoom() {
                 ["圃場の設備", [["駐車場", spec.facility_parking], ["トイレ", spec.facility_toilet], ["休憩場所", spec.facility_rest]].filter(([, v]) => v).map(([l, v]) => l + v).join("・")],
                 ["貸与できる道具・機械", spec.facility_lend],
                 ["危険情報", (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・")],
+                ["当日の現場連絡先", spec.onsite_contact_mode === "別の連絡先を使用" ? [spec.onsite_name, spec.onsite_phone].map(x => (x || "").trim()).filter(Boolean).join(" ") : "登録情報を使用"],
                 ["写真", (spec.photos || []).length > 0 ? (spec.photos || []).length + "枚" : ""],
               ].map(([l, v]) => (
                 <div key={l} style={{ display:"flex", gap:10 }}>
@@ -1755,6 +1776,7 @@ export function ConsignmentRoom() {
           {renderFacilities()}
           {/* 危険情報（チェック式・その他は自由記述を展開） */}
           {renderHazards()}
+          {renderOnsiteContact()}
           {/* 写真（最低3枚・掲載の顔。consignment-photos バケット） */}
           {renderPhotos()}
           {/* 特約（掲載順の最後） */}
