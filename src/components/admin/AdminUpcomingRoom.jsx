@@ -9,6 +9,7 @@ import { supabase } from "../../lib/supabase";
 import { CROP_OPTIONS, dateRangeLabel, startsWithinDays } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
+import { AdminNav } from "./AdminNav";
 
 const cropIcon = (crop) => CROP_OPTIONS.find(c => c.name === crop)?.icon || "🌱";
 
@@ -87,6 +88,8 @@ export function AdminUpcomingRoom() {
   // 読み込み中・権限なし・失敗・0件は最小の1行テキストだけ（直URLで開いた時に白紙に見えないための最低限）
   return (
     <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
+      {/* 管理ページの共通ナビ（全ページ導線・2026-08-02たきと指示）。見出し等は置かない方針のまま、導線のみ */}
+      <AdminNav current="upcoming" />
       {state === null && (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
       )}

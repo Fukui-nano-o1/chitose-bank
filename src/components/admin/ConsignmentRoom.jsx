@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { ymdLocal } from "../../lib/utils";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
 import { CalendarView } from "../CalendarView";
+import { AdminNav } from "./AdminNav";
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
@@ -1235,6 +1236,8 @@ export function ConsignmentRoom() {
       {/* トップ画=一覧（さがすページと同じ設計・2026-07-31たきと指示）：カードの一覧→タップで
           案件ダッシュボード(deal)へ。←戻る・見出し・入口カードは一覧側だけに出す */}
       {cTab === "list" && (<div className="consign-list-content">
+      {/* 管理ページの共通ナビ（全ページ導線・2026-08-02）。一覧側だけに出す（ウィザード・印刷は出さない） */}
+      <AdminNav current="consignment" />
       {/* 戻り先は雇い手プロフィール入口（2026-07-31たきと指示・管理タブではない）：
           入口カード「新しく委託を出す」が置いてある場所へ帰る。ラベルも「← 戻る」に */}
       <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>

@@ -1,0 +1,37 @@
+// 管理画面の共通ナビ（2026-08-02たきと指示「主要ページに全てのページ導線を新設」）。
+// 管理者専用の全ページへ1タップで行き来できる横並びチップ。各主要ページの上部に設置する。
+// 行き先の正はここ1箇所（ページを増減したら PAGES に足す/消すだけ・他を壊さない）。
+// 遷移は window.location.hash 書き込み＝App.jsx の hashchange ルーティングに乗る（既存レール）。
+const PAGES = [
+  { key: "admin",       hash: "/admin",             icon: "🧑‍💼", label: "管理" },
+  { key: "working",     hash: "/admin/working",     icon: "🛠",  label: "仕事中" },
+  { key: "upcoming",    hash: "/admin/upcoming",    icon: "⏳",  label: "まもなく開始" },
+  { key: "consignment", hash: "/admin/consignment", icon: "🚩",  label: "委託 準備室" },
+  { key: "boxes",       hash: "/boxes",             icon: "🗂",  label: "ボックス一覧" },
+  { key: "notices",     hash: "/boxes/notices",     icon: "📢",  label: "お知らせ一覧" },
+];
+
+export function AdminNav({ current }) {
+  return (
+    <nav aria-label="管理ページ" className="admin-nav" style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", padding: "2px 2px 4px", marginBottom: 14 }}>
+      {PAGES.map(p => {
+        const active = p.key === current;
+        return (
+          <button key={p.key} type="button" className="f-sans"
+            onClick={() => { if (!active) window.location.hash = p.hash; }}
+            aria-current={active ? "page" : undefined}
+            style={{
+              flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
+              padding: "7px 12px", borderRadius: 20, whiteSpace: "nowrap",
+              border: active ? "1.5px solid #222" : "1px solid #EBEBEB",
+              background: active ? "#222" : "#fff",
+              color: active ? "#fff" : "#555",
+              fontSize: 12, fontWeight: 700, cursor: active ? "default" : "pointer",
+            }}>
+            <span aria-hidden="true">{p.icon}</span>{p.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}

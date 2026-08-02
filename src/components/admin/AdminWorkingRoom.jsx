@@ -8,6 +8,7 @@ import { supabase } from "../../lib/supabase";
 import { CROP_OPTIONS, dateRangeLabel, ymdLocal, isWorkDayToday } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
+import { AdminNav } from "./AdminNav";
 
 const cropIcon = (crop) => CROP_OPTIONS.find(c => c.name === crop)?.icon || "🌱";
 
@@ -123,6 +124,8 @@ export function AdminWorkingRoom() {
 
   return (
     <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
+      {/* 管理ページの共通ナビ（全ページ導線・2026-08-02） */}
+      <AdminNav current="working" />
       <div style={{ marginBottom:6 }}>
         <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>🛠 仕事中</p>
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>いま進行中の仕事の見守り（作業中と本日開始）</p>

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { NoticeJumpText } from "../ui";
+import { AdminNav } from "./AdminNav";
 
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（🗂ボックス台帳 ⇄ 📢お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
@@ -89,7 +90,8 @@ export function AdminBoxRegistryPage() {
   };
   return (
     <div className="fade-in" style={{ maxWidth:560, margin:"0 auto", padding:"24px 16px 120px" }}>
-      <button onClick={()=>{ window.location.hash = "/admin"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, fontWeight:600, color:"#717171", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 管理</button>
+      {/* 管理ページの共通ナビ（全ページ導線・2026-08-02）。旧「← 管理」ボタンは管理チップが兼ねる */}
+      <AdminNav current={pTab === "notices" ? "notices" : "boxes"} />
       <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
         {[
           { k:"boxes",   l:"🗂 ボックス一覧",   n:rows.length },

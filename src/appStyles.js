@@ -474,6 +474,9 @@ input:focus { outline: none; }
     transition: transform .25s ease;
   }
   .cb-applicant-filter-bar::-webkit-scrollbar { display: none; }
+  /* 管理画面の共通ナビ（AdminNav）：チップ列のスクロールバーは隠す（横スワイプは生きる） */
+  .admin-nav { scrollbar-width: none; }
+  .admin-nav::-webkit-scrollbar { display: none; }
   /* モバイルは浮遊バーだけを見せる（本文中の並びは重複so隠す） */
   .cb-applicant-filter-inline { display: none !important; }
   body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
