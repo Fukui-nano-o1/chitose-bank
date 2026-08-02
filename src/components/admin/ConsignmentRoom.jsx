@@ -392,11 +392,12 @@ function ConsignorInfoEdit() {
   const [consentSaving, setConsentSaving] = useState(false);
   const rowRef = useRef(null); // 旧v1列（種別選択時の下敷きに使う）
   const [ahInfo, setAhInfo] = useState(null); // 新規登録①（account_holders）＝引き継ぎの下敷き（2026-07-31たきと指示）
-  // 種類選択ページは廃止（2026-08-02たきと指示）：entity_type から自動分岐。
+  // ステップ1＝引き継ぎチェック（2026-08-02たきと指示）。種類選択ページは廃止＝entity_typeから自動分岐。
   // フォールバック＝entity_type 未登録の旧データ・破損時のみ種類ページを出す（通常ユーザーには見せない）
-  const steps = [...(ctype ? [] : ["type"]), ctype === "corporate" ? "corp" : "ind", "confirm"];
+  const steps = ["consent", ...(ctype ? [] : ["type"]), ctype === "corporate" ? "corp" : "ind", "confirm"];
   const stepKey = steps[Math.min(cstep, steps.length - 1)];
   const STEP_META = {
+    consent: { t:"引き継ぎ確認",   q:"登録情報の引き継ぎを確認してください", de:"新規登録の情報を委託者情報に引き継ぎます。再入力は不要です。" },
     type:    { t:"委託者の種類",   q:"個人事業者ですか、法人ですか？", de:"種類によって入力ページが分かれます。" },
     ind:     { t:"個人事業者情報", q:"委託で新しく必要な情報だけ入力してください", de:"氏名・住所・メールは新規登録から引き継ぎます。契約書には法的な氏名が印字されます。" },
     corp:    { t:"法人情報",       q:"委託で新しく必要な情報だけ入力してください", de:"法人名・法人番号・本店所在地・メールは新規登録から引き継ぎます。契約の当事者は法人です。" },
@@ -457,7 +458,8 @@ function ConsignorInfoEdit() {
         let merged = (draft && draft.d) ? { ...nd, ...draft.d } : nd;
         if (t) merged = seedConsignorData(merged, t, data || {}, ahRow || {}); // 自動分岐＝下敷きも自動で適用
         setCtype(t);
-        if (draft && Number.isInteger(draft.s)) setCstep(draft.s);
+        const okC = !!(data && data.consignment_data_consent && data.consignment_data_consent_version === CONSIGNOR_CONSENT_VERSION);
+        if (okC && draft && Number.isInteger(draft.s)) setCstep(draft.s); // 未同意ならステップ1（引き継ぎ確認）から
         setD(merged);
       } catch { setD({}); }
     })();
@@ -484,7 +486,7 @@ function ConsignorInfoEdit() {
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       if (error) alert("同意の記録に失敗しました：" + error.message);
-      else setConsentOk(true);
+      else { setConsentOk(true); setCstep(v => v + 1); window.scrollTo(0, 0); }
     } catch { alert("同意の記録に失敗しました。"); }
     setConsentSaving(false);
   };
@@ -623,56 +625,6 @@ function ConsignorInfoEdit() {
       <p className="f-sans" style={{ fontSize:13, color:"#999999", margin:0 }}>読み込み中…</p>
     </div>
   );
-  // ── 初回同意ゲート（2026-08-02たきと指示）：①引き継ぐ登録情報 ②公開・開示範囲 ③必須チェック1個
-  //    ④「委託掲載を始める」。再入力は不要だが、無言で転用もしない ──
-  if (!consentOk) {
-    const isCorp = ahInfo?.entity_type === "corporate";
-    const inheritRows = [
-      ["区分", isCorp ? "法人" : "個人事業者"],
-      isCorp ? ["法人名", ahInfo?.company_name] : ["氏名", ahInfo?.full_name],
-      ...(isCorp ? [["登録者氏名", ahInfo?.full_name], ["法人番号", ahInfo?.company_number]] : []),
-      ["住所", ahInfo?.address],
-      ["メールアドレス", ahInfo?.contact_email],
-      ...((ahInfo?.contact_phone || "").trim() ? [["電話番号", ahInfo?.contact_phone]] : []),
-    ].filter(r => (r[1] || "").trim());
-    return (
-      <div>
-        <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{ahInfo?.entity_type ? (isCorp ? "法人として委託を掲載します" : "個人事業者として委託を掲載します") : "登録情報の利用について"}</h2>
-        <p className="f-sans" style={{ fontSize:13, color:"#111111", lineHeight:1.8, margin:"0 0 16px" }}>{CONSIGNOR_CONSENT_TEXT}</p>
-        {/* ① 引き継ぐ登録情報 */}
-        <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 12px" }}>
-          <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>引き継ぐ登録情報</span>
-          {inheritRows.map(([l, v]) => <span key={l} style={{ display:"block" }}>{l}：{v}</span>)}
-          {inheritRows.length === 0 && <span style={{ display:"block", color:"#999999" }}>新規登録の情報が見つかりませんでした</span>}
-        </div>
-        {/* ② 公開・開示範囲（段階別）：タップで展開 */}
-        <button type="button" onClick={()=>setScopeOpen(v => !v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border:"1px solid #111111", background:"#fff", color:"#111111", marginBottom: scopeOpen ? 8 : 12 }}>
-          {scopeOpen ? "▾" : "▸"} 表示・開示される情報を確認
-        </button>
-        {scopeOpen && (
-          <div style={{ border:"1px solid #111111", borderRadius:10, padding:"12px 14px", marginBottom:12 }}>
-            {CONSIGNOR_DISCLOSURE_STAGES.map(st => (
-              <div key={st.t} style={{ marginBottom:10 }}>
-                <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{st.t}</p>
-                {st.items.map(it => <p key={it} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.7, margin:0 }}>・{it}</p>)}
-              </div>
-            ))}
-            <p className="f-sans" style={{ fontSize:11, color:"#999999", lineHeight:1.7, margin:0 }}>詳細な住所や電話番号を掲載と同時に公開することはありません。必要な相手へ、必要になった段階で開示します。</p>
-          </div>
-        )}
-        {/* ③ 必須チェック（初期未選択） */}
-        <button type="button" onClick={()=>setConsentChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: consentChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: consentChecked ? "#111111" : "#fff", color: consentChecked ? "#fff" : "#111111", marginBottom:12 }}>
-          <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: consentChecked ? "none" : "2px solid #C8C8C8", background: consentChecked ? "#fff" : "transparent", color:"#111111" }}>{consentChecked ? "✓" : ""}</span>
-          新規登録時の情報を、委託者情報の作成、契約条件の明示および取引相手への必要な範囲での開示に利用することを確認しました
-        </button>
-        {/* ④ ボタンは2つ：登録情報を修正（アカウント側へ）／委託掲載を始める */}
-        <div style={{ display:"flex", gap:8 }}>
-          <button onClick={()=>{ window.location.hash = "/profile"; }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
-          <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
-        </div>
-      </div>
-    );
-  }
   const meta = STEP_META[stepKey];
   const confirmGroups = ctype === "corporate"
     ? [["代表者・連絡担当者・インボイス", CONSIGNOR_CORP_FIELDS]]
@@ -691,6 +643,64 @@ function ConsignorInfoEdit() {
       <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:"0 0 18px" }}>{meta.de}</p>
 
       {/* 1. 委託者の種類（消費者としての個人と混ざらないよう「個人事業者」と表記） */}
+      {/* ステップ1＝引き継ぎチェック（2026-08-02たきと指示）：引き継ぐ情報と利用・開示範囲を確認。
+          同意ログは初回のみ記録（版数一致の同意があれば「次へ」だけ） */}
+      {stepKey === "consent" && (() => {
+        const isCorp = ahInfo?.entity_type === "corporate";
+        const inheritRows = [
+          ["区分", ahInfo?.entity_type ? (isCorp ? "法人" : "個人事業者") : ""],
+          isCorp ? ["法人名", ahInfo?.company_name] : ["氏名", ahInfo?.full_name],
+          ...(isCorp ? [["登録者氏名", ahInfo?.full_name], ["法人番号", ahInfo?.company_number]] : []),
+          ["住所", ahInfo?.address],
+          ["メールアドレス", ahInfo?.contact_email],
+          ...((ahInfo?.contact_phone || "").trim() ? [["電話番号", ahInfo?.contact_phone]] : []),
+        ].filter(r => (r[1] || "").trim());
+        return (<>
+          {ahInfo?.entity_type && (
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{isCorp ? "法人として委託を掲載します" : "個人事業者として委託を掲載します"}</p>
+          )}
+          <p className="f-sans" style={{ fontSize:13, color:"#111111", lineHeight:1.8, margin:"0 0 14px" }}>{CONSIGNOR_CONSENT_TEXT}</p>
+          <div className="f-sans" style={{ fontSize:12, color:"#111111", background:"#F7F7F7", border:"1px solid #111111", borderRadius:10, padding:"12px 14px", lineHeight:1.9, margin:"0 0 12px" }}>
+            <span style={{ display:"block", fontWeight:800, marginBottom:2 }}>引き継ぐ登録情報</span>
+            {inheritRows.map(([l, v]) => <span key={l} style={{ display:"block" }}>{l}：{v}</span>)}
+            {inheritRows.length === 0 && <span style={{ display:"block", color:"#999999" }}>新規登録の情報が見つかりませんでした</span>}
+          </div>
+          <button type="button" onClick={()=>setScopeOpen(v => !v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border:"1px solid #111111", background:"#fff", color:"#111111", marginBottom: scopeOpen ? 8 : 12 }}>
+            {scopeOpen ? "▾" : "▸"} 表示・開示される情報を確認
+          </button>
+          {scopeOpen && (
+            <div style={{ border:"1px solid #111111", borderRadius:10, padding:"12px 14px", marginBottom:12 }}>
+              {CONSIGNOR_DISCLOSURE_STAGES.map(st => (
+                <div key={st.t} style={{ marginBottom:10 }}>
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{st.t}</p>
+                  {st.items.map(it => <p key={it} className="f-sans" style={{ fontSize:12, color:"#111111", lineHeight:1.7, margin:0 }}>・{it}</p>)}
+                </div>
+              ))}
+              <p className="f-sans" style={{ fontSize:11, color:"#999999", lineHeight:1.7, margin:0 }}>詳細な住所や電話番号を掲載と同時に公開することはありません。必要な相手へ、必要になった段階で開示します。</p>
+            </div>
+          )}
+          {consentOk ? (
+            <>
+              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#111111", margin:"0 0 12px" }}>✓ 同意済みです（記録済み・{CONSIGNOR_CONSENT_VERSION}）</p>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={()=>{ window.location.hash = "/profile"; }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+                <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={()=>setConsentChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:13, fontWeight:700, borderRadius:10, cursor:"pointer", border: consentChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: consentChecked ? "#111111" : "#fff", color: consentChecked ? "#fff" : "#111111", marginBottom:12 }}>
+                <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, border: consentChecked ? "none" : "2px solid #C8C8C8", background: consentChecked ? "#fff" : "transparent", color:"#111111" }}>{consentChecked ? "✓" : ""}</span>
+                新規登録時の情報を、委託者情報の作成、契約条件の明示および取引相手への必要な範囲での開示に利用することを確認しました
+              </button>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={()=>{ window.location.hash = "/profile"; }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
+                <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
+              </div>
+            </>
+          )}
+        </>);
+      })()}
       {stepKey === "type" && (
         <div style={{ display:"grid", gap:12 }}>
           <p className="f-sans" style={{ fontSize:12, color:"#999999", margin:0 }}>新規登録に区分が登録されていないため、ここで選択します（通常は表示されません）。</p>
@@ -767,7 +777,7 @@ function ConsignorInfoEdit() {
       )}
 
       {/* ナビ（次へ／保存する） */}
-      {stepKey !== "type" && (
+      {stepKey !== "type" && stepKey !== "consent" && (
         <div style={{ marginTop:20 }}>
           {stepKey !== "confirm" ? (
             <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
