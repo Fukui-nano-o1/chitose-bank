@@ -779,6 +779,9 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
      同意ゲート（未同意は玄関へ戻る）に弾かれて読めないため、案内は玄関の最下部に直接置いた */
   body:has(.cb-visit-page) .app-header-mobile,
   body:has(.cb-visit-page) .app-header-mobile-float { display: none !important; }
+  /* 経験・資格ページ（#/experience）：下部バー・浮遊☰を出さない（2026-08-03たきと指示・入力に集中） */
+  body:has(.cb-exp-page) .app-header-mobile,
+  body:has(.cb-exp-page) .app-header-mobile-float { display: none !important; }
   /* 委託ページ（#/admin/consignment）は別世界観（2026-07-31たきと指示）：
      下部バー・浮遊☰を出さない。B2B委託レーンは運営の内部道具であって、
      さがす/しごと/プロフィールの3タブ世界とは別物＝その案内を持ち込まない */
@@ -922,6 +925,8 @@ body:has(.qset-full) .site-footer-fixed { display: none !important; }
 /* 保険の準備ページ（#/insurance）はフッター（サポート等）を出さない（2026-07-29たきと指示）。
    保存ボタンの下にリンクの列が続くと、申告の締めが見えにくいため */
 body:has(.ins-prep-page) .site-footer-fixed { display: none !important; }
+/* 経験・資格ページ（#/experience）もフッター（サポート等）を出さない（2026-08-03たきと指示） */
+body:has(.cb-exp-page) .site-footer-fixed { display: none !important; }
 html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
 /* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。

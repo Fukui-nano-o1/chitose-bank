@@ -162,7 +162,8 @@ export function WorkerExperiencePage() {
     } catch { setSaving(false); alert("保存に失敗しました"); }
   };
   return (
-    <div className="help-edge" style={{ maxWidth:560, marginLeft:"auto", marginRight:"auto", padding:"24px 20px 96px" }}>
+    /* cb-exp-page＝このページ表示中は下部バー・浮遊☰・フッターを隠す（appStyles・2026-08-03たきと指示） */
+    <div className="help-edge cb-exp-page" style={{ maxWidth:560, marginLeft:"auto", marginRight:"auto", padding:"24px 20px 96px" }}>
       <button onClick={()=>{ let fromApp=false; try{ fromApp=sessionStorage.getItem("cb_expFromApp")==="1"; sessionStorage.removeItem("cb_expFromApp"); }catch{} if (fromApp && window.history.length>1) window.history.back(); else window.location.hash="/profile/worker/profile"; }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 14px", display:"inline-flex", alignItems:"center", gap:6 }}>← 戻る</button>
       <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>📋 経験・できること（自己申告）</h1>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
