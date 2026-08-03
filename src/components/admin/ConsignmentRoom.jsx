@@ -372,6 +372,8 @@ const CONSIGN_TERMS_SECTIONS = [
   ]},
 ];
 const CONSIGN_TERMS_CHECK = "私は、委託機能利用特約、利用規約およびプライバシーポリシーを確認し、その内容に同意します。";
+// ？タップで展開する説明文（2026-08-03たきと指示）。法律用語を日常の言葉で補足する
+const CONSIGN_TERMS_HELP = "特約とは、利用規約に追加して適用される、委託機能だけの特別な取り決めです。業務委託は雇用（求人ページ）と契約の性質が異なるため、その違いと責任の所在をあらかじめ確認していただくものです。利用規約と重なる部分は、この特約が優先します。";
 
 // 特約本文（前文＋5条・黒枠1ボックス）。「新しく委託を出す」タップ時の初回ゲートと、
 // 同意後の右上浮遊ボックス（モーダル再読）で共用（2026-08-02たきと指示）
@@ -1480,6 +1482,14 @@ export function ConsignmentRoom() {
   const [termsChecked, setTermsChecked] = useState(false);
   const [termsSaving, setTermsSaving] = useState(false);
   const [termsModal, setTermsModal] = useState(false);
+  const [consignHelpKey, setConsignHelpKey] = useState(null); // ？で開いている説明（terms/cmn_inspect/cmn_cancel）
+  // ？ボタン＋コメント式説明（委託者情報フローのrenderCFと同じ様式・2026-08-03たきと指示）
+  const helpBtn = (key) => (
+    <button type="button" onClick={()=>setConsignHelpKey(v => v === key ? null : key)} aria-label="説明を表示" className="f-sans" style={{ flexShrink:0, width:20, height:20, borderRadius:"50%", border:"1.5px solid #111111", background: consignHelpKey === key ? "#111111" : "#fff", color: consignHelpKey === key ? "#fff" : "#111111", fontSize:12.1, fontWeight:800, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0 }}>？</button>
+  );
+  const helpNote = (key, text) => (consignHelpKey === key ? (
+    <p className="f-sans" style={{ fontSize:12.1, color:"#111111", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:"6px 0 8px", lineHeight:1.7 }}>{text}</p>
+  ) : null);
   const agreeTerms = async () => {
     if (termsSaving || !termsChecked) return;
     setTermsSaving(true);
@@ -1946,7 +1956,11 @@ export function ConsignmentRoom() {
       {termsModal && (
         <div onClick={()=>setTermsModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:70, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:560, width:"100%", maxHeight:"80vh", overflowY:"auto", padding:"20px 18px", boxSizing:"border-box" }}>
-            <h3 className="f-sans" style={{ fontSize:17.6, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>委託機能を利用する前に</h3>
+            <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 10px" }}>
+              <h3 className="f-sans" style={{ fontSize:17.6, fontWeight:800, color:"#111111", margin:0 }}>委託機能を利用する前に</h3>
+              {helpBtn("terms")}
+            </div>
+            {helpNote("terms", CONSIGN_TERMS_HELP)}
             <ConsignTermsBody />
             {consignor?.consignment_terms_consent_at && (
               <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 12px" }}>✓ 同意済み：{new Date(consignor.consignment_terms_consent_at).toLocaleString("ja-JP")}（{consignor.consignment_terms_consent_version}）</p>
@@ -2143,7 +2157,11 @@ export function ConsignmentRoom() {
       {cTab === "new" && !termsOk && (
         <div className="fade-in">
           <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
-          <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>委託機能を利用する前に</h2>
+          <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 4px" }}>
+            <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:0 }}>委託機能を利用する前に</h2>
+            {helpBtn("terms")}
+          </div>
+          {helpNote("terms", CONSIGN_TERMS_HELP)}
           <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 18px" }}>業務委託の契約に関する大切な確認です。はじめに特約をご確認ください。</p>
           <ConsignTermsBody />
           <button type="button" onClick={()=>setTermsChecked(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: termsChecked ? "2px solid #111111" : "1px solid #D0D0D0", background: termsChecked ? "#111111" : "#fff", color: termsChecked ? "#fff" : "#111111", marginBottom:12, lineHeight:1.7 }}>
@@ -2221,8 +2239,8 @@ export function ConsignmentRoom() {
             const STD = [
               { k:"cmn_pay_due",    l:"標準支払期限", ph:"例：検収後7日以内" },
               { k:"cmn_fee_bearer", l:"振込手数料の負担", sel:["委託者負担","受託者負担"], cashSkip:true },
-              { k:"cmn_inspect",    l:"標準検収期間", ph:"例：作業完了から3日以内" },
-              { k:"cmn_cancel",     l:"標準キャンセル条件", ta:true, ph:"例：開始3日前までの通知は無償、以後は着手金を上限に精算" },
+              { k:"cmn_inspect",    l:"標準検収期間", ph:"例：作業完了から3日以内", help:"検収とは、作業が依頼どおり完了しているかを委託者（あなた）が確認して、合否を伝える手続きです。ここで決めた期間内に確認と連絡を行います。報酬の支払期限は、検収の完了を起点に数えるのが一般的です。" },
+              { k:"cmn_cancel",     l:"標準キャンセル条件", ta:true, ph:"例：開始3日前までの通知は無償、以後は着手金を上限に精算", help:"委託を取りやめる場合のルールです。いつまでの連絡なら無償か、それ以降は着手金や実費をどう精算するかを、あらかじめ示しておくことで取りやめ時のトラブルを防ぎます。" },
             ].filter(f => !(cd[f.k] || "").trim() && !(f.cashSkip && spec.pay_method === "現金"));
             if (!STD.length) return null;
             return (
@@ -2231,7 +2249,17 @@ export function ConsignmentRoom() {
                 <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 10px" }}>今後の委託にも自動で適用されます。</p>
                 {STD.map(f => (
                   <div key={f.k} style={{ marginBottom:10 }}>
+                    {f.help ? (
+                      <div>
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          {helpBtn(f.k)}
+                          <label className="lbl f-sans" style={{ marginBottom:0 }}>{f.l}</label>
+                        </div>
+                        {helpNote(f.k, f.help)}
+                      </div>
+                    ) : (
                     <label className="lbl f-sans">{f.l}</label>
+                    )}
                     {f.sel ? (
                       <div style={{ display:"flex", gap:8 }}>
                         {f.sel.map(opt => {
