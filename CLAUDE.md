@@ -2075,3 +2075,21 @@ LandingFlow（求人作成の場所）・EmployerProfileEdit。zipLookupへの�
 ・検証：build+lint 0 error。実機確認：新規登録①・求人作成step3・集合場所ボックス・
   雇い手プロフィールの住所検索が1秒前後で返るか（2回目は即時＝キャッシュ）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-03 全画面エラー事故と修理（viewCache永続化の副作用・Dateの文字列化）━━━
+【事故】さがす→求人詳細で「画面を表示できませんでした」。再読み込みでも直らない（たきと報告）。
+app_errorsで即特定：e.getFullYear is not a function（CalendarView・render_error連発）。
+【真因】mapJobPublicRowのdateStart/dateEndは【Dateオブジェクト】。viewCacheのlocalStorage化で
+JSON保存→復元すると文字列になり、CalendarViewのstart.getFullYear()が落ちる。キャッシュが
+永続なため、リロードしても同じ毒データを読み直して落ち続けた（永続キャッシュ特有の罠）。
+【修理（3層・32e6df6）】
+①search:jobsの復元時にdateStart/dateEndをDateへ再生（JobSearchMapView・根本）
+②CalendarViewはstart/endをDate/文字列どちらでも受ける（toDateCVで正規化・不正値は当月表示）
+③エラーバウンダリの「再読み込み」がclearCache()してから再読込＝壊れた永続キャッシュに
+  閉じ込められない自己修復（キャッシュは表示専用so捨てても取り直すだけ）
+【規則追記】viewCache/snapshotに入れる値は【JSON安全な型のみ】（Date・Set・Map・関数を入れない。
+入れるなら文字列化し、読み出し側で再生する）。キャッシュにDateを含んでいたのはsearch:jobsのみと
+監査済み（TodayPage/ChatViewのmapJobPublicRow利用はキャッシュ非経由で無事）。
+【教訓】エラー監視(app_errors)が一発で真因を示した。実機で謎の白画面・エラー画面が出たら、
+まずapp_errorsをselectする（憶測より先に現物のスタックを見る）
+━━━ ここまで ━━━
