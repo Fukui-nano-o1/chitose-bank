@@ -2519,8 +2519,8 @@ export function ConsignmentRoom() {
           // さがす一覧と同じ構造（2026-08-03たきと指示）：枠なしカード・大きな角丸写真・
           // 写真の下にタイトル/地域/金額の3秒判断レイアウト（JobCardの型・カラーはブラック）。
           // 進行ステッパー・履行集計は管理情報soカードから外し、タップ先の案件ページが担う
-          {/* 列はminmax(0,1fr)固定（2026-08-03横はみ出し修理）：gridの既定min-width:autoだと
-              1行省略のタイトルが列を押し広げ、画面幅を飛び出す */}
+          // 列はminmax(0,1fr)固定（2026-08-03横はみ出し修理）：gridの既定min-width:autoだと
+          // 1行省略のタイトルが列を押し広げ、画面幅を飛び出す
           <div style={{ display:"grid", gap:22, gridTemplateColumns:"minmax(0, 1fr)" }}>
           {deals.map(d => {
             const s = d.spec || {};
