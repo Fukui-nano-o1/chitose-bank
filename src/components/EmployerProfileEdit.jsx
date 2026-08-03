@@ -48,6 +48,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // ★求人ページの「募集者情報」として公開する（2026-07-27改定・法令上の明示事項）。
   //   経路は job_employer_profile（求人詳細用RPC）。一覧用のemployer_profiles_publicには載せない
   const [recruiterName, setRecruiterName] = useState("");
+  const [recruiterNameKana, setRecruiterNameKana] = useState(""); // フリガナ（2026-08-03たきと指示・任意・引き継ぎ元なし＝本人入力）
   const [recruiterAddress, setRecruiterAddress] = useState("");
   const [recruiterContact, setRecruiterContact] = useState("");
   // ── 住所・所在地の分割入力（2026-08-01たきと指示）────────────────────────
@@ -178,6 +179,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setIntroMessage(tp.intro_message ?? data.intro_message ?? "");
           setOwnerComment(tp.owner_comment ?? data.owner_comment ?? "");
           setRecruiterName(data.recruiter_name || "");
+          setRecruiterNameKana(data.recruiter_name_kana || "");
           setRecruiterAddress(data.recruiter_address || "");
           setRecruiterContact(data.recruiter_contact || "");
           setRecruiterZip(data.recruiter_zip || ""); setRecruiterPref(data.recruiter_prefecture || "");
@@ -345,7 +347,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
         // 住所・所在地：分割値をそのまま保存し、表示用の1行（recruiter_address）は合成して保存（2026-08-01）。
         // 分割欄が全て空の既存利用者は composeRecruiterAddress が旧1行値を返す＝消えない
-        recruiter_name: recruiterName.trim(), recruiter_address: composeRecruiterAddress(), recruiter_contact: recruiterContact.trim(),
+        recruiter_name: recruiterName.trim(), recruiter_name_kana: recruiterNameKana.trim(),
+        recruiter_address: composeRecruiterAddress(), recruiter_contact: recruiterContact.trim(),
         recruiter_zip: recruiterZip.trim(), recruiter_prefecture: recruiterPref.trim(),
         recruiter_city: recruiterCity.trim(), recruiter_address_detail: recruiterDetail.trim(),
         interaction_style: interactionStyle || null,
@@ -455,6 +458,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
       </button>
       <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：山田 太郎 ／ 千歳農園" maxLength={100}
+        className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:12 }} />
+      {/* フリガナ（2026-08-03たきと指示・任意）。新規登録にカナは無いため引き継ぎ対象外＝本人入力 */}
+      <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>フリガナ</label>
+      <input value={recruiterNameKana} onChange={e=>setRecruiterNameKana(e.target.value)} placeholder="例：ヤマダ タロウ ／ チトセノウエン" maxLength={100}
         className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:16 }} />
       </>)}
 
