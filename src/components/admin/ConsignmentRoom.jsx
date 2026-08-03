@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { ymdLocal } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { snapGet } from "../../lib/snapshot";
+import { uploadJobPhoto } from "../../lib/image";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
 import { CalendarView } from "../CalendarView";
 import { AdminNav } from "./AdminNav";
@@ -447,13 +448,10 @@ function ConsignFieldsPane({ fields, onReload }) {
     if (!file || fPhotoBusy) return;
     setFPhotoBusy(true);
     try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `consign_field_${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("consignment-photos").upload(path, file, { upsert: false });
-      if (upErr) { alert("写真のアップロードに失敗しました：" + upErr.message); setFPhotoBusy(false); return; }
-      const { data: pub } = supabase.storage.from("consignment-photos").getPublicUrl(path);
-      fset("photo", pub.publicUrl);
-    } catch { alert("写真のアップロードに失敗しました。"); }
+      // 共通ヘルパーでHEIC変換＋1600px/0.8圧縮（原寸だと5MB上限超過・2026-08-03バグ修理）
+      const { url } = await uploadJobPhoto(supabase, file, { bucket: "consignment-photos", pathPrefix: "consign_field_", withThumb: false });
+      fset("photo", url);
+    } catch (e) { alert("写真のアップロードに失敗しました：" + (e?.message || "不明なエラー")); }
     setFPhotoBusy(false);
   };
   // 圃場の住所は正式なもの（2026-08-02たきと指示）：郵便番号→zipcloudで住所を自動入力＋番地は手入力
@@ -1472,12 +1470,12 @@ export function ConsignmentRoom() {
     setPhotoUploading(true);
     try {
       for (const file of list) {
-        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-        const path = `consign_${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("consignment-photos").upload(path, file, { upsert: false });
-        if (upErr) { alert("写真のアップロードに失敗しました：" + upErr.message); continue; }
-        const { data: pub } = supabase.storage.from("consignment-photos").getPublicUrl(path);
-        setSpec(p => ({ ...p, photos: [...(p.photos || []), { url: pub.publicUrl }] }));
+        // 原寸のまま上げるとiPhone写真がバケット上限(5MB)を超える→求人写真と同じ共通ヘルパーで
+        // HEIC変換＋1600px/0.8圧縮してからアップロード（2026-08-03バグ修理）
+        try {
+          const { url } = await uploadJobPhoto(supabase, file, { bucket: "consignment-photos", pathPrefix: "consign_", withThumb: false });
+          setSpec(p => ({ ...p, photos: [...(p.photos || []), { url }] }));
+        } catch (e) { alert("写真のアップロードに失敗しました：" + (e?.message || "不明なエラー")); }
       }
     } catch { alert("写真のアップロードに失敗しました。"); }
     setPhotoUploading(false);
