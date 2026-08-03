@@ -1022,6 +1022,12 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
      （コンテナ側の下80pxは0にしてあるso、ここのpadding-bottomがそのまま間隔になる） */
   body:has(.emp-applicants-page) main { padding-top: 0 !important; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
   body:has(.emp-applicants-page) .site-footer-fixed { margin-top: 0; }
+  /* プロフィール面（働き手・雇い手とも）：最下段のボックスの下の空きを15px丁度に（2026-08-03たきと指示）。
+     従来は main90px＋コンテナ下32px＝約122pxの空白だった。求人詳細（上の .job-detail-body-mobile）と同じ作法で、
+     コンテナ側の下余白は0（ProfileHub のインライン padding）＋フッターの上マージンも0にして、ここの値に一本化する。
+     ※下部バーは最下部到達で自動格納されるso、バーがフッターを隠したままにはならない */
+  body:has(.profile-employer-edge) main { padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important; }
+  body:has(.profile-employer-edge) .site-footer-fixed { margin-top: 0; }
   /* main の上余白を0にした分、コンテナ自身の15pxに safe-area を足す（black-translucent対応・2026-07-31） */
   .emp-applicants-page { padding-top: calc(15px + env(safe-area-inset-top, 0px)) !important; }
 }

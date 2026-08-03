@@ -147,7 +147,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   const wHasPending = !!(wMini && (((wMini.pr_pending || "").trim()) || (Array.isArray(wMini.pr_qa_pending) && wMini.pr_qa_pending.length > 0)));
   const wReview = wHasPending ? (wMini.pr_submitted_at ? "pending" : "revision") : null;
   return (
-    <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
+    {/* 下余白は0にしてCSS側（body:has(.profile-employer-edge) main）で下部バーとの間隔を15pxに一本化（2026-08-03） */}
+    <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px 0"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
           表示は両面の入口(カードメニュー)のみ＝編集・サブページでは非表示（2026-07-14）。
           切替はフェードアウト(0.16s)→面切替→フェードイン(0.22s)の2段階 */}
