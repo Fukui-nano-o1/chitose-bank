@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges } from "../lib/utils";
-import { Avatar, AutoSkeleton, Dots } from "./ui";
+import { Avatar, AutoSkeleton, Dots, LFPillSelect } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 
@@ -49,6 +49,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   //   経路は job_employer_profile（求人詳細用RPC）。一覧用のemployer_profiles_publicには載せない
   const [recruiterName, setRecruiterName] = useState("");
   const [recruiterNameKana, setRecruiterNameKana] = useState(""); // フリガナ（2026-08-03たきと指示・任意・引き継ぎ元なし＝本人入力）
+  // 受動喫煙の状況（2026-08-03たきと指示「ありならどこか」）：求人の明示事項。選択＋「あり」のとき場所の自由記述
+  const [smokingPolicy, setSmokingPolicy] = useState("");
+  const [smokingArea, setSmokingArea] = useState("");
   const [recruiterAddress, setRecruiterAddress] = useState("");
   const [recruiterContact, setRecruiterContact] = useState("");
   // ── 住所・所在地の分割入力（2026-08-01たきと指示）────────────────────────
@@ -180,6 +183,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setOwnerComment(tp.owner_comment ?? data.owner_comment ?? "");
           setRecruiterName(data.recruiter_name || "");
           setRecruiterNameKana(data.recruiter_name_kana || "");
+          setSmokingPolicy(data.smoking_policy || ""); setSmokingArea(data.smoking_area || "");
           setRecruiterAddress(data.recruiter_address || "");
           setRecruiterContact(data.recruiter_contact || "");
           setRecruiterZip(data.recruiter_zip || ""); setRecruiterPref(data.recruiter_prefecture || "");
@@ -297,7 +301,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
   // black（委託）では 関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
   // 従業員数(staff)は全面削除（2026-08-01たきと指示）
-  const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","intro","ask","style"];
+  const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","smoking","intro","ask","style"];
   const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
@@ -305,6 +309,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!composeRecruiterAddress()
     : k === "perks" ? perksOn.length > 0
+    : k === "smoking" ? !!smokingPolicy
     : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
   );
@@ -349,6 +354,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         // 分割欄が全て空の既存利用者は composeRecruiterAddress が旧1行値を返す＝消えない
         recruiter_name: recruiterName.trim(), recruiter_name_kana: recruiterNameKana.trim(),
         recruiter_address: composeRecruiterAddress(), recruiter_contact: recruiterContact.trim(),
+        // 受動喫煙：「あり」以外を選んだら場所の記述は保存しない（選び直しの残骸を残さない）
+        smoking_policy: smokingPolicy || null,
+        smoking_area: smokingPolicy === "喫煙場所あり" ? smokingArea.trim() : "",
         recruiter_zip: recruiterZip.trim(), recruiter_prefecture: recruiterPref.trim(),
         recruiter_city: recruiterCity.trim(), recruiter_address_detail: recruiterDetail.trim(),
         interaction_style: interactionStyle || null,
@@ -398,10 +406,11 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: composeRecruiterAddress() },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"recruiter", e:"🧾", l:"連絡先",         req:true, v: recruiterContact },
+          { k:"smoking",  e:"🚭", l:"受動喫煙",       v: smokingPolicy ? (smokingPolicy === "喫煙場所あり" && smokingArea ? `あり（${smokingArea}）` : smokingPolicy) : "" },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
-        ].filter(b => !black || !["intro","ask","style"].includes(b.k)).map(b => (
+        ].filter(b => !black || !["smoking","intro","ask","style"].includes(b.k)).map(b => (
           // 未入力ボックスは赤影アニメで促す（2026-07-16）
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: black ? "1px solid #111111" : "1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
             {!black && (b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>)}
@@ -554,6 +563,21 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 
       {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を農園紹介/問いかけ/関わり方の各ボックスに分割 */}
       {/* 従業員数ボックスは削除（2026-08-01たきと指示）。DB列staff_countと既存データは残置 */}
+      {editBox==="smoking" && (<>
+      {/* 受動喫煙の状況（2026-08-03たきと指示「ありならどこか」）：就業場所の受動喫煙対策は求人の明示事項 */}
+      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>受動喫煙の状況</label>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>
+        就業場所での受動喫煙を防ぐ取り組みの状況は、求人の明示事項です。当てはまる方を選んでください。
+      </p>
+      <LFPillSelect options={["禁煙（喫煙場所なし）","喫煙場所あり"]} value={smokingPolicy} onSelect={setSmokingPolicy} />
+      {smokingPolicy === "喫煙場所あり" && (<>
+        <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", margin:"12px 0 4px" }}>喫煙場所はどこですか</label>
+        <input value={smokingArea} onChange={e=>setSmokingArea(e.target.value)} placeholder="例：屋外の休憩小屋の横" maxLength={100}
+          className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:4 }} />
+      </>)}
+      <div style={{ marginBottom:16 }} />
+      </>)}
+
       {editBox==="recruiter" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>募集者の情報</label>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
