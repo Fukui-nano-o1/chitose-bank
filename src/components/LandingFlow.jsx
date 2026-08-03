@@ -87,6 +87,123 @@ function dangerHasSecond(arr) {
 // ── LandingFlow 共有UIヘルパー（モジュールレベル定義でフォーカス消失バグを防ぐ）───
 // 注意：これらを LandingFlow 内に定義すると再レンダリングのたびに関数参照が変わり
 // React が別コンポーネントと判定してアンマウントし input のフォーカスが失われる。
+
+// 写真並び替えストリップ（2026-08-03たきと指示「長押しでスワイプ。タップ機能削除せず」）：
+// ◀▶タップは従来どおり。加えてサムネを長押し（350ms・動かさず）するとドラッグモードに入り、
+// 指を左右に動かすと通過したサムネの位置へ入れ替わる。離すと確定。
+// ・長押し前に10px以上動いたら長押し取消＝従来の横スクロールに譲る（スクロールと衝突しない）
+// ・ドラッグ中は native touchmove を preventDefault（passive:false）＝画面スクロールを止める
+//   （TodayPage横スワイプと同じ技法。pointermoveだけではスクロールを止められない）
+// ・端に近づいたらストリップを自動スクロール（はみ出した写真へも運べる）
+function LFPhotoReorderStrip({ photos, setPhotos }) {
+  const [dragIdx, setDragIdx] = useState(null);
+  const dragIdxRef = useRef(null);
+  const stripRef = useRef(null);
+  const pressTimer = useRef(null);
+  const startPos = useRef({ x: 0, y: 0 });
+  const cancelPress = () => { if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; } };
+  const movePhoto = (i, dir) => setPhotos(prev => { const j = i + dir; if (j < 0 || j >= prev.length) return prev; const next = [...prev]; [next[i], next[j]] = [next[j], next[i]]; return next; });
+
+  const handleDragMove = (clientX) => {
+    const strip = stripRef.current;
+    if (!strip || dragIdxRef.current == null) return;
+    // 端の自動スクロール（±36px圏内）
+    const sr = strip.getBoundingClientRect();
+    if (clientX < sr.left + 36) strip.scrollLeft -= 10;
+    else if (clientX > sr.right - 36) strip.scrollLeft += 10;
+    // 指の下のサムネを探し、違う位置なら移動（splice＝間に差し込む）
+    const kids = Array.from(strip.children);
+    for (let k = 0; k < kids.length; k++) {
+      const r = kids[k].getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right) {
+        if (k !== dragIdxRef.current) {
+          const from = dragIdxRef.current;
+          setPhotos(prev => { const next = [...prev]; const [it] = next.splice(from, 1); next.splice(k, 0, it); return next; });
+          dragIdxRef.current = k;
+          setDragIdx(k);
+        }
+        break;
+      }
+    }
+  };
+
+  // ドラッグ中だけ window でpointerを追う（サムネの外へ指が出ても追従）＋終了処理
+  useEffect(() => {
+    if (dragIdx == null) return;
+    const onMove = (e) => handleDragMove(e.clientX);
+    const onUp = () => { dragIdxRef.current = null; setDragIdx(null); };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [dragIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ドラッグ中の画面スクロール抑止（native・passive:false）。ドラッグしていない時は素通し＝横スクロール可
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const onTouchMove = (e) => { if (dragIdxRef.current != null) e.preventDefault(); };
+    strip.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => strip.removeEventListener("touchmove", onTouchMove);
+  }, []);
+  useEffect(() => () => cancelPress(), []); // アンマウント時にタイマー掃除
+
+  return (
+    <div>
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 8px" }}>写真の並び替え（先頭が求人カードの表紙になります）。◀▶か、長押しして指で動かしても並び替えできます</p>
+      <div ref={stripRef} style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, WebkitOverflowScrolling:"touch" }}>
+        {photos.map((p, i) => (
+          <div key={i} style={{ flexShrink:0, width:76 }}>
+            <div
+              onPointerDown={(e) => {
+                if (e.pointerType === "mouse" && e.button !== 0) return;
+                startPos.current = { x: e.clientX, y: e.clientY };
+                cancelPress();
+                pressTimer.current = setTimeout(() => {
+                  pressTimer.current = null;
+                  dragIdxRef.current = i;
+                  setDragIdx(i);
+                  try { navigator.vibrate?.(10); } catch {}
+                }, 350);
+              }}
+              onPointerMove={(e) => {
+                // 長押し成立前に動いたら取消＝スクロール意図（成立後の追従はwindow側が担う）
+                if (dragIdxRef.current == null && pressTimer.current) {
+                  if (Math.abs(e.clientX - startPos.current.x) > 10 || Math.abs(e.clientY - startPos.current.y) > 10) cancelPress();
+                }
+              }}
+              onPointerUp={cancelPress}
+              onPointerCancel={cancelPress}
+              onContextMenu={(e) => e.preventDefault()}
+              style={{
+                position:"relative", width:76, height:76, borderRadius:8, overflow:"hidden",
+                border: dragIdx === i ? "2px solid #00A86B" : i === 0 ? "2px solid #00A86B" : "1px solid #EBEBEB",
+                transform: dragIdx === i ? "scale(1.1)" : "none",
+                boxShadow: dragIdx === i ? "0 6px 16px rgba(0,0,0,0.25)" : "none",
+                transition: "transform .12s ease, box-shadow .12s ease",
+                zIndex: dragIdx === i ? 2 : 1,
+                touchAction: dragIdx != null ? "none" : undefined,
+                WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none",
+              }}
+            >
+              <img loading="lazy" draggable={false} src={p.url} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover", pointerEvents:"none" }} />
+              {i === 0 && <span className="f-sans" style={{ position:"absolute", top:4, left:4, fontSize:9, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:6, padding:"1px 5px" }}>表紙</span>}
+            </div>
+            <div style={{ display:"flex", gap:4, marginTop:4 }}>
+              <button onClick={() => movePhoto(i, -1)} disabled={i === 0} aria-label="前へ" className="f-sans" style={{ flex:1, padding:"6px 0", fontSize:13, fontWeight:700, background:"#fff", color: i === 0 ? "#D0D0D0" : "#00A86B", border:"1px solid #EBEBEB", borderRadius:6, cursor: i === 0 ? "default" : "pointer" }}>◀</button>
+              <button onClick={() => movePhoto(i, 1)} disabled={i === photos.length - 1} aria-label="次へ" className="f-sans" style={{ flex:1, padding:"6px 0", fontSize:13, fontWeight:700, background:"#fff", color: i === photos.length - 1 ? "#D0D0D0" : "#00A86B", border:"1px solid #EBEBEB", borderRadius:6, cursor: i === photos.length - 1 ? "default" : "pointer" }}>▶</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LFMultiPill({ options, values, onToggle }) {
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
@@ -294,8 +411,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [commuteTime, setCommuteTime] = useState(d.commuteTime ?? "");
   const [nearestStation, setNearestStation] = useState(d.nearestStation ?? "");
   const [jobPhotos, setJobPhotos] = useState(normalizePhotos(d.jobPhotos)); // 旧形式draft対策（真っ白バグ・2026-07-16）
-  // 写真の並び替え（2026-07-19）：確認ページで隣と入れ替え。先頭が求人カードのカバー
-  const movePhoto = (i, dir) => setJobPhotos(prev => { const j = i + dir; if (j < 0 || j >= prev.length) return prev; const next = [...prev]; [next[i], next[j]] = [next[j], next[i]]; return next; });
+  // 写真の並び替えは LFPhotoReorderStrip（モジュールレベル・◀▶＋長押しドラッグ）に移動（2026-08-03）
   const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [photoCaptionsOpen, setPhotoCaptionsOpen] = useState(false); // step8「写真ごとに説明」ポップアップ（2026-07-16）
@@ -1827,24 +1943,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                         <span key={i} style={{ fontSize:10, color: i === confActiveSlide ? "#00A86B" : "#D0D0D0" }}>{i === confActiveSlide ? "●" : "○"}</span>
                       ))}
                     </div>
-                    {/* 写真の並び替え（2026-07-19）：◀▶で隣と入れ替え。先頭が求人カードのカバー */}
+                    {/* 写真の並び替え（2026-07-19）：◀▶で隣と入れ替え＋長押しドラッグ（2026-08-03）。
+                        先頭が求人カードのカバー。実装はモジュールレベルの LFPhotoReorderStrip */}
                     {jobPhotos.length > 1 && (
                       <div style={{ maxWidth:870, margin:"12px auto 0" }}>
-                        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 8px" }}>写真の並び替え（先頭が求人カードの表紙になります）</p>
-                        <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, WebkitOverflowScrolling:"touch" }}>
-                          {jobPhotos.map((p, i) => (
-                            <div key={i} style={{ flexShrink:0, width:76 }}>
-                              <div style={{ position:"relative", width:76, height:76, borderRadius:8, overflow:"hidden", border: i === 0 ? "2px solid #00A86B" : "1px solid #EBEBEB" }}>
-                                <img loading="lazy" src={p.url} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                                {i === 0 && <span className="f-sans" style={{ position:"absolute", top:4, left:4, fontSize:9, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:6, padding:"1px 5px" }}>表紙</span>}
-                              </div>
-                              <div style={{ display:"flex", gap:4, marginTop:4 }}>
-                                <button onClick={() => movePhoto(i, -1)} disabled={i === 0} aria-label="前へ" className="f-sans" style={{ flex:1, padding:"6px 0", fontSize:13, fontWeight:700, background:"#fff", color: i === 0 ? "#D0D0D0" : "#00A86B", border:"1px solid #EBEBEB", borderRadius:6, cursor: i === 0 ? "default" : "pointer" }}>◀</button>
-                                <button onClick={() => movePhoto(i, 1)} disabled={i === jobPhotos.length - 1} aria-label="次へ" className="f-sans" style={{ flex:1, padding:"6px 0", fontSize:13, fontWeight:700, background:"#fff", color: i === jobPhotos.length - 1 ? "#D0D0D0" : "#00A86B", border:"1px solid #EBEBEB", borderRadius:6, cursor: i === jobPhotos.length - 1 ? "default" : "pointer" }}>▶</button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <LFPhotoReorderStrip photos={jobPhotos} setPhotos={setJobPhotos} />
                       </div>
                     )}
                     {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>}
