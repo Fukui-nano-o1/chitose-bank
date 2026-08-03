@@ -2331,9 +2331,12 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                    旧Googleマップ風ダミーは廃止(2026-07-14)。座標は住所からgeocodeTownで取得(保存時と同じ手順) ═══ */}
               <div style={{ maxWidth:870, margin:"0 auto 5px" }}>
                 {/* 番地まで明記する画面so、Googleマップ導線にも番地を渡す（2026-08-03）。
-                    ピン自体は従来どおり町域重心＝addressShownで注記の文言を実態に合わせる */}
+                    ピン自体は従来どおり町域重心＝addressShownで注記の文言を実態に合わせる。
+                    mapQueryは郵便番号とスペース区切りを廃止（2026-08-03）：人が手で入力する形
+                    （都道府県+市区町村+町域+番地・区切りなし）と同じ文字列にする。
+                    郵便番号を混ぜるとGoogleが郵便番号の区域中心に着地することがある */}
                 <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion}
-                  mapQuery={[farmerZip && farmerZip.trim(), farmerPref, farmerCity, farmerTown, farmerAddr].filter(Boolean).join(" ")}
+                  mapQuery={[farmerPref, farmerCity, farmerTown, farmerAddr].map(s => (s || "").trim()).filter(Boolean).join("")}
                   addressShown={!!farmerAddr} />
               </div>
 

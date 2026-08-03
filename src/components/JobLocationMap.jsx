@@ -1,6 +1,7 @@
 // 集合場所の地図（Leaflet・分割で切り出し2026-07-24）：求人詳細・確認ページ・プレビュー共用。
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
+import { geocodeAddressPrecise } from "../lib/geocode";
 
 // 場所は赤いピン1本で示す（2026-07-31たきと指示・範囲の円は廃止）。右上にGoogleマップへの導線。
 // ★座標は町域レベルの重心（geocodeTown）で、番地は含まれない＝ピンを立てても精度は上がらない。
@@ -12,6 +13,18 @@ import "leaflet/dist/leaflet.css";
 export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
+  // Googleマップ導線を「必ずその場所」に着地させるための番地レベル座標（2026-08-03たきと指摘）。
+  // 住所文字列を渡すとGoogle側の検索に委ねることになり、番地を持たない地域では町域の中心に着く。
+  // 座標が取れた時だけそれを使い、取れなければ従来どおり住所文字列（＝劣化しない）。
+  // 番地が開示されている画面（addressShown）でのみ引く＝訪問者に精密な座標を作らない
+  const [preciseGeo, setPreciseGeo] = useState(null);
+  useEffect(() => {
+    setPreciseGeo(null);
+    if (!addressShown || !mapQuery || !mapQuery.trim()) return;
+    let cancelled = false;
+    geocodeAddressPrecise(mapQuery).then((p) => { if (!cancelled && p) setPreciseGeo(p); });
+    return () => { cancelled = true; };
+  }, [mapQuery, addressShown]);
 
   useEffect(() => {
     // Leafletは動的import（2026-07-25）：初期バンドルから地図ライブラリを外し、地図を表示する画面で初めて読み込む
@@ -98,7 +111,12 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
             ジオコーディングさせる（2026-08-02）。緯度経度（geocodeTownの町域重心）を渡すと
             重心のずれがそのまま位置ずれになるため。mapQueryが無い旧呼び出しは従来どおり座標。
             番地を渡さない＝開示の粒度は町域のまま（CLAUDE.md・住所の段階的開示）で不変。 */}
-        <a href={(mapQuery && mapQuery.trim())
+        {/* 行き先の優先順（2026-08-03）：①番地レベルで取れた座標＝必ずその点に着く
+            ②住所文字列＝Google側の検索に委ねる（番地未対応の地域では町域中心に着く）
+            ③座標（町域重心）＝住所が無い旧呼び出し */}
+        <a href={preciseGeo
+              ? `https://www.google.com/maps/search/?api=1&query=${preciseGeo.lat},${preciseGeo.lng}`
+              : (mapQuery && mapQuery.trim())
               ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery.trim())}`
               : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`}
           target="_blank" rel="noopener noreferrer"
