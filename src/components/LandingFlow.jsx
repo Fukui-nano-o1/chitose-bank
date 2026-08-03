@@ -92,8 +92,14 @@ function dangerHasSecond(arr) {
 // ◀▶タップは従来どおり。加えてサムネを長押し（350ms・動かさず）するとドラッグモードに入り、
 // 指を左右に動かすと通過したサムネの位置へ入れ替わる。離すと確定。
 // ・長押し前に10px以上動いたら長押し取消＝従来の横スクロールに譲る（スクロールと衝突しない）
-// ・ドラッグ中は native touchmove を preventDefault（passive:false）＝画面スクロールを止める
-//   （TodayPage横スワイプと同じ技法。pointermoveだけではスクロールを止められない）
+// ・【重要・2026-08-03修理】タッチの追従は native touchmove で行う（pointermoveに頼らない）。
+//   pointermove方式は「長押しはできるが動かない」で失敗した。原因は3つ：
+//   (1) 長押し後に指を動かすとブラウザがスクロール判定して pointercancel を飛ばし、
+//       それでドラッグを終了していた（pointercancelでは終了しない設計に変更）
+//   (2) touchmoveをpreventDefaultすると pointermove の配送が止まる実装がある
+//   (3) touch-action は指を置いた時点の値で決まるso、長押し成立後に none にしても遅い
+//   長押しは350ms静止が条件＝成立時点でスクロールは未開始so、その後のtouchmoveは
+//   cancelable＝preventDefaultでスクロールを止められる（TodayPage横スワイプと同じ技法）
 // ・端に近づいたらストリップを自動スクロール（はみ出した写真へも運べる）
 function LFPhotoReorderStrip({ photos, setPhotos }) {
   const [dragIdx, setDragIdx] = useState(null);
@@ -101,8 +107,10 @@ function LFPhotoReorderStrip({ photos, setPhotos }) {
   const stripRef = useRef(null);
   const pressTimer = useRef(null);
   const startPos = useRef({ x: 0, y: 0 });
+  const moveRef = useRef(null); // 最新のhandleDragMove（[]依存のnativeリスナーから呼ぶため）
   const cancelPress = () => { if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; } };
   const movePhoto = (i, dir) => setPhotos(prev => { const j = i + dir; if (j < 0 || j >= prev.length) return prev; const next = [...prev]; [next[i], next[j]] = [next[j], next[i]]; return next; });
+  const endDrag = () => { cancelPress(); if (dragIdxRef.current != null) { dragIdxRef.current = null; setDragIdx(null); } };
 
   const handleDragMove = (clientX) => {
     const strip = stripRef.current;
@@ -111,45 +119,63 @@ function LFPhotoReorderStrip({ photos, setPhotos }) {
     const sr = strip.getBoundingClientRect();
     if (clientX < sr.left + 36) strip.scrollLeft -= 10;
     else if (clientX > sr.right - 36) strip.scrollLeft += 10;
-    // 指の下のサムネを探し、違う位置なら移動（splice＝間に差し込む）
+    // 指に一番近いサムネ（中心との距離）へ移動。ドラッグ中の札はscale(1.1)で広がるため、
+    // 「範囲に入ったか」でなく「中心が最も近いか」で判定する（重なりでの取りこぼしを防ぐ）
     const kids = Array.from(strip.children);
+    let best = -1, bestD = Infinity;
     for (let k = 0; k < kids.length; k++) {
       const r = kids[k].getBoundingClientRect();
-      if (clientX >= r.left && clientX <= r.right) {
-        if (k !== dragIdxRef.current) {
-          const from = dragIdxRef.current;
-          setPhotos(prev => { const next = [...prev]; const [it] = next.splice(from, 1); next.splice(k, 0, it); return next; });
-          dragIdxRef.current = k;
-          setDragIdx(k);
-        }
-        break;
-      }
+      const d = Math.abs(clientX - (r.left + r.width / 2));
+      if (d < bestD) { bestD = d; best = k; }
+    }
+    if (best >= 0 && best !== dragIdxRef.current) {
+      const from = dragIdxRef.current;
+      setPhotos(prev => { const next = [...prev]; const [it] = next.splice(from, 1); next.splice(best, 0, it); return next; });
+      dragIdxRef.current = best;
+      setDragIdx(best);
     }
   };
+  moveRef.current = handleDragMove;
 
-  // ドラッグ中だけ window でpointerを追う（サムネの外へ指が出ても追従）＋終了処理
-  useEffect(() => {
-    if (dragIdx == null) return;
-    const onMove = (e) => handleDragMove(e.clientX);
-    const onUp = () => { dragIdxRef.current = null; setDragIdx(null); };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
-  }, [dragIdx]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ドラッグ中の画面スクロール抑止（native・passive:false）。ドラッグしていない時は素通し＝横スクロール可
+  // タッチ：追従・スクロール抑止・終了をすべてnativeイベントで完結させる（passive:false）
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    const onTouchMove = (e) => { if (dragIdxRef.current != null) e.preventDefault(); };
+    const onTouchMove = (e) => {
+      const t = e.touches[0];
+      if (!t) return;
+      if (dragIdxRef.current == null) {
+        // 長押し成立前に動いた＝スクロール意図so長押しを取消（pointermoveが来ない端末の保険）
+        if (pressTimer.current && (Math.abs(t.clientX - startPos.current.x) > 10 || Math.abs(t.clientY - startPos.current.y) > 10)) cancelPress();
+        return;
+      }
+      if (e.cancelable) e.preventDefault(); // ドラッグ中は画面・ストリップのスクロールを止める
+      moveRef.current?.(t.clientX);
+    };
+    const onTouchEnd = () => endDrag();
     strip.addEventListener("touchmove", onTouchMove, { passive: false });
-    return () => strip.removeEventListener("touchmove", onTouchMove);
-  }, []);
+    strip.addEventListener("touchend", onTouchEnd);
+    strip.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      strip.removeEventListener("touchmove", onTouchMove);
+      strip.removeEventListener("touchend", onTouchEnd);
+      strip.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // マウス（PC）：window で pointermove を追う。pointercancelでは終了しない
+  // （タッチのスクロール判定でcancelが飛ぶため。タッチの終了はtouchend/touchcancelが担う）
+  useEffect(() => {
+    if (dragIdx == null) return;
+    const onMove = (e) => { if (e.pointerType !== "touch") moveRef.current?.(e.clientX); };
+    const onUp = () => endDrag();
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dragIdx]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => cancelPress(), []); // アンマウント時にタイマー掃除
 
   return (
@@ -171,12 +197,14 @@ function LFPhotoReorderStrip({ photos, setPhotos }) {
                 }, 350);
               }}
               onPointerMove={(e) => {
-                // 長押し成立前に動いたら取消＝スクロール意図（成立後の追従はwindow側が担う）
+                // 長押し成立前に動いたら取消＝スクロール意図（成立後の追従はtouchmove／window pointermoveが担う）
                 if (dragIdxRef.current == null && pressTimer.current) {
                   if (Math.abs(e.clientX - startPos.current.x) > 10 || Math.abs(e.clientY - startPos.current.y) > 10) cancelPress();
                 }
               }}
               onPointerUp={cancelPress}
+              /* pointercancelでは【ドラッグを終了しない】（タッチのスクロール判定で飛ぶため。
+                 これで終了していたのが「長押しできるが動かない」の主因）。タイマー掃除だけ行う */
               onPointerCancel={cancelPress}
               onContextMenu={(e) => e.preventDefault()}
               style={{
