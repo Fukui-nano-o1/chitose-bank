@@ -301,15 +301,14 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
   // black（委託）では 関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
   // 従業員数(staff)は全面削除（2026-08-01たきと指示）
-  const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","smoking","intro","ask","style"];
+  const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","intro","ask","style"];
   const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
 
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!composeRecruiterAddress()
-    : k === "perks" ? perksOn.length > 0
-    : k === "smoking" ? !!smokingPolicy
+    : k === "perks" ? (perksOn.length > 0 || !!smokingPolicy)
     : k === "intro" ? introFilled > 0
     : k === "ask" ? askFilled > 0 : !!interactionStyle
   );
@@ -406,11 +405,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: composeRecruiterAddress() },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"recruiter", e:"🧾", l:"連絡先",         req:true, v: recruiterContact },
-          { k:"smoking",  e:"🚭", l:"受動喫煙",       v: smokingPolicy ? (smokingPolicy === "喫煙場所あり" && smokingArea ? `あり（${smokingArea}）` : smokingPolicy) : "" },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
-        ].filter(b => !black || !["smoking","intro","ask","style"].includes(b.k)).map(b => (
+        ].filter(b => !black || !["intro","ask","style"].includes(b.k)).map(b => (
           // 未入力ボックスは赤影アニメで促す（2026-07-16）
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: black ? "1px solid #111111" : "1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
             {!black && (b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>)}
@@ -559,14 +557,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         </div>
         <div><ToggleSwitch accent={AC} label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
       </div>
-      </>)}
-
-      {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を農園紹介/問いかけ/関わり方の各ボックスに分割 */}
-      {/* 従業員数ボックスは削除（2026-08-01たきと指示）。DB列staff_countと既存データは残置 */}
-      {editBox==="smoking" && (<>
-      {/* 受動喫煙の状況（2026-08-03たきと指示「ありならどこか」）：就業場所の受動喫煙対策は求人の明示事項 */}
+      {/* 受動喫煙の状況（2026-08-03たきと指示・待遇ボックス内に設置）：就業場所の受動喫煙対策は求人の明示事項 */}
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>受動喫煙の状況</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:10, lineHeight:1.6 }}>
         就業場所での受動喫煙を防ぐ取り組みの状況は、求人の明示事項です。当てはまる方を選んでください。
       </p>
       <LFPillSelect options={["禁煙（喫煙場所なし）","喫煙場所あり"]} value={smokingPolicy} onSelect={setSmokingPolicy} />
@@ -577,6 +570,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </>)}
       <div style={{ marginBottom:16 }} />
       </>)}
+
+      {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を農園紹介/問いかけ/関わり方の各ボックスに分割 */}
+      {/* 従業員数ボックスは削除（2026-08-01たきと指示）。DB列staff_countと既存データは残置 */}
 
       {editBox==="recruiter" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>募集者の情報</label>
