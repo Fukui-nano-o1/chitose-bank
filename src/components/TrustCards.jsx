@@ -119,7 +119,13 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         <div {...tap("avatar")} style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid " + AC, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", margin:"0 auto 12px", ...cur }}>
           <Avatar url={profile.avatar_url} name={profile.nickname} size={64} bg={black ? "#111111" : undefined} />
         </div>
-        {[["氏名", profile.recruiter_name || (profile.nickname ? profile.nickname : ""), "nickname"],
+        {/* 氏名の横にフリガナを（）付きで表示（2026-08-03たきと指示）。recruiter_name_kana は
+            employer_profiles 直読みの画面は自動で載り、農園紹介は job_employer_profile が返す（anonはNULL） */}
+        {[["氏名", (() => {
+            const n = profile.recruiter_name || profile.nickname || "";
+            const k = (profile.recruiter_name_kana || "").trim();
+            return n ? (k ? `${n}（${k}）` : n) : "";
+          })(), "nickname"],
           ["住所", profile.recruiter_address, "recruiter"],
           ["連絡先", profile.recruiter_contact, "recruiter"]].map(([l, v, k]) => (v && String(v).trim()) ? (
           <div key={l} {...tap(k)} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:4, ...cur }}>
