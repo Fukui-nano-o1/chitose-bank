@@ -435,6 +435,20 @@ const stripConsignorIdentity = (obj) => {
   return n;
 };
 
+// ページ送り時の先頭スクロール（2026-08-03たきと指示「次へタップでトップに自動スクロール」）。
+// iOSは入力欄にフォーカスが残っているとキーボード復帰でスクロール位置が戻されるため、
+// blurしてから次フレームでscrollTopを直接書く（window.scrollTo単発では効かない端末がある）
+const consignScrollTop = () => {
+  try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch {}
+  requestAnimationFrame(() => {
+    try {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    } catch {}
+  });
+};
+
 // ── 委託圃場の登録（2026-08-02たきと指示）：プロフィールのスワイプ2枚目。ここで登録した圃場は
 //    新規委託ウィザードSTEP1で呼び出せる。ウィザードで入力した圃場も掲載時に自動登録（同名upsert）──
 function ConsignFieldsPane({ fields, onReload }) {
@@ -748,7 +762,7 @@ function ConsignorInfoEdit() {
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       if (error) alert("同意の記録に失敗しました：" + error.message);
-      else { setConsentOk(true); setCstep(v => v + 1); window.scrollTo(0, 0); }
+      else { setConsentOk(true); setCstep(v => v + 1); consignScrollTop(); }
     } catch { alert("同意の記録に失敗しました。"); }
     setConsentSaving(false);
   };
@@ -763,7 +777,7 @@ function ConsignorInfoEdit() {
       addr_main: sp > 0 ? addr.slice(0, sp) : addr, addr_detail: sp > 0 ? addr.slice(sp + 1) : "",
       contact_phone: ah.contact_phone || "", contact_email: ah.contact_email || "",
     });
-    setRegZipError(""); setEditReg(true); window.scrollTo(0, 0);
+    setRegZipError(""); setEditReg(true); consignScrollTop();
   };
   const regZipSearch = async () => {
     const z = (regForm?.postal_code || "").replace(/[^0-9]/g, "");
@@ -799,7 +813,7 @@ function ConsignorInfoEdit() {
         { p_patch: patch, p_source: "consignment_reg_edit" });
       if (error || !(r && r.ok)) { alert("保存に失敗しました：" + (error?.message || (r && r.reason) || "不明なエラー")); setRegSaving(false); return; }
       setAhInfo(a => ({ ...(a || {}), ...patch }));
-      setEditReg(false); window.scrollTo(0, 0);
+      setEditReg(false); consignScrollTop();
     } catch { alert("保存に失敗しました。"); }
     setRegSaving(false);
   };
@@ -809,7 +823,7 @@ function ConsignorInfoEdit() {
   // pickType は entity_type 未登録の旧データ専用のフォールバック（例外処理）
   const pickType = (t) => {
     setD(p => seedConsignorData({ ...p }, t, rowRef.current || {}));
-    setCtype(t); setCstep(0); window.scrollTo(0, 0);
+    setCtype(t); setCstep(0); consignScrollTop();
   };
   const searchZipInto = async (f) => {
     const z = (d[f.k] || "").replace(/[^0-9]/g, "");
@@ -986,7 +1000,7 @@ function ConsignorInfoEdit() {
         {regField("contact_phone", "電話番号", { ph:"例：090-1234-5678" })}
         {regField("contact_email", "メールアドレス", { ph:"例：taro@example.com" })}
         <div style={{ display:"flex", gap:8, marginTop:16 }}>
-          <button onClick={()=>{ setEditReg(false); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
+          <button onClick={()=>{ setEditReg(false); consignScrollTop(); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
           <button onClick={saveRegEdit} disabled={regSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: regSaving ? 0.6 : 1 }}>{regSaving ? "保存中..." : "保存する"}</button>
         </div>
       </div>
@@ -1052,7 +1066,7 @@ function ConsignorInfoEdit() {
       {renderProfileBox()}
       <div style={{ display:"flex", gap:8, marginTop:16 }}>
         <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
-        <button onClick={()=>{ setViewing(false); setCstep(steps.indexOf(ctype === "corporate" ? "corp" : "ind")); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>内容を編集</button>
+        <button onClick={()=>{ setViewing(false); setCstep(steps.indexOf(ctype === "corporate" ? "corp" : "ind")); consignScrollTop(); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>内容を編集</button>
       </div>
     </div>
   );
@@ -1061,7 +1075,7 @@ function ConsignorInfoEdit() {
     <div>
       {/* 進捗（黒バー）＋ステップ見出し */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-        {cstep > 0 && <button onClick={()=>{ setCstep(v => v - 1); window.scrollTo(0, 0); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 前へ</button>}
+        {cstep > 0 && <button onClick={()=>{ setCstep(v => v - 1); consignScrollTop(); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 前へ</button>}
         <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111" }}>{cstep + 1}/{steps.length}　{meta.t}</span>
       </div>
       <div style={{ display:"flex", gap:4, marginBottom:18 }}>
@@ -1112,7 +1126,7 @@ function ConsignorInfoEdit() {
               <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 12px" }}>✓ 同意済みです（記録済み・{CONSIGNOR_CONSENT_VERSION}）</p>
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
-                <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+                <button onClick={()=>{ setCstep(v => v + 1); consignScrollTop(); }} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
               </div>
             </>
           ) : (
@@ -1162,7 +1176,7 @@ function ConsignorInfoEdit() {
       {stepKey !== "type" && stepKey !== "consent" && (
         <div style={{ marginTop:20 }}>
           {stepKey !== "confirm" ? (
-            <button onClick={()=>{ setCstep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+            <button onClick={()=>{ setCstep(v => v + 1); consignScrollTop(); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
           ) : (<>
             {/* 最終同意（2026-07-31たきと指示）：チェックするまで保存できない */}
             <button type="button" onClick={()=>setConfirmAgree(v => !v)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", padding:"12px 14px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: confirmAgree ? "2px solid #111111" : "1px solid #D0D0D0", background: confirmAgree ? "#111111" : "#fff", color: confirmAgree ? "#fff" : "#111111", marginBottom:10 }}>
@@ -1485,7 +1499,7 @@ export function ConsignmentRoom() {
       else {
         const merged = { ...(consignor || {}), ...patch };
         setConsignor(merged); setCache("consign:consignor", merged);
-        window.scrollTo(0, 0);
+        consignScrollTop();
       }
     } catch { alert("同意の記録に失敗しました。"); }
     setTermsSaving(false);
@@ -2147,7 +2161,7 @@ export function ConsignmentRoom() {
       {cTab === "new" && termsOk && (
         <div className="fade-in">
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-            <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else { setWizStep(v => v - 1); window.scrollTo(0, 0); } }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
+            <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else { setWizStep(v => v - 1); consignScrollTop(); } }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
             <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111" }}>{wizStep}/5　{CONSIGN_WIZ_STEPS[wizStep-1].t}</span>
           </div>
           {/* 進捗（5分割の黒バー） */}
@@ -2291,7 +2305,7 @@ export function ConsignmentRoom() {
 
           <div style={{ marginTop:20 }}>
             {wizStep < 5 ? (
-              <button onClick={()=>{ setWizStep(v => v + 1); window.scrollTo(0, 0); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
+              <button onClick={()=>{ setWizStep(v => v + 1); consignScrollTop(); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
             ) : (
               <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "掲載中..." : "掲載する（募集を開始）"}</button>
             )}
