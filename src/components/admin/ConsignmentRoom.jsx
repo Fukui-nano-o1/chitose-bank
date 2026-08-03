@@ -5,6 +5,7 @@ import { ymdLocal } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { snapGet } from "../../lib/snapshot";
 import { uploadJobPhoto } from "../../lib/image";
+import { zipLookup } from "../../lib/zipLookup";
 import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
 import { CalendarView } from "../CalendarView";
 import { AdminNav } from "./AdminNav";
@@ -771,13 +772,10 @@ function ConsignorInfoEdit() {
     const z = (regForm?.postal_code || "").replace(/[^0-9]/g, "");
     if (z.length !== 7) { setRegZipError("郵便番号は7桁で入力してください"); return; }
     setRegZipBusy(true); setRegZipError("");
-    try {
-      const res = await fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + z);
-      const j = await res.json();
-      const r = j && j.results && j.results[0];
-      if (!r) setRegZipError("住所が見つかりませんでした");
-      else setRegForm(f => ({ ...f, postal_code: z, addr_main: (r.address1 || "") + (r.address2 || "") + (r.address3 || "") }));
-    } catch { setRegZipError("検索に失敗しました。通信環境をご確認ください"); }
+    // 2系統レース＋タイムアウト＋キャッシュ（lib/zipLookup・2026-08-02「検索に数十秒」対策）
+    const r = await zipLookup(z);
+    if (!r.ok) setRegZipError(r.reason === "notfound" ? "住所が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください");
+    else setRegForm(f => ({ ...f, postal_code: z, addr_main: r.full }));
     setRegZipBusy(false);
   };
   // 保存：account_holders（唯一の正）を変更元タグ付きRPCで更新（2026-08-02たきと確定指示・
@@ -820,13 +818,10 @@ function ConsignorInfoEdit() {
     const z = (d[f.k] || "").replace(/[^0-9]/g, "");
     if (z.length !== 7) { setZipError("郵便番号は7桁で入力してください"); return; }
     setZipBusy(f.k); setZipError("");
-    try {
-      const res = await fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + z);
-      const j = await res.json();
-      const r = j && j.results && j.results[0];
-      if (!r) setZipError("住所が見つかりませんでした");
-      else setD(p => ({ ...p, [f.k]: z, [f.zip.main]: (r.address1 || "") + (r.address2 || "") + (r.address3 || "") }));
-    } catch { setZipError("検索に失敗しました。通信環境をご確認ください"); }
+    // 2系統レース＋タイムアウト＋キャッシュ（lib/zipLookup・2026-08-02「検索に数十秒」対策）
+    const r = await zipLookup(z);
+    if (!r.ok) setZipError(r.reason === "notfound" ? "住所が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください");
+    else setD(p => ({ ...p, [f.k]: z, [f.zip.main]: r.full }));
     setZipBusy("");
   };
   const save = async () => {
