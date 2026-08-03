@@ -285,7 +285,8 @@ export function TodayPage({ me, defaultRole }) {
   // 仮配置の骨を測るref：役割で箱の数が違うので鍵も分ける（働き手／農家）
   const skelRef = useSkeletonProbe("today:" + role);
   const [todos, setTodos] = useState(() => getCache("today:todos") ?? []);     // やることフィード（my_todo_items・状態カードの単一ソース）
-  const [jobCount, setJobCount] = useState(() => getCache("today:roles")?.jc ?? 0); // 自分が出した求人の数（下書き含む）。カレンダーを開けるかの判定に使う
+  // jobCount（自分が出した求人の数）のstateは廃止（2026-08-03）：カレンダー箱のタップ可否判定が
+  // 唯一の読み手だったが、タップ不能を全廃したため不要になった。求人の有無は下の f（農家か）の算出で今も使う
   const [hiredIds, setHiredIds] = useState(() => new Set(getCache("today:hired") ?? [])); // 採用済み（両者の確認が揃った）自分の応募ID
   // 画面の状態→キャッシュの写し（2026-07-27）。やることは片付けると手元のstateだけから消えるため、
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
@@ -351,8 +352,8 @@ export function TodayPage({ me, defaultRole }) {
         setTodos(td || []);
         const w = !!wp || rows.some(e => e.my_role === "worker");
         const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
-        setHasWorker(w); setHasFarmer(f); setJobCount(jc || 0);
-        setCache("today:roles", { w, f, jc: jc || 0 });
+        setHasWorker(w); setHasFarmer(f);
+        setCache("today:roles", { w, f });
         const hired = (apps || [])
           .filter(a => a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at
                     && !["rejected","expired","completed"].includes(a.status))
@@ -613,25 +614,21 @@ export function TodayPage({ me, defaultRole }) {
   const TodoStageBox = ({ stage, items }) => {
     const m = TODO_META[stage]; if (!m) return null;
     const n = items.length;
-    // always指定（カレンダー）：カレンダーに出るものが1つでもあればタップ可（2026-07-27たきと指示・同日改定）。
-    // 農家は「求人の下書き保存・掲載をした時から」＝応募がゼロでも自分の求人があれば開ける（jobCount）。
-    // 働き手は自分の予定（応募・いいね等）が1つでもあれば開ける
-    const calendarReady = entries.some(e => e.my_role === role) || mine.length > 0 || (role === "farmer" && jobCount > 0);
     // 各ボックス＝専用ページ(#/calendar/todo/{stage})へのリンクに統一（2026-08-02たきと指示
-    // 「各ボックスの遷移先を新設。リンクも新設」）。1件直行・direct直行・該当なしタップ不可は廃止：
-    // 該当0件でも専用ページ（用件の説明＋空状態）へ行ける。実行・個別遷移は専用ページの行が担う。
-    // カレンダー（always）だけは従来どおりカレンダー面へ直行（専用ページを挟まない）
-    const enabled = m.always ? calendarReady : true;
-    const dim = m.always ? !calendarReady : n === 0; // 該当なしは薄表示のまま（何の用事が来うるかの地図の役目は維持）
+    // 「各ボックスの遷移先を新設。リンクも新設」）。1件直行・direct直行は廃止＝
+    // 実行・個別遷移は専用ページの行が担う。カレンダー（always）だけはカレンダー面へ直行（専用ページを挟まない）。
+    // ★タップ不能は全廃（2026-08-03たきと指示）：どのボックスも常に開ける。該当0件でも
+    //   専用ページ（用件の説明＋空状態）へ、カレンダーは予定ゼロでもカレンダー面へ行ける。
+    //   薄表示は「いま用事が無い」の目印としてのみ残す（押せなさの表現ではない）
+    const dim = n === 0;
     const onTapBox = () => {
-      if (!enabled) return;
       if (m.always) { window.location.hash = m.nav(); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (
-      <button onClick={onTapBox} disabled={!enabled} className="f-sans" style={{
+      <button onClick={onTapBox} className="f-sans" style={{
         position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:18,
-        padding:"24px 10px 18px", textAlign:"center", cursor: enabled ? "pointer" : "default", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+        padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
         opacity: dim ? 0.45 : 1,
       }}>
         {n > 0 && <span aria-label={"残り" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>}
