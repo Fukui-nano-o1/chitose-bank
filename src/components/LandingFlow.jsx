@@ -511,10 +511,21 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // 再開はrefに掴んだ関数を呼ぶ（handleSaveJobは確認ページのIIFE内定義なので、識別子は外から参照できない）
   const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
   const resumePublishRef = useRef(null);
+  // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ。
+  // 定義位置は openPublish（下の掲載ガード）より前でなければならない＝後ろに置くとTDZで
+  // 「Cannot access before initialization」＝画面that真っ白になる（lintゲート no-use-before-define that検出）
+  const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
+  const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
   // 掲載前の日程ガード（2026-07-24）：日程未設定のまま掲載に進ませない（終了求人コピー→日程空で複製、の受け皿）
   const [returnToConfirm, setReturnToConfirm] = useState(false);
   const openPublish = () => {
     if (!jobDateStart) { alert("作業日程が未設定です。「日程」から新しい日を選んでから掲載してください。"); setReturnToConfirm(true); setStep(4); return; }
+    // 時間外労働のガード（2026-08-03）：必須化より前に作った下書きは未入力のまま確認ページへ来られる
+    // （再開・コピーはstep11から始まりstep5を通らない）so、掲載の直前でも止めて入力させる
+    if (!overtimePolicy || (overtimePolicy === "あり" && !overtimeDetail.trim())) {
+      alert("時間外労働が未設定です。「勤務条件」で有無（「あり」の場合はどれくらいの時間か）を入力してから掲載してください。");
+      setReturnToConfirm(true); setStep(5); return;
+    }
     setPublishModal(true);
   };
   // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）。
@@ -592,9 +603,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
-  // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ
-  const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
-  const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
@@ -1071,7 +1079,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // canGoNext per step
   // 農家6ステップ: 0=home,1=就農歴,2=目的,3=プロフィール,4=詳細,5=確認,6=完了
   const prefNotAllowed = !!farmerPref.trim() && !isAllowedPrefecture(farmerPref);
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || (!!dailyWageInput && !dailyViolation && breakTime !== ""), true, true, true, true, true, true, true];
+  // 時間外労働の入力が揃っているか（2026-08-03たきと指示「必須」）：有無は必ず選ぶ。
+  // 「あり」なら目安の時間まで書く＝「有無（どれくらいの時間）」を明記させる
+  const overtimeOk = !!overtimePolicy && (overtimePolicy !== "あり" || !!overtimeDetail.trim());
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || (!!dailyWageInput && !dailyViolation && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -1498,6 +1509,21 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                   </div>
                 );
               })()}
+              {/* 時間外労働（2026-08-03たきと指示「必須。勤務時間設定の下に」）：
+                  所定の勤務時間を超える労働の有無は労働条件の明示事項so必須（farmerCanNext[5]でも判定）。
+                  「あり」のときは目安の時間も必須＝有無だけでなく「どれくらいか」まで明記させる */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>時間外労働</label>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>上の勤務時間を超えて作業をお願いすることthatあるかどうかです。働き手thatその日の予定を立てるために見ています。</p>
+                <LFPillSelect options={OVERTIME_OPTIONS} value={overtimePolicy} onSelect={setOvertimePolicy} />
+                {overtimePolicy === "あり" && (<>
+                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", margin:"8px 0 6px" }}>どれくらいの時間ですか</label>
+                  <input value={overtimeDetail} onChange={e => setOvertimeDetail(e.target.value)} placeholder="例：繁忙期は1日30分〜1時間程度" maxLength={100} className="field f-sans" style={{ fontSize:16 }} />
+                </>)}
+                {!overtimePolicy && <p className="f-sans" style={{ fontSize:14, color:"#F5A623", marginTop:6 }}>時間外労働の有無を選んでください</p>}
+                {overtimePolicy === "あり" && !overtimeDetail.trim() && <p className="f-sans" style={{ fontSize:14, color:"#F5A623", marginTop:6 }}>どれくらいの時間かを入力してください</p>}
+              </div>
+
               {/* 5-b. 休憩時間（グループ2予定） */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
@@ -1818,17 +1844,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>注意事項（任意）</label>
                 <textarea value={jobCautions} onChange={e => setJobCautions(e.target.value)} placeholder="例：天候により作業時間が変わることがあります" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
-              </div>
-              {/* 時間外労働（2026-08-03たきと指示・持ち物／注意事項の下に設置）：
-                  所定の勤務時間を超える労働の有無は労働条件の明示事項。「あり」のときだけ目安を書く */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>時間外労働（任意）</label>
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>入力した勤務時間を超えて作業をお願いすることthatあるかどうかです。働き手thatその日の予定を立てるために見ています。</p>
-                <LFPillSelect options={OVERTIME_OPTIONS} value={overtimePolicy} onSelect={setOvertimePolicy} />
-                {overtimePolicy === "あり" && (<>
-                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", margin:"8px 0 6px" }}>どれくらいの時間ですか</label>
-                  <input value={overtimeDetail} onChange={e => setOvertimeDetail(e.target.value)} placeholder="例：繁忙期は1日30分〜1時間程度" maxLength={100} className="field f-sans" style={{ fontSize:16 }} />
-                </>)}
               </div>
               {/* 必要経験の選択式は撤回（2026-07-18）：はじめてOK・経験者優遇・リピート即決の3トグルに整理。jobExpは旧求人の表示用に温存 */}
               <div style={{ marginBottom:10 }}>
@@ -2272,13 +2287,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                     {[
                       { label:"持ち物",     value: jobNotes, chips:true, pin:true },
                       { label:"備考・注意", value: jobCautions },
-                      // 時間外労働（2026-08-03たきと指示・持ち物／備考の下）。未入力は他項目と同じ「未設定」
-                      { label:"時間外労働", value: overtimeLine(overtimePolicy, overtimeDetail) },
+                      // 時間外労働（2026-08-03たきと指示・表示は持ち物／備考の下のまま）。
+                      // 入力は勤務条件(step5)へ移したso、このブロックの「編集」(step10)ではなく
+                      // 行に専用の編集リンクを添える＝ここから直せない項目にならないようにする
+                      { label:"時間外労働", value: overtimeLine(overtimePolicy, overtimeDetail), editStep: 5 },
                     ].map(row => {
                       const has = row.value && String(row.value).trim();
                       return (
                         <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                          <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>
+                          <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>
+                            {row.label}
+                            {row.editStep && (
+                              <button onClick={() => { setReturnToConfirm(true); setStep(row.editStep); }} className="f-sans" style={{ marginLeft:6, background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
+                            )}
+                          </span>
                           {row.chips && has
                             ? (
                               <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
