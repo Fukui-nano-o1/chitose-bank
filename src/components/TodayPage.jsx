@@ -509,7 +509,9 @@ export function TodayPage({ me, defaultRole }) {
     // 遷移先は「その役割のカレンダーが載っている面」＝農家は応募者ページ／働き手はステータスページ。
     // どちらも上部にカレンダーを展開して着地する（合図＝cb_openCalendar・2026-07-27たきと指示）。
     // 月カレンダー単独のページ(#/calendar/month)は廃止した
-    t_card:      { icon:"📅", title:"カレンダー",           btn:"カレンダー →",     always:true, nav: () => {
+    t_card:      { icon:"📅", title:"カレンダー",           btn:"カレンダー →",     always:true,
+                   desc:"応募した仕事・自分の求人の予定を、月のカレンダーで見られます。予定が入ると、日をタップしてその日の仕事を確認できます。",
+                   nav: () => {
       try { sessionStorage.setItem("cb_openCalendar", "1"); } catch {}
       return role === "farmer" ? "/profile/employer/applicants" : "/saved";
     } },
@@ -617,12 +619,15 @@ export function TodayPage({ me, defaultRole }) {
     // 各ボックス＝専用ページ(#/calendar/todo/{stage})へのリンクに統一（2026-08-02たきと指示
     // 「各ボックスの遷移先を新設。リンクも新設」）。1件直行・direct直行は廃止＝
     // 実行・個別遷移は専用ページの行が担う。カレンダー（always）だけはカレンダー面へ直行（専用ページを挟まない）。
-    // ★タップ不能は全廃（2026-08-03たきと指示）：どのボックスも常に開ける。該当0件でも
-    //   専用ページ（用件の説明＋空状態）へ、カレンダーは予定ゼロでもカレンダー面へ行ける。
+    // ★タップ不能は全廃（2026-08-03たきと指示）：どのボックスも常に開ける。
     //   薄表示は「いま用事が無い」の目印としてのみ残す（押せなさの表現ではない）
+    // ★なにもなければ説明文を明記（2026-08-03たきと指示）：行き先が空っぽの面だと
+    //   「なぜ何も無いのか」が分からないため、カレンダーも予定がゼロの時は専用ページ
+    //   （用件の説明＋空状態）へ送る。予定があるときだけカレンダー面へ直行する
+    const calendarReady = entries.some(e => e.my_role === role) || mine.length > 0;
     const dim = n === 0;
     const onTapBox = () => {
-      if (m.always) { window.location.hash = m.nav(); return; }
+      if (m.always && calendarReady) { window.location.hash = m.nav(); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (
@@ -719,16 +724,21 @@ export function TodayPage({ me, defaultRole }) {
         {/* 農家⇄働き手の切替タブ（緊急連絡のみ・両役持ちのみ表示。スワイプと同じswitchRoleを共有） */}
         {swipeStage && roleTabsRow}
         {/* 用件の説明（2026-08-02新設）：全ボックスが専用ページへのリンクになったため、
-            該当0件で開いても「何のページか」が分かるように各用件の一言説明を置く */}
-        {pm.desc && <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"-6px 0 16px", paddingLeft:38 }}>{pm.desc}</p>}
+            該当0件で開いても「何のページか」が分かるように各用件の一言説明を置く。
+            ★空のときは下の空状態ボックス内に本文として大きく出す（2026-08-03たきと指示
+            「なにもなければ説明文を明記」）ので、ここでは出さない＝二重に出さない */}
+        {pm.desc && pItems.length > 0 && <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"-6px 0 16px", paddingLeft:38 }}>{pm.desc}</p>}
         <div key={swipeStage ? slideKey : "static"} ref={swipeStage ? contentRef : undefined}
           style={swipeStage && slideDir ? { animation: `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` } : undefined}>
         {loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>
         ) : pItems.length === 0 ? (
+          /* 空状態：説明文を明記する（2026-08-03たきと指示）。「いまありません」だけだと
+             なぜ空なのか・いつここに何が来るのかが分からないため、用件の説明を本文として大きく出す */
           <div style={{ background:"#F7F7F7", borderRadius:14, padding:"28px 20px", textAlign:"center" }}>
-            <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:0 }}>{answeredDone ? "送信完了しました。" : "この用事はいまありません"}</p>
+            <div style={{ fontSize:32, marginBottom:10 }}>{pm.icon}</div>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{answeredDone ? "送信完了しました。" : "この用事はいまありません"}</p>
+            {pm.desc && <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 auto", maxWidth:420, textAlign:"left" }}>{pm.desc}</p>}
           </div>
         ) : pageStage === "approve" ? (
           <NewApplicantsPanel items={pItems} onTap={(t)=>runTodo(TODO_META.approve, t)} />
