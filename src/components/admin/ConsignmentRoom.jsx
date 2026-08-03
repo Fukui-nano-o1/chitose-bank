@@ -2516,40 +2516,49 @@ export function ConsignmentRoom() {
           {deals.length === 0 ? (
             <p className="f-sans" style={{ fontSize:14.3, color:"#111111", textAlign:"center", padding:"32px 0" }}>まだ委託がありません。「新しく委託を出す」から始めましょう。</p>
           ) : (
-          <div style={{ display:"grid", gap:14 }}>
+          // さがす一覧と同じ構造（2026-08-03たきと指示）：枠なしカード・大きな角丸写真・
+          // 写真の下にタイトル/地域/金額の3秒判断レイアウト（JobCardの型・カラーはブラック）。
+          // 進行ステッパー・履行集計は管理情報soカードから外し、タップ先の案件ページが担う
+          <div style={{ display:"grid", gap:22 }}>
           {deals.map(d => {
             const s = d.spec || {};
             const st = consignRecruitState(d.status);
-            const ag = progAgg[d.id]; const area = dealAreaA(d);
-            const hpa = ag && area ? hoursPer10a(ag.hours, area) : null;
+            const photo = s.photos && s.photos[0] && s.photos[0].url;
+            const dateChip = deadlineLabel(s.date_start, s.date_end) || s.deadline || "";
             return (
-              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 16px 10px", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-                {s.photos && s.photos[0] && s.photos[0].url && (
-                  <div style={{ margin:"-16px -16px 12px", height:150, overflow:"hidden" }}>
-                    <img loading="lazy" src={s.photos[0].url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", background:"transparent", border:"none", position:"relative" }}>
+                {/* 状態帯（募集中/募集終了/作業中/完了）＝写真左上 */}
+                <span className="f-sans" style={{ position:"absolute", top:10, left:10, zIndex:2, padding:"4px 12px", borderRadius:8, fontSize:12.1, fontWeight:800, background:st.bg, color:st.fg, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>{st.l}</span>
+                {/* 履行期限チップ＝写真右下（さがすの開始日チップと同じ位置） */}
+                {dateChip && (
+                  <span className="f-sans" style={{ position:"absolute", top:186, right:8, zIndex:2, padding:"4px 10px", borderRadius:20, background:"rgba(255,255,255,0.92)", color:"#222", fontSize:12.1, fontWeight:700, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>{dateChip}</span>
+                )}
+                {photo ? (
+                  <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block", borderRadius:16 }} />
+                ) : (
+                  <div style={{ width:"100%", height:220, borderRadius:16, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>🥦</div>
+                )}
+                <div style={{ padding:"12px 4px 0" }}>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
+                    <p className="f-sans" style={{ fontSize:17.6, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {s.field_name || "（圃場未記入）"}　{[s.crop, s.task].filter(Boolean).join(" ")}
+                    </p>
+                    <span className="f-sans" style={{ fontSize:12.1, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{s.region}</span>
                   </div>
-                )}
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                  <span style={{ flexShrink:0, padding:"3px 10px", borderRadius:8, fontSize:12.1, fontWeight:700, background:st.bg, color:st.fg }}>{st.l}</span>
-                  <span className="f-sans" style={{ fontSize:12.1, color:"#111111" }}>{new Date(d.created_at).toLocaleDateString("ja-JP")}</span>
-                  <span style={{ marginLeft:"auto", fontSize:15.4, color:"#B0B0B0" }}>›</span>
+                  <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:8 }}>
+                    <p className="f-mono" style={{ fontSize:16.5, fontWeight:700, color:"#111111", margin:0 }}>
+                      {s.unit_price_10a ? Number(s.unit_price_10a).toLocaleString() + "円/10a" : "単価未設定"}
+                    </p>
+                    {s.area_a && <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#717171", flexShrink:0 }}>{s.area_a}a</span>}
+                  </div>
+                  {(s.hazards || []).length > 0 && (
+                    <div style={{ display:"flex", gap:4, marginTop:4, flexWrap:"wrap" }}>
+                      {(s.hazards || []).map(h => (
+                        <span key={h} className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", background:"#F0F0F0", padding:"2px 10px", borderRadius:20 }}>⚠ {h === "その他" && s.hazard_other ? "その他（" + s.hazard_other + "）" : h}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p className="f-sans" style={{ fontSize:17.6, fontWeight:800, color:"#111", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {s.field_name || "（圃場未記入）"}
-                  <span style={{ fontWeight:600, fontSize:14.3, color:"#111111" }}>　{[s.crop, s.task].filter(Boolean).join(" ")}</span>
-                </p>
-                <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {[s.region, s.area_a ? s.area_a + "a" : "", s.deadline ? "期限 " + s.deadline : "", s.unit_price_10a ? "単価 " + Number(s.unit_price_10a).toLocaleString() + "円/10a" : ""].filter(Boolean).join("　") || "詳細未記入"}
-                </p>
-                {(s.hazards || []).length > 0 && (
-                  <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                    ⚠ {(s.hazards || []).map(h => h === "その他" && s.hazard_other ? "その他（" + s.hazard_other + "）" : h).join("・")}
-                  </p>
-                )}
-                <ConsignStepper deal={d} />
-                {ag && (ag.hours > 0 || ag.days > 0) && (
-                  <p className="f-sans" style={{ fontSize:12.1, color:"#111111", fontWeight:700, margin:"-8px 0 6px" }}>履行：実働{ag.hours}h・{ag.days}日{ag.boxes > 0 ? `・${ag.boxes}箱` : ""}{hpa != null ? `　10aあたり ${hpa}h` : ""}</p>
-                )}
               </button>
             );
           })}
