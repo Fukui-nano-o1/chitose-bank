@@ -166,15 +166,28 @@ const CONSIGN_CLUSTER_BASES = [
 const makeConsignGrass = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return CONSIGN_CLUSTER_BASES.map(c => {
-    // 夏仕様：上段の群れは草でなく白い太陽（2026-07-31たきと指示）。大きさ・位置だけ入室ごとに抽選
+    // 夏仕様：上段は白い太陽→花火に差し替え（2026-08-03たきと指示・5〜7発）。
+    // 1発＝打ち上げの尾（下から炸裂点まで昇る）＋炸裂（閃光＋光条＋粒）。位置・大きさ・
+    // 玉数・間合いは入室ごとに抽選＝毎回違う夜空になる
     if (c.kind === "sun") {
+      const n = 5 + Math.floor(Math.random() * 3); // 5〜7発
       return {
         panel: c.panel,
-        kind: "sun",
-        delay: c.delay,
-        sunSize: Math.round(r(210, 280)),   // 太陽の直径px（爛々と大きめ）
-        sunTop: +r(7, 17).toFixed(1),       // 上幕の上端からの位置%
-        sunLeft: +r(40, 64).toFixed(1),     // 横位置%（中央やや右）
+        kind: "fireworks",
+        shells: Array.from({ length: n }, (_, i) => {
+          const riseDur = +r(0.38, 0.52).toFixed(2);
+          return {
+            left: +r(12, 88).toFixed(1),          // 炸裂点の横位置%
+            top: +r(16, 62).toFixed(1),           // 炸裂点の縦位置%（上幕の中）
+            rise: Math.round(r(120, 260)),        // 打ち上げの高さpx（尾が昇る距離）
+            riseDur,
+            delay: +(c.delay + i * r(0.11, 0.17)).toFixed(2), // 続けざまに上がる
+            size: Math.round(r(130, 210)),        // 炸裂の直径px
+            rays: 16 + Math.floor(Math.random() * 8) * 2,     // 光条の数（16〜30・偶数）
+            spin: Math.round(r(0, 22)),           // 玉の向き（回転°）
+            burstDur: +r(0.8, 1.0).toFixed(2),    // 消えるまで
+          };
+        }),
       };
     }
     const size = r(160, 300); // 群れごとの大きさの基準（実機確認で縮小・2026-07-31「良い塩梅に」）
@@ -1271,7 +1284,7 @@ export function ConsignmentRoom() {
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示・順序改定「まず太陽→草」）：
   // 線(0.22s)→①太陽・上段(0.10s〜)→②草・右下(0.45s〜)→③草・左中(0.80s〜)→幕が開く(1.20s+0.5s)
-  // ＝約1.7sで終演、1.95sでDOMから外す。
+  // ＝花火5〜7発→約2.25sで終演、2.5sでDOMから外す（2026-08-03・太陽→花火）。
   // 動きを減らす設定の端末では最初から出さない（CSS側のprefers-reduced-motionと二重の判定）
   const [entrance, setEntrance] = useState(() => {
     try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; }
@@ -1329,7 +1342,7 @@ export function ConsignmentRoom() {
   const [cornerSizes] = useState(() => Array.from({ length: 4 }, () => Math.round(140 + Math.random() * 80)));
   useEffect(() => {
     if (!entrance) return;
-    const t = setTimeout(() => setEntrance(false), 1950);
+    const t = setTimeout(() => setEntrance(false), 2500); // 花火5〜7発ぶん延長（2026-08-03）
     return () => clearTimeout(t);
   }, [entrance]);
   // 委託地（徳島県吉野川市）の現在の風を取得（Open-Meteo・無料/キー不要/CORS可）。
@@ -2111,21 +2124,36 @@ export function ConsignmentRoom() {
             <div key={panel} className={"consign-entrance-" + panel}>
               {panel === "bottom" && <div className="consign-entrance-line" />}
               {entranceGrass.filter(c => c.panel === panel).map((c, ci) => (
-                c.kind === "sun" ? (
-                  // 夏仕様：一番上の群れ＝白い太陽が爛々と輝く（2026-07-31たきと指示）。
-                  // 円盤＋放射する光条（長短交互＝きらめき）＋脈打つ光輪(glow)。回転と脈動はCSS側。
-                  // 上幕の中に居るので、幕が開くと太陽ごとスライド退場する（草と同じ片付け不要の仕組み）
-                  <div key={ci} className="consign-sun" style={{ top: c.sunTop + "%", left: c.sunLeft + "%", width: c.sunSize, height: c.sunSize, marginLeft: -c.sunSize / 2, animationDelay: c.delay + "s" }}>
-                    <div className="consign-sun-glow" />
-                    <svg className="consign-sun-rays" viewBox="-100 -100 200 200">
-                      {Array.from({ length: 16 }, (_, k) => {
-                        const long = k % 2 === 0;
-                        return <line key={k} x1="0" y1={long ? -58 : -54} x2="0" y2={long ? -97 : -80} stroke="#fff" strokeWidth={long ? 5 : 3.4} strokeLinecap="round" transform={`rotate(${k * 22.5})`} />;
-                      })}
-                    </svg>
-                    <svg className="consign-sun-disc" viewBox="-100 -100 200 200">
-                      <circle cx="0" cy="0" r="40" fill="#fff" />
-                    </svg>
+                c.kind === "fireworks" ? (
+                  // 花火（2026-08-03たきと指示「太陽の代わりに花火を打ち上げる・5〜7発」）。
+                  // 1発＝尾が昇る→閃光→光条と粒が開く→消える。上幕の中に居るので、
+                  // 幕が開くと花火ごとスライド退場する（草・太陽と同じ片付け不要の仕組み）
+                  <div key={ci}>
+                    {c.shells.map((sh, k) => {
+                      const burstAt = (sh.delay + sh.riseDur).toFixed(2) + "s";
+                      return (
+                        <div key={k} className="consign-fw" style={{ left: sh.left + "%", top: sh.top + "%" }}>
+                          <div className="consign-fw-trail" style={{ "--rise": sh.rise + "px", "--rise-dur": sh.riseDur + "s", animationDelay: sh.delay + "s" }} />
+                          <div className="consign-fw-flash" style={{ width: sh.size, height: sh.size, animationDelay: burstAt }} />
+                          <div className="consign-fw-burst" style={{ width: sh.size, height: sh.size, animationDelay: burstAt, animationDuration: sh.burstDur + "s" }}>
+                            <svg viewBox="-100 -100 200 200" style={{ width:"100%", height:"100%" }}>
+                              <g transform={`rotate(${sh.spin})`}>
+                                {Array.from({ length: sh.rays }, (_, j) => {
+                                  const long = j % 2 === 0;                    // 長短交互＝菊の花びらの粗密
+                                  const tip = long ? -94 : -74;
+                                  return (
+                                    <g key={j} transform={`rotate(${(360 / sh.rays) * j})`}>
+                                      <line x1="0" y1="-14" x2="0" y2={tip + 8} stroke="#fff" strokeWidth={long ? 3.2 : 2.2} strokeLinecap="round" opacity=".9" />
+                                      <circle cx="0" cy={tip} r={long ? 4.2 : 3} fill="#fff" />
+                                    </g>
+                                  );
+                                })}
+                              </g>
+                            </svg>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                 <div key={ci} className="consign-entrance-cluster" style={c.pos}>
