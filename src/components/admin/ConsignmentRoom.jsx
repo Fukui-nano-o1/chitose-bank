@@ -166,10 +166,21 @@ const CONSIGN_CLUSTER_BASES = [
 const makeConsignGrass = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return CONSIGN_CLUSTER_BASES.map(c => {
-    // 夏仕様：上段は白い太陽→花火に差し替え（2026-08-03たきと指示・5〜7発）。
-    // 1発＝打ち上げの尾（下から炸裂点まで昇る）＋炸裂（閃光＋光条＋粒）。位置・大きさ・
-    // 玉数・間合いは入室ごとに抽選＝毎回違う夜空になる
+    // 夏仕様：上段は白い太陽（2026-07-31）と花火（2026-08-03たきと指示）を入室ごとにランダムで
+    // 出し分ける（交互＝どちらも消さない）。太陽＝爛々と輝く昼、花火＝5〜7発上がる夜
     if (c.kind === "sun") {
+      if (Math.random() < 0.5) {
+        return {
+          panel: c.panel,
+          kind: "sun",
+          delay: c.delay,
+          sunSize: Math.round(r(210, 280)),   // 太陽の直径px（爛々と大きめ）
+          sunTop: +r(7, 17).toFixed(1),       // 上幕の上端からの位置%
+          sunLeft: +r(40, 64).toFixed(1),     // 横位置%（中央やや右）
+        };
+      }
+      // 花火：1発＝打ち上げの尾（下から炸裂点まで昇る）＋炸裂（閃光＋光条＋粒）。
+      // 位置・大きさ・玉数・間合いは入室ごとに抽選＝毎回違う夜空になる
       const n = 5 + Math.floor(Math.random() * 3); // 5〜7発
       return {
         panel: c.panel,
@@ -2124,7 +2135,23 @@ export function ConsignmentRoom() {
             <div key={panel} className={"consign-entrance-" + panel}>
               {panel === "bottom" && <div className="consign-entrance-line" />}
               {entranceGrass.filter(c => c.panel === panel).map((c, ci) => (
-                c.kind === "fireworks" ? (
+                c.kind === "sun" ? (
+                  // 白い太陽が爛々と輝く（2026-07-31たきと指示・花火とランダムで交互）。
+                  // 円盤＋放射する光条（長短交互＝きらめき）＋脈打つ光輪(glow)。回転と脈動はCSS側。
+                  // 上幕の中に居るので、幕が開くと太陽ごとスライド退場する（草と同じ片付け不要の仕組み）
+                  <div key={ci} className="consign-sun" style={{ top: c.sunTop + "%", left: c.sunLeft + "%", width: c.sunSize, height: c.sunSize, marginLeft: -c.sunSize / 2, animationDelay: c.delay + "s" }}>
+                    <div className="consign-sun-glow" />
+                    <svg className="consign-sun-rays" viewBox="-100 -100 200 200">
+                      {Array.from({ length: 16 }, (_, k) => {
+                        const long = k % 2 === 0;
+                        return <line key={k} x1="0" y1={long ? -58 : -54} x2="0" y2={long ? -97 : -80} stroke="#fff" strokeWidth={long ? 5 : 3.4} strokeLinecap="round" transform={`rotate(${k * 22.5})`} />;
+                      })}
+                    </svg>
+                    <svg className="consign-sun-disc" viewBox="-100 -100 200 200">
+                      <circle cx="0" cy="0" r="40" fill="#fff" />
+                    </svg>
+                  </div>
+                ) : c.kind === "fireworks" ? (
                   // 花火（2026-08-03たきと指示「太陽の代わりに花火を打ち上げる・5〜7発」）。
                   // 1発＝尾が昇る→閃光→光条と粒が開く→消える。上幕の中に居るので、
                   // 幕が開くと花火ごとスライド退場する（草・太陽と同じ片付け不要の仕組み）
