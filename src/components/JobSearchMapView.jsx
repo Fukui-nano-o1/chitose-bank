@@ -604,7 +604,11 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!isSaved && surveyAnswered === false) { setSurveyJob(job); return; }
     performSave(job);
   };
-  const applyBtnOnClick = !me ? visitorGuide
+  // 未ログイン（訪問者）が応募を押したら、戻り先にこの求人を記録してからログイン導線を開く（2026-07-31）。
+  // これが無いと、登録→新規登録①（AccountHolderForm）完了後に #/search へ落ち、見ていた求人を見失う
+  // （県大会のQRから来た人の一気通貫を守る）。applyReturn は login-box成功(App:1974)・
+  // AccountHolderForm.onDone(App:2239)・afterLoginGo(App:1181) の三箇所が読んで /work/job/{n} へ戻す。
+  const applyBtnOnClick = !me ? (() => { if (selectedJob) setApplyReturn(selectedJob.id); visitorGuide(); })
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (!myAppStatus && myPending) ? (() => { window.location.hash = "/apply/pending"; })
@@ -1044,19 +1048,28 @@ export function JobSearchMapView({ onRegister, me }) {
             <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px" }}>募集者情報</p>
             {/* 値は求人ごとの控え（jobs_publicへ掲載時に転写）を優先。まだ控えの無い旧求人だけ
                 原本（employer_profiles）へフォールバックする（2026-07-30・第14弾） */}
+            {/* 募集者の氏名・住所・連絡先は未ログイン（anon）には非開示（2026-07-31・訪問者開示レベル第1弾）。
+                DB側で jobs_public・job_employer_profile とも anon には NULL を返す。ここでは null を
+                「未設定」ではなく会員登録の導線に置き換える（会員には全開示＝募集広告の明示義務） */}
             {[["募集者", selectedJob.recruiterName || empEmployer?.recruiter_name],
               ["住所・所在地", selectedJob.recruiterAddress || empEmployer?.recruiter_address],
               ["連絡先", selectedJob.recruiterContact || empEmployer?.recruiter_contact]].map(([l, v]) => (
               <div key={l} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:6 }}>
                 <span className="f-sans" style={{ flexShrink:0, width:88, fontSize:12, color:"#999" }}>{l}</span>
-                <span className="f-sans" style={{ fontSize:13, color: (v && v.trim()) ? "#222" : "#C77700", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>
-                  {(v && v.trim()) ? v : "未設定"}
+                <span className="f-sans" style={{ fontSize:13, color: (v && v.trim()) ? "#222" : (!me ? "#717171" : "#C77700"), lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>
+                  {(v && v.trim()) ? v : (!me ? "🔒 会員のみ表示" : "未設定")}
                 </span>
               </div>
             ))}
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.7 }}>
-              業務内容・業務を行う場所・報酬は、このページの上部に記載しています。
-            </p>
+            {!me ? (
+              <button onClick={visitorGuide} className="btn-primary f-sans" style={{ width:"100%", marginTop:8, padding:"11px 16px", fontSize:13, fontWeight:700, borderRadius:10, border:"none", cursor:"pointer" }}>
+                会員登録・ログインすると表示されます
+              </button>
+            ) : (
+              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.7 }}>
+                業務内容・業務を行う場所・報酬は、このページの上部に記載しています。
+              </p>
+            )}
           </div>
 
           {/* 地図（集合場所のおおよその範囲・円のみ） */}
