@@ -112,18 +112,21 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
   const okTrust = !!(trust && trust.ok);
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid " + AC, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...cur }}>
-          <Avatar url={profile.avatar_url} name={profile.nickname} size={56} bg={black ? "#111111" : undefined} />
+      {/* ヘッダー刷新（2026-08-03たきと指示）：アイコンを中央に、下に募集者の項目（氏名・住所・連絡先）を
+          ラベル｜内容の行で表示。値は募集者の法定3項目（recruiter_*）＝求人詳細の農園紹介では
+          job_employer_profile 経由でanonにはNULLで届く（訪問者には氏名（公開ニックネーム）以外出ない） */}
+      <div style={{ marginBottom:12 }}>
+        <div {...tap("avatar")} style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid " + AC, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", margin:"0 auto 12px", ...cur }}>
+          <Avatar url={profile.avatar_url} name={profile.nickname} size={64} bg={black ? "#111111" : undefined} />
         </div>
-        <div style={{ minWidth:0 }}>
-          <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, ...cur }}>{profile.nickname ? profile.nickname + "さん" : "農園名未設定"}</p>
-          {/* 住所の明記（2026-08-03たきと指示：プレビューの氏名の下）。値は募集者の所在地（recruiter_address）。
-              求人詳細の農園紹介では job_employer_profile 経由＝anonにはNULLで届く（訪問者には出ない） */}
-          {profile.recruiter_address && (
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", lineHeight:1.5, overflowWrap:"break-word", wordBreak:"break-word" }}>📍{profile.recruiter_address}</p>
-          )}
-        </div>
+        {[["氏名", profile.recruiter_name || (profile.nickname ? profile.nickname : ""), "nickname"],
+          ["住所", profile.recruiter_address, "recruiter"],
+          ["連絡先", profile.recruiter_contact, "recruiter"]].map(([l, v, k]) => (v && String(v).trim()) ? (
+          <div key={l} {...tap(k)} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:4, ...cur }}>
+            <span className="f-sans" style={{ flexShrink:0, width:56, fontSize:12, color:"#999", lineHeight:1.6 }}>{l}</span>
+            <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: l === "氏名" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>{v}</span>
+          </div>
+        ) : null)}
       </div>
       {okTrust && trust.want_again_workers > 0 && (
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>{black ? "" : "🌟"}また働きたい×{trust.want_again_workers}</p>
