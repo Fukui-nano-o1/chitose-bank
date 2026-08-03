@@ -14,6 +14,10 @@ import { AutoSkeleton } from "./ui";
 export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDeclared, setSelfDeclared }) {
   const scrollRef = useRef(null);
   const [pageIdx, setPageIdx] = useState(0);
+  // 自由記述の入力中は横スワイプ（snap）を一時停止する（2026-08-03たきと報告「ボックス展開だと自由記述ができない」対策）。
+  // iOSはscroll-snapコンテナ内のinputにフォーカスすると、キーボード表示のレイアウト変化で再スナップが走り
+  // 入力が奪われることがある。入力中だけ overflow:hidden＋snap無効＝ページ1に固定して打鍵を守る。blurで復帰
+  const [typing, setTyping] = useState(false);
   // 経験0件で開いたときは「経験 1」の空カードを最初から1枚出しておく（2026-08-03たきと指示「この状態がデフォルト」）。
   // 空カード（作物が空）は保存側のfilterで除外される＝未入力のまま保存してもDBは汚れない
   useEffect(() => {
@@ -41,7 +45,7 @@ export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDe
           ))}
         </div>
       )}
-      <div ref={scrollRef} onScroll={onScroll} style={{ display:"flex", alignItems:"flex-start", overflowX:"auto", WebkitOverflowScrolling:"touch", scrollSnapType:"x mandatory" }}>
+      <div ref={scrollRef} onScroll={onScroll} style={{ display:"flex", alignItems:"flex-start", overflowX: typing ? "hidden" : "auto", WebkitOverflowScrolling:"touch", scrollSnapType: typing ? "none" : "x mandatory" }}>
         <datalist id="cb-crop-opts-expswipe">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
         {/* 経験ページ（1枚）：カードを縦積み＋末尾に追加ボタン（最大5） */}
         <div style={paneStyle}>
@@ -50,7 +54,9 @@ export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDe
               <div key={i} style={{ background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", position:"relative" }}>
                 <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 8px" }}>経験 {i + 1}</p>
                 <button type="button" onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:8, background:"#fff", border:"1px solid #EBEBEB", color:"#999", fontSize:14, cursor:"pointer" }}>×</button>
-                <input list="cb-crop-opts-expswipe" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))} placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
+                <input list="cb-crop-opts-expswipe" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))}
+                  onFocus={()=>setTyping(true)} onBlur={()=>setTyping(false)}
+                  placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
                 <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }}>
                   <option value="">作業</option>
                   {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
