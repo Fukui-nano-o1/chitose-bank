@@ -3,6 +3,7 @@
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { zipLookup } from "../lib/zipLookup";
 import { uploadJobPhoto } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
@@ -222,31 +223,28 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   }, [farmerPref]);
   const [zipSearching,      setZipSearching]      = useState(false);
   const [zipError,          setZipError]          = useState("");
-  // 郵便番号から住所を検索（zipcloud・無料・認証不要）。都道府県・市区町村を自動入力。
+  // 郵便番号から住所を検索（zipLookup＝2系統レース＋タイムアウト＋キャッシュ・2026-08-02「数十秒」対策）。
+  // 都道府県・市区町村を自動入力。
   // ★引数で郵便番号を受け取れるようにしてある（2026-07-29）：入力欄のonChangeから呼ぶとき、
   //   その時点の farmerZip state はまだ更新前なので、打たれた値を直接渡す必要がある
   const searchZip = async (zipRaw) => {
     const zip = String(zipRaw === undefined ? farmerZip : zipRaw).replace(/[^0-9]/g, "");
     if (zip.length !== 7) { setZipError("郵便番号は7桁で入力してください"); return; }
     setZipSearching(true); setZipError("");
-    try {
-      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
-      const data = await res.json();
-      if (data.status === 200 && data.results) {
-        const r = data.results[0];
-        setFarmerPref(r.address1);
-        setFarmerCity(r.address2);
-        // 町域（address3）まで自動入力（2026-07-16）。町域・番地は個別に手直しできる
-        setFarmerTown(r.address3 || "");
-        setFarmerRegion(r.address1 + r.address2 + (r.address3 || ""));
+    {
+      const r = await zipLookup(zip);
+      if (r.ok) {
+        setFarmerPref(r.prefecture);
+        setFarmerCity(r.city);
+        // 町域まで自動入力（2026-07-16）。町域・番地は個別に手直しできる
+        setFarmerTown(r.town || "");
+        setFarmerRegion(r.prefecture + r.city + (r.town || ""));
         setZipError("");
         // 町域が取れたら番地欄へ、取れなければ町域欄へフォーカス
-        setTimeout(() => { (r.address3 ? addrRef : townRef).current?.focus(); }, 0);
+        setTimeout(() => { (r.town ? addrRef : townRef).current?.focus(); }, 0);
       } else {
-        setZipError("郵便番号が見つかりませんでした");
+        setZipError(r.reason === "notfound" ? "郵便番号が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください");
       }
-    } catch {
-      setZipError("検索に失敗しました。通信環境をご確認ください");
     }
     setZipSearching(false);
   };
@@ -514,14 +512,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     const zip = pbZip.replace(/[^0-9]/g, "");
     if (zip.length !== 7) { setPbErr("郵便番号は7桁で入力してください"); return; }
     setPbBusy(true); setPbErr("");
-    try {
-      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
-      const data = await res.json();
-      if (data.status === 200 && data.results) {
-        const r = data.results[0];
-        setPbPref(r.address1); setPbCity(r.address2); setPbTown(r.address3 || "");
-      } else { setPbErr("郵便番号が見つかりませんでした"); }
-    } catch { setPbErr("検索に失敗しました。通信環境をご確認ください"); }
+    const r = await zipLookup(zip);
+    if (r.ok) { setPbPref(r.prefecture); setPbCity(r.city); setPbTown(r.town || ""); }
+    else { setPbErr(r.reason === "notfound" ? "郵便番号が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください"); }
     setPbBusy(false);
   };
   const savePlaceBox = async () => {

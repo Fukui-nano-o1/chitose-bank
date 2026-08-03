@@ -1,6 +1,7 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。新規登録①（本人確認・口座名義人情報）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { zipLookup } from "../lib/zipLookup";
 import { C, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION } from "../lib/utils";
 
 // ── AccountHolderForm — 新規登録①（本人確認・口座名義人情報）────
@@ -71,25 +72,20 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
 
   // ① 非公開情報(送達先)用の住所検索。求人フローsearchZip(②公開情報)とは
   // 情報の層が異なるため意図的に分離。共通化しない。
+  // 通信部のみ共通のzipLookup（2系統レース＋タイムアウト＋キャッシュ・2026-08-02「数十秒」対策）
   const searchAccountZip = async () => {
     const zip = postalCode.replace(/[^0-9]/g, "");
     if (zip.length !== 7) { setZipError("郵便番号は7桁で入力してください"); return; }
     setZipSearching(true); setZipError("");
-    try {
-      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
-      const data = await res.json();
-      if (data.status === 200 && data.results) {
-        const r = data.results[0];
-        const full = (r.address1 || "") + (r.address2 || "");
-        setAddressAuto(full);
-        setApiAddress(full);
-        setApiAddressZip(zip);
-        setZipError("");
-      } else {
-        setZipError("郵便番号が見つかりませんでした");
-      }
-    } catch {
-      setZipError("検索に失敗しました。通信環境をご確認ください");
+    const r = await zipLookup(zip);
+    if (r.ok) {
+      const full = (r.prefecture || "") + (r.city || "");
+      setAddressAuto(full);
+      setApiAddress(full);
+      setApiAddressZip(zip);
+      setZipError("");
+    } else {
+      setZipError(r.reason === "notfound" ? "郵便番号が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください");
     }
     setZipSearching(false);
   };

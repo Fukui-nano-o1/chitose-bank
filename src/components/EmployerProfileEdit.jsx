@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
+import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots } from "./ui";
@@ -64,27 +65,24 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     if (!recruiterZip.trim() && !body) return recruiterAddress.trim(); // 分割未入力＝既存の1行値を維持
     return [recruiterZip.trim() ? "〒" + recruiterZip.trim() : "", body].filter(Boolean).join(" ");
   };
-  // 郵便番号→zipcloudで都道府県・市区町村を自動入力（求人フローstep3と同じAPI・無料・認証不要）。
+  // 郵便番号→都道府県・市区町村を自動入力（zipLookup＝2系統レース＋タイムアウト＋キャッシュ・
+  // 2026-08-02「数十秒」対策。求人フローstep3と同じ窓口）。
   // ★引数で郵便番号を受け取る理由も求人フローと同じ：入力欄のonChangeから呼ぶとき、stateはまだ更新前
   const searchRecruiterZip = async (zipRaw) => {
     const zip = String(zipRaw === undefined ? recruiterZip : zipRaw).replace(/[^0-9]/g, "");
     if (zip.length !== 7) { setRZipError("郵便番号は7桁で入力してください"); return; }
     setRZipSearching(true); setRZipError("");
-    try {
-      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
-      const dj = await res.json();
-      if (dj.status === 200 && dj.results) {
-        const r = dj.results[0];
-        setRecruiterPref(r.address1); setRecruiterCity(r.address2);
-        // 町域が取れて番地欄が空なら初期値に（入力済みの値は上書きしない）
-        setRecruiterDetail(prev => prev.trim() ? prev : (r.address3 || ""));
-      } else setRZipError("郵便番号が見つかりませんでした");
-    } catch { setRZipError("検索に失敗しました。通信環境をご確認ください"); }
+    const r = await zipLookup(zip);
+    if (r.ok) {
+      setRecruiterPref(r.prefecture); setRecruiterCity(r.city);
+      // 町域が取れて番地欄が空なら初期値に（入力済みの値は上書きしない）
+      setRecruiterDetail(prev => prev.trim() ? prev : (r.town || ""));
+    } else setRZipError(r.reason === "notfound" ? "郵便番号が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください");
     setRZipSearching(false);
   };
-  // 新規登録（account_holders）の1行住所を分割欄へ流し込む：郵便番号→zipcloudで都道府県・市区町村、
+  // 新規登録（account_holders）の1行住所を分割欄へ流し込む：郵便番号→都道府県・市区町村（zipLookup）、
   // 残りを町名・番地欄へ。都道府県・市区町村の先頭一致で剥がすだけ（推測パースはしない）。
-  // zipcloudが引けなかったときは全文を町名・番地欄に入れる＝本人が確認して直せる形で残す
+  // 住所が引けなかったときは全文を町名・番地欄に入れる＝本人が確認して直せる形で残す
   const fillSplitFromAccount = async (ah) => {
     const zip = (ah.postal_code || "").trim().replace(/[^0-9]/g, "");
     const addr = (ah.address || "").trim();
@@ -92,11 +90,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     if (zip) setRecruiterZip(zip);
     let pref = "", city = "";
     if (zip.length === 7) {
-      try {
-        const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zip}`);
-        const dj = await res.json();
-        if (dj.status === 200 && dj.results) { pref = dj.results[0].address1; city = dj.results[0].address2; }
-      } catch {}
+      const r = await zipLookup(zip);
+      if (r.ok) { pref = r.prefecture; city = r.city; }
     }
     if (pref) setRecruiterPref(pref);
     if (city) setRecruiterCity(city);
