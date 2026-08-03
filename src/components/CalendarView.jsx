@@ -3,7 +3,12 @@ import { useState, useEffect } from "react";
 import { ymdLocal } from "../lib/utils";
 
 // 読み書き両用カレンダー（モジュールレベル・入力側と詳細表示側で共有）
-export function CalendarView({ start, end, readOnly = false, onSelect, accent = "#00A86B", accentSoft = "#E6F7EF", hideHints = false }) {
+export function CalendarView({ start: startProp, end: endProp, readOnly = false, onSelect, accent = "#00A86B", accentSoft = "#E6F7EF", hideHints = false }) {
+  // start/end は Date でも文字列でも受ける（2026-08-03クラッシュ修理の恒久ガード）：
+  // viewCacheのlocalStorage化でDateがJSON経由の文字列として復元され、getFullYear()で
+  // 全画面エラーになった。型で落ちず、不正値はnull＝当月表示に倒す
+  const toDateCV = (v) => { if (!v) return null; const d = v instanceof Date ? v : new Date(v); return isNaN(d.getTime()) ? null : d; };
+  const start = toDateCV(startProp), end = toDateCV(endProp);
   const WD_CV = ["日","月","火","水","木","金","土"];
   const isSameDayCV = (a, b) => a && b && ymdLocal(a) === ymdLocal(b);
   const todayYmdCV = ymdLocal(new Date());

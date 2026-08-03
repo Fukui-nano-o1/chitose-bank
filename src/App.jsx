@@ -53,7 +53,7 @@ import { compressImage } from "./lib/image";
 import { peekApplyReturn } from "./lib/applyReturn";
 import { armLoginReturn, takeLoginReturn } from "./lib/loginReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
-import { setCache } from "./lib/viewCache";
+import { setCache, clearCache } from "./lib/viewCache";
 
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 
@@ -155,7 +155,14 @@ class AppErrorBoundary extends Component {
             ? "アプリが更新されたため、古い画面のままでは開けません。再読み込みすると最新の画面になります。"
             : "一時的な不具合の可能性があります。再読み込みしても直らない場合は、この画面を報告してください。"}
         </p>
-        <button onClick={()=>{ try { sessionStorage.removeItem("cb_chunkReload"); } catch {} window.location.reload(); }}
+        <button onClick={()=>{
+          // 自己修復（2026-08-03）：描画エラーの原因が永続キャッシュ（viewCache）の壊れた・古い形の
+          // データだった場合、リロードだけでは同じデータで落ち続ける。再読み込み時は表示キャッシュを
+          // 全部捨ててから読み直す（キャッシュは表示専用so捨てても最新を取り直すだけ・実害なし）
+          try { clearCache(); } catch {}
+          try { sessionStorage.removeItem("cb_chunkReload"); } catch {}
+          window.location.reload();
+        }}
           style={{ padding:"12px 26px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>再読み込み</button>
       </div>
     );
