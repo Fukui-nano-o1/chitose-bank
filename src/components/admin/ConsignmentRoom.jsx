@@ -104,7 +104,7 @@ const CONSIGN_BASIC_FIELDS = [
   { k:"area_a",         l:"面積（a）", ph:"例：30" },
   { k:"crop",           l:"作物" },
   { k:"task",           l:"作業" },
-  { k:"deadline",       l:"履行期限" },
+  { k:"deadline",       l:"履行期限", help:"作業を終わらせる期日（期間）です。この日までに作業を完了する約束になり、仕様書と契約書に印字されます。収穫の適期など、遅れると困る事情があるときは余裕をもたずに正確な日付を示してください。開始日をタップし、続けて終了日をタップすると期間になります（1日だけなら同じ日をもう一度タップ）。" },
   { k:"unit_price_10a", l:"単価（10aあたり・円）", ph:"例：15000" },
   { k:"advance",        l:"着手金（前払金・円）", ph:"例：10000" },
   // 支払いは案件ごとの取引条件（2026-08-02たきと指示・利用者の属性ではない）。文言は希望でなく断定形
@@ -1800,7 +1800,17 @@ export function ConsignmentRoom() {
   // ── 入力部品（案件ダッシュボード(deal)と新規ウィザード(new)で共用・2026-07-31）──
   const renderBasicField = (f) => (
             <div key={f.k} style={{ marginBottom:10 }}>
+              {f.help ? (
+                <div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    {helpBtn(f.k)}
+                    <label className="lbl f-sans" style={{ marginBottom:0 }}>{f.l}</label>
+                  </div>
+                  {helpNote(f.k, f.help)}
+                </div>
+              ) : (
               <label className="lbl f-sans">{f.l}</label>
+              )}
               {f.k === "pay_method" ? (
                 <div style={{ display:"flex", gap:8 }}>
                   {["銀行振込", "現金"].map(opt => {
