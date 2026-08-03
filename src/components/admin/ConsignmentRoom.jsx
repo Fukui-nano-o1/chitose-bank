@@ -600,7 +600,8 @@ function ConsignLendPane({ consignor, onSaved }) {
     setLBusy(false);
   };
   const add = () => {
-    const v = input.trim();
+    // 「・」は案件側の区切り文字so名前には使わせない（スペースに置換）
+    const v = input.replace(/・/g, " ").trim();
     if (!v) return;
     if (items.includes(v)) { setInput(""); return; }
     persist([...items, v]); setInput("");
@@ -1402,11 +1403,13 @@ export function ConsignmentRoom() {
   const profTouchRef = useRef(null);
   // 登録済みの圃場をウィザードへ呼び出す（STEP1）。空欄は現在値を残す＝上書きは自由
   const applyField = (f) => {
-    setSpec(p => ({ ...p,
-      field_name: f.name,
-      region: f.region || p.region,
-      area_a: f.area_a || p.area_a,
-    }));
+    const fd = f.data || {};
+    setSpec(p => {
+      // 登録済みの圃場写真も呼び出して案件写真へ（1枚・既にあれば足さない）
+      const photos = [...(p.photos || [])];
+      if ((fd.photo || "").trim() && !photos.some(x => x && x.url === fd.photo)) photos.push({ url: fd.photo });
+      return { ...p, field_name: f.name, region: f.region || p.region, area_a: f.area_a || p.area_a, photos };
+    });
   };
   // 貸与できる道具・機械・設備（2026-08-02たきと指示・圃場の設備から移植）：委託者単位の登録簿。
   // 正本= consignment_profiles.consignor_data.cmn_lend_items。案件には掲載時に写し（spec.facility_lend）が凍結される
@@ -1516,7 +1519,7 @@ export function ConsignmentRoom() {
     if ((spec.photos || []).length < 3) { alert("掲載には写真が最低3枚必要です。"); return false; }
     setSaving(true);
     try {
-      const payload = { spec: { ...spec, crop: CONSIGN_CROP, facility_lend: lendItems.length ? lendItems.join("・") : (spec.facility_lend || ""), fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
+      const payload = { spec: { ...spec, crop: CONSIGN_CROP, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
       if (editId) {
         const { error } = await supabase.from("consignment_deals").update(payload).eq("id", editId);
         if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return false; }
@@ -1697,10 +1700,30 @@ export function ConsignmentRoom() {
         ))}
       </div>
       <label className="lbl f-sans">貸与できる道具・機械・設備</label>
-      {/* 入力はプロフィールの貸与ページへ移植（2026-08-02たきと指示）。ここは登録簿の読み取り表示のみ */}
-      <div className="f-sans" style={{ fontSize:14.3, color: lendItems.length ? "#111111" : "#999999", background:"#F7F7F7", border:"1px solid #E5E5E5", borderRadius:10, padding:"12px 14px", lineHeight:1.7 }}>
-        {lendItems.length ? lendItems.join("・") : (spec.facility_lend || "").trim() || "未登録（名刺タップ→貸与ページで登録できます）"}
-      </div>
+      {/* 登録簿（貸与機材ページ）からの呼び出し（2026-08-03たきと指示）：タップで選択＝
+          この委託で貸与するものだけが spec.facility_lend（仕様書）に載る。旧案件の残置値もピルに出す */}
+      {(() => {
+        const sel = (spec.facility_lend || "").split("・").filter(Boolean);
+        const all = [...new Set([...lendItems, ...sel])];
+        if (!all.length) return (
+          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>未登録（名刺タップ→貸与機材ページで登録すると、ここで呼び出せます）</p>
+        );
+        const toggle = (it) => {
+          const next = sel.includes(it) ? sel.filter(x => x !== it) : [...sel, it];
+          setF("facility_lend", all.filter(x => next.includes(x)).join("・"));
+        };
+        return (<>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {all.map(it => {
+              const on = sel.includes(it);
+              return (
+                <button key={it} type="button" onClick={()=>toggle(it)} className="f-sans" style={{ padding:"9px 16px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{it}</button>
+              );
+            })}
+          </div>
+          <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"6px 0 0" }}>タップで選択。選んだものだけがこの委託の仕様書に載ります。登録の追加は名刺タップ→貸与機材ページで。</p>
+        </>);
+      })()}
     </div>
   );
   // ── 入力部品（案件ダッシュボード(deal)と新規ウィザード(new)で共用・2026-07-31）──
@@ -2186,7 +2209,7 @@ export function ConsignmentRoom() {
               {[...CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]),
                 ...CONSIGN_TEXT_FIELDS.map(f => [f.l, spec[f.k]]),
                 ["圃場の設備", [["駐車場", spec.facility_parking], ["トイレ", spec.facility_toilet], ["休憩場所", spec.facility_rest]].filter(([, v]) => v).map(([l, v]) => l + v).join("・")],
-                ["貸与できる道具・機械・設備", lendItems.join("・") || spec.facility_lend],
+                ["貸与できる道具・機械・設備", spec.facility_lend],
                 ["危険情報", (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・")],
                 ["当日の現場連絡先", spec.onsite_contact_mode === "別の連絡先を使用" ? [spec.onsite_name, spec.onsite_phone].map(x => (x || "").trim()).filter(Boolean).join(" ") : "登録情報を使用"],
                 ["写真", (spec.photos || []).length > 0 ? (spec.photos || []).length + "枚" : ""],
