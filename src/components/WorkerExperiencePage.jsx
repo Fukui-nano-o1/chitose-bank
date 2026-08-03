@@ -14,6 +14,11 @@ import { AutoSkeleton } from "./ui";
 export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDeclared, setSelfDeclared }) {
   const scrollRef = useRef(null);
   const [pageIdx, setPageIdx] = useState(0);
+  // 経験0件で開いたときは「経験 1」の空カードを最初から1枚出しておく（2026-08-03たきと指示「この状態がデフォルト」）。
+  // 空カード（作物が空）は保存側のfilterで除外される＝未入力のまま保存してもDBは汚れない
+  useEffect(() => {
+    if (expEntries.length === 0) setExpEntries([{ crop:"", task:"", duration:"" }]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const hasDecl = !!(selfDeclared && setSelfDeclared);
   const pageCount = hasDecl ? 2 : 1;
   const onScroll = () => {
