@@ -7,6 +7,7 @@ import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublic
 import { openPhaseInfo } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import ContractPartyName from "./ContractPartyName";
+import ContractEmergencyContact from "./ContractEmergencyContact";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
@@ -252,6 +253,8 @@ function EmergencyStagePanel({ items, role }) {
                 </div>
                 {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
                 {e.application_id && <ContractPartyName applicationId={e.application_id} showPending={false} style={{ margin:"0 0 12px", paddingLeft:2 }} />}
+                {/* 緊急連絡先も採用成立後のみ（同じ窓口作法・2026-08-03）。緊急連絡の直前で相手の連絡先が見える */}
+                {e.application_id && <ContractEmergencyContact applicationId={e.application_id} style={{ margin:"0 0 12px" }} />}
                 {/* 操作（ステータスページのボタン群と同じ位置づけ。主役＝緊急連絡） */}
                 <div style={{ display:"grid", gap:8 }}>
                   <button onClick={()=>{ setBoxItem(null); window.location.hash = "/emergency/" + e.application_id; }} className="f-sans"

@@ -14,6 +14,7 @@ import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 import ContractPartyName from "./ContractPartyName";
+import ContractEmergencyContact from "./ContractEmergencyContact";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 
@@ -900,6 +901,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
                 {/* 契約成立後のみ本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
                 <ContractPartyName applicationId={a.id} showPending={false} />
+                {/* 緊急連絡先も採用成立後のみ（同じ窓口作法・2026-08-03） */}
+                <ContractEmergencyContact applicationId={a.id} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
               </div>
               {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (

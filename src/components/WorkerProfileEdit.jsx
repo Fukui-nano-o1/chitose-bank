@@ -9,6 +9,7 @@ import { WORKER_DECLARATIONS, TASK_OPTIONS } from "../lib/utils"; // TASK_OPTION
 import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
+import { EmergencyContactBox } from "./EmergencyContactBox";
 
 const PR_PROMPTS = [
   { q:"農作業に興味を持ったきっかけは？", placeholder:"きっかけを、あなたの言葉で" },
@@ -370,6 +371,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
           { k:"declared",  e:"📋", l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
           { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
+          // 緊急連絡先（2026-08-03）：別テーブル保存so格子の値表示は持たない（開いた先で読み書きする）
+          { k:"emergency", e:"🆘", l:"緊急連絡先",   v: "" },
         ].map(b => {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
           const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
@@ -539,6 +542,13 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         className="field f-sans"
         style={{ width:"100%", fontSize:14, marginBottom:16, resize:"vertical" }}
       />
+      </>)}
+
+      {editBox==="emergency" && (<>
+      {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
+          （emergency_contacts テーブル・self-only）so、下の共通「保存する」は押さなくてよい */}
+      <EmergencyContactBox accent="#00A86B" />
+      <div style={{ marginBottom:8 }} />
       </>)}
 
       {editBox==="qa" && (

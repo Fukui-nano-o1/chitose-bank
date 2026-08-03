@@ -10,6 +10,7 @@ import { chatCache } from "../lib/chatCache";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
+import ContractEmergencyContact from "./ContractEmergencyContact";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
@@ -450,6 +451,10 @@ export function ChatView({ applicationId, onBack }) {
       {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)）。未契約は案内文を出す */}
       {activeAppId && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
         <ContractPartyName applicationId={activeAppId} style={{ padding:"2px 0 0" }} />
+      )}
+      {/* 緊急連絡先も採用成立後のみ（同じ窓口作法・2026-08-03） */}
+      {activeAppId && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
+        <ContractEmergencyContact applicationId={activeAppId} />
       )}
       {reportMode && !reportTarget && (
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>

@@ -8,6 +8,7 @@ import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges, splitTextsForRe
 import { Avatar, AutoSkeleton, Dots, LFPillSelect } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
+import { EmergencyContactBox } from "./EmergencyContactBox";
 
 // table/avatarDir で保存先を差し替え可能（2026-07-31たきと指示・委託専用プロフィールが同じ項目/配置で
 // 別テーブルに保存するため）。既定は雇い手プロフィール（employer_profiles・avatarは avatars/employer/）＝現行不変
@@ -426,6 +427,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: composeRecruiterAddress() },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"recruiter", e:"🧾", l:"連絡先",         req:true, v: recruiterContact },
+          // 緊急連絡先（2026-08-03）：別テーブル保存so格子の値表示は持たない（開いた先で読み書きする）
+          { k:"emergency", e:"🆘", l:"緊急連絡先",     v: "" },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
@@ -594,6 +597,13 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 
       {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を農園紹介/問いかけ/関わり方の各ボックスに分割 */}
       {/* 従業員数ボックスは削除（2026-08-01たきと指示）。DB列staff_countと既存データは残置 */}
+
+      {editBox==="emergency" && (<>
+      {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
+          （emergency_contacts テーブル・self-only）so、下の共通「保存する」は押さなくてよい */}
+      <EmergencyContactBox accent={AC} />
+      <div style={{ marginBottom:8 }} />
+      </>)}
 
       {editBox==="recruiter" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>募集者の情報</label>

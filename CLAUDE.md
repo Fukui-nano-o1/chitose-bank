@@ -2204,3 +2204,21 @@ employer_nickname/avatar_url・待遇・保険snapshot・支払条件は訪問�
 実機：①予定ゼロで📅カレンダー箱→説明ページに着地するか ②各用件の空ページで説明文が大きく出るか
 ③予定がある状態では従来どおりカレンダー面へ直行するか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-03 緊急連絡先（採用成立後・当事者間のみ開示）━━━
+【たきと指示】「農家と働き手プロフィールページに緊急連絡先ボックスを新設。採用後に開示する」
+【設計】2026-07-30裁定(B)（契約成立後の氏名開示）と同じ枠組みで実装（migration 20260803154500）。
+・保管＝専用テーブル emergency_contacts（auth_id PK・name/relation/phone・self-onlyのRLS4枚）。
+  ★worker_profiles／employer_profiles には置かない：worker_profilesは「wp farmer select via application」で
+  応募があれば農家が全列を読めるため、そこに置くと採用前に見えてしまう（RLSは行単位で列を絞れない）。
+・開示＝contract_emergency_contact(application_id)＝SECURITY DEFINER・当事者のみ・terms_snapshotが
+  無ければ返さない唯一の窓口。anonはEXECUTE不可。運営(app_admins)にも開けない（データ最小化）。
+・実測検証：契約相手=表示／未契約・第三者=not_party／他人の直接SELECT=0行／anon=DENIED（テスト行は残置ゼロ）。
+【フロント】components/EmergencyContactBox.jsx（入力・両編集ページの🆘ボックス。保存はこの部品内で完結＝
+別テーブルなので共通の「保存する」とは独立）／components/ContractEmergencyContact.jsx（表示・
+ContractPartyName と同じ3箇所＝応募者シート・チャット・今日ページ）。
+【運営ポリシーとの関係】CLAUDE.md「連絡先の表示・交換機能は設けない」は一般公開・日常連絡の話。
+本件は労働安全（事故時に家族へ連絡）のための採用成立後・相手方のみの限定開示で、チャットの代替にはしない
+（一覧・プロフィール・求人ページには一切出さない）。第三者（家族）の連絡先を預かるため、入力画面に
+「ご本人に伝えて同意を得たうえでご登録ください」を明示。
+━━━ ここまで ━━━
