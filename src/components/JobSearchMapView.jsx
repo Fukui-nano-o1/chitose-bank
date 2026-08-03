@@ -910,6 +910,14 @@ export function JobSearchMapView({ onRegister, me }) {
                   { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
                   { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
                   { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
+                  // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
+                  // 値は掲載時に凍結された perks から（プロフィール現在値は参照しない）。未設定は「ー」
+                  { label:"受動喫煙", on: !!pk.smoking_policy,
+                    value: pk.smoking_policy
+                      ? (pk.smoking_policy === "喫煙場所あり"
+                          ? `喫煙場所あり${pk.smoking_area ? "（" + pk.smoking_area + "）" : ""}`
+                          : pk.smoking_policy)
+                      : EMPTY_MARK },
                 ];
                 return (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
