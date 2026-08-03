@@ -5,23 +5,13 @@
 // 読み取り専用（admin_working_jobs RPC・security definer + app_admins ゲート）。ここからの書き込みは無し。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
-import { dateRangeLabel, ymdLocal, isWorkDayToday } from "../../lib/utils";
+import { dateRangeLabel, isTodayWork } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
 import { AdminNav } from "./AdminNav";
 
-
-// 作業当日か（＝トップに「仕事中」として展開する日）。当事者合意日(agreed_dates)があればその範囲、
-// 無ければ求人の日程(date_start〜date_end)で判定。「仕事が始まる日」の採用済みマッチを仕事中側へ昇格させる
-function isTodayWork(item) {
-  const ad = item.agreed_dates;
-  if (Array.isArray(ad) && ad.length) {
-    const days = ad.map(d => String(d).slice(0, 10)).sort();
-    const today = ymdLocal(new Date());
-    return today >= days[0] && today <= days[days.length - 1];
-  }
-  return isWorkDayToday(item.date_start, item.date_end);
-}
+// 作業当日の判定（isTodayWork）は lib/utils に集約（2026-08-03）。
+// まもなく開始ページの表示フィルタ・App.jsxのトップページ着地判定と同じ関数を使う＝二重展開もズレも起きない
 
 // 作業日程：agreed_dates（当事者が合意した実施日の配列）があればそれ、無ければ求人の日程
 function scheduleLabel(item) {

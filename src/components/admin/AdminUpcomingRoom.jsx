@@ -1,12 +1,14 @@
 // まもなく開始ページ（#/admin/upcoming・管理者専用・2026-08-01）。
 // 「採用が決まり、作業日を待っているマッチ（status=approved・双方契約確認済み・未開始）」のうち、
 // 開始1週間前の窓に入ったものだけを一望する見守りページ（たきと指示「1週間前から展開」）。
-// 該当があれば、サイトを開いた時のトップページとして展開する（着地の判定は App.jsx 側・startsWithinDays を共用）。
+// 作業当日のものは出さない（2026-08-03たきと指示）＝当日は仕事中ページ側に展開される。判定は
+// lib/utils の isUpcomingSoon に集約（App.jsxのトップページ着地判定と同じ関数を使う＝空着地を防ぐ）。
+// 該当があれば、サイトを開いた時のトップページとして展開する（着地の判定は App.jsx 側・isUpcomingSoon を共用）。
 // 仕事中専用ページ（AdminWorkingRoom）と同じ設計・同じRPCを流用する。
 // 読み取り専用（admin_working_jobs RPC・security definer + app_admins ゲート）。ここからの書き込みは無し。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
-import { dateRangeLabel, startsWithinDays } from "../../lib/utils";
+import { dateRangeLabel, isUpcomingSoon } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
 import { AdminNav } from "./AdminNav";
@@ -67,17 +69,18 @@ export function AdminUpcomingRoom() {
   // 裏で最新に差し替える（2026-08-02・更新時間の短縮。起動時にRPCが2回直列に走っていた無駄の解消）
   const [state, setState] = useState(() => {
     const d = getCache("admin:workingJobs");
-    return d?.ok ? { upcoming: (d.upcoming || []).filter(it => startsWithinDays(it, 7)) } : null;
+    return d?.ok ? { upcoming: (d.upcoming || []).filter(it => isUpcomingSoon(it, 7)) } : null;
   }); // null=読み込み中 | {upcoming} | "error" | "denied"
   const load = useCallback(async () => {
     // 仕事中専用ページと同じ RPC（admin_working_jobs）を流用。返り値の upcoming バケットのうち、
-    // 開始1週間以内（過ぎた未開始も含む）の該当求人だけを表示する
+    // 開始1週間以内（過ぎた未開始も含む）の該当求人だけを表示する。
+    // ただし作業当日のものは出さない（2026-08-03たきと指示）＝当日は仕事中ページが持つ・二重展開しない
     const { data, error } = await supabase.rpc("admin_working_jobs");
     // 裏の再取得が失敗しても、キャッシュ表示中ならそのまま保つ（エラー画面で上書きしない）
     if (error) { setState(prev => (prev && typeof prev === "object") ? prev : "error"); return; }
     if (!data?.ok) { setState(data?.reason === "not_admin" ? "denied" : "error"); return; }
     setCache("admin:workingJobs", data);
-    setState({ upcoming: (data.upcoming || []).filter(it => startsWithinDays(it, 7)) });
+    setState({ upcoming: (data.upcoming || []).filter(it => isUpcomingSoon(it, 7)) });
   }, []);
   useEffect(() => { load(); }, [load]);
 

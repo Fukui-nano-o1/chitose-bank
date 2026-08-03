@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { supabase } from "./lib/supabase";
-import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, startsWithinDays } from "./lib/utils";
+import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
@@ -1275,7 +1275,8 @@ export default function App(){
     });
   }, []);
   // まもなく開始をトップページに（2026-08-01たきと指示・いまは管理者のみ）：
-  // サイト/アプリを開いた時、開始1週間以内のマッチがあれば #/admin/upcoming に着地する。
+  // サイト/アプリを開いた時、開始1週間以内（作業当日は除く＝当日は仕事中ページが持つ）のマッチが
+  // あれば #/admin/upcoming に着地する。判定はページ側の表示フィルタと同じ isUpcomingSoon（空着地の防止）。
   // URL直打ち（ディープリンク・#/work/job/… や #/chat/… 等）で開いた時は行き先を奪わない
   //（initialHashTab=null＝既定着地の時だけ）。判定は1アプリ起動につき1回（ログアウト時はreloadで起動し直すため実質毎回）
   const upcomingLandingChecked = useRef(false);
@@ -1291,7 +1292,7 @@ export default function App(){
         // RPCが返るまでの数秒間にユーザーが別ページへ移動していたら着地させない（2026-08-02）：
         // 「開いた時の着地」であって、操作中の引き戻しはしない。判定は今のhashで行う
         const _nowTab = readHashTab();
-        if (data?.ok && (data.upcoming || []).some(it => startsWithinDays(it, 7)) && (_nowTab === null || _nowTab === "search")) window.location.hash = "/admin/upcoming";
+        if (data?.ok && (data.upcoming || []).some(it => isUpcomingSoon(it, 7)) && (_nowTab === null || _nowTab === "search")) window.location.hash = "/admin/upcoming";
       } catch { /* 失敗時は通常の着地のまま（見守りページは管理タブからも開ける） */ }
     })();
   }, [me]); // eslint-disable-line react-hooks/exhaustive-deps -- initialHashTab は起動時定数
