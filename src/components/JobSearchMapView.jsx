@@ -49,46 +49,39 @@ export function JobSearchMapView({ onRegister, me }) {
   // 別の求人を開いたら内容タブに戻す（2026-07-27：selectedJob監視のリセットeffectは廃止。
   // タブ指定つきURL #/work/job/{番号}/questions の指定を後から打ち消してしまうため、
   // 「開く側」＝openJob・戻るスタック・hash解釈のそれぞれで明示的にタブを決める）
-  // 自分の求人か（2026-07-22）：自分の求人には応募フッター（日給・応募ボタン）を出さない。
-  // jobsのRLS owner selectで自分の行だけ返る（他人の求人はnull＝false）
-  const [isOwnJob, setIsOwnJob] = useState(false);
-  // 自分の求人かどうかが分かるまでフッターを出さない（2026-07-27たきと報告「一瞬だけ満員が映ってすぐ戻る」）。
-  // 判定は非同期so、既定のfalse（＝他人の求人）のまま一度描くと、自分の満員求人でも
-  // 「満員」フッターが出てから消える。確定するまで保留する
-  const [ownLoaded, setOwnLoaded] = useState(false);
   // 出どころ（cb_jobBackTo）は開いた時点でstateに引き取る（2026-07-27）：
   // 描画のたびにsessionStorageを読むと、消し忘れが次の求人に持ち越されて戻り先を誤る
   const [backTo, setBackTo] = useState(null);
   // 自分が出した求人の番号（2026-07-29たきと指示「自分の求人にはいいねを付けられないように」）。
   // 一覧のカードは jobs_public 経由で farmer_id を持たないため、自分の求人番号をまとめて引いて突き合わせる。
   // jobsのRLS（owner select）で返るのは自分の行だけso、他人の求人番号は取得できない
-  const [myJobNums, setMyJobNums] = useState(() => new Set());
+  // キャッシュから即座に持つ（2026-08-03たきと指摘「満員判定が数十秒かかる」）：
+  // この一覧は求人詳細の「自分の求人か」の判定も兼ねる（下記 isOwnJob）。以前は求人を開くたびに
+  // jobs を1件引いて確定を待っていたため、セッション復元＋その往復ぶん（回線が悪いと数十秒）
+  // フッターも満員表示も出なかった。番号の集合は本人スコープの表示専用データsoキャッシュ可
+  const [myJobNums, setMyJobNums] = useState(() => { const c = getCache("search:myJobNums"); return new Set(Array.isArray(c) ? c : []); });
+  const [myJobNumsLoaded, setMyJobNumsLoaded] = useState(() => Array.isArray(getCache("search:myJobNums")));
   useEffect(() => {
-    if (!me) { setMyJobNums(new Set()); return; }
+    if (!me) { setMyJobNums(new Set()); setMyJobNumsLoaded(false); return; }
     let cancelled = false;
     (async () => {
       try {
         const { data } = await supabase.from("jobs").select("job_number").eq("farmer_id", me.id);
-        if (!cancelled && data) setMyJobNums(new Set(data.map(r => r.job_number)));
+        if (!cancelled && data) { const nums = data.map(r => r.job_number); setMyJobNums(new Set(nums)); setCache("search:myJobNums", nums); }
       } catch {}
+      if (!cancelled) setMyJobNumsLoaded(true);
     })();
     return () => { cancelled = true; };
-  }, [me]);
+  }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- meはidだけを見る（識別子の変化で再取得しない）
   const canLike = (job) => !!job && !myJobNums.has(job.id); // 自分の求人はいいね対象外
 
-  useEffect(() => {
-    if (!selectedJob || !me) { setIsOwnJob(false); setOwnLoaded(!me); return; } // 未ログインは自分の求人ではありえない＝確定
-    let cancelled = false;
-    setOwnLoaded(false);
-    (async () => {
-      try {
-        const { data } = await supabase.from("jobs").select("farmer_id").eq("job_number", selectedJob.id).maybeSingle();
-        if (!cancelled) setIsOwnJob(!!(data && data.farmer_id === me.id));
-      } catch { if (!cancelled) setIsOwnJob(false); }
-      if (!cancelled) setOwnLoaded(true);
-    })();
-    return () => { cancelled = true; };
-  }, [selectedJob?.id, me]);
+  // 自分の求人か（2026-07-22）：自分の求人には応募フッター（日給・応募ボタン）を出さない。
+  // 一覧（myJobNums・jobsのRLS owner selectで自分の行だけ返る）から同期的に決める＝求人ごとの往復なし。
+  // ownLoaded＝この判定が使える状態か。未ログインは自分の求人ではありえない＝即確定。
+  // ログイン中はキャッシュがあれば即確定し、裏の再取得で最新に直る（2026-07-27の
+  // 「一瞬だけ満員が映ってすぐ戻る」対策＝確定するまで出さない、は維持）
+  const isOwnJob = !!(me && selectedJob && myJobNums.has(selectedJob.id));
+  const ownLoaded = !me || myJobNumsLoaded;
   // 前回の一覧が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）
   // さがす一覧はアプリを完全に終了した後の起動でも前回内容を即描画する（2026-08-02たきと指示
   // 「サイトを落としてから入ると遅い」）。viewCache自体がlocalStorage永続（本人スコープ・
@@ -390,28 +383,90 @@ export function JobSearchMapView({ onRegister, me }) {
     return () => { cancelled = true; };
   }, [selectedJob?.id]);
   const [myApplication, setMyApplication] = useState(null);
-  // 自分の応募を取得できたかどうか（2026-07-27・「満員」が一瞬映る修理）。
-  // 未取得の間にhideApplyを確定させると、応募済みの人にも一瞬「満員」が出てから本来の表示に戻る
-  const [myAppLoaded, setMyAppLoaded] = useState(false);
   // 仮応募中（第15弾・2026-07-30）：意思は預かったがプロフィールがまだ＝応募ボタンを仕上げ導線に変える
   const [myPending, setMyPending] = useState(false);
+  // 自分の応募を「求人ごとに1往復」から「本人ぶん一括＋キャッシュ」へ（2026-08-03たきと指摘
+  // 「満員判定が数十秒かかる」）：以前は求人を開くたびにapplicationsとpending_applicationsを
+  // 引き、その到着まで応募ボタンは「確認中…」・満員表示も出せなかった。セッション復元の待ちに
+  // この往復が積み増さり、回線が悪いと数十秒かかっていた。
+  // 一括＝自分の応募だけ（worker_id=本人。RLSに加えて明示的に絞る＝農家として見える応募者の行を拾わない）
+  const [myAppsMap, setMyAppsMap] = useState(() => { const c = getCache("search:myApps"); return (c && typeof c === "object" && !Array.isArray(c)) ? c : null; });
+  const [myPendSet, setMyPendSet] = useState(() => { const c = getCache("search:myPend"); return new Set(Array.isArray(c) ? c : []); });
+  const [myAppsLoaded, setMyAppsLoaded] = useState(() => { const c = getCache("search:myApps"); return !!(c && typeof c === "object" && !Array.isArray(c)); });
   useEffect(() => {
-    if (!selectedJob || !me) { setMyApplication(null); setMyAppLoaded(!me); return; } // 未ログインは判定不要＝確定扱い
+    if (!me) { setMyAppsMap(null); setMyPendSet(new Set()); setMyAppsLoaded(false); return; }
     let cancelled = false;
-    setMyAppLoaded(false);
     (async () => {
       try {
         // 仮応募（第15弾）も一緒に見る。RLS「pending own」で自分の行しか返らない
         const [appRes, pendRes] = await Promise.all([
-          supabase.from('applications').select('id,status,started_at').eq('job_number', selectedJob.id).maybeSingle(),
-          supabase.from('pending_applications').select('id').eq('job_number', selectedJob.id).maybeSingle().then(r => r, () => ({ data: null })),
+          supabase.from('applications').select('id,job_number,status,started_at,time_corrected').eq('worker_id', me.id),
+          Promise.resolve(supabase.from('pending_applications').select('job_number').eq('worker_id', me.id)).then(r => r, () => ({ data: null })),
         ]);
-        if (!cancelled) { setMyApplication(appRes.data || null); setMyPending(!!pendRes.data); }
-      } catch { if (!cancelled) { setMyApplication(null); setMyPending(false); } }
-      if (!cancelled) setMyAppLoaded(true);
+        if (cancelled) return;
+        const map = {};
+        (appRes.data || []).forEach(r => { map[r.job_number] = { id: r.id, status: r.status, started_at: r.started_at, time_corrected: r.time_corrected }; });
+        const pend = (pendRes.data || []).map(r => r.job_number);
+        setMyAppsMap(map); setMyPendSet(new Set(pend));
+        setCache("search:myApps", map); setCache("search:myPend", pend);
+      } catch { /* 取得できなければキャッシュのまま（下の確定判定でloadedにはする） */ }
+      if (!cancelled) setMyAppsLoaded(true);
     })();
     return () => { cancelled = true; };
-  }, [selectedJob?.id, me]);
+  }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- meはidだけを見る（識別子の変化で再取得しない）
+  // 開いている求人の応募状況は、上の一覧から同期的に取り出す（求人ごとの往復なし）。
+  // 打刻・取消はこの後 patchMyApp で一覧ごと直すため、裏の再取得で巻き戻らない
+  useEffect(() => {
+    if (!selectedJob || !me) { setMyApplication(null); setMyPending(false); return; }
+    setMyApplication((myAppsMap && myAppsMap[selectedJob.id]) || null);
+    setMyPending(myPendSet.has(selectedJob.id));
+  }, [selectedJob?.id, me?.id, myAppsMap, myPendSet]); // eslint-disable-line react-hooks/exhaustive-deps -- selectedJobはid、meはidだけを見る
+  // 自分の応募が分かっているか（2026-07-27・「満員」が一瞬映る修理）。
+  // 未確定のままhideApplyを決めると、応募済みの人にも一瞬「満員」が出てから本来の表示に戻る
+  const myAppLoaded = !me || myAppsLoaded;
+  // 応募状況の手元の変更（打刻・取消・裏取りの結果）を一覧にも反映する＝画面とキャッシュを1つの現実に保つ。
+  // 最新値はrefで持つ（effect内から呼ぶとstateのクロージャが古くなり、同時に来た更新を落とすため）
+  const myAppsRef = useRef(myAppsMap);
+  useEffect(() => { myAppsRef.current = myAppsMap; }, [myAppsMap]);
+  const patchMyApp = (jobNumber, next) => {
+    const m = { ...(myAppsRef.current || {}) };
+    if (next) m[jobNumber] = next; else delete m[jobNumber];
+    myAppsRef.current = m;
+    setMyAppsMap(m);
+    setCache("search:myApps", m);
+  };
+  const myPendRef = useRef(myPendSet);
+  useEffect(() => { myPendRef.current = myPendSet; }, [myPendSet]);
+  const patchMyPend = (jobNumber, isPending) => {
+    const s = new Set(myPendRef.current);
+    if (isPending) s.add(jobNumber); else s.delete(jobNumber);
+    myPendRef.current = s;
+    setMyPendSet(s);
+    setCache("search:myPend", [...s]); // キャッシュは配列で持つ（Setは入れない・2026-08-03の規則）
+  };
+  // 開いた求人だけは裏で最新に確かめる（2026-08-03）：一括取得のあとに変わった状態
+  //（応募直後・農家が承認した・別端末で取り消した）を取り込む。★表示は止めない＝
+  // myAppLoadedはキャッシュで既に確定しているので、満員も応募ボタンも待たされない
+  useEffect(() => {
+    if (!selectedJob || !me) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [appRes, pendRes] = await Promise.all([
+          supabase.from('applications').select('id,status,started_at,time_corrected')
+            .eq('job_number', selectedJob.id).eq('worker_id', me.id).maybeSingle(),
+          Promise.resolve(supabase.from('pending_applications').select('id')
+            .eq('job_number', selectedJob.id).eq('worker_id', me.id).maybeSingle()).then(r => r, () => ({ data: null })),
+        ]);
+        if (cancelled) return;
+        setMyApplication(appRes.data || null);
+        patchMyApp(selectedJob.id, appRes.data || null);
+        setMyPending(!!pendRes.data);
+        patchMyPend(selectedJob.id, !!pendRes.data);
+      } catch { /* 取れなければ手元の値のまま（表示は既に出ている） */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedJob?.id, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- selectedJobはid、meはidだけを見る
 
   // 集合場所の詳細ページ表示は削除（2026-07-16）。承認後の共有はチャットの「はじめる前の確認」カード（job_meeting_place RPC）に一本化
 
@@ -423,7 +478,8 @@ export function JobSearchMapView({ onRegister, me }) {
     try {
       const { data, error } = await supabase.rpc('punch_start', { p_application_id: myApplication.id });
       if (!error && data && data.ok) {
-        setMyApplication(prev => prev ? { ...prev, started_at: data.started_at, status: data.already ? prev.status : 'working' } : prev);
+        const next = myApplication ? { ...myApplication, started_at: data.started_at, status: data.already ? myApplication.status : 'working' } : null;
+        if (next) { setMyApplication(next); patchMyApp(selectedJob.id, next); }
       } else if (data && !data.ok) {
         alert('開始できませんでした：' + (data.reason || '不明'));
       }
@@ -509,7 +565,7 @@ export function JobSearchMapView({ onRegister, me }) {
     try {
       const { data, error } = await supabase.rpc("cancel_application", { p_application_id: myApplication.id });
       setApplying(false);
-      if (!error && data && data.ok) setMyApplication(null);
+      if (!error && data && data.ok) { setMyApplication(null); patchMyApp(selectedJob.id, null); }
       else alert("取り消しに失敗しました：" + (data?.reason || error?.message || "不明"));
     } catch { setApplying(false); alert("取り消しに失敗しました。"); }
   };
