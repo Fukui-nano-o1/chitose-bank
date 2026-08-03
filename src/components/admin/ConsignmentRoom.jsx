@@ -455,18 +455,15 @@ function ConsignFieldsPane({ fields, onReload }) {
     } catch (e) { alert("写真のアップロードに失敗しました：" + (e?.message || "不明なエラー")); }
     setFPhotoBusy(false);
   };
-  // 圃場の住所は正式なもの（2026-08-02たきと指示）：郵便番号→zipcloudで住所を自動入力＋番地は手入力
+  // 圃場の住所は正式なもの（2026-08-02たきと指示）：郵便番号→住所を自動入力＋番地は手入力。
+  // 検索は2系統レース＋タイムアウト＋キャッシュ（lib/zipLookup・「検索に数十秒」対策）
   const fZipSearch = async () => {
     const z = (form?.zip || "").replace(/[^0-9]/g, "");
     if (z.length !== 7) { setFZipError("郵便番号は7桁で入力してください"); return; }
     setFZipBusy(true); setFZipError("");
-    try {
-      const res = await fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + z);
-      const j = await res.json();
-      const r = j && j.results && j.results[0];
-      if (!r) setFZipError("住所が見つかりませんでした");
-      else setForm(f => ({ ...f, zip: z, addr_main: (r.address1 || "") + (r.address2 || "") + (r.address3 || "") }));
-    } catch { setFZipError("検索に失敗しました。通信環境をご確認ください"); }
+    const r = await zipLookup(z);
+    if (!r.ok) setFZipError(r.reason === "notfound" ? "住所が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください");
+    else setForm(f => ({ ...f, zip: z, addr_main: r.full }));
     setFZipBusy(false);
   };
   const saveField = async () => {
