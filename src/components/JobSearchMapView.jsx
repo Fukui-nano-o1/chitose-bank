@@ -1072,14 +1072,29 @@ export function JobSearchMapView({ onRegister, me }) {
             )}
           </div>
 
-          {/* 地図（集合場所のおおよその範囲・円のみ） */}
+          {/* 集合場所（2026-08-03たきと指示：会員（ログイン済み）には番地まで表示。訪問者は町域まで）
+              値の出どころは jobs_public.work_address＝anonにNULLマスク済み（2026-07-31）なので、
+              未ログインには番地が届かない＝表示ゲートの正はDB側。ここは me を「見せ方の分岐」にだけ使う。
+              承認後のチャット「はじめる前の確認」カード（job_meeting_place）は従来どおり別建てで残す */}
+          {me && selectedJob.workAddress ? (
+            <div style={{ width:"100%", marginBottom:8, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 16px" }}>
+              <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 6px" }}>集合場所</p>
+              <p className="f-sans" style={{ fontSize:14, color:"#222", margin:0, lineHeight:1.6, overflowWrap:"break-word" }}>
+                {selectedJob.region}{selectedJob.workAddress ? " " + selectedJob.workAddress : ""}
+              </p>
+            </div>
+          ) : null}
+
+          {/* 地図（集合場所のおおよその位置・ピンのみ）。会員には番地込みの住所をGoogleマップ導線に渡す
+              （2026-08-03・上の集合場所表示と同じ開示粒度）。訪問者は従来どおり町域まで */}
           <div style={{ width:"100%", marginBottom:5 }}>
             <JobLocationMap
               lat={selectedJob.lat}
               lng={selectedJob.lng}
               radius={selectedJob.radius}
               label={selectedJob.region}
-              mapQuery={selectedJob.region}
+              mapQuery={me && selectedJob.workAddress ? selectedJob.region + selectedJob.workAddress : selectedJob.region}
+              addressShown={!!(me && selectedJob.workAddress)}
             />
           </div>
 

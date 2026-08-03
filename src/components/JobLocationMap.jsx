@@ -6,7 +6,10 @@ import "leaflet/dist/leaflet.css";
 // ★座標は町域レベルの重心（geocodeTown）で、番地は含まれない＝ピンを立てても精度は上がらない。
 //   ピンは「この辺り」を1点で読み取れるようにする表示上の目印。
 //   正確な集合場所は従来どおり、承認後にチャットで当事者だけに伝える（CLAUDE.md・住所の段階的開示）。
-export function JobLocationMap({ lat, lng, radius, label, mapQuery }) {
+// addressShown（2026-08-03たきと指示）：呼び出し側が集合場所を番地まで表示している時に true。
+// 注記の「承認した方にのみお伝えします」が実態と矛盾しないよう文言を切り替える。
+// ピン自体は従来どおり町域重心（番地の精度は持たない）＝位置は変えない。
+export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
 
@@ -104,8 +107,10 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery }) {
         </a>
       </div>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
-        ピンは{label ? label + "の" : ""}おおよその位置です（番地は含みません）。
-        正確な集合場所は、応募を承認した方にのみお伝えします
+        {addressShown
+          ? <>ピンは{label ? label + "の" : ""}おおよその位置です（番地の位置とは少しずれることがあります）</>
+          : <>ピンは{label ? label + "の" : ""}おおよその位置です（番地は含みません）。
+             正確な集合場所は、会員登録・ログインすると表示されます</>}
       </p>
     </div>
   );

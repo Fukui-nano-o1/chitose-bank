@@ -274,6 +274,10 @@ export function mapJobPublicRow(j) {
     pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
     town: j.town || "",
     region: [j.prefecture, j.city, j.town].filter(Boolean).join("") || "",
+    // 集合場所の番地・建物名（2026-08-03たきと指示：会員には番地まで表示）。
+    // jobs_public.work_address は anon に NULL マスク済み（2026-07-31・訪問者開示レベル第1弾）＝
+    // 未ログインには常に空で届く。開示の境界はDB側が正・フロントは届いた値を表示するだけ
+    workAddress: j.work_address || "",
     experience: j.job_exp || "", // 必要経験の選択式は撤回（2026-07-18）。旧求人の保存値のみ表示・未入力はdispで「ー」
     icon: "🌾",
     lat:    j.lat != null ? Number(j.lat) : null,

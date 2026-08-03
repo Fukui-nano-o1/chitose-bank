@@ -1046,7 +1046,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 }
               }} aria-label="作業場所を復元" className="f-sans" style={{ position:"absolute", top:0, right:0, zIndex:1, width:36, height:36, borderRadius:"50%", border:"none", background:"#00A86B", fontSize:16, fontWeight:700, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}>⎘</button>
             </div>
-            <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。番地・建物名は求人票には公開されず、面接・打合せ時に共有されます。</p>
+            {/* 開示説明の更新（2026-08-03たきと指示）：番地・建物名は会員（ログイン済み）にのみ求人ページで表示。
+                未ログインの訪問者には町域まで（jobs_public.work_addressのanonマスクが正） */}
+            <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。番地・建物名は、ログインした利用者にのみ求人ページに表示されます（未ログインの訪問者には表示されません）。</p>
 
             <LFWizCard>
               <div>
