@@ -241,7 +241,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     } catch {}
   };
   useEffect(() => { if (sub === "jobs") loadEmpTexts(); }, [sub]); // eslint-disable-line react-hooks/exhaustive-deps
-  const empPendingCount = empTexts.filter(r => r.texts_pending && Object.keys(r.texts_pending).length > 0).length;
+  // 審査に出るのは「中身のある pending」だけ（2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。
+  // 空欄はフロント側で即反映するようになったが、過去に積まれた空だけの pending を審査待ちに見せないための防御でもある
+  const hasPendingText = (r) => !!r.texts_pending && Object.values(r.texts_pending).some(v => String(v ?? "").trim() !== "");
+  const empPendingCount = empTexts.filter(hasPendingText).length;
   const EMP_TEXT_LABELS = {
     owner_comment:"代表より", intro_path:"就農するまで", intro_joy:"いま楽しいこと", intro_crops:"どんな作物を、どんな想いで",
     intro_atmosphere:"職場の雰囲気", intro_message:"初めての人へのメッセージ", unique_point:"畑・農園のユニークなところ",
@@ -355,7 +358,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (!ae.error) setAppErrors(ae.data || []);
     if (!pj.error) setPendingJobs(pj.data || []);
     // pr_submitted_at必須（2026-07-19）：修正依頼済み（submitted_at=null）は本人が修正して再保存するまで審査待ちに出さない
-    if (!wp.error) setPendingPrs((wp.data || []).filter(w => w.pr_submitted_at && (w.pr_pending || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0))));
+    if (!wp.error) setPendingPrs((wp.data || []).filter(w => w.pr_submitted_at && ((w.pr_pending || "").trim() || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0))));
     if (!jr.error) setReports(jr.data || []);
     if (!av.error) setDisputes(av.data || []);
     if (!la.error && Array.isArray(la.data)) setAccounts(la.data); // {ok:false,reason:'not_admin'}時は配列でないため無視
@@ -1094,7 +1097,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>審査待ちの自由記述はありません</p>
           ) : (
             <div style={{ display:"grid", gap:10 }}>
-              {empTexts.filter(r => r.texts_pending && Object.keys(r.texts_pending).length > 0).map(r => (
+              {empTexts.filter(hasPendingText).map(r => (
                 <div key={"pend-" + r.auth_id} className="cb-urgent-card" style={{ background:"#fff", border:"1px solid #F5D98F", borderRadius:12, padding:"12px 14px" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
                     <Avatar url={r.avatar_url} name={r.nickname || "？"} size={30} />

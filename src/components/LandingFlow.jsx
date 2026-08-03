@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadJobPhoto } from "../lib/image";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, photoThumb } from "../lib/utils";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, photoThumb, splitTextsForReview } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
@@ -551,12 +551,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         commute_allowance_detail: perkDraft.has_commute_allowance ? (perkDraft.commute_allowance_detail || "") : "",
         supplies_cap: perkDraft.employer_pays_supplies ? (perkDraft.supplies_cap.trim() || "") : "",
       };
+      // 空にした項目（例：通勤手当のチェックを外す）は審査に出さず、その場で公開列を空にする
+      // （2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。審査は文字が入る変更だけ
+      const { pending: newPend, cleared: clearedTexts } = splitTextsForReview(desired, cur || {});
       const pend = { ...((cur && cur.texts_pending) || {}) };
-      Object.entries(desired).forEach(([k, v]) => {
-        if (((cur && cur[k]) || "") !== v) pend[k] = v; else delete pend[k];
-      });
+      Object.keys(desired).forEach(k => { delete pend[k]; });        // 今回触ったキーは一旦外し
+      Object.entries(newPend).forEach(([k, v]) => { pend[k] = v; }); // 審査に出す分だけ積み直す
       const payload = {
         auth_id: session.user.id,
+        ...clearedTexts, // 空にした項目は即その場で消す（審査を通さない）
         has_transport: perkDraft.has_transport,
         has_parking: perkDraft.has_parking,
         // parking_capacityはinteger列。「3台」等の文字が混ざっても数字だけ取り出し、空はnull（2026-07-19修正）

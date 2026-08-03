@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
-import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges } from "../lib/utils";
+import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges, splitTextsForReview } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots, LFPillSelect } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -352,8 +352,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         commute_allowance_detail: hasCommuteAllowance ? (commuteAllowanceDetail || "") : "",
         supplies_cap: employerPaysSupplies ? (suppliesCap.trim() || "") : "",
       };
-      const textsPending = {};
-      Object.keys(desiredTexts).forEach(k => { if (desiredTexts[k] !== (approvedTextsRef.current[k] ?? "")) textsPending[k] = desiredTexts[k]; });
+      // 空にした項目は審査に出さず、その場で公開列を空にする（2026-08-03たきと指示
+      // 「入力項目を空にするなら審査は必要ない」）。審査に出すのは文字が入る変更だけ
+      const { pending: textsPending, cleared: clearedTexts } = splitTextsForReview(desiredTexts, approvedTextsRef.current);
       // 審査フロー（texts_pending→運営承認）は employer_profiles 専用。別テーブル（委託＝管理者専用レーン）は
       // 審査UIが無く pending が永久に滞留するため、自由記述を本欄へ直接保存する
       const reviewFlow = table === "employer_profiles";
@@ -377,6 +378,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         recruiter_city: recruiterCity.trim(), recruiter_address_detail: recruiterDetail.trim(),
         interaction_style: interactionStyle || null,
         ...(reviewFlow ? {
+          ...clearedTexts, // 空にした項目は即その場で消す（審査を通さない）
           texts_pending: textsPending,
           texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
           // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
@@ -390,6 +392,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       }, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) {
+        // 即反映した空欄は「承認済みの控え」も空にする（次の保存で再び差分と見なさないため）
+        Object.keys(clearedTexts).forEach(k => { approvedTextsRef.current[k] = ""; });
         setSaved(true);
         if (stay === true) {
           // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
