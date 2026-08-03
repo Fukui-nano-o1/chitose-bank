@@ -5,7 +5,9 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadJobPhoto } from "../lib/image";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY } from "../lib/utils";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, photoThumb } from "../lib/utils";
+import { getCache, setCache } from "../lib/viewCache";
+import { snapGet } from "../lib/snapshot";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
@@ -218,7 +220,7 @@ function LFPhotoReorderStrip({ photos, setPhotos }) {
                 WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none",
               }}
             >
-              <img loading="lazy" draggable={false} src={p.url} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover", pointerEvents:"none" }} />
+              <img loading="lazy" draggable={false} src={photoThumb(p)} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover", pointerEvents:"none" }} />
               {i === 0 && <span className="f-sans" style={{ position:"absolute", top:4, left:4, fontSize:9, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:6, padding:"1px 5px" }}>表紙</span>}
             </div>
             <div style={{ display:"flex", gap:4, marginTop:4 }}>
@@ -512,7 +514,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     if (!jobDateStart) { alert("作業日程が未設定です。「日程」から新しい日を選んでから掲載してください。"); setReturnToConfirm(true); setStep(4); return; }
     setPublishModal(true);
   };
-  const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
+  // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）。
+  // 読み込み前から出す（2026-08-03たきと指示「確認ページのプロフィールの復元が遅い」）：お仕事タブが
+  // 保存した同じ全列データ（viewCache farm:empMini → アプリ再起動後は snapshot empMini）を初期値にし、
+  // 裏で最新へ差し替える。キャッシュは表示専用の規則どおり（保存値・権限判定には使わない）
+  const [confEmployer, setConfEmployer] = useState(() => getCache("farm:empMini") ?? snapGet("empMini") ?? null);
   const [confProfileOpen, setConfProfileOpen] = useState(false); // 農家プロ未入力時：カードタップで編集ボックス展開（2026-07-16）
   // 待遇の求人ごと変更（2026-07-18）：確認ページの待遇タップで編集ボックス。
   // 「この求人のみ」＝jobPerksに保持→jobs.perksへ保存（求人審査で内容確認）／「保存」＝プロフィールにも反映
@@ -569,13 +575,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       setJobPerks(null); // プロフィールに保存＝この求人はプロフィールの待遇に従う
       try {
         const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (ep) setConfEmployer(ep);
+        if (ep) { setConfEmployer(ep); setCache("farm:empMini", ep); }
       } catch {}
       setPerksEditOpen(false);
     } catch { alert("保存に失敗しました。"); }
     setPerkSaving(false);
   };
-  const [confTrust, setConfTrust] = useState(null); // 確認ページ用：登録してからの月日など（employer_trust_info）
+  const [confTrust, setConfTrust] = useState(() => getCache("farm:empTrust") ?? null); // 確認ページ用：登録してからの月日など（employer_trust_info・お仕事タブと同じキャッシュ）
   const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
   const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
@@ -898,10 +904,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (data) setConfEmployer(data);
-        const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: session.user.id });
-        if (t && t.ok) setConfTrust(t);
+        // 依存の無い2本は並列（2026-08-03・直列2往復→1往復ぶんの待ちに）。
+        // 取得できたらお仕事タブと同じキャッシュへ書き戻す＝どちらの画面から入っても次回は即描画
+        const [epRes, tRes] = await Promise.all([
+          supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
+          Promise.resolve(supabase.rpc("employer_trust_info", { p_farmer_id: session.user.id })).catch(() => ({ data: null })),
+        ]);
+        if (epRes.data) { setConfEmployer(epRes.data); setCache("farm:empMini", epRes.data); }
+        const t = tRes.data;
+        if (t && t.ok) { setConfTrust(t); setCache("farm:empTrust", t); }
       } catch {}
     })();
   }, [confProfileOpen]); // 編集ボックスを閉じたら再取得＝入力したプロフィールが確認ページに即反映（2026-07-16）
@@ -1562,7 +1573,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                   {jobPhotos.length > 0 && (
                     <div>
                       <div style={{ position:"relative", marginBottom:10 }}>
-                        <img loading="lazy" src={jobPhotos[0].url} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
+                        <img loading="lazy" src={photoThumb(jobPhotos[0])} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
                         <span className="f-sans" style={{ position:"absolute", top:10, left:10, padding:"4px 12px", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, fontWeight:700, borderRadius:8 }}>カバー</span>
                         <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== 0))} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:15, cursor:"pointer", lineHeight:1 }}>×</button>
                       </div>
@@ -1573,7 +1584,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                             const idx = i + 1;
                             return (
                               <div key={idx} style={{ position:"relative", width:"calc(50% - 4px)" }}>
-                                <img loading="lazy" src={p.url} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
+                                <img loading="lazy" src={photoThumb(p)} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
                                 <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== idx))} style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:"50%", border:"none", background:"#222", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                               </div>
                             );
@@ -1619,7 +1630,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
             <div onScroll={e => { const w = e.currentTarget.clientWidth; if (w > 0) setSelectedPhotoIndex(Math.max(0, Math.min(jobPhotos.length - 1, Math.round(e.currentTarget.scrollLeft / w)))); }}
               style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:14, touchAction:"pan-x pan-y", overscrollBehaviorX:"contain", transform:"translateZ(0)", marginBottom:8 }}>
               {jobPhotos.map((p, i) => (
-                <img loading="lazy" key={i} src={p.url} alt={`写真${i+1}`} style={{ flexShrink:0, width:"100%", height:200, objectFit:"cover", borderRadius:14, scrollSnapAlign:"start" }} />
+                <img loading="lazy" key={i} src={photoThumb(p)} alt={`写真${i+1}`} style={{ flexShrink:0, width:"100%", height:200, objectFit:"cover", borderRadius:14, scrollSnapAlign:"start" }} />
               ))}
             </div>
             <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:10 }}>
@@ -1947,15 +1958,23 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                       {/* overflowY:hidden（2026-07-16）：スクローラー自身が縦にバウンスせず、縦ドラッグは親（ページ）のスクロールへ渡る */}
                       <div ref={confScrollRef} onScroll={handleConfPhotoScroll} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x pan-y", overscrollBehaviorX:"contain" }}>
                         {jobPhotos.length > 0
-                          ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => (
-                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:392, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
-                                <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>
+                          ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => {
+                              // 軽いサムネを先に敷いてから原寸を重ねる（2026-08-03たきと指示「確認ページの写真の復元が遅い」）。
+                              // 原寸は平均400KB・最大10枚so、リロード直後は白いままだった。サムネ(640px・約1/6)は
+                              // 一覧やカードで既に読み込み済みのことが多く、ほぼ即座に絵が出る→原寸が届いたら上に重なる
+                              // ＝画質は原寸のまま（詳細ページのカルーセルをthumbにしない方針を守る）
+                              const th = photoThumb(p);
+                              const hasTh = th && th !== p.url;
+                              return (
+                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:392, borderRadius:12, background: hasTh ? `#F0F0F0 url(${th}) center/cover no-repeat` : "#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
+                                {!hasTh && <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>}
                                 <img loading="lazy" src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
                                 {p.caption && (
                                   <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
                                 )}
                               </div>
-                            ))
+                              );
+                            })
                           : (
                               /* 写真が1枚も無いときは、絵文字を3枚並べず、求人者のアイコンを1枚だけ大きく出す
                                  （2026-07-30たきと指示・求人詳細と同じ見え方） */
