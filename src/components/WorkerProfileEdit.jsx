@@ -323,10 +323,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   if (loading) return <AutoSkeleton fallbackHeight={92} fallbackCount={5} />;
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      {/* 雇い手プロフィール編集と同じ構造（2026-07-25たきと指示）：見出しとページ全体の保存は廃止。
-          説明文＝左・プレビュー＝右の1行配置。保存は各ボックスのモーダル内で行う */}
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-        <p className="f-sans" style={{ flex:1, minWidth:0, fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>求人に応募したとき、農家に伝わる自己紹介です。タップして入力できます。</p>
+      {/* 雇い手プロフィール編集と同じ構造：見出し・ページ全体の保存は廃止（2026-07-25）、
+          説明文も削除（2026-08-03たきと指示）＝プレビューボタンだけを右端に残す。保存は各ボックスのモーダル内 */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", marginBottom:20 }}>
         <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ flexShrink:0, padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
       </div>
 
