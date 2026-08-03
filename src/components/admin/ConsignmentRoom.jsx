@@ -1375,6 +1375,62 @@ export function ConsignmentRoom() {
       setFields(data || []); setCache("consign:fields", data || []);
     } catch {}
   };
+  // 既存写真の自動軽量化（2026-08-03たきと指示「自動で圧縮処理」・手動操作ゼロ）：
+  // 圧縮修理(c4b49b1)より前に原寸で上がった写真を、委託ページを開いたとき裏で1回だけ圧縮し直す。
+  // HEADでサイズ確認→700KB超だけ対象。新URLへ差し替え成功後に旧ファイルを削除（孤児を残さない）。
+  // 1セッション1回（sessionStorageフラグ）。以後のアップロードは常に自動圧縮so新たな対象は増えない
+  const healConsignPhotos = async () => {
+    try {
+      if (sessionStorage.getItem("cb_consignPhotoHeal_v1")) return;
+      sessionStorage.setItem("cb_consignPhotoHeal_v1", "1");
+    } catch {}
+    const MARK = "/object/public/consignment-photos/";
+    const heal = async (url) => {
+      try {
+        if (!url || !url.includes(MARK)) return null;
+        const head = await fetch(url, { method: "HEAD" });
+        const size = Number(head.headers.get("content-length") || 0);
+        if (!size || size <= 700 * 1024) return null;
+        const blob = await (await fetch(url)).blob();
+        const file = new File([blob], "photo.jpg", { type: blob.type || "image/jpeg" });
+        const { url: newUrl } = await uploadJobPhoto(supabase, file, { bucket: "consignment-photos", pathPrefix: "consign_heal_", withThumb: false });
+        return newUrl || null;
+      } catch { return null; }
+    };
+    const dropOld = async (url) => {
+      try { await supabase.storage.from("consignment-photos").remove([decodeURIComponent(url.split(MARK)[1])]); } catch {}
+    };
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      // 圃場写真
+      const { data: frows } = await supabase.from("consignment_fields").select("id,data").eq("auth_id", session.user.id);
+      let touched = false;
+      for (const f of (frows || [])) {
+        const cur = (f.data || {}).photo || "";
+        const nu = await heal(cur);
+        if (!nu) continue;
+        const { error } = await supabase.from("consignment_fields").update({ data: { ...(f.data || {}), photo: nu }, updated_at: new Date().toISOString() }).eq("id", f.id);
+        if (!error) { dropOld(cur); touched = true; }
+      }
+      // 案件写真（spec.photos。合意後の比較対象は基本/テキスト項目のみso写真URL差し替えは無害）
+      const { data: drows } = await supabase.from("consignment_deals").select("id,spec");
+      for (const d of (drows || [])) {
+        const ph = ((d.spec || {}).photos || []);
+        const next = []; let changed = false; const olds = [];
+        for (const pht of ph) {
+          const nu = await heal(pht && pht.url);
+          if (nu) { next.push({ ...pht, url: nu }); olds.push(pht.url); changed = true; }
+          else next.push(pht);
+        }
+        if (changed) {
+          const { error } = await supabase.from("consignment_deals").update({ spec: { ...(d.spec || {}), photos: next }, updated_at: new Date().toISOString() }).eq("id", d.id);
+          if (!error) olds.forEach(dropOld);
+        }
+      }
+      if (touched) loadFields();
+    } catch {}
+  };
   // 掲載・保存の成功時に、入力中の圃場情報を登録簿へ自動保存（呼び名が空なら何もしない）
   const saveFieldRegistry = async (sp) => {
     const name = (sp.field_name || "").trim();
@@ -1618,6 +1674,7 @@ export function ConsignmentRoom() {
       } catch {}
     })();
     loadFields(); // 委託圃場（2026-08-02）
+    healConsignPhotos(); // 旧・原寸写真の自動軽量化（2026-08-03・1セッション1回）
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // スワイプ・戻る・URL直打ちの全部をここで受ける。dealsはクロージャで凍るためrefで最新を持つ
   const dealsRef = useRef([]);
