@@ -213,6 +213,23 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
           const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || data.unique_point || data.always_do || data.break_style || data.interaction_style);
           if (hasIntroContent) setIntroOpen(true);
+        } else {
+          // プロフィール行がまだ無い新規の求人者（2026-08-03たきと指示「求人者のプロフィールも新規登録から引き継ごう」）：
+          // 氏名・名称／住所（分割）／連絡先を新規登録①の内容で初期値プリフィルする。
+          // 従来この自動挿入は「行がある場合の未入力欄」にしか効いておらず、初回は全欄空だった。
+          // 保存は本人が押した時だけ＝本人が内容を確認して公開する形（2026-07-27の設計原則）は不変
+          try {
+            const { data: ah } = await supabase.from("account_holders")
+              .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
+              .eq("auth_id", session.user.id).maybeSingle();
+            if (ah) {
+              const nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
+              const ct = (ah.contact_phone || "").trim() || (ah.contact_email || "").trim();
+              if (nm) setRecruiterName(nm);
+              await fillSplitFromAccount(ah);
+              if (ct) setRecruiterContact(ct);
+            }
+          } catch {}
         }
       } catch {}
       setLoading(false);
