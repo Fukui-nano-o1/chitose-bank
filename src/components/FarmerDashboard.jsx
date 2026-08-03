@@ -1197,8 +1197,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </button>
           ))}
         </div>
-      ) : (jobTab==="calendar" || jobTab==="applicants") ? null : (
-        /* 応募者ページの見出し「応募者」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示す */
+      ) : (jobTab==="calendar" || jobTab==="applicants" || jobTab==="profile") ? null : (
+        /* 応募者ページの見出し「応募者」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示す。
+           「雇い手プロフィール」の見出しも削除（2026-08-03たきと指示・名刺カードから開けば現在地は明らか） */
         <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       )}
       {/* 作成中⇄公開中はページャー（2026-07-16）：文字・絵文字・ボタン・カードが指に追従して実際に横移動する */}
