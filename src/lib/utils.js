@@ -299,6 +299,8 @@ export function mapJobPublicRow(j) {
     payMethod: j.pay_method || "", payTiming: j.pay_timing || "", wageClosingRule: j.wage_closing_rule || "",
     dateStart: j.date_start ? new Date(j.date_start) : null,
     dateEnd: j.date_end ? new Date(j.date_end) : null,
+    holidays: Array.isArray(j.holidays) ? j.holidays : [], // 期間内の休日（"YYYY-MM-DD"配列・2026-08-03）
+
     dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
     dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
     fullPayGuarantee: !!j.full_pay_guarantee,

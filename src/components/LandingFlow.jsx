@@ -274,6 +274,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // 日程（Date は JSON.parse で文字列になるので再変換）
   const [jobDateStart,    setJobDateStart]    = useState(d.jobDateStart ? new Date(d.jobDateStart) : null);
   const [jobDateEnd,      setJobDateEnd]      = useState(d.jobDateEnd   ? new Date(d.jobDateEnd)   : null);
+  // 期間内の休日（2026-08-03たきと指示）："YYYY-MM-DD"配列。休日ボタン→カレンダータップで設定
+  const [jobHolidays,     setJobHolidays]     = useState(Array.isArray(d.jobHolidays) ? d.jobHolidays : []);
+  const [holidayMode,     setHolidayMode]     = useState(false); // 休日設定モード中はカレンダータップが休日トグルになる
+  // 日程変更に休日を追従：期間の外に出た休日は自動で外す。単日（終了日なし）は全消し＝データが日程とズレない
+  useEffect(() => {
+    if (!jobDateStart || !jobDateEnd) setHolidayMode(false);
+    setJobHolidays(prev => {
+      if (!prev.length) return prev;
+      if (!jobDateStart || !jobDateEnd) return [];
+      const s = ymdLocal(jobDateStart), e = ymdLocal(jobDateEnd);
+      const next = prev.filter(x => x > s && x < e);
+      return next.length === prev.length ? prev : next;
+    });
+  }, [jobDateStart, jobDateEnd]);
   const [showCalendar,    setShowCalendar]    = useState(true);
   const [jobCount,        setJobCount]        = useState(d.jobCount ?? "");
   const [breakTime, setBreakTime] = useState(d.breakTime ?? "");
@@ -584,6 +598,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         setShowPlace2(dangerHasSecond(dp));
         setShowTask2(dangerHasSecond(dt));
         setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
+        setJobHolidays(Array.isArray(data.holidays) ? data.holidays : []);
         setStep(data.draft_step != null ? data.draft_step : 11);
       } catch {}
     })();
@@ -608,6 +623,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         jobExp, jobTemplate, jobNotes, jobCautions, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
         jobDateStart: jobDateStart?.toISOString() ?? null,
         jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
+        jobHolidays,
       };
       localStorage.setItem('landingFlowDraft_v1', JSON.stringify(draft));
       localStorage.setItem('postLoginReturnTo', 'landingFlowFarmerConfirm');
@@ -650,6 +666,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       date_label:      jobDateLabel,
       date_start:      jobDateStart ? ymdLocal(jobDateStart) : null,
       date_end:        jobDateEnd ? ymdLocal(jobDateEnd) : null,
+      holidays:        jobHolidays,
       headcount:       Number(jobCount) || null,
       pay_type:        "日給", // 時給入力は廃止（2026-07-16）。新規保存は常に日給
       hourly_wage:     "", // 時給入力は廃止（2026-07-16）。レガシー下書きの隠れ値を保存しない
@@ -1172,11 +1189,36 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                     background:"#fff", fontSize:13, cursor:"pointer", color: jobDateStart ? "#222" : "#B0B0B0", fontFamily:"inherit",
                   }}
                 >{jobDateLabel}</button>
-                {showCalendar && <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={false} onSelect={(dt) => {
+                {showCalendar && <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={false} holidays={jobHolidays} onSelect={(dt) => {
+                  // 休日設定モード（2026-08-03）：タップ＝休日トグル。開始日・終了日・期間外は休日にできない
+                  if (holidayMode && jobDateStart && jobDateEnd) {
+                    const ymd = ymdLocal(dt);
+                    const s = ymdLocal(jobDateStart), e = ymdLocal(jobDateEnd);
+                    if (ymd <= s || ymd >= e) return;
+                    setJobHolidays(prev => prev.includes(ymd) ? prev.filter(x => x !== ymd) : [...prev, ymd].sort());
+                    return;
+                  }
                   if (!jobDateStart || jobDateEnd) { setJobDateStart(dt); setJobDateEnd(null); }
                   else if (dt >= jobDateStart) { setJobDateEnd(dt); }
                   else { setJobDateStart(dt); setJobDateEnd(null); }
                 }} />}
+                {/* 休日設定（2026-08-03たきと指示）：期間（開始日≠終了日）が決まったら表示。
+                    ボタンで休日モードに入り、カレンダーの日をタップして休日を置く。もう一度ボタンで完了 */}
+                {showCalendar && jobDateStart && jobDateEnd && ymdLocal(jobDateStart) !== ymdLocal(jobDateEnd) && (
+                  <div style={{ marginTop:8 }}>
+                    <button onClick={() => setHolidayMode(v => !v)} className="f-sans" style={{ width:"100%", padding:"11px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer", border:"1px solid #00A86B", background: holidayMode ? "#00A86B" : "#fff", color: holidayMode ? "#fff" : "#00A86B" }}>
+                      {holidayMode ? "✓ 休日の設定を完了する" : "休日を設定する"}
+                    </button>
+                    {holidayMode && (
+                      <p className="f-sans" style={{ fontSize:12, color:"#0B6B4F", background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:8, padding:"8px 10px", marginTop:6, lineHeight:1.6 }}>
+                        カレンダーの日をタップすると休日になります（もう一度タップで解除）。開始日・終了日は休日にできません。
+                      </p>
+                    )}
+                    {jobHolidays.length > 0 && !holidayMode && (
+                      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginTop:6 }}>休日：{jobHolidays.length}日（グレーの打ち消し線の日）</p>
+                    )}
+                  </div>
+                )}
               </div>
             </LFWizCard>
           </>)}
@@ -2062,7 +2104,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               {/* 開催期間カレンダー（地図の下・2026-07-16・詳細ページと同じ） */}
               {jobDateStart && (
                 <div className="calendar-below-map" style={{ maxWidth:870, margin:"0 auto 5px" }}>
-                  <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} />
+                  <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} holidays={jobHolidays} />
                 </div>
               )}
               </>)}

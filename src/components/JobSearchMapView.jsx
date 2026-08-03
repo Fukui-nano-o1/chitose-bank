@@ -577,10 +577,12 @@ export function JobSearchMapView({ onRegister, me }) {
   // 期間内の日付を "YYYY-MM-DD" 配列で列挙（開始〜終了・両端含む）
   const periodDays = (() => {
     if (!isPeriodJob) return [];
+    // 休日（jobs.holidays・2026-08-03）は「来られる日」の候補から除く＝休日に応募日を宣言できない
+    const hs = new Set(Array.isArray(selectedJob.holidays) ? selectedJob.holidays : []);
     const out = []; const [ys, ms, ds] = selectedJob.dateStartRaw.split("-").map(Number);
     const start = new Date(ys, ms - 1, ds); const end = new Date(selectedJob.dateEndRaw + "T00:00:00");
     let guard = 0;
-    for (let d = new Date(start); d <= end && guard < 400; d.setDate(d.getDate() + 1), guard++) out.push(ymdLocal(d));
+    for (let d = new Date(start); d <= end && guard < 400; d.setDate(d.getDate() + 1), guard++) { const y = ymdLocal(d); if (!hs.has(y)) out.push(y); }
     return out;
   })();
   const [signupOpen, setSignupOpen] = useState(false); // 未ログイン画面の文言用（app_settings.signup_open・既定false=招待制）
@@ -1062,7 +1064,7 @@ export function JobSearchMapView({ onRegister, me }) {
           {/* 開催期間カレンダー（地図の下・全幅・PCのみ表示。スマホはフッター📅からモーダル） */}
           {selectedJob.dateStart && (
             <div className="calendar-below-map" style={{ marginBottom:5 }}>
-              <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} />
+              <CalendarView start={selectedJob.dateStart} end={selectedJob.dateEnd} readOnly={true} holidays={selectedJob.holidays} />
             </div>
           )}
 

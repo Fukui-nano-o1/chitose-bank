@@ -3,7 +3,10 @@ import { useState, useEffect } from "react";
 import { ymdLocal } from "../lib/utils";
 
 // 読み書き両用カレンダー（モジュールレベル・入力側と詳細表示側で共有）
-export function CalendarView({ start: startProp, end: endProp, readOnly = false, onSelect, accent = "#00A86B", accentSoft = "#E6F7EF", hideHints = false }) {
+export function CalendarView({ start: startProp, end: endProp, readOnly = false, onSelect, accent = "#00A86B", accentSoft = "#E6F7EF", hideHints = false, holidays }) {
+  // 休日（2026-08-03）：["YYYY-MM-DD",...]。該当日はグレー＋打ち消し線で「休み」を示す。
+  // 開始日・終了日と重なった場合は期間表示を優先（休日は期間の内側にしか置けない設計だが防御）
+  const holidaySet = new Set(Array.isArray(holidays) ? holidays : []);
   // start/end は Date でも文字列でも受ける（2026-08-03クラッシュ修理の恒久ガード）：
   // viewCacheのlocalStorage化でDateがJSON経由の文字列として復元され、getFullYear()で
   // 全画面エラーになった。型で落ちず、不正値はnull＝当月表示に倒す
@@ -56,12 +59,14 @@ export function CalendarView({ start: startProp, end: endProp, readOnly = false,
               const isEnd = isSameDayCV(dt, end2);
               const inRange = start && end2 && dt > start && dt < end2;
               const isToday = ymdLocal(dt) === todayYmdCV;
+              const isHoliday = !(isStart||isEnd) && holidaySet.has(ymdLocal(dt));
               return (
                 <div key={dd} style={{
                   padding:"5px 2px", borderRadius:6, fontSize:13, textAlign:"center",
-                  background: (isStart||isEnd) ? accent : inRange ? accentSoft : "transparent",
-                  color: (isStart||isEnd) ? "#fff" : inRange ? accent : "#222",
+                  background: (isStart||isEnd) ? accent : isHoliday ? "#F1F1F1" : inRange ? accentSoft : "transparent",
+                  color: (isStart||isEnd) ? "#fff" : isHoliday ? "#B0B0B0" : inRange ? accent : "#222",
                   fontWeight: (isStart||isEnd) ? 700 : 400,
+                  textDecoration: isHoliday ? "line-through" : "none",
                   boxShadow: isToday && !(isStart||isEnd) ? `inset 0 0 0 1.5px ${accent}` : "none",
                 }}>{dd}</div>
               );
@@ -73,6 +78,11 @@ export function CalendarView({ start: startProp, end: endProp, readOnly = false,
     return (
       <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginTop:8 }}>
         {shown.map(renderMonth)}
+        {holidaySet.size > 0 && (
+          <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"2px 0 8px", textAlign:"center" }}>
+            <span style={{ textDecoration:"line-through", color:"#B0B0B0" }}>グレーの日</span> は休みの日です（休日{holidaySet.size}日）
+          </p>
+        )}
         {!expanded && remaining > 0 && (
           <button onClick={() => setExpanded(true)} style={{ width:"100%", padding:"10px", borderRadius:10, border:"1px solid #EBEBEB", background:"#F7F7F7", fontSize:13, color:accent, fontWeight:600, cursor:"pointer" }}>
             すべての月を表示（残り{remaining}ヶ月）
@@ -106,12 +116,14 @@ export function CalendarView({ start: startProp, end: endProp, readOnly = false,
           const isEnd = isSameDayCV(dt, end);
           const inRange = start && end && dt > start && dt < end;
           const isToday = ymdLocal(dt) === todayYmdCV;
+          const isHoliday = !(isStart||isEnd) && holidaySet.has(ymdLocal(dt));
           return (
             <button key={dd} onClick={readOnly ? undefined : () => onSelect && onSelect(dt)} style={{
               padding:"7px 2px", borderRadius:8, border:"none", cursor: readOnly ? "default" : "pointer", fontSize:13, textAlign:"center",
-              background: (isStart||isEnd) ? accent : inRange ? accentSoft : "transparent",
-              color: (isStart||isEnd) ? "#fff" : inRange ? accent : "#222",
+              background: (isStart||isEnd) ? accent : isHoliday ? "#F1F1F1" : inRange ? accentSoft : "transparent",
+              color: (isStart||isEnd) ? "#fff" : isHoliday ? "#B0B0B0" : inRange ? accent : "#222",
               fontWeight: (isStart||isEnd) ? 700 : 400,
+              textDecoration: isHoliday ? "line-through" : "none",
               boxShadow: isToday && !(isStart||isEnd) ? `inset 0 0 0 1.5px ${accent}` : "none",
             }}>{dd}</button>
           );

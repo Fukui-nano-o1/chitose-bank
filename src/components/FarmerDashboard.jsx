@@ -306,7 +306,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: bundle, error } = await supabase.rpc("my_farm_jobs");
         const allJobs = bundle?.jobs;
         if (!error && allJobs) {
-          const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos }]));
+          const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos, holidays: j.holidays }]));
           setJobInfoMap(jim); setCache("farm:jobInfo", jim);
           // 自分の求人を日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
           // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い。
@@ -1533,8 +1533,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       {agreeModal && (() => {
         const info = jobInfoMap[agreeModal.job_number] || {};
         const av = agreeModal.available_dates;
-        // 候補＝働き手の来られる日（配列）。いつでもOK("any")や未宣言は求人の全期間
-        const candidates = Array.isArray(av) && av.length > 0 ? av.slice().sort() : daysBetweenYmd(info.date_start, info.date_end);
+        // 候補＝働き手の来られる日（配列）。いつでもOK("any")や未宣言は求人の全期間。
+        // 休日（jobs.holidays・2026-08-03）は除外＝休日を働く日に確定できない（来られる日宣言後に休日を足した場合も守る）
+        const hs = new Set(Array.isArray(info.holidays) ? info.holidays : []);
+        const candidates = (Array.isArray(av) && av.length > 0 ? av.slice().sort() : daysBetweenYmd(info.date_start, info.date_end)).filter(x => !hs.has(x));
         return (
           <div onClick={()=>{ if (!agreeSaving) { setAgreeModal(null); setAgreeSel([]); } }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
             <div onClick={e=>e.stopPropagation()} className="f-sans" style={{ background:"#fff", borderRadius:16, padding:22, maxWidth:440, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>

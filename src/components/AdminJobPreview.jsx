@@ -352,7 +352,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           {/* 開催期間カレンダー */}
           {job.dateStart && (
             <div style={{ marginBottom:20 }}>
-              <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} />
+              <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} holidays={job.holidays} />
             </div>
           )}
         </>)}
