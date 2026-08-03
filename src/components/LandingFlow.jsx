@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadJobPhoto } from "../lib/image";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, photoThumb, splitTextsForReview } from "../lib/utils";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
@@ -592,6 +592,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
   const [jobCautions,       setJobCautions]       = useState(d.jobCautions ?? "");
+  // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ
+  const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
+  const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
@@ -741,6 +744,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         setJobDescription(data.notes ?? "");
         setJobNotes(data.belongings ?? "");
         setJobCautions(data.cautions ?? "");
+        setOvertimePolicy(data.overtime_policy ?? "");
+        setOvertimeDetail(data.overtime_detail ?? "");
         // photos未所持の旧データを補完しつつ復元。2つ目に中身があれば展開フラグも立てる（2026-07-16）
         const dp = (data.danger_places ?? []).map(x => ({ photos: [], ...x }));
         const dt = (data.danger_tasks ?? []).map(x => ({ photos: [], ...x }));
@@ -809,7 +814,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         farmerWanted, farmerPayType, payTiming, payMethod,
         startHour, startMinute, endHour, endMinute,
         jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
-        jobExp, jobTemplate, jobNotes, jobCautions, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
+        jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
         jobDateStart: jobDateStart?.toISOString() ?? null,
         jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
         jobHolidays,
@@ -872,6 +877,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       notes:           jobDescription,
       belongings:      jobNotes,
       cautions:        jobCautions,
+      // 「あり」以外を選んだら目安は保存しない（選び直しの残骸を残さない・受動喫煙と同じ作法）
+      overtime_policy: overtimePolicy || null,
+      overtime_detail: overtimePolicy === "あり" ? overtimeDetail.trim() : "",
       danger_places:   jobDangerPlaces,
       danger_tasks:    jobDangerTasks,
       photos:          jobPhotos,
@@ -1811,6 +1819,17 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>注意事項（任意）</label>
                 <textarea value={jobCautions} onChange={e => setJobCautions(e.target.value)} placeholder="例：天候により作業時間が変わることがあります" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
               </div>
+              {/* 時間外労働（2026-08-03たきと指示・持ち物／注意事項の下に設置）：
+                  所定の勤務時間を超える労働の有無は労働条件の明示事項。「あり」のときだけ目安を書く */}
+              <div style={{ marginBottom:14 }}>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>時間外労働（任意）</label>
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>入力した勤務時間を超えて作業をお願いすることthatあるかどうかです。働き手thatその日の予定を立てるために見ています。</p>
+                <LFPillSelect options={OVERTIME_OPTIONS} value={overtimePolicy} onSelect={setOvertimePolicy} />
+                {overtimePolicy === "あり" && (<>
+                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", margin:"8px 0 6px" }}>どれくらいの時間ですか</label>
+                  <input value={overtimeDetail} onChange={e => setOvertimeDetail(e.target.value)} placeholder="例：繁忙期は1日30分〜1時間程度" maxLength={100} className="field f-sans" style={{ fontSize:16 }} />
+                </>)}
+              </div>
               {/* 必要経験の選択式は撤回（2026-07-18）：はじめてOK・経験者優遇・リピート即決の3トグルに整理。jobExpは旧求人の表示用に温存 */}
               <div style={{ marginBottom:10 }}>
                 <button type="button" onClick={()=>setBeginnerOk(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: beginnerOk ? "#00A86B" : "#EBEBEB", background: beginnerOk ? "#E6F7EF" : "#fff", cursor:"pointer" }}>
@@ -2253,6 +2272,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                     {[
                       { label:"持ち物",     value: jobNotes, chips:true, pin:true },
                       { label:"備考・注意", value: jobCautions },
+                      // 時間外労働（2026-08-03たきと指示・持ち物／備考の下）。未入力は他項目と同じ「未設定」
+                      { label:"時間外労働", value: overtimeLine(overtimePolicy, overtimeDetail) },
                     ].map(row => {
                       const has = row.value && String(row.value).trim();
                       return (

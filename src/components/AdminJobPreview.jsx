@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
-import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort, payTermsLine } from "../lib/utils";
+import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort, payTermsLine, overtimeLine } from "../lib/utils";
 import { Carousel, JobFlagBadges, DangerItem, Dots, MaskedAddress } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
@@ -295,6 +295,8 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
             {[
               { label:"持ち物",     value: disp(job.items), chips:true, pin:true },
               { label:"備考・注意", value: disp(job.cautions) },
+              // 時間外労働（2026-08-03たきと指示・詳細/確認ページと同じ位置・同じ体裁）
+              { label:"時間外労働", value: disp(overtimeLine(job.overtimePolicy, job.overtimeDetail)) },
             ].map(row => (
               <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                 <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>

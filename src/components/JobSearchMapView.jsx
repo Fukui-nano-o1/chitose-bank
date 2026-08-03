@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
-import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
+import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { fetchPublicJobs, shuffleArr, readSeenNewIds, recordSeenNewIds } from "../lib/searchJobs";
@@ -962,6 +962,8 @@ export function JobSearchMapView({ onRegister, me }) {
                 {[
                   { label:"持ち物",     value: disp(selectedJob.items), chips:true, pin:true },
                   { label:"備考・注意", value: disp(selectedJob.cautions) },
+                  // 時間外労働（2026-08-03たきと指示・持ち物／備考の下）。未設定は他項目と同じ「ー」
+                  { label:"時間外労働", value: disp(overtimeLine(selectedJob.overtimePolicy, selectedJob.overtimeDetail)) },
                 ].map(row => (
                   <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                     <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>

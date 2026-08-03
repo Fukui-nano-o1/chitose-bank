@@ -257,6 +257,19 @@ export function payTermsLine(j) {
 // 現在の固定ポリシー（draftの確認ページ・掲載シート＝DB列が入る前のプレビュー表示に使う）
 export const CURRENT_PAY_POLICY = { payMethod: "cash", payTiming: "same_day_after_work", wageClosingRule: "each_workday" };
 
+// 時間外労働の表示（2026-08-03たきと指示）：所定の勤務時間を超える労働の有無は労働条件の明示事項。
+// 求人詳細・確認ページ・審査プレビューで同じ文言を出すためここに一本化する。
+// policy: "なし"／"あり"／空（未設定）、detail: "あり"のときの目安。未設定は "" を返し、
+// 呼び出し側that他の項目と同じ体裁（「ー」「未設定」）で描く
+export const OVERTIME_OPTIONS = ["なし", "あり"];
+export function overtimeLine(policy, detail) {
+  const p = String(policy || "").trim();
+  if (!p) return "";
+  if (p !== "あり") return p; // 「なし」はそのまま
+  const d = String(detail || "").trim();
+  return d ? `あり（${d}）` : "あり";
+}
+
 // jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
 // さがす一覧・求人詳細・管理者プレビューで共通利用
 export function mapJobPublicRow(j) {
@@ -299,6 +312,9 @@ export function mapJobPublicRow(j) {
     breakTime: j.break_time || "",
     commuteTime: j.commute_time || "", jobBody: j.notes || "",
     cautions: j.cautions || "",
+    // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。求人ごとの条件so jobs 直持ち
+    overtimePolicy: j.overtime_policy || "",
+    overtimeDetail: j.overtime_detail || "",
     wanted: "", items: j.belongings || "",
     // 賃金支払条件（2026-08-02）：掲載申請時にトリガーが固定ポリシーを確定保存した値。表示はコード値→ラベル変換のみ
     payMethod: j.pay_method || "", payTiming: j.pay_timing || "", wageClosingRule: j.wage_closing_rule || "",
