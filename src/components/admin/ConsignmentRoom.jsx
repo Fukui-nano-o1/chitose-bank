@@ -96,7 +96,7 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", pay_method:"", onsite_contact_mode:"", onsite_name:"", onsite_phone:"", inspection:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", pay_method:"", onsite_contact_mode:"", onsite_name:"", onsite_phone:"", inspection:"", offgrade:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名", ph:"例：川向こうの畑" },
@@ -132,6 +132,10 @@ const CONSIGN_WIZ_STEPS = [
 
 const CONSIGN_TEXT_FIELDS = [
   { k:"inspection", l:"検収基準", ph:"例：2L以上・軸2cm・コンテナ渡し" },
+  // 検収基準を外れた作物の扱い（2026-08-03たきと指示）：基準＝合否の線引き、本項＝外れた分をどうするか。
+  // 決めずに始めると「収穫したのに数えられない」「捨てた/持ち帰ったで揉める」が起きるため必須級の取り決め
+  { k:"offgrade",   l:"検収基準外作物の扱い", ph:"例：規格外は別コンテナに分けて畑の入口へ。報酬の対象には含めない",
+    help:"検収基準に届かなかった作物（小さい・傷・変形など）を、どう扱うかの取り決めです。①その場に残すのか、分けて回収するのか、②報酬の対象に含めるのか含めないのか、③持ち帰りを認めるのか、の3点を決めておくと、作業後の食い違いを防げます。基準外の判断が難しい場合の連絡方法も書けます。" },
   { k:"field_cond", l:"圃場条件", ph:"残渣・傾斜・進入路など" },
   { k:"special",    l:"特約",     ph:"あれば記入" },
 ];
@@ -1893,7 +1897,17 @@ export function ConsignmentRoom() {
   );
   const renderTextField = (f) => (
             <div key={f.k} style={{ marginBottom:10 }}>
+              {f.help ? (
+                <div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    {helpBtn(f.k)}
+                    <label className="lbl f-sans" style={{ marginBottom:0 }}>{f.l}</label>
+                  </div>
+                  {helpNote(f.k, f.help)}
+                </div>
+              ) : (
               <label className="lbl f-sans">{f.l}</label>
+              )}
               <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:14.3, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
             </div>
   );
