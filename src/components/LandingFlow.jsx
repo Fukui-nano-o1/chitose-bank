@@ -335,9 +335,12 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
 
   const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
 
-  const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? initialRole ?? ""); // "" | "farmer" | "worker"
-  const [step, setStep] = useState((initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : 0))); // URL(#/work/new/{step})最優先→devJump→draft→0
   const _editJobNumber = (() => { const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/edit\/(\d+)$/); return m ? parseInt(m[1],10) : null; })();
+  const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? (_editJobNumber ? "farmer" : null) ?? initialRole ?? ""); // "" | "farmer" | "worker"
+  // 編集・コピー（#/work/edit/{n}）は確認ページ(11)から始める（2026-08-03）。
+  // 初期値that0（入口）だと、jobsを読み終えるまで「はじめから」の画面that見えてしまう。
+  // 実際のstepは読み込み後に draft_step で上書きされる（copy_jobも draft_step=11 で作る）
+  const [step, setStep] = useState((initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : (_editJobNumber ? 11 : 0)))); // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
@@ -707,14 +710,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     } catch (e) { alert("保存に失敗しました"); }
     setPbSaving(false);
   };
-  useEffect(() => {
-    if (!_editJobNumber) return;
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const { data, error } = await supabase.from("jobs").select("*").eq("job_number", _editJobNumber).eq("farmer_id", session.user.id).single();
-        if (error || !data) return;
+  // jobs行 → フローのstateへ復元（2026-08-03に関数化）。コピー直後の即時復元（prefill）と
+  // 通常の読み込みで同じ対応表を使う＝どちらかだけ直して食い違う事故を防ぐ
+  const applyJobRow = (data) => {
         setRole("farmer");
         setFarmerCropText(data.crop ?? "");
         setFarmerTaskText(data.task ?? "");
@@ -753,6 +751,40 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
         setJobHolidays(Array.isArray(data.holidays) ? data.holidays : []);
         setStep(data.draft_step != null ? data.draft_step : 11);
+  };
+
+  // 編集・コピーで開いた時の復元（2026-08-03に高速化）。
+  // 【従来の問題】stepの初期値that0（＝フローの入口）で、jobsを読み終えてから確認ページへ飛ぶ設計だった。
+  // そのため通信that少しでも遅いと「はじめから」の画面that見え続けた（コピー直後に多発）。
+  // 【対処】①stepの初期値を編集モードでは11（確認ページ）に変更＝入口をそもそも描かない
+  //        ②コピー直後は copy_job that返した行をsessionStorage経由で受け取り、通信を待たずに即復元
+  //        ③通常の読み込みは getSession の往復を待たない（jobsのRLS owner select that自分の行に絞るso
+  //          farmer_idの明示条件は冗長だった）＝1往復ぶん速くなる
+  useEffect(() => {
+    if (!_editJobNumber) return;
+    // ②コピー直後の即時復元：copy_jobの返り値をそのまま使う（ネット往復ゼロ）。一度きりで消費する
+    try {
+      const raw = sessionStorage.getItem("cb_editJobPrefill");
+      if (raw) {
+        sessionStorage.removeItem("cb_editJobPrefill");
+        const row = JSON.parse(raw);
+        if (row && row.job_number === _editJobNumber) applyJobRow(row);
+      }
+    } catch {}
+    (async () => {
+      try {
+        // ③セッションと求人を並列で取る（従来はgetSession→jobsの直列で、JWT更新that走ると
+        //   その待ちthatまるまる上乗せされていた）。取れなければ何もしない（prefillの値を残す）
+        const [sessRes, jobRes] = await Promise.all([
+          supabase.auth.getSession(),
+          supabase.from("jobs").select("*").eq("job_number", _editJobNumber).maybeSingle(),
+        ]);
+        const uid = sessRes?.data?.session?.user?.id;
+        const data = jobRes?.data;
+        if (jobRes?.error || !data) return;
+        // 所有者チェックは維持（管理者はRLS上ずべての求人を読めるso、他人の求人を編集フローで開かせない）
+        if (!uid || data.farmer_id !== uid) return;
+        applyJobRow(data);
       } catch {}
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

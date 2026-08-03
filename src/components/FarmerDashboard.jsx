@@ -1633,6 +1633,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           onCopyJob={async ()=>{
             const { data, error } = await supabase.rpc("copy_job", { p_job_number: previewJob.num });
             if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+            // コピーした行をそのまま次の画面へ渡す（2026-08-03）：求人フローはこれthatあれば
+            // jobsの読み直しを待たずに復元できる＝「更新that遅くてはじめから始まる」の解消
+            try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
             // 元の日程が過ぎていた場合は空で複製される（終了扱い防止・2026-07-24）。選び直しを案内
             if (data.dates_cleared) alert("コピーしました。元の作業日程は終了しているため空にしています。確認ページの「日程」から新しい日を選んでください。");
             setPreviewJob(null);
