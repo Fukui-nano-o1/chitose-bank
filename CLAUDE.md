@@ -2049,3 +2049,19 @@ get_my_calendar_jobs の partner_name を取引での役割で解決＝相手が
 【検証】該当3応募の机上再現＝#1053→千歳農園・#1046/#1028→千歳。権限（PUBLIC/anon/authenticated
 EXECUTE）不変を確認。フロント変更なし。実機確認：緊急連絡ページ働き手面の相手が農園名＋緑になるか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続11) 郵便番号検索が数十秒かかる件の修理（zipLookup・2系統レース）━━━
+【症状】委託ページ・圃場登録まわりの郵便番号検索に数十秒（たきと報告）。
+【原因】zipcloud（無料・SLAなしの単一API）に1本依存・タイムアウト無し・代替無し。
+先方が混雑で遅い時、その遅さがそのまま画面の待ち時間になる構造だった。
+【対処】lib/zipLookup.js 新設＝郵便番号→住所の唯一の窓口：
+・madefor postal-code-api（GitHub Pages静的JSON・CDN配信で通常数百ms）と zipcloud に同時問い合わせ、
+  先に住所を返した方を採用（レース）。各系統にAbortControllerタイムアウト（madefor4秒/zipcloud6秒）
+・結果は端末キャッシュ（cb_zipCache_v1・上限300件）＝同じ番号の2回目は0ms
+・両方notfound→「住所が見つかりません」／両方死亡→通信エラー（どちらかが生きていれば1秒前後）
+・委託ページの2箇所（regZipSearch・searchZipInto）を乗せ替え済み
+【検証】build+lint 0 error。fetchモックで4ケース合格：zipcloud激遅でも56msで返る／キャッシュ0ms／
+madefor死亡→zipcloudで成功／両方notfoundの区別
+【未対応（次回候補）】同じzipcloud直叩きが残るページ：AccountHolderForm（新規登録①）・
+LandingFlow（求人作成の場所）・EmployerProfileEdit。zipLookupへの乗せ替えは同型15分/箇所
+━━━ ここまで ━━━
