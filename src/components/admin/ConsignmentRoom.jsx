@@ -589,11 +589,20 @@ function ConsignFieldsPane({ fields, onReload }) {
   );
 }
 
-// ── 貸与できる道具・機械・設備（2026-08-02たきと指示・圃場の設備の貸与欄から移植）──
+// ── 貸与・提供できるもの（2026-08-02たきと指示・圃場の設備の貸与欄から移植／
+//    2026-08-03 消耗品を追加＝4区分から先に選ばせる）──
 // プロフィールのスワイプ3枚目。委託者単位の登録簿（正本= consignor_data.cmn_lend_items）。
-// 案件側は読み取り表示＋掲載時に写し（spec.facility_lend）を凍結する
+// 保存形は [{k:区分, n:名前}]。旧データ（文字列の配列）は読み込み時に {k:"", n:文字列} へ正規化。
+// 案件側は呼び出し（選択）＋掲載時に写し（spec.facility_lend）を凍結する
+const CONSIGN_LEND_KINDS = ["道具", "機械", "設備", "消耗品"];
+const CONSIGN_LEND_PH = { 道具:"例：収穫ナイフ", 機械:"例：軽トラ", 設備:"例：予冷庫", 消耗品:"例：コンテナ" };
+// 登録簿を [{k,n}] に正規化（旧＝文字列配列との両対応）。案件側の呼び出しでも使う
+const normalizeLendItems = (raw) => (raw || [])
+  .map(x => typeof x === "string" ? { k:"", n:x } : { k:(x && x.k) || "", n:(x && x.n) || "" })
+  .filter(x => (x.n || "").trim());
 function ConsignLendPane({ consignor, onSaved }) {
-  const items = (((consignor || {}).consignor_data || {}).cmn_lend_items) || [];
+  const items = normalizeLendItems(((consignor || {}).consignor_data || {}).cmn_lend_items);
+  const [kind, setKind] = useState("");
   const [input, setInput] = useState("");
   const [lBusy, setLBusy] = useState(false);
   const persist = async (next) => {
@@ -614,26 +623,46 @@ function ConsignLendPane({ consignor, onSaved }) {
   const add = () => {
     // 「・」は案件側の区切り文字so名前には使わせない（スペースに置換）
     const v = input.replace(/・/g, " ").trim();
-    if (!v) return;
-    if (items.includes(v)) { setInput(""); return; }
-    persist([...items, v]); setInput("");
+    if (!v || !kind) return;
+    if (items.some(x => x.n === v)) { setInput(""); return; }
+    persist([...items, { k: kind, n: v }]); setInput("");
   };
   const del = (i) => persist(items.filter((_, k) => k !== i));
+  // 区分ごとに並べる（未分類＝旧データは最後に「その他」で出す）
+  const groups = [...CONSIGN_LEND_KINDS.map(k => [k, items.map((it, i) => ({ ...it, i })).filter(x => x.k === k)]),
+    ["その他", items.map((it, i) => ({ ...it, i })).filter(x => !CONSIGN_LEND_KINDS.includes(x.k))]]
+    .filter(([, list]) => list.length);
   return (
     <div>
-      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>貸与できる道具・機械・設備</h2>
-      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>ここで登録した内容が、委託の作成ページと仕様書に自動で反映されます。</p>
-      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-        <input className="field f-sans" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") add(); }} placeholder="例：軽トラ" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
-        <button type="button" onClick={add} disabled={lBusy || !input.trim()} className="f-sans" style={{ flexShrink:0, padding:"0 18px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (lBusy || !input.trim()) ? 0.4 : 1 }}>追加</button>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>貸与・提供できるもの</h2>
+      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>道具・機械・設備・消耗品を登録します。ここで登録した内容が、委託の作成ページと仕様書に自動で反映されます。</p>
+      {/* まず区分を選ぶ（2026-08-03たきと指示）→選ぶまで名前は入力できない */}
+      <label className="lbl f-sans">区分を選んでください</label>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
+        {CONSIGN_LEND_KINDS.map(k => {
+          const on = kind === k;
+          return (
+            <button key={k} type="button" onClick={()=>setKind(on ? "" : k)} className="f-sans" style={{ padding:"9px 18px", fontSize:15.4, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{k}</button>
+          );
+        })}
       </div>
+      <div style={{ display:"flex", gap:8, marginBottom:6 }}>
+        <input className="field f-sans" value={input} disabled={!kind} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") add(); }} placeholder={kind ? CONSIGN_LEND_PH[kind] : "先に区分を選んでください"} style={{ fontSize:15.4, marginBottom:0, flex:1, background: kind ? "#fff" : "#F7F7F7" }} />
+        <button type="button" onClick={add} disabled={lBusy || !kind || !input.trim()} className="f-sans" style={{ flexShrink:0, padding:"0 18px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (lBusy || !kind || !input.trim()) ? 0.4 : 1 }}>追加</button>
+      </div>
+      <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 16px" }}>{kind ? "「" + kind + "」として登録されます。続けて追加できます。" : "区分をタップすると入力できます。"}</p>
       {items.length === 0 && (
-        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>登録された道具・機械・設備はまだありません。</p>
+        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>登録されたものはまだありません。</p>
       )}
-      {items.map((it, i) => (
-        <div key={it} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#fff", border:"1px solid #111111", borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
-          <span className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{it}</span>
-          <button type="button" onClick={()=>del(i)} disabled={lBusy} className="f-sans" style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", border:"1px solid #D0D0D0", background:"#fff", color:"#999999", fontSize:14.3, fontWeight:700, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+      {groups.map(([g, list]) => (
+        <div key={g} style={{ marginBottom:14 }}>
+          <p className="f-sans" style={{ fontSize:13.2, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{g}</p>
+          {list.map(it => (
+            <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#fff", border:"1px solid #111111", borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
+              <span className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{it.n}</span>
+              <button type="button" onClick={()=>del(it.i)} disabled={lBusy} className="f-sans" style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", border:"1px solid #D0D0D0", background:"#fff", color:"#999999", fontSize:14.3, fontWeight:700, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+            </div>
+          ))}
         </div>
       ))}
     </div>
@@ -1475,7 +1504,9 @@ export function ConsignmentRoom() {
   };
   // 貸与できる道具・機械・設備（2026-08-02たきと指示・圃場の設備から移植）：委託者単位の登録簿。
   // 正本= consignment_profiles.consignor_data.cmn_lend_items。案件には掲載時に写し（spec.facility_lend）が凍結される
-  const lendItems = (((consignor || {}).consignor_data || {}).cmn_lend_items) || [];
+  const lendCatalog = normalizeLendItems(((consignor || {}).consignor_data || {}).cmn_lend_items);
+  const lendItems = lendCatalog.map(x => x.n);        // 名前のみ（仕様書へ載る文字列＝従来どおり）
+  const lendKindOf = (n) => (lendCatalog.find(x => x.n === n) || {}).k || "";
   // 委託機能利用特約（2026-08-02たきと指示）：「新しく委託を出す」タップで初回ゲートとして展開。
   // 同意済み（版数一致）なら右上の浮遊ボックスからいつでも再読できる
   const termsOk = !!(consignor && consignor.consignment_terms_consent && consignor.consignment_terms_consent_version === CONSIGN_TERMS_VERSION);
@@ -1770,28 +1801,36 @@ export function ConsignmentRoom() {
           </div>
         ))}
       </div>
-      <label className="lbl f-sans">貸与できる道具・機械・設備</label>
+      <label className="lbl f-sans">貸与・提供できるもの（道具・機械・設備・消耗品）</label>
       {/* 登録簿（貸与機材ページ）からの呼び出し（2026-08-03たきと指示）：タップで選択＝
           この委託で貸与するものだけが spec.facility_lend（仕様書）に載る。旧案件の残置値もピルに出す */}
       {(() => {
         const sel = (spec.facility_lend || "").split("・").filter(Boolean);
         const all = [...new Set([...lendItems, ...sel])];
         if (!all.length) return (
-          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>未登録（名刺タップ→貸与機材ページで登録すると、ここで呼び出せます）</p>
+          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>未登録（名刺タップ→貸与・提供ページで登録すると、ここで呼び出せます）</p>
         );
         const toggle = (it) => {
           const next = sel.includes(it) ? sel.filter(x => x !== it) : [...sel, it];
           setF("facility_lend", all.filter(x => next.includes(x)).join("・"));
         };
+        // 区分ごとに並べる（登録簿の区分・旧データや残置値は「その他」へ）
+        const groups = [...CONSIGN_LEND_KINDS.map(k => [k, all.filter(n => lendKindOf(n) === k)]),
+          ["その他", all.filter(n => !CONSIGN_LEND_KINDS.includes(lendKindOf(n)))]].filter(([, l]) => l.length);
         return (<>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {all.map(it => {
-              const on = sel.includes(it);
-              return (
-                <button key={it} type="button" onClick={()=>toggle(it)} className="f-sans" style={{ padding:"9px 16px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{it}</button>
-              );
-            })}
-          </div>
+          {groups.map(([g, list]) => (
+            <div key={g} style={{ marginBottom:8 }}>
+              <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#999999", margin:"0 0 4px" }}>{g}</p>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {list.map(it => {
+                  const on = sel.includes(it);
+                  return (
+                    <button key={it} type="button" onClick={()=>toggle(it)} className="f-sans" style={{ padding:"9px 16px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{it}</button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
           <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"6px 0 0" }}>タップで選択。選んだものだけがこの委託の仕様書に載ります。登録の追加は名刺タップ→貸与機材ページで。</p>
         </>);
       })()}
@@ -2308,7 +2347,7 @@ export function ConsignmentRoom() {
               {[...CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]),
                 ...CONSIGN_TEXT_FIELDS.map(f => [f.l, spec[f.k]]),
                 ["圃場の設備", [["駐車場", spec.facility_parking], ["トイレ", spec.facility_toilet], ["休憩場所", spec.facility_rest]].filter(([, v]) => v).map(([l, v]) => l + v).join("・")],
-                ["貸与できる道具・機械・設備", spec.facility_lend],
+                ["貸与・提供できるもの", spec.facility_lend],
                 ["危険情報", (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・")],
                 ["当日の現場連絡先", spec.onsite_contact_mode === "別の連絡先を使用" ? [spec.onsite_name, spec.onsite_phone].map(x => (x || "").trim()).filter(Boolean).join(" ") : "登録情報を使用"],
                 ["写真", (spec.photos || []).length > 0 ? (spec.photos || []).length + "枚" : ""],
