@@ -2126,3 +2126,33 @@ WorkerDeclarationBoxes（免許・資格・保険方針＝縦一列全幅の申�
 （cb-exp-page／ins-prep-pageのbody:has()方式）。両ページの「← 戻る」は左下の浮遊ボックス化。
 【検証】各コミットでbuild+lint（exit code実測）。実機目視はたきと側で随時。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-03 訪問者（anon）へのモザイク監査と根治 — 実測ベース ━━━
+【監査方法】postgres で `set local role anon` に切り替えて実際に読ませる／RPCを呼ぶ（推測でなく実測）。
+返り値を必ず受け取ること（perform だと {ok:false} でも例外が出ず「通った」と誤判定する。今回1度踏んだ）。
+JWTを立てれば authenticated も再現できる：
+  perform set_config('request.jwt.claims', json_build_object('role','authenticated','sub',<uid>)::text, true);
+  set local role authenticated;
+※postgres接続はJWTが無い＝auth.role()がNULL→coalesceで'anon'扱いになる。ログイン時の検証は必ず上の方法で。
+【見つけた穴と対処（migration 20260803131655 / 20260803131953・適用済み・repo写経済み）】
+1. jobs_public の位置情報が迂回可能だった：town はマスク済みなのに lat/lng を小数6桁（半径500m）で
+   返しており、地図に載せれば町域が判明した。最寄り駅名も素通り。
+   → anonには座標を小数2桁（約1.1km格子）へ丸め、geo_radius_mを3000m以上に、nearest_stationはNULL。
+   実測：anon lat=34.06/radius=3000/station=NULL ／ ログイン時 lat=34.059761/radius=500/town=山川町忌部（不変）。
+   ★モザイクの原則：ある項目を隠したら、同じ情報を導ける別の項目（座標・駅・写真の位置情報等）も同時に塞ぐ。
+2. worker_want_again_count のフェイルオープン（anonに {ok:true} を返していた）。
+   `auth.uid() <> p_worker_id and not exists(...)` は auth.uid() が NULL だと条件全体が NULL＝偽になり
+   拒否に入らない。2026-07-29に worker_trust_info で直したのと同じ型の穴が残っていた。
+   → `auth.uid() is null` を先に弾く＋anonからrevoke。★同型の関数を書くときは必ずNULLを先に弾く。
+3. 内部専用RPCがクライアントから直接叩けた：resolve_actor_name（任意UUIDでニックネーム／メール頭2文字が
+   引けた・実測で実名が返った）、unread_count_for（他人の未読件数）。どちらもフロント未使用so
+   public/anon/authenticated からrevoke（SECURITY DEFINERの内部呼び出しは定義者権限so機能は壊れない）。
+4. dests（旧事業データ）が anon 読み取り可＋submitted_by に運営者の実名。SELECTだけ qual=true の
+   全開放ポリシーだった → 管理者限定に差し替え（読み手は管理タブのみ・実測 anon=0行／管理者=1行）。
+【問題なしを確認したもの】job_meeting_place・worker_trust_info（2026-07-29の修理が有効）・
+admin_list_accounts/contracts（not_adminで拒否）・ask_job_question/apply_to_job（not_logged_in）・
+worker_profiles/employer_profiles/account_holders/reviews/job_questions（anon 0行）・
+market_stats/minimum_wages/help_images/admin_notice_registry（公開データ）。
+employer_nickname/avatar_url・待遇・保険snapshot・支払条件は訪問者にも見せる仕様（求人の顔・条件）so維持。
+【フロント】変更なし（DBがNULLを返すのみ）。駅名NULL時は stationLabel が移動時間だけ返す＝表示は壊れない。
+━━━ ここまで ━━━
