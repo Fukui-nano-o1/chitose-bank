@@ -459,7 +459,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
         {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
       </button>
-      <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：福井 太郎 ／ 千歳農園" maxLength={100}
+      <input value={recruiterName} onChange={e=>setRecruiterName(e.target.value)} placeholder="例：山田 太郎 ／ 千歳農園" maxLength={100}
         className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:16 }} />
       </>)}
 

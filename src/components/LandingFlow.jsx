@@ -2364,7 +2364,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               労働者の募集広告には、募集者の氏名または名称・住所・連絡先の明示が必要です。
               入力すると、あなたの求人ページに「募集者情報」として表示されます。
             </p>
-            {[["氏名・名称", "name", "例：福井 太郎 ／ 千歳農園"],
+            {[["氏名・名称", "name", "例：山田 太郎 ／ 千歳農園"],
               ["住所・所在地", "address", "例：〒779-3401 徳島県吉野川市山川町〇〇1-2-3"],
               ["連絡先", "contact", "例：088-000-0000"]].map(([label, key, ph]) => (
               <div key={key} style={{ marginBottom:12 }}>

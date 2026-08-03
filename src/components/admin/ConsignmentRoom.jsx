@@ -247,9 +247,9 @@ const CONSIGNOR_IND_FIELDS = [
   { k:"ind_phone", l:"電話番号", ph:"例：090-1234-5678", phoneIfMissing:true },
   { h:"事業所所在地" },
   { k:"ind_biz_same", l:"事業所所在地は自宅と異なりますか？", cl:"事業所所在地", sel:["自宅と同じ","自宅と異なる"] },
-  { k:"ind_biz_zip",         l:"事業所の郵便番号", zip:{ main:"ind_biz_addr_main" }, ph:"例：7793300", bizDiff:true },
-  { k:"ind_biz_addr_main",   l:"事業所の住所", ph:"例：徳島県吉野川市鴨島町鴨島", bizDiff:true },
-  { k:"ind_biz_addr_detail", l:"事業所の番地・建物名", ph:"例：337-4", bizDiff:true },
+  { k:"ind_biz_zip",         l:"事業所の郵便番号", zip:{ main:"ind_biz_addr_main" }, ph:"例：7700000", bizDiff:true },
+  { k:"ind_biz_addr_main",   l:"事業所の住所", ph:"例：徳島県〇〇市〇〇町", bizDiff:true },
+  { k:"ind_biz_addr_detail", l:"事業所の番地・建物名", ph:"例：123-4", bizDiff:true },
   { h:"インボイス" },
   { k:"ind_has_invoice", l:"インボイス登録の有無", sel:["登録あり","登録なし"], help:"消費税のインボイス制度に登録した事業者かどうかです。登録していなければ「登録なし」で構いません。登録番号を記載すると、受託者（相手）が消費税の仕入税額控除を受けられるため、請求書に印字されます。" },
   { k:"ind_invoice", l:"適格請求書発行事業者登録番号", ph:"例：T1234567890123", invoiceOnly:true, help:"「T」＋13桁の番号です。国税庁「インボイス制度適格請求書発行事業者公表サイト」で確認できます。" },
@@ -512,18 +512,18 @@ function ConsignFieldsPane({ fields, onReload }) {
       <div style={{ marginBottom:10 }}>
         <label className="lbl f-sans">郵便番号</label>
         <div style={{ display:"flex", gap:8 }}>
-          <input className="field f-sans" inputMode="numeric" value={form.zip || ""} onChange={e=>fset("zip", e.target.value.replace(/[^0-9]/g, ""))} placeholder="例：7793300" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
+          <input className="field f-sans" inputMode="numeric" value={form.zip || ""} onChange={e=>fset("zip", e.target.value.replace(/[^0-9]/g, ""))} placeholder="例：7700000" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
           <button type="button" onClick={fZipSearch} disabled={fZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{fZipBusy ? "検索中…" : "住所を検索"}</button>
         </div>
         {fZipError && <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{fZipError}</p>}
       </div>
       <div style={{ marginBottom:10 }}>
         <label className="lbl f-sans">住所</label>
-        <input className="field f-sans" value={form.addr_main || ""} onChange={e=>fset("addr_main", e.target.value)} placeholder="例：徳島県吉野川市鴨島町鴨島" style={{ fontSize:15.4, marginBottom:0 }} />
+        <input className="field f-sans" value={form.addr_main || ""} onChange={e=>fset("addr_main", e.target.value)} placeholder="例：徳島県〇〇市〇〇町" style={{ fontSize:15.4, marginBottom:0 }} />
       </div>
       <div style={{ marginBottom:10 }}>
         <label className="lbl f-sans">番地・字</label>
-        <input className="field f-sans" value={form.addr_detail || ""} onChange={e=>fset("addr_detail", e.target.value)} placeholder="例：337-4" style={{ fontSize:15.4, marginBottom:0 }} />
+        <input className="field f-sans" value={form.addr_detail || ""} onChange={e=>fset("addr_detail", e.target.value)} placeholder="例：123-4" style={{ fontSize:15.4, marginBottom:0 }} />
       </div>
       <div style={{ marginBottom:10 }}>
         <label className="lbl f-sans">面積（a）</label>
@@ -984,13 +984,13 @@ function ConsignorInfoEdit() {
         <div style={{ marginBottom:10 }}>
           <label className="lbl f-sans">郵便番号</label>
           <div style={{ display:"flex", gap:8 }}>
-            <input className="field f-sans" inputMode="numeric" value={regForm.postal_code} onChange={e=>setRegForm(f => ({ ...f, postal_code: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="例：7793300" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
+            <input className="field f-sans" inputMode="numeric" value={regForm.postal_code} onChange={e=>setRegForm(f => ({ ...f, postal_code: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="例：7700000" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
             <button type="button" onClick={regZipSearch} disabled={regZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{regZipBusy ? "検索中…" : "住所を検索"}</button>
           </div>
           {regZipError && <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{regZipError}</p>}
         </div>
-        {regField("addr_main", isCorp ? "本店所在地" : "住所", { ph:"例：徳島県吉野川市鴨島町鴨島" })}
-        {regField("addr_detail", "番地・建物名", { ph:"例：337-4 千歳ハイツ101" })}
+        {regField("addr_main", isCorp ? "本店所在地" : "住所", { ph:"例：徳島県〇〇市〇〇町" })}
+        {regField("addr_detail", "番地・建物名", { ph:"例：123-4 〇〇ハイツ101" })}
         {isCorp && regField("full_name", "登録者氏名", { ph:"例：千歳 太郎" })}
         {regField("contact_phone", "電話番号", { ph:"例：090-1234-5678" })}
         {regField("contact_email", "メールアドレス", { ph:"例：taro@example.com" })}
