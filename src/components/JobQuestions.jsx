@@ -8,35 +8,100 @@ import { Dots } from "./ui";
 import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginReturn";
 
 // タブ中身の横スワイプ切替（2026-07-27たきと指示）：仕事の内容⇄保険⇄質問を左右スワイプで移動。
-// 中の横スクロール要素（写真カルーセル・その他の求人等）内で始まったタッチは奪わない。
-// 判定は応募者フィルタと同じ作法（50px以上・横優位のみ）
+// 指に連動（2026-08-03たきと指示）：今日ページの役割スワイプと同一の機構に揃えた＝
+//   ①追従はsetStateせずDOMのtransformを直接書く（毎フレーム再レンダーを排除）
+//   ②ジェスチャ開始8pxで縦/横を1回だけ判定する方向ロック（縦スクロールと誤認識しない）
+//   ③容器にtouch-action:pan-y＋横ロック中はpreventDefault（ReactのonTouchMoveはpassiveで
+//     preventDefault不可so、ネイティブリスナーを{passive:false}で張る）
+//   ④50px以上で切替成立→slideKey更新で新しいタブがスライドイン（cbSlideInR/L・今日ページと共用のCSS）
+// 中の横スクロール要素（写真カルーセル・その他の求人等）内で始まったタッチは従来どおり奪わない。
+// オーバーレイ（.cb-lock-scroll＝下からのシート等）内で始まったタッチも奪わない（今日ページと同じ守り）。
 export function ContentQSwipeArea({ value, onChange, showInsurance, children }) {
-  const ref = useRef(null);
+  const rootRef = useRef(null);
+  const contentRef = useRef(null);
+  const gestureRef = useRef(null); // { x, y, lock:'h'|'v'|null }
+  const [slideDir, setSlideDir] = useState(0); // 1=右から・-1=左から
+  const [slideKey, setSlideKey] = useState(0); // key更新でアニメを再生
   const keys = showInsurance ? ["content", "insurance", "questions"] : ["content", "questions"];
-  const inHScroll = (node, stop) => {
-    for (let n = node; n && n !== stop; n = n.parentElement) {
-      try {
-        const st = window.getComputedStyle(n);
-        if ((st.overflowX === "auto" || st.overflowX === "scroll") && n.scrollWidth > n.clientWidth + 1) return true;
-      } catch { return true; }
-    }
-    return false;
-  };
-  const onStart = (e) => {
-    const t = e.touches[0]; if (!t) return;
-    ref.current = inHScroll(e.target, e.currentTarget) ? null : { x: t.clientX, y: t.clientY };
-  };
-  const onEnd = (e) => {
-    const s = ref.current; ref.current = null;
-    if (!s) return;
-    const t = e.changedTouches[0]; if (!t) return;
-    const dx = t.clientX - s.x, dy = t.clientY - s.y;
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
-    const idx = Math.max(0, keys.indexOf(value));
-    const next = dx < 0 ? Math.min(keys.length - 1, idx + 1) : Math.max(0, idx - 1);
-    if (keys[next] !== value) onChange(keys[next]);
-  };
-  return <div onTouchStart={onStart} onTouchEnd={onEnd}>{children}</div>;
+  // リスナーはマウント時に1度だけ張るので、最新の値は ref 経由で読む（張り直しを避ける）
+  const keysRef = useRef(keys); keysRef.current = keys;
+  const valueRef = useRef(value); valueRef.current = value;
+  const onChangeRef = useRef(onChange); onChangeRef.current = onChange;
+
+  useEffect(() => {
+    const el = rootRef.current; if (!el) return;
+    const inHScroll = (node) => {
+      for (let n = node; n && n !== el; n = n.parentElement) {
+        try {
+          const st = window.getComputedStyle(n);
+          if ((st.overflowX === "auto" || st.overflowX === "scroll") && n.scrollWidth > n.clientWidth + 1) return true;
+        } catch { return true; }
+      }
+      return false;
+    };
+    // いまの位置から dx 方向へ動いた時の行き先（端なら現在地のまま＝抵抗を強くする材料）
+    const targetIndex = (dx) => {
+      const ks = keysRef.current;
+      const idx = Math.max(0, ks.indexOf(valueRef.current));
+      return dx < 0 ? Math.min(ks.length - 1, idx + 1) : Math.max(0, idx - 1);
+    };
+    const onStart = (ev) => {
+      if (ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll")) { gestureRef.current = null; return; }
+      if (inHScroll(ev.target)) { gestureRef.current = null; return; }
+      const t = ev.touches[0]; if (t) gestureRef.current = { x: t.clientX, y: t.clientY, lock: null };
+    };
+    const onMove = (ev) => {
+      const g = gestureRef.current; if (!g) return;
+      const t = ev.touches[0]; if (!t) return;
+      const dx = t.clientX - g.x, dy = t.clientY - g.y;
+      if (!g.lock) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // 8px動くまで判定保留
+        g.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";  // 1ジェスチャ1回だけ軸を確定
+      }
+      if (g.lock !== "h") return; // 縦確定＝以後ノータッチ（ブラウザのスクロールに完全に譲る）
+      ev.preventDefault();
+      const c = contentRef.current; if (!c) return;
+      const ks = keysRef.current;
+      const damp = ks[targetIndex(dx)] === valueRef.current ? 0.12 : 0.4; // 端は強い抵抗（行き止まりの感触）
+      c.style.transition = "none";
+      c.style.transform = `translateX(${Math.max(-100, Math.min(100, dx * damp))}px)`;
+    };
+    const onEnd = (ev) => {
+      const g = gestureRef.current; gestureRef.current = null;
+      if (!g || g.lock !== "h") return;
+      const c = contentRef.current;
+      const t = ev.changedTouches && ev.changedTouches[0];
+      const dx = t ? t.clientX - g.x : 0;
+      const ks = keysRef.current;
+      const next = ks[targetIndex(dx)];
+      if (Math.abs(dx) >= 50 && next !== valueRef.current) {
+        if (c) { c.style.transition = ""; c.style.transform = ""; }
+        setSlideDir(dx < 0 ? 1 : -1); // 左スワイプ＝次のタブが右から入る
+        setSlideKey(k => k + 1);
+        onChangeRef.current(next);
+        return;
+      }
+      if (c) { c.style.transition = "transform .2s ease"; c.style.transform = ""; } // スナップバック
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, []);
+
+  return (
+    <div ref={rootRef} style={{ touchAction:"pan-y" }}>
+      <div key={slideKey} ref={contentRef} style={{ animation: slideDir ? `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` : undefined }}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 // 「仕事の内容」「質問」タブバー（第10弾・2026-07-22）：求人詳細・確認ページの写真下に置く
