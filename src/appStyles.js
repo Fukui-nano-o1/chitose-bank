@@ -782,7 +782,8 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   /* 経験・資格ページ（#/experience）：下部バー・浮遊☰を出さない（2026-08-03たきと指示・入力に集中） */
   body:has(.cb-exp-page) .app-header-mobile,
   body:has(.cb-exp-page) .app-header-mobile-float { display: none !important; }
-  /* 保険の準備ページ（#/insurance）：浮遊☰を出さない（2026-08-03たきと指示。フッターは既存ルールで非表示・下部バーは残す） */
+  /* 保険の準備ページ（#/insurance）：浮遊☰・下部バーを出さない（2026-08-03たきと指示。サイトフッターも既存ルールで非表示） */
+  body:has(.ins-prep-page) .app-header-mobile,
   body:has(.ins-prep-page) .app-header-mobile-float { display: none !important; }
   /* 委託ページ（#/admin/consignment）は別世界観（2026-07-31たきと指示）：
      下部バー・浮遊☰を出さない。B2B委託レーンは運営の内部道具であって、
