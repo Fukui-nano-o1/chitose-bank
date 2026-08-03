@@ -14,16 +14,30 @@ import { AutoSkeleton } from "./ui";
 export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDeclared, setSelfDeclared }) {
   const scrollRef = useRef(null);
   const [pageIdx, setPageIdx] = useState(0);
-  const pageCount = expEntries.length + (expEntries.length < 5 ? 1 : 0) + (selfDeclared && setSelfDeclared ? 1 : 0);
+  const expPages = expEntries.length + (expEntries.length < 5 ? 1 : 0); // 経験タブに属するページ数（＋追加を含む）
+  const hasDecl = !!(selfDeclared && setSelfDeclared);
+  const pageCount = expPages + (hasDecl ? 1 : 0);
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el || el.clientWidth === 0) return;
     setPageIdx(Math.max(0, Math.min(pageCount - 1, Math.round(el.scrollLeft / el.clientWidth))));
   };
+  // タブ（2026-08-03たきと指示「タブを設置。経験タブ、資格タブ」）：タップでそのページへスクロール、
+  // スワイプ中は現在ページからタブの点灯を導出（表示は記録から導出の流儀）
+  const activeTab = hasDecl && pageIdx >= expPages ? "decl" : "exp";
+  const goTo = (idx) => { const el = scrollRef.current; if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" }); };
   // ページの器（全幅・snap）。隣ページとの見た目の隙間はpaddingRightで作る（幅計算を1ページ=clientWidthに保つ）
   const paneStyle = { flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", paddingRight:10, alignSelf:"flex-start" };
   return (
     <div>
+      {hasDecl && (
+        <div style={{ display:"flex", borderBottom:"1px solid #EBEBEB", marginBottom:12 }}>
+          {[{ k:"exp", l:"経験" }, { k:"decl", l:"資格" }].map(t => (
+            <button key={t.k} type="button" onClick={()=>goTo(t.k === "exp" ? 0 : expPages)} className="f-sans"
+              style={{ flex:1, padding:"10px 0", background:"none", border:"none", borderBottom: activeTab === t.k ? "2px solid #00A86B" : "2px solid transparent", marginBottom:-1, fontSize:14, fontWeight:700, color: activeTab === t.k ? "#00A86B" : "#717171", cursor:"pointer" }}>{t.l}</button>
+          ))}
+        </div>
+      )}
       <div ref={scrollRef} onScroll={onScroll} style={{ display:"flex", alignItems:"flex-start", overflowX:"auto", WebkitOverflowScrolling:"touch", scrollSnapType:"x mandatory" }}>
         <datalist id="cb-crop-opts-expswipe">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
         {expEntries.map((e, i) => (
@@ -155,8 +169,7 @@ export function WorkerExperiencePage() {
       {loading ? (
         <AutoSkeleton fallbackHeight={84} fallbackCount={4} /> /* 読み込み中は入力欄の仮配置（2026-07-27） */
       ) : (<>
-        {/* 経験（最大5）＋免許・資格・保険方針：同じ帯に横並び・横スワイプで移動（2026-08-03たきと指示） */}
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）・免許・資格・保険方針</p>
+        {/* 経験（最大5）／免許・資格・保険方針：タブ＋全幅ページ切替スワイプ（2026-08-03たきと指示） */}
         <div style={{ marginBottom:20 }}>
           <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
         </div>

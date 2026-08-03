@@ -474,8 +474,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {editBox==="declared" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>経験・資格（自己申告）</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
-      {/* 経験カード＋免許・資格・保険方針パネル：同じ帯に横並び・横スワイプで移動（2026-08-03たきと指示・指連動＝ネイティブ横スクロール＋snap） */}
-      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>経験（作物 × 作業 × どのくらい）・免許・資格・保険方針</p>
+      {/* 経験／免許・資格・保険方針：タブ＋全幅ページ切替スワイプ（2026-08-03たきと指示・指連動＝ネイティブ横スクロール＋snap） */}
       <div style={{ marginBottom:16 }}>
         <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
       </div>
