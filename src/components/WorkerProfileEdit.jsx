@@ -323,11 +323,14 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   if (loading) return <AutoSkeleton fallbackHeight={92} fallbackCount={5} />;
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      {/* 雇い手プロフィール編集と同じ構造：見出し・ページ全体の保存は廃止（2026-07-25）、
-          説明文も削除（2026-08-03たきと指示）＝プレビューボタンだけを右端に残す。保存は各ボックスのモーダル内 */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", marginBottom:20 }}>
-        <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ flexShrink:0, padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
-      </div>
+      {/* 雇い手プロフィール編集と同じ構造：見出し・説明文・ページ全体の保存は廃止（2026-07-25／2026-08-03）。
+          プレビューは運営チャットと同じ浮遊ボックスへ移植（2026-08-03たきと指示）＝下部に固定・
+          スクロールで格納（cb-admin-chat-fab の作法をそのまま使う）。保存は各ボックスのモーダル内 */}
+      <button onClick={()=>setShowPreview(true)} className="f-sans cb-admin-chat-fab"
+        style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
+        <span style={{ fontSize:18, lineHeight:1 }}>👀</span>
+        <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
+      </button>
 
       {/* はじめの2つガイド（2026-07-25改・顔写真は義務化解除済みのため削除）：空の時だけ上部に。
           ①名前②経験の質問1つ＝応募時のサーバーゲート（apply_to_job・apply_profile_gate=true）と同一条件 */}
@@ -629,7 +632,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
       {showPreview && (
-        <div onClick={()=>setShowPreview(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
+        <div onClick={()=>setShowPreview(false)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
           {/* 求人プレビューと同型のボックス：ポップアップ0.8秒・下限=下部フッター+10px（2026-07-16） */}
           {/* touchAction/overscrollBehavior: iOSでスクロールが背面ページに奪われるのを防ぐ（2026-07-14） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>

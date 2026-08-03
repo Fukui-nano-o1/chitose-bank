@@ -940,6 +940,12 @@ body:has(.qset-full) .app-header-mobile-float,
 body:has(.cb-lock-scroll) .profile-employer-fab,
 body:has(.cb-preview-overlay) .profile-employer-fab,
 body:has(.cb-box-overlay) .profile-employer-fab { display: none !important; }
+/* 浮遊ボックス（運営チャット／プロフィールのプレビュー）も同じ扱い（2026-08-03）：
+   ボックス・プレビュー展開中は暗幕の下に透けるので隠す */
+body:has(.cb-lock-scroll) .cb-admin-chat-fab,
+body:has(.cb-preview-overlay) .cb-admin-chat-fab,
+body:has(.cb-box-overlay) .cb-admin-chat-fab,
+body:has(.qset-full) .cb-admin-chat-fab { display: none !important; }
 body:has(.qset-full) .profile-employer-fab,
 body:has(.qset-full) .nav-coach { display: none !important; }
 body:has(.qset-full) .site-footer-fixed { display: none !important; }
