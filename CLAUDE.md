@@ -2065,3 +2065,13 @@ madefor死亡→zipcloudで成功／両方notfoundの区別
 【未対応（次回候補）】同じzipcloud直叩きが残るページ：AccountHolderForm（新規登録①）・
 LandingFlow（求人作成の場所）・EmployerProfileEdit。zipLookupへの乗せ替えは同型15分/箇所
 ━━━ ここまで ━━━
+
+━━━ 2026-08-02(続12) 郵便番号検索のzipLookup一本化・完了 ━━━
+・残っていたzipcloud直叩き5箇所を乗せ替え：AccountHolderForm(searchAccountZip)／
+  LandingFlow(searchZip・searchPbZip)／EmployerProfileEdit(searchRecruiterZip・fillSplitFromAccount)。
+  各関数の役割・文言・フォーカス挙動は不変（通信部のみzipLookupへ交換）
+・これで郵便番号→住所の窓口は lib/zipLookup.js の1箇所のみ（grepで直叩きゼロ確認）。
+  今後郵便番号検索を追加する時は必ずzipLookupを使うこと（zipcloud直叩きを書かない）
+・検証：build+lint 0 error。実機確認：新規登録①・求人作成step3・集合場所ボックス・
+  雇い手プロフィールの住所検索が1秒前後で返るか（2回目は即時＝キャッシュ）
+━━━ ここまで ━━━
