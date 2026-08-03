@@ -260,15 +260,27 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       // 審査に出すのは「承認済みと中身が違う」時だけ（2026-07-27）。同じなら pending を空にする＝
       // 何も変えていない保存で審査待ちに戻さない／本文を承認済みの状態へ戻した時は審査依頼が取り下がる
       const qaKey = (arr) => JSON.stringify((Array.isArray(arr) ? arr : []).map(x => ({ q: x?.q || "", a: (x?.a || "").trim() })));
+      const oneQa = (x) => JSON.stringify({ q: x?.q || "", a: (x?.a || "").trim() });
       const prChanged = pr.trim() !== (approvedRef.current.pr || "").trim();
       const qaChanged = qaKey(prQa) !== qaKey(approvedRef.current.pr_qa);
-      const inReview = prChanged || qaChanged;
+      // 空にする（消す）だけの変更は審査に出さず、その場で公開版を消す（2026-08-03たきと指示
+      // 「入力項目を空にするなら審査は必要ない」）。審査が守るのは新しく公開される文字so、
+      // 消すだけなら見るものが無い。従来は消しても承認まで公開版が残り続けていた
+      const approvedQa = new Set((Array.isArray(approvedRef.current.pr_qa) ? approvedRef.current.pr_qa : []).map(oneQa));
+      const qaOnlyRemoved = qaChanged && prQa.every(x => approvedQa.has(oneQa(x))); // 承認済みの部分集合＝削除のみ
+      const prNeedsReview = prChanged && pr.trim() !== "";
+      const qaNeedsReview = qaChanged && !qaOnlyRemoved;
+      const inReview = prNeedsReview || qaNeedsReview;
+      const clearedFields = {};
+      if (prChanged && pr.trim() === "") clearedFields.pr = "";      // 自己紹介を消した＝即反映
+      if (qaChanged && qaOnlyRemoved) clearedFields.pr_qa = prQa;    // Q&Aを消しただけ＝即反映
       const reviewFields = inReview
-        ? { pr_pending: prChanged ? pr.trim() : null, pr_qa_pending: qaChanged ? prQa : null, pr_submitted_at: new Date().toISOString(),
+        ? { pr_pending: prNeedsReview ? pr.trim() : null, pr_qa_pending: qaNeedsReview ? prQa : null, pr_submitted_at: new Date().toISOString(),
             pr_revision_targets: null } // 再提出＝修正依頼の赤帯を解除（2026-07-19）
         : { pr_pending: null, pr_qa_pending: null, pr_submitted_at: null };
       const { error } = await supabase.from("worker_profiles").upsert({
         auth_id: session.user.id, nickname: nickname.trim(),
+        ...clearedFields,
         ...reviewFields,
         residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
         interests, languages, self_declared: selfDeclared,
@@ -287,6 +299,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           window.location.hash = "/apply/done";
           return;
         }
+        // 即反映した分は「承認済みの控え」も更新する（次の保存で再び差分と見なさないため）
+        if (clearedFields.pr !== undefined) approvedRef.current.pr = "";
+        if (clearedFields.pr_qa !== undefined) approvedRef.current.pr_qa = prQa;
         setSaved(true);
         setSavedInReview(inReview);
         if (inReview) setRevTargets([]); // 赤帯が消えるのは再提出した時だけ（本文を直さない保存では残す）

@@ -948,14 +948,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                文字タブの羅列を廃止し、タップで各サブページへ ═══ */}
           {/* トップボックスは反転式（2026-07-16・働き手側と同構造）：表=アイコン＋農園名／裏=アイコン・名前抜きのプレビュー。右上⇄で反転0.8秒 */}
           <div style={{ position:"relative" }}>
-            <button onClick={()=>{ if (empReview === "pending") return; window.location.hash="/profile/employer/profile"; }}
+            <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }}
               className={"f-sans" + (empTopAnim ? " " + empTopAnim : (empReview ? "" : empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : ""))}
               onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && empTopAnim === "pflip-in") setEmpTopAnim(""); }}
-              style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding: empReview ? "28px 20px 44px" : "28px 20px", cursor: empReview === "pending" ? "default" : "pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
-              {/* 審査帯（2026-07-19）：審査待ち=オレンジ帯＋タップ不能／修正依頼中=赤帯（タップで修正へ） */}
+              style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding: empReview ? "28px 20px 44px" : "28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+              {/* 審査帯（2026-07-19／2026-08-03改定）：審査中もタップして修正できる＝出し直しの締切を作らない。
+                  保存すると texts_pending が丸ごと上書きされ、運営が見るのは常に最新の内容になる */}
               {empReview && (
                 <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"8px 12px", borderRadius:"0 0 24px 24px", background: empReview === "revision" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:13, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>
-                  {empReview === "revision" ? "⚠️ 修正のお願いがあります（タップして修正）" : "⏳ 審査待ち：運営が確認しています"}
+                  {empReview === "revision" ? "⚠️ 修正のお願いがあります（タップして修正）" : "⏳ 審査中：タップで修正できます（最新の内容が審査されます）"}
                 </span>
               )}
               {!empTopBack ? (
@@ -1632,6 +1633,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           onCopyJob={async ()=>{
             const { data, error } = await supabase.rpc("copy_job", { p_job_number: previewJob.num });
             if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+            // コピーした行をそのまま次の画面へ渡す（2026-08-03）：求人フローはこれthatあれば
+            // jobsの読み直しを待たずに復元できる＝「更新that遅くてはじめから始まる」の解消
+            try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
             // 元の日程が過ぎていた場合は空で複製される（終了扱い防止・2026-07-24）。選び直しを案内
             if (data.dates_cleared) alert("コピーしました。元の作業日程は終了しているため空にしています。確認ページの「日程」から新しい日を選んでください。");
             setPreviewJob(null);

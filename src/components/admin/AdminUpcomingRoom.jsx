@@ -6,12 +6,11 @@
 // 読み取り専用（admin_working_jobs RPC・security definer + app_admins ゲート）。ここからの書き込みは無し。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
-import { CROP_OPTIONS, dateRangeLabel, startsWithinDays } from "../../lib/utils";
+import { dateRangeLabel, startsWithinDays } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
 import { AdminNav } from "./AdminNav";
 
-const cropIcon = (crop) => CROP_OPTIONS.find(c => c.name === crop)?.icon || "🌱";
 
 // 作業日程：agreed_dates（当事者が合意した実施日の配列）があればそれ、無ければ求人の日程
 function scheduleLabel(item) {
@@ -53,7 +52,6 @@ function CardHead({ item }) {
   return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:8 }}>
       <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-        <span style={{ fontSize:22, lineHeight:1, flexShrink:0 }}>{cropIcon(item.crop)}</span>
         <div style={{ minWidth:0 }}>
           <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.crop || "作物未設定"}　{item.task || ""}</p>
           <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0" }}>{[item.prefecture, item.city].filter(Boolean).join(" ") || "地域未設定"}</p>
@@ -107,7 +105,7 @@ export function AdminUpcomingRoom() {
           <div key={item.application_id} className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid #00897B" }}>
             <CardHead item={item} />
             <PartyLine item={item} />
-            <p className="f-sans" style={{ fontSize:12, color:"#444", margin:"8px 0 10px" }}>📅 {scheduleLabel(item)}</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#444", margin:"8px 0 10px" }}>{scheduleLabel(item)}</p>
             <div style={{ display:"flex", flexDirection:"column", gap:6, background:"#FAFAFA", borderRadius:10, padding:"10px 12px" }}>
               <CheckRow label="採用" at={item.hired_at} />
               <CheckRow label="保険の準備" at={item.insurance_prepared_at} />

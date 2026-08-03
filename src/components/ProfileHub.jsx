@@ -171,14 +171,15 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
             {/* ═══ Airbnb型入口メニュー（働き手側・2026-07-14）：農家プロ入口と同構造。旧サイドタブ列は廃止 ═══ */}
             {/* トップボックスは反転式（2026-07-16）：表=アイコン＋ニックネーム／裏=アイコン・ニックネーム抜きのプレビュー。右上⇄で反転0.8秒 */}
             <div style={{ position:"relative" }}>
-              <button onClick={()=>{ if (wReview === "pending") return; window.location.hash="/profile/worker/profile"; }}
+              <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }}
                 className={"f-sans" + (wTopAnim ? " " + wTopAnim : (wReview ? "" : wUnsetReq > 0 ? " cb-urgent-card" : wUnsetCount > 0 ? " cb-urgent-still" : ""))}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && wTopAnim === "pflip-in") setWTopAnim(""); }}
-                style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_ORANGE, borderRadius:24, padding: wReview ? "28px 20px 44px" : "28px 20px", cursor: wReview === "pending" ? "default" : "pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
-                {/* 審査帯（2026-07-19）：審査待ち=オレンジ帯＋タップ不能／修正依頼中=赤帯（タップで修正へ） */}
+                style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_ORANGE, borderRadius:24, padding: wReview ? "28px 20px 44px" : "28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
+                {/* 審査帯（2026-07-19／2026-08-03改定）：審査中もタップして修正できる＝出し直しの締切を作らない。
+                    保存すると pr_pending/pr_qa_pending が上書きされ、運営が見るのは常に最新の内容になる */}
                 {wReview && (
                   <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"8px 12px", borderRadius:"0 0 24px 24px", background: wReview === "revision" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:13, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>
-                    {wReview === "revision" ? "⚠️ 修正のお願いがあります（タップして修正）" : "⏳ 審査待ち：運営が確認しています"}
+                    {wReview === "revision" ? "⚠️ 修正のお願いがあります（タップして修正）" : "⏳ 審査中：タップで修正できます（最新の内容が審査されます）"}
                   </span>
                 )}
                 {!wTopBack ? (

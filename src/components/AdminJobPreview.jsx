@@ -40,7 +40,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
   }, [jobNumber]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [dangerLightbox, setDangerLightbox] = useState(null);
-  // タップ式修正依頼（2026-07-19）：審査中、プレビューの各項目の「⚠️指摘」を押して、何がどう問題かを積み上げる
+  // タップ式修正依頼（2026-07-19）：審査中、プレビューの各項目の「指摘」を押して、何がどう問題かを積み上げる
   const [findings, setFindings] = useState([]); // [{target, issueType, note}]
   const [editTarget, setEditTarget] = useState(null); // 指摘編集中の項目ラベル
   const [editIssue, setEditIssue] = useState("");
@@ -68,7 +68,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
   const revChip = (label) => ownerView ? null : (
     <button onClick={(e)=>{ e.stopPropagation(); openFindingEditor(label); }} className="f-sans"
       style={{ position:"absolute", top:8, right:8, zIndex:4, background: findingFor(label) ? "#EA580C" : "rgba(255,255,255,0.95)", color: findingFor(label) ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:16, padding:"4px 10px", fontSize:11, fontWeight:700, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
-      {findingFor(label) ? "⚠️ 指摘済み" : "⚠️ 指摘"}
+      {findingFor(label) ? "指摘済み" : "指摘"}
     </button>
   );
   const revOutline = (label) => (!ownerView && findingFor(label)) ? { outline:"2px solid #EA580C", outlineOffset:2 } : {};
@@ -144,10 +144,10 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         position:"sticky", top:0, zIndex:10, background:"#FFF8E7", borderBottom:"1px solid #F5D98F",
         padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap",
       }}>
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:0 }}>🔍 審査プレビュー — 各項目の「⚠️指摘」を押して修正を依頼できます</p>
+        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:0 }}>審査プレビュー — 各項目の「指摘」を押して修正を依頼できます</p>
         <div style={{ display:"flex", gap:8, flexShrink:0 }}>
           <button onClick={onClose} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-          <button onClick={findings.length > 0 ? submitRevision : ()=>alert("修正を依頼したい項目の「⚠️指摘」を押して、何がどう問題かを入力してください。")} disabled={!job || revSending} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background: findings.length > 0 ? "#EA580C" : "#fff", color: findings.length > 0 ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>{revSending ? "送信中..." : `修正を依頼${findings.length > 0 ? `（${findings.length}）` : ""}`}</button>
+          <button onClick={findings.length > 0 ? submitRevision : ()=>alert("修正を依頼したい項目の「指摘」を押して、何がどう問題かを入力してください。")} disabled={!job || revSending} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background: findings.length > 0 ? "#EA580C" : "#fff", color: findings.length > 0 ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>{revSending ? "送信中..." : `修正を依頼${findings.length > 0 ? `（${findings.length}）` : ""}`}</button>
           <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
         </div>
       </div>
@@ -387,7 +387,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         </div>
       )}
 
-      {/* 指摘エディタ（2026-07-19）：項目の「⚠️指摘」タップで開く。何がどう問題かを選んで補足を書く */}
+      {/* 指摘エディタ（2026-07-19）：項目の「指摘」タップで開く。何がどう問題かを選んで補足を書く */}
       {editTarget && createPortal(
         <div onClick={()=>setEditTarget(null)} style={{ position:"fixed", inset:0, zIndex:10050, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:420, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
@@ -417,7 +417,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       {revSent && createPortal(
         <div style={{ position:"fixed", inset:0, zIndex:10060, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
           <div className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"28px 24px", maxWidth:340, width:"100%", textAlign:"center" }}>
-            <div style={{ fontSize:40, marginBottom:10 }}>✉️</div>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 6px" }}>修正依頼を送りました</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>農家にチャットとメールで届きます。求人は「作成中」に戻ります。</p>
           </div>

@@ -5,7 +5,9 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadJobPhoto } from "../lib/image";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY } from "../lib/utils";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, photoThumb, splitTextsForReview } from "../lib/utils";
+import { getCache, setCache } from "../lib/viewCache";
+import { snapGet } from "../lib/snapshot";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
@@ -218,7 +220,7 @@ function LFPhotoReorderStrip({ photos, setPhotos }) {
                 WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none",
               }}
             >
-              <img loading="lazy" draggable={false} src={p.url} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover", pointerEvents:"none" }} />
+              <img loading="lazy" draggable={false} src={photoThumb(p)} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover", pointerEvents:"none" }} />
               {i === 0 && <span className="f-sans" style={{ position:"absolute", top:4, left:4, fontSize:9, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:6, padding:"1px 5px" }}>表紙</span>}
             </div>
             <div style={{ display:"flex", gap:4, marginTop:4 }}>
@@ -333,9 +335,12 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
 
   const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
 
-  const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? initialRole ?? ""); // "" | "farmer" | "worker"
-  const [step, setStep] = useState((initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : 0))); // URL(#/work/new/{step})最優先→devJump→draft→0
   const _editJobNumber = (() => { const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/edit\/(\d+)$/); return m ? parseInt(m[1],10) : null; })();
+  const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? (_editJobNumber ? "farmer" : null) ?? initialRole ?? ""); // "" | "farmer" | "worker"
+  // 編集・コピー（#/work/edit/{n}）は確認ページ(11)から始める（2026-08-03）。
+  // 初期値that0（入口）だと、jobsを読み終えるまで「はじめから」の画面that見えてしまう。
+  // 実際のstepは読み込み後に draft_step で上書きされる（copy_jobも draft_step=11 で作る）
+  const [step, setStep] = useState((initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : (_editJobNumber ? 11 : 0)))); // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
@@ -512,7 +517,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     if (!jobDateStart) { alert("作業日程が未設定です。「日程」から新しい日を選んでから掲載してください。"); setReturnToConfirm(true); setStep(4); return; }
     setPublishModal(true);
   };
-  const [confEmployer, setConfEmployer] = useState(null); // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）
+  // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）。
+  // 読み込み前から出す（2026-08-03たきと指示「確認ページのプロフィールの復元が遅い」）：お仕事タブが
+  // 保存した同じ全列データ（viewCache farm:empMini → アプリ再起動後は snapshot empMini）を初期値にし、
+  // 裏で最新へ差し替える。キャッシュは表示専用の規則どおり（保存値・権限判定には使わない）
+  const [confEmployer, setConfEmployer] = useState(() => getCache("farm:empMini") ?? snapGet("empMini") ?? null);
   const [confProfileOpen, setConfProfileOpen] = useState(false); // 農家プロ未入力時：カードタップで編集ボックス展開（2026-07-16）
   // 待遇の求人ごと変更（2026-07-18）：確認ページの待遇タップで編集ボックス。
   // 「この求人のみ」＝jobPerksに保持→jobs.perksへ保存（求人審査で内容確認）／「保存」＝プロフィールにも反映
@@ -545,12 +554,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         commute_allowance_detail: perkDraft.has_commute_allowance ? (perkDraft.commute_allowance_detail || "") : "",
         supplies_cap: perkDraft.employer_pays_supplies ? (perkDraft.supplies_cap.trim() || "") : "",
       };
+      // 空にした項目（例：通勤手当のチェックを外す）は審査に出さず、その場で公開列を空にする
+      // （2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。審査は文字が入る変更だけ
+      const { pending: newPend, cleared: clearedTexts } = splitTextsForReview(desired, cur || {});
       const pend = { ...((cur && cur.texts_pending) || {}) };
-      Object.entries(desired).forEach(([k, v]) => {
-        if (((cur && cur[k]) || "") !== v) pend[k] = v; else delete pend[k];
-      });
+      Object.keys(desired).forEach(k => { delete pend[k]; });        // 今回触ったキーは一旦外し
+      Object.entries(newPend).forEach(([k, v]) => { pend[k] = v; }); // 審査に出す分だけ積み直す
       const payload = {
         auth_id: session.user.id,
+        ...clearedTexts, // 空にした項目は即その場で消す（審査を通さない）
         has_transport: perkDraft.has_transport,
         has_parking: perkDraft.has_parking,
         // parking_capacityはinteger列。「3台」等の文字が混ざっても数字だけ取り出し、空はnull（2026-07-19修正）
@@ -569,13 +581,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       setJobPerks(null); // プロフィールに保存＝この求人はプロフィールの待遇に従う
       try {
         const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (ep) setConfEmployer(ep);
+        if (ep) { setConfEmployer(ep); setCache("farm:empMini", ep); }
       } catch {}
       setPerksEditOpen(false);
     } catch { alert("保存に失敗しました。"); }
     setPerkSaving(false);
   };
-  const [confTrust, setConfTrust] = useState(null); // 確認ページ用：登録してからの月日など（employer_trust_info）
+  const [confTrust, setConfTrust] = useState(() => getCache("farm:empTrust") ?? null); // 確認ページ用：登録してからの月日など（employer_trust_info・お仕事タブと同じキャッシュ）
   const [confGeo, setConfGeo] = useState(null); // 確認ページ用：住所→座標（詳細ページと同構造のJobLocationMap表示に使用）
   const [confIntroOpen, setConfIntroOpen] = useState(false); // 確認ページ用：農園紹介モーダル（詳細ページと同構造）
   const [jobNotes,          setJobNotes]          = useState(d.jobNotes ?? "");
@@ -698,14 +710,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     } catch (e) { alert("保存に失敗しました"); }
     setPbSaving(false);
   };
-  useEffect(() => {
-    if (!_editJobNumber) return;
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const { data, error } = await supabase.from("jobs").select("*").eq("job_number", _editJobNumber).eq("farmer_id", session.user.id).single();
-        if (error || !data) return;
+  // jobs行 → フローのstateへ復元（2026-08-03に関数化）。コピー直後の即時復元（prefill）と
+  // 通常の読み込みで同じ対応表を使う＝どちらかだけ直して食い違う事故を防ぐ
+  const applyJobRow = (data) => {
         setRole("farmer");
         setFarmerCropText(data.crop ?? "");
         setFarmerTaskText(data.task ?? "");
@@ -744,6 +751,40 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
         setJobHolidays(Array.isArray(data.holidays) ? data.holidays : []);
         setStep(data.draft_step != null ? data.draft_step : 11);
+  };
+
+  // 編集・コピーで開いた時の復元（2026-08-03に高速化）。
+  // 【従来の問題】stepの初期値that0（＝フローの入口）で、jobsを読み終えてから確認ページへ飛ぶ設計だった。
+  // そのため通信that少しでも遅いと「はじめから」の画面that見え続けた（コピー直後に多発）。
+  // 【対処】①stepの初期値を編集モードでは11（確認ページ）に変更＝入口をそもそも描かない
+  //        ②コピー直後は copy_job that返した行をsessionStorage経由で受け取り、通信を待たずに即復元
+  //        ③通常の読み込みは getSession の往復を待たない（jobsのRLS owner select that自分の行に絞るso
+  //          farmer_idの明示条件は冗長だった）＝1往復ぶん速くなる
+  useEffect(() => {
+    if (!_editJobNumber) return;
+    // ②コピー直後の即時復元：copy_jobの返り値をそのまま使う（ネット往復ゼロ）。一度きりで消費する
+    try {
+      const raw = sessionStorage.getItem("cb_editJobPrefill");
+      if (raw) {
+        sessionStorage.removeItem("cb_editJobPrefill");
+        const row = JSON.parse(raw);
+        if (row && row.job_number === _editJobNumber) applyJobRow(row);
+      }
+    } catch {}
+    (async () => {
+      try {
+        // ③セッションと求人を並列で取る（従来はgetSession→jobsの直列で、JWT更新that走ると
+        //   その待ちthatまるまる上乗せされていた）。取れなければ何もしない（prefillの値を残す）
+        const [sessRes, jobRes] = await Promise.all([
+          supabase.auth.getSession(),
+          supabase.from("jobs").select("*").eq("job_number", _editJobNumber).maybeSingle(),
+        ]);
+        const uid = sessRes?.data?.session?.user?.id;
+        const data = jobRes?.data;
+        if (jobRes?.error || !data) return;
+        // 所有者チェックは維持（管理者はRLS上ずべての求人を読めるso、他人の求人を編集フローで開かせない）
+        if (!uid || data.farmer_id !== uid) return;
+        applyJobRow(data);
       } catch {}
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -752,6 +793,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [draftBarFull, setDraftBarFull] = useState(false);
   const [draftOverlay, setDraftOverlay] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
+  // その場保存（下部ナビ「保存」）の完了表示。遷移しない代わりに、保存できたことをここで知らせる
+  const [savedToast, setSavedToast] = useState(false);
+  const savedToastTimer = useRef(null);
+  useEffect(() => () => { if (savedToastTimer.current) clearTimeout(savedToastTimer.current); }, []);
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
@@ -858,12 +903,22 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     } catch (e) { return { ok:false, reason:String(e) }; }
   };
 
-  const handleTopSaveExit = async () => {
+  // 保存の出口は2つ（2026-08-03たきと指示「更新は完了させるが、ページ遷移はさせるな」）：
+  // ・exit:false ＝ 確認ページ下部ナビの「保存」。その場で保存するだけ。フローは閉じず、
+  //   求人ページ（お仕事タブの作成中）へ引き戻さない。編集を続けられる
+  // ・exit:true  ＝ 終了モーダルの「保存して終了」。保存してからフローを閉じ、作成中へ着地する
+  const handleTopSave = async ({ exit = false } = {}) => {
     if (draftSaving) return;
     setDraftSaving(true); setDraftMsg("");
     const res = await saveDraftToSupabase();
     setDraftSaving(false);
     if (res.ok) {
+      if (!exit) { // その場保存：遷移も cb_afterDraftSave（着地先の指定）もしない。保存できたことだけ知らせる
+        setSavedToast(true);
+        if (savedToastTimer.current) clearTimeout(savedToastTimer.current);
+        savedToastTimer.current = setTimeout(() => setSavedToast(false), 1800);
+        return;
+      }
       try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
       setDraftOverlay(true);
       setTimeout(() => { setDraftOverlay(false); window.location.hash = "/work"; if (typeof onComplete === "function") onComplete(); }, 1100);
@@ -898,10 +953,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const { data } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (data) setConfEmployer(data);
-        const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: session.user.id });
-        if (t && t.ok) setConfTrust(t);
+        // 依存の無い2本は並列（2026-08-03・直列2往復→1往復ぶんの待ちに）。
+        // 取得できたらお仕事タブと同じキャッシュへ書き戻す＝どちらの画面から入っても次回は即描画
+        const [epRes, tRes] = await Promise.all([
+          supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
+          Promise.resolve(supabase.rpc("employer_trust_info", { p_farmer_id: session.user.id })).catch(() => ({ data: null })),
+        ]);
+        if (epRes.data) { setConfEmployer(epRes.data); setCache("farm:empMini", epRes.data); }
+        const t = tRes.data;
+        if (t && t.ok) { setConfTrust(t); setCache("farm:empTrust", t); }
       } catch {}
     })();
   }, [confProfileOpen]); // 編集ボックスを閉じたら再取得＝入力したプロフィールが確認ページに即反映（2026-07-16）
@@ -1075,7 +1135,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           <div style={{ background:"#fff", borderRadius:16, padding:28, maxWidth:360, width:"100%", boxShadow:"0 8px 40px rgba(0,0,0,0.15)" }}>
             <h3 className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", marginBottom:20, textAlign:"center" }}>作成を終了しますか？</h3>
             <div style={{ display:"grid", gap:10 }}>
-              <button onClick={() => { setShowExitModal(false); handleTopSaveExit(); }} disabled={draftSaving} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12 }}>保存して終了</button>
+              <button onClick={() => { setShowExitModal(false); handleTopSave({ exit: true }); }} disabled={draftSaving} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12 }}>保存して終了</button>
               <div>
                 <button onClick={() => {
                   try { localStorage.removeItem('landingFlowDraft_v1'); localStorage.removeItem('postLoginReturnTo'); } catch {}
@@ -1562,7 +1622,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                   {jobPhotos.length > 0 && (
                     <div>
                       <div style={{ position:"relative", marginBottom:10 }}>
-                        <img loading="lazy" src={jobPhotos[0].url} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
+                        <img loading="lazy" src={photoThumb(jobPhotos[0])} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
                         <span className="f-sans" style={{ position:"absolute", top:10, left:10, padding:"4px 12px", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, fontWeight:700, borderRadius:8 }}>カバー</span>
                         <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== 0))} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:15, cursor:"pointer", lineHeight:1 }}>×</button>
                       </div>
@@ -1573,7 +1633,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                             const idx = i + 1;
                             return (
                               <div key={idx} style={{ position:"relative", width:"calc(50% - 4px)" }}>
-                                <img loading="lazy" src={p.url} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
+                                <img loading="lazy" src={photoThumb(p)} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
                                 <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== idx))} style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:"50%", border:"none", background:"#222", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                               </div>
                             );
@@ -1619,7 +1679,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
             <div onScroll={e => { const w = e.currentTarget.clientWidth; if (w > 0) setSelectedPhotoIndex(Math.max(0, Math.min(jobPhotos.length - 1, Math.round(e.currentTarget.scrollLeft / w)))); }}
               style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:14, touchAction:"pan-x pan-y", overscrollBehaviorX:"contain", transform:"translateZ(0)", marginBottom:8 }}>
               {jobPhotos.map((p, i) => (
-                <img loading="lazy" key={i} src={p.url} alt={`写真${i+1}`} style={{ flexShrink:0, width:"100%", height:200, objectFit:"cover", borderRadius:14, scrollSnapAlign:"start" }} />
+                <img loading="lazy" key={i} src={photoThumb(p)} alt={`写真${i+1}`} style={{ flexShrink:0, width:"100%", height:200, objectFit:"cover", borderRadius:14, scrollSnapAlign:"start" }} />
               ))}
             </div>
             <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:10 }}>
@@ -1921,7 +1981,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               }
             };
 
-            // 一時保存は下部ナビの「保存」ボタン（トップレベルのhandleTopSaveExitを再利用）に移設（2026-07-13）
+            // 一時保存は下部ナビの「保存」ボタン（トップレベルのhandleTopSaveを再利用）に移設（2026-07-13）
 
             return (<>
               {/* タイトル */}
@@ -1947,15 +2007,23 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                       {/* overflowY:hidden（2026-07-16）：スクローラー自身が縦にバウンスせず、縦ドラッグは親（ページ）のスクロールへ渡る */}
                       <div ref={confScrollRef} onScroll={handleConfPhotoScroll} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x pan-y", overscrollBehaviorX:"contain" }}>
                         {jobPhotos.length > 0
-                          ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => (
-                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:392, borderRadius:12, background:"#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
-                                <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>
+                          ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => {
+                              // 軽いサムネを先に敷いてから原寸を重ねる（2026-08-03たきと指示「確認ページの写真の復元が遅い」）。
+                              // 原寸は平均400KB・最大10枚so、リロード直後は白いままだった。サムネ(640px・約1/6)は
+                              // 一覧やカードで既に読み込み済みのことが多く、ほぼ即座に絵が出る→原寸が届いたら上に重なる
+                              // ＝画質は原寸のまま（詳細ページのカルーセルをthumbにしない方針を守る）
+                              const th = photoThumb(p);
+                              const hasTh = th && th !== p.url;
+                              return (
+                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:392, borderRadius:12, background: hasTh ? `#F0F0F0 url(${th}) center/cover no-repeat` : "#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
+                                {!hasTh && <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>}
                                 <img loading="lazy" src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
                                 {p.caption && (
                                   <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
                                 )}
                               </div>
-                            ))
+                              );
+                            })
                           : (
                               /* 写真が1枚も無いときは、絵文字を3枚並べず、求人者のアイコンを1枚だけ大きく出す
                                  （2026-07-30たきと指示・求人詳細と同じ見え方） */
@@ -2059,6 +2127,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                       { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
                       { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
                       { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
+                      // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
+                      // 確認ページは掲載前のプレビューso、プロフィールの現在値（confEmployer）を出す。
+                      // 掲載すると掲載時トリガーthatこの値をperksへ凍結し、以後は詳細ページにも同じ形で出る
+                      { label:"受動喫煙", on: !!pk.smoking_policy,
+                        value: pk.smoking_policy
+                          ? (pk.smoking_policy === "喫煙場所あり"
+                              ? `喫煙場所あり${pk.smoking_area ? "（" + pk.smoking_area + "）" : ""}`
+                              : pk.smoking_policy)
+                          : EMPTY_MARK },
                     ];
                     return (
                       <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
@@ -2524,6 +2601,14 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         </div>
       )}
 
+      {/* その場保存の完了表示（2026-08-03）：下部ナビ「保存」は遷移しないので、
+          保存できたことをこの一言で知らせる。1.8秒で自然に消える */}
+      {savedToast && (
+        <div className="f-sans" style={{ position:"fixed", left:"50%", transform:"translateX(-50%)", bottom:"calc(84px + env(safe-area-inset-bottom, 0px))", zIndex:9998, background:"rgba(34,34,34,0.92)", color:"#fff", fontSize:13, fontWeight:700, padding:"10px 18px", borderRadius:20, boxShadow:"0 4px 16px rgba(0,0,0,0.2)", pointerEvents:"none" }}>
+          保存しました
+        </div>
+      )}
+
       {/* 開催期間カレンダー📅の浮遊ボタン＋モーダルは削除（2026-07-24・誰も展開しないため）。
           作業日程は主要情報カードの「日程」行の編集リンク（→step4）で選び直せる */}
 
@@ -2599,7 +2684,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           )}
           {isFarmer && step === 11 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => handleTopSave({ exit: false })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
             </div>
           )}
@@ -2628,7 +2713,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           {/* 確認ページ(step11)：右下に「保存」＋「掲載する」の浮遊ペア */}
           {isFarmer && step === 11 && (
             <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10 }}>
-              <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => handleTopSave({ exit: false })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
             </div>
           )}

@@ -586,3 +586,21 @@ export function perkBadges(ep) {
     ep.accessory_ok && "💍 アクセサリーOK",
   ].filter(Boolean);
 }
+
+// 自由記述の審査要否の振り分け（2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。
+// 審査（運営ゲート・憲法5条）が守っているのは「新しく公開される文字」。空にする＝公開される文字が
+// 無くなるだけso、審査を通さずその場で公開列を空にしてよい。
+// 空欄を審査待ちに積むと実害があった：①本人が消した文章が承認まで公開されたまま残る
+// ②employer_profilesはtexts_pendingがあると求人を掲載できない（block_publish_when_profile_under_review）
+// 返り値 pending=審査に出すキー（文字がある変更だけ）／cleared=その場で空にするキー
+export function splitTextsForReview(desired, approved) {
+  const pending = {}, cleared = {};
+  Object.keys(desired || {}).forEach(k => {
+    const next = String(desired[k] ?? "");
+    const cur = String((approved && approved[k]) ?? "");
+    if (next === cur) return;              // 変わっていない＝何もしない
+    if (next.trim() === "") cleared[k] = ""; // 空にした＝審査不要・即反映
+    else pending[k] = next;                  // 文字が入る変更＝審査へ
+  });
+  return { pending, cleared };
+}

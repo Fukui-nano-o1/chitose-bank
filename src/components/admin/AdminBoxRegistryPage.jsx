@@ -5,7 +5,7 @@ import { NoticeJumpText } from "../ui";
 import { AdminNav } from "./AdminNav";
 
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
-//    2タブ構成（🗂ボックス台帳 ⇄ 📢お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
+//    2タブ構成（ボックス台帳 ⇄ お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
 //    （農家プロ作成中⇄公開中と同じページャー作法）。台帳はadmin_box_registry / admin_notice_registry（RLSで管理者限定）。
 //    閲覧専用（2026-07-17変更）：編集UIは持たない。行タップで「本番に出る姿」をそのまま展開し、展開機会と説明を添える
 // 段階お祝いボックスの本番見た目プレビュー（ボックス一覧の preview_key='stage:...' から参照）。
@@ -94,8 +94,8 @@ export function AdminBoxRegistryPage() {
       <AdminNav current={pTab === "notices" ? "notices" : "boxes"} />
       <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
         {[
-          { k:"boxes",   l:"🗂 ボックス一覧",   n:rows.length },
-          { k:"notices", l:"📢 お知らせ一覧", n:nRows.length },
+          { k:"boxes",   l:"ボックス一覧",   n:rows.length },
+          { k:"notices", l:"お知らせ一覧", n:nRows.length },
         ].map(t => (
           <button key={t.k} onClick={()=>{ if (pTab !== t.k) goTab(t.k); }} className="f-sans"
             style={{ flex:1, padding:"11px 0", borderRadius:12, border: pTab===t.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:14, fontWeight: pTab===t.k ? 800 : 600, color: pTab===t.k ? "#222" : "#999", cursor:"pointer" }}>
@@ -150,7 +150,7 @@ export function AdminBoxRegistryPage() {
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               <button onClick={()=>setPreview(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
-              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>🗂 {preview.name}</p>
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{preview.name}</p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
               {(() => {

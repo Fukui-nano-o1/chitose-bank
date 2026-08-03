@@ -953,7 +953,7 @@ function ConsignorInfoEdit() {
         ) : (
           <input className="field f-sans" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value)} placeholder={f.ph || ""} style={{ fontSize:15.4, marginBottom:0 }} />
         )}
-        {(() => { const w = cfWarn(f.k); return w ? <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>⚠ {w}</p> : null; })()}
+        {(() => { const w = cfWarn(f.k); return w ? <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{w}</p> : null; })()}
       </div>
     );
   };
@@ -1167,7 +1167,7 @@ function ConsignorInfoEdit() {
         {/* 引き継ぎボックスは削除（2026-08-02たきと指示）＝引き継ぎ内容は初回の同意ゲートで既に提示済み。
             法人番号のチェックデジット警告だけは残す（公的情報との照合・不一致時のみ表示） */}
         {(() => { const cn = ((ahInfo?.company_number || d.corp_no || "") + "").trim(); return corpNoCheckOk(cn) === false && (
-          <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"0 0 10px" }}>⚠ 登録されている法人番号（{cn}）の検査用数字が合いません。修正は運営にお問い合わせください。</p>
+          <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"0 0 10px" }}>登録されている法人番号（{cn}）の検査用数字が合いません。修正は運営にお問い合わせください。</p>
         ); })()}
         {CONSIGNOR_CORP_FIELDS.map(renderCF)}
       </>)}
@@ -2538,7 +2538,7 @@ export function ConsignmentRoom() {
                 {photo ? (
                   <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block", borderRadius:16 }} />
                 ) : (
-                  <div style={{ width:"100%", height:220, borderRadius:16, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>🥦</div>
+                  <div style={{ width:"100%", height:220, borderRadius:16, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center" }} />
                 )}
                 <div style={{ padding:"12px 4px 0" }}>
                   <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
@@ -2556,7 +2556,7 @@ export function ConsignmentRoom() {
                   {(s.hazards || []).length > 0 && (
                     <div style={{ display:"flex", gap:4, marginTop:4, flexWrap:"wrap" }}>
                       {(s.hazards || []).map(h => (
-                        <span key={h} className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", background:"#F0F0F0", padding:"2px 10px", borderRadius:20 }}>⚠ {h === "その他" && s.hazard_other ? "その他（" + s.hazard_other + "）" : h}</span>
+                        <span key={h} className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", background:"#F0F0F0", padding:"2px 10px", borderRadius:20 }}>{h === "その他" && s.hazard_other ? "その他（" + s.hazard_other + "）" : h}</span>
                       ))}
                     </div>
                   )}

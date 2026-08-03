@@ -2126,3 +2126,81 @@ WorkerDeclarationBoxes（免許・資格・保険方針＝縦一列全幅の申�
 （cb-exp-page／ins-prep-pageのbody:has()方式）。両ページの「← 戻る」は左下の浮遊ボックス化。
 【検証】各コミットでbuild+lint（exit code実測）。実機目視はたきと側で随時。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-03 訪問者（anon）へのモザイク監査と根治 — 実測ベース ━━━
+【監査方法】postgres で `set local role anon` に切り替えて実際に読ませる／RPCを呼ぶ（推測でなく実測）。
+返り値を必ず受け取ること（perform だと {ok:false} でも例外が出ず「通った」と誤判定する。今回1度踏んだ）。
+JWTを立てれば authenticated も再現できる：
+  perform set_config('request.jwt.claims', json_build_object('role','authenticated','sub',<uid>)::text, true);
+  set local role authenticated;
+※postgres接続はJWTが無い＝auth.role()がNULL→coalesceで'anon'扱いになる。ログイン時の検証は必ず上の方法で。
+【見つけた穴と対処（migration 20260803131655 / 20260803131953・適用済み・repo写経済み）】
+1. jobs_public の位置情報が迂回可能だった：town はマスク済みなのに lat/lng を小数6桁（半径500m）で
+   返しており、地図に載せれば町域が判明した。最寄り駅名も素通り。
+   → anonには座標を小数2桁（約1.1km格子）へ丸め、geo_radius_mを3000m以上に、nearest_stationはNULL。
+   実測：anon lat=34.06/radius=3000/station=NULL ／ ログイン時 lat=34.059761/radius=500/town=山川町忌部（不変）。
+   ★モザイクの原則：ある項目を隠したら、同じ情報を導ける別の項目（座標・駅・写真の位置情報等）も同時に塞ぐ。
+2. worker_want_again_count のフェイルオープン（anonに {ok:true} を返していた）。
+   `auth.uid() <> p_worker_id and not exists(...)` は auth.uid() が NULL だと条件全体が NULL＝偽になり
+   拒否に入らない。2026-07-29に worker_trust_info で直したのと同じ型の穴が残っていた。
+   → `auth.uid() is null` を先に弾く＋anonからrevoke。★同型の関数を書くときは必ずNULLを先に弾く。
+3. 内部専用RPCがクライアントから直接叩けた：resolve_actor_name（任意UUIDでニックネーム／メール頭2文字が
+   引けた・実測で実名が返った）、unread_count_for（他人の未読件数）。どちらもフロント未使用so
+   public/anon/authenticated からrevoke（SECURITY DEFINERの内部呼び出しは定義者権限so機能は壊れない）。
+4. dests（旧事業データ）が anon 読み取り可＋submitted_by に運営者の実名。SELECTだけ qual=true の
+   全開放ポリシーだった → 管理者限定に差し替え（読み手は管理タブのみ・実測 anon=0行／管理者=1行）。
+【問題なしを確認したもの】job_meeting_place・worker_trust_info（2026-07-29の修理が有効）・
+admin_list_accounts/contracts（not_adminで拒否）・ask_job_question/apply_to_job（not_logged_in）・
+worker_profiles/employer_profiles/account_holders/reviews/job_questions（anon 0行）・
+market_stats/minimum_wages/help_images/admin_notice_registry（公開データ）。
+employer_nickname/avatar_url・待遇・保険snapshot・支払条件は訪問者にも見せる仕様（求人の顔・条件）so維持。
+【フロント】変更なし（DBがNULLを返すのみ）。駅名NULL時は stationLabel が移動時間だけ返す＝表示は壊れない。
+━━━ ここまで ━━━
+
+━━━ 2026-08-03 求人フロー確認ページ（step11）の復元を速く ━━━
+【症状】確認ページの写真とプロフィールの復元が遅い（たきと報告）。
+【原因】
+① プロフィール：confEmployer/confTrust が毎回 null 始まり＋getSession→employer_profiles→
+   employer_trust_info の直列3段。お仕事タブが同じデータを既にキャッシュ済みなのに使っていなかった
+② 写真：確認ページのカルーセルが原寸のみ（平均400KB・最大10枚）＝リロード直後は白いまま
+【対処（1コミット）】
+・プロフィール：初期値を getCache("farm:empMini") ?? snapGet("empMini")（＝お仕事タブが保存する
+  employer_profiles全列）に。confTrustも farm:empTrust から。取得2本はPromise.allで並列化し、
+  結果は同じキャッシュへ書き戻す＝お仕事タブ⇄確認ページのどちらから入っても次回は即描画
+・写真：カルーセルの各スライドに軽量サムネ(640px)を背景で先出し→原寸<img>が届いたら上に重なる。
+  ★画質は原寸のまま＝「詳細ページのカルーセルはthumbにしない」方針（2026-08-02）を守る形の高速化。
+  サムネがある時は📷プレースホルダーを出さない（サムネが絵として出るため）
+・編集UIの小さい表示4箇所（並び替えストリップ・step7カバー/グリッド・step8スワイプ）はサムネへ変更
+  ＝カード・サムネ表示はthumb、の既存ルールに合流
+【検証】build+lint 0 error（警告31=既存のみ・新規ゼロ）。実機確認：確認ページをリロードして
+写真が即出るか（先にやや粗い絵→原寸に切り替わる）・農家プロフィールカードが即出るか・
+待遇の編集保存後に確認ページへ反映されるか
+━━━ ここまで ━━━
+
+━━━ 2026-08-03 今日ページ：ボックスのタップ不能を全廃（d522c45）━━━
+【たきと指示】「タップ不能はやめよう」
+・最後まで残っていたカレンダー箱の無効状態（予定・求人ゼロならタップ不可）を解除。
+  予定が無くてもカレンダー面へ行ける（空のカレンダーが出る＝壊れない）。
+  これで今日ページの全ボックスが常時タップ可＝ボックス＝リンクの原則が例外なしになった。
+・薄表示(0.45)は「いま用事が無い」の目印としてのみ残す（押せなさの表現ではない）。
+・唯一の読み手だった jobCount state を廃止（今日:roles キャッシュの jc も書かなくなった。
+  農家かどうかの判定に使う jc の取得自体は不変）。
+・残る disabled は全て一時的な多重送信ガード（送信中・処理中）＝タップ不能の話とは別物so維持。
+【検証】build成功・lint 0 error（警告2件=既存exhaustive-deps）。実機：予定ゼロの状態で
+📅カレンダー箱をタップしてカレンダー面に行けるか
+━━━ ここまで ━━━
+
+━━━ 2026-08-03(続) 今日ページ：なにもなければ説明文を明記（5d0ee4b）━━━
+【たきと指示】「全てタップ可能にしよう。なにもなければ説明文を明記させよう」
+・空状態ボックスを刷新：用件の絵文字＋「この用事はいまありません」（15px太字）＋説明文を
+  本文として大きく出す（13px・左寄せ・max420）。従来は見出し下に12pxグレーで添えるだけだった。
+  中身がある時は従来どおり見出し下の小さい添え書き＝二重に出さない。
+・カレンダー箱に desc を新設（これで全13用件が説明文を持つ）。あわせて、予定がゼロのときは
+  空のカレンダー面へ飛ばさず専用ページ（説明つき）へ送る。予定があるときだけカレンダー面へ直行
+  ＝「タップ可能だが行き先が空っぽで理由が分からない」を無くす。
+・ボックス自体のタップ不能は前コミット(d522c45)で全廃済み。残る disabled は送信中・処理中の
+  多重送信ガードのみ（別物so維持）。
+【検証】build成功・lint 0 error（警告2件=既存exhaustive-deps）・distに新文言をgrep確認。
+実機：①予定ゼロで📅カレンダー箱→説明ページに着地するか ②各用件の空ページで説明文が大きく出るか
+③予定がある状態では従来どおりカレンダー面へ直行するか
+━━━ ここまで ━━━
