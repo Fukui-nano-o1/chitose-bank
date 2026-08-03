@@ -60,7 +60,7 @@ function diagnoseError(e) {
   return { title: "未分類エラー", fix: "message・component・operationを確認", severity: "unknown" };
 }
 
-// 📊きっかけ集計（管理者・2026-07-24）：source/reasonsの件数棒＋自由記述一覧。RLS survey admin selectで全件読める。
+// きっかけ集計（管理者・2026-07-24）：source/reasonsの件数棒＋自由記述一覧。RLS survey admin selectで全件読める。
 function SurveyStats() {
   const [rows, setRows] = useState(null);
   useEffect(() => {
@@ -516,9 +516,9 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
   const openMsgReports = msgReports.filter(r => r.status !== "resolved");
   const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + empPendingCount + openReports.length + openMsgReports.length + disputes.length;
   const TOP_TABS = [
-    { k:"jobs",    l:"審査",       icon:"🔍", n: reviewTotal },
-    { k:"account", l:"アカウント", icon:"👤", n: null },
-    { k:"other",   l:"その他",     icon:"🧰", n: null },
+    { k:"jobs",    l:"審査",       n: reviewTotal },
+    { k:"account", l:"アカウント", n: null },
+    { k:"other",   l:"その他",     n: null },
   ];
   const topTab = sub==="jobs" ? "jobs" : sub==="account" ? "account" : "other";
 
@@ -550,7 +550,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* 運営DMスレッド（アカウント→✉️で展開・2026-07-16） */}
+      {/* 運営DMスレッド（アカウント→「運営メッセージを送る」で展開・2026-07-16） */}
       {dmUser && (
         <div onClick={()=>setDmUser(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
@@ -592,13 +592,13 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
           background:"#fff", fontSize:12, fontWeight:600, color:"#222",
           cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:6,
         }}>
-          🔄 更新
+          更新
         </button>
       </div>
 
       {/* メインタブ（求人審査をデフォルト・毎日使うのはここだけ） */}
       <div style={{ display:"flex",gap:4,background:"#F7F7F7",border:"1px solid #EBEBEB",borderRadius:12,padding:4,marginBottom:24 }}>
-        {TOP_TABS.map(({ k, l, icon, n }) => (
+        {TOP_TABS.map(({ k, l, n }) => (
           <button key={k} onClick={() => setSub(k)} style={{
             flex:1, padding:"11px 8px", border:"none", borderRadius:8, fontFamily:"inherit",
             background:topTab===k?"#fff":"transparent",
@@ -608,7 +608,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             display:"flex", alignItems:"center", justifyContent:"center", gap:6,
             cursor:"pointer",
           }}>
-            <span>{icon}</span>{l}
+            {l}
             {n!=null&&n>0&&<span style={{ padding:"1px 6px",borderRadius:8,fontSize:9,fontWeight:700,background:topTab===k?"#E6F7EF":"#EBEBEB",color:topTab===k?"#00A86B":"#717171" }}>{n}</span>}
           </button>
         ))}
@@ -620,19 +620,18 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       {sub==="other" && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12, marginBottom:24 }}>
           {[
-            { k:"pages",   e:"📄", l:"主要ページ" },
-            { k:"flow",    e:"🧭", l:"求人フロー" },
-            { k:"legacy",  e:"📦", l:"旧事業データ" },
-            { k:"system",  e:"⚙️", l:"システム" },
-            { k:"survey",  e:"📊", l:"きっかけ" },
-            { k:"working", e:"🛠", l:"仕事中" },
-            { k:"upcoming", e:"⏳", l:"まもなく開始" },
-            { k:"boxlist", e:"🗂", l:"ボックス一覧" },
-            { k:"notices", e:"📢", l:"お知らせ一覧" },
-            { k:"consign", e:"🚩", l:"委託 準備室" },
+            { k:"pages",   l:"主要ページ" },
+            { k:"flow",    l:"求人フロー" },
+            { k:"legacy",  l:"旧事業データ" },
+            { k:"system",  l:"システム" },
+            { k:"survey",  l:"きっかけ" },
+            { k:"working", l:"仕事中" },
+            { k:"upcoming", l:"まもなく開始" },
+            { k:"boxlist", l:"ボックス一覧" },
+            { k:"notices", l:"お知らせ一覧" },
+            { k:"consign", l:"委託 準備室" },
           ].map(c => (
             <button key={c.k} onClick={()=>{ if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else if (c.k === "consign") { window.location.hash = "/admin/consignment"; } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <span style={{ fontSize:36, lineHeight:1 }}>{c.e}</span>
               <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>
           ))}
@@ -646,7 +645,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               <button onClick={()=>setOtherBox(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
               <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>
-                {otherBox==="pages" ? "📄 主要ページ" : otherBox==="flow" ? "🧭 求人フロー" : otherBox==="legacy" ? "📦 旧事業データ" : otherBox==="survey" ? "📊 きっかけ" : "⚙️ システム"}
+                {otherBox==="pages" ? "主要ページ" : otherBox==="flow" ? "求人フロー" : otherBox==="legacy" ? "旧事業データ" : otherBox==="survey" ? "きっかけ" : "システム"}
               </p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
@@ -771,8 +770,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                   {(u.mod_state && u.mod_state !== "active") ? (
                     <span style={{ position:"absolute", top:6, right:6, padding:"2px 7px", borderRadius:9, background: u.mod_state === "banned" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:10, fontWeight:800, boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{u.mod_state === "banned" ? "追放" : "停止"}</span>
                   ) : (u.reported > 0 || u.pending_text || u.never_signed_in) && (
-                    <span style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:13, background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
-                      {u.reported > 0 ? "⚠️" : (u.pending_text ? "📝" : "✉️")}
+                    <span className="f-sans" style={{ position:"absolute", top:6, right:6, padding:"2px 7px", borderRadius:9, background: u.reported > 0 ? "#E24B4A" : (u.pending_text ? "#C77700" : "#B0B0B0"), color:"#fff", fontSize:10, fontWeight:800, boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>
+                      {u.reported > 0 ? "通報" : (u.pending_text ? "確認待ち" : "未ログイン")}
                     </span>
                   )}
                 </div>
@@ -797,9 +796,9 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                   <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
                     <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
                       {u.has_id_check && <span className="f-sans" style={badgeSt("#E6F7EF","#00A86B")}>✓ 本人確認</span>}
-                      {u.pending_text && <span className="f-sans" style={badgeSt("#FFF4E0","#C77700")}>📝 確認待ち{u.pending_since ? ` ${u.pending_since}` : ""}</span>}
-                      {u.never_signed_in && <span className="f-sans" style={badgeSt("#F5F5F5","#717171")}>✉️ 未ログイン</span>}
-                      {u.reported > 0 && <span className="f-sans" style={badgeSt("#FDECEC","#E24B4A")}>⚠️ 通報×{u.reported}</span>}
+                      {u.pending_text && <span className="f-sans" style={badgeSt("#FFF4E0","#C77700")}>確認待ち{u.pending_since ? ` ${u.pending_since}` : ""}</span>}
+                      {u.never_signed_in && <span className="f-sans" style={badgeSt("#F5F5F5","#717171")}>未ログイン</span>}
+                      {u.reported > 0 && <span className="f-sans" style={badgeSt("#FDECEC","#E24B4A")}>通報×{u.reported}</span>}
                     </div>
                     {/* メール行：既定はマスク表示。「メールを表示」タップで全文（コピー用） */}
                     <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
@@ -815,17 +814,17 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                       { label:"登録日",       value: u.created_jst || "—" },
                       { label:"最終ログイン", value: u.never_signed_in ? "未ログイン" : (u.last_sign_in_jst || "—") },
                       { label:"本人確認",     value: u.has_id_check ? (u.id_check_month || "済") : "未" },
-                      { label:"活動",         value: `応募${u.apps_applied ?? 0}・完了${u.apps_completed ?? 0}・求人${u.jobs_posted ?? 0}・🌟${u.want_again ?? 0}` },
+                      { label:"活動",         value: `応募${u.apps_applied ?? 0}・完了${u.apps_completed ?? 0}・求人${u.jobs_posted ?? 0}・また呼びたい${u.want_again ?? 0}` },
                     ].map(({ label, value }) => (
                       <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                         <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:72, flexShrink:0 }}>{label}</span>
                         <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
                       </div>
                     ))}
-                    <button onClick={()=>openAccountDm(u)} className="f-sans" style={{ marginTop:12, width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>✉️ 運営メッセージを送る</button>
+                    <button onClick={()=>openAccountDm(u)} className="f-sans" style={{ marginTop:12, width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>運営メッセージを送る</button>
                     {u.pending_text && (
                       <p className="f-sans" style={{ marginTop:12, fontSize:12, color:"#C77700", background:"#FFFBF2", border:"1px solid #F5D98F", borderRadius:10, padding:"10px 12px", lineHeight:1.7 }}>
-                        📝 自由記述の確認待ちがあります。承認・差し戻しは「審査」タブで行ってください（このボックスでは行いません）
+                        自由記述の確認待ちがあります。承認・差し戻しは「審査」タブで行ってください（このボックスでは行いません）
                       </p>
                     )}
 
@@ -835,7 +834,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                       {(u.mod_state && u.mod_state !== "active") ? (
                         <div>
                           <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, background: u.mod_state === "banned" ? "#FDECEC" : "#FFF7ED", border:"1px solid " + (u.mod_state === "banned" ? "#F5B5B5" : "#FDBA74"), borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
-                            <span style={{ fontSize:13, fontWeight:800, color: u.mod_state === "banned" ? "#E24B4A" : "#C77700" }}>{u.mod_state === "banned" ? "🚫 永久追放中" : "⏸ 一時停止中"}</span>
+                            <span style={{ fontSize:13, fontWeight:800, color: u.mod_state === "banned" ? "#E24B4A" : "#C77700" }}>{u.mod_state === "banned" ? "永久追放中" : "一時停止中"}</span>
                             {u.mod_reason && <span style={{ fontSize:12, color:"#717171" }}>理由：{u.mod_reason}</span>}
                           </div>
                           <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 10px" }}>ログイン・応募・掲載・チャット送信が止まり、公開求人とプロフィールは非表示になっています。チャット履歴は保全されています。</p>
@@ -846,8 +845,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                           <textarea value={modReason} onChange={e=>setModReason(e.target.value)} placeholder="理由（任意・運営の記録用。本人には表示しません）" rows={2} className="field f-sans" style={{ fontSize:13, marginBottom:10, resize:"vertical" }} />
                           <div style={{ display:"flex", gap:8 }}>
                             <button onClick={()=>{ setModOpen(null); setModReason(""); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
-                            <button onClick={()=>runModerate(u.auth_id, "suspend", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⏸ 一時停止</button>
-                            <button onClick={()=>runModerate(u.auth_id, "ban", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🚫 永久追放</button>
+                            <button onClick={()=>runModerate(u.auth_id, "suspend", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>一時停止</button>
+                            <button onClick={()=>runModerate(u.auth_id, "ban", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>永久追放</button>
                           </div>
                         </div>
                       ) : (
@@ -995,20 +994,19 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       {sub==="jobs" && !reviewSec && !loading && (
         <div className="fade-in" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
           {[
-            { k:"jobs",     e:"🔍", l:"求人",           n:pendingJobs.length },
-            { k:"accounts", e:"👤", l:"アカウント承認", n:pendingFarmerAccounts.length },
-            { k:"prs",      e:"📝", l:"自由記述",       n:pendingPrs.length + empPendingCount },
-            { k:"reports",  e:"🚨", l:"通報",           n:openReports.length + openMsgReports.length },
-            { k:"disputes", e:"⚖️", l:"欠勤異議",       n:disputes.length },
-            { k:"questions",e:"❓", l:"質問",           n:0 },
-            { k:"withdrawals", e:"🚪", l:"退会申請",    n:withdrawals.length },
-            { k:"contracts",e:"📄", l:"契約記録",       n:0 },
+            { k:"jobs",     l:"求人",           n:pendingJobs.length },
+            { k:"accounts", l:"アカウント承認", n:pendingFarmerAccounts.length },
+            { k:"prs",      l:"自由記述",       n:pendingPrs.length + empPendingCount },
+            { k:"reports",  l:"通報",           n:openReports.length + openMsgReports.length },
+            { k:"disputes", l:"欠勤異議",       n:disputes.length },
+            { k:"questions",l:"質問",           n:0 },
+            { k:"withdrawals", l:"退会申請",    n:withdrawals.length },
+            { k:"contracts",l:"契約記録",       n:0 },
           ].map(c => (
             <button key={c.k} onClick={()=>goReview(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               {c.n > 0 && (
                 <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
               )}
-              <span style={{ fontSize:44, lineHeight:1 }}>{c.e}</span>
               <span style={{ fontSize:15, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>
           ))}
@@ -1034,8 +1032,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               <button key={j.job_number} onClick={()=>setPreviewJobNumber(j.job_number)}
                 className="f-sans cb-urgent-card"
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
+                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : null}
                   <StatusRibbon label="審査待ち" color="#C77700" />
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>
@@ -1424,7 +1422,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               ];
               return (
                 <>
-                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 2px" }}>📄 契約スナップショット（凍結・閲覧専用）</p>
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 2px" }}>契約スナップショット（凍結・閲覧専用）</p>
                   <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 12px" }}>{title}</p>
                   <div style={{ display:"grid", gap:8 }}>
                     {rows.map(([k, v]) => (
@@ -1522,13 +1520,12 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <div className="fade-in" style={{ display:"grid",gap:16 }}>
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12 }}>
             {[
-              { l:"登録農家数", v:farmers.length, icon:"🌾" },
-              { l:"アクティブ農家", v:activeFarmerIds.size, icon:"✅" },
-              { l:"総レコード数", v:records.length, icon:"📋" },
-              { l:"出荷先数", v:dests.filter(d=>d.status==="approved").length, icon:"🚚" },
+              { l:"登録農家数", v:farmers.length },
+              { l:"アクティブ農家", v:activeFarmerIds.size },
+              { l:"総レコード数", v:records.length },
+              { l:"出荷先数", v:dests.filter(d=>d.status==="approved").length },
             ].map(s=>(
               <Card key={s.l} style={{ textAlign:"center" }}>
-                <div style={{ fontSize:28,marginBottom:8 }}>{s.icon}</div>
                 <div className="f-sans" style={{ fontSize:28,fontWeight:700,color:"#222" }}>{s.v}</div>
                 <div className="f-sans" style={{ fontSize:11,color:"#717171",marginTop:4 }}>{s.l}</div>
               </Card>
@@ -1596,7 +1593,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
       {!loading && sub==="other" && systemView==="images" && (
         <div className="fade-in" style={{ display:"grid",gap:16 }}>
           <Card>
-            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>🗜 画像の一括軽量化</p>
+            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>画像の一括軽量化</p>
             <p className="f-sans" style={{ fontSize:11,color:"#717171",lineHeight:1.8,marginBottom:16 }}>
               圧縮なしで保存された既存の画像（400KB以上）をダウンロード→圧縮→同じ場所に上書きします。
               URLが変わらないため、求人・プロフィール・凍結済み契約の参照はそのまま。
@@ -1885,7 +1882,6 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         <div className="fade-in">
           {appErrors.length === 0 ? (
             <div style={{ textAlign:"center", padding:"48px 0", color:"#B0B0B0" }}>
-              <div style={{ fontSize:48, marginBottom:16 }}>✅</div>
               <p className="f-sans" style={{ fontSize:14 }}>エラーは記録されていません</p>
             </div>
           ) : (
@@ -1915,7 +1911,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                       {e.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{e.operation}</span>}
                     </div>
                     <div style={{ padding:"8px 12px", background:"#E6F7EF", borderRadius:8, borderLeft:"3px solid #00A86B" }}>
-                      <p className="f-sans" style={{ fontSize:11, color:"#00A86B" }}>💡 修正案: {diag.fix}</p>
+                      <p className="f-sans" style={{ fontSize:11, color:"#00A86B" }}>修正案: {diag.fix}</p>
                     </div>
                     {e.status === "open" && (
                       <button onClick={async () => {
@@ -1927,7 +1923,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                       }}>解決済みにする</button>
                     )}
                     {e.status === "fixed" && (
-                      <span className="f-sans" style={{ display:"inline-block", marginTop:8, fontSize:11, color:"#00A86B", fontWeight:600 }}>✅ 解決済み</span>
+                      <span className="f-sans" style={{ display:"inline-block", marginTop:8, fontSize:11, color:"#00A86B", fontWeight:600 }}>解決済み</span>
                     )}
                   </div>
                 );
