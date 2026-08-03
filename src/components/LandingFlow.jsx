@@ -1283,7 +1283,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                   className="field f-sans"
                   style={{ fontSize:16 }}
                 />
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:6 }}>番地・建物名は求人票には公開されません。応募を承認した方にのみお伝えします。</p>
+                {/* 開示の実態に合わせて更新（2026-08-03）：番地は求人ページに出る（ログインした利用者にのみ）。
+                    旧文言「求人票には公開されません」は現在の動きと食い違うため差し替え */}
+                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:6 }}>番地・建物名は、ログインした利用者にのみ求人ページに表示されます（未ログインの訪問者には伏せられます）。</p>
                 {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerTown.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:14, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
                 {prefNotAllowed && (
                   <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:4 }}>
@@ -1995,7 +1997,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               ) : (<>
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
-                <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}` : ""}</h2>
+                {/* 集合場所は番地まで明記（2026-08-03たきと指示）。確認ページ＝掲載前プレビューso
+                    自分の入力値（farmerAddr）をそのまま出す。訪問者向けのモザイクは求人詳細側that担う */}
+                <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}${farmerAddr ? farmerAddr : ""}` : ""}</h2>
                 {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
                 {(beginnerOk || experiencedPreferred || instantApproveRepeat || perkBadges(jobPerks ? { ...(confEmployer || {}), ...jobPerks } : confEmployer).length > 0) && (
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
@@ -2228,8 +2232,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               {/* ═══ 地図（集合場所のおおよその範囲・円のみ。求人詳細ページのJobLocationMapと同一構造。
                    旧Googleマップ風ダミーは廃止(2026-07-14)。座標は住所からgeocodeTownで取得(保存時と同じ手順) ═══ */}
               <div style={{ maxWidth:870, margin:"0 auto 5px" }}>
+                {/* 番地まで明記する画面so、Googleマップ導線にも番地を渡す（2026-08-03）。
+                    ピン自体は従来どおり町域重心＝addressShownで注記の文言を実態に合わせる */}
                 <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion}
-                  mapQuery={[farmerZip && farmerZip.trim(), farmerPref, farmerCity, farmerTown].filter(Boolean).join(" ")} />
+                  mapQuery={[farmerZip && farmerZip.trim(), farmerPref, farmerCity, farmerTown, farmerAddr].filter(Boolean).join(" ")}
+                  addressShown={!!farmerAddr} />
               </div>
 
               {/* 開催期間カレンダー（地図の下・2026-07-16・詳細ページと同じ） */}

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort, payTermsLine } from "../lib/utils";
-import { Carousel, JobFlagBadges, DangerItem, Dots } from "./ui";
+import { Carousel, JobFlagBadges, DangerItem, Dots, MaskedAddress } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 // 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
@@ -243,7 +243,12 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           {/* ヘッダー */}
           <div style={{ position:"relative", marginBottom:20, borderRadius:12, padding: ownerView ? 0 : 4, ...revOutline("求人タイトル・募集タグ") }}>
             {revChip("求人タイトル・募集タグ")}
-            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{job.crop} {job.task}{job.region ? `｜${job.region}` : ""}</h2>
+            {/* 集合場所は番地まで明記（2026-08-03たきと指示）。この画面は管理者の審査・農家本人の
+                プレビューso常にログイン済み＝unlocked。訪問者向けのモザイクは求人詳細側that担う */}
+            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
+              {job.crop} {job.task}{job.region ? `｜${job.region}` : ""}
+              {job.region && <MaskedAddress value={job.workAddress} unlocked={true} exists={job.hasWorkAddress} />}
+            </h2>
             <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"4px 0 0", userSelect:"text" }}>#{job.id}</p>
             {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
               <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
@@ -346,7 +351,11 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           {/* 地図（集合場所のおおよその範囲・円のみ） */}
           <div style={{ position:"relative", width:"100%", marginBottom:20, borderRadius:12, ...revOutline("場所・地図") }}>
             {revChip("場所・地図")}
-            <JobLocationMap lat={job.lat} lng={job.lng} radius={job.radius} label={job.region} mapQuery={job.region} />
+            {/* 番地まで明記する画面so、Googleマップ導線にも番地を渡す（2026-08-03）。
+                ピン自体は従来どおり町域重心＝addressShownで注記の文言を実態に合わせる */}
+            <JobLocationMap lat={job.lat} lng={job.lng} radius={job.radius} label={job.region}
+              mapQuery={job.workAddress ? job.region + job.workAddress : job.region}
+              addressShown={!!job.workAddress} />
           </div>
 
           {/* 開催期間カレンダー */}

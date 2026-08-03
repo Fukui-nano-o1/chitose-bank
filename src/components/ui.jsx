@@ -283,6 +283,25 @@ export function LFSummaryRow({ label, value }) {
   );
 }
 
+// 集合場所の番地（2026-08-03たきと指示「詳細と求人プレビューにも番地を明記。訪問者にはモザイクを徹底」）。
+// ★モザイクは見た目の飾りではない。本体の遮断はDB側で完了している：
+//   jobs_public.work_address は anon に NULL マスクso、未ログイン端末には番地の文字that1文字も届かない。
+//   ここで描くのは伏せ字（●）＝CSSのblurを外そうがDOMを覗こうが本物は存在しない。
+//   伏せ字にしているのは憲法3条（表示にダミー禁止）のため＝それらしい偽の番地を描かない。
+// ★描くのは「番地が設定されている求人」のときだけ（has_work_address）。未設定の求人に
+//   モザイクを出すと「無い情報をあるように見せる」ことになる。
+// value=番地（会員のみ届く）／unlocked=表示してよいか（ログイン済み）／exists=番地の有無
+export function MaskedAddress({ value, unlocked, exists }) {
+  if (unlocked && value) return <>{value}</>;
+  if (!exists) return null;
+  return (
+    <span title="番地・建物名は、ログインすると表示されます" style={{ whiteSpace:"nowrap" }}>
+      <span aria-hidden="true" style={{ filter:"blur(4px)", opacity:0.5, userSelect:"none", letterSpacing:1 }}>●●●–●</span>
+      <span style={{ position:"absolute", width:1, height:1, overflow:"hidden", clip:"rect(0 0 0 0)", whiteSpace:"nowrap" }}>番地はログインすると表示されます</span>
+    </span>
+  );
+}
+
 export function LFPillSelect({ options, value, onSelect }) {
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>

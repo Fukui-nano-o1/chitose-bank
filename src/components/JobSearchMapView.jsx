@@ -5,7 +5,7 @@ import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
 import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
-import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
+import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { fetchPublicJobs, shuffleArr, readSeenNewIds, recordSeenNewIds } from "../lib/searchJobs";
 import { CalendarView } from "./CalendarView";
@@ -831,8 +831,12 @@ export function JobSearchMapView({ onRegister, me }) {
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             {/* タイトルの場所＝集合場所（2026-08-03たきと指示）：ログイン済み利用者には番地まで含む正式な住所。
-                訪問者はDBマスクによりworkAddress/townが空で届く＝従来どおり市区町村まで */}
-            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}${me && selectedJob.workAddress ? selectedJob.workAddress : ""}` : ""}</h2>
+                訪問者はDBマスクによりworkAddress/townが空で届く（市区町村まで）＋番地の位置に伏せ字のモザイク
+                （MaskedAddress・番地that設定された求人のときだけ描く） */}
+            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
+              {selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}
+              {selectedJob.region && <MaskedAddress value={selectedJob.workAddress} unlocked={!!me} exists={selectedJob.hasWorkAddress} />}
+            </h2>
             {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
             {/* 待遇は掲載時に確定保存されたjobs.perksのみを見る（2026-08-02・プロフィール現在値とのマージ廃止） */}
             {(selectedJob.beginnerOk || selectedJob.experiencedPreferred || selectedJob.instantApproveRepeat || perkBadges(selectedJob.perks).length > 0) && (
