@@ -793,6 +793,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [draftBarFull, setDraftBarFull] = useState(false);
   const [draftOverlay, setDraftOverlay] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
+  // その場保存（下部ナビ「保存」）の完了表示。遷移しない代わりに、保存できたことをここで知らせる
+  const [savedToast, setSavedToast] = useState(false);
+  const savedToastTimer = useRef(null);
+  useEffect(() => () => { if (savedToastTimer.current) clearTimeout(savedToastTimer.current); }, []);
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
@@ -899,12 +903,22 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     } catch (e) { return { ok:false, reason:String(e) }; }
   };
 
-  const handleTopSaveExit = async () => {
+  // 保存の出口は2つ（2026-08-03たきと指示「更新は完了させるが、ページ遷移はさせるな」）：
+  // ・exit:false ＝ 確認ページ下部ナビの「保存」。その場で保存するだけ。フローは閉じず、
+  //   求人ページ（お仕事タブの作成中）へ引き戻さない。編集を続けられる
+  // ・exit:true  ＝ 終了モーダルの「保存して終了」。保存してからフローを閉じ、作成中へ着地する
+  const handleTopSave = async ({ exit = false } = {}) => {
     if (draftSaving) return;
     setDraftSaving(true); setDraftMsg("");
     const res = await saveDraftToSupabase();
     setDraftSaving(false);
     if (res.ok) {
+      if (!exit) { // その場保存：遷移も cb_afterDraftSave（着地先の指定）もしない。保存できたことだけ知らせる
+        setSavedToast(true);
+        if (savedToastTimer.current) clearTimeout(savedToastTimer.current);
+        savedToastTimer.current = setTimeout(() => setSavedToast(false), 1800);
+        return;
+      }
       try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
       setDraftOverlay(true);
       setTimeout(() => { setDraftOverlay(false); window.location.hash = "/work"; if (typeof onComplete === "function") onComplete(); }, 1100);
@@ -1121,7 +1135,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           <div style={{ background:"#fff", borderRadius:16, padding:28, maxWidth:360, width:"100%", boxShadow:"0 8px 40px rgba(0,0,0,0.15)" }}>
             <h3 className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", marginBottom:20, textAlign:"center" }}>作成を終了しますか？</h3>
             <div style={{ display:"grid", gap:10 }}>
-              <button onClick={() => { setShowExitModal(false); handleTopSaveExit(); }} disabled={draftSaving} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12 }}>保存して終了</button>
+              <button onClick={() => { setShowExitModal(false); handleTopSave({ exit: true }); }} disabled={draftSaving} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12 }}>保存して終了</button>
               <div>
                 <button onClick={() => {
                   try { localStorage.removeItem('landingFlowDraft_v1'); localStorage.removeItem('postLoginReturnTo'); } catch {}
@@ -1967,7 +1981,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               }
             };
 
-            // 一時保存は下部ナビの「保存」ボタン（トップレベルのhandleTopSaveExitを再利用）に移設（2026-07-13）
+            // 一時保存は下部ナビの「保存」ボタン（トップレベルのhandleTopSaveを再利用）に移設（2026-07-13）
 
             return (<>
               {/* タイトル */}
@@ -2578,6 +2592,14 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         </div>
       )}
 
+      {/* その場保存の完了表示（2026-08-03）：下部ナビ「保存」は遷移しないので、
+          保存できたことをこの一言で知らせる。1.8秒で自然に消える */}
+      {savedToast && (
+        <div className="f-sans" style={{ position:"fixed", left:"50%", transform:"translateX(-50%)", bottom:"calc(84px + env(safe-area-inset-bottom, 0px))", zIndex:9998, background:"rgba(34,34,34,0.92)", color:"#fff", fontSize:13, fontWeight:700, padding:"10px 18px", borderRadius:20, boxShadow:"0 4px 16px rgba(0,0,0,0.2)", pointerEvents:"none" }}>
+          保存しました
+        </div>
+      )}
+
       {/* 開催期間カレンダー📅の浮遊ボタン＋モーダルは削除（2026-07-24・誰も展開しないため）。
           作業日程は主要情報カードの「日程」行の編集リンク（→step4）で選び直せる */}
 
@@ -2653,7 +2675,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           )}
           {isFarmer && step === 11 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => handleTopSave({ exit: false })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
             </div>
           )}
@@ -2682,7 +2704,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           {/* 確認ページ(step11)：右下に「保存」＋「掲載する」の浮遊ペア */}
           {isFarmer && step === 11 && (
             <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10 }}>
-              <button onClick={handleTopSaveExit} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => handleTopSave({ exit: false })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
             </div>
           )}
