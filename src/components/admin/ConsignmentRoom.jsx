@@ -2519,14 +2519,16 @@ export function ConsignmentRoom() {
           // さがす一覧と同じ構造（2026-08-03たきと指示）：枠なしカード・大きな角丸写真・
           // 写真の下にタイトル/地域/金額の3秒判断レイアウト（JobCardの型・カラーはブラック）。
           // 進行ステッパー・履行集計は管理情報soカードから外し、タップ先の案件ページが担う
-          <div style={{ display:"grid", gap:22 }}>
+          {/* 列はminmax(0,1fr)固定（2026-08-03横はみ出し修理）：gridの既定min-width:autoだと
+              1行省略のタイトルが列を押し広げ、画面幅を飛び出す */}
+          <div style={{ display:"grid", gap:22, gridTemplateColumns:"minmax(0, 1fr)" }}>
           {deals.map(d => {
             const s = d.spec || {};
             const st = consignRecruitState(d.status);
             const photo = s.photos && s.photos[0] && s.photos[0].url;
             const dateChip = deadlineLabel(s.date_start, s.date_end) || s.deadline || "";
             return (
-              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", background:"transparent", border:"none", position:"relative" }}>
+              <button key={d.id} onClick={()=>openDeal(d)} className="f-sans" style={{ display:"block", width:"100%", maxWidth:"100%", minWidth:0, boxSizing:"border-box", padding:0, textAlign:"left", cursor:"pointer", background:"transparent", border:"none", position:"relative", overflow:"hidden", borderRadius:16 }}>
                 {/* 状態帯（募集中/募集終了/作業中/完了）＝写真左上 */}
                 <span className="f-sans" style={{ position:"absolute", top:10, left:10, zIndex:2, padding:"4px 12px", borderRadius:8, fontSize:12.1, fontWeight:800, background:st.bg, color:st.fg, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>{st.l}</span>
                 {/* 履行期限チップ＝写真右下（さがすの開始日チップと同じ位置） */}
