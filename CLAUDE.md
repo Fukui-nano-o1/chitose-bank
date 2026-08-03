@@ -2104,3 +2104,25 @@ JSON保存→復元すると文字列になり、CalendarViewのstart.getFullYea
 【教訓】エラー監視(app_errors)が一発で真因を示した。実機で謎の白画面・エラー画面が出たら、
 まずapp_errorsをselectする（憶測より先に現物のスタックを見る）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-03 名刺プロフィール編集の改修まとめ（本セッション・多数の小コミット）━━━
+【編集モーダル（働き手・雇い手共通）】タップ展開ボックスを画面中央・上下40px余白に統一。
+createPortalでdocument.body直下へ（祖先transformでfixedが切れて下部に白帯が出る不具合の根治＝
+AdminJobPreviewと同じ手法）。cb-lock-scroll適用＝展開中は下部バー・☰・役割トグル非表示＋背後スクロール固定。
+【住所・所在地の分割】recruiter_zip/prefecture/city/address_detail新設（20260801140851）。分割が真実の座・
+保存時に1行合成→recruiter_address（表示側無改修）。zipLookup経由の自動検索・新規登録からの引き継ぎ対応。
+【従業員数削除】ボックス・保存・完成判定（LandingFlow通知条件・FarmerDashboard未設定数8→7）から除去。列・データ残置。
+【氏名・名称】フリガナ欄追加（recruiter_name_kana・20260803030729・任意・収集のみ）。
+【待遇ボックス内に受動喫煙】smoking_policy（禁煙（喫煙場所なし）／喫煙場所あり）＋smoking_area
+（あり時の場所・20260803031916）。求人の明示事項・表示配線は別途。委託blackにも表示される（perksブロック内）。
+【新規登録からの引き継ぎ補完】プロフィール行が無い初回も氏名・住所（分割）・連絡先をaccount_holdersから
+プリフィル（従来は行がある場合の未入力欄のみだった）。保存は本人操作時のみの原則不変。
+【働き手の経験・資格】#/experienceページ行きだったボックスをモーダルに復帰。中身は共有部品：
+WorkerExperienceEntriesSwipe（経験タブ／資格タブの2ページ・全幅・指連動スワイプ＋タブタップ移動。
+経験0件時は空カード1枚がデフォルト。作物入力フォーカス中はsnap停止＝iOS入力妨害対策・font16px）＋
+WorkerDeclarationBoxes（免許・資格・保険方針＝縦一列全幅の申告ボックス・タップで直下に展開・保険申告と同色規則）。
+#/experienceページは残置（ProfileHub経由・URL直打ち）で同UI。
+【ページ装飾の非表示】#/experience・#/insuranceとも下部バー・☰・サイトフッター非表示
+（cb-exp-page／ins-prep-pageのbody:has()方式）。両ページの「← 戻る」は左下の浮遊ボックス化。
+【検証】各コミットでbuild+lint（exit code実測）。実機目視はたきと側で随時。
+━━━ ここまで ━━━
