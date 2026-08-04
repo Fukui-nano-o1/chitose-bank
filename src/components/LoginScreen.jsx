@@ -19,6 +19,13 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const [code,    setCode]    = useState("");
   const [authedUser, setAuthedUser] = useState(null); // OTP認証済みユーザー（パスワード設定待ち）
   const [alreadyRegistered, setAlreadyRegistered] = useState(false); // 既にアカウントを持っている人が新規登録から入ってきた（2026-08-01）
+  // コードが届かない人の救済（2026-08-04）。認証コードを待たず、パスワードを決めて登録する経路。
+  // 背景：Supabase Auth の「メールアドレスの確認」が無効だと、未登録アドレスへの signInWithOtp は
+  //   サーバー側でアカウント作成＋確認済みにしてセッションを返すが、supabase-js はその応答を捨てる
+  //   （signInWithOtp のメール経路は user/session を必ず null で返す実装）。コードも送られないため、
+  //   画面は6桁コードを待ち続け、誰も先へ進めないまま account_holders の無いアカウントだけが残る。
+  //   実際に2026-07-27・07-29の2件がこの状態で放置された。
+  const [directSignup, setDirectSignup] = useState(false);
   const [sending, setSending] = useState(false);
   const [err,     setErr]     = useState("");
   const [shk,     setShk]     = useState(false);
@@ -111,6 +118,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
       return;
     }
     setCode("");
+    setDirectSignup(false);
     setView("code");
   };
 
@@ -146,6 +154,28 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
     if (pw.length < 8) { setErr("パスワードは8文字以上で設定してください"); return; }
     if (pw !== pw2) { setErr("確認用パスワードが一致しません"); bounce(); return; }
     setSending(true); setErr("");
+    // 救済経路：認証コードを受け取っていない＝まだ認証されていないので、更新ではなく新規作成で通す。
+    // メールアドレスの確認が無効な設定なら、その場でセッションが返り、メールを1通も受け取らずに登録が済む。
+    // 有効な設定に戻したあとは session が返らず「確認メールを送りました」に落ちる＝どちらの設定でも壊れない。
+    if (directSignup) {
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: pw });
+      setSending(false);
+      if (error) {
+        const m = String(error.message || "");
+        setErr(/signup/i.test(m)
+          ? "このメールアドレスでは新規登録できません。招待を受けたアドレスでお試しください"
+          : "登録できませんでした。時間をおいてもう一度お試しください");
+        return;
+      }
+      if (data?.session) { await completeLogin(data.user); return; }
+      // identities が空＝すでに登録済みのアドレス（この操作で新しく作られてはいない）
+      if (Array.isArray(data?.user?.identities) && data.user.identities.length === 0) {
+        setErr("このメールアドレスはすでに登録されています。パスワードをお持ちならログイン画面から、お忘れなら認証コードでの再設定が必要です");
+        return;
+      }
+      setErr("確認メールをお送りしました。メールを開いて確認を済ませてから、ログインしてください");
+      return;
+    }
     const { error } = await supabase.auth.updateUser({ password: pw });
     setSending(false);
     if (error) { setErr("パスワードの設定に失敗しました。時間をおいてもう一度お試しください"); return; }
@@ -195,11 +225,11 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
                 {sending ? "確認中…" : "ログイン"}
               </button>
               <div style={{ textAlign:"center", marginTop:18, display:"flex", flexDirection:"column", gap:8 }}>
-                <button onClick={()=>{setView("otp");setErr("");setPw("");}} className="f-sans cb-hop"
+                <button onClick={()=>{setView("otp");setErr("");setPw("");setDirectSignup(false);}} className="f-sans cb-hop"
                   style={{ background:"none",border:"none",fontSize:12,fontWeight:700,color:"#00A86B",textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
                   はじめての方はこちら（新規登録）
                 </button>
-                <button onClick={()=>{setView("otp");setErr("");setPw("");}} className="f-sans"
+                <button onClick={()=>{setView("otp");setErr("");setPw("");setDirectSignup(false);}} className="f-sans"
                   style={{ background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
                   パスワードを忘れた方・未設定の方（6桁コードで再設定）
                 </button>
@@ -233,7 +263,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
               </button>
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
               <div style={{ textAlign:"center", marginTop:18 }}>
-                <button onClick={()=>{setView("login");setErr("");}} className="f-sans"
+                <button onClick={()=>{setView("login");setErr("");setDirectSignup(false);}} className="f-sans"
                   style={{ background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
                   ← 登録済みの方はこちら（メールアドレスとパスワード）
                 </button>
@@ -267,17 +297,36 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
                 disabled={code.length!==6||sending} onClick={verifyCode}>
                 認証する
               </button>
-              <button onClick={()=>{setView("otp");setCode("");setErr("");}} className="f-sans"
+              <button onClick={()=>{setView("otp");setCode("");setErr("");setDirectSignup(false);}} className="f-sans"
                 style={{ width:"100%",background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3 }}>
                 ← メールアドレスを変更する
               </button>
+              {/* 行き止まり防止（2026-08-04）。誰にでも同じように出す＝このボタンの有無で
+                  アドレスが登録済みかどうかは分からない（登録の有無をログイン前に漏らさない原則を維持） */}
+              <div style={{ marginTop:14, paddingTop:14, borderTop:"1px solid #EEE", textAlign:"center" }}>
+                <button onClick={()=>{setDirectSignup(true);setAlreadyRegistered(false);setAuthedUser(null);setPw("");setPw2("");setErr("");setView("setpw");}}
+                  className="f-sans"
+                  style={{ background:"none",border:"none",fontSize:12,fontWeight:700,color:"#00A86B",textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
+                  コードが届かない場合はこちら
+                </button>
+                <p className="f-sans" style={{ marginTop:6,fontSize:10,color:C.dim,lineHeight:1.7 }}>
+                  迷惑メールもご確認ください。それでも届かないときは、パスワードを決めて登録できます
+                </p>
+              </div>
             </div>
           ) : (
             /* ── 新規登録③：パスワード設定（次回からメール＋パスワードでログイン） ── */
             <div className="fade-in">
               {/* すでにアカウントを持っていた人には、その旨をはっきり出す（2026-08-01たきと指示）。
                   新しく作られていないこと・パスワードは設定し直せることを明記し、そのまま進む道も用意する */}
-              {alreadyRegistered ? (
+              {directSignup ? (
+                <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
+                  <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
+                    認証コードを待たずに登録します。<br/>
+                    パスワードを決めると、そのまま登録が完了します。
+                  </p>
+                </div>
+              ) : alreadyRegistered ? (
                 <div style={{ padding:"12px 14px",background:"#FFF8E7",borderRadius:8,border:"1px solid #F0E0B8",marginBottom:18 }}>
                   <p className="f-sans" style={{ fontSize:12,color:"#8A6D1D",lineHeight:1.9 }}>
                     <strong>このメールアドレスのアカウントは、すでにお持ちです。</strong><br/>
@@ -315,8 +364,16 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
               </div>
               <button className="btn-primary" style={{ width:"100%" }}
                 disabled={!pw||!pw2||sending} onClick={submitPassword}>
-                {sending ? "設定中…" : alreadyRegistered ? "パスワードを設定し直す" : "設定してはじめる"}
+                {sending ? "設定中…" : directSignup ? "登録してはじめる" : alreadyRegistered ? "パスワードを設定し直す" : "設定してはじめる"}
               </button>
+              {directSignup && (
+                <div style={{ textAlign:"center", marginTop:16 }}>
+                  <button onClick={()=>{setDirectSignup(false);setErr("");setView("code");}} disabled={sending} className="f-sans"
+                    style={{ background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
+                    ← 認証コードの入力に戻る
+                  </button>
+                </div>
+              )}
               {/* 既存アカウントの人は、パスワードを変えずにそのまま入れる道を残す */}
               {alreadyRegistered && (
                 <div style={{ textAlign:"center", marginTop:16 }}>
