@@ -35,6 +35,20 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
 
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
 
+  // 送信できなかったことは利用者の画面で消えて終わるso、運営が気づけるよう記録に残す。
+  // メールアドレスは残さない（誰が試したかは auth のログ側にある）。
+  const logMailFailure = (error) => {
+    try {
+      supabase.from("app_errors").insert({
+        level: "error", source: "client", page: "login", component: "LoginScreen",
+        action: "requestCode", operation: "auth.signInWithOtp",
+        error_code: String(error?.status || error?.code || ""),
+        message: String(error?.message || "").slice(0, 500),
+        url: window.location.href, user_agent: navigator.userAgent,
+      }).then(()=>{}, ()=>{});
+    } catch {}
+  };
+
   // 認証成功後の共通処理。既存プロフィールを確認するだけ。作らない・書き換えない。
   // 役割選択ページ(#/role)は撤廃済み＝役割は聞かないアクションベース設計（farmers行あり→農家／無し→最小形の働き手me）
   const completeLogin = async (user) => {
@@ -81,12 +95,19 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
       const wait = msg.match(/after (\d+) seconds?/i);            // 同じ宛先への連打（既定60秒）
       const isInviteOnly = /signup/i.test(msg);
       const isRate = /rate limit|too many|only request this after/i.test(msg);
+      // サーバー側がメールを出せない状態（SMTPの鍵が無効・送信サービスの障害など）。
+      // 利用者が何度やり直しても直らない種類so「時間をおいて再度」と促さず、運営側の問題だと伝える。
+      // 実例：2026-08-04 gomail 550 "API key is invalid"（Supabase Auth のカスタムSMTP）→
+      //       画面には英語のまま「詳細: Error sending magic link email」が出ていた。
+      const isServerMail = error.status === 500 || /error sending|failed to send|smtp|gomail/i.test(msg);
       setErr(
         isInviteOnly ? "このメールアドレスは招待されていません。招待を受けたアドレスでお試しください"
         : wait       ? `送信の間隔が短すぎます。${wait[1]}秒ほど待ってから、もう一度お試しください`
         : isRate     ? "ただいま送信が混み合っています。しばらく時間をおいてからお試しください"
+        : isServerMail ? "ただいま認証コードのメールをお送りできません。お客さまの操作の問題ではなく、運営側の不具合です。復旧までしばらくお待ちください"
         : `メールを送信できませんでした。時間をおいて再度お試しください（詳細: ${msg || "不明"}）`
       );
+      if (isServerMail) logMailFailure(error);
       return;
     }
     setCode("");
