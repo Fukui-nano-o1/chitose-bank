@@ -2279,3 +2279,31 @@ ContractPartyName と同じ3箇所＝応募者シート・チャット・今日�
   ＝自動開始の取りこぼしを見せる従来仕様を維持、日程なし→どちらにも出ない）。どのケースも二重展開なし。
   DB・RPCは不変。実機目視は未実施。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-04 新規登録が通らない件：原因2つ（どちらもサーバー設定）と、コード側の手当て ━━━
+【症状】「メールを送信できませんでした。時間をおいて再度お試しください（詳細: Error sending magic link email）」
+【原因①・SMTPの鍵が無効（★PC作業が必要・コードでは直らない）】
+  auth ログの実物：gomail: could not send email 1: 550 "API key is invalid"（/otp・status 500）。
+  Supabase Auth のカスタムSMTPに入っている鍵が通っていない＝既存アドレスへの認証コードは1通も出ない。
+  2026-07-25の申し送り「Brevo SMTP復旧が未完了」がそのまま残っている。
+  → Supabase ダッシュボード → Authentication → SMTP Settings に有効な鍵を入れ、送信テストする。
+【原因②・メールアドレスの確認が無効（★PC作業が必要・①を直しても新規登録はこれが残る）】
+  auth.users の実測：2026-07-22以降に作られた行は email_confirmed_at が created_at の0.1秒後、
+  confirmation_sent_at も recovery_sent_at も null＝メールを1通も送らずに作成・確認済みにされている。
+  この設定では、未登録アドレスへの signInWithOtp をサーバーが「新規作成＋セッション発行」で処理するが、
+  supabase-js はメール経路の応答を必ず user/session=null で捨てる実装so、そのセッションは手元に残らない。
+  結果＝コードは来ない・ログインもしていない＝6桁コードの画面で必ず詰まる。
+  → Authentication → Providers → Email の「Confirm email」をONにする（①と両方直して初めて設計どおり動く）。
+【被害＝止まっているアカウント2件】fujinglongren7@gmail.com（07-27）・sf.kanata321@icloud.com（07-29）。
+  auth.users にはあるが account_holders も各プロフィールも無い。パスワードは GoTrue が付けたランダム値so
+  本人は知らない＝①が直ってコードが届くまで、本人の操作では入れない。①復旧後に再登録を案内すること。
+  （同型の古い残り：taniki46@gmail.com・umesankonnitiwa@yahoo.co.jp）
+【コード側で手当てしたこと（本セッション・mainへpush）】
+  1. メールを送れない時の文言を「運営側の不具合」に変更（英語の生メッセージを画面に出さない）。
+     status 500 / error sending / smtp / gomail を判別。失敗は app_errors にも記録（運営が気づけるように）。
+  2. コード画面に「コードが届かない場合はこちら」を常時設置＝パスワードを決めて signUp で登録する救済経路。
+     セッションが返ればそのままログイン／既存アドレスなら新しく作られない旨を表示／確認が有効な設定では
+     「確認メールを送りました」に落ちる＝①②を直した後も壊れない。誰にでも同じ導線so登録の有無は漏れない。
+【検証】build＋lint 0 error＋distの文言grepまで。実機目視は未実施。
+  ①②を直したら、未招待アドレスで新規登録を一巡して確認すること。
+━━━ ここまで ━━━
