@@ -707,8 +707,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             </div>
       </>)}
 
-      {/* モーダルフッター：保存する（全項目upsert）→格子に戻る */}
-      <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      {/* モーダルフッター：保存する（全項目upsert）→格子に戻る。
+          緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
+          両方出すと同じ文言のボタンが2つ並ぶso、ここでは出さない（2026-08-05たきと指示） */}
+      {editBox !== "emergency" && (
+        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      )}
       </div>
       </div>
       , document.body)}

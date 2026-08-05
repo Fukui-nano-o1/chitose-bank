@@ -621,8 +621,12 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </div>
       )}
 
-      {/* モーダルフッター：保存する（全項目upsert）＋自由記述の注記 */}
-      <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      {/* モーダルフッター：保存する（全項目upsert）＋自由記述の注記。
+          緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
+          両方出すと同じ文言のボタンが2つ並ぶso、ここでは出さない（2026-08-05たきと指示） */}
+      {editBox !== "emergency" && (
+        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      )}
       {(editBox === "pr" || editBox === "qa") && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>自由記述は運営の確認後に公開されます（最大2日）</p>
       )}
