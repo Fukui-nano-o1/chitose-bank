@@ -742,6 +742,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             if (target && (CHAT_ELIGIBLE_STATUSES.includes(target.status) || target.status === 'completed')) openCompleteModal(target);
           }
         } catch {}
+        // 応募者シートの着地（2026-08-05）：新着の応募ページ（#/new-applicants）の
+        // 「内容を見て決める（承認・見送り）」から cb_openApplicantId 経由で該当応募のシートを自動展開。
+        // 承認・見送りの実行はこのシートが唯一の窓口so、送り出す側は「どの応募か」だけを渡す
+        try {
+          const pendO = sessionStorage.getItem("cb_openApplicantId");
+          if (pendO) {
+            sessionStorage.removeItem("cb_openApplicantId");
+            if (appData.some(x => x.id === pendO)) setSheetApplicantId(pendO);
+          }
+        } catch {}
         // 働く日を決めるモーダルの着地（2026-07-24）：今日ページの「日を決める」から cb_agreeAppId 経由で自動展開
         try {
           const pendA = sessionStorage.getItem("cb_agreeAppId");

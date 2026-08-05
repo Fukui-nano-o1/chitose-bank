@@ -28,6 +28,8 @@ function lazyChunk(factory) {
 const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
 // 仮応募の成功ページ（第15弾・2026-07-30）。応募した人だけが通る画面so遅延読み込み
 const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m => ({ default: m.ApplyPending })));
+// 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面so遅延読み込み
+const NewApplicantsPage = lazyChunk(() => import("./components/NewApplicantsPage").then(m => ({ default: m.NewApplicantsPage })));
 import { ChatList } from "./components/ChatList";
 import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
@@ -1010,7 +1012,7 @@ function HelpCenter({ me, onReportClick }) {
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","insurance","experience"];
+  const TAB_URL_KEYS = ["admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","insurance","experience","new-applicants"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h === "admin/review" || h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment" || h.startsWith("admin/consignment/")) return "admin"; if (h === "admin/working" || h.startsWith("admin/working/")) return "admin"; if (h === "admin/upcoming" || h.startsWith("admin/upcoming/")) return "admin"; if (h === "admin/evaluation" || h.startsWith("admin/evaluation/")) return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; if (h === "calendar" || h.startsWith("calendar/")) return "calendar"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
@@ -1277,25 +1279,38 @@ export default function App(){
       else { setOpenAccountForm(false); window.location.hash = "/login"; }
     });
   }, []);
-  // まもなく開始をトップページに（2026-08-01たきと指示・いまは管理者のみ）：
-  // サイト/アプリを開いた時、開始1週間以内（作業当日は除く＝当日は仕事中ページが持つ）のマッチが
-  // あれば #/admin/upcoming に着地する。判定はページ側の表示フィルタと同じ isUpcomingSoon（空着地の防止）。
+  // トップページの着地（サイト/アプリを開いた時、既定の着地先を差し替える）。優先順は上から：
+  //   ① 新着の応募（雇い手・2026-08-05たきと指示「応募を受けた直後からサイトに入ると
+  //      トップ画面がこのページになる」）→ #/new-applicants
+  //   ② まもなく開始（2026-08-01たきと指示・いまは管理者のみ）→ #/admin/upcoming
+  //      開始1週間以内（作業当日は除く＝当日は仕事中ページが持つ）のマッチがある時。
+  //      判定はページ側の表示フィルタと同じ isUpcomingSoon（空着地の防止）
+  // ①②を1つのeffectに束ねる理由：別々のeffectだと両方が非同期に hash を書いて奪い合う。
+  // 順に判定し、先に着地したらそこで終わる＝優先順が決まる。
   // URL直打ち（ディープリンク・#/work/job/… や #/chat/… 等）で開いた時は行き先を奪わない
   //（initialHashTab=null＝既定着地の時だけ）。判定は1アプリ起動につき1回（ログアウト時はreloadで起動し直すため実質毎回）
-  const upcomingLandingChecked = useRef(false);
+  const topLandingChecked = useRef(false);
   useEffect(() => {
-    if (upcomingLandingChecked.current || !me || !isAdmin(me) || initialHashTab !== null) return;
-    upcomingLandingChecked.current = true;
+    if (topLandingChecked.current || !me || initialHashTab !== null) return;
+    topLandingChecked.current = true;
+    // RPCが返るまでの数秒間にユーザーが別ページへ移動していたら着地させない（2026-08-02）：
+    // 「開いた時の着地」であって、操作中の引き戻しはしない。判定は今のhashで行う
+    const stillOnDefault = () => { const t = readHashTab(); return t === null || t === "search"; };
     (async () => {
+      // ── ① 新着の応募（未対応＝status='applied'の件数。my_nav_badges の applicants_pending が
+      //    下部ナビ「🤝応募者」バッジと同じ唯一のソース。決めればゼロになり着地は自然に止む）
+      try {
+        const { data: badges } = await supabase.rpc("my_nav_badges");
+        if ((badges?.applicants_pending || 0) > 0 && stillOnDefault()) { window.location.hash = "/new-applicants"; return; }
+      } catch { /* 失敗時は通常の着地のまま（応募者ページ・今日ページからも辿れる） */ }
+      // ── ② まもなく開始（管理者）
+      if (!isAdmin(me)) return;
       try {
         const { data } = await supabase.rpc("admin_working_jobs");
         // 結果をキャッシュに置く（2026-08-02・更新時間の短縮）：着地先のまもなく開始／仕事中ページが
         // 同じRPCをもう一度待たずに即描画できる（起動でRPCが2回直列に走っていた無駄の解消）
         if (data?.ok) setCache("admin:workingJobs", data);
-        // RPCが返るまでの数秒間にユーザーが別ページへ移動していたら着地させない（2026-08-02）：
-        // 「開いた時の着地」であって、操作中の引き戻しはしない。判定は今のhashで行う
-        const _nowTab = readHashTab();
-        if (data?.ok && (data.upcoming || []).some(it => isUpcomingSoon(it, 7)) && (_nowTab === null || _nowTab === "search")) window.location.hash = "/admin/upcoming";
+        if (data?.ok && (data.upcoming || []).some(it => isUpcomingSoon(it, 7)) && stillOnDefault()) window.location.hash = "/admin/upcoming";
       } catch { /* 失敗時は通常の着地のまま（見守りページは管理タブからも開ける） */ }
     })();
   }, [me]); // eslint-disable-line react-hooks/exhaustive-deps -- initialHashTab は起動時定数
@@ -1917,7 +1932,7 @@ export default function App(){
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
   // 部屋番号(TAB_URL_KEYS)にある部屋は全て到達可（避難部屋含む・骨格④）。資格の無い部屋と迷子はsearchへ
   const safeTab = TAB_URL_KEYS.includes(tab)
-    ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || ((tab === "insurance" || tab === "experience") && !me) ? "search" : tab)
+    ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || ((tab === "insurance" || tab === "experience" || tab === "new-applicants") && !me) ? "search" : tab)
     : "search";
 
   // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「さがす・いいね」を「📣求人・🤝応募者」に差し替え。
@@ -2342,6 +2357,11 @@ export default function App(){
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+        {/* 新着の応募ページ（#/new-applicants・2026-08-05たきと指示）：応募を受けた雇い手専用。
+            未対応の応募があればサイトを開いた時にここへ着地する（起動時の着地判定・topLandingChecked）。読み取り専用＝
+            承認・見送りの実行は応募者シートが唯一の窓口so、ここからはそこへ送るだけ */}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="new-applicants"&&me&&
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><NewApplicantsPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="chats"&&(me
           ? <ChatList />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>チャットを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
