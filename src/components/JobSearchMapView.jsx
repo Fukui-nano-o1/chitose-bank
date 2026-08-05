@@ -1119,7 +1119,9 @@ export function JobSearchMapView({ onRegister, me }) {
               募集者名・連絡先の常設表示は廃止（データはjobs転写・job_employer_profileに残存＝表示のみの削除） */}
 
           {/* 地図（集合場所のおおよその位置・ピンのみ）。会員には番地込みの住所をGoogleマップ導線に渡す
-              （2026-08-03・タイトルの住所表示と同じ開示粒度）。訪問者は従来どおり町域まで */}
+              （2026-08-03・タイトルの住所表示と同じ開示粒度）。訪問者は従来どおり町域まで。
+              訪問者（未ログイン）はピンを描かず半径1kmの円のみ（2026-08-05たきと指示）＝
+              1点を指す絵で「正確な位置」に見せない。届く座標自体もanonマスクで丸められている */}
           <div style={{ width:"100%", marginBottom:5 }}>
             <JobLocationMap
               lat={selectedJob.lat}
@@ -1128,6 +1130,7 @@ export function JobSearchMapView({ onRegister, me }) {
               label={selectedJob.region}
               mapQuery={me && selectedJob.workAddress ? selectedJob.region + selectedJob.workAddress : selectedJob.region}
               addressShown={!!(me && selectedJob.workAddress)}
+              visitor={!me}
             />
           </div>
 
