@@ -7,6 +7,7 @@ const PAGES = [
   { key: "admin",       hash: "/admin",             label: "管理" },
   { key: "working",     hash: "/admin/working",     label: "仕事中" },
   { key: "upcoming",    hash: "/admin/upcoming",    label: "まもなく開始" },
+  { key: "evaluation",  hash: "/admin/evaluation",  label: "評価" },
   { key: "consignment", hash: "/admin/consignment", label: "委託 準備室" },
   { key: "boxes",       hash: "/boxes",             label: "ボックス一覧" },
   { key: "notices",     hash: "/boxes/notices",     label: "お知らせ一覧" },
