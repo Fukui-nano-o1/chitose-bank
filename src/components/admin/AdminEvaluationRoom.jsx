@@ -2,9 +2,9 @@
 // 用途：農家が働き手を確認するときに一番見るページ。運営の見守り用ではない。
 //   ① 直近5件に遅刻・欠勤はあるか ② 労働の総件数・総時間 ③ 作物別・作業別の件数と時間
 //
-// 【いまは管理画面の中に置いている】農家に見せるのは、CLAUDE.md「求職者公開項目の制約」
-//   （提示してよい項目は10個・稼働回数などの生の数値は絶対禁止）に照らした判断のあと。
-//   DB側も admin_worker_dashboard を app_admins ゲートにしてある＝画面を隠すだけにしない。
+// 【見える範囲】一覧（誰がいるか）は運営のみ＝admin_worker_list。求職者の名簿so農家には開かない。
+//   1人ぶんの記録は、その働き手から応募を受けた農家にも開いた（2026-08-05たきと指示・関係ゲート）。
+//   農家の入口は働き手プレビューの2枚目＝このページと同じ部品（WorkerWorkRecord）を使う。
 //
 // 【この画面が言わないこと】点数・順位・おすすめ度は作らない。良し悪しの断定もしない。
 //   出すのは記録そのもの（打刻・出欠・求人の勤務時間）だけ。運営の主観は混ぜない（2026-07-16）。
@@ -33,7 +33,8 @@ export function AdminEvaluationRoom() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  // このページが自分で読むのは【働き手の一覧】だけ。1人ぶんの記録は WorkerWorkRecord が読む
+  // このページが自分で読むのは【働き手の一覧】だけ（admin_worker_list＝求職者の名簿so運営のみ）。
+  // 1人ぶんの記録は WorkerWorkRecord が読む（worker_work_record＝本人・関係のある農家・運営）
   // （ダッシュボードとプレビューで同じ部品＝取得も表示も1箇所）。
   // 前回結果があれば即描画し、裏で最新に差し替える（2026-08-02・更新時間の短縮の作法）
   const [state, setState] = useState(() => {
@@ -42,7 +43,7 @@ export function AdminEvaluationRoom() {
   }); // null=読み込み中 | データ | "error" | "denied"
   const load = useCallback(async () => {
     if (workerId) return; // 1人ぶんを開いている間は一覧を取り直さない（二重の往復を作らない）
-    const { data, error } = await supabase.rpc("admin_worker_dashboard", {});
+    const { data, error } = await supabase.rpc("admin_worker_list");
     // 裏の再取得が失敗しても、キャッシュ表示中ならそのまま保つ（エラー画面で上書きしない）
     if (error) { setState(prev => (prev && typeof prev === "object") ? prev : "error"); return; }
     if (!data?.ok) { setState(data?.reason === "not_admin" ? "denied" : "error"); return; }

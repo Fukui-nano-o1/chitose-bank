@@ -9,9 +9,10 @@
 //   出すのは記録そのもの（打刻・出欠・求人の勤務時間）だけ。運営の主観は混ぜない（2026-07-16）。
 //   打刻が無い・自動開始の回は「記録なし」と正直に書く＝憶測で遅刻にも時間どおりにもしない。
 //
-// 【見える人】いまは admin_worker_dashboard が app_admins ゲートso運営だけ。農家に見せるのは
-//   CLAUDE.md「求職者公開項目の制約」に照らした判断のあと＝DBのゲートを緩める1箇所の変更で足りる。
-//   権限がない人には短い1行を出すだけ（エラー画面にしない）。
+// 【見える人】worker_work_record の関係ゲート＝本人・その働き手から応募を受けた農家・運営だけ
+//   （2026-08-05たきと指示で管理者専用を撤回。worker_trust_info と同じ相手・同じ範囲）。
+//   不特定の農家・訪問者には出ない。権限がない人には短い1行を出すだけ（エラー画面にしない）。
+//   求人No.は運営と本人にだけ返る＝閲覧する農家からは相手先の求人を辿れない（DB側で伏せている）。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
@@ -77,8 +78,8 @@ function RecentRow({ r }) {
           {r.work_date || "日付なし"}　{r.crop || "作物未設定"} {r.task || ""}
         </p>
         <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0" }}>
-          No.{r.job_number}
-          {r.scheduled_start && <>　予定 {r.scheduled_start}</>}
+          {r.job_number ? <>No.{r.job_number}　</> : null}
+          {r.scheduled_start && <>予定 {r.scheduled_start}</>}
           {r.actual_start && <>　打刻 {r.actual_start}</>}
           {r.auto_started && <>　自動開始</>}
           {r.started_declared && <>　申告</>}
@@ -149,7 +150,7 @@ export function WorkRecordBody({ data, showName }) {
 
 // 読み込みつきの1人ぶん。ダッシュボードもプレビューもこれを置くだけ
 export function WorkerWorkRecord({ workerId, showName }) {
-  const cacheKey = `admin:workerDash:${workerId}`;
+  const cacheKey = `workRecord:${workerId}`;
   const [state, setState] = useState(() => {
     const d = getCache(cacheKey);
     return d?.ok ? d : null;
@@ -157,17 +158,17 @@ export function WorkerWorkRecord({ workerId, showName }) {
   const load = useCallback(async () => {
     const cached = getCache(cacheKey);
     setState(cached?.ok ? cached : null);
-    const { data, error } = await supabase.rpc("admin_worker_dashboard", { p_worker_id: workerId });
+    const { data, error } = await supabase.rpc("worker_work_record", { p_worker_id: workerId });
     // 裏の再取得が失敗しても、キャッシュ表示中ならそのまま保つ（エラー画面で上書きしない）
     if (error) { setState(prev => (prev && typeof prev === "object") ? prev : "error"); return; }
-    if (!data?.ok) { setState(data?.reason === "not_admin" ? "denied" : "error"); return; }
+    if (!data?.ok) { setState(data?.reason === "not_entitled" ? "denied" : "error"); return; }
     setCache(cacheKey, data);
     setState(data);
   }, [cacheKey, workerId]);
   useEffect(() => { load(); }, [load]);
 
   if (state === null) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>;
-  if (state === "denied") return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>はたらいた記録はまだ表示できません</p>;
+  if (state === "denied") return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>この方のはたらいた記録は表示できません</p>;
   if (state === "error") return <p className="f-sans" style={{ textAlign:"center", color:"#E24B4A", fontSize:13, padding:"40px 0" }}>読み込みに失敗しました。開き直してください</p>;
   return <WorkRecordBody data={state} showName={showName} />;
 }
