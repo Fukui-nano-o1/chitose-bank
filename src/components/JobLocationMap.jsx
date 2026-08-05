@@ -136,7 +136,9 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
         {/* 行き先の優先順（2026-08-03）：①番地レベルで取れた座標＝必ずその点に着く
             ②住所文字列＝Google側の検索に委ねる（番地未対応の地域では町域中心に着く）
             ③座標（町域重心）＝住所が無い旧呼び出し */}
-        <a href={preciseGeo
+        {/* 訪問者にはGoogleマップ導線を出さない（2026-08-05たきと指示）。
+            円で範囲だけを示す画面に、外部地図で1点に着地できる出口を残さない */}
+        {!visitor && <a href={preciseGeo
               ? `https://www.google.com/maps/search/?api=1&query=${preciseGeo.lat},${preciseGeo.lng}`
               : (mapQuery && mapQuery.trim())
               ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery.trim())}`
@@ -144,7 +146,7 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
           target="_blank" rel="noopener noreferrer"
           className="f-sans" style={{ position:"absolute", right:12, top:12, zIndex:3, display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 13px", fontSize:12, fontWeight:700, color:"#222", textDecoration:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.16)", whiteSpace:"nowrap" }}>
           Googleマップ <span style={{ color:"#00A86B" }}>→</span>
-        </a>
+        </a>}
       </div>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
         {visitor
