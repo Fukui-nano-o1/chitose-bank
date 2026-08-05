@@ -786,12 +786,12 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   body:has(.ins-prep-page) .app-header-mobile,
   body:has(.ins-prep-page) .app-header-mobile-float { display: none !important; }
   /* 管理画面で操作するページ（#/admin・/admin/working・/admin/upcoming・/admin/evaluation・#/boxes）：
-     下部バー（.app-header-mobile）・浮遊☰を出さない（2026-08-05たきと指示）。
-     運営の道具を並べる画面so、さがす/しごと/プロフィールの3タブの案内は持ち込まない
-     （委託ページ .cb-consign-page と同じ考え方。行き来は各ページ上部の AdminNav が担う）。
+     下部バー（.app-header-mobile）を出さない（2026-08-05たきと指示）。
+     運営の道具を並べる画面so、さがす/しごと/プロフィールの3タブの案内は持ち込まない。
+     ★浮遊☰（.app-header-mobile-float）とサイトフッターは出す（同日たきと指示で復元）
+       ＝管理画面から出る道を残す。委託ページ（.cb-consign-page）は別世界観so従来どおり全部隠す。
      目印 .cb-admin-page は各管理ページのルートに付ける＝ページを増やしたらクラスを1つ足すだけ */
-  body:has(.cb-admin-page) .app-header-mobile,
-  body:has(.cb-admin-page) .app-header-mobile-float { display: none !important; }
+  body:has(.cb-admin-page) .app-header-mobile { display: none !important; }
   /* 下部バーが消えたぶんの余白（バー高ぶん）を詰める */
   body:has(.cb-admin-page) main { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important; }
   /* 委託ページ（#/admin/consignment）は別世界観（2026-07-31たきと指示）：
@@ -980,9 +980,8 @@ body:has(.qset-full) .site-footer-fixed { display: none !important; }
 body:has(.ins-prep-page) .site-footer-fixed { display: none !important; }
 /* 経験・資格ページ（#/experience）もフッター（サポート等）を出さない（2026-08-03たきと指示） */
 body:has(.cb-exp-page) .site-footer-fixed { display: none !important; }
-/* 管理画面で操作するページもサイトフッター（サポート等）を出さない（2026-08-05たきと指示）。
-   メディアクエリの外に置く＝画面幅に関係なく効く（PCでも管理画面にはフッターを出さない） */
-body:has(.cb-admin-page) .site-footer-fixed { display: none !important; }
+/* 管理画面のサイトフッター（サポート等）は出す（2026-08-05たきと指示で復元）。
+   隠すのは下部バーだけ＝上のメディアクエリ内の1行のみ。ここに非表示ルールを足さないこと */
 html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
 /* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。

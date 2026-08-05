@@ -111,7 +111,7 @@ export function AdminWorkingRoom() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    /* cb-admin-page＝下部バー・浮遊☰・サイトフッターを隠す目印（appStyles・2026-08-05） */
+    /* cb-admin-page＝下部バーを隠す目印（浮遊☰・フッターは出す・appStyles・2026-08-05） */
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
       {/* 管理ページの共通ナビ（全ページ導線・2026-08-02） */}
       <AdminNav current="working" />
