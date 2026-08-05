@@ -37,6 +37,7 @@ import { ProfileModal } from "./components/ProfileModal";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { JobSearchMapView } from "./components/JobSearchMapView";
 import { MyReviewsOfWorker } from "./components/MyReviewsOfWorker";
+import { WorkerWorkRecord } from "./components/WorkerWorkRecord";
 const LandingFlow = lazyChunk(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
 const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
 const ConsignmentRoom = lazyChunk(() => import("./components/admin/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
@@ -282,10 +283,13 @@ function EmployerPreviewSheet() {
 
 function WorkerPreviewSheet() {
   const [st, setSt] = useState(null); // {worker_id, loading, profile, trust}
+  // ボックスは2枚（0=プロフィール／1=はたらいた記録）。横スワイプで行き来する（2026-08-05たきと指示）
+  const [page, setPage] = useState(0);
   useEffect(() => {
     const f = (e) => {
       const workerId = e.detail;
       if (!workerId) return;
+      setPage(0); // 開くたびに1枚目から
       setSt({ worker_id: workerId, loading: true, profile: null, trust: null });
       (async () => {
         try {
@@ -312,28 +316,85 @@ function WorkerPreviewSheet() {
     window.addEventListener("cb:openWorkerPreview", f);
     return () => window.removeEventListener("cb:openWorkerPreview", f);
   }, []);
+
+  // ── 指追従ページャー（ボックス一覧・農家プロ作成中⇄公開中と同じ作法）──
+  // 横に動かしたと分かってから（8px）transformを直接書く＝毎フレームの再描画なしで指に付いてくる。
+  // 縦の指はページャーが奪わない（touchAction:pan-y）＝ボックスの縦スクロールは従来どおり。
+  const trackRef = useRef(null);
+  const dragRef = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
+  const basePct = () => (page === 0 ? 0 : -50);
+  const onPagerStart = (e) => {
+    dragRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
+  };
+  const onPagerMove = (e) => {
+    const s = dragRef.current, el = trackRef.current;
+    if (!s || !el) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+    if (s.lock !== "h") return;
+    const atEdge = (page === 0 && dx > 0) || (page === 1 && dx < 0); // 端は1/3の抵抗
+    s.dx = atEdge ? dx / 3 : dx;
+    el.style.transition = "none";
+    el.style.transform = `translateX(calc(${basePct()}% + ${s.dx}px))`;
+  };
+  const onPagerEnd = () => {
+    const s = dragRef.current, el = trackRef.current;
+    dragRef.current = null;
+    if (!s || !el || s.lock !== "h") return;
+    el.style.transition = "transform .3s ease";
+    const threshold = Math.min(80, s.w / 4);
+    if (page === 0 && s.dx < -threshold) { el.style.transform = "translateX(-50%)"; setPage(1); }
+    else if (page === 1 && s.dx > threshold) { el.style.transform = "translateX(0%)"; setPage(0); }
+    else { el.style.transform = `translateX(${basePct()}%)`; }
+  };
+
   if (!st) return null;
   return (
     <div onClick={()=>setSt(null)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
       <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
         <button onClick={()=>setSt(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>働き手のプレビュー</p>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 12px" }}>働き手のプレビュー</p>
         {st.loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
-            <WorkerTrustCard profile={st.profile} trust={st.trust} />
-            {Array.isArray(st.profile.pr_qa) && st.profile.pr_qa.length > 0 && (
-              <div style={{ display:"grid", gap:10, marginTop:16 }}>
-                {st.profile.pr_qa.map(({ q, a }) => (
-                  <div key={q}>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
-                  </div>
-                ))}
+            {/* 2枚のどちらを見ているかの目印。タップでも切り替わる（スワイプがあることに気づけるように） */}
+            <div style={{ display:"flex", gap:8, margin:"0 0 14px" }}>
+              {[{ k:0, l:"プロフィール" }, { k:1, l:"はたらいた記録" }].map(t => (
+                <button key={t.k} type="button" onClick={()=>setPage(t.k)} className="f-sans"
+                  style={{ flex:1, padding:"9px 0", borderRadius:10, cursor:"pointer", background:"#fff",
+                    border: page===t.k ? "2px solid #222" : "1px solid #EBEBEB",
+                    fontSize:12, fontWeight: page===t.k ? 800 : 600, color: page===t.k ? "#222" : "#999" }}>
+                  {t.l}
+                </button>
+              ))}
+            </div>
+            <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
+              <div ref={trackRef} style={{ display:"flex", alignItems:"flex-start", width:"200%", transform: page===0 ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
+                {/* 1枚目：プロフィール（従来の中身をそのまま） */}
+                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
+                  <WorkerTrustCard profile={st.profile} trust={st.trust} />
+                  {Array.isArray(st.profile.pr_qa) && st.profile.pr_qa.length > 0 && (
+                    <div style={{ display:"grid", gap:10, marginTop:16 }}>
+                      {st.profile.pr_qa.map(({ q, a }) => (
+                        <div key={q}>
+                          <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+                          <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <MyReviewsOfWorker workerId={st.worker_id} />
+                </div>
+                {/* 2枚目：はたらいた記録（働き手ダッシュボードと同じ部品） */}
+                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
+                  <WorkerWorkRecord workerId={st.worker_id} />
+                </div>
               </div>
-            )}
-            <MyReviewsOfWorker workerId={st.worker_id} />
+            </div>
           </>
         ) : st.blocked ? (
           <div style={{ textAlign:"center", padding:"32px 0" }}>
