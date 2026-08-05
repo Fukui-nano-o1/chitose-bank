@@ -917,6 +917,34 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 /* 委託ページ内の主ボタン（保存する等）も黒に（2026-07-31たきと指示「すべて、ブラックで統一」）。
    編集モーダルはDOM上 .cb-consign-page の子孫なのでこの継承で拾える */
 .cb-consign-page .btn-primary { background: #111111 !important; }
+/* ── 委託／受託の切替トグル（2026-08-05たきと指示「求人求職の切り替えトグルと同じ構造」）──
+   .profile-employer-fab と同じ構造：右下固定・切替先を予告するラベル・スクロール連動の自動格納・
+   反転は pflip 0.4s×2（両面で共用の @keyframes を使う＝アニメを二重に定義しない）。
+   違いは2点だけ：①委託ページは下部バーが無いので浮遊位置は画面下から20px
+   ②色相を持ち込まない（委託・受託はブラックの世界＝求人の緑／求職の橙とは分ける・2026-07-31）。
+   切替先の予告は色相でなく濃淡の階段で行う＝委託主は黒ベタ／受託者は白地に黒枠。
+   モバイル限定にしない（委託ページは下部バーが無く、デスクトップでも右下が空いているため） */
+.consign-role-fab {
+  position: fixed;
+  right: 12px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  border-radius: 24px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Noto Sans JP', sans-serif;
+  box-shadow: 0 4px 12px rgba(0,0,0,.18);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .25s ease;
+}
+/* 下へスクロール中は沈める（.profile-employer-fab と同じ cb-scroll-hide 連動）。
+   沈む量＝浮遊位置(20px+セーフエリア)＋自身の高さ(100%) */
+body.cb-scroll-hide .consign-role-fab { transform: translateY(calc(100% + 20px + env(safe-area-inset-bottom, 0px))); }
+/* オーバーレイ表示中は隠す（求人求職側のトグルと同じ作法・オーバーレイ描画の鉄則） */
+body:has(.cb-lock-scroll) .consign-role-fab,
+body:has(.cb-box-overlay) .consign-role-fab { display: none !important; }
 /* 退場演出（2026-07-31たきと指示・新しく委託を出す→ウィザードへ）：
    蔓(0〜0.5s)→太陽と空(0.4〜0.9s)→名刺・ボックス・文言(0.8〜1.2s)の順に画面外へ。
    蔓は各svgでなく容器ごと持ち上げる（svg個々のsway用インラインduration/delayに勝てないため。

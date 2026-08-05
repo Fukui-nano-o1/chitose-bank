@@ -1289,9 +1289,15 @@ export function ConsignmentRoom() {
     if (m) return { view: "deal", id: m[1] };
     if (h === "admin/consignment/new") return { view: "new" };
     if (h === "admin/consignment/profile") return { view: "profile" };
+    // 受託面（2026-08-05たきと指示）：委託＝出す側／受託＝受ける側の2面。求人求職のトグルと同じ構造so
+    // 面ごとにURLを持たせる（#/profile/worker ⇄ #/profile/employer と同じ作法）＝戻る・スワイプ・直打ちが効く
+    if (h === "admin/consignment/contractor") return { view: "contractor" };
     return { view: "list" };
   };
-  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "profile" ? "profile" : v === "new" ? "new" : "deal"; }); // list=一覧 / deal=案件ダッシュボード / profile=委託専用プロフィール
+  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "contractor" ? "contractor" : v === "profile" ? "profile" : v === "new" ? "new" : "deal"; }); // list=委託面（一覧）/ contractor=受託面 / deal=案件ダッシュボード / profile=委託専用プロフィール
+  // 委託⇄受託の反転アニメ（ProfileHubのpTab切替と同じ2段階：pflip-out 0.4s→面切替→pflip-in 0.4s）
+  const [cAnim, setCAnim] = useState("");
+  const [contractorFlip, setContractorFlip] = useState(false); // 「委託をさがす」カードの反転（掲載板は準備中）
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示・順序改定「まず太陽→草」）：
   // 線(0.22s)→①太陽・上段(0.10s〜)→②草・右下(0.45s〜)→③草・左中(0.80s〜)→幕が開く(1.20s+0.5s)
@@ -1769,6 +1775,8 @@ export function ConsignmentRoom() {
       }
       else if (c.view === "new") { newDealState(); }
       else if (c.view === "profile") { setProfilePane("info"); setCTab("profile"); }
+      // 受託面（2026-08-05）：委託面と同じ「一覧の世界」so帰還演出（ウィザード・プロフィールからの逆再生）は挟まない
+      else if (c.view === "contractor") { setCTab("contractor"); }
       else { const d = dealsRef.current.find(x => x.id === c.id); if (d) openDealState(d); }
     };
     window.addEventListener("hashchange", onHash);
@@ -2040,6 +2048,27 @@ export function ConsignmentRoom() {
       {termsOk && !leaving && (
         <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ position:"fixed", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, zIndex:60, background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:12.1, fontWeight:800, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,0,0,0.25)" }}>利用特約</button>
       )}
+      {/* 委託⇄受託の切替トグル（2026-08-05たきと指示「求人求職の切り替えトグルと同じ構造」）。
+          ProfileHubの浮遊トグルと同じ振る舞い：両面の入口でだけ出す／連打ガード／
+          pflip-out(0.4s)→hash書き換え→pflip-in、そして切替【先】をラベルと見た目で予告する。
+          色相は持ち込まない（ブラックの世界）ので、予告は濃淡で行う＝
+          受託者へ行くボタンは白地に黒枠／委託主へ戻るボタンは黒ベタ。
+          演出中（退場・帰還）は出さない＝画面が飛んでいる最中に押させない */}
+      {(cTab === "list" || cTab === "contractor") && !leaving && !returning && (
+        <button type="button" onClick={()=>{
+          if (cAnim === "pflip-out") return; // 連打ガード
+          setCAnim("pflip-out");
+          setTimeout(()=>{
+            window.location.hash = cTab === "contractor" ? "/admin/consignment" : "/admin/consignment/contractor";
+            setCAnim("pflip-in");
+          }, 400);
+        }} className="consign-role-fab f-sans"
+          style={ cTab === "contractor"
+            ? { background:"#111111", color:"#FFFFFF", border:"2px solid #111111" }
+            : { background:"#FFFFFF", color:"#111111", border:"2px solid #111111" }}>
+          {cTab === "contractor" ? "⇄ 委託（出す側）に切替" : "⇄ 受託（受ける側）に切替"}
+        </button>
+      )}
       {termsModal && (
         <div onClick={()=>setTermsModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:70, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:560, width:"100%", maxHeight:"80vh", overflowY:"auto", padding:"20px 18px", boxSizing:"border-box" }}>
@@ -2208,6 +2237,11 @@ export function ConsignmentRoom() {
       )}
       {/* トップ画=一覧（さがすページと同じ設計・2026-07-31たきと指示）：カードの一覧→タップで
           案件ダッシュボード(deal)へ。←戻る・見出し・入口カードは一覧側だけに出す */}
+      {/* 委託⇄受託の2面（2026-08-05たきと指示）。key={cTab}で包む＝切替のたびに再マウントされ
+          pflip-in/fade-inが再生される（ProfileHubのpTab切替と同じ作法）。
+          .consign-list-content は両面に付ける＝退場・帰還演出のCSS（子孫セレクタ）がそのまま効く */}
+      {(cTab === "list" || cTab === "contractor") && (
+      <div key={cTab} className={cAnim || undefined} onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && cAnim === "pflip-in") setCAnim(""); }}>
       {cTab === "list" && (<div className="consign-list-content">
       {/* 管理ページの共通ナビ（全ページ導線・2026-08-02）。一覧側だけに出す（ウィザード・印刷は出さない） */}
       <AdminNav current="consignment" />
@@ -2236,6 +2270,64 @@ export function ConsignmentRoom() {
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:14.3, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>5つのステップで掲載まで進みます。</span>
       </button>
       </div>)}
+
+      {/* ═══ 受託面（#/admin/consignment/contractor・2026-08-05たきと指示）═══
+          委託面（出す側）の対になる「受ける側」の面。並びは委託面と同じ＝共通ナビ／戻る／名刺／
+          ワイドカード／一覧、で骨を揃える（1アカウントが両面を持つ世界でUIの骨が変わらない・
+          求人求職のカード対称性と同じ理屈）。
+          ★ここは読み取り専用＝DBへの書き込み・入力は一切置かない。受託者情報の登録と掲載板は
+          CLAUDE.md「保存・入力機能の取り扱い」に従い、たきとの確認を取ってから別途実装する。
+          表示にダミーは置かない（憲法3条）＝実データが無い箇所は「まだありません」と理由を明記する */}
+      {cTab === "contractor" && (<div className="consign-list-content">
+      <AdminNav current="consignment" />
+      {/* 戻り先は委託面と同じ雇い手プロフィール入口＝「新しく委託を出す」カードが置いてある場所 */}
+      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
+      {/* 名刺（受託者）。委託面の名刺と同じ寸法・同じ枠で、役割ピルだけ濃淡を反転させる
+          （委託主＝黒ベタ／受託者＝白地に黒枠）。受託者情報の登録ページはまだ無いのでタップ先を
+          持たせない＝押せるのに何も起きないボタンにしない（2026-08-03「タップ不能はやめよう」の裏返しで、
+          行き先の無いボタンを作らない）。div＝表示カードとして置く */}
+      <div className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12 }}>
+        <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
+        <span style={{ textAlign:"center" }}>
+          <span className="f-sans" style={{ display:"block", fontSize:24.2, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
+          <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:14.3, fontWeight:800, color:"#111111", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"3px 14px" }}>受託者</span>
+        </span>
+      </div>
+
+      {/* 「委託をさがす」＝委託面の「新しく委託を出す」と対になるワイドカード。
+          掲載板（受託者が委託を探す市場）は手動1件目のあとに判断する方針（2026-07-19記載）なので、
+          機能・入力・保存を持たないプレースホルダーにし、タップで反転して理由を明記する
+          （ProfileHubの「新しく求職を出す」＝届出待ちカードと同じ作法） */}
+      <div style={{ perspective:800, marginBottom:16 }}>
+        <button onClick={()=>setContractorFlip(v=>!v)} className="f-sans" aria-label="委託をさがす（準備中）" style={{
+          position:"relative", width:"100%", background:"transparent", border:"none", padding:0, cursor:"pointer",
+          transformStyle:"preserve-3d", transition:"transform .5s", transform: contractorFlip ? "rotateY(180deg)" : "none", textAlign:"left",
+        }}>
+          {/* 表面 */}
+          <span style={{ position:"relative", overflow:"hidden", display:"block", background:"#111111", borderRadius:20, padding:"20px 18px", boxSizing:"border-box", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
+            <VineCorner flip size={110} style={{ top:-6, right:-6, opacity:0.5 }} />
+            <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:17.6, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>委託をさがす</span>
+            <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:14.3, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>出されている委託から、受けられる仕事を探します。</span>
+          </span>
+          {/* 裏面（タップで反転） */}
+          <span style={{ position:"absolute", inset:0, display:"block", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", boxSizing:"border-box", transform:"rotateY(180deg)", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
+            <span className="f-sans" style={{ display:"block", fontSize:15.4, fontWeight:800, color:"#111111" }}>準備中です</span>
+            <span className="f-sans" style={{ display:"block", fontSize:13.2, color:"#111111", marginTop:4, lineHeight:1.6 }}>委託の掲載板は、手で進める1件目を終えてから開きます。開いたら、ここから受けられる委託を探せるようになります。</span>
+          </span>
+        </button>
+      </div>
+
+      {/* 受託した委託の一覧（委託面の案件カード一覧と対になる枠）。
+          consignment_deals に受託者の列はまだ無く、受託側の案件は1件も存在しない＝
+          ダミーを並べず、空であることとその理由を書く */}
+      <p className="f-sans" style={{ fontSize:12.1, color:"#999999", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid #111111", paddingLeft:8 }}>受託した委託</p>
+      <div style={{ background:"#fff", border:"1px solid #E5E5E5", borderRadius:16, padding:"20px 18px" }}>
+        <p className="f-sans" style={{ fontSize:14.3, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>受託した委託はまだありません</p>
+        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0, lineHeight:1.8 }}>委託を受けると、その案件がここに並びます。進み具合（合意・着手金・作業中・検収・支払）も、委託面と同じ段階でこの面から追えるようにします。</p>
+      </div>
+      </div>)}
+      </div>
+      )}
 
       {/* 委託者情報の設定ページ（#/admin/consignment/profile・2026-07-31たきと指示）。
           原則変更しない本人・事業者情報を入力し、案件作成（確認STEP5・印刷仕様書）に自動反映する。
