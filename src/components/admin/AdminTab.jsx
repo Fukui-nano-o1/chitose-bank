@@ -533,7 +533,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
   );
 
   return (
-    <div className="appear" style={{ maxWidth:800, margin:"0 auto" }}>
+    /* cb-admin-page＝管理画面で操作するページの目印。下部バー・浮遊☰・サイトフッターを隠す（appStyles・2026-08-05たきと指示） */
+    <div className="appear cb-admin-page" style={{ maxWidth:800, margin:"0 auto" }}>
 
       {/* 確認ダイアログ */}
       {confirm && (

@@ -165,7 +165,8 @@ export function AdminEvaluationRoom() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
+    /* cb-admin-page＝下部バー・浮遊☰・サイトフッターを隠す目印（appStyles・2026-08-05） */
+    <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
       <AdminNav current="evaluation" />
 
       {state === null && (
