@@ -2307,3 +2307,36 @@ ContractPartyName と同じ3箇所＝応募者シート・チャット・今日�
 【検証】build＋lint 0 error＋distの文言grepまで。実機目視は未実施。
   ①②を直したら、未招待アドレスで新規登録を一巡して確認すること。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-05 新着の応募ページ（#/new-applicants）＝応募を受けた雇い手専用の面 ━━━
+【たきと指示】「応募を受けた農家さん専用のページを作成する。応募を受けた直後からサイトに入ると
+トップ画面がこのページになる」
+【新設】components/NewApplicantsPage.jsx（lazyChunk・#/new-applicants）。
+・データ＝既存RPC2本（my_farm_applicants・my_farm_jobs／どちらもSECURITY INVOKER＝RLSそのまま）を
+  並列で1往復。★DB変更なし（新しいオブジェクトを作らない）。viewCacheでSWR（キー newApplicants）。
+・中身＝status='applied'（まだ決めていない応募）のカード。左に求人トップ写真＋タイトル/#No.、
+  右に段階チップ「応募中」・届いた時刻・日程／下に応募者の信頼カード（WorkerTrustCard＝応募者シートと
+  同じ部品＝公開してよい項目の唯一のソース）・来られる日・導線2つ。件数0なら説明文つきの空状態。
+・★【読み取り専用】承認・見送り・採用の実行は応募者シート（FarmerDashboard）が唯一の窓口so、
+  このページは「見せる」と「そこへ送る」だけ。書き込みの入口を増やさない＝記録・ゲート・
+  二重予約警告の担保を1箇所に保つ（保存・入力の管理者ゲート論点には非該当）。
+・本名・緊急連絡先は置かない（契約成立前so。2026-07-30裁定(B)・2026-08-03の窓口作法どおり）。
+【着地】App.jsx のトップページ着地を1つのeffect（topLandingChecked）に統合し優先順を明示：
+  ① 新着の応募（my_nav_badges の applicants_pending > 0）→ #/new-applicants
+  ② まもなく開始（管理者・従来どおり isUpcomingSoon）→ #/admin/upcoming
+  ★別effectのままだと両方が非同期にhashを書いて奪い合うため束ねた。ディープリンク時は奪わない
+  （initialHashTab=nullの時だけ）・RPCが返る間に移動していたら着地しない、は従来のまま。
+  決めれば applicants_pending が0になり着地は自然に止む（記録から導出・表示用の別状態を持たない）。
+【配線】TAB_URL_KEYSに "new-applicants" 追加（safeTabは要ログイン＝未ログインはsearchへ）／
+  FarmerDashboard に cb_openApplicantId の着地（該当応募のシートを自動展開・cb_completeAppIdと同型）／
+  今日ページ TODO_META.approve の行き先を新ページへ変更（着地先と同じ面に揃える。旧＝応募者ページ+appliedフィルタ）。
+【検証】build成功・lint 0 error（警告29は既存のみ・新規ゼロ）・distにチャンク生成と文言/フラグをgrep確認・
+本番データでRPCの返りを照合（applied 1件・profiles 2・jobs 3・badge 1）。実機目視は未実施→確認項目：
+①応募が1件ある雇い手でサイトを開き直すとこのページに着地するか ②カードの写真・日程・信頼カード・来られる日
+③「内容を見て決める」→応募者ページで該当シートが自動で開くか ④承認/見送り後は着地しなくなるか
+⑤今日ページ「新着の応募」からの遷移 ⑥未ログイン・応募0件の時の表示
+【メモ】着地しても現在のモード（empCtx）は切り替えない＝下部ナビは直前の役割のまま。応募者ページへ
+進んだ時点で従来ルール（#/profile/employer… でempCtx=true）が働いて雇い手ナビに戻る。
+気になるなら着地時にempCtxを立てる案があるが、「モードはプロフィールの側に入った時だけ変える」規則から
+外れるため今回はしていない。
+━━━ ここまで ━━━
