@@ -1423,9 +1423,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       )}
                       {/* 左：求人のトップ写真。タイトル・No.は写真の下部に重ね、暗いグラデーション越しに
                           写真が透ける（2026-07-26たきと指示・求人カードのカバー写真と同じ作法）。
-                          No.は必ず明記＝タイトルだけ「…」で省略し、#No.は別行で常時表示。タップで求人を見る */}
+                          No.は必ず明記＝タイトルだけ「…」で省略し、#No.は別行で常時表示。タップで求人を見る。
+                          ★枠は3:4固定（2026-08-06たきと指示「縦幅が求人ごとに違う。統一しろ」）：
+                            高さを決めずに置くと、中の<img>のheight:100%が高さ未定の親では実質autoになり、
+                            写真そのものの縦横比＝求人ごとの高さになっていた。3:4に固定すれば
+                            objectFit:coverが切り取る側に回り、どの求人でも 104×139 で揃う
+                            （新着の応募ページ・採用するページのカードと同じ作法） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
-                        style={{ flexShrink:0, width:104, padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                        style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
                         {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
                         <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
                           <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
