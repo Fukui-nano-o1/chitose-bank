@@ -17,6 +17,7 @@ import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
+import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
 
 // 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
 const APP_FILTER_KEYS = ["all","applied","interview","active","completed"];
@@ -520,26 +521,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // シートのボタン出し分け「初面接後=採用する」の判定に使用（2026-07-26たきと指示）
   // 採用する（応募者シート・2026-07-26）：今日ページ・チャットの採用と同じconfirm_terms＋二重予約警告
   const hireApplicant = async (a, nickname) => {
-    let dup = null;
-    try {
-      const { data: apps } = await supabase.from("applications").select("job_number,status").eq("farmer_id", me.id).eq("worker_id", a.worker_id).neq("job_number", a.job_number);
-      const others = (apps || []).filter(x => CHAT_ELIGIBLE_STATUSES.includes(x.status) && x.job_number != null);
-      if (others.length) {
-        const nums = [...new Set([a.job_number, ...others.map(x => x.job_number)])];
-        const { data: jrows } = await supabase.from("jobs").select("job_number,date_start,date_end").in("job_number", nums);
-        const cur = (jrows || []).find(j => j.job_number === a.job_number);
-        if (cur?.date_start) {
-          const curEnd = cur.date_end || cur.date_start;
-          for (const j of jrows || []) {
-            if (j.job_number === a.job_number || !j.date_start) continue;
-            const jEnd = j.date_end || j.date_start;
-            if (cur.date_start <= jEnd && j.date_start <= curEnd) { dup = j.job_number; break; }
-          }
-        }
-      }
-    } catch {}
-    const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : "";
-    if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。\n\n採用すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。`)) return;
+    // 二重予約の判定と告知文は lib/hire に集約（2026-08-06）。採用するページ（今日ページの
+    // HireStagePanel）と同じ判定・同じ文言を使う＝窓口が増えても警告が食い違わない
+    const dup = await findDoubleBookingJob(me.id, a.worker_id, a.job_number);
+    const warn = dup ? doubleBookingWarning(dup) + "\n\n" : "";
+    if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。\n\n${HIRE_NAME_DISCLOSURE_NOTE}`)) return;
     const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id });
     if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     // 働き手側のterms_confirmed_worker_atは応募時にDBトリガーが自動記録済みso、農家側の時刻だけ足せば帯・ボタンがcontractedへ進む

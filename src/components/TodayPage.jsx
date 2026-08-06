@@ -5,6 +5,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb,
   appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
+import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
@@ -275,9 +276,10 @@ function EmergencyStagePanel({ items, role }) {
   );
 }
 
-// 採用する専用ページ（#/calendar/todo/hire）の着地：どの応募のシートを開くかだけを渡す。
-// ★採用の実行は応募者シートの🤝採用するボタン（二重予約の警告つき）が唯一の窓口（2026-07-27）so、
-//   このページは「見せる」と「そこへ送る」だけ＝書き込みの入口を増やさない（新着の応募ページと同じ作法）
+// 応募者ページへの着地：どの応募のシートを開くかだけを渡す（詳しく見たい時の導線）。
+// ★2026-08-06たきと指示で、採用そのものはこのページでも押せるようになった（下の HireStagePanel）。
+//   採用の窓口は2つになったが、二重予約の判定と告知文は lib/hire に集約して食い違わせない。
+//   実行は双方とも同じ confirm_terms＝人数上限・見送りの波及・権限はDB側が担保する
 const HIRE_SHEET_PATH = "/profile/employer/applicants";
 function markHireSheet(applicationId) {
   try {
@@ -290,11 +292,47 @@ function markHireSheet(applicationId) {
 // 応募者ページ（FarmerDashboard・#/profile/employer/applicants）のカード＝左に求人のトップ写真
 // （タイトル・#No.を下部に重ねる）／右に働き手のアイコン（リング＝段階色）＋名前＋段階、をそのまま使う。
 // 違いは束ね方だけ＝応募者ページは1枚のカードに1求人（応募者アイコンが横に並ぶ）／このページは1枚＝1応募者。
-// カードタップで下からのボックスが開き、実行（採用＝応募者シートへ・チャット・求人ページ）はその中のボタンが担う
-// （緊急連絡ページ EmergencyStagePanel と同じ作法）。
+// カードは横3分割（写真／アイコン／🤝採用）。写真・アイコンのタップで下からのボックス（要約と導線）、
+// 🤝で最終確認→OKでその場で採用（ページ遷移しない・2026-08-06たきと指示）。
 // ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされる（フォーカス消失バグの同族）
-function HireStagePanel({ items }) {
+function HireStagePanel({ items, meId, onHired }) {
   const [boxItem, setBoxItem] = useState(null);
+  // 最終確認（2026-08-06たきと指示「ここで採用を押す。最終確認。OKタップで採用。ページ遷移しない」）：
+  // 🤝タップ→この画面内の確認カード→OKで confirm_terms を実行。応募者ページへは飛ばさない。
+  // ★確認に必ず載せるもの＝二重予約の警告（lib/hire・応募者シートと同じ判定）と、
+  //   契約成立で本名が相互開示されること（2026-07-30たきと裁定(B)の「採用confirmに明示」）
+  const [confirmItem, setConfirmItem] = useState(null); // { ...todo, dup:number|null, checking:bool }
+  const [hiring, setHiring] = useState(false);
+  const [done, setDone] = useState(null);   // 採用アニメーション { name, jobNumber, extra }
+  const [hiredIds, setHiredIds] = useState(() => new Set()); // 採用済み＝この画面から消す（やることが片付く）
+  const openConfirm = async (t) => {
+    setBoxItem(null);
+    setConfirmItem({ ...t, dup: null, checking: true });
+    const dup = meId ? await findDoubleBookingJob(meId, t.partner_id, t.job_number) : null;
+    setConfirmItem(prev => (prev && prev.application_id === t.application_id) ? { ...prev, dup, checking: false } : prev);
+  };
+  const runHire = async () => {
+    const t = confirmItem;
+    if (!t || hiring) return;
+    setHiring(true);
+    const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: t.application_id });
+    setHiring(false);
+    if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    // 人数に達した場合、残りの応募はDB側（confirm_terms）が見送りにする。件数はそのまま伝える
+    const closed = Array.isArray(data.closed_ids) ? data.closed_ids.length : 0;
+    const extra = !data.filled ? "" : (closed > 0
+      ? `募集人数に達したため、残りの応募 ${closed} 件は見送りになりました（お相手へ連絡済み）。`
+      : "募集人数に達したため、この求人の募集は終了です。");
+    setConfirmItem(null);
+    setDone({ appId: t.application_id, name: t.partner_name, jobNumber: t.job_number, extra });
+    setHiredIds(prev => new Set(prev).add(t.application_id)); // この画面からは即座に消す
+  };
+  // ★親のやることから消すのは演出を閉じた後（2026-08-06）：先に消すと、最後の1件だった時に
+  //   親が空状態へ切り替わってこのパネルごと消え、採用アニメーションが一瞬で消える
+  const closeDone = () => {
+    if (done?.appId && onHired) onHired(done.appId); // 今日ページのやること・件数バッジからも片付ける
+    setDone(null);
+  };
   // 求人のトップ写真だけは my_todo_items が返さないため、求人ページ・応募者ページと同じ
   // farm:jobInfo（my_farm_jobs 由来・{job_number:{crop,task,date_start,date_end,photos,holidays}}）から借りる。
   // キャッシュがあれば即描画→無ければ裏で1往復（新しいDBオブジェクトは作らない）
@@ -320,10 +358,22 @@ function HireStagePanel({ items }) {
   const titleOf = (t) => [t.crop, t.task].filter(Boolean).join(" ") || `求人 #${t.job_number}`;
   const dateOf = (t) => t.date_start ? (t.date_end && t.date_end !== t.date_start ? `${calFmtDate(t.date_start)}〜${calFmtDate(t.date_end)}` : calFmtDate(t.date_start)) : "未設定";
   const photoOf = (t) => photoThumb(jobInfo[t.job_number]?.photos?.[0]);
+  // 採用した応募はこの場から消える（ページ遷移せずに、やることが片付いたことが見てわかる）
+  const shown = items.filter(t => !hiredIds.has(t.application_id));
   return (
     <>
+      {/* 採用の演出（下の SUCCESS 用）。keyframesは使う場所に同居させる（NewApplicantsPanelの花びらと同じ作法） */}
+      <style>{`
+@keyframes cbHireSeal{0%{transform:scale(.3) rotate(-18deg);opacity:0}45%{transform:scale(1.18) rotate(4deg);opacity:1}70%{transform:scale(.95) rotate(0)}100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes cbHireRing{0%{transform:scale(.5);opacity:.55}100%{transform:scale(2.6);opacity:0}}
+@keyframes cbHireBurst{0%{transform:translate(0,0) scale(.4);opacity:0}20%{opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1);opacity:0}}
+@keyframes cbHireText{0%{transform:translateY(10px);opacity:0}100%{transform:translateY(0);opacity:1}}
+`}</style>
       <div style={{ display:"grid", gap:10 }}>
-        {items.map(t => {
+        {shown.length === 0 && (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"28px 0" }}>採用しました。この用事は片付きました</p>
+        )}
+        {shown.map(t => {
           const photo = photoOf(t);
           return (
             /* 横幅を3分割（2026-08-06たきと指示）：写真／アイコン／🤝採用 を各1/3。
@@ -348,9 +398,9 @@ function HireStagePanel({ items }) {
                   <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:phaseColor, marginTop:1, cursor:"pointer" }}>{APP_PHASE_LABEL[phase]}</span>
                 </button>
               </div>
-              {/* ③🤝採用：このページの用件そのもの。押すとその応募のシートへ直行する
-                  （採用の実行＝応募者シートの🤝採用するボタンが唯一の窓口・二重予約の警告つき） */}
-              <button onClick={()=>{ markHireSheet(t.application_id); window.location.hash = HIRE_SHEET_PATH; }} aria-label="この応募者を採用する" className="f-sans"
+              {/* ③🤝採用：このページの用件そのもの。押すと最終確認（画面内）→OKでその場で採用。
+                  ページ遷移はしない（2026-08-06たきと指示）。判定と告知文は応募者シートと共有（lib/hire） */}
+              <button onClick={()=>openConfirm(t)} aria-label="この応募者を採用する" className="f-sans"
                 style={{ flex:"1 1 0", minWidth:0, border:"none", borderLeft:"1px solid #F0F0F0", background:"#fff", cursor:"pointer", padding:"10px 8px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4 }}>
                 <span style={{ fontSize:30, lineHeight:1 }}>🤝</span>
                 <span style={{ fontSize:12, fontWeight:800, color:"#00A86B" }}>採用する</span>
@@ -387,10 +437,12 @@ function HireStagePanel({ items }) {
                     {t.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>応募者 {t.partner_name}さん</p>}
                   </div>
                 </div>
-                {/* 操作（主役＝採用。実行そのものは応募者シートが担う＝ここは送り出すだけ） */}
+                {/* 操作（主役＝採用。この場で最終確認→採用まで進む） */}
                 <div style={{ display:"grid", gap:8 }}>
+                  <button onClick={()=>openConfirm(t)} className="f-sans"
+                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する</button>
                   <button onClick={()=>{ setBoxItem(null); markHireSheet(t.application_id); window.location.hash = HIRE_SHEET_PATH; }} className="f-sans"
-                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用を決める（応募者ページへ）→</button>
+                    style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>応募者ページで詳しく見る</button>
                   <button onClick={()=>{ setBoxItem(null); window.location.hash = "/chat/" + t.application_id; }} className="f-sans"
                     style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
                   <button onClick={()=>{ setBoxItem(null); try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans"
@@ -401,8 +453,91 @@ function HireStagePanel({ items }) {
           </div>
         );
       })()}
+
+      {/* ═══ 最終確認（画面内・ページ遷移しない） ═══
+          OKを押した時だけ confirm_terms が走る。ここに出す情報は「後戻りできない判断」に必要なものだけ */}
+      {confirmItem && (() => {
+        const t = confirmItem;
+        return (
+          <div onClick={()=>{ if (!hiring) setConfirmItem(null); }} className="cb-lock-scroll"
+            style={{ position:"fixed", inset:0, zIndex:9200, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+            <div onClick={ev=>ev.stopPropagation()} style={{ width:"100%", maxWidth:420, maxHeight:"86vh", overflowY:"auto", background:"#fff", borderRadius:18, padding:"20px 18px calc(18px + env(safe-area-inset-bottom, 0px))", animation:"cbPop .18s ease" }}>
+              <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>最終確認</p>
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 14px" }}>面接を終えてから決めてください</p>
+              <div style={{ display:"flex", alignItems:"center", gap:12, background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
+                <Avatar url={t.partner_avatar} name={t.partner_name || "？"} size={48} ring={phaseColor} bg={ROLE_ORANGE} />
+                <div style={{ minWidth:0 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>{t.partner_name ? t.partner_name + "さん" : "この方"}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0", overflow:"hidden", textOverflow:"ellipsis" }}>{titleOf(t)} <span style={{ color:"#999" }}>#{t.job_number}</span></p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>📅 {dateOf(t)}{t.work_time ? "　🕒" + t.work_time : ""}</p>
+                </div>
+              </div>
+              {/* 二重予約の警告（応募者シートと同じ判定＝lib/hire）。下調べ中はその旨を出す＝
+                  「警告が無い」のか「まだ調べ終わっていない」のかを取り違えさせない */}
+              {t.checking ? (
+                <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 10px" }}>日程の重なりを確認中<Dots /></p>
+              ) : t.dup ? (
+                <p className="f-sans" style={{ fontSize:12, color:"#B54A0E", background:"#FFF6EE", border:"1px solid #F3D3B5", borderRadius:10, padding:"10px 12px", lineHeight:1.7, margin:"0 0 10px" }}>{doubleBookingWarning(t.dup)}</p>
+              ) : null}
+              {/* 契約成立＝本名の相互開示の明示（2026-07-30たきと裁定(B)・採用confirmに必ず入れる） */}
+              <p className="f-sans" style={{ fontSize:12, color:"#555", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", lineHeight:1.7, margin:"0 0 16px" }}>{HIRE_NAME_DISCLOSURE_NOTE}</p>
+              <div style={{ display:"grid", gap:8 }}>
+                <button onClick={runHire} disabled={hiring || t.checking} className="f-sans"
+                  style={{ padding:"13px", fontSize:15, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (hiring || t.checking) ? 0.5 : 1 }}>
+                  {hiring ? <>採用しています<Dots /></> : "OK（採用する）"}
+                </button>
+                <button onClick={()=>setConfirmItem(null)} disabled={hiring} className="f-sans"
+                  style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ═══ 採用アニメーション（2026-08-06たきと指示） ═══
+          🤝が押印のように現れ、輪が広がり、粒が弾ける。人生の節目（契約成立）を祝う一拍。
+          人数に達して他の応募が見送りになった時だけ、読み落とさないよう閉じるまで残す */}
+      {done && (() => {
+        const auto = !done.extra;
+        return (
+          <div onClick={closeDone} className="cb-lock-scroll"
+            style={{ position:"fixed", inset:0, zIndex:9300, background:"rgba(255,255,255,0.96)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
+            <div style={{ position:"relative", width:180, height:180, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              {[0, 1, 2].map(i => (
+                <span key={i} aria-hidden style={{ position:"absolute", width:110, height:110, borderRadius:"50%", border:"3px solid #00A86B", animation:`cbHireRing 1.5s ease-out ${0.15 + i * 0.28}s both` }} />
+              ))}
+              {Array.from({ length: 12 }).map((_, i) => {
+                const a = (i / 12) * Math.PI * 2;
+                return (
+                  <span key={"b" + i} aria-hidden style={{ position:"absolute", fontSize:16, ["--dx"]: Math.cos(a) * 92 + "px", ["--dy"]: Math.sin(a) * 92 + "px", animation:`cbHireBurst 1.1s ease-out ${0.2 + (i % 4) * 0.06}s both` }}>{i % 3 === 0 ? "🌾" : i % 3 === 1 ? "✨" : "🌸"}</span>
+                );
+              })}
+              <span style={{ fontSize:78, lineHeight:1, animation:"cbHireSeal .7s cubic-bezier(.2,1.3,.4,1) both" }}>🤝</span>
+            </div>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"8px 0 0", animation:"cbHireText .5s ease .45s both" }}>採用しました</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, textAlign:"center", margin:"8px 0 0", animation:"cbHireText .5s ease .6s both" }}>
+              {done.name ? done.name + "さん" : "応募者"}と #{done.jobNumber} の契約が成立しました。<br />作業日などの連絡はチャットでどうぞ。
+            </p>
+            {done.extra && (
+              <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, textAlign:"center", maxWidth:380, background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:"14px 0 0", animation:"cbHireText .5s ease .7s both" }}>{done.extra}</p>
+            )}
+            {auto ? <AutoClose onDone={closeDone} /> : (
+              <button onClick={closeDone} className="f-sans"
+                style={{ marginTop:18, padding:"11px 26px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", animation:"cbHireText .5s ease .8s both" }}>閉じる</button>
+            )}
+          </div>
+        );
+      })()}
     </>
   );
+}
+
+// 演出を一定時間で自動的に閉じる（タップでも閉じられる）。※モジュールレベル定義を維持すること
+function AutoClose({ onDone, ms = 2600 }) {
+  // 呼び出し側が毎回新しい関数を渡してもタイマーを張り直さない（refに最新を持たせる）
+  const cb = useRef(onDone); cb.current = onDone;
+  useEffect(() => { const id = setTimeout(() => cb.current?.(), ms); return () => clearTimeout(id); }, [ms]);
+  return null;
 }
 
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。
@@ -881,8 +1016,9 @@ export function TodayPage({ me, defaultRole }) {
         ) : pageStage === "approve" ? (
           <NewApplicantsPanel items={pItems} onTap={(t)=>runTodo(TODO_META.approve, t)} />
         ) : pageStage === "hire" ? (
-          /* 採用するページは応募者ページと同じカード構造・ただし応募者単位（2026-08-06たきと指示） */
-          <HireStagePanel items={pItems} />
+          /* 採用するページは応募者ページと同じカード構造・ただし応募者単位（2026-08-06たきと指示）。
+             🤝→最終確認→OKでその場で採用（ページ遷移しない）。片付いた応募はやることからも消す */
+          <HireStagePanel items={pItems} meId={me?.id} onHired={(id)=>removeTodo(id, "hire")} />
         ) : pageStage === "t_emergency" ? (
           /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示） */
           <EmergencyStagePanel items={pItems} role={role} />
