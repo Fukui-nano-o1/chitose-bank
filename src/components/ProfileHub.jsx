@@ -146,8 +146,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
   // 自己紹介の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中=赤帯（修正のためタップは可能）
   const wHasPending = !!(wMini && (((wMini.pr_pending || "").trim()) || (Array.isArray(wMini.pr_qa_pending) && wMini.pr_qa_pending.length > 0)));
   const wReview = wHasPending ? (wMini.pr_submitted_at ? "pending" : "revision") : null;
+  // 下余白は0にしてCSS側（body:has(.profile-employer-edge) main）で最下段の空きを15pxに一本化（2026-08-03）
   return (
-    <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
+    <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px 0"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
           表示は両面の入口(カードメニュー)のみ＝編集・サブページでは非表示（2026-07-14）。
           切替はフェードアウト(0.16s)→面切替→フェードイン(0.22s)の2段階 */}
@@ -316,9 +317,13 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         <div className="profile-content">
             {/* 浮遊の「← プロフィール」ボックスは削除（2026-07-25たきと指示・農家側の「← 農家プロ」削除と対）。
                 戻りは下部ナビのプロフィールタップ（＝働き手トップへ）が担う */}
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-              <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
-            </div>
+            {/* 「働き手プロフィール」の見出しは削除（2026-08-03たきと指示・名刺カードから開けば現在地は明らか）。
+                他のサブページ（返事待ち・きょうの仕事）は従来どおり見出しを出す */}
+            {wTab !== "wprofile" && (
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
+              </div>
+            )}
             {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
             {wTab === "wprofile" ? (
               <WorkerProfileEdit me={me} onAvatarChange={onAvatarChange} onDone={()=>{

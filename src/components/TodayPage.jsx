@@ -7,6 +7,7 @@ import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublic
 import { openPhaseInfo } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import ContractPartyName from "./ContractPartyName";
+import ContractEmergencyContact from "./ContractEmergencyContact";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
@@ -252,6 +253,8 @@ function EmergencyStagePanel({ items, role }) {
                 </div>
                 {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
                 {e.application_id && <ContractPartyName applicationId={e.application_id} showPending={false} style={{ margin:"0 0 12px", paddingLeft:2 }} />}
+                {/* 緊急連絡先も採用成立後のみ（同じ窓口作法・2026-08-03）。緊急連絡の直前で相手の連絡先が見える */}
+                {e.application_id && <ContractEmergencyContact applicationId={e.application_id} style={{ margin:"0 0 12px" }} />}
                 {/* 操作（ステータスページのボタン群と同じ位置づけ。主役＝緊急連絡） */}
                 <div style={{ display:"grid", gap:8 }}>
                   <button onClick={()=>{ setBoxItem(null); window.location.hash = "/emergency/" + e.application_id; }} className="f-sans"
@@ -531,9 +534,12 @@ export function TodayPage({ me, defaultRole }) {
     } },
     // 新着の応募（2026-07-26たきと指示・同日改定）：タップでお祝いパネル（NewApplicantsPanel）を展開。
     // 行タップで応募者ページへ「応募中」フィルタ着地＝どの求人に誰が応募したかを応募者ページの求人カード設計で見せる
+    // 行き先は新着の応募ページ（#/new-applicants・2026-08-05たきと指示で新設）に変更。
+    // 応募を受けた雇い手のための専用ページ＝サイトを開いた時の着地先と同じ面に揃える
+    // （そこから応募者シート＝承認・見送りの唯一の窓口へ送られる）
     approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",
                    desc:"あなたの求人に新しく届いた応募を確認します。承認すると面接に進めます。",
-                   nav: () => { try { sessionStorage.setItem("cb_appFilter", "applied"); } catch {} return "/profile/employer/applicants"; } },
+                   nav: () => "/new-applicants" },
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
     // 日程変更が必要な時だけ応募者ページの働く日モーダル（set_agreed_dates・cb_agreeAppId着地は温存）で行う
     // interview/hire（2026-07-25たきと指示）：チャットの質問集シート・採用ボタンを今日のリストへ移設。

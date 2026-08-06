@@ -97,7 +97,7 @@ const CONSIGN_FIXED_CLAUSES = [
 // 入力欄は置かず固定表示。保存時も必ずこの値を書く（spec.crop）＝カード/印刷/スナップショットに反映
 const CONSIGN_CROP = "ブロッコリー";
 
-const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", pay_method:"", onsite_contact_mode:"", onsite_name:"", onsite_phone:"", inspection:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
+const CONSIGN_EMPTY = { field_name:"", region:"徳島県吉野川市", area_a:"", crop:CONSIGN_CROP, task:"", deadline:"", date_start:"", date_end:"", unit_price_10a:"", advance:"", pay_method:"", onsite_contact_mode:"", onsite_name:"", onsite_phone:"", inspection:"", offgrade:"", field_cond:"", facility_parking:"", facility_toilet:"", facility_rest:"", facility_lend:"", hazards:[], hazard_other:"", photos:[], special:"" };
 
 const CONSIGN_BASIC_FIELDS = [
   { k:"field_name",     l:"圃場の呼び名", ph:"例：川向こうの畑" },
@@ -105,7 +105,7 @@ const CONSIGN_BASIC_FIELDS = [
   { k:"area_a",         l:"面積（a）", ph:"例：30" },
   { k:"crop",           l:"作物" },
   { k:"task",           l:"作業" },
-  { k:"deadline",       l:"履行期限" },
+  { k:"deadline",       l:"履行期限", help:"作業を終わらせる期日（期間）です。この日までに作業を完了する約束になり、仕様書と契約書に印字されます。収穫の適期など、遅れると困る事情があるときは余裕をもたずに正確な日付を示してください。開始日をタップし、続けて終了日をタップすると期間になります（1日だけなら同じ日をもう一度タップ）。" },
   { k:"unit_price_10a", l:"単価（10aあたり・円）", ph:"例：15000" },
   { k:"advance",        l:"着手金（前払金・円）", ph:"例：10000" },
   // 支払いは案件ごとの取引条件（2026-08-02たきと指示・利用者の属性ではない）。文言は希望でなく断定形
@@ -133,6 +133,10 @@ const CONSIGN_WIZ_STEPS = [
 
 const CONSIGN_TEXT_FIELDS = [
   { k:"inspection", l:"検収基準", ph:"例：2L以上・軸2cm・コンテナ渡し" },
+  // 検収基準を外れた作物の扱い（2026-08-03たきと指示）：基準＝合否の線引き、本項＝外れた分をどうするか。
+  // 決めずに始めると「収穫したのに数えられない」「捨てた/持ち帰ったで揉める」が起きるため必須級の取り決め
+  { k:"offgrade",   l:"検収基準外作物の扱い", ph:"例：規格外は別コンテナに分けて畑の入口へ。報酬の対象には含めない",
+    help:"検収基準に届かなかった作物（小さい・傷・変形など）を、どう扱うかの取り決めです。①その場に残すのか、分けて回収するのか、②報酬の対象に含めるのか含めないのか、③持ち帰りを認めるのか、の3点を決めておくと、作業後の食い違いを防げます。基準外の判断が難しい場合の連絡方法も書けます。" },
   { k:"field_cond", l:"圃場条件", ph:"残渣・傾斜・進入路など" },
   { k:"special",    l:"特約",     ph:"あれば記入" },
 ];
@@ -163,15 +167,39 @@ const CONSIGN_CLUSTER_BASES = [
 const makeConsignGrass = () => {
   const r = (min, max) => min + Math.random() * (max - min);
   return CONSIGN_CLUSTER_BASES.map(c => {
-    // 夏仕様：上段の群れは草でなく白い太陽（2026-07-31たきと指示）。大きさ・位置だけ入室ごとに抽選
+    // 夏仕様：上段は白い太陽（2026-07-31）と花火（2026-08-03たきと指示）を入室ごとにランダムで
+    // 出し分ける（交互＝どちらも消さない）。太陽＝爛々と輝く昼、花火＝5〜7発上がる夜
     if (c.kind === "sun") {
+      if (Math.random() < 0.5) {
+        return {
+          panel: c.panel,
+          kind: "sun",
+          delay: c.delay,
+          sunSize: Math.round(r(210, 280)),   // 太陽の直径px（爛々と大きめ）
+          sunTop: +r(7, 17).toFixed(1),       // 上幕の上端からの位置%
+          sunLeft: +r(40, 64).toFixed(1),     // 横位置%（中央やや右）
+        };
+      }
+      // 花火：1発＝打ち上げの尾（下から炸裂点まで昇る）＋炸裂（閃光＋光条＋粒）。
+      // 位置・大きさ・玉数・間合いは入室ごとに抽選＝毎回違う夜空になる
+      const n = 5 + Math.floor(Math.random() * 3); // 5〜7発
       return {
         panel: c.panel,
-        kind: "sun",
-        delay: c.delay,
-        sunSize: Math.round(r(210, 280)),   // 太陽の直径px（爛々と大きめ）
-        sunTop: +r(7, 17).toFixed(1),       // 上幕の上端からの位置%
-        sunLeft: +r(40, 64).toFixed(1),     // 横位置%（中央やや右）
+        kind: "fireworks",
+        shells: Array.from({ length: n }, (_, i) => {
+          const riseDur = +r(0.38, 0.52).toFixed(2);
+          return {
+            left: +r(12, 88).toFixed(1),          // 炸裂点の横位置%
+            top: +r(16, 62).toFixed(1),           // 炸裂点の縦位置%（上幕の中）
+            rise: Math.round(r(120, 260)),        // 打ち上げの高さpx（尾が昇る距離）
+            riseDur,
+            delay: +(c.delay + i * r(0.11, 0.17)).toFixed(2), // 続けざまに上がる
+            size: Math.round(r(130, 210)),        // 炸裂の直径px
+            rays: 16 + Math.floor(Math.random() * 8) * 2,     // 光条の数（16〜30・偶数）
+            spin: Math.round(r(0, 22)),           // 玉の向き（回転°）
+            burstDur: +r(0.8, 1.0).toFixed(2),    // 消えるまで
+          };
+        }),
       };
     }
     const size = r(160, 300); // 群れごとの大きさの基準（実機確認で縮小・2026-07-31「良い塩梅に」）
@@ -591,11 +619,20 @@ function ConsignFieldsPane({ fields, onReload }) {
   );
 }
 
-// ── 貸与できる道具・機械・設備（2026-08-02たきと指示・圃場の設備の貸与欄から移植）──
+// ── 貸与・提供できるもの（2026-08-02たきと指示・圃場の設備の貸与欄から移植／
+//    2026-08-03 消耗品を追加＝4区分から先に選ばせる）──
 // プロフィールのスワイプ3枚目。委託者単位の登録簿（正本= consignor_data.cmn_lend_items）。
-// 案件側は読み取り表示＋掲載時に写し（spec.facility_lend）を凍結する
+// 保存形は [{k:区分, n:名前}]。旧データ（文字列の配列）は読み込み時に {k:"", n:文字列} へ正規化。
+// 案件側は呼び出し（選択）＋掲載時に写し（spec.facility_lend）を凍結する
+const CONSIGN_LEND_KINDS = ["道具", "機械", "設備", "消耗品"];
+const CONSIGN_LEND_PH = { 道具:"例：収穫ナイフ", 機械:"例：軽トラ", 設備:"例：予冷庫", 消耗品:"例：コンテナ" };
+// 登録簿を [{k,n}] に正規化（旧＝文字列配列との両対応）。案件側の呼び出しでも使う
+const normalizeLendItems = (raw) => (raw || [])
+  .map(x => typeof x === "string" ? { k:"", n:x } : { k:(x && x.k) || "", n:(x && x.n) || "" })
+  .filter(x => (x.n || "").trim());
 function ConsignLendPane({ consignor, onSaved }) {
-  const items = (((consignor || {}).consignor_data || {}).cmn_lend_items) || [];
+  const items = normalizeLendItems(((consignor || {}).consignor_data || {}).cmn_lend_items);
+  const [kind, setKind] = useState("");
   const [input, setInput] = useState("");
   const [lBusy, setLBusy] = useState(false);
   const persist = async (next) => {
@@ -616,26 +653,46 @@ function ConsignLendPane({ consignor, onSaved }) {
   const add = () => {
     // 「・」は案件側の区切り文字so名前には使わせない（スペースに置換）
     const v = input.replace(/・/g, " ").trim();
-    if (!v) return;
-    if (items.includes(v)) { setInput(""); return; }
-    persist([...items, v]); setInput("");
+    if (!v || !kind) return;
+    if (items.some(x => x.n === v)) { setInput(""); return; }
+    persist([...items, { k: kind, n: v }]); setInput("");
   };
   const del = (i) => persist(items.filter((_, k) => k !== i));
+  // 区分ごとに並べる（未分類＝旧データは最後に「その他」で出す）
+  const groups = [...CONSIGN_LEND_KINDS.map(k => [k, items.map((it, i) => ({ ...it, i })).filter(x => x.k === k)]),
+    ["その他", items.map((it, i) => ({ ...it, i })).filter(x => !CONSIGN_LEND_KINDS.includes(x.k))]]
+    .filter(([, list]) => list.length);
   return (
     <div>
-      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>貸与できる道具・機械・設備</h2>
-      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>ここで登録した内容が、委託の作成ページと仕様書に自動で反映されます。</p>
-      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-        <input className="field f-sans" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") add(); }} placeholder="例：軽トラ" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
-        <button type="button" onClick={add} disabled={lBusy || !input.trim()} className="f-sans" style={{ flexShrink:0, padding:"0 18px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (lBusy || !input.trim()) ? 0.4 : 1 }}>追加</button>
+      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>貸与・提供できるもの</h2>
+      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>道具・機械・設備・消耗品を登録します。ここで登録した内容が、委託の作成ページと仕様書に自動で反映されます。</p>
+      {/* まず区分を選ぶ（2026-08-03たきと指示）→選ぶまで名前は入力できない */}
+      <label className="lbl f-sans">区分を選んでください</label>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
+        {CONSIGN_LEND_KINDS.map(k => {
+          const on = kind === k;
+          return (
+            <button key={k} type="button" onClick={()=>setKind(on ? "" : k)} className="f-sans" style={{ padding:"9px 18px", fontSize:15.4, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{k}</button>
+          );
+        })}
       </div>
+      <div style={{ display:"flex", gap:8, marginBottom:6 }}>
+        <input className="field f-sans" value={input} disabled={!kind} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") add(); }} placeholder={kind ? CONSIGN_LEND_PH[kind] : "先に区分を選んでください"} style={{ fontSize:15.4, marginBottom:0, flex:1, background: kind ? "#fff" : "#F7F7F7" }} />
+        <button type="button" onClick={add} disabled={lBusy || !kind || !input.trim()} className="f-sans" style={{ flexShrink:0, padding:"0 18px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (lBusy || !kind || !input.trim()) ? 0.4 : 1 }}>追加</button>
+      </div>
+      <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 16px" }}>{kind ? "「" + kind + "」として登録されます。続けて追加できます。" : "区分をタップすると入力できます。"}</p>
       {items.length === 0 && (
-        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>登録された道具・機械・設備はまだありません。</p>
+        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>登録されたものはまだありません。</p>
       )}
-      {items.map((it, i) => (
-        <div key={it} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#fff", border:"1px solid #111111", borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
-          <span className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{it}</span>
-          <button type="button" onClick={()=>del(i)} disabled={lBusy} className="f-sans" style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", border:"1px solid #D0D0D0", background:"#fff", color:"#999999", fontSize:14.3, fontWeight:700, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+      {groups.map(([g, list]) => (
+        <div key={g} style={{ marginBottom:14 }}>
+          <p className="f-sans" style={{ fontSize:13.2, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{g}</p>
+          {list.map(it => (
+            <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#fff", border:"1px solid #111111", borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
+              <span className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{it.n}</span>
+              <button type="button" onClick={()=>del(it.i)} disabled={lBusy} className="f-sans" style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", border:"1px solid #D0D0D0", background:"#fff", color:"#999999", fontSize:14.3, fontWeight:700, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+            </div>
+          ))}
         </div>
       ))}
     </div>
@@ -1234,13 +1291,19 @@ export function ConsignmentRoom() {
     if (m) return { view: "deal", id: m[1] };
     if (h === "admin/consignment/new") return { view: "new" };
     if (h === "admin/consignment/profile") return { view: "profile" };
+    // 受託面（2026-08-05たきと指示）：委託＝出す側／受託＝受ける側の2面。求人求職のトグルと同じ構造so
+    // 面ごとにURLを持たせる（#/profile/worker ⇄ #/profile/employer と同じ作法）＝戻る・スワイプ・直打ちが効く
+    if (h === "admin/consignment/contractor") return { view: "contractor" };
     return { view: "list" };
   };
-  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "profile" ? "profile" : v === "new" ? "new" : "deal"; }); // list=一覧 / deal=案件ダッシュボード / profile=委託専用プロフィール
+  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "contractor" ? "contractor" : v === "profile" ? "profile" : v === "new" ? "new" : "deal"; }); // list=委託面（一覧）/ contractor=受託面 / deal=案件ダッシュボード / profile=委託専用プロフィール
+  // 委託⇄受託の反転アニメ（ProfileHubのpTab切替と同じ2段階：pflip-out 0.4s→面切替→pflip-in 0.4s）
+  const [cAnim, setCAnim] = useState("");
+  const [contractorFlip, setContractorFlip] = useState(false); // 「委託をさがす」カードの反転（掲載板は準備中）
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示・順序改定「まず太陽→草」）：
   // 線(0.22s)→①太陽・上段(0.10s〜)→②草・右下(0.45s〜)→③草・左中(0.80s〜)→幕が開く(1.20s+0.5s)
-  // ＝約1.7sで終演、1.95sでDOMから外す。
+  // ＝花火5〜7発→約2.25sで終演、2.5sでDOMから外す（2026-08-03・太陽→花火）。
   // 動きを減らす設定の端末では最初から出さない（CSS側のprefers-reduced-motionと二重の判定）
   const [entrance, setEntrance] = useState(() => {
     try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; }
@@ -1298,7 +1361,7 @@ export function ConsignmentRoom() {
   const [cornerSizes] = useState(() => Array.from({ length: 4 }, () => Math.round(140 + Math.random() * 80)));
   useEffect(() => {
     if (!entrance) return;
-    const t = setTimeout(() => setEntrance(false), 1950);
+    const t = setTimeout(() => setEntrance(false), 2500); // 花火5〜7発ぶん延長（2026-08-03）
     return () => clearTimeout(t);
   }, [entrance]);
   // 委託地（徳島県吉野川市）の現在の風を取得（Open-Meteo・無料/キー不要/CORS可）。
@@ -1477,7 +1540,9 @@ export function ConsignmentRoom() {
   };
   // 貸与できる道具・機械・設備（2026-08-02たきと指示・圃場の設備から移植）：委託者単位の登録簿。
   // 正本= consignment_profiles.consignor_data.cmn_lend_items。案件には掲載時に写し（spec.facility_lend）が凍結される
-  const lendItems = (((consignor || {}).consignor_data || {}).cmn_lend_items) || [];
+  const lendCatalog = normalizeLendItems(((consignor || {}).consignor_data || {}).cmn_lend_items);
+  const lendItems = lendCatalog.map(x => x.n);        // 名前のみ（仕様書へ載る文字列＝従来どおり）
+  const lendKindOf = (n) => (lendCatalog.find(x => x.n === n) || {}).k || "";
   // 委託機能利用特約（2026-08-02たきと指示）：「新しく委託を出す」タップで初回ゲートとして展開。
   // 同意済み（版数一致）なら右上の浮遊ボックスからいつでも再読できる
   const termsOk = !!(consignor && consignor.consignment_terms_consent && consignor.consignment_terms_consent_version === CONSIGN_TERMS_VERSION);
@@ -1712,6 +1777,8 @@ export function ConsignmentRoom() {
       }
       else if (c.view === "new") { newDealState(); }
       else if (c.view === "profile") { setProfilePane("info"); setCTab("profile"); }
+      // 受託面（2026-08-05）：委託面と同じ「一覧の世界」so帰還演出（ウィザード・プロフィールからの逆再生）は挟まない
+      else if (c.view === "contractor") { setCTab("contractor"); }
       else { const d = dealsRef.current.find(x => x.id === c.id); if (d) openDealState(d); }
     };
     window.addEventListener("hashchange", onHash);
@@ -1772,28 +1839,36 @@ export function ConsignmentRoom() {
           </div>
         ))}
       </div>
-      <label className="lbl f-sans">貸与できる道具・機械・設備</label>
+      <label className="lbl f-sans">貸与・提供できるもの（道具・機械・設備・消耗品）</label>
       {/* 登録簿（貸与機材ページ）からの呼び出し（2026-08-03たきと指示）：タップで選択＝
           この委託で貸与するものだけが spec.facility_lend（仕様書）に載る。旧案件の残置値もピルに出す */}
       {(() => {
         const sel = (spec.facility_lend || "").split("・").filter(Boolean);
         const all = [...new Set([...lendItems, ...sel])];
         if (!all.length) return (
-          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>未登録（名刺タップ→貸与機材ページで登録すると、ここで呼び出せます）</p>
+          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>未登録（名刺タップ→貸与・提供ページで登録すると、ここで呼び出せます）</p>
         );
         const toggle = (it) => {
           const next = sel.includes(it) ? sel.filter(x => x !== it) : [...sel, it];
           setF("facility_lend", all.filter(x => next.includes(x)).join("・"));
         };
+        // 区分ごとに並べる（登録簿の区分・旧データや残置値は「その他」へ）
+        const groups = [...CONSIGN_LEND_KINDS.map(k => [k, all.filter(n => lendKindOf(n) === k)]),
+          ["その他", all.filter(n => !CONSIGN_LEND_KINDS.includes(lendKindOf(n)))]].filter(([, l]) => l.length);
         return (<>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {all.map(it => {
-              const on = sel.includes(it);
-              return (
-                <button key={it} type="button" onClick={()=>toggle(it)} className="f-sans" style={{ padding:"9px 16px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{it}</button>
-              );
-            })}
-          </div>
+          {groups.map(([g, list]) => (
+            <div key={g} style={{ marginBottom:8 }}>
+              <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#999999", margin:"0 0 4px" }}>{g}</p>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {list.map(it => {
+                  const on = sel.includes(it);
+                  return (
+                    <button key={it} type="button" onClick={()=>toggle(it)} className="f-sans" style={{ padding:"9px 16px", fontSize:14.3, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{it}</button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
           <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"6px 0 0" }}>タップで選択。選んだものだけがこの委託の仕様書に載ります。登録の追加は名刺タップ→貸与機材ページで。</p>
         </>);
       })()}
@@ -1802,7 +1877,17 @@ export function ConsignmentRoom() {
   // ── 入力部品（案件ダッシュボード(deal)と新規ウィザード(new)で共用・2026-07-31）──
   const renderBasicField = (f) => (
             <div key={f.k} style={{ marginBottom:10 }}>
+              {f.help ? (
+                <div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    {helpBtn(f.k)}
+                    <label className="lbl f-sans" style={{ marginBottom:0 }}>{f.l}</label>
+                  </div>
+                  {helpNote(f.k, f.help)}
+                </div>
+              ) : (
               <label className="lbl f-sans">{f.l}</label>
+              )}
               {f.k === "pay_method" ? (
                 <div style={{ display:"flex", gap:8 }}>
                   {["銀行振込", "現金"].map(opt => {
@@ -1846,7 +1931,17 @@ export function ConsignmentRoom() {
   );
   const renderTextField = (f) => (
             <div key={f.k} style={{ marginBottom:10 }}>
+              {f.help ? (
+                <div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    {helpBtn(f.k)}
+                    <label className="lbl f-sans" style={{ marginBottom:0 }}>{f.l}</label>
+                  </div>
+                  {helpNote(f.k, f.help)}
+                </div>
+              ) : (
               <label className="lbl f-sans">{f.l}</label>
+              )}
               <textarea className="field f-sans" value={spec[f.k]} onChange={e=>setF(f.k, e.target.value)} placeholder={f.ph} rows={3} style={{ fontSize:14.3, lineHeight:1.7, marginBottom:0, resize:"vertical" }} />
             </div>
   );
@@ -1955,6 +2050,27 @@ export function ConsignmentRoom() {
       {termsOk && !leaving && (
         <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ position:"fixed", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, zIndex:60, background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:12.1, fontWeight:800, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,0,0,0.25)" }}>利用特約</button>
       )}
+      {/* 委託⇄受託の切替トグル（2026-08-05たきと指示「求人求職の切り替えトグルと同じ構造」）。
+          ProfileHubの浮遊トグルと同じ振る舞い：両面の入口でだけ出す／連打ガード／
+          pflip-out(0.4s)→hash書き換え→pflip-in、そして切替【先】をラベルと見た目で予告する。
+          色相は持ち込まない（ブラックの世界）ので、予告は濃淡で行う＝
+          受託者へ行くボタンは白地に黒枠／委託主へ戻るボタンは黒ベタ。
+          演出中（退場・帰還）は出さない＝画面が飛んでいる最中に押させない */}
+      {(cTab === "list" || cTab === "contractor") && !leaving && !returning && (
+        <button type="button" onClick={()=>{
+          if (cAnim === "pflip-out") return; // 連打ガード
+          setCAnim("pflip-out");
+          setTimeout(()=>{
+            window.location.hash = cTab === "contractor" ? "/admin/consignment" : "/admin/consignment/contractor";
+            setCAnim("pflip-in");
+          }, 400);
+        }} className="consign-role-fab f-sans"
+          style={ cTab === "contractor"
+            ? { background:"#111111", color:"#FFFFFF", border:"2px solid #111111" }
+            : { background:"#FFFFFF", color:"#111111", border:"2px solid #111111" }}>
+          {cTab === "contractor" ? "⇄ 委託（出す側）に切替" : "⇄ 受託（受ける側）に切替"}
+        </button>
+      )}
       {termsModal && (
         <div onClick={()=>setTermsModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:70, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:560, width:"100%", maxHeight:"80vh", overflowY:"auto", padding:"20px 18px", boxSizing:"border-box" }}>
@@ -2051,7 +2167,7 @@ export function ConsignmentRoom() {
               {panel === "bottom" && <div className="consign-entrance-line" />}
               {entranceGrass.filter(c => c.panel === panel).map((c, ci) => (
                 c.kind === "sun" ? (
-                  // 夏仕様：一番上の群れ＝白い太陽が爛々と輝く（2026-07-31たきと指示）。
+                  // 白い太陽が爛々と輝く（2026-07-31たきと指示・花火とランダムで交互）。
                   // 円盤＋放射する光条（長短交互＝きらめき）＋脈打つ光輪(glow)。回転と脈動はCSS側。
                   // 上幕の中に居るので、幕が開くと太陽ごとスライド退場する（草と同じ片付け不要の仕組み）
                   <div key={ci} className="consign-sun" style={{ top: c.sunTop + "%", left: c.sunLeft + "%", width: c.sunSize, height: c.sunSize, marginLeft: -c.sunSize / 2, animationDelay: c.delay + "s" }}>
@@ -2065,6 +2181,37 @@ export function ConsignmentRoom() {
                     <svg className="consign-sun-disc" viewBox="-100 -100 200 200">
                       <circle cx="0" cy="0" r="40" fill="#fff" />
                     </svg>
+                  </div>
+                ) : c.kind === "fireworks" ? (
+                  // 花火（2026-08-03たきと指示「太陽の代わりに花火を打ち上げる・5〜7発」）。
+                  // 1発＝尾が昇る→閃光→光条と粒が開く→消える。上幕の中に居るので、
+                  // 幕が開くと花火ごとスライド退場する（草・太陽と同じ片付け不要の仕組み）
+                  <div key={ci}>
+                    {c.shells.map((sh, k) => {
+                      const burstAt = (sh.delay + sh.riseDur).toFixed(2) + "s";
+                      return (
+                        <div key={k} className="consign-fw" style={{ left: sh.left + "%", top: sh.top + "%" }}>
+                          <div className="consign-fw-trail" style={{ "--rise": sh.rise + "px", "--rise-dur": sh.riseDur + "s", animationDelay: sh.delay + "s" }} />
+                          <div className="consign-fw-flash" style={{ width: sh.size, height: sh.size, animationDelay: burstAt }} />
+                          <div className="consign-fw-burst" style={{ width: sh.size, height: sh.size, animationDelay: burstAt, animationDuration: sh.burstDur + "s" }}>
+                            <svg viewBox="-100 -100 200 200" style={{ width:"100%", height:"100%" }}>
+                              <g transform={`rotate(${sh.spin})`}>
+                                {Array.from({ length: sh.rays }, (_, j) => {
+                                  const long = j % 2 === 0;                    // 長短交互＝菊の花びらの粗密
+                                  const tip = long ? -94 : -74;
+                                  return (
+                                    <g key={j} transform={`rotate(${(360 / sh.rays) * j})`}>
+                                      <line x1="0" y1="-14" x2="0" y2={tip + 8} stroke="#fff" strokeWidth={long ? 3.2 : 2.2} strokeLinecap="round" opacity=".9" />
+                                      <circle cx="0" cy={tip} r={long ? 4.2 : 3} fill="#fff" />
+                                    </g>
+                                  );
+                                })}
+                              </g>
+                            </svg>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                 <div key={ci} className="consign-entrance-cluster" style={c.pos}>
@@ -2092,6 +2239,11 @@ export function ConsignmentRoom() {
       )}
       {/* トップ画=一覧（さがすページと同じ設計・2026-07-31たきと指示）：カードの一覧→タップで
           案件ダッシュボード(deal)へ。←戻る・見出し・入口カードは一覧側だけに出す */}
+      {/* 委託⇄受託の2面（2026-08-05たきと指示）。key={cTab}で包む＝切替のたびに再マウントされ
+          pflip-in/fade-inが再生される（ProfileHubのpTab切替と同じ作法）。
+          .consign-list-content は両面に付ける＝退場・帰還演出のCSS（子孫セレクタ）がそのまま効く */}
+      {(cTab === "list" || cTab === "contractor") && (
+      <div key={cTab} className={cAnim || undefined} onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && cAnim === "pflip-in") setCAnim(""); }}>
       {cTab === "list" && (<div className="consign-list-content">
       {/* 管理ページの共通ナビ（全ページ導線・2026-08-02）。一覧側だけに出す（ウィザード・印刷は出さない） */}
       <AdminNav current="consignment" />
@@ -2120,6 +2272,64 @@ export function ConsignmentRoom() {
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:14.3, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>5つのステップで掲載まで進みます。</span>
       </button>
       </div>)}
+
+      {/* ═══ 受託面（#/admin/consignment/contractor・2026-08-05たきと指示）═══
+          委託面（出す側）の対になる「受ける側」の面。並びは委託面と同じ＝共通ナビ／戻る／名刺／
+          ワイドカード／一覧、で骨を揃える（1アカウントが両面を持つ世界でUIの骨が変わらない・
+          求人求職のカード対称性と同じ理屈）。
+          ★ここは読み取り専用＝DBへの書き込み・入力は一切置かない。受託者情報の登録と掲載板は
+          CLAUDE.md「保存・入力機能の取り扱い」に従い、たきとの確認を取ってから別途実装する。
+          表示にダミーは置かない（憲法3条）＝実データが無い箇所は「まだありません」と理由を明記する */}
+      {cTab === "contractor" && (<div className="consign-list-content">
+      <AdminNav current="consignment" />
+      {/* 戻り先は委託面と同じ雇い手プロフィール入口＝「新しく委託を出す」カードが置いてある場所 */}
+      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
+      {/* 名刺（受託者）。委託面の名刺と同じ寸法・同じ枠で、役割ピルだけ濃淡を反転させる
+          （委託主＝黒ベタ／受託者＝白地に黒枠）。受託者情報の登録ページはまだ無いのでタップ先を
+          持たせない＝押せるのに何も起きないボタンにしない（2026-08-03「タップ不能はやめよう」の裏返しで、
+          行き先の無いボタンを作らない）。div＝表示カードとして置く */}
+      <div className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12 }}>
+        <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
+        <span style={{ textAlign:"center" }}>
+          <span className="f-sans" style={{ display:"block", fontSize:24.2, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
+          <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:14.3, fontWeight:800, color:"#111111", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"3px 14px" }}>受託者</span>
+        </span>
+      </div>
+
+      {/* 「委託をさがす」＝委託面の「新しく委託を出す」と対になるワイドカード。
+          掲載板（受託者が委託を探す市場）は手動1件目のあとに判断する方針（2026-07-19記載）なので、
+          機能・入力・保存を持たないプレースホルダーにし、タップで反転して理由を明記する
+          （ProfileHubの「新しく求職を出す」＝届出待ちカードと同じ作法） */}
+      <div style={{ perspective:800, marginBottom:16 }}>
+        <button onClick={()=>setContractorFlip(v=>!v)} className="f-sans" aria-label="委託をさがす（準備中）" style={{
+          position:"relative", width:"100%", background:"transparent", border:"none", padding:0, cursor:"pointer",
+          transformStyle:"preserve-3d", transition:"transform .5s", transform: contractorFlip ? "rotateY(180deg)" : "none", textAlign:"left",
+        }}>
+          {/* 表面 */}
+          <span style={{ position:"relative", overflow:"hidden", display:"block", background:"#111111", borderRadius:20, padding:"20px 18px", boxSizing:"border-box", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
+            <VineCorner flip size={110} style={{ top:-6, right:-6, opacity:0.5 }} />
+            <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:17.6, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>委託をさがす</span>
+            <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:14.3, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>出されている委託から、受けられる仕事を探します。</span>
+          </span>
+          {/* 裏面（タップで反転） */}
+          <span style={{ position:"absolute", inset:0, display:"block", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", boxSizing:"border-box", transform:"rotateY(180deg)", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
+            <span className="f-sans" style={{ display:"block", fontSize:15.4, fontWeight:800, color:"#111111" }}>準備中です</span>
+            <span className="f-sans" style={{ display:"block", fontSize:13.2, color:"#111111", marginTop:4, lineHeight:1.6 }}>委託の掲載板は、手で進める1件目を終えてから開きます。開いたら、ここから受けられる委託を探せるようになります。</span>
+          </span>
+        </button>
+      </div>
+
+      {/* 受託した委託の一覧（委託面の案件カード一覧と対になる枠）。
+          consignment_deals に受託者の列はまだ無く、受託側の案件は1件も存在しない＝
+          ダミーを並べず、空であることとその理由を書く */}
+      <p className="f-sans" style={{ fontSize:12.1, color:"#999999", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid #111111", paddingLeft:8 }}>受託した委託</p>
+      <div style={{ background:"#fff", border:"1px solid #E5E5E5", borderRadius:16, padding:"20px 18px" }}>
+        <p className="f-sans" style={{ fontSize:14.3, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>受託した委託はまだありません</p>
+        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0, lineHeight:1.8 }}>委託を受けると、その案件がここに並びます。進み具合（合意・着手金・作業中・検収・支払）も、委託面と同じ段階でこの面から追えるようにします。</p>
+      </div>
+      </div>)}
+      </div>
+      )}
 
       {/* 委託者情報の設定ページ（#/admin/consignment/profile・2026-07-31たきと指示）。
           原則変更しない本人・事業者情報を入力し、案件作成（確認STEP5・印刷仕様書）に自動反映する。
@@ -2300,7 +2510,7 @@ export function ConsignmentRoom() {
               {[...CONSIGN_BASIC_FIELDS.map(f => [f.l, spec[f.k]]),
                 ...CONSIGN_TEXT_FIELDS.map(f => [f.l, spec[f.k]]),
                 ["圃場の設備", [["駐車場", spec.facility_parking], ["トイレ", spec.facility_toilet], ["休憩場所", spec.facility_rest]].filter(([, v]) => v).map(([l, v]) => l + v).join("・")],
-                ["貸与できる道具・機械・設備", spec.facility_lend],
+                ["貸与・提供できるもの", spec.facility_lend],
                 ["危険情報", (spec.hazards || []).map(h => h === "その他" && spec.hazard_other ? "その他（" + spec.hazard_other + "）" : h).join("・")],
                 ["当日の現場連絡先", spec.onsite_contact_mode === "別の連絡先を使用" ? [spec.onsite_name, spec.onsite_phone].map(x => (x || "").trim()).filter(Boolean).join(" ") : "登録情報を使用"],
                 ["写真", (spec.photos || []).length > 0 ? (spec.photos || []).length + "枚" : ""],

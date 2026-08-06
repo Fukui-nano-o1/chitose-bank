@@ -785,6 +785,11 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   /* 保険の準備ページ（#/insurance）：浮遊☰・下部バーを出さない（2026-08-03たきと指示。サイトフッターも既存ルールで非表示） */
   body:has(.ins-prep-page) .app-header-mobile,
   body:has(.ins-prep-page) .app-header-mobile-float { display: none !important; }
+  /* 管理画面で操作するページ（#/admin・/admin/working・/admin/upcoming・/admin/evaluation・#/boxes）
+     で隠すのは【サイトフッターだけ】（2026-08-05たきと指示・下記のメディアクエリ外に1行）。
+     下部バー（.app-header-mobile）と浮遊☰（.app-header-mobile-float）は出す＝管理画面から出る道を残す。
+     目印 .cb-admin-page は各管理ページのルートに付ける＝ページを増やしたらクラスを1つ足すだけ。
+     委託ページ（.cb-consign-page）は別世界観so従来どおり下部バー・☰・フッターを全部隠す（下記） */
   /* 委託ページ（#/admin/consignment）は別世界観（2026-07-31たきと指示）：
      下部バー・浮遊☰を出さない。B2B委託レーンは運営の内部道具であって、
      さがす/しごと/プロフィールの3タブ世界とは別物＝その案内を持ち込まない */
@@ -806,8 +811,8 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
    草の群れは各幕の中に取り付けてあるため、幕が開くと群れごと滑って退場する（片付け不要） */
 .consign-entrance { position: fixed; inset: 0; z-index: 9600; pointer-events: none; overflow: hidden; }
 .consign-entrance-top, .consign-entrance-bottom { position: absolute; left: 0; right: 0; height: 50%; background: #111; }
-.consign-entrance-top { top: 0; animation: consignOpenTop .5s cubic-bezier(.75,0,.25,1) 1.2s forwards; }
-.consign-entrance-bottom { bottom: 0; animation: consignOpenBottom .5s cubic-bezier(.75,0,.25,1) 1.2s forwards; }
+.consign-entrance-top { top: 0; animation: consignOpenTop .5s cubic-bezier(.75,0,.25,1) 1.75s forwards; }
+.consign-entrance-bottom { bottom: 0; animation: consignOpenBottom .5s cubic-bezier(.75,0,.25,1) 1.75s forwards; }
 @keyframes consignOpenTop { to { transform: translateY(-102%); } }
 @keyframes consignOpenBottom { to { transform: translateY(102%); } }
 /* 白い線：中央から左右へ走る（バトル開始の合図） */
@@ -821,7 +826,7 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
   transform: scaleY(0); transform-origin: bottom;
   animation: consignGrass .34s cubic-bezier(.2,.9,.3,1.3) forwards; }
 @keyframes consignGrass { to { transform: scaleY(1); } }
-/* 夏仕様：入場演出の一番上の群れ＝白い太陽が爛々と輝く（2026-07-31たきと指示）。
+/* 白い太陽が爛々と輝く（2026-07-31たきと指示・2026-08-03から花火とランダムで交互に出る）。
    円盤＋光条＋光輪(glow)。上幕(consign-entrance-top)の中に絶対配置＝幕が開くと太陽ごと退場。
    base=scale(0)＋forwards＝草と同じく animation-delay の間は縮んだまま待つ（delayはインライン）。
    爛々の実体：光輪が脈打ち(1.4s)・光条がゆっくり回り(18s)・円盤が微かに脈動する重ね合わせ */
@@ -838,6 +843,41 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 @keyframes consignSunSpin { to { transform: rotate(360deg); } }
 .consign-sun-disc { animation: consignSunPulse 1.4s ease-in-out infinite; }
 @keyframes consignSunPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+/* 花火（2026-08-03たきと指示「太陽の代わりに花火を打ち上げる・5〜7発」。旧＝白い太陽を差し替え）。
+   1発＝尾が昇る→閃光→光条と粒が開いて消える。上幕(consign-entrance-top)の中に絶対配置＝
+   幕が開くと花火ごと退場する（草と同じ片付け不要の仕組み）。位置・大きさ・玉数・間合いはJSXのインライン。
+   基準点(.consign-fw)は炸裂点＝大きさ0の点。子は translate(-50%,-50%) でその点に中心を合わせる */
+.consign-fw { position: absolute; width: 0; height: 0; }
+/* 打ち上げの尾：炸裂点の下 --rise px から昇り、着いた瞬間に消える */
+.consign-fw-trail { position: absolute; left: -1.6px; bottom: 0; width: 3.2px; height: 30px; border-radius: 2px;
+  background: linear-gradient(to top, rgba(255,255,255,0), #fff);
+  transform: translateY(var(--rise, 180px)); opacity: 0;
+  animation: consignFwRise var(--rise-dur, .45s) cubic-bezier(.15,.6,.4,1) forwards; }
+@keyframes consignFwRise {
+  0%   { transform: translateY(var(--rise, 180px)); opacity: 0; }
+  14%  { opacity: 1; }
+  86%  { opacity: 1; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+/* 芯の閃光：炸裂の瞬間だけ強く光る */
+.consign-fw-flash { position: absolute; border-radius: 50%; opacity: 0;
+  transform: translate(-50%, -50%) scale(.1);
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,255,255,.4) 38%, rgba(255,255,255,0) 70%);
+  animation: consignFwFlash .5s ease-out forwards; }
+@keyframes consignFwFlash {
+  0%   { transform: translate(-50%,-50%) scale(.1); opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(1.7); opacity: 0; }
+}
+/* 炸裂：光条と粒が開ききって消える（開くほど減速＝火薬が失速する感じ） */
+.consign-fw-burst { position: absolute; opacity: 0; transform: translate(-50%, -50%) scale(0);
+  animation: consignFwBurst .9s cubic-bezier(.12,.75,.3,1) forwards; }
+.consign-fw-burst svg { display: block; overflow: visible; }
+@keyframes consignFwBurst {
+  0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+  10%  { opacity: 1; }
+  55%  { opacity: .95; }
+  100% { transform: translate(-50%,-50%) scale(1.08); opacity: 0; }
+}
 /* ── 委託ページの背景環境（2026-07-31たきと指示）：上端から垂れ下がる黒い草の蔓 ──
    z-index:-1＝ページ内容・白いカードの下に敷かれ、余白にだけ見える。操作は一切妨げない。
    揺れは上端（吊り元）を軸にゆっくり・周期は1本ずつJSXで変える（風のばらつき） */
@@ -877,6 +917,34 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 /* 委託ページ内の主ボタン（保存する等）も黒に（2026-07-31たきと指示「すべて、ブラックで統一」）。
    編集モーダルはDOM上 .cb-consign-page の子孫なのでこの継承で拾える */
 .cb-consign-page .btn-primary { background: #111111 !important; }
+/* ── 委託／受託の切替トグル（2026-08-05たきと指示「求人求職の切り替えトグルと同じ構造」）──
+   .profile-employer-fab と同じ構造：右下固定・切替先を予告するラベル・スクロール連動の自動格納・
+   反転は pflip 0.4s×2（両面で共用の @keyframes を使う＝アニメを二重に定義しない）。
+   違いは2点だけ：①委託ページは下部バーが無いので浮遊位置は画面下から20px
+   ②色相を持ち込まない（委託・受託はブラックの世界＝求人の緑／求職の橙とは分ける・2026-07-31）。
+   切替先の予告は色相でなく濃淡の階段で行う＝委託主は黒ベタ／受託者は白地に黒枠。
+   モバイル限定にしない（委託ページは下部バーが無く、デスクトップでも右下が空いているため） */
+.consign-role-fab {
+  position: fixed;
+  right: 12px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  border-radius: 24px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Noto Sans JP', sans-serif;
+  box-shadow: 0 4px 12px rgba(0,0,0,.18);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .25s ease;
+}
+/* 下へスクロール中は沈める（.profile-employer-fab と同じ cb-scroll-hide 連動）。
+   沈む量＝浮遊位置(20px+セーフエリア)＋自身の高さ(100%) */
+body.cb-scroll-hide .consign-role-fab { transform: translateY(calc(100% + 20px + env(safe-area-inset-bottom, 0px))); }
+/* オーバーレイ表示中は隠す（求人求職側のトグルと同じ作法・オーバーレイ描画の鉄則） */
+body:has(.cb-lock-scroll) .consign-role-fab,
+body:has(.cb-box-overlay) .consign-role-fab { display: none !important; }
 /* 退場演出（2026-07-31たきと指示・新しく委託を出す→ウィザードへ）：
    蔓(0〜0.5s)→太陽と空(0.4〜0.9s)→名刺・ボックス・文言(0.8〜1.2s)の順に画面外へ。
    蔓は各svgでなく容器ごと持ち上げる（svg個々のsway用インラインduration/delayに勝てないため。
@@ -922,6 +990,12 @@ body:has(.qset-full) .app-header-mobile-float,
 body:has(.cb-lock-scroll) .profile-employer-fab,
 body:has(.cb-preview-overlay) .profile-employer-fab,
 body:has(.cb-box-overlay) .profile-employer-fab { display: none !important; }
+/* 浮遊ボックス（運営チャット／プロフィールのプレビュー）も同じ扱い（2026-08-03）：
+   ボックス・プレビュー展開中は暗幕の下に透けるので隠す */
+body:has(.cb-lock-scroll) .cb-admin-chat-fab,
+body:has(.cb-preview-overlay) .cb-admin-chat-fab,
+body:has(.cb-box-overlay) .cb-admin-chat-fab,
+body:has(.qset-full) .cb-admin-chat-fab { display: none !important; }
 body:has(.qset-full) .profile-employer-fab,
 body:has(.qset-full) .nav-coach { display: none !important; }
 body:has(.qset-full) .site-footer-fixed { display: none !important; }
@@ -930,6 +1004,10 @@ body:has(.qset-full) .site-footer-fixed { display: none !important; }
 body:has(.ins-prep-page) .site-footer-fixed { display: none !important; }
 /* 経験・資格ページ（#/experience）もフッター（サポート等）を出さない（2026-08-03たきと指示） */
 body:has(.cb-exp-page) .site-footer-fixed { display: none !important; }
+/* 管理画面で操作するページはサイトフッター（サポート等）を出さない（2026-08-05たきと指示）。
+   メディアクエリの外に置く＝画面幅に関係なく効く（PCでも管理画面にはフッターを出さない）。
+   下部バー・浮遊☰は出したままso、管理画面から他のページへ抜ける道は残る */
+body:has(.cb-admin-page) .site-footer-fixed { display: none !important; }
 html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
 /* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。
@@ -983,6 +1061,19 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   body:has(.emp-applicants-page) .site-footer-fixed { margin-top: 0; }
   /* main の上余白を0にした分、コンテナ自身の15pxに safe-area を足す（black-translucent対応・2026-07-31） */
   .emp-applicants-page { padding-top: calc(15px + env(safe-area-inset-top, 0px)) !important; }
+}
+
+/* ── プロフィール面（働き手・雇い手とも）：最下段のボックスの下の空きを15px丁度に（2026-08-03たきと指示）。
+   従来は main の下90px＋コンテナ自身の下32px＝約122pxの空白だった。求人詳細（.job-detail-body-mobile）と
+   同じ作法で、コンテナ側の下余白は0（ProfileHub のインライン padding "32px 4px 0"）＋フッターの上マージンも
+   0にして、この値に一本化する。
+   ★メディアクエリは main の既定（下記300行付近・max-width:768px）と同じ範囲に合わせる。
+     759pxにすると760〜768px（iPad縦など）で main 側の90pxが残り、詰めたはずの余白が戻ってしまう ── */
+@media (max-width: 768px) {
+  body:has(.profile-employer-edge) main { padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important; }
+  body:has(.profile-employer-edge) .site-footer-fixed { margin-top: 0; }
+  /* コンテナ側の下余白はインラインで0にしてあるが、CSSでも固定して取りこぼしを無くす */
+  .profile-employer-edge { padding-bottom: 0 !important; }
 }
 
 /* ── Profile 2カラム（PC）／横タブ（モバイル・従来どおり） ── */

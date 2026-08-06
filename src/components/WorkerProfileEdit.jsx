@@ -9,6 +9,7 @@ import { WORKER_DECLARATIONS, TASK_OPTIONS } from "../lib/utils"; // TASK_OPTION
 import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
+import { EmergencyContactBox } from "./EmergencyContactBox";
 
 const PR_PROMPTS = [
   { q:"農作業に興味を持ったきっかけは？", placeholder:"きっかけを、あなたの言葉で" },
@@ -322,12 +323,14 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   if (loading) return <AutoSkeleton fallbackHeight={92} fallbackCount={5} />;
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      {/* 雇い手プロフィール編集と同じ構造（2026-07-25たきと指示）：見出しとページ全体の保存は廃止。
-          説明文＝左・プレビュー＝右の1行配置。保存は各ボックスのモーダル内で行う */}
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-        <p className="f-sans" style={{ flex:1, minWidth:0, fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>求人に応募したとき、農家に伝わる自己紹介です。タップして入力できます。</p>
-        <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ flexShrink:0, padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
-      </div>
+      {/* 雇い手プロフィール編集と同じ構造：見出し・説明文・ページ全体の保存は廃止（2026-07-25／2026-08-03）。
+          プレビューは運営チャットと同じ浮遊ボックスへ移植（2026-08-03たきと指示）＝下部に固定・
+          スクロールで格納（cb-admin-chat-fab の作法をそのまま使う）。保存は各ボックスのモーダル内 */}
+      <button onClick={()=>setShowPreview(true)} className="f-sans cb-admin-chat-fab"
+        style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
+        <span style={{ fontSize:18, lineHeight:1 }}>👀</span>
+        <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
+      </button>
 
       {/* はじめの2つガイド（2026-07-25改・顔写真は義務化解除済みのため削除）：空の時だけ上部に。
           ①名前②経験の質問1つ＝応募時のサーバーゲート（apply_to_job・apply_profile_gate=true）と同一条件 */}
@@ -370,6 +373,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
           { k:"declared",  e:"📋", l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
           { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
+          // 緊急連絡先（2026-08-03）：別テーブル保存so格子の値表示は持たない（開いた先で読み書きする）
+          { k:"emergency", e:"🆘", l:"緊急連絡先",   v: "" },
         ].map(b => {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
           const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
@@ -541,6 +546,13 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       />
       </>)}
 
+      {editBox==="emergency" && (<>
+      {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
+          （emergency_contacts テーブル・self-only）so、下の共通「保存する」は押さなくてよい */}
+      <EmergencyContactBox accent="#00A86B" />
+      <div style={{ marginBottom:8 }} />
+      </>)}
+
       {editBox==="qa" && (
       <div style={{ marginTop:8, marginBottom:16 }}>
         <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:12, paddingRight:36 }}>質問に答えて、あなたを伝える（好きな質問だけでOK）</p>
@@ -609,8 +621,12 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </div>
       )}
 
-      {/* モーダルフッター：保存する（全項目upsert）＋自由記述の注記 */}
-      <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      {/* モーダルフッター：保存する（全項目upsert）＋自由記述の注記。
+          緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
+          両方出すと同じ文言のボタンが2つ並ぶso、ここでは出さない（2026-08-05たきと指示） */}
+      {editBox !== "emergency" && (
+        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      )}
       {(editBox === "pr" || editBox === "qa") && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>自由記述は運営の確認後に公開されます（最大2日）</p>
       )}
@@ -620,10 +636,10 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
       {showPreview && (
-        <div onClick={()=>setShowPreview(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
+        <div onClick={()=>setShowPreview(false)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
           {/* 求人プレビューと同型のボックス：ポップアップ0.8秒・下限=下部フッター+10px（2026-07-16） */}
           {/* touchAction/overscrollBehavior: iOSでスクロールが背面ページに奪われるのを防ぐ（2026-07-14） */}
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"calc(48px + env(safe-area-inset-top, 0px))", bottom:"calc(48px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
             <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容）・項目をタップで編集できます</p>
             <WorkerProfilePreview me={me} onEdit={()=>setShowPreview(false)}

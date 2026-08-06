@@ -8,6 +8,7 @@ import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges, splitTextsForRe
 import { Avatar, AutoSkeleton, Dots, LFPillSelect } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
+import { EmergencyContactBox } from "./EmergencyContactBox";
 
 // table/avatarDir で保存先を差し替え可能（2026-07-31たきと指示・委託専用プロフィールが同じ項目/配置で
 // 別テーブルに保存するため）。既定は雇い手プロフィール（employer_profiles・avatarは avatars/employer/）＝現行不変
@@ -411,11 +412,14 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
   return (
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
-      {/* 見出しとページ全体の保存は削除済み（2026-07-25）。説明文＝左・プレビュー＝右の1行配置（同日たきと指示） */}
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-        <p className="f-sans" style={{ flex:1, minWidth:0, fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>求人に掲載したとき、働き手に伝わる紹介です。タップして入力できます。</p>
-        <button onClick={()=>setShowPreview(true)} className="f-sans" style={{ flexShrink:0, padding:"9px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#222", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>プレビュー</button>
-      </div>
+      {/* 見出し・説明文・ページ全体の保存は削除済み（2026-07-25／2026-08-03）。
+          プレビューは運営チャットと同じ浮遊ボックスへ移植（2026-08-03たきと指示）＝下部に固定・
+          スクロールで格納（cb-admin-chat-fab の作法をそのまま使う）。ページ先頭の行は無くなった */}
+      <button onClick={()=>setShowPreview(true)} className="f-sans cb-admin-chat-fab"
+        style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
+        <span style={{ fontSize:18, lineHeight:1 }}>👀</span>
+        <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
+      </button>
 
       {/* ═══ ボックス格子（働き手編集ページと全く同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
@@ -426,6 +430,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"place",    e:"📍", l:"住所・所在地",   req:true, v: composeRecruiterAddress() },
           { k:"perks",    e:"🎁", l:"待遇",           v: perksOn.join("・") },
           { k:"recruiter", e:"🧾", l:"連絡先",         req:true, v: recruiterContact },
+          // 緊急連絡先（2026-08-03）：別テーブル保存so格子の値表示は持たない（開いた先で読み書きする）
+          { k:"emergency", e:"🆘", l:"緊急連絡先",     v: "" },
           { k:"intro",    e:"🏡", l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      e:"💬", l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    e:"🤝", l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
@@ -595,6 +601,13 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を農園紹介/問いかけ/関わり方の各ボックスに分割 */}
       {/* 従業員数ボックスは削除（2026-08-01たきと指示）。DB列staff_countと既存データは残置 */}
 
+      {editBox==="emergency" && (<>
+      {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
+          （emergency_contacts テーブル・self-only）so、下の共通「保存する」は押さなくてよい */}
+      <EmergencyContactBox accent={AC} />
+      <div style={{ marginBottom:8 }} />
+      </>)}
+
       {editBox==="recruiter" && (<>
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>募集者の情報</label>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
@@ -694,18 +707,22 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             </div>
       </>)}
 
-      {/* モーダルフッター：保存する（全項目upsert）→格子に戻る */}
-      <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      {/* モーダルフッター：保存する（全項目upsert）→格子に戻る。
+          緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
+          両方出すと同じ文言のボタンが2つ並ぶso、ここでは出さない（2026-08-05たきと指示） */}
+      {editBox !== "emergency" && (
+        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+      )}
       </div>
       </div>
       , document.body)}
 
       {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
       {showPreview && (
-        <div onClick={()=>setShowPreview(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
+        <div onClick={()=>setShowPreview(false)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
           {/* 求人・働き手プレビューと同型のボックス：ポップアップ0.8秒・下限=下部フッター+10px（2026-07-16） */}
           {/* touchAction/overscrollBehavior: iOSでスクロールが背面ページに奪われるのを防ぐ（2026-07-14） */}
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"calc(48px + env(safe-area-inset-top, 0px))", bottom:"calc(48px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
             <button onClick={()=>setShowPreview(false)} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1 }}>✕</button>
             <FarmerProfilePreview me={me} table={table} withTrust={table === "employer_profiles"} black={black} />
           </div>

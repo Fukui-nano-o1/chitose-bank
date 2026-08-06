@@ -57,6 +57,24 @@ export function isWorkDayToday(dateStart, dateEnd) {
   return todayStr >= startStr && todayStr <= endStr;
 }
 
+// ── 見守りページ（仕事中／まもなく開始）の振り分け（唯一のソース・2026-08-03たきと指示）──
+// 当日は「仕事中」が正。まもなく開始は仕事当日には展開しない＝2ページに同じマッチを二重展開しない。
+// 3箇所（仕事中ページの昇格・まもなく開始ページの表示・App.jsxのトップページ着地判定）が
+// 必ず同じ判定を使うため、ここに集約する。ズレると「着地したのに空のページ」が起きる。
+//
+// 作業当日か（合意日 agreed_dates があればその範囲、無ければ求人の date_start〜date_end）
+export const isTodayWork = (item) => {
+  const ad = item?.agreed_dates;
+  if (Array.isArray(ad) && ad.length) {
+    const days = ad.map(d => String(d).slice(0, 10)).sort();
+    const today = ymdLocal(new Date());
+    return today >= days[0] && today <= days[days.length - 1];
+  }
+  return isWorkDayToday(item?.date_start, item?.date_end);
+};
+// まもなく開始に出す対象＝開始 days 日以内、ただし当日は除く（当日は仕事中ページが持つ）
+export const isUpcomingSoon = (item, days = 7) => startsWithinDays(item, days) && !isTodayWork(item);
+
 // ── 打刻の時間窓（第13弾(1)・2026-07-30たきと指示）──
 // 他社（タイミー・メルカリハロ・LINEスキマニ）は全て打刻可能な時間窓を持つ。当方も入れる。
 // 判定はここに集約し、打刻ボタンのある画面（応募状況ページ・求人詳細）はこの関数を使う。

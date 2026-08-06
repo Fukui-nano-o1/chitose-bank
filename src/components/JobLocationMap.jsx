@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import { geocodeAddressPrecise } from "../lib/geocode";
 
+// 訪問者に見せる円の半径（m）。1kmで「この範囲のどこか」を示す（2026-08-05たきと指示）
+const VISITOR_CIRCLE_M = 1000;
+
 // 場所は赤いピン1本で示す（2026-07-31たきと指示・範囲の円は廃止）。右上にGoogleマップへの導線。
 // ★座標は町域レベルの重心（geocodeTown）で、番地は含まれない＝ピンを立てても精度は上がらない。
 //   ピンは「この辺り」を1点で読み取れるようにする表示上の目印。
@@ -10,7 +13,13 @@ import { geocodeAddressPrecise } from "../lib/geocode";
 // addressShown（2026-08-03たきと指示）：呼び出し側が集合場所を番地まで表示している時に true。
 // 注記の「承認した方にのみお伝えします」が実態と矛盾しないよう文言を切り替える。
 // ピン自体は従来どおり町域重心（番地の精度は持たない）＝位置は変えない。
-export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown }) {
+//
+// visitor（2026-08-05たきと指示）：訪問者（未ログイン）に見せる時は true。
+//   ピンは1点を指す絵so「正確な位置が分かる」と読めてしまう。訪問者にはピンを描かず、
+//   半径1kmの円だけで「この範囲のどこか」を示す。
+//   ★訪問者に届く座標自体が既に約1.1km格子へ丸められている（jobs_public のanonマスク・
+//     migration 20260803131655）＝円は表示上の目印で、円を描いても精度は上がらない。
+export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown, visitor }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   // Googleマップ導線を「必ずその場所」に着地させるための番地レベル座標（2026-08-03たきと指摘）。
@@ -65,30 +74,43 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
         maxZoom: 18,
       }).addTo(map);
 
-      // 範囲の円は描かない（2026-07-31たきと指示「ピンだけ表示」）。
-      // rは表示の広さ（fitBounds）にだけ使う＝周辺が見える倍率は従来どおり
-      // 場所のピン（divIcon＝画像を読まないので、アイコンのURL切れで消える事故が起きない）。
-      // 立てる位置は町域の重心で、番地は含まない。タップは無効（地図アプリではなく位置を示す図）
-      const pin = L.divIcon({
-        className: "",
-        html: '<div style="width:30px;height:42px;transform:translate(-15px,-42px)">'
-            + '<svg width="30" height="42" viewBox="0 0 26 36" xmlns="http://www.w3.org/2000/svg">'
-            + '<path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 11.4 21.6 11.9 22.1a1.5 1.5 0 0 0 2.2 0C14.6 34.6 26 22.2 26 13 26 5.8 20.2 0 13 0z" fill="#E24B4A"/>'
-            + '<circle cx="13" cy="13" r="5" fill="#fff"/></svg></div>',
-        iconSize: [0, 0],
-        iconAnchor: [0, 0],
-      });
-      L.marker([lat, lng], { icon: pin, interactive: false, keyboard: false }).addTo(map);
+      if (visitor) {
+        // 訪問者：ピンを描かず、半径1kmの円だけを描く（2026-08-05たきと指示）。
+        // 1点を指す絵を出さない＝「正確な位置が分かる画面」に見せない
+        L.circle([lat, lng], {
+          radius: VISITOR_CIRCLE_M,
+          color: "#E24B4A", weight: 2, opacity: 0.85,
+          fillColor: "#E24B4A", fillOpacity: 0.12,
+          interactive: false,
+        }).addTo(map);
+      } else {
+        // 範囲の円は描かない（2026-07-31たきと指示「ピンだけ表示」）。
+        // rは表示の広さ（fitBounds）にだけ使う＝周辺が見える倍率は従来どおり
+        // 場所のピン（divIcon＝画像を読まないので、アイコンのURL切れで消える事故が起きない）。
+        // 立てる位置は町域の重心で、番地は含まない。タップは無効（地図アプリではなく位置を示す図）
+        const pin = L.divIcon({
+          className: "",
+          html: '<div style="width:30px;height:42px;transform:translate(-15px,-42px)">'
+              + '<svg width="30" height="42" viewBox="0 0 26 36" xmlns="http://www.w3.org/2000/svg">'
+              + '<path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 11.4 21.6 11.9 22.1a1.5 1.5 0 0 0 2.2 0C14.6 34.6 26 22.2 26 13 26 5.8 20.2 0 13 0z" fill="#E24B4A"/>'
+              + '<circle cx="13" cy="13" r="5" fill="#fff"/></svg></div>',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        });
+        L.marker([lat, lng], { icon: pin, interactive: false, keyboard: false }).addTo(map);
+      }
 
       // animate:false＝ズームアニメ中に地図が破棄されると _leaflet_pos クラッシュ（2026-07-16真っ暗事故）が起きるため必須
-      map.fitBounds(L.latLng(lat, lng).toBounds(r * 2), { padding: [12, 12], animate: false });
+      // 訪問者は円がちょうど収まる広さ（直径＝2km）に合わせる
+      const fitM = visitor ? VISITOR_CIRCLE_M * 2 : r * 2;
+      map.fitBounds(L.latLng(lat, lng).toBounds(fitM), { padding: [12, 12], animate: false });
     } catch (e) {
       console.error("JobLocationMap:", e);
     }
     })();
 
     return () => { cancelled = true; try { mapRef.current?.remove(); } catch {} mapRef.current = null; };
-  }, [lat, lng, radius]);
+  }, [lat, lng, radius, visitor]);
 
   if (lat == null || lng == null) {
     return (
@@ -114,7 +136,9 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
         {/* 行き先の優先順（2026-08-03）：①番地レベルで取れた座標＝必ずその点に着く
             ②住所文字列＝Google側の検索に委ねる（番地未対応の地域では町域中心に着く）
             ③座標（町域重心）＝住所が無い旧呼び出し */}
-        <a href={preciseGeo
+        {/* 訪問者にはGoogleマップ導線を出さない（2026-08-05たきと指示）。
+            円で範囲だけを示す画面に、外部地図で1点に着地できる出口を残さない */}
+        {!visitor && <a href={preciseGeo
               ? `https://www.google.com/maps/search/?api=1&query=${preciseGeo.lat},${preciseGeo.lng}`
               : (mapQuery && mapQuery.trim())
               ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery.trim())}`
@@ -122,10 +146,13 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
           target="_blank" rel="noopener noreferrer"
           className="f-sans" style={{ position:"absolute", right:12, top:12, zIndex:3, display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 13px", fontSize:12, fontWeight:700, color:"#222", textDecoration:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.16)", whiteSpace:"nowrap" }}>
           Googleマップ <span style={{ color:"#00A86B" }}>→</span>
-        </a>
+        </a>}
       </div>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
-        {addressShown
+        {visitor
+          ? <>円は{label ? label + "の" : ""}おおよその範囲です（半径約1km・正確な位置は含みません）。
+             正確な集合場所は、会員登録・ログインすると表示されます</>
+          : addressShown
           ? <>ピンは{label ? label + "の" : ""}おおよその位置です（番地の位置とは少しずれることがあります）</>
           : <>ピンは{label ? label + "の" : ""}おおよその位置です（番地は含みません）。
              正確な集合場所は、会員登録・ログインすると表示されます</>}

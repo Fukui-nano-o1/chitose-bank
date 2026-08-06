@@ -14,6 +14,7 @@ import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 import ContractPartyName from "./ContractPartyName";
+import ContractEmergencyContact from "./ContractEmergencyContact";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 
@@ -741,6 +742,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             if (target && (CHAT_ELIGIBLE_STATUSES.includes(target.status) || target.status === 'completed')) openCompleteModal(target);
           }
         } catch {}
+        // 応募者シートの着地（2026-08-05）：新着の応募ページ（#/new-applicants）の
+        // 「内容を見て決める（承認・見送り）」から cb_openApplicantId 経由で該当応募のシートを自動展開。
+        // 承認・見送りの実行はこのシートが唯一の窓口so、送り出す側は「どの応募か」だけを渡す
+        try {
+          const pendO = sessionStorage.getItem("cb_openApplicantId");
+          if (pendO) {
+            sessionStorage.removeItem("cb_openApplicantId");
+            if (appData.some(x => x.id === pendO)) setSheetApplicantId(pendO);
+          }
+        } catch {}
         // 働く日を決めるモーダルの着地（2026-07-24）：今日ページの「日を決める」から cb_agreeAppId 経由で自動展開
         try {
           const pendA = sessionStorage.getItem("cb_agreeAppId");
@@ -900,6 +911,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
                 {/* 契約成立後のみ本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
                 <ContractPartyName applicationId={a.id} showPending={false} />
+                {/* 緊急連絡先も採用成立後のみ（同じ窓口作法・2026-08-03） */}
+                <ContractEmergencyContact applicationId={a.id} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
               </div>
               {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (
@@ -1194,8 +1207,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </button>
           ))}
         </div>
-      ) : (jobTab==="calendar" || jobTab==="applicants") ? null : (
-        /* 応募者ページの見出し「応募者」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示す */
+      ) : (jobTab==="calendar" || jobTab==="applicants" || jobTab==="profile") ? null : (
+        /* 応募者ページの見出し「応募者」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示す。
+           「雇い手プロフィール」の見出しも削除（2026-08-03たきと指示・名刺カードから開けば現在地は明らか） */
         <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       )}
       {/* 作成中⇄公開中はページャー（2026-07-16）：文字・絵文字・ボタン・カードが指に追従して実際に横移動する */}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { supabase } from "./lib/supabase";
-import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, startsWithinDays } from "./lib/utils";
+import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
@@ -28,6 +28,8 @@ function lazyChunk(factory) {
 const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
 // 仮応募の成功ページ（第15弾・2026-07-30）。応募した人だけが通る画面so遅延読み込み
 const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m => ({ default: m.ApplyPending })));
+// 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面so遅延読み込み
+const NewApplicantsPage = lazyChunk(() => import("./components/NewApplicantsPage").then(m => ({ default: m.NewApplicantsPage })));
 import { ChatList } from "./components/ChatList";
 import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
@@ -35,12 +37,14 @@ import { ProfileModal } from "./components/ProfileModal";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { JobSearchMapView } from "./components/JobSearchMapView";
 import { MyReviewsOfWorker } from "./components/MyReviewsOfWorker";
+import { WorkerWorkRecord } from "./components/WorkerWorkRecord";
 const LandingFlow = lazyChunk(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
 const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
 const ConsignmentRoom = lazyChunk(() => import("./components/admin/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
 const AdminBoxRegistryPage = lazyChunk(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));
 const AdminWorkingRoom = lazyChunk(() => import("./components/admin/AdminWorkingRoom").then(m => ({ default: m.AdminWorkingRoom })));
 const AdminUpcomingRoom = lazyChunk(() => import("./components/admin/AdminUpcomingRoom").then(m => ({ default: m.AdminUpcomingRoom })));
+const AdminEvaluationRoom = lazyChunk(() => import("./components/admin/AdminEvaluationRoom").then(m => ({ default: m.AdminEvaluationRoom })));
 // プロフィールタブ（2026-07-27たきと指示「リロードを必要最低限に」）：農家ハブ・応募状況・
 // プロフィール編集・カレンダーがぶら下がる大きな塊so、開いた時に初めて読む＝起動のJSを軽くする
 const ProfileHub = lazyChunk(() => import("./components/ProfileHub").then(m => ({ default: m.ProfileHub })));
@@ -279,10 +283,13 @@ function EmployerPreviewSheet() {
 
 function WorkerPreviewSheet() {
   const [st, setSt] = useState(null); // {worker_id, loading, profile, trust}
+  // ボックスは2枚（0=プロフィール／1=はたらいた記録）。横スワイプで行き来する（2026-08-05たきと指示）
+  const [page, setPage] = useState(0);
   useEffect(() => {
     const f = (e) => {
       const workerId = e.detail;
       if (!workerId) return;
+      setPage(0); // 開くたびに1枚目から
       setSt({ worker_id: workerId, loading: true, profile: null, trust: null });
       (async () => {
         try {
@@ -309,28 +316,85 @@ function WorkerPreviewSheet() {
     window.addEventListener("cb:openWorkerPreview", f);
     return () => window.removeEventListener("cb:openWorkerPreview", f);
   }, []);
+
+  // ── 指追従ページャー（ボックス一覧・農家プロ作成中⇄公開中と同じ作法）──
+  // 横に動かしたと分かってから（8px）transformを直接書く＝毎フレームの再描画なしで指に付いてくる。
+  // 縦の指はページャーが奪わない（touchAction:pan-y）＝ボックスの縦スクロールは従来どおり。
+  const trackRef = useRef(null);
+  const dragRef = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
+  const basePct = () => (page === 0 ? 0 : -50);
+  const onPagerStart = (e) => {
+    dragRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
+  };
+  const onPagerMove = (e) => {
+    const s = dragRef.current, el = trackRef.current;
+    if (!s || !el) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+    if (s.lock !== "h") return;
+    const atEdge = (page === 0 && dx > 0) || (page === 1 && dx < 0); // 端は1/3の抵抗
+    s.dx = atEdge ? dx / 3 : dx;
+    el.style.transition = "none";
+    el.style.transform = `translateX(calc(${basePct()}% + ${s.dx}px))`;
+  };
+  const onPagerEnd = () => {
+    const s = dragRef.current, el = trackRef.current;
+    dragRef.current = null;
+    if (!s || !el || s.lock !== "h") return;
+    el.style.transition = "transform .3s ease";
+    const threshold = Math.min(80, s.w / 4);
+    if (page === 0 && s.dx < -threshold) { el.style.transform = "translateX(-50%)"; setPage(1); }
+    else if (page === 1 && s.dx > threshold) { el.style.transform = "translateX(0%)"; setPage(0); }
+    else { el.style.transform = `translateX(${basePct()}%)`; }
+  };
+
   if (!st) return null;
   return (
     <div onClick={()=>setSt(null)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
       <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
         <button onClick={()=>setSt(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>働き手のプレビュー</p>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 12px" }}>働き手のプレビュー</p>
         {st.loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
-            <WorkerTrustCard profile={st.profile} trust={st.trust} />
-            {Array.isArray(st.profile.pr_qa) && st.profile.pr_qa.length > 0 && (
-              <div style={{ display:"grid", gap:10, marginTop:16 }}>
-                {st.profile.pr_qa.map(({ q, a }) => (
-                  <div key={q}>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
-                  </div>
-                ))}
+            {/* 2枚のどちらを見ているかの目印。タップでも切り替わる（スワイプがあることに気づけるように） */}
+            <div style={{ display:"flex", gap:8, margin:"0 0 14px" }}>
+              {[{ k:0, l:"プロフィール" }, { k:1, l:"はたらいた記録" }].map(t => (
+                <button key={t.k} type="button" onClick={()=>setPage(t.k)} className="f-sans"
+                  style={{ flex:1, padding:"9px 0", borderRadius:10, cursor:"pointer", background:"#fff",
+                    border: page===t.k ? "2px solid #222" : "1px solid #EBEBEB",
+                    fontSize:12, fontWeight: page===t.k ? 800 : 600, color: page===t.k ? "#222" : "#999" }}>
+                  {t.l}
+                </button>
+              ))}
+            </div>
+            <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
+              <div ref={trackRef} style={{ display:"flex", alignItems:"flex-start", width:"200%", transform: page===0 ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
+                {/* 1枚目：プロフィール（従来の中身をそのまま） */}
+                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
+                  <WorkerTrustCard profile={st.profile} trust={st.trust} />
+                  {Array.isArray(st.profile.pr_qa) && st.profile.pr_qa.length > 0 && (
+                    <div style={{ display:"grid", gap:10, marginTop:16 }}>
+                      {st.profile.pr_qa.map(({ q, a }) => (
+                        <div key={q}>
+                          <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
+                          <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <MyReviewsOfWorker workerId={st.worker_id} />
+                </div>
+                {/* 2枚目：はたらいた記録（働き手ダッシュボードと同じ部品） */}
+                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
+                  <WorkerWorkRecord workerId={st.worker_id} />
+                </div>
               </div>
-            )}
-            <MyReviewsOfWorker workerId={st.worker_id} />
+            </div>
           </>
         ) : st.blocked ? (
           <div style={{ textAlign:"center", padding:"32px 0" }}>
@@ -1009,8 +1073,8 @@ function HelpCenter({ me, onReportClick }) {
 // ── ROOT ─────────────────────────────────────────────────────
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
-  const TAB_URL_KEYS = ["admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","insurance","experience"];
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h === "admin/review" || h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment" || h.startsWith("admin/consignment/")) return "admin"; if (h === "admin/working" || h.startsWith("admin/working/")) return "admin"; if (h === "admin/upcoming" || h.startsWith("admin/upcoming/")) return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; if (h === "calendar" || h.startsWith("calendar/")) return "calendar"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const TAB_URL_KEYS = ["admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","insurance","experience","new-applicants"];
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h === "admin/review" || h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment" || h.startsWith("admin/consignment/")) return "admin"; if (h === "admin/working" || h.startsWith("admin/working/")) return "admin"; if (h === "admin/upcoming" || h.startsWith("admin/upcoming/")) return "admin"; if (h === "admin/evaluation" || h.startsWith("admin/evaluation/")) return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; if (h === "calendar" || h.startsWith("calendar/")) return "calendar"; return TAB_URL_KEYS.includes(h) ? h : null; };
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // 利用規約・プライバシーポリシーを開いたら必ず先頭から（2026-07-30たきと指示）。
@@ -1032,7 +1096,7 @@ export default function App(){
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
     const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/worker/profile" || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
     // 審査ページの深いリンク(#/admin/review/{セクション} と #/admin/review/{job_number})を、tab同期で#/adminに巻き戻さないよう保持
-    const _subTabOfAdmin = (tab === "admin") && (_curHash.startsWith("admin/review/") || _curHash === "admin/consignment" || _curHash.startsWith("admin/consignment/") || _curHash === "admin/working" || _curHash.startsWith("admin/working/") || _curHash === "admin/upcoming" || _curHash.startsWith("admin/upcoming/"));
+    const _subTabOfAdmin = (tab === "admin") && (_curHash.startsWith("admin/review/") || _curHash === "admin/consignment" || _curHash.startsWith("admin/consignment/") || _curHash === "admin/working" || _curHash.startsWith("admin/working/") || _curHash === "admin/upcoming" || _curHash.startsWith("admin/upcoming/") || _curHash === "admin/evaluation" || _curHash.startsWith("admin/evaluation/"));
     // ヘルプの章アンカー(#/help/{chapter})を、tab同期で#/helpに巻き戻さないよう保持
     const _subTabOfHelp = (tab === "help") && _curHash.startsWith("help/");
     // ボックス一覧ページのお知らせタブ(#/boxes/notices)を、tab同期で#/boxesに巻き戻さないよう保持
@@ -1218,6 +1282,7 @@ export default function App(){
   const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/consignment"); } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19。/profile 等のサブページ含む）
   const [workingRoom,setWorkingRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/working"); } catch { return false; } }); // 仕事中専用ページ（#/admin/working・管理者専用・2026-08-01）
   const [upcomingRoom,setUpcomingRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/upcoming"); } catch { return false; } }); // まもなく開始ページ（#/admin/upcoming・管理者専用・2026-08-01）
+  const [evalRoom,setEvalRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/evaluation"); } catch { return false; } }); // 客観的評価ページ（#/admin/evaluation・管理者専用・2026-08-05）
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
   // 仮応募の成功ページ（#/apply/pending・第15弾・2026-07-30）。応募系の全画面ページは
   // applyPage 1変数にまとめる＝各タブの描画式に付けるガードが1つで済む（オーバーレイ描画の鉄則）
@@ -1246,6 +1311,7 @@ export default function App(){
       setConsignRoom(rawHash.startsWith("admin/consignment"));
       setWorkingRoom(rawHash.startsWith("admin/working"));
       setUpcomingRoom(rawHash.startsWith("admin/upcoming"));
+      setEvalRoom(rawHash.startsWith("admin/evaluation"));
       if (rawHash === "apply/done") {
         try { setApplyAlready(sessionStorage.getItem("cb_applyAlready")==="1"); sessionStorage.removeItem("cb_applyAlready"); } catch {}
         try { setPromotedCount(Number(sessionStorage.getItem("cb_promoted") || 0)); sessionStorage.removeItem("cb_promoted"); } catch {}
@@ -1274,24 +1340,38 @@ export default function App(){
       else { setOpenAccountForm(false); window.location.hash = "/login"; }
     });
   }, []);
-  // まもなく開始をトップページに（2026-08-01たきと指示・いまは管理者のみ）：
-  // サイト/アプリを開いた時、開始1週間以内のマッチがあれば #/admin/upcoming に着地する。
+  // トップページの着地（サイト/アプリを開いた時、既定の着地先を差し替える）。優先順は上から：
+  //   ① 新着の応募（雇い手・2026-08-05たきと指示「応募を受けた直後からサイトに入ると
+  //      トップ画面がこのページになる」）→ #/new-applicants
+  //   ② まもなく開始（2026-08-01たきと指示・いまは管理者のみ）→ #/admin/upcoming
+  //      開始1週間以内（作業当日は除く＝当日は仕事中ページが持つ）のマッチがある時。
+  //      判定はページ側の表示フィルタと同じ isUpcomingSoon（空着地の防止）
+  // ①②を1つのeffectに束ねる理由：別々のeffectだと両方が非同期に hash を書いて奪い合う。
+  // 順に判定し、先に着地したらそこで終わる＝優先順が決まる。
   // URL直打ち（ディープリンク・#/work/job/… や #/chat/… 等）で開いた時は行き先を奪わない
   //（initialHashTab=null＝既定着地の時だけ）。判定は1アプリ起動につき1回（ログアウト時はreloadで起動し直すため実質毎回）
-  const upcomingLandingChecked = useRef(false);
+  const topLandingChecked = useRef(false);
   useEffect(() => {
-    if (upcomingLandingChecked.current || !me || !isAdmin(me) || initialHashTab !== null) return;
-    upcomingLandingChecked.current = true;
+    if (topLandingChecked.current || !me || initialHashTab !== null) return;
+    topLandingChecked.current = true;
+    // RPCが返るまでの数秒間にユーザーが別ページへ移動していたら着地させない（2026-08-02）：
+    // 「開いた時の着地」であって、操作中の引き戻しはしない。判定は今のhashで行う
+    const stillOnDefault = () => { const t = readHashTab(); return t === null || t === "search"; };
     (async () => {
+      // ── ① 新着の応募（未対応＝status='applied'の件数。my_nav_badges の applicants_pending が
+      //    下部ナビ「🤝応募者」バッジと同じ唯一のソース。決めればゼロになり着地は自然に止む）
+      try {
+        const { data: badges } = await supabase.rpc("my_nav_badges");
+        if ((badges?.applicants_pending || 0) > 0 && stillOnDefault()) { window.location.hash = "/new-applicants"; return; }
+      } catch { /* 失敗時は通常の着地のまま（応募者ページ・今日ページからも辿れる） */ }
+      // ── ② まもなく開始（管理者）
+      if (!isAdmin(me)) return;
       try {
         const { data } = await supabase.rpc("admin_working_jobs");
         // 結果をキャッシュに置く（2026-08-02・更新時間の短縮）：着地先のまもなく開始／仕事中ページが
         // 同じRPCをもう一度待たずに即描画できる（起動でRPCが2回直列に走っていた無駄の解消）
         if (data?.ok) setCache("admin:workingJobs", data);
-        // RPCが返るまでの数秒間にユーザーが別ページへ移動していたら着地させない（2026-08-02）：
-        // 「開いた時の着地」であって、操作中の引き戻しはしない。判定は今のhashで行う
-        const _nowTab = readHashTab();
-        if (data?.ok && (data.upcoming || []).some(it => startsWithinDays(it, 7)) && (_nowTab === null || _nowTab === "search")) window.location.hash = "/admin/upcoming";
+        if (data?.ok && (data.upcoming || []).some(it => isUpcomingSoon(it, 7)) && stillOnDefault()) window.location.hash = "/admin/upcoming";
       } catch { /* 失敗時は通常の着地のまま（見守りページは管理タブからも開ける） */ }
     })();
   }, [me]); // eslint-disable-line react-hooks/exhaustive-deps -- initialHashTab は起動時定数
@@ -1913,7 +1993,7 @@ export default function App(){
   // 未ログインで input（ログイン画面）要求時はモード不問で通す（認証は役割不問・骨格⑥）
   // 部屋番号(TAB_URL_KEYS)にある部屋は全て到達可（避難部屋含む・骨格④）。資格の無い部屋と迷子はsearchへ
   const safeTab = TAB_URL_KEYS.includes(tab)
-    ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || ((tab === "insurance" || tab === "experience") && !me) ? "search" : tab)
+    ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || ((tab === "insurance" || tab === "experience" || tab === "new-applicants") && !me) ? "search" : tab)
     : "search";
 
   // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「さがす・いいね」を「📣求人・🤝応募者」に差し替え。
@@ -2338,6 +2418,11 @@ export default function App(){
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
+        {/* 新着の応募ページ（#/new-applicants・2026-08-05たきと指示）：応募を受けた雇い手専用。
+            未対応の応募があればサイトを開いた時にここへ着地する（起動時の着地判定・topLandingChecked）。読み取り専用＝
+            承認・見送りの実行は応募者シートが唯一の窓口so、ここからはそこへ送るだけ */}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="new-applicants"&&me&&
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><NewApplicantsPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="chats"&&(me
           ? <ChatList />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>チャットを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
@@ -2357,7 +2442,8 @@ export default function App(){
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&consignRoom&&<Suspense fallback={<div style={{ minHeight:"70vh", display:"flex", alignItems:"center", justifyContent:"center" }}><p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, margin:0 }}>読み込み中<Dots /></p></div>}><ConsignmentRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&workingRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminWorkingRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&upcomingRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminUpcomingRoom/></Suspense>}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&!workingRoom&&!upcomingRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminTab
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&evalRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminEvaluationRoom/></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&!workingRoom&&!upcomingRoom&&!evalRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}
