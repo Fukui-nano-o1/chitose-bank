@@ -246,7 +246,8 @@ export function WorkerApplications({ filter, me }) {
     setCancelingId(a.id);
     try {
       const { data, error } = await supabase.rpc('cancel_application', { p_application_id: a.id });
-      if (!error && data && data.ok) setAllApps(prev => prev.filter(x => x.id !== a.id));
+      // not_found＝行が既に無い（前回の試行が遅れて成立した等）＝取り消し済みとして扱う（表示は記録から導出）
+      if (!error && data && (data.ok || data.reason === 'not_found')) setAllApps(prev => prev.filter(x => x.id !== a.id));
       else alert('取り消しに失敗しました：' + (data?.reason || error?.message || '不明'));
     } catch { alert('取り消しに失敗しました。'); }
     setCancelingId(null);

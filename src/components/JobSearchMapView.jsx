@@ -424,11 +424,18 @@ export function JobSearchMapView({ onRegister, me }) {
           Promise.resolve(supabase.from('pending_applications').select('job_number').eq('worker_id', me.id)).then(r => r, () => ({ data: null })),
         ]);
         if (cancelled) return;
-        const map = {};
-        (appRes.data || []).forEach(r => { map[r.job_number] = { id: r.id, status: r.status, started_at: r.started_at, time_corrected: r.time_corrected }; });
-        const pend = (pendRes.data || []).map(r => r.job_number);
-        setMyAppsMap(map); setMyPendSet(new Set(pend));
-        setCache("search:myApps", map); setCache("search:myPend", pend);
+        // ★エラー時は上書きしない（2026-08-07）：503・タイムアウトはthrowされず {data:null, error} で
+        //   解決するため、旧実装はDB不調のたびに空のmapを焼き付け「応募が取り消されたように見える」
+        //   （応募済みの求人で応募ボタンが復活する）事故になっていた。失敗時は手元の値のまま
+        if (!appRes.error && appRes.data) {
+          const map = {};
+          appRes.data.forEach(r => { map[r.job_number] = { id: r.id, status: r.status, started_at: r.started_at, time_corrected: r.time_corrected }; });
+          setMyAppsMap(map); setCache("search:myApps", map);
+        }
+        if (!pendRes.error && pendRes.data) {
+          const pend = pendRes.data.map(r => r.job_number);
+          setMyPendSet(new Set(pend)); setCache("search:myPend", pend);
+        }
       } catch { /* 取得できなければキャッシュのまま（下の確定判定でloadedにはする） */ }
       if (!cancelled) setMyAppsLoaded(true);
     })();
@@ -476,13 +483,19 @@ export function JobSearchMapView({ onRegister, me }) {
           supabase.from('applications').select('id,status,started_at,time_corrected')
             .eq('job_number', selectedJob.id).eq('worker_id', me.id).maybeSingle(),
           Promise.resolve(supabase.from('pending_applications').select('id')
-            .eq('job_number', selectedJob.id).eq('worker_id', me.id).maybeSingle()).then(r => r, () => ({ data: null })),
+            .eq('job_number', selectedJob.id).eq('worker_id', me.id).maybeSingle()).then(r => r, () => ({ data: null, error: true })),
         ]);
         if (cancelled) return;
-        setMyApplication(appRes.data || null);
-        patchMyApp(selectedJob.id, appRes.data || null);
-        setMyPending(!!pendRes.data);
-        patchMyPend(selectedJob.id, !!pendRes.data);
+        // ★エラー時は上書きしない（2026-08-07・上の一括取得と同じ理由）：旧実装は appRes.data||null を
+        //   無条件に書き、DBが503を返している数秒の間だけ「応募済み」が消えて取り消されたように見えていた
+        if (!appRes.error) {
+          setMyApplication(appRes.data || null);
+          patchMyApp(selectedJob.id, appRes.data || null);
+        }
+        if (!pendRes.error) {
+          setMyPending(!!pendRes.data);
+          patchMyPend(selectedJob.id, !!pendRes.data);
+        }
       } catch { /* 取れなければ手元の値のまま（表示は既に出ている） */ }
     })();
     return () => { cancelled = true; };
@@ -585,7 +598,8 @@ export function JobSearchMapView({ onRegister, me }) {
     try {
       const { data, error } = await supabase.rpc("cancel_application", { p_application_id: myApplication.id });
       setApplying(false);
-      if (!error && data && data.ok) { setMyApplication(null); patchMyApp(selectedJob.id, null); }
+      // not_found＝行が既に無い（前回の試行が遅れて成立した等）＝取り消し済みとして扱う（表示は記録から導出）
+      if (!error && data && (data.ok || data.reason === "not_found")) { setMyApplication(null); patchMyApp(selectedJob.id, null); }
       else alert("取り消しに失敗しました：" + (data?.reason || error?.message || "不明"));
     } catch { setApplying(false); alert("取り消しに失敗しました。"); }
   };
