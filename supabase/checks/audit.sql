@@ -69,6 +69,7 @@ begin
      and pg_get_function_result(p.oid) <> 'trigger'
      and (p.proname like 'send\_%' or p.proname like 'notify\_%'
           or p.proname like 'expire\_%' or p.proname like 'summarize\_%')
+     and p.proname <> 'send_interview_questions'  -- フロントthauthenticatedで呼ぶ正当なRPC（内部にfarmer本人ゲート）
      and has_function_privilege('anon', p.oid, 'execute');
   L := L || case when n=0 then '[OK] ' else '[NG] ' end
     || '③b バックエンド専用のanon露出: '||n||'本'||coalesce(' → '||names,'') || E'\n';
