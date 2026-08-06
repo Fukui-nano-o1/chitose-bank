@@ -3048,3 +3048,38 @@ jobs 28件不変・total_reviews=0（本番にまだ実レビュー無し＝下�
 穴that1つ空いていた。他の目的（スパム・BAN後活動・勤怠詐称・XSS）は全て塞がれている。
 reviews のトリガー1本で塞げる（実装は指示待ち）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 いちゃもん実機一周（たきと指示「いちゃもんつけまくれ」）＝新規2件 ━━━
+【立場】前回④までの「壁が立っているかの再確認」ではなく、粗探し専門。緑チェックの再確認をやめ、
+実際に穴・誤動作になりうる箇所だけを狙った。合成のみ・PII非読・全ロールバック。
+終了時実測：dests=1・users=19（合成データは全ロールバック済み）。
+※検証中に apps 19→20・msgs 124→125 と増えたが、新しい2行はいずれも実在ユーザー（emailヘッダ t5f＝
+　たきと本人のアカウント）が本番サイトで08:10 JSTに行った実操作＝私の残置ではない（合成ユーザーが
+　残れば users が増えるが 19 のまま）。正直に記録する。
+
+【★いちゃもん1（低・未修理）：dests テーブルが一般ユーザーの無条件INSERTを許す】
+・dests_insert_auth ポリシーの with_check が `true`（authenticated 全員）。実弾で確認：一般ユーザーが
+  偽の submitted_by 付きで dests に自由INSERTできた（注入前1→注入後2・ロールバック済み）。
+・SELECT は admin 限定（一般ユーザーには0行）so他人には漏れないが、管理タブ legacyView が dests を読む
+  ＝ゴミ行・なりすまし submitted_by が運営画面に出せる。「記録は当事者が偽造できない」原則に逆行。
+・兄弟の records は INSERT の with_check が `auth.uid()=farmer_id` で正しくスコープ済み＝dests だけの
+  設定漏れ（不揃い）。dests は分割3-Aで UI を消した死んだ legacy テーブル。
+・修理案（未実装）：dests_insert_auth を drop（死んだ表so書き込み不要）or admin 限定に。1行のmigration。
+
+【★いちゃもん2（中・未修理・load-bearing）：二重予約判定が agreed_dates と holidays を無視】
+・confirm_terms の double_booked 判定は、求人票の date_start..date_end の【生の範囲重複】だけを見る
+  （j.date_start <= coalesce(j2.date_end,j2.date_start) and 逆）。実際の稼働日 applications.agreed_dates
+  も holidays も参照していない。
+・実弾で証明：同じ期間（jst〜jst+5）の2つの期間求人に、実働日を A=jst / B=jst+4（重ならない）で
+  合意させても、両方が double_booked を返した（初回の A すら弾かれた）。
+・フロント lib/hire.js の findDoubleBookingJob も「同式」（CLAUDE.md 2026-08-06記載）so、画面でも同じ
+  誤警告that出る＝正当な採用（同じ働き手を別々の日に雇う）に毎回「二重予約」警告が出て、農家が
+  受諾フラグで押し切る運用になる＝壁の意味that薄れる。セキュリティ穴ではない（受諾で進めるし、
+  誤りは「止めすぎ」side）that、壁の精度の欠陥。
+・修理は DB（confirm_terms の重複クエリを agreed_dates ∩ holidays 考慮に）＋フロント lib/hire.js の
+  両方＋parity の load-bearing 変更so、たきと判断待ち（勝手にやらない）。agreed_dates 未設定時は
+  求人日程へフォールバックする設計that要る。
+【この日の本命は並走セッションの reviews 捏造（直前ブロック）】評判の完全性の穴that最重大。
+私の dests は同種（偽造）のより軽い版＝どちらも「書き込みの当事者性を検証していない」型。
+併せて塞ぐ価値thある（reviews=トリガー／dests=ポリシーdrop）。
+━━━ ここまで ━━━
