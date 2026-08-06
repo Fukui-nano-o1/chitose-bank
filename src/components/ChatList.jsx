@@ -278,13 +278,18 @@ export function ChatList() {
           <p style={{ fontSize:14, margin:0 }}>チャットはまだありません。<br/>応募が承認されると、ここに表示されます。</p>
         </div>
       ) : (
-        <div ref={skelRef} style={{ display:"grid", gap:10 }}>
+        /* 幅の固定（2026-08-06たきと報告「チャット欄の幅が大きくなった」）：
+           列を minmax(0,1fr) にする。既定の auto 列は中身の min-content まで広がるため、
+           下の「求人 #… 作物 作業」が whiteSpace:nowrap＝1行で全文ぶんの幅を要求し、
+           画面が狭いと列ごとカードが画面より広くなっていた（body の overflow-x:clip で
+           右が切れ、段階チップが画面外に消える）。0 を下限にすれば列は器を超えない */
+        <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:10 }}>
           {sortedRows.map(a => {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
             const rowUnread = rowUnreadOf(a); // 相手との全応募の未読合算
             return (
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
-                className={"f-sans" + (rowUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"#fff",
+                className={"f-sans" + (rowUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
                   border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
                 {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}
                 <span onClick={(e)=>{ e.stopPropagation(); if (a._role === "farmer") openWorkerPreview(a.worker_id); else openEmployerPreview(a.farmer_id); }} style={{ flexShrink:0 }}>
@@ -292,7 +297,8 @@ export function ChatList() {
                 </span>
                 <div style={{ minWidth:0, flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
-                    <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
+                    {/* 名前が長くても段階チップを押し出さない＝はみ出す側は名前（…で畳む） */}
+                    <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
                     {rowUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{rowUnread}</span>}
                     {/* 帯統一（2026-07-25たきと指示）：応募者リストと同じ段階色（APP_PHASE_COLOR）のチップ。凡例と同じ地色＋白文字 */}
                     <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(a)); }} role="button" style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: APP_PHASE_COLOR[appPhaseKey(a)] || "#999", color:"#fff", flexShrink:0, cursor:"pointer" }}>{APP_PHASE_LABEL[appPhaseKey(a)] || a.status}</span>
