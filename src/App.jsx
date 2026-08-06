@@ -45,6 +45,8 @@ const AdminBoxRegistryPage = lazyChunk(() => import("./components/admin/AdminBox
 const AdminWorkingRoom = lazyChunk(() => import("./components/admin/AdminWorkingRoom").then(m => ({ default: m.AdminWorkingRoom })));
 const AdminUpcomingRoom = lazyChunk(() => import("./components/admin/AdminUpcomingRoom").then(m => ({ default: m.AdminUpcomingRoom })));
 const AdminEvaluationRoom = lazyChunk(() => import("./components/admin/AdminEvaluationRoom").then(m => ({ default: m.AdminEvaluationRoom })));
+// 運営の気づきボックス（2026-08-06）：☰の上に積む管理者専用の通知。管理者以外は読み込まれない
+const AdminAttentionBox = lazyChunk(() => import("./components/admin/AdminAttentionBox").then(m => ({ default: m.AdminAttentionBox })));
 // プロフィールタブ（2026-07-27たきと指示「リロードを必要最低限に」）：農家ハブ・応募状況・
 // プロフィール編集・カレンダーがぶら下がる大きな塊so、開いた時に初めて読む＝起動のJSを軽くする
 const ProfileHub = lazyChunk(() => import("./components/ProfileHub").then(m => ({ default: m.ProfileHub })));
@@ -1452,6 +1454,8 @@ export default function App(){
   const [showDevJump,setShowDevJump]=useState(false); // 開発用ジャンプ（管理者がログイン中でも各stepへ飛ぶ）
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // モバイル下部バー左端☰（PCのmenuOpenとは別系統）
+  // 運営の気づきボックス（2026-08-06・管理者のみ）：☰の真上の🔔。開閉は☰と同系統・排他（どちらか一方だけ開く）
+  const [noticeOpen, setNoticeOpen] = useState(false);
   // この画面を報告：☰の開閉やヘルプの章開閉と無関係な階層で開閉させる（2026-07-14・アンマウントバグ修正）
   const [showFeedback, setShowFeedback] = useState(false);
   const [showTerms,setShowTerms]=useState(false);
@@ -1513,6 +1517,13 @@ export default function App(){
     document.addEventListener("click", onDoc);
     return () => document.removeEventListener("click", onDoc);
   }, [mobileMenuOpen]);
+  // 気づきボックスも☰と同じ作法で、外側タップで閉じる（パネル側はstopPropagation済み）
+  useEffect(() => {
+    if (!noticeOpen) return;
+    const onDoc = () => setNoticeOpen(false);
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
+  }, [noticeOpen]);
 
   // PWA(ホーム画面アプリ)専用：ページ最上部で下に引っ張ると強制リロード（pull-to-refresh・2026-07-14）。
   // Safari表示には標準のリロード手段があるため対象外。モーダル・フロー等の内部スクロール要素上では発動しない
@@ -2315,8 +2326,16 @@ export default function App(){
       {/* ── MOBILE ☰浮遊ボタン（2026-07-13 下部バーから上部左へ移設。fixed＝スクロール追従）
            新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}
       {!(needsAccountHolder || openAccountForm) && <div className="app-header-mobile-float">
+        {/* 運営の気づきボックス（2026-08-06たきと指示）：☰の【上】に積む。同じ容器に入れることで
+            表示条件・スクロール格納・オーバーレイ中の非表示・入力中の退避が全部☰と同じになる
+            （隠し忘れが構造的に起きない）。読み取り専用・管理者のみ。開くのはどちらか一方だけ */}
+        {isAdmin(me) && (
+          <Suspense fallback={null}>
+            <AdminAttentionBox open={noticeOpen} onToggle={(v)=>{ setNoticeOpen(v); if (v) setMobileMenuOpen(false); }} />
+          </Suspense>
+        )}
         <button
-          onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); }}
+          onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); setNoticeOpen(false); }}
           aria-label="メニュー"
           className={"app-header-mobile-float-btn" + (mobileMenuOpen ? " active" : "")}>
           <span className="icon">☰</span>
