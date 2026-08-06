@@ -151,15 +151,23 @@ const CONSIGN_SPRIGS = [
   { stem: "M22 80 C22 68 21 56 20 44",
     leaves: [[15,66,38],[28,60,-36],[14,52,40],[27,47,-38],[20,44,85]] },
 ];
-// 群れの土台＝3つの縄張り（振り付けは固定：右→左→右の順に下から上へ・2026-07-31たきと指示）。
+// 群れの土台（振り付けは固定：右→左→右の順に下から上へ・2026-07-31たきと指示）。
 // 中央に寄って見えないよう、株の根元は必ず端の側に置く（右群れ=右端0〜38%・左群れ=左端0〜38%。
 // 負値も許す＝画面外へはみ出してよい）。panel=どちらの幕に所属するか（幕が開くとき群れごと退場）。
-// 順番はまず太陽→次に草（2026-07-31たきと指示「まず太陽を出してから草を出そう」）
+// 順番はまず太陽→次に草（2026-07-31たきと指示「まず太陽を出してから草を出そう」）。
+// 2026-08-05たきと指示で草の群れを1つ増やし2→3に＝右→左→右の振り付けがこれで一周する
+// （②右下→③左中→④右上）。最後の群れは 1.15s+株ごとのずれ0.12s+生える0.34s≒1.61s で出揃い、
+// 幕が開く1.75s（CSS .consign-entrance-top/bottom の animation-delay）に間に合う
 const CONSIGN_CLUSTER_BASES = [
-  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20, delay: 0.10, kind: "sun" }, // ①上段＝白い太陽が先
-  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10, delay: 0.45 }, // ②右・下段（草）
-  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75, delay: 0.80 }, // ③左・中段（草）
+  { panel: "top",    anchor: "right", bottomMin: 0,  bottomMax: 20,  delay: 0.10, kind: "sun" }, // ①上段＝白い太陽が先
+  { panel: "bottom", anchor: "right", bottomMin: 0,  bottomMax: 10,  delay: 0.45 }, // ②右・下段（草）
+  { panel: "bottom", anchor: "left",  bottomMin: 55, bottomMax: 75,  delay: 0.80 }, // ③左・中段（草）
+  { panel: "bottom", anchor: "right", bottomMin: 85, bottomMax: 100, delay: 1.15 }, // ④右・上段（草・2026-08-05追加）
 ];
+// 草の大きさの倍率（2026-08-05たきと指示「全体的に0.8倍の大きさに」）。
+// ★草だけに掛ける＝太陽と花火は対象外（同指示「太陽と花火に変更はない」）so
+//   sunSize・花火のsize等には触れない。大きさを直すときはこの1箇所を変える
+const CONSIGN_GRASS_SCALE = 0.8;
 // 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
 // 以前の「決め打ち＝再現性」はこの指示で上書き）。全てのパターンを毎回変える（たきと指示）：
 // 群れごとの大きさの基準・株の種類・本数・高さ・左右の向き・傾き・位置ずれ・生える時間差。
@@ -202,7 +210,9 @@ const makeConsignGrass = () => {
         }),
       };
     }
-    const size = r(160, 300); // 群れごとの大きさの基準（実機確認で縮小・2026-07-31「良い塩梅に」）
+    // 群れごとの大きさの基準（実機確認で縮小・2026-07-31「良い塩梅に」／2026-08-05に0.8倍）。
+    // 基準も上限も同じ倍率を掛ける＝上限だけ据え置いて背の高い株ばかりが上限に張り付くのを防ぐ
+    const size = r(160, 300) * CONSIGN_GRASS_SCALE;
     return {
       panel: c.panel,
       anchor: c.anchor,
@@ -210,7 +220,7 @@ const makeConsignGrass = () => {
       pos: { bottom: r(c.bottomMin, c.bottomMax).toFixed(1) + "%" },
       sprigs: Array.from({ length: 6 + Math.floor(Math.random() * 5) }, () => ({ // 6〜10株（3〜5株の倍・2026-07-31たきと指示）
         v: Math.floor(Math.random() * CONSIGN_SPRIGS.length),
-        h: Math.round(Math.min(420, r(size * 0.7, size * 1.3))),
+        h: Math.round(Math.min(420 * CONSIGN_GRASS_SCALE, r(size * 0.7, size * 1.3))),
         x: +r(-8, 38).toFixed(1),           // 端からの寄せ%（負値=画面外へはみ出す）＝右左の分離
         y: Math.round(r(0, 44)),            // 根元の縦ゆらぎpx（一直線に並ばない）
         flip: Math.random() < 0.5,          // 左右反転（同じ形でも景色が変わる）
@@ -1301,9 +1311,11 @@ export function ConsignmentRoom() {
   const [cAnim, setCAnim] = useState("");
   const [contractorFlip, setContractorFlip] = useState(false); // 「委託をさがす」カードの反転（掲載板は準備中）
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
-  // ステップ展開（2026-07-31たきと指示・順序改定「まず太陽→草」）：
-  // 線(0.22s)→①太陽・上段(0.10s〜)→②草・右下(0.45s〜)→③草・左中(0.80s〜)→幕が開く(1.20s+0.5s)
-  // ＝花火5〜7発→約2.25sで終演、2.5sでDOMから外す（2026-08-03・太陽→花火）。
+  // ステップ展開（2026-07-31たきと指示・順序改定「まず太陽→草」／2026-08-05に草を3群へ）：
+  // 線(0.22s)→①太陽・上段(0.10s〜)→②草・右下(0.45s〜)→③草・左中(0.80s〜)→④草・右上(1.15s〜)
+  // →幕が開く(1.75s+0.5s)＝約2.25sで終演、2.5sでDOMから外す（2026-08-03・太陽→花火）。
+  // ※幕が開く時刻の正はCSS（.consign-entrance-top/bottom の animation-delay 1.75s）。
+  //   草の delay を足すときは、生え終わり（delay+0.12+0.34）が1.75sを超えないこと
   // 動きを減らす設定の端末では最初から出さない（CSS側のprefers-reduced-motionと二重の判定）
   const [entrance, setEntrance] = useState(() => {
     try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; }
