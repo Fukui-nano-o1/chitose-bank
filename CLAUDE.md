@@ -3005,3 +3005,46 @@ SMTP送信テストが引き続き必要。★次回もaudit⑥だけは日別�
 【実機目視】①タップ後に音thatが鳴るか（1回目のタップ=解錠、以降の成功操作で音）
 ②祝祭の暗幕・花火・揺れの見え方 ③うるさすぎ・眩しすぎないか（音量gain0.05-0.07・暗幕0.82）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-06 悪意ある実機一周④（別目的＝評判汚染・スパム凶器化・BAN後活動・勤怠詐称）━━━
+【立場】signup_openで登録した一般ユーザー。前回③（機密性・完全性）と別の目的で撃った：
+評判を汚す／プラットフォームを使って任意の相手にスパム／保存型XSSで他人の画面を汚染／
+BANされた後も活動を続ける／正規利用者への妨害・勤怠詐称。
+【作法】合成アカウント・実データ不変・PIIは読まない・全ロールバック。終了時実測：テスト行0・
+jobs 28件不変・total_reviews=0（本番にまだ実レビュー無し＝下記の穴は未悪用）。
+
+【★★重大な穴・未修理：レビュー捏造で任意の働き手の評判を汚染できる】
+・reviews の INSERT ポリシー（with_check）は「reviewer_id=auth.uid() ∧ 非moderated ∧
+  application_id が自分の当事者である応募」しか見ておらず、【reviewee_id と direction that
+  その応募の相手方・向きと一致するかを検証していない】。CHECK制約もトリガーも無い。
+・攻撃：自分の求人＋自分の応募（捨て働き手）を1件作り、その application_id に、被評価者を
+  【無関係の被害者】にすり替えた farmer_to_worker 評価（want_again=false）を直接INSERT。
+  UNIQUE(application_id,direction)は別応募を使えば回避。→ 被害者の worker_trust_info の
+  レビュー計上that増える（実測：poison前0→poison後1）＝一度も働いていない相手を貶められる。
+  逆に want_again=true で自己・仲間の評判を水増しも可能。
+・影響：signup_open=true so誰でも登録して任意の働き手／農家の評判を捏造できる。売り物＝安心
+  （憲法1条）の土台を崩す。個情法・職安法（運営の主観混入の禁止に近い改竄）にも触れうる。
+・幸い total_reviews=0＝まだ実害ゼロ。実レビューthat積む前に塞ぐべき。
+・修理案（未実装・報告のみ）：reviews に BEFORE INSERT トリガー（二重の壁）で
+  「direction='farmer_to_worker' ⟹ reviewer=app.farmer_id ∧ reviewee=app.worker_id」
+  「direction='worker_to_farmer' ⟹ reviewer=app.worker_id ∧ reviewee=app.farmer_id」を強制。
+  併せて status='completed' 要求も検討（submit_farmer_reviewは既にcomplete_work経由so整合）。
+  正規経路 submit_farmer_review は SECURITY DEFINER で正しく入れているのでこの修理と両立する。
+
+【壁that効いていたもの（実測・全て拒否／正当は通過）】
+・スパム凶器化：notifications は auth.uid()=farmer_id（受信者=自分）限定＝他人への通知スパム不可。
+  send_interview_questions は農家本人限定。ask_job_question は非ログイン/非open/自分の求人を拒否。
+・Q&A NG検閲 jq_ng_check：電話（09012345678・090-1234-5678）／メール／URL を全て拒否。
+  ※難読化（かな書き等）は素通り＝NG検閲の既知の限界。連絡先交換はそもそも規約で禁止・
+    サイト内チャット原則that最後の砦（機能ではなく運用の壁）。
+・BAN（account_moderation state=banned）口座：apply_to_job=account_suspended／メッセージINSERT=RLS拒否／
+  レビューINSERT=RLS拒否（is_account_moderated that3経路で効く）。BAN後の活動は封じられている。
+・勤怠詐称：decide_time_correction は auth.uid()=申請者を self で拒否／当事者以外を not_party で拒否。
+  相手方の承認だけthat通る（実測：自己承認=self拒否・農家承認=成功）。打刻の一方的改竄は不可。
+・保存型XSS：dangerouslySetInnerHTML 不使用（grep確認）。LinkifiedText は https?:// のみリンク化し
+  内部リンクは chitose-bank.com/#/ のみ・外部は rel="noopener noreferrer"＝javascript:スキームは
+  生成されない。Reactの標準エスケープで本文は文字として描画＝注入は成立しない。
+【結論】別目的で撃つと、機密性・完全性の壁（③で確認）とは別に【評判＝reviewsの完全性】に
+穴that1つ空いていた。他の目的（スパム・BAN後活動・勤怠詐称・XSS）は全て塞がれている。
+reviews のトリガー1本で塞げる（実装は指示待ち）。
+━━━ ここまで ━━━
