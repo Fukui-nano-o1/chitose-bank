@@ -17,7 +17,6 @@ import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
-import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
 
 // 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
 const APP_FILTER_KEYS = ["all","applied","interview","active","completed"];
@@ -519,37 +518,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
   // 面接の質問を一度でも送った応募ID（interview_question_sends・農家本人select可）。
   // シートのボタン出し分け「初面接後=採用する」の判定に使用（2026-07-26たきと指示）
-  // 採用する（応募者シート・2026-07-26）：今日ページ・チャットの採用と同じconfirm_terms＋二重予約警告
-  const hireApplicant = async (a, nickname) => {
-    // 二重予約の判定と告知文は lib/hire に集約（2026-08-06）。採用するページ（今日ページの
-    // HireStagePanel）と同じ判定・同じ文言を使う＝窓口が増えても警告が食い違わない
-    const dup = await findDoubleBookingJob(me.id, a.worker_id, a.job_number);
-    const warn = dup ? doubleBookingWarning(dup) + "\n\n" : "";
-    if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。\n\n${HIRE_NAME_DISCLOSURE_NOTE}`)) return;
-    // 二重予約はDB側confirm_termsも同じ式で見張る（2026-08-06・警告の機構化）。
-    // 警告を見て進んだ時だけ受諾フラグを渡す。フロントの下調べthat取りこぼした時はDBがdouble_bookedを
-    // 返すので、その場で警告を出し直して確認→受諾ありで再実行
-    let { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id, p_accept_double_booking: !!dup });
-    if (!error && data?.reason === "double_booked") {
-      if (!confirm(doubleBookingWarning(data.dup_job) + "\n\nこのまま採用しますか？")) return;
-      ({ data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id, p_accept_double_booking: true }));
-    }
-    if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-    // 働き手側のterms_confirmed_worker_atは応募時にDBトリガーが自動記録済みso、農家側の時刻だけ足せば帯・ボタンがcontractedへ進む
-    // 採用人数に達した場合、残りの応募はDB側（confirm_terms）で見送りになる（2026-07-27たきと指示）。
-    // 戻り値のclosed_idsを画面にも反映＝リロードせずに帯が「見送り」へ変わる
-    const closed = new Set(Array.isArray(data.closed_ids) ? data.closed_ids : []);
-    const nowIso = new Date().toISOString();
-    setDbApplicants(prev => prev.map(x =>
-      x.id === a.id ? { ...x, terms_confirmed_farmer_at: x.terms_confirmed_farmer_at || nowIso }
-      : closed.has(x.id) ? { ...x, status: "rejected", decided_at: x.decided_at || nowIso }
-      : x));
-    if (data.filled) {
-      alert(closed.size > 0
-        ? `採用しました。募集人数に達したため、残りの応募 ${closed.size} 件は見送りになりました（お相手へ連絡済み）。`
-        : "採用しました。募集人数に達したため、この求人の募集は終了です。");
-    }
-  };
+  // 採用の実行窓口は「採用するページ」1箇所に一本化（2026-08-06たきと指示「器と機能の役割は一つに絞れ」）。
+  // シートの役割は判断材料を見せることに徹し、採用ボタンは採用ページへのリンク。
+  // 最終確認・二重予約警告・本名開示の明示・実行（confirm_terms）はすべて採用ページ側that担う。
+  const goHirePage = () => { window.location.hash = "/calendar/todo/hire"; };
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   const appRibbonLabel = (a) => APP_PHASE_LABEL[appPhaseKey(a)] || a.status;
@@ -843,7 +815,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>📋 質問を送る</button>
                     {qSentAppIds.has(a.id)
-                      ? <button onClick={()=>hireApplicant(a, wp?.nickname)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する</button>
+                      ? <button onClick={goHirePage} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する →</button>
                       : chatBtn}
                   </div>
                 );
