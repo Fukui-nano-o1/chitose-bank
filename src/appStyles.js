@@ -430,12 +430,7 @@ input:focus { outline: none; }
 .app-header-mobile-float { display: none; }
 @media (max-width: 768px) {
   .app-header-mobile-float {
-    /* 2026-08-06: block→縦並び。運営の気づきボックス（管理者のみ）を☰の【上】に積むため。
-       子が☰1つだけの時（一般ユーザー）は見た目も位置も従来と同じ（幅は内容なりのまま） */
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    display: block;
     position: fixed;
     /* 2026-07-14: 左上→左下へ移動。下限=下部バー(64px)+12pxで重ならない */
     bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px));
@@ -573,38 +568,6 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   font-size: 14px;
   color: #222;
   padding: 12px 16px;
-}
-/* ── 運営の気づきボックス（2026-08-06たきと指示「通知ボックス。ハンバーガーメニューの上部に設置。
-   ハンバーガーメニューと同じ展開や非表示を演出」）。管理者のみ描画される。
-   ★置き場所＝.app-header-mobile-float の中（☰と同じ容器）。こうすると表示条件・スクロール格納・
-     オーバーレイ中の非表示・入力中の退避が【全部☰と同じもの】になり、隠し忘れが構造的に起きない
-     （オーバーレイ描画の鉄則で手動リストが漏れる問題を、容器の共有で回避する） ── */
-.cb-notice-fab-btn { position: relative; }
-.cb-notice-fab-btn .cb-notice-badge {
-  position: absolute; top: -4px; right: -4px;
-  min-width: 20px; height: 20px; border-radius: 10px;
-  background: #E24B4A; color: #fff;
-  font-size: 11px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 5px;
-}
-/* パネルは☰メニューと同じ作法で真上に開く（bottom:100% ＋ 上へのはみ出しをmax-heightで抑える） */
-.cb-notice-panel {
-  position: absolute;
-  bottom: 100%; top: auto;
-  margin-bottom: 10px;
-  left: 0;
-  width: calc(100vw - 24px);
-  max-width: 420px;
-  max-height: calc(100vh - 190px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  background: #fff;
-  border: 1px solid #EBEBEB;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0,0,0,.12);
-  padding: 10px 0;
-  z-index: 30;
 }
 .app-header-post-btn .post-label-short { display: none; }
 @media (max-width: 380px) {

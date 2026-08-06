@@ -2513,3 +2513,38 @@ confirm_terms の権限と返り値（ok/filled/closed_ids・not_partyゲート�
 →確認：①🤝で最終確認が出るか ②OKで採用され演出が出るか（遷移しない）③二重予約のある相手で
 警告が出るか ④人数に達した時のメッセージ ⑤採用後にカードとやることの件数が減るか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-06 運営の気づきボックスは撤回（画面は元通り・関数だけ残置）━━━
+【経緯】☰の上に管理者専用の🔔通知ボックスを設置（efceed6）→ 同日たきと判断で撤回。
+理由「1箇所にまとめて畳むより、見える化した方がよさそうだ」＝気づくための道具なのに
+🔔を押さないと見えない（順序が逆）・モバイル限定・数字だけで中身が分からない、という指摘。
+【戻した範囲】components/admin/AdminAttentionBox.jsx を削除。App.jsx（import/state/effect/描画）と
+appStyles.js（.app-header-mobile-float の縦並び化・.cb-notice-fab-btn/.cb-notice-badge/.cb-notice-panel）を
+撤回前と【バイト一致】まで戻した（git diff efceed6~1 -- src/App.jsx src/appStyles.js が空であることを確認）。
+※ appStyles の .cb-notice-sheet は【別物・既存】（お知らせのシート）so消していない。cb-notice の一括削除は禁止。
+【残置】admin_attention()（migration 20260806120000・読み取り専用・app_adminsゲート）は残す。
+呼び出し元ゼロだが意図的な残置＝次の「見える化」で使う。実データで検証済み
+（app_errors open 296件が部品×文言で8種に束なる／滞留：未判断の応募1件7日・審査待ち求人1件5日・
+修正のお願い中1件10日）。権限も実測済み（anon=EXECUTE拒否／一般=not_admin／管理者=中身）。
+★2026-07-29の大掃除⑤のような「呼び出し元ゼロの関数を消す」掃除の対象にしないこと。不要になったら明示的に判断する。
+━━━ ここまで ━━━
+
+━━━ 2026-08-06 現状確認：今日ページ移行計画の前提の訂正 ━━━
+段階計画（足す→足す→変える→引く→足す）の前提を実物で確認し、3点を訂正した。
+1. ★保険の準備の報告を #/insurance に置く案は【不成立】：InsurancePrepPage が扱うのは
+   employer_profiles.insurance_items＝プロフィール単位の「入っている保険」の設定。
+   confirm_insurance(p_application_id) は応募1件ごとの報告＝粒度が違う。載せるなら
+   「報告待ちの応募一覧」を新設することになる（実質もう1ページ）。
+2. 開始の確認を応募者シートに戻す案は【成立】：FarmerDashboard に started_at /
+   farmer_confirmed_start_at を読んで表示する行が既にある（L778・L888）。実行ボタンだけが無い。
+3. ★用件ページ（#/calendar/todo/{stage}）は【全部 TodayPage の内側】にある。
+   safeTab==="calendar" に管理者ガードを掛けると12枚のURLが道連れで死ぬ＝
+   「ガード1行で済む」は誤り。用件を外へ出し終えてから初めてガード1行になる。
+4. 追い風：my_nav_badges は既に time_corrections を独立した数で返している（承認する側だけを数える定義）。
+   打刻修正ページを作るならバッジの材料は既にある。
+5. 数え漏れ：今日ページにしか無いものがもう1つ＝「きょうの仕事（t_card・get_my_calendar_jobs 由来）」。
+   当日の仕事を見る唯一の画面で、緊急連絡はここから開く。
+【今日ページにしか入口が無い行為（確定）】打刻修正の承認（decide_time_correction・呼び出しは今日の1箇所だけ。
+申請側のシートは応募者ページ・応募状況・今日の3画面にある＝承認だけが非対称）／保険の準備の報告
+（confirm_insurance）／作業の開始を確認（confirm_start）。
+━━━ ここまで ━━━
