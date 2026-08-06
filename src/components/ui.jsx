@@ -1,6 +1,6 @@
 // 汎用UIアトム（分割・段階2後半・2026-07-24）：リボン帯・長文の省略表示。
-import { useState, useEffect, useRef, useCallback } from "react";
-import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, punchDivergence, PUNCH_GAP_MIN } from "../lib/utils";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, punchDivergence, PUNCH_GAP_MIN, qaShort, ROLE_ORANGE } from "../lib/utils";
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
@@ -492,6 +492,28 @@ export function PunchGapNotice({ app, onRequestCorrection, correctionLabel = "�
           {correctionLabel}
         </button>
       )}
+    </div>
+  );
+}
+
+// 働き手Q&A（pr_qa）の表示：チャットと同じコメント（吹き出し）形式（2026-08-06たきと指示）。
+// 質問＝左・グレーの吹き出し（サイトからの問いかけ）／回答＝右・役割色の吹き出し（本人の言葉）＝
+// ChatView のメッセージと同じ作法（alignSelf・borderRadius14・maxWidth75%・pre-wrap）。
+// 質問は表示だけ簡易型（qaShort）にする＝保存されている質問文は書き換えない。
+// accent＝回答側の色。既定は働き手の役割色（橙）。雇い手側で使うときは緑を渡す
+export function QaChat({ items, accent = ROLE_ORANGE, style }) {
+  const list = Array.isArray(items) ? items.filter(x => x && (x.q || x.a)) : [];
+  if (list.length === 0) return null;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:16, ...style }}>
+      {list.map(({ q, a }, i) => (
+        <Fragment key={i}>
+          <div className="f-sans" style={{ alignSelf:"flex-start", maxWidth:"75%", padding:"8px 12px", borderRadius:14, fontSize:12, background:"#F0F0F0", color:"#717171", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{qaShort(q)}</div>
+          {a && (
+            <div className="f-sans" style={{ alignSelf:"flex-end", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background:accent, color:"#fff", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</div>
+          )}
+        </Fragment>
+      ))}
     </div>
   );
 }

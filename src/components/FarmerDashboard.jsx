@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb } from "../lib/utils";
-import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner } from "./ui";
+import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
@@ -915,16 +915,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 <ContractEmergencyContact applicationId={a.id} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
               </div>
-              {Array.isArray(wp?.pr_qa) && wp.pr_qa.length > 0 && (
-                <div style={{ display:"grid", gap:6, marginBottom:10 }}>
-                  {wp.pr_qa.map(({ q, a: ans }) => (
-                    <div key={q}>
-                      <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
-                      <p className="f-sans" style={{ fontSize:12, color:"#222", margin:0, lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{ans}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
+              <QaChat items={wp?.pr_qa} style={{ marginTop:10, marginBottom:10 }} />
               {/* 求人名はタップで求人プレビューを開くリンク（2026-07-19） */}
               {(() => {
                 const info = jobInfoMap[a.job_number] || dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number) || {};
@@ -1694,16 +1686,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <>
                 <WorkerTrustCard profile={rosterDetail.profile} trust={rosterDetail.trust} />
                 <MyReviewsOfWorker workerId={rosterDetail.worker_id} />
-                {Array.isArray(rosterDetail.profile.pr_qa) && rosterDetail.profile.pr_qa.length > 0 && (
-                  <div style={{ display:"grid", gap:10, marginTop:16 }}>
-                    {rosterDetail.profile.pr_qa.map(({ q, a }) => (
-                      <div key={q}>
-                        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
-                        <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
+                <QaChat items={rosterDetail.profile.pr_qa} />
               </>
             ) : (
               <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この方のプロフィールは未設定です</p>

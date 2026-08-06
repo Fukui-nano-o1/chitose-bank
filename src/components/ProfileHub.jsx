@@ -5,7 +5,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
-import { Avatar } from "./ui";
+import { Avatar, QaChat } from "./ui";
 import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
@@ -204,16 +204,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
                     {wMini ? (
                       <>
                         <WorkerTrustCard profile={wMini} trust={wTrust} />
-                        {Array.isArray(wMini.pr_qa) && wMini.pr_qa.length > 0 && (
-                          <div style={{ display:"grid", gap:10, marginTop:16 }}>
-                            {wMini.pr_qa.map(({ q, a }) => (
-                              <div key={q}>
-                                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
-                                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
+                        <QaChat items={wMini.pr_qa} />
                       </>
                     ) : (
                       <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>

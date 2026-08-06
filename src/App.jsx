@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } f
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon } from "./lib/utils";
 import { TodayPage } from "./components/TodayPage";
-import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
+import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots, QaChat } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
@@ -377,16 +377,8 @@ function WorkerPreviewSheet() {
                 {/* 1枚目：プロフィール（従来の中身をそのまま） */}
                 <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
                   <WorkerTrustCard profile={st.profile} trust={st.trust} />
-                  {Array.isArray(st.profile.pr_qa) && st.profile.pr_qa.length > 0 && (
-                    <div style={{ display:"grid", gap:10, marginTop:16 }}>
-                      {st.profile.pr_qa.map(({ q, a }) => (
-                        <div key={q}>
-                          <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
-                          <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
+                  <QaChat items={st.profile.pr_qa} />
                   <MyReviewsOfWorker workerId={st.worker_id} />
                 </div>
                 {/* 2枚目：はたらいた記録（働き手ダッシュボードと同じ部品） */}
