@@ -12,12 +12,31 @@
 //   負の場面（見送り・欠勤・失効の記録）では鳴らさない＝祝わない・責めない
 
 let _ctx = null;
+let _unlocked = false;
 function ctx() {
   try {
     if (_ctx) { if (_ctx.state === "suspended") _ctx.resume().catch(() => {}); return _ctx; }
     _ctx = new (window.AudioContext || window.webkitAudioContext)();
     return _ctx;
   } catch { return null; }
+}
+
+// ★音の解錠（2026-08-06・実機で無音だった原因の根治）：
+// iOS/Chromeは「ユーザー操作の同期処理の中」でしかAudioContextを起動できない。
+// 旧実装は fbSuccess の中＝await（RPCの往復）の【後】で初めてAudioContextを作っていたため、
+// 操作の文脈that切れており永久にsuspended＝無音だった。
+// 対策＝タップの瞬間（fbTap＝App.jsxの全ボタンリスナー・同期文脈）で作成+resume+無音バッファを
+// 1発鳴らして解錠する。以後は await の後でも音thatが出る。
+export function unlockAudio() {
+  try {
+    const c = ctx(); if (!c) return;
+    if (c.state === "suspended") c.resume().catch(() => {});
+    if (!_unlocked) {
+      const b = c.createBuffer(1, 1, 22050);
+      const s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0);
+      _unlocked = true;
+    }
+  } catch {}
 }
 
 // notes=周波数の列を gap 秒ずつずらして短く鳴らす。gainは小さく（驚かせない）
@@ -40,8 +59,9 @@ function tone(notes, { type = "sine", gain = 0.06, dur = 0.09, gap = 0.06 } = {}
 
 function vibrate(pattern) { try { navigator.vibrate?.(pattern); } catch {} }
 
-// タップの手応え（振動のみ・無音）。全ボタン共通＝「押せた」の証拠
-export function fbTap() { vibrate(8); }
+// タップの手応え（振動＋音の解錠）。全ボタン共通＝「押せた」の証拠。
+// unlockAudioをここで呼ぶ＝どのボタンでも最初のタップで音の道that開通する
+export function fbTap() { vibrate(8); unlockAudio(); }
 
 // 成功＝上昇音（ピロン↑ E5→A5）＋トントン
 export function fbSuccess() { vibrate([15, 40, 15]); tone([659.25, 880], { gain: 0.07 }); }

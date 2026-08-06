@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon } from "./lib/utils";
-import { fbTap } from "./lib/feedback";
+import { fbTap, unlockAudio } from "./lib/feedback";
 import { Celebration } from "./components/Celebration";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots, QaChat } from "./components/ui";
@@ -1362,7 +1362,7 @@ export default function App(){
   // 全ボタン共通のタップの手応え（振動のみ・無音・iOSでは静かに無視される）。
   // 「押せた」の証拠＝文字thatが読めない利用者への最小のフィードバック（2026-08-06）
   useEffect(() => {
-    const h = (e) => { try { if (e.target?.closest?.("button, a, [role='button']")) fbTap(); } catch {} };
+    const h = (e) => { try { unlockAudio(); if (e.target?.closest?.("button, a, [role='button']")) fbTap(); } catch {} };
     document.addEventListener("click", h, true);
     return () => document.removeEventListener("click", h, true);
   }, []);
