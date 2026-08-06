@@ -326,26 +326,35 @@ function HireStagePanel({ items }) {
         {items.map(t => {
           const photo = photoOf(t);
           return (
+            /* 横幅を3分割（2026-08-06たきと指示）：写真／アイコン／🤝採用 を各1/3。
+               3列とも同じ幅so、どのカードでも採用ボタンの位置が縦に揃う（迷わず押せる） */
             <div key={t.application_id} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
-              {/* 左：求人のトップ写真＋タイトル・#No.（応募者ページのカードと同じ作法・枠は3:4固定） */}
+              {/* ①求人のトップ写真＋タイトル・#No.（応募者ページのカードと同じ作法・枠は3:4固定） */}
               <button onClick={()=>setBoxItem(t)} aria-label="この応募を開く" className="f-sans"
-                style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                style={{ flex:"1 1 0", minWidth:0, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
                 {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
                 <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{titleOf(t)}</span>
                   <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{t.job_number}</span>
                 </span>
               </button>
-              {/* 右：この応募の働き手ひとり（応募者ページのアイコン列と同じ見た目＝リングは段階色・
+              {/* ②この応募の働き手ひとり（応募者ページのアイコン列と同じ見た目＝リングは段階色・
                   未設定アイコンの下地は相手の役割色＝働き手のオレンジ） */}
-              <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div style={{ flex:"1 1 0", minWidth:0, padding:"10px 8px 8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
                 <button onClick={()=>setBoxItem(t)} className="f-sans"
-                  style={{ width:80, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                  style={{ width:"100%", maxWidth:88, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                   <Avatar url={t.partner_avatar} name={t.partner_name || "？"} size={52} ring={phaseColor} bg={ROLE_ORANGE} />
                   <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: t.partner_name ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.partner_name ? t.partner_name + "さん" : "未設定"}</span>
                   <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:phaseColor, marginTop:1, cursor:"pointer" }}>{APP_PHASE_LABEL[phase]}</span>
                 </button>
               </div>
+              {/* ③🤝採用：このページの用件そのもの。押すとその応募のシートへ直行する
+                  （採用の実行＝応募者シートの🤝採用するボタンが唯一の窓口・二重予約の警告つき） */}
+              <button onClick={()=>{ markHireSheet(t.application_id); window.location.hash = HIRE_SHEET_PATH; }} aria-label="この応募者を採用する" className="f-sans"
+                style={{ flex:"1 1 0", minWidth:0, border:"none", borderLeft:"1px solid #F0F0F0", background:"#fff", cursor:"pointer", padding:"10px 8px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4 }}>
+                <span style={{ fontSize:30, lineHeight:1 }}>🤝</span>
+                <span style={{ fontSize:12, fontWeight:800, color:"#00A86B" }}>採用する</span>
+              </button>
             </div>
           );
         })}
