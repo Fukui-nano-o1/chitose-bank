@@ -33,6 +33,16 @@ export async function compressImage(file, maxSide = 1600, quality = 0.8) {
 // 返り値: { url, thumb? }（withThumb=false の危険箇所写真は { url } のみ）
 export async function uploadJobPhoto(supabase, file, { bucket = "job-photos", pathPrefix = "job_", withThumb = true } = {}) {
   const base = pathPrefix + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+  // 本人フォルダ（auth.uid()/…）に保存する（2026-08-06）。job-photosの書き込みRLSは
+  // 「本人フォルダのみ＋管理者は全域」＝他人の写真を消せない・差し替えられない機構の壁。
+  // 既存のルート直下ファイルは移動しない（凍結terms_snapshot・photos jsonbのURLを壊さないため）。
+  // 未ログインはフォルダ無し＝従来どおりRLSで弾かれる（挙動不変）
+  let ownerFolder = "";
+  try {
+    const { data } = await supabase.auth.getSession();
+    const uid = data?.session?.user?.id;
+    if (uid) ownerFolder = uid + "/";
+  } catch { /* セッション取得失敗時はフォルダ無し＝RLSが弾く */ }
   let full = file, thumb = null;
   try {
     let src = file;
@@ -54,8 +64,8 @@ export async function uploadJobPhoto(supabase, file, { bucket = "job-photos", pa
       bitmap.close?.();
     }
   } catch { full = file; thumb = null; }
-  const fullPath = base + ".jpg";
-  const thumbPath = "thumb_" + base + ".jpg";
+  const fullPath = ownerFolder + base + ".jpg";
+  const thumbPath = ownerFolder + "thumb_" + base + ".jpg";
   const jobs = [supabase.storage.from(bucket).upload(fullPath, full, { contentType: full.type || undefined })];
   if (thumb) jobs.push(supabase.storage.from(bucket).upload(thumbPath, thumb, { contentType: thumb.type || undefined }));
   const [fullRes, thumbRes] = await Promise.all(jobs);
