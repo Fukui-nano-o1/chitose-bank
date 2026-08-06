@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
+import { openWorkerPreview } from "../../lib/previewBus";
 import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, photoThumb } from "../../lib/utils";
 import { Avatar, LinkifiedText, StatusRibbon, Dots } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
@@ -264,6 +265,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   };
   const [reports, setReports] = useState([]); // 通報（job_reports）
   const [msgReports, setMsgReports] = useState([]); // チャットのコメント報告（message_reports・2026-07-19）
+  const [profReports, setProfReports] = useState([]); // 働き手プレビューからの報告（profile_reports・2026-08-06）
   const [adminQuestions, setAdminQuestions] = useState([]); // 求人Q&A（job_questions・第10弾・非表示スイッチ）
   const [qHidingId, setQHidingId] = useState(null);
   const hideQuestion = async (id, hidden) => {
@@ -338,7 +340,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re, ae, pj, wp, jr, av, la, mr, jq, wd] = await Promise.all([
+    const [fr, de, re, ae, pj, wp, jr, av, la, mr, jq, wd, pr] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
@@ -351,6 +353,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       supabase.from("message_reports").select("*").order("created_at",{ascending:false}),
       supabase.from("job_questions").select("*").order("created_at",{ascending:false}),
       supabase.from("withdrawal_requests").select("*").is("processed_at", null).order("requested_at",{ascending:true}),
+      supabase.from("profile_reports").select("*").order("created_at",{ascending:false}),
     ]);
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
@@ -365,6 +368,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (!mr.error) setMsgReports(mr.data || []);
     if (!jq.error) setAdminQuestions(jq.data || []);
     if (!wd.error) setWithdrawals(wd.data || []);
+    if (!pr.error) setProfReports(pr.data || []);
     setLoading(false);
   }, []);
 
@@ -403,6 +407,11 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     const { error } = await supabase.from("message_reports").update({ status: "resolved" }).eq("id", r.id);
     if (error) { alert("更新に失敗しました：" + error.message); return; }
     setMsgReports(prev => prev.map(x => x.id === r.id ? { ...x, status: "resolved" } : x));
+  };
+  const resolveProfReport = async (r) => {
+    const { error } = await supabase.from("profile_reports").update({ status: "resolved" }).eq("id", r.id);
+    if (error) { alert("更新に失敗しました：" + error.message); return; }
+    setProfReports(prev => prev.map(x => x.id === r.id ? { ...x, status: "resolved" } : x));
   };
 
   const publishJob = async (jobNumber) => {
@@ -514,7 +523,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
   const pendingFarmerAccounts = farmers.filter(f => f.status === "pending");
   const openReports = reports.filter(r => r.status !== "resolved");
   const openMsgReports = msgReports.filter(r => r.status !== "resolved");
-  const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + empPendingCount + openReports.length + openMsgReports.length + disputes.length;
+  const openProfReports = profReports.filter(r => r.status !== "resolved");
+  const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + empPendingCount + openReports.length + openMsgReports.length + openProfReports.length + disputes.length;
   const TOP_TABS = [
     { k:"jobs",    l:"審査",       n: reviewTotal },
     { k:"account", l:"アカウント", n: null },
@@ -999,7 +1009,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"jobs",     l:"求人",           n:pendingJobs.length },
             { k:"accounts", l:"アカウント承認", n:pendingFarmerAccounts.length },
             { k:"prs",      l:"自由記述",       n:pendingPrs.length + empPendingCount },
-            { k:"reports",  l:"通報",           n:openReports.length + openMsgReports.length },
+            { k:"reports",  l:"通報",           n:openReports.length + openMsgReports.length + openProfReports.length },
             { k:"disputes", l:"欠勤異議",       n:disputes.length },
             { k:"questions",l:"質問",           n:0 },
             { k:"withdrawals", l:"退会申請",    n:withdrawals.length },
@@ -1281,6 +1291,27 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 10px" }}>応募ID：{String(r.application_id || "").slice(0, 8)}…　発言者：{String(r.sender_id_snapshot || "").slice(0, 8)}…　報告者：{String(r.reporter_id || "").slice(0, 8)}…</p>
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>resolveMsgReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* 働き手プレビューからの報告（profile_reports・2026-08-06）：どちらの面から出したかを source で見分ける */}
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 10px" }}>働き手プレビューの報告{openProfReports.length > 0 ? `（${openProfReports.length}）` : ""}</p>
+          <div style={{ display:"grid", gap:12 }}>
+            {openProfReports.length === 0 ? (
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>未対応の報告はありません</p>
+            ) : openProfReports.map(r => (
+              <div key={r.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
+                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#E24B4A", margin:0 }}>{r.issue_type}</p>
+                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{r.created_at ? new Date(r.created_at).toLocaleString("ja-JP") : ""}</span>
+                </div>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px" }}>面：{r.source === "work_record" ? "はたらいた記録" : "プロフィール"}　対象：{r.target_field}</p>
+                {r.detail && <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:"0 0 8px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#F7F7F7", borderRadius:8, padding:"8px 10px" }}>{r.detail}</p>}
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 10px" }}>相手：{String(r.target_worker_id || "").slice(0, 8)}…　報告者：{String(r.reporter_id || "").slice(0, 8)}…</p>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>openWorkerPreview(r.target_worker_id)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>働き手を見る</button>
+                  <button onClick={()=>resolveProfReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
                 </div>
               </div>
             ))}
