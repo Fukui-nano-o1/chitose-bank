@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { ymdLocal } from "../../lib/utils";
+import { CONSIGN_TERMS_VERSION } from "../../lib/consignAccess";
 import { getCache, setCache } from "../../lib/viewCache";
 import { snapGet } from "../../lib/snapshot";
 import { uploadJobPhoto } from "../../lib/image";
@@ -341,8 +342,9 @@ const consignorPartyRows = (row, ah) => {
 };
 
 // 委託機能利用特約（2026-08-02たきと指示・本文はたきと起草の文言をそのまま使用＝改変しない）。
-// 委託機能を使う前の最初のゲート。本文を変更したら版数を更新＝旧版の同意者には再同意を求める
-const CONSIGN_TERMS_VERSION = "consignment-terms-v1-2026-08";
+// 委託機能を使う前の最初のゲート。本文を変更したら版数を更新＝旧版の同意者には再同意を求める。
+// ★版数の定義は lib/consignAccess.js へ移した（2026-08-03）＝さがすページの公開判定と同じ版を見るため。
+//   2箇所で持つと、本文を直したとき片方だけ上げる事故が起きる
 const CONSIGN_TERMS_INTRO = [
   "このページは、農作業その他の業務を発注・受託するための業務委託ページです。",
   "雇用契約を募集する求人ページとは、契約の性質や当事者の責任が異なります。",

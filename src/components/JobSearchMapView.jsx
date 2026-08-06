@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
-import { ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
+import { isAdmin, ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { fetchPublicJobs, shuffleArr, readSeenNewIds, recordSeenNewIds } from "../lib/searchJobs";
@@ -14,6 +14,9 @@ import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
 import { InsurancePanel } from "./InsurancePanel";
 import { FarmerTrustCard } from "./TrustCards";
+import { SearchLaneTabs } from "./SearchLaneTabs";
+import { ConsignmentSearchList } from "./ConsignmentSearchList";
+import { canSeeConsignment } from "../lib/consignAccess";
 
 // ── JobSearchMapView ────────────────────────────────────────
 // 「募集中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
@@ -186,6 +189,33 @@ export function JobSearchMapView({ onRegister, me }) {
     // 1起動につき全件取得が2回走っていた
   }, [me?.id]);
   const jobList = dbJobs || [];
+
+  // ── レーン切替（求人／委託）＝2026-08-03たきと指示 ──────────────────────────
+  // 委託タブを出す条件は lib/consignAccess.js の canSeeConsignment ただ1箇所（管理者 かつ 特約同意）。
+  // 後日その1行から管理者条件を外すだけで一般公開になる（＋DB側のRLSも同時に開ける・詳細はlibのコメント）。
+  // 特約の同意状況は consignment_profiles を読んで判定する。RLSthat管理者限定so、
+  // 一般ユーザーで無駄な往復をしないよう「見せる可能性thatある人」だけ引く
+  const [consignor, setConsignor] = useState(() => getCache("search:consignor") ?? null);
+  useEffect(() => {
+    if (!isAdmin(me)) { setConsignor(null); return; } // ★解禁時：この行も一緒に外す（読む相手を広げる）
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || cancelled) return;
+      const { data } = await supabase.from("consignment_profiles")
+        .select("consignment_terms_consent,consignment_terms_consent_version")
+        .eq("auth_id", session.user.id).maybeSingle();
+      if (cancelled) return;
+      setConsignor(data || null);
+      setCache("search:consignor", data || null);
+    })();
+    return () => { cancelled = true; };
+  }, [me]);
+  const showConsignLane = canSeeConsignment(me, consignor);
+  const [lane, setLane] = useState("jobs"); // "jobs" | "consign"
+  // 条件を満たさなくなった時（ログアウト・特約の版数更新）に委託レーンに取り残されない
+  useEffect(() => { if (!showConsignLane && lane === "consign") setLane("jobs"); }, [showConsignLane, lane]);
+
   // ── Airbnb風検索（2026-07-27たきと指示・骨格②の段階解禁を運営判断で前倒し）：
   // 上部ピルバー→タップで全画面パネル。なにを（作物・作業）／どこで（地域）／いつ（月）の3セクションを
   // アコーディオンで選び「検索」で確定。チップは実在の求人から生成（ダミー禁止・憲法3条）。
@@ -633,6 +663,16 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* 見出し「近くの仕事を探す」は削除（2026-07-27たきと指示）。現在地は下部ナビの点灯が示すため冗長。
           支払いの注記は求人一覧の一番下へ移植（下記） */}
 
+      {/* ── レーンタブ（求人／委託・2026-08-03たきと指示）：契約の性質that違う別レーンso絞り込みでなくタブで並べる。
+           委託タブは canSeeConsignment（管理者 かつ 特約同意）を満たす人にだけ現れる。
+           条件を満たさない人にはタブ自体that出ない＝従来どおり求人一覧のまま（1レーンなら非表示） ── */}
+      <SearchLaneTabs value={lane} onChange={setLane}
+        lanes={showConsignLane ? [{ k:"jobs", label:"求人" }, { k:"consign", label:"委託" }] : [{ k:"jobs", label:"求人" }]} />
+
+      {/* 委託レーン：一覧だけを出す（絞り込みバー・支払いの注記は求人の話so出さない） */}
+      {lane === "consign" && <ConsignmentSearchList />}
+
+      {lane === "jobs" && (<>
       {/* ── Airbnb風検索バー（2026-07-27）：下部バー直上の浮遊ピル（上は遠い・たきと指示）。
            スクロールで他のFABと同じくcb-scroll-hideで格納。適用中は条件の要約＋✕クリア ── */}
       <button onClick={()=>{ setSearchOpen(true); setSearchSec("what"); }} className="cb-search-fab f-sans" style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #DDD", borderRadius:32, padding:"11px 18px", boxShadow:"0 4px 16px rgba(0,0,0,0.18)", cursor:"pointer", textAlign:"left", boxSizing:"border-box" }}>
@@ -722,6 +762,7 @@ export function JobSearchMapView({ onRegister, me }) {
           お支払いは、{PAY_TIMING_LABELS[CURRENT_PAY_POLICY.payTiming]}の{PAY_METHOD_LABELS[CURRENT_PAY_POLICY.payMethod]}が原則です。
         </p>
       </div>
+      </>)}
       </>)}
 
       {/* ── 詳細ページ ── */}
