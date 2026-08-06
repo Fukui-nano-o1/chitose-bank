@@ -2585,3 +2585,34 @@ app_admins に入れていたため（v_detail = 管理者 or 本人）。app_ad
 【この方法でも確認できないもの】画面の見た目・タップの導線・アニメーション・スクロール・
 iOSの挙動。ここは引き続き実機の目視that要る。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-06 事故予防の一気実装（点検・裏方revoke・最賃の壁・失効の見張り）━━━
+【たきと指示】「軽いものから実装しよう」→「一気にやれ」。実機一周（同日）で見つかった
+「静かに消える型」への構え。4段すべて実装・検証・push済み。
+1.【点検】supabase/checks/audit.sql 新設＝読み取り専用・1本流すと6項目：
+   ①訪問者マスク ②審査プレビュー42P13 ③anon実行可の実RPC一覧 ③bバックエンド専用の露出
+   ④フェイルオープン候補 ⑤ビューの書き込み権限 ⑥入口（確認メール無し確認済みの再発）。
+   流すタイミング＝ビュー・RPC・RLSを触った日の作業終了前／月1回。結果はraise exceptionで出る（仕様）。
+2.【裏方revoke】migration 20260806121519＝send_user_email等11本をクライアントから閉じた。
+   ★教訓：関数は作成時にPUBLICへEXECUTE自動付与so、revokeは【from public】でないと効かない
+   （from anon,authenticated では PUBLIC経由that残る＝当日ノーオペを実測して交換）。
+   安全性実測：内部呼び出し（confirm_insurance→send_user_email）ok／cron実体実行OK／anon直叩き拒否。
+   send_interview_questions のみフロント呼び出しthaあるso残した。
+3.【最賃の壁】migration 20260806163552＝掲載トリガー trg_job_publish_snapshot に賃金検査：
+   数字のみ・どちらか必須・時給は最賃以上・日給は実働換算（勤務−greatest(申告休憩,法定最低休憩)）で
+   最賃以上。minimum_wages 参照（徳島県1046円・2026-01-01発効）。取得できない時は掲載を止める（安全側）。
+   フロント validateMinWage も同じ式に改修（旧式は申告休憩thatが法定最低より長い時に違反を見逃していた）。
+   ★式は必ずDBとフロントの両方を揃えること（ズレると「入力中OK→掲載で拒否」の混乱）。
+   検証：違反4種拒否・境界通過・下書き検査なし・既存の掲載中/審査中は違反0件。
+4.【失効の見張り】migration 20260806164149＝admin_working_jobs に expired_watch（直近14日の失効）。
+   仕事中ページ（#/admin/working）に読み取り専用セクション（0件なら非表示）。#1054型（採用押し忘れ→
+   実働の記録喪失）を運営that当事者確認する入口。was_approved は event_audit の失効時diff（old=approved）で
+   判定（terms_confirmed_worker_at は応募時自動刻印so判定に使えない）。実データで1件検出済み
+   ＝★次回運営タスク：この1件（承認済みのまま失効）を当事者に確認する。
+【点検の通し結果（実装後）】①〜⑤すべてOK。⑥のみNG＝直近7日の登録6件中5件that
+「確認メール無しで確認済み」＝Confirm email OFF の型thatまだ再発している。
+新規登録の件は片付いたとの認識だったthat、数字は直っていないと言っている。
+★次回：Supabaseダッシュボード（PC）で Authentication → Email「Confirm email」の実物を確認。
+【実機目視の残り】仕事中ページの失効セクションの見た目／求人フローstep5で休憩を長くした時の
+最賃バリデーション表示。
+━━━ ここまで ━━━
