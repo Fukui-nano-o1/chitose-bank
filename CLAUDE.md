@@ -2953,3 +2953,43 @@ owner_scoped_write）にあってrepoに無いmigrationを発見（2026-07-21規
 ②Confirm email／SMTPのダッシュボード実物確認（PC）③UI実機目視：新規アップロード写真のURLが
 {uid}/job_…形になるか・採用3窓口の二重予約警告ダイアログ・訪問者導線・仕事中ページ失効セクションの見た目
 ━━━ ここまで ━━━
+
+━━━ 2026-08-06 実機一周④：立場を確定した通し検証（合成のみ・全ロールバック・全[OK]）━━━
+【立場の宣言（たきと指示「どんな立場で操作するか確定してから一周」）】運営者たきとの代理検証者として、
+5役（訪問者anon／合成の働き手／合成の一般農家／第三者農家＝否定テスト役／運営者app_admins）を
+JWT claims＋set local roleで演じ分けた。「実機」＝①本番DBの実物（RLS・トリガー・RPC・ビューを各役で実際に叩く）
+②build+lint+dist ③フロント純関数のnode実行。ブラウザは操作しない（検証の分担規則・認証の絶対規則・環境制約）。
+安全＝合成アカウントのみ・実在利用者の個人情報は読まない（件数と真偽のみ）・外部送信ゼロ（pg_netはロールバックで
+巻き戻る）・全実弾はロールバック付きDOブロック・終了後に残置ゼロを件数実測。
+【仮説（合格基準）＝事前宣言どおり全て満たした】
+・通し順路（下書き→掲載→応募→承認→採用→保険→自動開始→開始確認→完了→評価→終了確認→はたらいた記録）が
+　設計どおり刻まれ、否定テスト（他人の求人改変・第三者掲載・契約改変・メッセージ改変削除・過去求人削除）は全拒否。
+・anonマスク＝座標2桁・半径3000・駅/町域/番地/募集主=0（audit①[OK]・20260806110501の回帰維持）。
+・最賃DB＝時給500拒否／表記ゆれ9,000拒否／日給4100(実働240分=換算1025円)拒否／境界1046円通過。
+・最賃フロント＝validateMinWage(LandingFlow)をファイルから抽出しnode実行、DB式と同一入力9ケースで全一致
+　（★既知未確認だった「申告休憩が法定より長い時の見逃し」も一致で消化＝日給3000/申告休憩300分/勤務8h→実働3h→
+　時給換算1000円をフロント・DB双方がNG判定）。
+・二重予約のDB壁④＝重なりあり受諾なし=double_booked／受諾あり=ok／重なりなし初回=ok（是正ブロックBで実測）。
+・ログイン後専用RPCのanon revoke⑤＝apply_to_jobは permission denied（EXECUTEの壁）。
+・本名/緊急連絡先＝契約後は当事者のみ（実名解決も確認）・契約前=not_contracted・第三者=not_party。
+　はたらいた記録＝運営/本人は取得・無関係農家=not_entitled。
+・anon直アクセス＝applications/messages/worker_profiles/emergency_contacts 全て直接SELECT=0行・直接INSERT拒否。
+・残置ゼロ＝jobs28/apps19/reviews0/msgs124/users19（開始時と一致）。build成功・eslint通過（lint 0 error）。
+【検証スクリプトの学び（次回の一周で踏まない）】
+1. 合成農家のfarmers行はemail必須（NOT NULL）。account_holdersはcontact_present（email/phoneどちらか必須）・
+   entity_type∈(individual,corporate)のCHECKあり。合成投入時に満たすこと。
+2. apply_to_jobは app_settings.apply_profile_gate='true' の時、worker_profiles.pr_qa に回答1件以上が必須
+   （nicknameだけでは profile_incomplete）。合成ワーカーは pr_qa に1件入れる。
+3. jobs owner insert draft のRLSは status∈(draft,pending) 限定＝一般農家がupdateでopenにするのはwith_checkで
+   即42501（トリガーに届く前にRLSが弾く）。第三者のopen拒否を「運営が承認して」試すには admin_claims で叩く。
+4. ★検証手順の落とし穴：app1採用の前にapp2も承認済み（CHAT_ELIGIBLE）で日程が重なると、app1採用が
+   double_bookedを返す（正しい挙動）。通し検証では「採用する応募だけ先に承認→採用→次を承認」の順にする。
+   最初の版はこれでT9a/T10がNG誤検知になり、是正ブロックB（順序を正した最小再現）でB1〜B7全OKを確認した。
+【NGのまま残る唯一の項目＝⑥入口（コードでは直らない・PC作業）】audit⑥＝直近7日の登録6件中5件that
+「確認メール無しで確認済み」。内訳を日別に見ると全5件が2026-08-04のみ（08-05以降の新規幽霊はゼロ）。
+Confirm email がOFFのままの型（2026-08-04記録）。ダッシュボード（PC）でAuthentication→Email「Confirm email」ON＋
+SMTP送信テストが引き続き必要。★次回もaudit⑥だけは日別内訳を見て「新規発生が止まっているか」を確認すること
+（08-04の5件は固定の過去分＝時間が経てば7日窓から外れて自然に[OK]に戻る。設定が直った証拠ではない）。
+【この方法でも確認できないもの（引き続き実機目視が要る）】画面の見た目・タップ導線・アニメーション・
+スクロール・iOSの挙動（前回までの申し送りの実機目視残りは未消化のまま）。
+━━━ ここまで ━━━
