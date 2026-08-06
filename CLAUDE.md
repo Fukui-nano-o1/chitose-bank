@@ -3132,3 +3132,24 @@ reviews のトリガー1本で塞げる（実装は指示待ち）。
 実機目視の残り：DBが正常な状態で取り消し→一覧と応募パネルから消えるか／
 （該当の応募はDB上まだappliedのまま＝取り消したい場合はもう一度取り消し操作が必要）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-06 バグ狩り：労働時間集計の日またぎバグ（負の時間）を発見・修理 ━━━
+【たきと指示】「最大限にできることをして。遊んで。バグを発見しろ」＝壁の再確認でなく論理バグ狩り。
+【★バグ（修理済み・migration 20260806234307）】worker_trust_info / worker_trust_info_bulk /
+  my_worker_trust_stats の total_hours that、勤務時間を end::time - start::time のインライン生計算で
+  出しており、日またぎ勤務（例 22:00〜06:00）で【負の時間】を加算していた。
+  実測：22:00〜06:00 の完了実績1件で total_hours = -16。
+・実在しうる入力：時給の日またぎ求人は最賃チェック（時給額のみ）を通過so掲載可能。UIのinput type=time
+  は end<start を止めない＝夜間収穫等で普通に作れる。農家に見える信頼カードに負の労働時間that出る。
+・不整合の証拠：worker_work_record は job_scheduled_minutes ヘルパー（end<=start→null 安全）を使い、
+  同じ求人を unknown_time_count に計上して total_minutes には足さない。3関数だけ生計算で食い違っていた
+  ＝時間の数え方that2種類あった（サイト内に総時間の定義thatブレる 2026-08-05の原則違反）。
+・修理：3関数の時間集計を job_scheduled_minutes に統一（単一ソース化）。日またぎ・不正な範囲は
+  合計から自動除外＝worker_work_record と同じ「憶測で時間を作らない」挙動に揃えた。
+・検証（ロールバック付き実弾）：日中8h+2h+日またぎ8h の3件 → total_hours=10（旧なら10-16=-6相当）、
+  worker_work_record と一致（total_minutes=600・unknown_time_count=1）、bulkも10、completed_count=3。
+・影響範囲：本番の日またぎ完了実績は現在0件（total_completed=3）＝潜在バグ・既存データの汚染なし。
+・repo写経同期済み・本番適用済み。フロント変更なし（表示は関数の返り値thatそのまま直る）。
+【この日の別セッションの未修理指摘（並走・私は未着手）】dests の無条件INSERT（低）／二重予約判定that
+  agreed_dates・holidays を無視（中）＝いずれも別セッションの記録。
+━━━ ここまで ━━━
