@@ -73,12 +73,23 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
           <p className="f-sans" style={{ fontSize:10, color:"#A0A8B4", margin:"6px 0 0", lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。</p>
         </div>
       )}
-      {profile.pr && (onEditItem ? (
-        <p {...tap("pr")} className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer" }}>{profile.pr}</p>
-      ) : (
-        // 閲覧時（プレビュー・応募者カード）は…で省略し、タップで全文（2026-07-23）
-        <ExpandableText text={profile.pr} limit={80} style={{ fontSize:13, color:"#222", margin:0 }} />
-      ))}
+      {/* 自己紹介だけは枠を持たせる（2026-08-06たきと指示）。チップの群れ（趣味＝橙／自己申告＝青）と
+          実績（緑）に挟まれて本文が地の文に見えてしまうため、白い枠＋小見出しで「本人の言葉」として独立させる。
+          100文字を超えたら「…続き」で畳み、タップで全文（枠の色は無彩色＝実績の緑と競合させない） */}
+      {profile.pr && (
+        <div
+          {...(onEditItem ? tap("pr") : {})}
+          style={{ background:"#FAFAFA", border:"1px solid #EDEDED", borderRadius:12, padding:"12px 14px", ...(onEditItem ? { cursor:"pointer" } : {}) }}
+        >
+          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 6px" }}>自己紹介</p>
+          {onEditItem ? (
+            <p className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{profile.pr}</p>
+          ) : (
+            // 閲覧時（プレビュー・応募者カード）は…で省略し、タップで全文（2026-07-23）
+            <ExpandableText text={profile.pr} limit={100} moreLabel="続き" style={{ fontSize:13, color:"#222", margin:0, lineHeight:1.7 }} />
+          )}
+        </div>
+      )}
       {/* ── 🌟 実績ブロック（このサイトの台帳のみ。自己申告チップはこの枠に絶対に入れない）。自己申告より上に置く（2026-07-23） ── */}
       {trust?.ok && ((trust.completed_count || 0) > 0 || (trust.want_again_count || 0) > 0 || (trust.total_hours || 0) > 0) && (
         <div style={{ marginTop:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px" }}>

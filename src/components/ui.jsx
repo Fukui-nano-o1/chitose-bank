@@ -23,7 +23,7 @@ export function StatusRibbonLeft({ label, color }) {
 
 // 長文プレビュー：…で省略し、該当要素のタップで全文表示（雇い手/働き手プレビューの自己紹介など・2026-07-23）。
 // 親がボタン（カード全体タップ）でも展開できるよう、クリックは伝播を止める。
-export function ExpandableText({ text, limit = 100, style }) {
+export function ExpandableText({ text, limit = 100, style, moreLabel = "もっと見る", lessLabel = "閉じる", moreColor = "#00A86B" }) {
   const [open, setOpen] = useState(false);
   const s = (text == null ? "" : String(text));
   if (!s) return null;
@@ -36,7 +36,7 @@ export function ExpandableText({ text, limit = 100, style }) {
       style={{ whiteSpace:"pre-wrap", ...style, ...(truncated ? { cursor:"pointer" } : {}) }}
     >
       {open || !truncated ? s : s.slice(0, limit) + "…"}
-      {truncated && <span style={{ color:"#00A86B", fontWeight:700 }}>{open ? "　閉じる" : "　もっと見る"}</span>}
+      {truncated && <span style={{ color:moreColor, fontWeight:700 }}>{open ? `　${lessLabel}` : `　${moreLabel}`}</span>}
     </p>
   );
 }
