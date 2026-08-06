@@ -1363,8 +1363,10 @@ export default function App(){
   // 「押せた」の証拠＝文字thatが読めない利用者への最小のフィードバック（2026-08-06）
   useEffect(() => {
     const h = (e) => { try { unlockAudio(); if (e.target?.closest?.("button, a, [role='button']")) fbTap(); } catch {} };
+    // pointerdown＝指thatが触れた最初の瞬間（clickより早く・確実にユーザー操作の同期文脈）でも解錠する
+    document.addEventListener("pointerdown", unlockAudio, true);
     document.addEventListener("click", h, true);
-    return () => document.removeEventListener("click", h, true);
+    return () => { document.removeEventListener("pointerdown", unlockAudio, true); document.removeEventListener("click", h, true); };
   }, []);
   // 仮応募からの昇格件数（プロフィール保存の直後に promote_my_pending_applications が返した数）
   const [promotedCount,setPromotedCount]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="apply/done" ? Number(sessionStorage.getItem("cb_promoted") || 0) : 0; } catch { return 0; } });
