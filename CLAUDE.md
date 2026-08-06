@@ -3083,3 +3083,22 @@ reviews のトリガー1本で塞げる（実装は指示待ち）。
 私の dests は同種（偽造）のより軽い版＝どちらも「書き込みの当事者性を検証していない」型。
 併せて塞ぐ価値thある（reviews=トリガー／dests=ポリシーdrop）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-06 レビュー捏造の穴を修理（実機一周④の発見・トリガーで機構的に閉じた）━━━
+【migration 20260806233349_reviews_party_consistency_gate】
+・reviews に BEFORE INSERT トリガー trg_reviews_party_consistency を追加＝レビュー行thatその応募の
+  当事者関係・向きと厳密に一致することを機構的に強制（UI/RLSに依存しない二重の壁）：
+    direction='farmer_to_worker' ⟹ reviewer=応募の農家 ∧ reviewee=応募の働き手
+    direction='worker_to_farmer' ⟹ reviewer=応募の働き手 ∧ reviewee=応募の農家
+・これで「当事者である自分の応募に、被評価者を無関係の第三者にすり替えて評価を捏造する」攻撃that
+  機構的に不可能になった（reviewee のすり替えthat本体so、当事者・向きの一致で穴は完全に塞がる）。
+・正規の2経路は無傷（実測）：submit_farmer_review（農家→働き手・SECURITY DEFINER）／
+  WorkerApplications.jsx の直INSERT（働き手→農家・reviewer=me/reviewee=farmer_id）。
+・★status='completed' 要求は入れなかった：働き手経路は confirm_end 直後に直INSERTするため、
+  completed 遷移前の瞬間で正当な評価を弾く危険thatある。当事者・向きの一致だけで穴は塞がるので
+  余計な状態要求は足さない（正当な投稿を壊さない方を優先）。
+・検証済み（ロールバック付き実弾）：捏造（reviewee=無関係）拒否／向きすり替え拒否／
+  正規 farmer_to_worker 通過／正規 worker_to_farmer 通過／被害者への汚染ゼロ。build成功。
+・repo写経同期済み（schema_migrations と supabase/migrations/ のファイル名一致）。本番適用済み。
+・補足：本番の total_reviews=0（修理時点で実レビュー無し）＝この穴は一度も悪用されていない。
+━━━ ここまで ━━━
