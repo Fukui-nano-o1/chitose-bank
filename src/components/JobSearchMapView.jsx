@@ -741,7 +741,9 @@ export function JobSearchMapView({ onRegister, me }) {
       {searchOpen && (
         <div className="fade-in" onClick={()=>setSearchOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch", display:"flex" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
           {/* margin:auto＝縦横中央（2026-07-27たきと指示）。中身が画面より高い時はflex+autoマージンで正しくスクロールできる */}
-          <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:520, margin:"auto", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 24px", boxSizing:"border-box" }}>
+          {/* ★この包み(全幅)では止めない（2026-08-06）：ここでstopPropagationすると、カードとカードの
+               隙間・左右の余白も「枠内」になり、枠外タップで閉じられなくなる。止めるのは白いカード自身だけ */}
+          <div style={{ width:"100%", maxWidth:520, margin:"auto", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 24px", boxSizing:"border-box" }}>
           {/* ✕閉じるボタンは削除（2026-07-27たきと指示）：モザイク部分のタップで閉じられるため不要 */}
           <div style={{ display:"grid", gap:12, alignContent:"start" }}>
             {[
@@ -749,7 +751,7 @@ export function JobSearchMapView({ onRegister, me }) {
               { k:"region", q:"どこで", title:"どこでする？", opts: searchRegionOpts, sel: selRegions, tog: togSel(setSelRegions), label: v => "📍 " + v },
               { k:"month",  q:"いつ",   title:"いつする？",   opts: searchMonthOpts,  sel: selMonths,  tog: togSel(setSelMonths),  label: v => v + "月" },
             ].map(sec => searchSec === sec.k ? (
-              <div key={sec.k} style={{ background:"#fff", borderRadius:20, boxShadow:"0 2px 10px rgba(0,0,0,0.07)", padding:"18px 18px 20px" }}>
+              <div key={sec.k} onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, boxShadow:"0 2px 10px rgba(0,0,0,0.07)", padding:"18px 18px 20px" }}>
                 <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin:"0 0 14px" }}>{sec.title}</p>
                 {sec.opts.length === 0 ? (
                   <p className="f-sans" style={{ fontSize:12, color:"#999", margin:0 }}>選べる条件がありません</p>
@@ -762,14 +764,14 @@ export function JobSearchMapView({ onRegister, me }) {
                 )}
               </div>
             ) : (
-              <button key={sec.k} onClick={()=>setSearchSec(sec.k)} className="f-sans" style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, background:"#fff", border:"none", borderRadius:16, padding:"16px 18px", cursor:"pointer", boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+              <button key={sec.k} onClick={e=>{ e.stopPropagation(); setSearchSec(sec.k); }} className="f-sans" style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, background:"#fff", border:"none", borderRadius:16, padding:"16px 18px", cursor:"pointer", boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
                 <span style={{ fontSize:13, fontWeight:600, color:"#717171", flexShrink:0 }}>{sec.q}</span>
                 <span style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sec.sel.length ? sec.sel.map(sec.label).join("・") : "指定なし"}</span>
               </button>
             ))}
           </div>
           {/* 下部バー：クリア／「N件を表示」（件数はチップ操作に合わせてリアルタイム更新） */}
-          <div style={{ background:"#fff", borderRadius:16, marginTop:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 2px 10px rgba(0,0,0,0.15)" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, marginTop:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 2px 10px rgba(0,0,0,0.15)" }}>
             <button onClick={clearSearch} className="f-sans" style={{ background:"none", border:"none", fontSize:14, fontWeight:700, color:"#222", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>すべてクリア</button>
             <button onClick={()=>setSearchOpen(false)} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:12, padding:"12px 26px", fontSize:15, fontWeight:800, cursor:"pointer" }}>{filteredList.length}件を表示</button>
           </div>
