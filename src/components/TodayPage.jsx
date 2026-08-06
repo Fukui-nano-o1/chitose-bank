@@ -275,6 +275,127 @@ function EmergencyStagePanel({ items, role }) {
   );
 }
 
+// 採用する専用ページ（#/calendar/todo/hire）の着地：どの応募のシートを開くかだけを渡す。
+// ★採用の実行は応募者シートの🤝採用するボタン（二重予約の警告つき）が唯一の窓口（2026-07-27）so、
+//   このページは「見せる」と「そこへ送る」だけ＝書き込みの入口を増やさない（新着の応募ページと同じ作法）
+const HIRE_SHEET_PATH = "/profile/employer/applicants";
+function markHireSheet(applicationId) {
+  try {
+    sessionStorage.setItem("cb_appFilter", "interview");        // 着地先の絞り込みを「面接中」に
+    if (applicationId) sessionStorage.setItem("cb_openApplicantId", applicationId); // その応募のシートを自動展開
+  } catch {}
+}
+
+// 採用するページ（2026-08-06たきと指示「応募者ページと同じ構造に。ただし応募者単位」）：
+// 応募者ページ（FarmerDashboard・#/profile/employer/applicants）のカード＝左に求人のトップ写真
+// （タイトル・#No.を下部に重ねる）／右に働き手のアイコン（リング＝段階色）＋名前＋段階、をそのまま使う。
+// 違いは束ね方だけ＝応募者ページは1枚のカードに1求人（応募者アイコンが横に並ぶ）／このページは1枚＝1応募者。
+// カードタップで下からのボックスが開き、実行（採用＝応募者シートへ・チャット・求人ページ）はその中のボタンが担う
+// （緊急連絡ページ EmergencyStagePanel と同じ作法）。
+// ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされる（フォーカス消失バグの同族）
+function HireStagePanel({ items }) {
+  const [boxItem, setBoxItem] = useState(null);
+  // 求人のトップ写真だけは my_todo_items が返さないため、求人ページ・応募者ページと同じ
+  // farm:jobInfo（my_farm_jobs 由来・{job_number:{crop,task,date_start,date_end,photos,holidays}}）から借りる。
+  // キャッシュがあれば即描画→無ければ裏で1往復（新しいDBオブジェクトは作らない）
+  const [jobInfo, setJobInfo] = useState(() => getCache("farm:jobInfo") ?? {});
+  const missing = items.some(t => t.job_number && !jobInfo[t.job_number]);
+  useEffect(() => {
+    if (!missing) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: bundle } = await supabase.rpc("my_farm_jobs");
+        if (cancelled || !bundle?.jobs) return;
+        const jim = Object.fromEntries(bundle.jobs.map(j => [j.job_number, { crop:j.crop, task:j.task, date_start:j.date_start, date_end:j.date_end, photos:j.photos, holidays:j.holidays }]));
+        setJobInfo(jim); setCache("farm:jobInfo", jim);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [missing]);
+  // 段階は記録から導出：my_todo_items の hire は「status in (approved,meeting,interview) かつ
+  // terms_confirmed_farmer_at が無い」＝appPhaseKey でいう「面接中」だけが並ぶ（別の表示用状態を持たない）
+  const phase = appPhaseKey({ status: "approved" });
+  const phaseColor = APP_PHASE_COLOR[phase];
+  const titleOf = (t) => [t.crop, t.task].filter(Boolean).join(" ") || `求人 #${t.job_number}`;
+  const dateOf = (t) => t.date_start ? (t.date_end && t.date_end !== t.date_start ? `${calFmtDate(t.date_start)}〜${calFmtDate(t.date_end)}` : calFmtDate(t.date_start)) : "未設定";
+  const photoOf = (t) => photoThumb(jobInfo[t.job_number]?.photos?.[0]);
+  return (
+    <>
+      <div style={{ display:"grid", gap:10 }}>
+        {items.map(t => {
+          const photo = photoOf(t);
+          return (
+            <div key={t.application_id} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
+              {/* 左：求人のトップ写真＋タイトル・#No.（応募者ページのカードと同じ作法・枠は3:4固定） */}
+              <button onClick={()=>setBoxItem(t)} aria-label="この応募を開く" className="f-sans"
+                style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
+                  <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{titleOf(t)}</span>
+                  <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{t.job_number}</span>
+                </span>
+              </button>
+              {/* 右：この応募の働き手ひとり（応募者ページのアイコン列と同じ見た目＝リングは段階色・
+                  未設定アイコンの下地は相手の役割色＝働き手のオレンジ） */}
+              <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <button onClick={()=>setBoxItem(t)} className="f-sans"
+                  style={{ width:80, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                  <Avatar url={t.partner_avatar} name={t.partner_name || "？"} size={52} ring={phaseColor} bg={ROLE_ORANGE} />
+                  <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: t.partner_name ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.partner_name ? t.partner_name + "さん" : "未設定"}</span>
+                  <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:phaseColor, marginTop:1, cursor:"pointer" }}>{APP_PHASE_LABEL[phase]}</span>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* ═══ カードタップで展開するボックス（緊急連絡ページ・ステータスページのシートと同じ作法） ═══ */}
+      {boxItem && (() => {
+        const t = boxItem;
+        const photo = photoOf(t);
+        return (
+          <div onClick={()=>setBoxItem(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            <div onClick={ev=>ev.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+                <button onClick={()=>setBoxItem(null)} aria-label="閉じる" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              </div>
+              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+                {/* 現在地バナー（段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
+                <div style={{ background: phaseColor + "14", borderLeft: "4px solid " + phaseColor, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:phaseColor, margin:0 }}>{APP_PHASE_LABEL[phase]}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[phase]}</p>
+                </div>
+                {/* 応募者（このページの主役）＋求人の要約 */}
+                <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
+                  <div style={{ flexShrink:0, width:88, height:88, borderRadius:12, overflow:"hidden", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
+                    {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                  </div>
+                  <div style={{ minWidth:0 }}>
+                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{titleOf(t)}</p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"2px 0 0" }}>#{t.job_number}</p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📅 {dateOf(t)}{t.work_time ? "　🕒" + t.work_time : ""}</p>
+                    {t.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>応募者 {t.partner_name}さん</p>}
+                  </div>
+                </div>
+                {/* 操作（主役＝採用。実行そのものは応募者シートが担う＝ここは送り出すだけ） */}
+                <div style={{ display:"grid", gap:8 }}>
+                  <button onClick={()=>{ setBoxItem(null); markHireSheet(t.application_id); window.location.hash = HIRE_SHEET_PATH; }} className="f-sans"
+                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用を決める（応募者ページへ）→</button>
+                  <button onClick={()=>{ setBoxItem(null); window.location.hash = "/chat/" + t.application_id; }} className="f-sans"
+                    style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+                  <button onClick={()=>{ setBoxItem(null); try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans"
+                    style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>求人ページを見る</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </>
+  );
+}
+
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。
 // カレンダーは各役割の面へ移植（農家＝応募者ページ／働き手＝ステータスページ・2026-07-27）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
@@ -548,9 +669,11 @@ export function TodayPage({ me, defaultRole }) {
                    desc:"承認した応募者に面接の質問を送ります。質問と回答はチャットに証跡として残ります。" },
     // 採用する（2026-07-27たきと指示）：その場実行をやめ、応募者ページの「面接中」タブへ直行。
     // 採用の実行は応募者シートの🤝採用するボタン（二重予約警告つき）が担う
+    // 2026-08-06：専用ページを応募者単位のカードに刷新（HireStagePanel）。行き先も一覧でなく
+    // 「その応募のシート」へ＝どの応募者を採用するのかを取り違えない（cb_openApplicantId・新着の応募ページと同じ作法）
     hire:        { icon:"🤝", title:"採用する",             btn:"採用する →",
                    desc:"面接を終えた応募者を採用します。実行は応募者ページの🤝採用するボタン（二重予約の警告つき）です。",
-                   nav: () => { try { sessionStorage.setItem("cb_appFilter", "interview"); } catch {} return "/profile/employer/applicants"; } },
+                   nav: (e) => { markHireSheet(e?.application_id); return HIRE_SHEET_PATH; } },
     insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance",
                    desc:"作業前に、保険の準備ができたことを報告します。報告した時刻が記録に残ります。" },
     // 開始を確認／来なかった の2択（2026-07-30たきと指摘「働き手がこなかった場合の措置がない」）。
@@ -748,6 +871,9 @@ export function TodayPage({ me, defaultRole }) {
           </div>
         ) : pageStage === "approve" ? (
           <NewApplicantsPanel items={pItems} onTap={(t)=>runTodo(TODO_META.approve, t)} />
+        ) : pageStage === "hire" ? (
+          /* 採用するページは応募者ページと同じカード構造・ただし応募者単位（2026-08-06たきと指示） */
+          <HireStagePanel items={pItems} />
         ) : pageStage === "t_emergency" ? (
           /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示） */
           <EmergencyStagePanel items={pItems} role={role} />
