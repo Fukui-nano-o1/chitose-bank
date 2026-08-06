@@ -2825,3 +2825,28 @@ OFFの型that継続）。Supabaseダッシュボードで Authentication → Ema
 【運用メモ】このセッションもローカルmainthat07-31で止まった無関係履歴のミラーso origin/main へ乗せ替えて着手。
 schema_migrations 302系 vs repo の差は歴史的な直接適用分。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 ①④実装＋実機一周（初利用者の立場・全ロールバック）━━━
+【①実装済み】採用確定の督促メールのリンクを #/calendar/todo/hire へ（migration 20260806174452・
+DB適用済み・repo正本同梱）。呼ぶ先＝決める場所。applied督促（承認の判断）は応募者ページのまま
+＝承認の実行窓口はそこにあるため正しい。検証＝関数定義で applicants×1・hire×1 を確認。
+9時台の時刻ゲートthatあるためメール生成の実弾は撃てない（定義照合で合格扱い）。明日の対象は0件。
+【④実装済み】採用実行（confirm_terms・農家側）の窓口を採用するページ（#/calendar/todo/hire）
+1箇所に一本化。応募者シートの🤝→リンク化（hireApplicant削除）／チャットの採用ボックス→リンク化
+（farmerDoubleBookingCheck・double_booked再試行・lib/hire importを削除）。ChatViewのconfirmTermsは
+働き手の内容確認専用（1引数）に。働き手の確認カード「内容に相違ありません」は役割that違うので不変。
+lib/hire の利用は TodayPage（採用ページ）のみ＝grep確認。build+lint 0 error・dist確認済み。
+【実機一周（立場＝今日はじめて登録した働き手・白紙から）】仮説と合格基準を先に宣言→実弾。結果：
+H1 入口（signup_open下の登録許可）／H2 account_holdersは本人行のみ（他人auth_idはRLS拒否）／
+H3 視界（求人は番地・町域まで見える。他人のworker_profiles/account_holdersは0行）／
+H4 白紙プロフィールの応募=profile_incomplete拒否→完成後ok（応募ゲートの初の実弾）／
+H5 job-photosは本人uidフォルダのみ書ける（フラット・他人フォルダ拒否＝20260806171724の初利用者視点の裏取り）／
+H6 働き手の内容確認＝1引数呼びok（④の回帰）／H7 二重予約のDB壁（下記）／H9 はたらいた記録ok／
+H10 残置ゼロ実測（jobs28・apps19・test行0）＝全合格。
+【仮説の誤りから確定した仕様（記録）】二重予約壁（20260806172443）は approved も重なり対象
+＝同日2求人に応募し両方承認済みだと【1件目の採用でも】double_booked が返る。フロントも同じ式で
+先に警告→受諾を渡すso体験は一貫（仕様どおり・修正不要）。重なり無しの採用は accept=false で通る（補強実測）。
+【未消化（たきと側・コードでは進められない）】①Confirm email/SMTPのダッシュボード実物確認（audit⑥NG継続）
+②④のボタン遷移・チャット採用ボックス・step5最賃表示・仕事中ページ失効セクションの実機目視
+③expired_watch 1件（承認済みのまま失効）の当事者確認。
+━━━ ここまで ━━━
