@@ -2742,3 +2742,48 @@ repo写経の内容はDB現物とposition()照合済み（work_timeの正規表�
 ただしメールの骨格は20260806175000で既に本番稼働中（前日督促＋失効時の運営通知）
 ＝検討は残り2つ（今日ページ演出・独立ページ）の設計が中心】
 ━━━ ここまで ━━━
+
+━━━ 2026-08-06 実機一周②の修理を一気実装（①〜⑤・たきと指示「その順番で一気にやれ」）━━━
+【①job-photosの書き込みを本人フォルダに限定（migration 20260806171724）】
+・旧：INSERT/UPDATE/DELETEのqualがbucket_idのみ＝ログインした誰でも他人の求人写真を削除・差し替え可能だった。
+・新：本人フォルダ（{auth.uid()}/…）のみ＋管理者(app_admins)は全域（サムネ後埋め・一括軽量化の
+　管理ツールthat既存ルート直下ファイルへupsertするため）。読み取り・公開URLは不変。
+・★既存ファイルは移動していない：凍結terms_snapshot・photos jsonbのURLを壊さないため。ルート直下の
+　既存写真は非管理者から不可侵＝記録保全はむしろ強化。job-photosへのstorage.remove呼び出しはフロントに
+　ゼロ（削除は配列から外すだけ・孤児残置の設計）soUIは壊れない。
+・フロント：lib/image.js uploadJobPhotoが新規アップロードを{auth.uid()}/配下へ（未ログインはフォルダ無し
+　＝従来どおりRLSthat弾く）。consignment-photos等の他バケット呼び出しにも同じフォルダthatつくthat無害。
+・実弾検証：他人領域INSERT拒否／本人フォルダINSERT通過／一般→既存ルートUPDATE 0行／管理者→可／anon拒否。
+　※storage.objectsへの直接SQL DELETEはプラットフォームトリガー(protect_delete)で全面禁止so、
+　DELETEポリシーは同形のUPDATE可視性で代替検証した。
+【②履歴表とrepoの写経同期＝並走セッションthat先に完了】push時に判明：同日並走の実機一周③セッションthat
+同じ2本（20260806174500／20260806175000）を既にrepoへ写経・pushしていた。本セッションの重複写経は
+rebaseで原本（適用した本人の版）に一本化して破棄。二頭運転の交通規則どおり原本を正とした。
+【③Confirm email（未完・PC作業thatどうしても必要）】audit⑥は依然NG（直近7日の登録6件中5件that確認メール
+無しで確認済み）。MCP/SQLからはAuth設定に触れない。★たきとのPC手順：Supabaseダッシュボード→
+Authentication→Sign In / Up（Providers）→Email→「Confirm email」をONにする。あわせてSMTP Settingsの
+送信テスト（2026-08-04記録の550 API key is invalidの解消確認）。完了後、未招待アドレスで新規登録一巡。
+【④二重予約のDB壁（migration 20260806172443）】
+・confirm_termsに「明示の受諾なしなら拒否」を追加。判定式はlib/hire.js（フロント警告）と同一＝
+　同じ農家×同じ働き手の別応募thatCHAT_ELIGIBLE_STATUSESにあり、両求人のdate_start〜date_end（end無しは
+　単日）が重なる場合。掛かるのは【農家の初回確定時のみ】（働き手の確認・2回目以降の冪等呼び出しは対象外）。
+・p_accept_double_booking=trueで通れる＝禁止ではなく「読まずに進めない」壁（同日の朝夕2求人など正当な
+　重なりthatあるため）。旧1引数版はDROP（内部呼び出しゼロ確認済み・オーバーロード曖昧性の回避）。
+・フロント3窓口（応募者シートFarmerDashboard・採用するページTodayPage・チャットChatView）は警告表示後に
+　受諾フラグを渡す。フロントの下調べthat取りこぼした時はDBthatdouble_booked+dup_jobを返し、警告を出し直して
+　再確認→受諾ありで再実行（3窓口とも実装済み）。
+・実弾検証：受諾なし=double_booked／受諾あり=ok／確定後の再呼び出し=ok（冪等）／働き手の確認=ok／anon不可。
+【⑤ログイン後専用RPC37本をanonから一括revoke（migration 20260806173221）】
+・内部ゲート（auth.uid()チェック）だけだった壁にEXECUTE権限の壁を重ねた＝フェイルオープンのバグ1つでは
+　漏れない二重構造。残した10本＝訪問者that実際に使うもの（signup_open/job_exists/job_employer_profile/
+　job_employer_trust_info/employer_public_jobs/employer_public_job_counts/employer_trust_info/
+　is_account_moderated=RLSポリシー内で評価/is_measured=訪問者計測/push_vapid_public=公開鍵）。
+・実測：適用後のanon実行可RPC＝10本ちょうど・authenticatedの喪失0本。
+【★権限の教訓・追補（audit.sqlにも将来反映候補）】Supabaseはdefault privilegesで関数作成時に
+anon/authenticatedへ【明示的に】EXECUTEを付与する。so revokeは「from public」だけでは効かず、
+「from public」と「from anon」の両方that必要（④で実測：from publicのみではanon実行可thattrueのまま残った）。
+【終了時点検】audit.sql再実行：①〜⑤すべてOK・③=10本（上記の残し分ちょうど）・⑥のみNG（上記③のPC作業待ち）。
+【実機目視の残り】①新規アップロードの写真that本人フォルダに入りカード・詳細で表示されるか（URL形thatが
+{uid}/job_…に変わる）②採用の3窓口で二重予約警告→OK→採用の一連（特にDB検出時の再確認ダイアログ）
+③訪問者でさがす・求人詳細・雇い手プロフィールthat従来どおり開くか（revokeの巻き添えthatないか）
+━━━ ここまで ━━━
