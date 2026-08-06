@@ -22,7 +22,7 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
       rel="noopener noreferrer"
       style={cardStyle}
     >
-      {typeof onToggleSave === "function" && !(job.filled || job.expired) && (
+      {typeof onToggleSave === "function" && !(job.filled || job.expired || job.closed) && (
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSave(job); }}
           aria-label={saved ? "いいねを解除" : "いいね"}
@@ -35,7 +35,7 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
         </button>
       )}
       {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16）。終了中（満員/期間終了）は出さない */}
-      {job.isNew && !(job.filled || job.expired) && <StatusRibbonLeft label="新着" color="#E24B4A" />}
+      {job.isNew && !(job.filled || job.expired || job.closed) && <StatusRibbonLeft label="新着" color="#E24B4A" />}
       {/* 開始日チップ：写真右下（2026-07-16）。期間ものは「〜」付き。
           関連(related)カードは概要を写真に重ねるため、日付は下部オーバーレイ内に出す（2026-07-23） */}
       {isList && job.dateStartRaw && (
@@ -45,10 +45,10 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
       )}
       {/* 終了帯（2026-07-21）：採用人数を満たした＝募集終了／作業日程が過ぎた＝募集期間終了。
           探すからは除外せず、写真に半透明の帯を掛けて知らせる（充足を優先表示） */}
-      {(job.filled || job.expired) && (
+      {(job.filled || job.expired || job.closed) && (
         <div style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, borderRadius:photoRadius, background:"rgba(0,0,0,0.34)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1, pointerEvents:"none" }}>
           <span className="f-sans" style={{ background:"rgba(30,30,30,0.88)", color:"#fff", fontSize: isList?14:12, fontWeight:800, letterSpacing:".04em", padding:"7px 18px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>
-            {job.filled ? "募集終了（満員）" : "募集期間終了"}
+            {job.filled ? "募集終了（満員）" : job.closed ? "募集終了" : "募集期間終了"}
           </span>
         </div>
       )}

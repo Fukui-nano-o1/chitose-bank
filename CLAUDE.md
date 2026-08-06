@@ -221,6 +221,22 @@ draft かつ !opened_at のときだけ出す（FarmerDashboard・UIとDBの二�
 【残】worker_work_record の jobs 内部結合は未変更（求人が消えない前提が機構で担保されたため）。
 ━━━ ここまで ━━━
 
+━━━ 2026-08-05 さがすに「終了した求人」を並べる（たきと選択）━━━
+【指示】「さがすページに復元を」→ 選択肢のうち「一覧にも『終了』として並べる」を採用。
+【DB】jobs_public の対象を status='open' → ('open','closed') に広げ、末尾に status 列を追加
+（migration 20260806013953）。draft/pending は従来どおり出さない（法務境界は不変）。
+anonマスク（町域・募集主・番地・座標）も不変＝anonで実測し漏れゼロを確認。
+★2026-07-22ルールの連動：admin_preview_job の列挙に j.status を末尾追加（合わせ忘れると42P13）。
+employer_public_jobs は select jp.* so自動追従＝雇い手プロフィールの「過去の求人」に
+終了した求人も並ぶようになった（名前どおりの挙動so許容）。
+【フロント】mapJobPublicRow に closed を追加。JobCard・求人詳細の既存の終了帯（満員/期間終了）に
+「募集終了」を合流。並びの規則は lib/searchJobs の orderSearchJobs に集約（さがす本体と玄関の
+先読みで共用）＝募集中が先・終了は末尾。応募はDB側の apply_to_job が job_not_open で拒否（二重の壁）。
+【連動して直した箇所】「jobs_public にあれば募集中」を前提にしていた2つに status='open' を明示：
+プロフィール入口の「さがす箱」件数／訪問者の玄関の帯。それ以外（チャット・今日・応募状況の
+求人名引き）は終了求人も引けるようになった＝題名フォールバックが減る改善。
+━━━ ここまで ━━━
+
 ## データ保護（自作データ憲法に基づく）— 絶対遵守
 - farmersテーブル：本人行のみ取得（select('*')で全件取得を禁止）
 - recordsテーブル：auth.uid() = farmer_id の自分のデータのみ

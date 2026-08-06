@@ -21,6 +21,37 @@ export async function fetchPublicJobs() {
   } catch { return null; }
 }
 
+// 終了した求人（掲載終了・満員・期間終了）は一覧の末尾へ回す＝募集中が先（2026-08-05）。
+// 「過去の求人は消さない」方針で、さがすには残すが、募集中の邪魔はしない
+export const isEndedJob = (j) => !!(j.closed || j.filled || j.expired);
+
+// 並びの規則の唯一のソース：新着（この端末で初見）→ 募集中 → 終了。
+// prev（前回表示中の並び）があれば、その並びを保ったまま中身だけ最新に差し替える（2026-08-02）
+export function orderSearchJobs(mapped, prev) {
+  const seenSet = new Set(readSeenNewIds());
+  const active = mapped.filter(j => !isEndedJob(j));
+  const ended = mapped.filter(isEndedJob);
+  const freshNew = active.filter(j => j.isNew && !seenSet.has(j.id));
+  const rest = active.filter(j => !(j.isNew && !seenSet.has(j.id)));
+  let list;
+  if (prev && prev.length) {
+    const freshById = new Map(mapped.map(j => [j.id, j]));
+    const kept = prev.filter(j => freshById.has(j.id)).map(j => freshById.get(j.id));
+    const keptIds = new Set(kept.map(j => j.id));
+    const added = mapped.filter(j => !keptIds.has(j.id));
+    // 既存の並びは保ち、追加ぶんだけ差し込む。募集中は先頭・終了は末尾（区切りは崩さない）
+    list = [
+      ...shuffleArr(added.filter(j => !isEndedJob(j))),
+      ...kept.filter(j => !isEndedJob(j)),
+      ...kept.filter(isEndedJob),
+      ...shuffleArr(added.filter(isEndedJob)),
+    ];
+  } else {
+    list = [...shuffleArr(freshNew), ...shuffleArr(rest), ...shuffleArr(ended)];
+  }
+  return { list, freshNew };
+}
+
 // 玄関（/#/visit）の先読み：訪問者が同意文を読んでいる数秒の間に、さがす一覧を取得して
 // キャッシュに置いておく＝「同意して見てみる」タップ後のさがすが即描画になる（初訪問の体感対策）。
 // キャッシュが既にあれば何もしない。並び・既読記録はさがす本体と同じ規則
@@ -28,9 +59,7 @@ export async function prefetchSearchJobs() {
   if (getCache("search:jobs") !== undefined) return;
   const mapped = await fetchPublicJobs();
   if (!mapped) return;
-  const seenSet = new Set(readSeenNewIds());
-  const freshNew = mapped.filter(j => j.isNew && !seenSet.has(j.id));
-  const rest = mapped.filter(j => !(j.isNew && !seenSet.has(j.id)));
-  setCache("search:jobs", [...shuffleArr(freshNew), ...shuffleArr(rest)]);
+  const { list, freshNew } = orderSearchJobs(mapped, null);
+  setCache("search:jobs", list);
   if (freshNew.length) recordSeenNewIds(freshNew.map(j => j.id));
 }

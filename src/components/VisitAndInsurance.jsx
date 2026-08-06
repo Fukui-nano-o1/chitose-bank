@@ -113,9 +113,11 @@ export function VisitEntrance({ me }) {
   useEffect(() => {
     (async () => {
       try {
-        // jobs_publicはanon許可（公開面のみ・status='open'）so未ログインの訪問者でも読める
+        // jobs_publicはanon許可so未ログインの訪問者でも読める。終了した求人も返すようになったため
+        // 玄関の帯は status='open' を明示する（2026-08-05）＝これから応募できるものだけを流す
         const { data } = await supabase.from("jobs_public")
           .select("job_number,crop,task,photos,pay_type,hourly_wage,daily_wage,city,town")
+          .eq("status", "open")
           .order("job_number", { ascending: false }).limit(12);
         setJobs(data || []);
       } catch {}

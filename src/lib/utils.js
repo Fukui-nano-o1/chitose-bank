@@ -358,6 +358,9 @@ export function mapJobPublicRow(j) {
     employerName: j.employer_nickname || "",
     employerAvatar: j.employer_avatar_url || "",
     experiencedPreferred: !!j.experienced_preferred,
+    // 掲載が終わった求人（2026-08-05）：jobs_public が status='closed' も返すようになった。
+    // 「過去の求人は消さない」方針の表示側＝さがすには終了帯つきで並べる（応募はできない）
+    closed: j.status === "closed",
     // 終了帯の判定（2026-07-21）：採用人数を満たした／作業日程が過ぎた。探すからは除外しない
     hiredCount: j.hired_count != null ? Number(j.hired_count) : 0,
     filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount),

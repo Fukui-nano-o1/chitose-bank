@@ -89,8 +89,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         const [{ data: wp }, { data: apps }, openRes, { data: ts }] = await Promise.all([
           supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("applications").select("status,attended,worker_confirmed_end_at,job_number").eq("worker_id", session.user.id),
-          // さがす箱＝きょう応募できる求人件数（jobs_public=公開中）
-          supabase.from("jobs_public").select("job_number", { count: "exact", head: true }).then(r => r, () => ({ count: 0 })),
+          // さがす箱＝きょう応募できる求人件数。jobs_public は終了した求人も返すようになったso
+          // status='open' を明示する（2026-08-05・さがすに終了求人を並べた際の連動）
+          supabase.from("jobs_public").select("job_number", { count: "exact", head: true }).eq("status", "open").then(r => r, () => ({ count: 0 })),
           supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
         ]);
         if (cancelled) return;

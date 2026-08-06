@@ -7,7 +7,7 @@ import { openLoginBox } from "../lib/previewBus";
 import { isAdmin, ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, CROP_OPTIONS, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
-import { fetchPublicJobs, shuffleArr, readSeenNewIds, recordSeenNewIds } from "../lib/searchJobs";
+import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds } from "../lib/searchJobs";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { JobLocationMap } from "./JobLocationMap";
@@ -155,26 +155,16 @@ export function JobSearchMapView({ onRegister, me }) {
       try {
         const mapped = await fetchPublicJobs();
         if (mapped) {
-          const seenSet = new Set(readSeenNewIds());
-          const freshNew = mapped.filter(j => j.isNew && !seenSet.has(j.id));
-          const rest = mapped.filter(j => !(j.isNew && !seenSet.has(j.id)));
+          let newIds = [];
           setDbJobs(prev => {
-            let list;
-            if (prev && prev.length) {
-              // 前回内容を表示中＝並びを保ったまま中身だけ最新に差し替える（2026-08-02）。
-              // 毎回シャッフルし直すと、即描画した目の前のカードが数秒後に飛び替わって見えるため。
-              // 消えた求人は落ち、新しい求人は先頭に入る
-              const freshById = new Map(mapped.map(j => [j.id, j]));
-              const kept = prev.filter(j => freshById.has(j.id)).map(j => freshById.get(j.id));
-              const keptIds = new Set(kept.map(j => j.id));
-              list = [...shuffleArr(mapped.filter(j => !keptIds.has(j.id))), ...kept];
-            } else {
-              list = [...shuffleArr(freshNew), ...shuffleArr(rest)];
-            }
+            // 並びの規則は lib/searchJobs の orderSearchJobs が唯一のソース（玄関の先読みと共通）。
+            // 前回内容を表示中は並びを保ち、募集中を先・終了を末尾に置く（2026-08-05）
+            const { list, freshNew } = orderSearchJobs(mapped, prev);
+            newIds = freshNew.map(j => j.id);
             setCache("search:jobs", list);
             return list;
           });
-          if (freshNew.length) recordSeenNewIds(freshNew.map(j => j.id));
+          if (newIds.length) recordSeenNewIds(newIds);
         }
       } catch {}
     })();
@@ -704,14 +694,14 @@ export function JobSearchMapView({ onRegister, me }) {
   // 募集終了（2026-07-24）：設定した採用人数に達した（満員＝filled）／作業日程が過ぎた（expired）求人は
   // 応募導線（下部フッター・応募ボタン）を出さない＝新規の募集を締め切る。
   // ただし既に応募・承認・見送りの関係がある本人には、状況確認とチャット導線を残すため従来どおり表示する。
-  const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired));
+  const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired || selectedJob.closed));
   // ★自分の応募が分かるまでは締切扱いにしない（2026-07-27たきと報告「一瞬だけ満員が映る」）。
   //   未取得の間はmyAppStatusがundefinedso、応募済みの人にも一度「満員」を出してから戻っていた
   const hideApply = recruitClosed && myAppLoaded && !myAppStatus;
-  const closedLabel = selectedJob?.filled ? "この募集は終了しました（満員）" : "この募集は終了しました（期間終了）";
+  const closedLabel = selectedJob?.filled ? "この募集は終了しました（満員）" : selectedJob?.closed ? "この募集は終了しました" : "この募集は終了しました（期間終了）";
   // 下部フッターは幅が狭いso短い言葉に差し替える（2026-07-27たきと指示）。
   // 「応募する」の位置＝そのままボタンの場所に「満員」（期間終了なら「募集終了」）を出す
-  const closedLabelShort = selectedJob?.filled ? "満員" : "募集終了";
+  const closedLabelShort = selectedJob?.filled ? "満員" : "募集終了";  // closed も期間終了も同じ短縮語
 
   return (
     <div>
