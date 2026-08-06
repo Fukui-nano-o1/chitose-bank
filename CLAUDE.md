@@ -2786,4 +2786,42 @@ anon/authenticatedへ【明示的に】EXECUTEを付与する。so revokeは「f
 【実機目視の残り】①新規アップロードの写真that本人フォルダに入りカード・詳細で表示されるか（URL形thatが
 {uid}/job_…に変わる）②採用の3窓口で二重予約警告→OK→採用の一連（特にDB検出時の再確認ダイアログ）
 ③訪問者でさがす・求人詳細・雇い手プロフィールthat従来どおり開くか（revokeの巻き添えthatないか）
+━━━ 2026-08-06 実機一周④：立場を確定して一周（正の一周＋既知の未確認消化）と実害1件の修理 ━━━
+【確定した立場】ブラウザ実機は使えない（認証の絶対規則・検証の分担規則）ので、実機一周の実体は
+本番DBの壁（トリガー・RLS・RPC）を実際のロールで動かして通すこと。3役を set local role ＋
+request.jwt.claims で被る：anon（訪問者）／authenticated（一般農家・働き手）／管理者。
+担保＝合成アカウントのみ・実在利用者の行は読まない・ロールバック付きDOブロックで全巻き戻し・
+外部送信ゼロ（メール/プッシュはpg_net queue行＝一緒に消える）・テスト行残置ゼロ。
+仮説（合格基準）＝壁は「禁止を拒否し許可を通す」。両方を1ブロックで撃ち期待どおりなら合格。
+【通した一周（全て実測・巻き戻し）】
+・STEP A 視界：anon＝町域/番地/駅/募集主=0・座標2桁・半径3000（合格）／authenticated＝町域12・番地12・
+  座標6桁・半径500（開いて見える・合格）。
+・STEP B 法務の壁：第三者のopen遷移=trg_block_third_party_openで拒否／一般農家のopen直INSERT=拒否
+  （第三者トリガーthat先に発火・RLSに届く前に止まる二重の壁の外側）／採用前の本名・緊急連絡先=not_contracted。
+・STEP C 正の一周：掲載→応募(apply_to_job)→承認(approve_application)→採用(confirm_terms・terms_snapshot凍結)→
+  保険(confirm_insurance)→開始(confirm_start)→完了(complete_work)=completed まで完走。
+  ★採用後に本名窓口that開く（{ok:true,name:...}）・緊急連絡先窓口も開く（相手未登録なら{ok:true,empty:true}）
+  ＝採用前(STEP B)の not_contracted との境界that正しく機能。
+・STEP D 既知の未確認：①二重予約＝この一周の時点では confirm_terms(accept=false) で同日重複の2件目that
+  通った（＝当時は警告のみ）。★但し並走セッションthat同日に二重予約のDB壁（migration 20260806172443・
+  上ブロック④）を入れた＝現在は confirm_terms(accept=false) that double_booked を返して止まる。私のSTEP Dは
+  その適用【前】の観測so、この所見は現行では古い（＝二重予約は今はDB壁あり・設計判断待ちではなくなった）。
+  ②is_worker_profile_ready＝anonから permission denied ＝並走セッションthat既にrevoke済み（未確認が解消）。
+【★実害の発見と、並走との重複の整理（job-photos写真アップロード）】
+一周の中で「一般農家の求人写真アップロードthatRLSで全拒否」を実測発見した（非管理者のフラットパスINSERT=拒否／
+uidフォルダ=通過）。原因＝job-photosの書き込みthat所有者スコープRLS（foldername(name)[1]=auth.uid()）に
+絞られたのにフロントのパスthatフラットのままだった。しかしこれは【並走セッションthatまさに修理中の項目】で、
+向こうthat先に原本を出していた：
+・フロント lib/image.js の <auth.uid()>/ フォルダ化＝向こうの版（ownerFolder）を採用（rebaseで一本化）。
+  私の同等版（uidFolder）は破棄＝二重実装の解消。
+・DBポリシーの写経＝向こうの migration 20260806171724_job_photos_owner_scope.sql が原本。
+  私thatDBへ適用した 20260806181500 は【同一定義の重複】so、repoファイルは削除した（原本に一本化）。
+  ※181500 は drop if exists→同一再作成の冪等適用so本番の最終状態は原本と一致（無害）。schema_migrations には
+  181500 の行thatが残るthat、効果は171724と同一（実害なし）。
+・教訓の再確認（2026-07-21 二頭運転の交通規則）：着手前に「同じ目的のオブジェクトthat無いか」を pg_policy で
+  確認してから作る。今回は並走の適用と行き違い、重複migrationを1本作ってしまった＝削除で解消。
+【★たきと確認待ち（コードでは直らない）】audit.sql ⑥入口＝08-04に確認メール無し確認済み5件（Confirm email
+OFFの型that継続）。Supabaseダッシュボードで Authentication → Email「Confirm email」の実物確認。
+【運用メモ】このセッションもローカルmainthat07-31で止まった無関係履歴のミラーso origin/main へ乗せ替えて着手。
+schema_migrations 302系 vs repo の差は歴史的な直接適用分。
 ━━━ ここまで ━━━
