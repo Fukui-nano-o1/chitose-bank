@@ -283,8 +283,22 @@ export function ChatView({ applicationId, onBack }) {
     } catch {}
     setConfirmingTerms(false);
   };
+  // 開いている求人No.を左端に詰める（2026-08-06たきと指示「現在開いた順に左に詰めて」）：
+  // 従来は応募日の新しい順に固定so、開いている求人が帯の右のほうにあると横スクロールしないと
+  // 見えなかった（「表示中」が画面外）。並べ替えではなく【回転】＝順序は保ったまま先頭だけずらす。
+  // 回転なので、左スワイプを繰り返せば従来どおり全ての求人を一巡できる（並べ替えだと2件を
+  // 往復するだけになり奥の求人へ辿り着けない）。帯とスワイプは必ずこの1つの並びを共有する
+  const orderedApps = (() => {
+    const i = threadApps.findIndex(r => r.id === activeAppId);
+    return i > 0 ? [...threadApps.slice(i), ...threadApps.slice(0, i)] : threadApps;
+  })();
+  // 詰めた先頭が実際に目に入るよう、切り替えのたび帯の横スクロールを左端へ戻す
+  // （並びを回転させても、器のスクロール位置は前のまま残るため）
+  const jobStripRef = useRef(null);
+  useEffect(() => { const el = jobStripRef.current; if (el) el.scrollLeft = 0; }, [activeAppId]);
   // ── 横スワイプで求人No.を切り替える（2026-07-30たきと指示「指に連動させてほしい」）──
-  // 並びは上部の求人No.帯と同じ threadApps の順。左へ引く＝次の求人／右へ引く＝前の求人。
+  // 並びは上部の求人No.帯と同じ orderedApps の順。左へ引く＝次の求人／右へ引く＝前の求人。
+  // 開いている求人が先頭so、右へ引く（前）は端＝ゴムの手応えになる＝帯の見た目（左端が表示中）と一致する。
   // 端では引きしろを1/4に落として「これ以上は無い」を手で伝える（ゴムの手応え）。
   // 縦スクロールは邪魔しない＝最初の動きで軸を決め、横と決まった時だけ追従する。
   const goThread = (id) => {
@@ -296,9 +310,9 @@ export function ChatView({ applicationId, onBack }) {
   const [swipeDx, setSwipeDx] = useState(0);
   const [swipeSnap, setSwipeSnap] = useState(false); // true=指を離した後の戻り（アニメで戻す）
   const threadNeighbor = (dir) => { // dir=+1 次 / -1 前
-    const i = threadApps.findIndex(r => r.id === activeAppId);
+    const i = orderedApps.findIndex(r => r.id === activeAppId);
     if (i < 0) return null;
-    const n = threadApps[i + dir];
+    const n = orderedApps[i + dir];
     return n ? n.id : null;
   };
   const onChatSwipeStart = (e) => {
@@ -417,8 +431,8 @@ export function ChatView({ applicationId, onBack }) {
       {chatJobNumber != null && (
         <div style={{ display:"flex", gap:8, alignItems:"stretch", padding:"10px 0 4px" }}>
           {/* 求人No.ボックス群：この枠だけが横スワイプ */}
-          <div style={{ flex:1, minWidth:0, display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain" }}>
-            {threadApps.map(r => {
+          <div ref={jobStripRef} style={{ flex:1, minWidth:0, display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain" }}>
+            {orderedApps.map(r => {
               const isActive = r.id === activeAppId;
               // 別の求人はその求人の別チャットへ遷移（求人ごとに分離・2026-07-23）。
               // replaceで履歴を積まない＝←（戻る）が求人切替の履歴を辿らず、ちゃんとチャットから出る
