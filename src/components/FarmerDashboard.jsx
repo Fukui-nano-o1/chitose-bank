@@ -1417,7 +1417,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                             （新着の応募ページ・採用するページのカードと同じ作法） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
                         style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                        {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} /> : "🌱"}
+                        {/* 写真が1枚も無い求人は、絵文字でなく求人者のアイコンを出す（2026-08-06たきと指示・
+                            求人詳細のJobPhotoFallbackと同じ考え方＝ダミー写真で水増ししない・憲法3条）。
+                            この面の求人はすべて自分が出したものso求人者＝自分＝empMini。
+                            アイコン未設定なら Avatar が農園名の頭文字の丸（雇い手の緑）を出す＝これも実データ */}
+                        {photo
+                          ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} />
+                          : <span style={{ display:"block", lineHeight:0, filter: jobPast ? "grayscale(70%)" : "none" }}>
+                              <Avatar url={empMini?.avatar_url} name={empMini?.nickname || "？"} size={56} />
+                            </span>}
                         <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
                           <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
                           <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{jn}</span>
