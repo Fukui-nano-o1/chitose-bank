@@ -315,8 +315,16 @@ function HireStagePanel({ items, meId, onHired }) {
     const t = confirmItem;
     if (!t || hiring) return;
     setHiring(true);
-    const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: t.application_id });
+    // 二重予約はDB側confirm_termsも同じ式で見張る（2026-08-06・警告の機構化）。警告を見て
+    // OKした時（t.dupあり）だけ受諾フラグを渡す。下調べthat取りこぼした時はDBがdouble_bookedを
+    // 返すので、確認カードに警告を出し直し、もう一度OKで受諾ありになる
+    const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: t.application_id, p_accept_double_booking: !!t.dup });
     setHiring(false);
+    if (!error && data?.reason === "double_booked") {
+      setConfirmItem(prev => (prev && prev.application_id === t.application_id) ? { ...prev, dup: data.dup_job, checking: false } : prev);
+      alert("日程の重なる別の求人が見つかりました。警告の内容を確認のうえ、もう一度OKを押すと採用が確定します。");
+      return;
+    }
     if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     // 人数に達した場合、残りの応募はDB側（confirm_terms）が見送りにする。件数はそのまま伝える
     const closed = Array.isArray(data.closed_ids) ? data.closed_ids.length : 0;

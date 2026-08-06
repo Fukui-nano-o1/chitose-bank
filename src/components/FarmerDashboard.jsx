@@ -526,7 +526,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const dup = await findDoubleBookingJob(me.id, a.worker_id, a.job_number);
     const warn = dup ? doubleBookingWarning(dup) + "\n\n" : "";
     if (!confirm(warn + `${nickname ? nickname + "さん" : "この方"}を #${a.job_number} に採用しますか？\n面接を終えてから決定してください。\n\n${HIRE_NAME_DISCLOSURE_NOTE}`)) return;
-    const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id });
+    // 二重予約はDB側confirm_termsも同じ式で見張る（2026-08-06・警告の機構化）。
+    // 警告を見て進んだ時だけ受諾フラグを渡す。フロントの下調べthat取りこぼした時はDBがdouble_bookedを
+    // 返すので、その場で警告を出し直して確認→受諾ありで再実行
+    let { data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id, p_accept_double_booking: !!dup });
+    if (!error && data?.reason === "double_booked") {
+      if (!confirm(doubleBookingWarning(data.dup_job) + "\n\nこのまま採用しますか？")) return;
+      ({ data, error } = await supabase.rpc("confirm_terms", { p_application_id: a.id, p_accept_double_booking: true }));
+    }
     if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     // 働き手側のterms_confirmed_worker_atは応募時にDBトリガーが自動記録済みso、農家側の時刻だけ足せば帯・ボタンがcontractedへ進む
     // 採用人数に達した場合、残りの応募はDB側（confirm_terms）で見送りになる（2026-07-27たきと指示）。

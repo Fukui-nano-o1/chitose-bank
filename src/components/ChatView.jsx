@@ -12,6 +12,7 @@ import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
+import { doubleBookingWarning } from "../lib/hire";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
@@ -260,12 +261,19 @@ export function ChatView({ applicationId, onBack }) {
     const el = msgScrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [msgs]);
-  const confirmTerms = async () => {
+  // acceptDouble: 二重予約の警告を見て進む時true（2026-08-06・DB側confirm_termsthat同じ式で見張る）
+  const confirmTerms = async (acceptDouble = false) => {
     if (confirmingTerms) return;
     setConfirmingTerms(true);
     const wasWorkerConfirmed = workerConfirmed; // 遷移検知用（今回初めて確認したかどうか）
     try {
-      const { data, error } = await supabase.rpc('confirm_terms', { p_application_id: activeAppId });
+      const { data, error } = await supabase.rpc('confirm_terms', { p_application_id: activeAppId, p_accept_double_booking: !!acceptDouble });
+      // フロントの下調べthat取りこぼした重なりをDBthat検出した時：警告を出し直して確認→受諾ありで再実行
+      if (!error && data && data.reason === 'double_booked') {
+        setConfirmingTerms(false);
+        if (window.confirm(doubleBookingWarning(data.dup_job) + "\n\nこのまま採用を決定しますか？")) return confirmTerms(true);
+        return;
+      }
       if (!error && data && data.ok) {
         setWorkerConfirmed(!!data.worker_confirmed);
         setFarmerConfirmed(!!data.farmer_confirmed);
@@ -472,7 +480,7 @@ export function ChatView({ applicationId, onBack }) {
             farmerConfirmed ? (
               <span className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#E6F7EF", color:"#00A86B", fontSize:13, fontWeight:700, borderRadius:12, padding:"8px 16px", whiteSpace:"nowrap" }}>✓ 採用決定済み{!workerConfirmed ? "（確認待ち）" : ""}</span>
             ) : (
-              <button onClick={async ()=>{ if (confirmingTerms) return; const dup = await farmerDoubleBookingCheck(); const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : ""; if (window.confirm(warn + "この方の採用を決定しますか？\n面接はチャットで行い、採用を決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : "") + "\n\n採用すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。")) confirmTerms(); }} disabled={confirmingTerms} className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap", opacity: confirmingTerms ? 0.6 : 1 }}>{confirmingTerms ? "..." : "採用する"}</button>
+              <button onClick={async ()=>{ if (confirmingTerms) return; const dup = await farmerDoubleBookingCheck(); const warn = dup ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。\n同じ日に別の仕事（二重予約）になっていないか確認してください。\n\n` : ""; if (window.confirm(warn + "この方の採用を決定しますか？\n面接はチャットで行い、採用を決めたらタップしてください。" + (workerConfirmed ? "\n（働き手は内容確認済み）" : "") + "\n\n採用すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。")) confirmTerms(!!dup); }} disabled={confirmingTerms} className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap", opacity: confirmingTerms ? 0.6 : 1 }}>{confirmingTerms ? "..." : "採用する"}</button>
             )
           )}
         </div>
