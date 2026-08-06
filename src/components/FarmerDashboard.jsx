@@ -1233,7 +1233,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             const renderDraftCard = (d) => {
               const photo = photoThumb(d.photos?.[0]);
               return (
-              <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft" })}
+              <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
                 className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
@@ -1276,7 +1276,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             const renderActiveJobCard = (d, ended=false) => {
               const photo = photoThumb(d.photos?.[0]);
               return (
-              <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open" })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
+              <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
                   {/* 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」に加え、
@@ -1489,7 +1489,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           dbExpired.map(d => {
             const photo = photoThumb(d.photos?.[0]);
             return (
-            <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft" })}
+            <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
               className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                 {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"grayscale(40%)" }} /> : "🍂"}
@@ -1628,7 +1628,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         <AdminJobPreview jobNumber={previewJob.num} ownerView
           onClose={()=>setPreviewJob(null)}
           onResumeJob={previewJob.draft ? ()=>{ const n = previewJob.num; setPreviewJob(null); onResume(n); } : undefined}
-          onDeleteJob={previewJob.draft ? async ()=>{
+          onDeleteJob={(previewJob.draft && !previewJob.published) ? async ()=>{
             if (!confirm("この求人（下書き）を削除しますか？元に戻せません")) return;
             const { error } = await supabase.from("jobs").delete().eq("job_number", previewJob.num).eq("farmer_id", me.id);
             if (error) { alert("削除に失敗しました：" + error.message); return; }
