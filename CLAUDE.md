@@ -2850,3 +2850,47 @@ H10 残置ゼロ実測（jobs28・apps19・test行0）＝全合格。
 ②④のボタン遷移・チャット採用ボックス・step5最賃表示・仕事中ページ失効セクションの実機目視
 ③expired_watch 1件（承認済みのまま失効）の当事者確認。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-06 悪意あるユーザーとしての実機一周③（攻撃バッテリー・全拒否を実測）━━━
+【立場】signup_openで登録したばかりの一般ユーザー（非管理者・どの取引の当事者でもない）／未ログイン
+訪問者。目的＝他人PIIの奪取・他人データの改竄・第三者求人の公開・管理者昇格・記録の削除/改竄・最賃回避。
+【合格基準】各攻撃that拒否されること（成功＝穴）。【作法】合成アカウントのみ・実データ不変・PIIは読まない
+（返すのは可否の真偽だけ）・全ロールバック。終了時実測：テスト行0・jobs 28件不変・
+third_party_publish_allowed=false／signup_open=true 不変。
+
+【攻撃バッテリー1（RLS層）＝全て拒否】
+・app_settings（third_party_publish_allowed反転・signup_open INSERT）＝RLSポリシー0で0行/拒否
+・app_admins 自己INSERT（管理者昇格）＝拒否 ・jobs open直接INSERT＝拒否 ・他人farmer_id名義INSERT＝拒否
+・他人のworker_profiles/account_holders/emergency_contacts 直接SELECT＝全て0行
+・repeat_roster 他人farmer名義INSERT＝拒否
+【掲載・最賃（一般ユーザー最強権限＝account_holders＋employer_profiles完備で撃つ）】
+・draft作成は成功（＝登録済みユーザーの正当な権利。owner insert draftはfarmers or account_holders行を要求＝
+　完全な新規は下書きも作れない）
+・完成求人を時給500でpending申請＝最賃トリガーで拒否（「時給500円は徳島県最低賃金1046円を下回る」）
+・日給1000でpending＝実働換算で拒否 ・時給1200＝審査待ちへ（正常）
+・時間外「あり」・目安空でpending＝拒否 ・自分のpendingをopenへ昇格＝block_third_party_openで拒否
+　（自分の求人でも farmer_id that app_admins に無い＝機構的に掲載不可）
+【攻撃バッテリー2（当事者ゲート・記録改竄）＝全て拒否】合成の契約1件に無関係の第三者that攻撃：
+・contract_party_name / contract_emergency_contact ＝not_party（本名・緊急連絡先とも開示されない）
+・他人メッセージの改竄＝拒否・削除＝0行（messages_history_lock）・他人terms_snapshot改竄＝0行
+・他人応募をconfirm_terms＝not_party・approve_application＝例外拒否・cancel_application＝not_yours
+・他人スレッド（messages）SELECT＝0行
+・worker_work_record：無関係の農家＝not_entitled／anon＝EXECUTE権限拒否／応募を受けた農家＝開示（正当）／
+　★求人No.は農家にはnull・本人/運営にのみ開示＝2026-08-05裁定どおり（実測：農家=null・本人=999982）
+【攻撃バッテリー3（ストレージ・anon）＝全て拒否】
+・job-photos 他人フォルダINSERT＝拒否・ルート直下INSERT＝拒否・anon INSERT＝拒否／自分フォルダ＝通過（正当）
+・anonからrevoke済みRPC（my_todo_items・worker_trust_info・get_my_calendar_jobs）＝全て権限拒否／
+　残す訪問者用RPC（signup_open）＝実行可（正当）
+【偽陽性チェック（壁that正当な当事者を過剰に止めていないか）＝全て正常】
+・農家：自分の応募をconfirm＝採用成功／相手の本名＝開示（契約後）／自分のスレッド＝読める／
+　応募を受けた働き手の記録＝開示 ・働き手：自分のスレッド＝読める／相手農家の本名＝開示
+【テストの教訓（誤検知2件・いずれも私のテスト側のバグ）】
+1. worker_work_record は json 型を返すのに jsonb の `?` 演算子で判定して例外→「拒否」と誤記録しかけた。
+　json は `->>` で読む。SECURITY DEFINERの返り値型を先に確認してから叩くこと。
+2. `res::text ilike '%job_number%'` that JSONのキー名に反応し「求人No.漏洩」と誤検知。値の有無は
+　`res->'recent'->0->>'job_number'` でピンポイントに読む（キーの存在≠値の開示）。
+【結論】DBの壁（RLS・凍結/削除/公開トリガー・当事者ゲートRPC・ストレージ本人フォルダ・anon revoke）は
+悪意ある一般ユーザー／訪問者のあらゆる直接攻撃に対して機構的に閉じている。残るのは人の判断の領域
+（二重予約は受諾フラグで進める＝設計どおり・推薦選別の禁止・巻き添え見送りの取消猶予なし）と、
+DBでは検出できない画面/導線/iOSの目視（別途）。
+━━━ ここまで ━━━
