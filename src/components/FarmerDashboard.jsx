@@ -17,6 +17,8 @@ import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
+import { fbSuccess, fbError } from "../lib/feedback";
+import { Celebration } from "./Celebration";
 
 // 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
 const APP_FILTER_KEYS = ["all","applied","interview","active","completed"];
@@ -38,6 +40,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     try { const j = hashToJobTab(); if (j) return j; } catch {}
     return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "home";
   });
+  // 完了の祝祭（2026-08-06・赤ちゃん前提の第0歩）：承認・採用・完了評価の成功時に1回。
+  // 演出のみ＝記録・ゲートには触れない。負の場面（見送り・欠勤）では使わない
+  const [celebrate, setCelebrate] = useState(null);
   useEffect(() => {
     const onHash = () => { const j = hashToJobTab(); if (j) setJobTab(j); };
     window.addEventListener("hashchange", onHash);
@@ -365,7 +370,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setCompleteSubmitting(true);
     try {
       const { data, error } = await supabase.rpc('complete_work', { p_application_id: completeModalApp.id, p_attended: false });
-      if (error || !data?.ok) { alert('記録に失敗しました：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
+      if (error || !data?.ok) { fbError(); alert('記録に失敗しました：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:false } : x));
       setCompleteModalApp(null);
     } catch { alert('記録に失敗しました。'); }
@@ -383,7 +388,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         p_public_comment: completePublicComment.trim(), p_private_memo: completePrivateMemo.trim(),
         p_favorite: completeNotifyNext,
       });
-      if (error || !data?.ok) { alert('送信に失敗しました（何も保存されていません）：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
+      if (error || !data?.ok) { fbError(); alert('送信に失敗しました（何も保存されていません）：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
       const favorited = !!data.favorited;
       if (favorited) {
         const wp = workerProfiles[completeModalApp.worker_id];
@@ -393,6 +398,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         setFavDone({ workerId: completeModalApp.worker_id, nickname: wp?.nickname || "", avatar_url: wp?.avatar_url || "" });
       }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
+      fbSuccess(); setCelebrate({ emoji:"🌾", title:"おつかれさまでした" });
       // 評価登録完了モーダル用の控えを組み立てる（求人タイトルはdbActive→jobsの順で解決）
       let jobLabel = "";
       const cached = dbActive.find(d => d.job_number === completeModalApp.job_number) || dbDrafts.find(d => d.job_number === completeModalApp.job_number);
@@ -801,13 +807,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     <button onClick={async ()=>{
                       if (!confirm('この応募を見送りますか？')) return;
                       const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
-                      if (error || !data?.ok) { alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                      if (error || !data?.ok) { fbError(); alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
                       setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
                     }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
                     <button onClick={async ()=>{
                       const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
-                      if (error || !data?.ok) { alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                      if (error || !data?.ok) { fbError(); alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
                       setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
+                      fbSuccess(); setCelebrate({ emoji:"✅", title:"承認しました" });
                     }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
                   </div>
                 );
@@ -912,6 +919,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     // サブページの上空白は15px固定（2026-07-25応募者→2026-07-26求人タブも・たきと指示で全サブページ統一）
     // 応募者ページは下余白もCSS側(20px)へ一本化するso、コンテナ自身の下80pxは持たせない（2026-07-26たきと指示）
     <div className={jobTab === "applicants" ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : jobTab === "applicants" ? "15px 0 0" : "15px 0 80px" }}>
+      {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
       {jobTab === "home" ? (
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。

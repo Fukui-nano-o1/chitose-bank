@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon } from "./lib/utils";
+import { fbTap } from "./lib/feedback";
+import { Celebration } from "./components/Celebration";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots, QaChat } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
@@ -1354,6 +1356,16 @@ export default function App(){
   const [showApplyPending,setShowApplyPending]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/pending");
   const applyPage = showApplyDone ? "done" : showApplyPending ? "pending" : null;
   const [applyAlready,setApplyAlready]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")==="1");
+  // 応募完了の祝祭（2026-08-06・赤ちゃん前提の第0歩）：apply/doneに新規到着した時だけ1回。
+  // 応募済み（already）の再訪では祝わない。演出のみ＝記録・フローには触れない
+  const [applyBurst,setApplyBurst]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")!=="1");
+  // 全ボタン共通のタップの手応え（振動のみ・無音・iOSでは静かに無視される）。
+  // 「押せた」の証拠＝文字thatが読めない利用者への最小のフィードバック（2026-08-06）
+  useEffect(() => {
+    const h = (e) => { try { if (e.target?.closest?.("button, a, [role='button']")) fbTap(); } catch {} };
+    document.addEventListener("click", h, true);
+    return () => document.removeEventListener("click", h, true);
+  }, []);
   // 仮応募からの昇格件数（プロフィール保存の直後に promote_my_pending_applications が返した数）
   const [promotedCount,setPromotedCount]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="apply/done" ? Number(sessionStorage.getItem("cb_promoted") || 0) : 0; } catch { return 0; } });
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
@@ -1378,7 +1390,11 @@ export default function App(){
       setUpcomingRoom(rawHash.startsWith("admin/upcoming"));
       setEvalRoom(rawHash.startsWith("admin/evaluation"));
       if (rawHash === "apply/done") {
-        try { setApplyAlready(sessionStorage.getItem("cb_applyAlready")==="1"); sessionStorage.removeItem("cb_applyAlready"); } catch {}
+        try {
+          const already = sessionStorage.getItem("cb_applyAlready")==="1";
+          setApplyAlready(already); sessionStorage.removeItem("cb_applyAlready");
+          setApplyBurst(!already); // 新しい応募の到着だけ祝う（2026-08-06）
+        } catch {}
         try { setPromotedCount(Number(sessionStorage.getItem("cb_promoted") || 0)); sessionStorage.removeItem("cb_promoted"); } catch {}
       }
       const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
@@ -2455,6 +2471,8 @@ export default function App(){
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ApplyPending /></Suspense>
         ) : showApplyDone ? (
           <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
+            {/* 祝祭（音＋振動＋花びら・自動で消える・操作を奪わない）。文字の案内は従来どおり全部残す */}
+            {applyBurst && <Celebration emoji="📩" title="応募できました" onDone={()=>setApplyBurst(false)} />}
             <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
             {/* タイトルは応募完了しました！に統一・タイトルだけ文字ジャンプ（2026-07-19）。
                 仮応募からの昇格で来た時は、届いた件数を見出しに出す（第15弾・2026-07-30） */}

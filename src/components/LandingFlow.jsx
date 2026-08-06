@@ -3,6 +3,7 @@
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { fbCelebrate } from "../lib/feedback";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadJobPhoto } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../lib/utils";
@@ -656,6 +657,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // 通常の順送りでなく確認ページへ直帰する（Airbnb出品確認の「編集→保存して確認へ戻る」と同型）。
   useEffect(() => {
     if (step === 11) setReturnToConfirm(false); // 確認ページ到達で必ず解除（保険）
+    if (step === 12) fbCelebrate(); // 完了ページ到達＝祝祭の音と振動（2026-08-06・画面は既存の完了ページのまま）
   }, [step]);
 
   useEffect(() => {

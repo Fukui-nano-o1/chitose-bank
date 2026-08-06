@@ -221,6 +221,13 @@ input:focus { outline: none; }
 .pflip-out { animation: pflipOut .4s ease-in both; }
 .pflip-in  { animation: pflipIn .4s ease-out; }
 .pulse-slow  { animation: pulse 2s ease infinite; }
+/* いま これだけ（今日ページの最優先カード・2026-08-06）：呼吸のような脈動＝
+   動くものだけthatが見える、の原則。opacity点滅(pulse)は情報thatが消えて見えるso使わない */
+@keyframes cbNowPulse {
+  0%,100% { transform: scale(1);     box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  50%     { transform: scale(1.015); box-shadow: 0 8px 24px rgba(0,0,0,.16); }
+}
+.cb-now-pulse { animation: cbNowPulse 2.2s ease-in-out infinite; }
 .shake       { animation: shake .4s ease; }
 
 

@@ -1,6 +1,8 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。働き手の応募状況ページ（FlowBar7段・評価モーダル・緊急連絡）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { fbSuccess, fbError } from "../lib/feedback";
+import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow, photoThumb } from "../lib/utils";
 import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
@@ -85,6 +87,8 @@ export function WorkerApplications({ filter, me }) {
   const [reviewPublicComment, setReviewPublicComment] = useState("");
   const [reviewPrivateMemo, setReviewPrivateMemo] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  // 完了の祝祭（2026-08-06）：評価送信の成功時。演出のみ＝記録には触れない
+  const [celebrate, setCelebrate] = useState(null);
   const openReviewModal = (a) => {
     setReviewModalApp(a);
     setReviewWantAgain(null); setReviewAsDescribed(null); setReviewSafetyCare(null);
@@ -95,15 +99,16 @@ export function WorkerApplications({ filter, me }) {
     setReviewSubmitting(true);
     try {
       const { data, error } = await supabase.rpc('confirm_end', { p_application_id: reviewModalApp.id });
-      if (error || !data?.ok) { alert('確認に失敗しました：' + (data?.reason || error?.message || '不明')); setReviewSubmitting(false); return; }
+      if (error || !data?.ok) { fbError(); alert('確認に失敗しました：' + (data?.reason || error?.message || '不明')); setReviewSubmitting(false); return; }
       const { error: revErr } = await supabase.from('reviews').insert({
         application_id: reviewModalApp.id, reviewer_id: me.id, reviewee_id: reviewModalApp.farmer_id,
         direction: 'worker_to_farmer', want_again: reviewWantAgain, as_described: reviewAsDescribed, safety_care: reviewSafetyCare,
         public_comment: reviewPublicComment.trim() || null, private_memo: reviewPrivateMemo.trim() || null,
       });
-      if (revErr) { alert('評価の保存に失敗しました：' + revErr.message); setReviewSubmitting(false); return; }
+      if (revErr) { fbError(); alert('評価の保存に失敗しました：' + revErr.message); setReviewSubmitting(false); return; }
       setAllApps(prev => prev.map(x => x.id===reviewModalApp.id ? { ...x, worker_confirmed_end_at: new Date().toISOString() } : x));
       setReviewModalApp(null);
+      fbSuccess(); setCelebrate({ emoji:"⭐", title:"ありがとうございました" });
     } catch { alert('処理に失敗しました。'); }
     setReviewSubmitting(false);
   };
@@ -546,6 +551,7 @@ export function WorkerApplications({ filter, me }) {
   };
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
+      {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
       {/* 圏外キューの送信完了（第13弾(3)）：送れた時に1回だけ出す。相手には申告として通知が飛んでいる */}
       {flushedMsg && (
         <p className="f-sans fade-in" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", border:"1px solid #00A86B", borderRadius:10, padding:"9px 11px", margin:"0 0 14px", textAlign:"center", lineHeight:1.6 }}>

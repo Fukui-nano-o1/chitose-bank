@@ -6,6 +6,8 @@ import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublic
   appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
+import { fbSuccess, fbError } from "../lib/feedback";
+import { Celebration } from "./Celebration";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
@@ -568,6 +570,8 @@ export function TodayPage({ me, defaultRole }) {
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
   useEffect(() => { if (loading) return; setCache("today:todos", todos); }, [todos, loading]);
   const [confirming, setConfirming] = useState("");
+  // 完了の祝祭（2026-08-06）：保険の報告・開始の確認の成功時。演出のみ＝記録・ゲートには触れない
+  const [celebrate, setCelebrate] = useState(null);
   // 打刻の修正申請（第13弾(2)）：自分が承認する側のpendingを直接読む。
   // my_todo_items（RETURNS TABLE・固定型）は触らず、件数はDB側のmy_nav_badges が todo に加算済み
   const [corrections, setCorrections] = useState([]);
@@ -890,8 +894,11 @@ export function TodayPage({ me, defaultRole }) {
       if (confirming) return; setConfirming(busyKey);
       const { data, error } = await supabase.rpc(m.rpc, { p_application_id: e.application_id });
       setConfirming("");
-      if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+      if (error || !data?.ok) { fbError(); alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
       removeTodo(e.application_id, e.stage);
+      fbSuccess();
+      if (m.rpc === "confirm_insurance") setCelebrate({ emoji:"🛡", title:"報告しました" });
+      else if (m.rpc === "confirm_start") setCelebrate({ emoji:"🌅", title:"作業が始まりました" });
     }
   };
   const TodoStageBox = ({ stage, items }) => {
@@ -995,6 +1002,7 @@ export function TodayPage({ me, defaultRole }) {
     return (
       <div ref={swipeStage ? rootRef : undefined}
         style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", ...(swipeStage ? { overflowX:"hidden", touchAction:"pan-y" } : {}) }}>
+        {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
         <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 16px" }}>
           <button onClick={()=>{ window.location.hash = "/calendar"; }} aria-label="今日へ戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 6px", lineHeight:1 }}>←</button>
           <h2 className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:18, fontWeight:800, color:"#222", margin:0, flex:1, minWidth:0 }}>
@@ -1043,6 +1051,7 @@ export function TodayPage({ me, defaultRole }) {
 
   return (
     <div ref={rootRef} style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden", touchAction:"pan-y" }}>
+      {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
       {/* 見出し「📆 今日」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示すため冗長 */}
       {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示（roleTabsRow＝共通化・2026-08-02） */}
       {roleTabsRow}
@@ -1077,6 +1086,28 @@ export function TodayPage({ me, defaultRole }) {
             <div style={{ marginBottom:24 }}>
               {/* 件数は打刻修正の承認ぶんも足す＝ナビのバッジ(todo)と一致させる（my_nav_badgesも同じ加算） */}
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length + corrections.length}）</p>
+              {/* いま これだけ（2026-08-06・赤ちゃん前提の第0歩）：分かれ道10本の手前に「最優先の1本」を
+                  大きく1枚だけ出す。正規フロー順（catalog順）で最初に該当thatある用件＝次の一歩。
+                  タップの行き先は下のボックスと同じ専用ページ＝入口thatが増えるだけで、実行の窓口は増やさない。
+                  10ボックスは従来どおり下に残す（追加可能・削除可能・他を壊さない） */}
+              {(() => {
+                const nowStage = catalog.filter(st => !st.startsWith("t_")).find(st => (byStage.get(st) || []).length > 0);
+                if (!nowStage) return null;
+                const nm = TODO_META[nowStage]; if (!nm) return null;
+                const nCount = (byStage.get(nowStage) || []).length;
+                return (
+                  <button onClick={() => { window.location.hash = "/calendar/todo/" + nowStage; }}
+                    className="f-sans cb-now-pulse"
+                    style={{ width:"100%", display:"flex", alignItems:"center", gap:16, background:"#fff", border:"3px solid " + accent, borderRadius:20, padding:"20px 18px", marginBottom:12, cursor:"pointer", textAlign:"left" }}>
+                    <span style={{ fontSize:44, lineHeight:1, flexShrink:0 }}>{nm.icon}</span>
+                    <span style={{ flex:1, minWidth:0 }}>
+                      <span className="f-sans" style={{ display:"block", fontSize:12, fontWeight:800, color:accent, letterSpacing:".08em" }}>いま これだけ</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:20, fontWeight:800, color:"#222", marginTop:2 }}>{nm.title}</span>
+                    </span>
+                    <span style={{ flexShrink:0, minWidth:34, height:34, borderRadius:17, background:accent, color:"#fff", fontSize:16, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 8px" }}>{nCount}</span>
+                  </button>
+                );
+              })()}
               {/* 打刻の修正の承認（第13弾(2)）：やることの最上部。相手が申請したものだけが並ぶ
                   （申請者自身には出さない＝RPC側でも拒否される）。片付けると消える＝バッジ数と一致する */}
               {corrections.length > 0 && (
