@@ -59,6 +59,20 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
           ))}
         </div>
       )}
+      {/* 📋 自己申告（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。
+          枠（ボックス＋見出し）は撤回し、趣味タグ等と同じチップの群れに揃える（2026-08-05たきと指示）。
+          区別は色だけ＝青系。★実績（🌟＝このサイトの台帳）とは別物so、実績枠には絶対に入れない（2026-07-23） */}
+      {!hideSelfDeclare && declItems.length > 0 && (
+        <div style={{ marginBottom:10 }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {declItems.map((it, i) => (
+              <span key={i} {...tap(it.k)} className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"3px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.text}</span>
+            ))}
+          </div>
+          {/* 自己申告であることの明示は残す（実績と混同させない・法務上の一言） */}
+          <p className="f-sans" style={{ fontSize:10, color:"#A0A8B4", margin:"6px 0 0", lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。</p>
+        </div>
+      )}
       {profile.pr && (onEditItem ? (
         <p {...tap("pr")} className="f-sans" style={{ fontSize:13, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer" }}>{profile.pr}</p>
       ) : (
@@ -76,20 +90,8 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
           </div>
         </div>
       )}
-      {/* ── 📋 自己申告ブロック（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。実績の下に置く（2026-07-23） ── */}
-      {/* 本人のわたしの実績モーダルではハブのカードに移植済みso非表示。農家の応募者カードでは表示 */}
-      {/* ボックスは他と同じ白・グレー枠（2026-07-26たきと指示・ProfileHubの経験カードと同時変更）。チップの青は残す */}
-      {!hideSelfDeclare && declItems.length > 0 && (
-        <div style={{ marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>📋 自己申告</p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
-            {declItems.map((it, i) => (
-              <span key={i} {...tap(it.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.text}</span>
-            ))}
-          </div>
-          <p className="f-sans" style={{ fontSize:10, color:"#A0A8B4", margin:0, lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。</p>
-        </div>
-      )}
+      {/* 旧・📋自己申告ブロック（白枠＋見出し）は撤回（2026-08-05たきと指示）＝上のタグ群へ統合済み。
+          本人のわたしの実績モーダルでは hideSelfDeclare で非表示・農家の応募者カードでは表示、の扱いは不変 */}
     </div>
   );
 }
