@@ -7,6 +7,7 @@ import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { chatCache } from "../lib/chatCache";
+import { snapGet, snapSet } from "../lib/snapshot";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
@@ -283,22 +284,36 @@ export function ChatView({ applicationId, onBack }) {
     } catch {}
     setConfirmingTerms(false);
   };
-  // 開いている求人No.を左端に詰める（2026-08-06たきと指示「現在開いた順に左に詰めて」）：
-  // 従来は応募日の新しい順に固定so、開いている求人が帯の右のほうにあると横スクロールしないと
-  // 見えなかった（「表示中」が画面外）。並べ替えではなく【回転】＝順序は保ったまま先頭だけずらす。
-  // 回転なので、左スワイプを繰り返せば従来どおり全ての求人を一巡できる（並べ替えだと2件を
-  // 往復するだけになり奥の求人へ辿り着けない）。帯とスワイプは必ずこの1つの並びを共有する
+  // 求人No.帯は「開いた順」に左から並べる（2026-08-06たきと指示「開いた順に並べていって。
+  // 使わないチャットは右にずれていくよ」）：開いた求人を先頭に記録し、その順で並べる。
+  // 触っていない求人は新しく開いたものに押されて自然に右へ流れる（＝今いる求人が必ず左端）。
+  // 記録は表示専用（snapshot＝本人のみ・ログアウトのclearSnapshotsで消える。並びが消えても
+  // 下の未記録ぶんの規則に落ちるだけで壊れない）。一度も開いていない求人は従来の応募日順で後ろに続く
+  const CHAT_MRU_MAX = 60;
+  const [chatMru, setChatMru] = useState(() => { const v = snapGet("chatMru"); return Array.isArray(v) ? v : []; });
+  useEffect(() => {
+    if (!activeAppId) return;
+    setChatMru(prev => {
+      const next = [activeAppId, ...prev.filter(id => id !== activeAppId)].slice(0, CHAT_MRU_MAX);
+      snapSet("chatMru", next);
+      return next;
+    });
+  }, [activeAppId]);
   const orderedApps = (() => {
-    const i = threadApps.findIndex(r => r.id === activeAppId);
-    return i > 0 ? [...threadApps.slice(i), ...threadApps.slice(0, i)] : threadApps;
+    const rank = new Map(chatMru.map((id, i) => [id, i]));
+    const opened = threadApps.filter(r => rank.has(r.id)).sort((a, b) => rank.get(a.id) - rank.get(b.id));
+    const never = threadApps.filter(r => !rank.has(r.id)); // 未訪問は従来どおり応募日の新しい順で後ろへ
+    return [...opened, ...never];
   })();
   // 詰めた先頭が実際に目に入るよう、切り替えのたび帯の横スクロールを左端へ戻す
-  // （並びを回転させても、器のスクロール位置は前のまま残るため）
+  // （並びを変えても、器のスクロール位置は前のまま残るため）
   const jobStripRef = useRef(null);
   useEffect(() => { const el = jobStripRef.current; if (el) el.scrollLeft = 0; }, [activeAppId]);
   // ── 横スワイプで求人No.を切り替える（2026-07-30たきと指示「指に連動させてほしい」）──
-  // 並びは上部の求人No.帯と同じ orderedApps の順。左へ引く＝次の求人／右へ引く＝前の求人。
-  // 開いている求人が先頭so、右へ引く（前）は端＝ゴムの手応えになる＝帯の見た目（左端が表示中）と一致する。
+  // ★スワイプは帯の並び（orderedApps）ではなく threadApps＝応募日順の【動かない並び】を辿る。
+  //   帯は開いた順so、開くたびに並びが変わる＝スワイプをこれに乗せると「今の1件」と「直前の1件」を
+  //   往復するだけになり、3件目より奥の求人へ永久に辿り着けなくなるため（左へ引く＝次／右へ引く＝前）。
+  //   帯はタップで選ぶ・スワイプは全件を順に送る、と役割を分けている。
   // 端では引きしろを1/4に落として「これ以上は無い」を手で伝える（ゴムの手応え）。
   // 縦スクロールは邪魔しない＝最初の動きで軸を決め、横と決まった時だけ追従する。
   const goThread = (id) => {
@@ -310,9 +325,9 @@ export function ChatView({ applicationId, onBack }) {
   const [swipeDx, setSwipeDx] = useState(0);
   const [swipeSnap, setSwipeSnap] = useState(false); // true=指を離した後の戻り（アニメで戻す）
   const threadNeighbor = (dir) => { // dir=+1 次 / -1 前
-    const i = orderedApps.findIndex(r => r.id === activeAppId);
+    const i = threadApps.findIndex(r => r.id === activeAppId);
     if (i < 0) return null;
-    const n = orderedApps[i + dir];
+    const n = threadApps[i + dir];
     return n ? n.id : null;
   };
   const onChatSwipeStart = (e) => {
