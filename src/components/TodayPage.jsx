@@ -1082,6 +1082,9 @@ export function TodayPage({ me, defaultRole }) {
           }
           const catalog = TODO_STAGE_CATALOG[role] || [];
           const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
+          // いま これだけ（2026-08-06）：正規フロー順（catalog順）で最初に該当thatある用件。
+          // 昇格した用件は下の格子から抜く（複製でなく移動＝「上に動いた」thatが一目で分かる。同日たきと指示）
+          const nowStage = catalog.filter(st => !st.startsWith("t_")).find(st => (byStage.get(st) || []).length > 0) || null;
           return (
             <div style={{ marginBottom:24 }}>
               {/* 件数は打刻修正の承認ぶんも足す＝ナビのバッジ(todo)と一致させる（my_nav_badgesも同じ加算） */}
@@ -1091,7 +1094,6 @@ export function TodayPage({ me, defaultRole }) {
                   タップの行き先は下のボックスと同じ専用ページ＝入口thatが増えるだけで、実行の窓口は増やさない。
                   10ボックスは従来どおり下に残す（追加可能・削除可能・他を壊さない） */}
               {(() => {
-                const nowStage = catalog.filter(st => !st.startsWith("t_")).find(st => (byStage.get(st) || []).length > 0);
                 if (!nowStage) return null;
                 const nm = TODO_META[nowStage]; if (!nm) return null;
                 const nCount = (byStage.get(nowStage) || []).length;
@@ -1134,7 +1136,7 @@ export function TodayPage({ me, defaultRole }) {
                 </div>
               )}
               <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
-                {stageOrder.map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} />)}
+                {stageOrder.filter(st => st !== nowStage).map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} />)}
               </div>
             </div>
           );
