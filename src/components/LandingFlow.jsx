@@ -255,8 +255,10 @@ const ALLOWED_PREFECTURES = ["徳島県"];
 const isAllowedPrefecture = (pref) => ALLOWED_PREFECTURES.includes((pref || "").trim());
 
 // 時給・日給が最低賃金を下回っていないかを判定する純関数
-// workHours: 勤務時間（終了時刻 - 開始時刻、時間単位）。6時間超で休憩45分、8時間超で休憩60分を控除した実労働時間で日給を時給換算する。
-function validateMinWage(hourly, daily, workHours, minWage) {
+// workHours: 勤務時間（終了時刻 - 開始時刻、時間単位）。breakMinutes: 申告休憩（分）。
+// 実働 = 拘束 − greatest(申告休憩, 法定最低休憩)。法定最低休憩＝拘束6時間超45分・8時間超60分（労基法34条）。
+// ★DBの掲載トリガー（trg_job_publish_snapshot・migration 20260806163552）と同じ式。片方だけ変えないこと
+function validateMinWage(hourly, daily, workHours, minWage, breakMinutes = 0) {
   // 最低賃金が取得できていない場合は検証不能。安全側に倒して掲載を止める
   if (!minWage || minWage <= 0) {
     return { hourlyViolation: hourly > 0, dailyViolation: daily > 0, unknownWage: true };
@@ -264,9 +266,10 @@ function validateMinWage(hourly, daily, workHours, minWage) {
   const hourlyViolation = hourly > 0 && hourly < minWage;
   let dailyViolation = false;
   if (daily > 0 && workHours > 0) {
-    const breakHours = workHours > 8 ? 1 : workHours > 6 ? 0.75 : 0;
+    const legalBreakHours = workHours > 8 ? 1 : workHours > 6 ? 0.75 : 0;
+    const breakHours = Math.max(breakMinutes / 60, legalBreakHours);
     const actualHours = workHours - breakHours;
-    if (actualHours > 0 && daily / actualHours < minWage) dailyViolation = true;
+    if (actualHours <= 0 || daily / actualHours < minWage) dailyViolation = true;
   }
   return { hourlyViolation, dailyViolation, unknownWage: false };
 }
@@ -496,7 +499,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const hourlyWage = Number(hourlyWageInput.replace(/[^\d]/g, "")) || 0;
   const dailyWage  = Number(dailyWageInput.replace(/[^\d]/g, "")) || 0;
   const workHours = (Number(endHour) + Number(endMinute) / 60) - (Number(startHour) + Number(startMinute) / 60);
-  const { hourlyViolation, dailyViolation, unknownWage } = validateMinWage(hourlyWage, dailyWage, workHours, minWage);
+  // 申告休憩（分）：DBトリガーと同じ抽出（"90分"等から最初の数字・無ければ0）
+  const breakMinutes = Number((String(breakTime).match(/\d+/) || [0])[0]);
+  const { hourlyViolation, dailyViolation, unknownWage } = validateMinWage(hourlyWage, dailyWage, workHours, minWage, breakMinutes);
   const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
   const [beginnerOk,        setBeginnerOk]        = useState(d.beginnerOk ?? false); // 🌱はじめての人も歓迎 → jobs.beginner_ok
   const [instantApproveRepeat, setInstantApproveRepeat] = useState(d.instantApproveRepeat ?? false); // 🌟また呼びたい即決 → jobs.instant_approve_repeat（効果は自分の求人×自分が評価した相手のみ・労働局確認済み）
