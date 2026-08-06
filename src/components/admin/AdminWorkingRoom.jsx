@@ -3,6 +3,9 @@
 // 運営が一望する見守りページ。後日の採用済み（まもなく開始）は出さない（当日分のみ・たきと指示）。
 // 売り物＝安心（憲法1条）＝作業当日に何が起きているかを運営が把握できること。
 // 読み取り専用（admin_working_jobs RPC・security definer + app_admins ゲート）。ここからの書き込みは無し。
+// 2026-08-06追加：失効の見張り＝直近14日に失効した応募の一覧。採用の押し忘れのまま作業開始を
+// 迎えると cron that失効させ「働いた事実thaあるのに記録thaない」thaできる（#1054・#1056で実際に
+// 起きた）。運営that当事者に確認する入口。ここも読み取り専用（記録し直しはDB作業＝運営判断）。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { dateRangeLabel, isTodayWork } from "../../lib/utils";
@@ -93,20 +96,39 @@ function WorkCard({ item, today }) {
   );
 }
 
+// 失効カード（読み取り専用）：誰の応募that・どの求人で・いつ失効したか。
+// 「承認済みのまま失効」は実際に働いていた可能性thatより高いso赤帯で目立たせる（#1054型）
+function ExpiredCard({ item }) {
+  return (
+    <div className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid " + (item.was_approved ? "#E24B4A" : "#C8C8C8") }}>
+      <CardHead item={item} />
+      <PartyLine item={item} />
+      <p className="f-sans" style={{ fontSize:12, color:"#444", margin:"8px 0 10px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+        <span>{scheduleLabel(item)}</span>
+        {item.was_approved && <span style={{ fontSize:10, fontWeight:800, color:"#fff", background:"#E24B4A", borderRadius:20, padding:"2px 8px" }}>承認済みのまま失効</span>}
+      </p>
+      <div style={{ display:"flex", flexDirection:"column", gap:6, background:"#FAFAFA", borderRadius:10, padding:"10px 12px" }}>
+        <CheckRow label="応募" at={item.applied_at} />
+        <CheckRow label="失効" at={item.expired_at} />
+      </div>
+    </div>
+  );
+}
+
 export function AdminWorkingRoom() {
   // 前回結果（App.jsxの着地判定・まもなく開始ページと共用のキャッシュ）があれば即描画し、
   // 裏で最新に差し替える（2026-08-02・更新時間の短縮）
   const [state, setState] = useState(() => {
     const d = getCache("admin:workingJobs");
-    return d?.ok ? { working: d.working || [], upcoming: d.upcoming || [] } : null;
-  }); // null=読み込み中 | {working, upcoming} | "error" | "denied"
+    return d?.ok ? { working: d.working || [], upcoming: d.upcoming || [], expired: d.expired_watch || [] } : null;
+  }); // null=読み込み中 | {working, upcoming, expired} | "error" | "denied"
   const load = useCallback(async () => {
     const { data, error } = await supabase.rpc("admin_working_jobs");
     // 裏の再取得が失敗しても、キャッシュ表示中ならそのまま保つ（エラー画面で上書きしない）
     if (error) { setState(prev => (prev && typeof prev === "object") ? prev : "error"); return; }
     if (!data?.ok) { setState(data?.reason === "not_admin" ? "denied" : "error"); return; }
     setCache("admin:workingJobs", data);
-    setState({ working: data.working || [], upcoming: data.upcoming || [] });
+    setState({ working: data.working || [], upcoming: data.upcoming || [], expired: data.expired_watch || [] });
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -146,6 +168,18 @@ export function AdminWorkingRoom() {
         ) : (<>
           {todayUpcoming.map(item => <WorkCard key={item.application_id} item={item} today />)}
           {state.working.map(item => <WorkCard key={item.application_id} item={item} />)}
+        </>)}
+
+        {/* ── 失効の見張り（直近14日・2026-08-06）── 0件なら丸ごと非表示（用事thaない時に場所を取らない） */}
+        {(state.expired || []).length > 0 && (<>
+          <div style={{ display:"flex", alignItems:"center", gap:8, margin:"28px 0 4px" }}>
+            <span style={{ width:4, height:16, borderRadius:2, background:"#C77700" }} />
+            <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>失効の見張り <span style={{ color:"#C77700" }}>{state.expired.length}</span></p>
+          </div>
+          <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 12px", lineHeight:1.7 }}>
+            判断がないまま作業開始を迎えて失効した応募（直近14日）。実際に作業していた場合、記録が残っていません。当事者に確認してください。
+          </p>
+          {state.expired.map(item => <ExpiredCard key={item.application_id} item={item} />)}
         </>)}
         </>);
       })()}
