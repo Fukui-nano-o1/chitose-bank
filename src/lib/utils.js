@@ -611,14 +611,20 @@ export const TERMS_VERSION = "v2.1-2026-08";
 export const PRIVACY_VERSION = "v3.1-2026-08";
 
 // 分割3-B（2026-07-25）：App.jsxから移動（LandingFlow・WorkerProfileEditで共用）
-export // 作業リスト（アイコン無し・文字だけカード。増やすときはここに1行足すだけ）
-const TASK_OPTIONS = [
+// 作業リスト（アイコン無し・文字だけカード。増やすときはここに1行足すだけ）
+// 2026-08-06たきと指示：播種を追加／「袋かけ」を「包装」に変更。
+// ★これは【これから選べる語彙】の変更で、過去の求人の記録（jobs.task）は書き換えない。
+//   既に「袋かけ」で掲載された求人はその文字のまま残る（記録は改変しない・行動記録の憲法）。
+//   自由入力も併存するため、選択肢に無い値の求人・働き手プロフィールも従来どおり表示される
+//   （WorkerProfileEdit/WorkerExperiencePage は保存済みの値を選択肢に足して描く作りが既にある）。
+export const TASK_OPTIONS = [
   { name:"収穫",     icon:"" },
+  { name:"播種",     icon:"" },
   { name:"定植",     icon:"" },
   { name:"選果",     icon:"" },
   { name:"農薬散布", icon:"" },
   { name:"草刈り",   icon:"" },
-  { name:"袋かけ",   icon:"" },
+  { name:"包装",     icon:"" },
 ];
 
 // 分割3-B（2026-07-25）：App.jsxから移動
