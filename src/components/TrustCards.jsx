@@ -54,10 +54,16 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
           ))}
         </div>
       )}
+      {/* タグ群の整理整頓（2026-08-07たきと指示「綺麗に・横幅限界まで使っていい」）：
+          ・チップの形を橙／青で完全に統一（同じ字サイズ・同じ余白・同じ角丸）
+          ・各チップが行の余りを均等に吸収（flexGrow）＝右端まで揃った段組みになり隙間が出ない
+          ・長い順に並べる＝長いチップが先に行を取り、短いチップが後ろの行を埋める（行のガタつき防止）
+          ・長すぎるチップは…で省略（横スクロール・はみ出しを起こさない）
+          橙=趣味・言語／青=自己申告 の色だけの区別は不変（2026-08-05規則・見出しボックスは復活させない） */}
       {tags.length > 0 && (
-        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
-          {tags.map((x,i) => (
-            <span key={i} {...tap(x.k)} className="f-sans" style={{ fontSize:11, color:"#717171", background:"#FFF3EC", borderRadius:20, padding:"3px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>#{x.t}</span>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
+          {[...tags].sort((a,b) => String(b.t).length - String(a.t).length).map((x,i) => (
+            <span key={i} {...tap(x.k)} className="f-sans" style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:"#B05A2A", background:"#FFF3EC", borderRadius:999, padding:"6px 12px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>#{x.t}</span>
           ))}
         </div>
       )}
@@ -67,8 +73,8 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
       {!hideSelfDeclare && declItems.length > 0 && (
         <div style={{ marginBottom:10 }}>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-            {declItems.map((it, i) => (
-              <span key={i} {...tap(it.k)} className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"3px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.text}</span>
+            {[...declItems].sort((a,b) => String(b.text).length - String(a.text).length).map((it, i) => (
+              <span key={i} {...tap(it.k)} className="f-sans" style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:999, padding:"6px 12px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.text}</span>
             ))}
           </div>
           {/* 自己申告であることの明示は残す（実績と混同させない・法務上の一言） */}
