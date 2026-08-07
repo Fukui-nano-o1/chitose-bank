@@ -4010,3 +4010,17 @@ admin（自己募集）のみでadminは退会不可（target_is_admin）＝現�
 （第三者公開解禁）後に一般農家thatopen求人を持てるようになると顕在化＝退会時にその農家のopen求人をclosedに
 する処理that要る。解禁とセットで実装すべき。今は撃っていない（現状シナリオthat成立しないため）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 退会X4対処：退会農家のopen/pending求人を掲載終了に（migration 20260807150430）━━━
+【前回X4を「将来リスク」と書いたが訂正】third_party_publish_allowed は既に'true'（届出完了・第三者公開
+解禁済み・同日の法務記録）＝一般農家thatopen求人を持てる現在の状態so、これは将来でなく【今そこにある穴】だった。
+process_withdrawal は jobs を消さない（過去求人=証跡）ため、農家that退会してもopen求人that jobs_public に
+残り応募を受け付け続けうる。
+【対処】process_withdrawal に「farmer_id=退会者 の status in ('open','pending') を 'closed' に更新」を追加
+（(a)削除群の末尾）。行は消さない＝過去求人の証跡（応募・はたらいた記録）は残る。draftは公開されていないso
+対象外。expire_stale の最終日クローズと同じ扱い。
+【検証（ロールバック付き実弾・third_party一時解禁で一般農家のopen求人を再現）】closed化1件・トリガー例外なし
+（job_publish_snapshot/block_third_party_open/require_recruiter_info等はclosed遷移で誤発火せず）・
+status=closed・応募that job_not_open で拒否・求人の行は残る（削除でなくclosed）。
+削除17テーブル・匿名化・冪等な(c)は不変。DB定義とrepo写経の削除17件が一致。
+━━━ ここまで ━━━
