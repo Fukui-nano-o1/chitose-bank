@@ -39,6 +39,7 @@ import { ProfileModal } from "./components/ProfileModal";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { JobSearchMapView } from "./components/JobSearchMapView";
 import { MyReviewsOfWorker } from "./components/MyReviewsOfWorker";
+import { ReceivedReviews } from "./components/ReceivedReviews";
 import { WorkerWorkRecord } from "./components/WorkerWorkRecord";
 const LandingFlow = lazyChunk(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
 const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
@@ -275,6 +276,10 @@ function EmployerPreviewSheet() {
                 ))}
               </div>
             )}
+            {/* 受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定） */}
+            <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #EEE" }}>
+              <ReceivedReviews userId={st.farmer_id} direction="worker_to_farmer" />
+            </div>
           </>
         ) : (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この農家のプロフィールは未設定です</p>
@@ -360,9 +365,12 @@ function WorkerPreviewSheet() {
   // ── 指追従ページャー（ボックス一覧・農家プロ作成中⇄公開中と同じ作法）──
   // 横に動かしたと分かってから（8px）transformを直接書く＝毎フレームの再描画なしで指に付いてくる。
   // 縦の指はページャーが奪わない（touchAction:pan-y）＝ボックスの縦スクロールは従来どおり。
+  // ボックスは3枚（0=プロフィール／1=受け取った評価／2=はたらいた記録）。横スワイプで行き来する
+  const PV_PAGES = 3;
+  const pvStep = 100 / PV_PAGES; // トラック幅に対する1ページ分の割合
   const trackRef = useRef(null);
   const dragRef = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
-  const basePct = () => (page === 0 ? 0 : -50);
+  const basePct = () => -page * pvStep;
   const onPagerStart = (e) => {
     dragRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
   };
@@ -375,7 +383,7 @@ function WorkerPreviewSheet() {
       s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
     }
     if (s.lock !== "h") return;
-    const atEdge = (page === 0 && dx > 0) || (page === 1 && dx < 0); // 端は1/3の抵抗
+    const atEdge = (page === 0 && dx > 0) || (page === PV_PAGES - 1 && dx < 0); // 端は1/3の抵抗
     s.dx = atEdge ? dx / 3 : dx;
     el.style.transition = "none";
     el.style.transform = `translateX(calc(${basePct()}% + ${s.dx}px))`;
@@ -386,9 +394,11 @@ function WorkerPreviewSheet() {
     if (!s || !el || s.lock !== "h") return;
     el.style.transition = "transform .3s ease";
     const threshold = Math.min(80, s.w / 4);
-    if (page === 0 && s.dx < -threshold) { el.style.transform = "translateX(-50%)"; setPage(1); }
-    else if (page === 1 && s.dx > threshold) { el.style.transform = "translateX(0%)"; setPage(0); }
-    else { el.style.transform = `translateX(${basePct()}%)`; }
+    let next = page;
+    if (s.dx < -threshold && page < PV_PAGES - 1) next = page + 1;
+    else if (s.dx > threshold && page > 0) next = page - 1;
+    el.style.transform = `translateX(${-next * pvStep}%)`;
+    if (next !== page) setPage(next);
   };
 
   if (!st) return null;
@@ -405,7 +415,7 @@ function WorkerPreviewSheet() {
           <>
             {/* 2枚のどちらを見ているかの目印。タップでも切り替わる（スワイプがあることに気づけるように） */}
             <div style={{ display:"flex", gap:8, margin:"0 0 14px" }}>
-              {[{ k:0, l:"プロフィール" }, { k:1, l:"はたらいた記録" }].map(t => (
+              {[{ k:0, l:"プロフィール" }, { k:1, l:"受け取った評価" }, { k:2, l:"はたらいた記録" }].map(t => (
                 <button key={t.k} type="button" onClick={()=>setPage(t.k)} className="f-sans"
                   style={{ flex:1, padding:"9px 0", borderRadius:10, cursor:"pointer", background:"#fff",
                     border: page===t.k ? "2px solid #222" : "1px solid #EBEBEB",
@@ -415,17 +425,21 @@ function WorkerPreviewSheet() {
               ))}
             </div>
             <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
-              <div ref={trackRef} style={{ display:"flex", alignItems:"flex-start", width:"200%", transform: page===0 ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
+              <div ref={trackRef} style={{ display:"flex", alignItems:"flex-start", width:"300%", transform:`translateX(${basePct()}%)`, transition:"transform .3s ease" }}>
                 {/* 1枚目：プロフィール（従来の中身をそのまま） */}
-                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
+                <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
                   <WorkerTrustCard profile={st.profile} trust={st.trust} />
                   {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
                   <QaChat items={st.profile.pr_qa} />
                   <MyReviewsOfWorker workerId={st.worker_id} />
                   {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"profile", field:"", issue:"", detail:"", sending:false, done:false })} />}
                 </div>
-                {/* 2枚目：はたらいた記録（働き手ダッシュボードと同じ部品） */}
-                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
+                {/* 2枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定） */}
+                <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", padding:"0 5px" }}>
+                  <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
+                </div>
+                {/* 3枚目：はたらいた記録（働き手ダッシュボードと同じ部品） */}
+                <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
                   <WorkerWorkRecord workerId={st.worker_id} />
                   {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
                 </div>
