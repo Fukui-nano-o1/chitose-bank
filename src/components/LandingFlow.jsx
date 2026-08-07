@@ -540,6 +540,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // 「Cannot access before initialization」＝画面that真っ白になる（lintゲート no-use-before-define that検出）
   const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
   const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
+  const [overtimeInfoOpen,  setOvertimeInfoOpen]  = useState(false); // タイトル横「？」の説明展開（UI一時state・保存しない）
   // 掲載前の日程ガード（2026-07-24）：日程未設定のまま掲載に進ませない（終了求人コピー→日程空で複製、の受け皿）
   const [returnToConfirm, setReturnToConfirm] = useState(false);
   const openPublish = () => {
@@ -1536,10 +1537,19 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               })()}
               {/* 時間外労働（2026-08-03たきと指示「必須。勤務時間設定の下に」）：
                   所定の勤務時間を超える労働の有無は労働条件の明示事項so必須（farmerCanNext[5]でも判定）。
-                  「あり」のときは目安の時間も必須＝有無だけでなく「どれくらいか」まで明記させる */}
+                  「あり」のときは目安の時間も必須＝有無だけでなく「どれくらいか」まで明記させる。
+                  説明はタイトル横の？をタップで展開（2026-08-07たきと指示・常時表示をやめ画面を軽く） */}
               <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>時間外労働</label>
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>上の勤務時間を超えて作業をお願いすることthatあるかどうかです。働き手thatその日の予定を立てるために見ています。</p>
+                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>
+                  時間外労働
+                  <button type="button" onClick={() => setOvertimeInfoOpen(v => !v)} aria-label="時間外労働の説明"
+                    style={{ marginLeft:6, width:18, height:18, borderRadius:"50%", border:"1px solid " + (overtimeInfoOpen ? "#00A86B" : "#C8C8C8"), background: overtimeInfoOpen ? "#00A86B" : "#fff", color: overtimeInfoOpen ? "#fff" : "#999", fontSize:11, fontWeight:700, lineHeight:1, cursor:"pointer", padding:0, verticalAlign:"middle" }}>？</button>
+                </label>
+                {overtimeInfoOpen && (
+                  <p className="f-sans" style={{ fontSize:13, color:"#0B6B4F", background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:8, padding:"8px 10px", margin:"0 0 8px", lineHeight:1.7 }}>
+                    上の勤務時間を超えて作業をお願いすることがあるかどうかです。働き手がその日の予定を立てるために見ています。
+                  </p>
+                )}
                 <LFPillSelect options={OVERTIME_OPTIONS} value={overtimePolicy} onSelect={setOvertimePolicy} />
                 {overtimePolicy === "あり" && (<>
                   <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", margin:"8px 0 6px" }}>どれくらいの時間ですか</label>
