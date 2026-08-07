@@ -141,7 +141,7 @@ export function ChatList() {
 
         const [epRes, wpRes, jobRes] = await Promise.all([
           farmerIds.length ? supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url").in("auth_id", farmerIds) : Promise.resolve({ data: [] }),
-          workerIds.length ? supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", workerIds) : Promise.resolve({ data: [] }),
+          workerIds.length ? supabase.rpc("worker_cards_for_farmer", { p_worker_ids: workerIds }) : Promise.resolve({ data: [] }),
           jobNumbers.length ? supabase.from("jobs_public").select("job_number,crop,task").in("job_number", jobNumbers) : Promise.resolve({ data: [] }),
         ]);
         if (cancelled) return;

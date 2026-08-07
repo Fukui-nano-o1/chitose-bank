@@ -430,12 +430,14 @@ function WorkerPreviewSheet() {
           }
           // 段階1：プロフィール。審査中（審査待ち／修正依頼中）の働き手は本人と運営以外に見せない（2026-07-19）。
           // 審査中になった人はキャッシュからも消す（次回の段階0で出さない）
-          Promise.resolve(supabase.from("worker_profiles").select("*").eq("auth_id", workerId).maybeSingle()).then(wpRes => {
+          // 未承認の自己紹介(pr_pending等)を農家に渡さないため、承認済み列だけ返すRPC経由（2026-08-07）。
+          // 審査中の非表示ゲートはRPC側で判定し under_review フラグだけ返す（本文は返さない）
+          Promise.resolve(supabase.rpc("worker_profile_for_farmer", { p_worker_id: workerId })).then(wpRes => {
             // 通信失敗（res.error）では手元の表示（段階0のキャッシュ）を上書きしない＝2026-08-07規則
             if (wpRes?.error) { setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false } : prev); return; }
-            const p = wpRes?.data || null;
-            const underReview = !!(p && (((p.pr_pending || "").trim()) || (Array.isArray(p.pr_qa_pending) && p.pr_qa_pending.length > 0)));
-            const blocked = underReview && viewer?.id !== workerId && !isAdmin(viewer);
+            const raw = wpRes?.data || null;
+            const blocked = !!(raw && raw.under_review);
+            const p = blocked ? null : raw;
             setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false, blocked, viewer_id: viewer?.id || null, profile: blocked ? null : p } : prev);
             if (p && !blocked) setCache("preview:w:" + workerId, { profile: p, trust: getCache("preview:w:" + workerId)?.trust || null });
             else clearCache("preview:w:" + workerId);

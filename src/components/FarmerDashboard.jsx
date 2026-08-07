@@ -288,7 +288,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         setEmpTrust(tI && tI.ok ? tI : null); setCache("farm:empTrust", tI && tI.ok ? tI : null);
         if (epMini) { setEmpMini(epMini); setCache("farm:empMini", epMini); snapSet("empMini", epMini); }
         if (rosterData && rosterData.length > 0) {
-          const { data: rosterWp } = await supabase.from("worker_profiles").select("auth_id,nickname,avatar_url").in("auth_id", rosterData.map(r => r.worker_id));
+          const { data: rosterWp } = await supabase.rpc("worker_cards_for_farmer", { p_worker_ids: rosterData.map(r => r.worker_id) });
           const wpMap = {};
           (rosterWp || []).forEach(wp => { wpMap[wp.auth_id] = wp; });
           const rr = rosterData.map(r => ({ worker_id: r.worker_id, nickname: wpMap[r.worker_id]?.nickname || null, avatar_url: wpMap[r.worker_id]?.avatar_url || null }));
@@ -670,7 +670,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     (async () => {
       try {
         const [wpRes, trustRes] = await Promise.all([
-          supabase.from("worker_profiles").select("*").eq("auth_id", workerId).maybeSingle(),
+          // 未承認の自己紹介(pr_pending等)を農家に渡さないため、承認済み列だけ返すRPC経由（2026-08-07）
+          supabase.rpc("worker_profile_for_farmer", { p_worker_id: workerId }),
           supabase.rpc("worker_trust_info", { p_worker_id: workerId }),
         ]);
         setRosterDetail(prev => prev && prev.worker_id === workerId ? {
