@@ -6,7 +6,7 @@ import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK
   CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
-import { chatCache } from "../lib/chatCache";
+import { chatCache, hydrateChatCache } from "../lib/chatCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar, Dots } from "./ui";
@@ -19,23 +19,27 @@ export function ChatView({ applicationId, onBack }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState(null);
+  // 段階表示の先出し（2026-08-07たきと指示「はじめは最低限の要素のみ表示。段階的に表示させていく」）：
+  // 一覧キャッシュ（viewCache永続＝アプリ再起動後も残る骨・本文なし）に開いた応募の行があれば、
+  // 相手名・#N・段階・採用済みフラグ・役割を0往復で先出しする。本物の取得（applyActive）が後から上書き。
+  // ★表示専用（採用等の実行は従来どおりサーバーのRPC・RLSが正）。initializerは初回マウントのみ＝
+  //   スレッド切替時は既存のlocalRow/applyActiveのレールが同じ役目を担う
+  const _cr = hydrateChatCache()?.rows?.find(x => x.id === applicationId) || null;
   // { nickname, avatar_url }。一覧から来た時はchatCacheの相手名で即描画し、本物の取得で上書き
   // （2026-08-07たきと指示「アイコンの写真は後でいい。すぐに復元しろ」＝名前を待たせない。画像は<img>so届き次第出る）
-  const [partner, setPartner] = useState(() => {
-    const r = chatCache.v?.rows?.find(x => x.id === applicationId);
-    return (r && r.partnerName) ? { nickname: r.partnerName, avatar_url: r.partnerAvatar || "" } : null;
-  });
+  const [partner, setPartner] = useState(() =>
+    (_cr && _cr.partnerName) ? { nickname: _cr.partnerName, avatar_url: _cr.partnerAvatar || "" } : null);
   const [partnerInitials, setPartnerInitials] = useState(""); // ニックネーム未設定時のアイコン用・メール頭文字2文字（2026-07-22）
-  const [partnerWorkerId, setPartnerWorkerId] = useState(null); // 相手が働き手ならそのauth_id（アイコンタップでプレビュー・2026-07-19）
-  const [partnerFarmerId, setPartnerFarmerId] = useState(null); // 相手が農家ならそのauth_id（アイコンタップで雇い手プレビュー・2026-07-19）
+  const [partnerWorkerId, setPartnerWorkerId] = useState(() => _cr && _cr._role === "farmer" ? _cr.worker_id : null); // 相手が働き手ならそのauth_id（アイコンタップでプレビュー・2026-07-19）
+  const [partnerFarmerId, setPartnerFarmerId] = useState(() => _cr && _cr._role === "worker" ? _cr.farmer_id : null); // 相手が農家ならそのauth_id（アイコンタップで雇い手プレビュー・2026-07-19）
   // はじめる前の確認カード（⑦）
   const [confirmJob, setConfirmJob] = useState(null); // mapJobPublicRowで整形した求人情報
-  const [chatJobNumber, setChatJobNumber] = useState(null); // ヘッダー・確認カードの#N表示用（jobs_publicから消えた求人でも出す）
+  const [chatJobNumber, setChatJobNumber] = useState(() => _cr?.job_number ?? null); // ヘッダー・確認カードの#N表示用（jobs_publicから消えた求人でも出す）
   const [confirmMeetingPlace, setConfirmMeetingPlace] = useState(null);
-  const [workerConfirmed, setWorkerConfirmed] = useState(false);
-  const [farmerConfirmed, setFarmerConfirmed] = useState(false);
-  const [insurancePreparedAt, setInsurancePreparedAt] = useState(null);
-  const [isWorkerSide, setIsWorkerSide] = useState(false);
+  const [workerConfirmed, setWorkerConfirmed] = useState(() => !!_cr?.terms_confirmed_worker_at);
+  const [farmerConfirmed, setFarmerConfirmed] = useState(() => !!_cr?.terms_confirmed_farmer_at);
+  const [insurancePreparedAt, setInsurancePreparedAt] = useState(() => _cr?.insurance_prepared_at ?? null);
+  const [isWorkerSide, setIsWorkerSide] = useState(() => _cr?._role === "worker");
   const [confirmingTerms, setConfirmingTerms] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
   const [confirmBoxOpen, setConfirmBoxOpen] = useState(false); // 求人内容確認をボックス展開（2026-07-19）
@@ -88,9 +92,9 @@ export function ChatView({ applicationId, onBack }) {
     } catch { setJobBox({ loading: false, job_number: jobNumber, job: null }); }
   };
   const [activeAppId, setActiveAppId] = useState(applicationId);
-  const [activeStatus, setActiveStatus] = useState(null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
-  const [activeAvail, setActiveAvail] = useState(null); // 現役応募の来られる日（期間求人・文脈カードで表示・2026-07-24）
-  const [activeAgreed, setActiveAgreed] = useState(null); // 現役応募の働く日（確定・文脈カード/確認カードで表示・2026-07-24 追記3）
+  const [activeStatus, setActiveStatus] = useState(() => _cr?.status ?? null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
+  const [activeAvail, setActiveAvail] = useState(() => _cr?.available_dates ?? null); // 現役応募の来られる日（期間求人・文脈カードで表示・2026-07-24）
+  const [activeAgreed, setActiveAgreed] = useState(() => _cr?.agreed_dates ?? null); // 現役応募の働く日（確定・文脈カード/確認カードで表示・2026-07-24 追記3）
   const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
   // 現役応募を切り替える（状態＝採用/確認カード/保険/#N をその応募に合わせる）。求人ページ取得も行う
   const applyActive = async (row) => {

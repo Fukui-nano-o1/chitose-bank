@@ -1,7 +1,7 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。チャット一覧＋運営DMポップアップ＋通知オンバナー。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { chatCache } from "../lib/chatCache";
+import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush } from "../lib/push";
@@ -11,7 +11,11 @@ import { Avatar, LinkifiedText } from "./ui";
 // チャット一覧の直近スナップショット（2026-07-22）：チャットから戻った時にスピナーを出さず即表示し、
 // 裏で静かに更新する（リロード感の解消）。モジュールレベルなので再マウントをまたいで生き残る
 export function ChatList() {
-  const [rows, setRows] = useState(() => chatCache.v?.rows || []);
+  // 段階表示（2026-08-07たきと指示「はじめは最低限の要素のみ表示。段階的に表示させていく」）：
+  // 段階0＝前回の一覧（viewCacheの骨・本文なし）を0往復で即描画
+  // 段階1＝応募行が届いたら（1往復目）名前なしの行を出す（名前は「求人 #N」に落ちる）
+  // 段階2＝相手名・求人名が届いたら（2往復目）上書き。以降は従来どおり
+  const [rows, setRows] = useState(() => hydrateChatCache()?.rows || []);
   const [loading, setLoading] = useState(() => !chatCache.v); // キャッシュがあれば最初からスピナーを出さない
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("chats");
@@ -157,6 +161,13 @@ export function ChatList() {
         const all = [...byId.values()];
         if (cancelled) return;
         if (all.length === 0) { setRows([]); setLoading(false); return; }
+        // 段階1：応募行だけで行を出す（1往復目）。相手名・求人名は空＝表示は「求人 #N」＋段階チップに落ちる。
+        // ★前回の骨（段階0）を表示中なら上書きしない＝名前入りの表示を名前なしに退化させない
+        const bare = all.map(a => ({ ...a, partnerName: "", partnerAvatar: "", job: null }))
+          .sort((x, y) => new Date(y.created_at) - new Date(x.created_at))
+          .map(a => ({ ...a, _appIds: [a.id], _count: 1 }));
+        setRows(prev => prev.length ? prev : bare);
+        setLoading(false);
 
         const farmerIds = [...new Set(all.filter(a => a._role === "worker").map(a => a.farmer_id).filter(Boolean))];
         const workerIds = [...new Set(all.filter(a => a._role === "farmer").map(a => a.worker_id).filter(Boolean))];
@@ -195,7 +206,11 @@ export function ChatList() {
 
   // 一覧スナップショットの保存（2026-07-22）：初回ロード完了後、rows/未読/イニシャルが変わるたびキャッシュへ。
   // チャットから戻った再マウントで即表示され、スピナー（リロード感）が出なくなる
-  useEffect(() => { if (!loading) chatCache.v = { rows, unreadMap, initialsMap, lastMsgMap }; }, [rows, unreadMap, initialsMap, lastMsgMap, loading]);
+  useEffect(() => {
+    if (loading) return;
+    chatCache.v = { rows, unreadMap, initialsMap, lastMsgMap };
+    persistChatCache(); // 冷間起動の段階0用（本文は含まれない・chatCache.jsの注記参照）
+  }, [rows, unreadMap, initialsMap, lastMsgMap, loading]);
 
   // 並び（2026-07-27たきと指示・同日改定）：①未読があるスレッドを先頭 ②未読同士・既読同士とも
   // 「アクション順」＝最後のアクションが新しい順（未読が2件以上でも最新順で並ぶ）。
