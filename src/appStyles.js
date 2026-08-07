@@ -598,6 +598,19 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
 /* 働き手プロフィールも農家プロと同じ.profile-employer-edge(画面端から10px)に統一（2026-07-14） */
 
 /* ── プロフィール画面：雇い手空間への浮遊ボタン（モバイル専用・下部バーの真上に固定） ── */
+/* 求人の操作ピル（2026-08-07たきと指示）：お仕事タブの求人一覧に常設。浮遊☰の真横・同じ高さ。
+   PC（☰なし・下部バーなし）は左下12px。モバイルは☰(44px)の右隣＝left:12+44+8。
+   スクロール格納・オーバーレイ中の非表示・入力中の非表示は☰と同じ規則に連動 */
+.cb-job-action-fabs { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; gap: 8px; align-items: center; transition: transform .25s ease; }
+@media (max-width: 768px) {
+  .cb-job-action-fabs { left: calc(12px + 44px + 8px); bottom: calc(64px + 12px + env(safe-area-inset-bottom, 0px)); }
+  body.cb-scroll-hide .cb-job-action-fabs { transform: translateY(calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px))); }
+  body.cb-typing .cb-job-action-fabs { display: none !important; }
+}
+body:has(.cb-lock-scroll) .cb-job-action-fabs,
+body:has(.cb-preview-overlay) .cb-job-action-fabs,
+body:has(.cb-box-overlay) .cb-job-action-fabs { display: none !important; }
+
 .profile-employer-fab { display: none; }
 @media (max-width: 768px) {
   .profile-employer-fab {

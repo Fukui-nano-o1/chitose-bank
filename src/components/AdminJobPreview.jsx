@@ -16,9 +16,8 @@ const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い
 // JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
 // 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
 // mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
-export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onResumeJob, onDeleteJob, onUnpublishJob, onCopyJob }) {
+export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onUnpublishJob }) {
   const [confirmUnpub, setConfirmUnpub] = useState(false); // 一時非公開の確認ボックス（2026-07-16）
-  const [copying, setCopying] = useState(false); // 求人コピー中（2026-07-24）
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   // 掲載前の確認の記録（2026-07-30）：undefined=読み込み中／null=記録なし／オブジェクト=最新の1件
@@ -117,8 +116,8 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
       : { height:"100%", display:"flex", flexDirection:"column" }}>
       {/* 上部バー：管理者=審査の説明のみ（操作ボタンは下部バーへ）／農家本人=✕(戻る)＋一時非公開のみ。
-          再開・削除・コピーは左下の浮遊ピルへ移設（2026-08-07たきと指示「ハンバーガーメニューの横に設置。
-          役割選択（トグル）と同じ作法・タップで実行」）＝シート表示中は☰that隠れるので、その定位置の並びに置く */}
+          再開・削除・コピーは求人一覧ページの浮遊☰の横へ移設（2026-08-07たきと指示・FarmerDashboardの
+          .cb-job-action-fabs＝役割トグルと同じ作法・タップで実行）。このシートからは撤去済み */}
       {ownerView ? (
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -357,25 +356,9 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       </div>
       </div>
 
-      {/* 農家本人の操作ピル（2026-08-07たきと指示「削除・再開・コピーはハンバーガーメニューの横に設置。
-          役割選択（トグル）と同じ作法・タップで実行。削除は下書きのみ」）：
-          シート表示中は浮遊☰that隠れる（cb-lock-scroll）ので、その定位置＝左下の並びに浮遊ピルで置く。
-          タップで即実行（サブメニューを挟まない）。削除の可否は呼び出し元＝下書きかつ未掲載のみ
-          onDeleteJob を渡す（＋DBの trg_block_delete_past_job that二重の壁）。削除だけ confirm は残す（不可逆のため） */}
-      {ownerView && (onResumeJob || onDeleteJob || onCopyJob) && (
-        <div style={{ position:"absolute", left:12, bottom:"calc(12px + env(safe-area-inset-bottom, 0px))", zIndex:6, display:"flex", gap:8, alignItems:"center" }}>
-          {onResumeJob && (
-            <button onClick={onResumeJob} className="f-sans" style={{ padding:"12px 18px", fontSize:13.5, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 14px rgba(0,0,0,0.22)" }}>✏️ 再開</button>
-          )}
-          {onCopyJob && (
-            <button onClick={async ()=>{ if (copying) return; setCopying(true); try { await onCopyJob(); } finally { setCopying(false); } }} disabled={copying}
-              className="f-sans" style={{ padding:"12px 18px", fontSize:13.5, fontWeight:800, background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", borderRadius:24, cursor: copying ? "default" : "pointer", opacity: copying ? 0.6 : 1, boxShadow:"0 4px 14px rgba(0,0,0,0.18)" }}>{copying ? "コピー中..." : "📋 コピー"}</button>
-          )}
-          {onDeleteJob && (
-            <button onClick={onDeleteJob} className="f-sans" style={{ padding:"12px 18px", fontSize:13.5, fontWeight:800, background:"#fff", color:"#E24B4A", border:"1.5px solid #E24B4A", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 14px rgba(0,0,0,0.18)" }}>🗑 削除</button>
-          )}
-        </div>
-      )}
+      {/* 再開・削除・コピーの操作はこのシートから撤去（2026-08-07たきと指示）＝
+          お仕事タブの求人一覧ページで浮遊☰の横に常設（FarmerDashboardの.cb-job-action-fabs）。
+          実行の窓口を1箇所に保つ。このシートに残る操作は⏸一時非公開（右上）のみ */}
 
       {/* 下部の操作バー（審査のみ・2026-08-05たきと指示）：閉じる・修正を依頼・公開するは
           画面下部に固定＝親指で届く。ボタンは大きめ・セーフエリアぶん下に余白 */}

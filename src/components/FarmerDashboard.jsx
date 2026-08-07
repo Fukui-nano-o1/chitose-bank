@@ -520,6 +520,42 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 求人カードタップ→確認ページと同型の全画面プレビュー（AdminJobPreviewのownerViewモード流用）
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
+  // ── 求人の操作ピル（削除・再開・コピー）の実行部（2026-08-07たきと指示・描画は求人一覧ページ末尾）──
+  const [pickAction, setPickAction] = useState(null); // { kind:'resume'|'copy'|'delete', jobs:[...] }（対象2件以上の選択シート）
+  const runJobAction = async (kind, num) => {
+    setPickAction(null);
+    if (kind === "resume") { onResume(num); return; }
+    if (kind === "delete") {
+      // 削除は下書きのみ（呼び出し側で絞り済み＋DBの trg_block_delete_past_job が二重の壁）。不可逆so confirm は残す
+      if (!confirm("この求人（下書き）を削除しますか？元に戻せません")) return;
+      const { error } = await supabase.from("jobs").delete().eq("job_number", num).eq("farmer_id", me.id);
+      if (error) { alert("削除に失敗しました：" + error.message); return; }
+      setDbDrafts(prev => prev.filter(d => d.job_number !== num));
+      setDbActive(prev => prev.filter(d => d.job_number !== num));
+      return;
+    }
+    if (kind === "copy") {
+      const { data, error } = await supabase.rpc("copy_job", { p_job_number: num });
+      if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+      // コピーした行をそのまま次の画面へ渡す（2026-08-03）：jobsの読み直しを待たずに復元できる
+      try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
+      if (data.dates_cleared) alert("コピーしました。元の作業日程は終了しているため空にしています。確認ページの「日程」から新しい日を選んでください。");
+      window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
+    }
+  };
+  const tapJobAction = (kind) => {
+    // 対象：再開＝作成中の下書き／コピー＝手元の全求人（作成中＋公開中）／削除＝一度も掲載していない下書きのみ
+    const jobs = kind === "resume" ? dbDrafts
+      : kind === "copy" ? [...dbDrafts, ...dbActive]
+      : dbDrafts.filter(d => !d.opened_at);
+    if (jobs.length === 0) {
+      alert(kind === "delete" ? "削除できる下書きがありません（一度でも掲載した求人・応募のある求人は削除できません）"
+        : kind === "resume" ? "作成中の求人がありません" : "コピーできる求人がありません");
+      return;
+    }
+    if (jobs.length === 1) { runJobAction(kind, jobs[0].job_number); return; }
+    setPickAction({ kind, jobs });
+  };
   // 「公開間近」（＝掲載申請済み・公開の準備中）のカードをタップした時の説明ボックス（2026-08-07たきと指示）。
   // 詳細も求人者プロフィールも見せず、説明だけを展開する＝「審査されている」感を出さない
   const [nearPublishInfo, setNearPublishInfo] = useState(false);
@@ -1609,19 +1645,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       )}
 
-      {/* 求人カードタップ→確認ページと同型のボトムシート（作成中=再開・削除ボタン付き） */}
+      {/* 求人カードタップ→確認ページと同型のボトムシート。再開・削除・コピーはシートから撤去
+          （2026-08-07たきと指示＝求人一覧ページの浮遊☰の横に常設・下の .cb-job-action-fabs）。
+          シートに残る操作は⏸一時非公開のみ */}
       {previewJob && (
         <AdminJobPreview jobNumber={previewJob.num} ownerView
           onClose={()=>setPreviewJob(null)}
-          onResumeJob={previewJob.draft ? ()=>{ const n = previewJob.num; setPreviewJob(null); onResume(n); } : undefined}
-          onDeleteJob={(previewJob.draft && !previewJob.published) ? async ()=>{
-            if (!confirm("この求人（下書き）を削除しますか？元に戻せません")) return;
-            const { error } = await supabase.from("jobs").delete().eq("job_number", previewJob.num).eq("farmer_id", me.id);
-            if (error) { alert("削除に失敗しました：" + error.message); return; }
-            setDbDrafts(prev => prev.filter(d => d.job_number !== previewJob.num));
-            setDbActive(prev => prev.filter(d => d.job_number !== previewJob.num)); // 一時非公開は公開中タブ側にいる
-            setPreviewJob(null);
-          } : undefined}
           onUnpublishJob={previewJob.open ? async ()=>{
             // 一時非公開（2026-07-16）：open→draftへ（unpublish_job RPC・本人限定）。編集は作成中→再開から。再掲載は審査を通る
             const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: previewJob.num });
@@ -1629,18 +1658,39 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
             setDbActive(prev => prev.map(d => d.job_number === previewJob.num ? { ...d, status: "draft" } : d));
             setPreviewJob(null);
-          } : undefined}
-          onCopyJob={async ()=>{
-            const { data, error } = await supabase.rpc("copy_job", { p_job_number: previewJob.num });
-            if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-            // コピーした行をそのまま次の画面へ渡す（2026-08-03）：求人フローはこれがあれば
-            // jobsの読み直しを待たずに復元できる＝「更新が遅くてはじめから始まる」の解消
-            try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
-            // 元の日程が過ぎていた場合は空で複製される（終了扱い防止・2026-07-24）。選び直しを案内
-            if (data.dates_cleared) alert("コピーしました。元の作業日程は終了しているため空にしています。確認ページの「日程」から新しい日を選んでください。");
-            setPreviewJob(null);
-            window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
-          }} />
+          } : undefined} />
+      )}
+
+      {/* ── 求人の操作ピル（2026-08-07たきと指示「削除・再開・コピーはハンバーガーメニューの横に設置。
+           役割選択（トグル）と同じ作法・タップで実行。削除は下書きのみ」）──
+           求人一覧ページ（作成中⇄公開中）に常設。位置は浮遊☰の真横・同じ高さ（CSS .cb-job-action-fabs）。
+           対象が1件ならタップで即実行。複数なら選択シートを1枚だけ挟む（どの求人かは選ばせるしかない）。
+           削除の対象は下書き（一度も掲載していない）のみ＝DBの trg_block_delete_past_job と二重の壁 */}
+      {(jobTab === "draft" || jobTab === "active") && (
+        <div className="cb-job-action-fabs">
+          <button onClick={()=>tapJobAction("resume")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.18)", whiteSpace:"nowrap" }}>✏️ 再開</button>
+          <button onClick={()=>tapJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>📋 コピー</button>
+          <button onClick={()=>tapJobAction("delete")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#E24B4A", border:"1.5px solid #E24B4A", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>🗑 削除</button>
+        </div>
+      )}
+      {/* 対象の選択シート（対象が2件以上の時だけ）：タップで実行 */}
+      {pickAction && (
+        <div onClick={()=>setPickAction(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px calc(20px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:560, boxSizing:"border-box" }}>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>
+              {pickAction.kind === "resume" ? "✏️ どの求人を再開しますか？" : pickAction.kind === "copy" ? "📋 どの求人をコピーしますか？" : "🗑 どの下書きを削除しますか？"}
+            </p>
+            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップすると実行されます</p>
+            <div style={{ display:"grid", gap:8, maxHeight:"50vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+              {pickAction.jobs.map(j => (
+                <button key={j.job_number} onClick={()=>runJobAction(pickAction.kind, j.job_number)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, padding:"13px 14px", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer", textAlign:"left" }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || "（内容未入力）"}</span>
+                  <span style={{ fontSize:12, color:"#999", flexShrink:0 }}>#{j.job_number}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 「公開間近」の説明ボックス（2026-08-07たきと指示）：掲載申請済み求人のタップで開く。
