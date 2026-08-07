@@ -44,6 +44,35 @@ function lazyChunk(factory) {
     throw err;
   }));
 }
+
+// 掲載完了アニメの後の「60秒ノーアクションで さがす へ」の見張り（2026-08-07たきと指示）。
+// マウント中に一度でも操作（タップ・キー・スクロール・タッチ）or 画面遷移thatあれば取り消す＝
+// 本当に何もせず滞在した時だけ /search へ送る。onEnd(fired)：firedならタイムアウト発火・falseなら取り消し。
+// ★モジュールレベル定義（フォーカス消失バグ回避の作法）。pointer-events等は一切奪わない（listenerのみ）。
+function PublishIdleRedirect({ seconds = 60, onEnd }) {
+  const onEndRef = useRef(onEnd); onEndRef.current = onEnd;
+  useEffect(() => {
+    let done = false;
+    let t;
+    // ユーザー操作（タップ・キー・スクロール・タッチ）を1つでも拾ったら取り消す。
+    // hashchange は入れない＝アプリ内部のルーティングで誤って取り消さないため（タブ移動はpointerdownで拾える）
+    const evs = ["pointerdown","keydown","touchstart","wheel"];
+    // 関数宣言（巻き上げ）で相互参照する（no-use-before-define の functions:false で許容）
+    function finish(fired) {
+      if (done) return; done = true;
+      clearTimeout(t);
+      evs.forEach(ev => window.removeEventListener(ev, cancel, true));
+      onEndRef.current?.(fired);
+    }
+    function cancel() { finish(false); }
+    t = setTimeout(() => finish(true), seconds * 1000);
+    evs.forEach(ev => window.addEventListener(ev, cancel, true));
+    return () => { clearTimeout(t); evs.forEach(ev => window.removeEventListener(ev, cancel, true)); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
 const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
 // 仮応募の成功ページ（第15弾・2026-07-30）。応募した人だけが通る画面so遅延読み込み
 const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m => ({ default: m.ApplyPending })));
@@ -1394,6 +1423,10 @@ export default function App(){
   // 応募完了の祝祭（2026-08-06・赤ちゃん前提の第0歩）：apply/doneに新規到着した時だけ1回。
   // 応募済み（already）の再訪では祝わない。演出のみ＝記録・フローには触れない
   const [applyBurst,setApplyBurst]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")!=="1");
+  // 求人の掲載完了は「ページ」でなくアニメーション（祝祭）に（2026-08-07たきと指示）。
+  // 祝祭が消えたあと、60秒ノーアクションなら さがす へ自動遷移（何かタップ/操作すれば取り消す）。
+  const [pubCelebrate,setPubCelebrate]=useState(null); // { open:bool } | null（3秒の祝祭）
+  const [pubIdle,setPubIdle]=useState(false);          // 60秒アイドル→/search の見張り
   // 全ボタン共通のタップの手応え（振動のみ・無音・iOSでは静かに無視される）。
   // 「押せた」の証拠＝文字が読めない利用者への最小のフィードバック（2026-08-06）
   useEffect(() => {
@@ -2764,6 +2797,11 @@ export default function App(){
       {/* この画面を報告：☰やヘルプの章開閉と無関係な階層に常駐（2026-07-14アンマウントバグ修正） */}
       <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
 
+      {/* 掲載完了はページでなくアニメーション（2026-08-07たきと指示）。タブに依らずグローバルに出す＝
+          掲載後に /profile/employer へ遷移した先で祝祭that重なり、60秒ノーアクションで さがす へ送る */}
+      {pubCelebrate && <Celebration emoji={pubCelebrate.open ? "🎉" : "🌱"} title={pubCelebrate.open ? "公開しました！" : "求人ができました！"} onDone={()=>setPubCelebrate(null)} />}
+      {pubIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setPubIdle(false); if (fired) window.location.hash="/search"; }} />}
+
       {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるso、個別に包む
           （2026-08-07 コピー→白画面の修理）：包まないと、チャンク読み込み失敗・描画エラーthat
           ここで起きた時にReactthatツリー全体を落とし、復帰ボタンも無い白画面になる */}
@@ -2777,6 +2815,7 @@ export default function App(){
       {me&&showJobPost&&(
         <AppErrorBoundary><Suspense fallback={null}><LandingFlow
           initialRole="farmer"
+          onPublished={(wasOpen)=>{ setShowJobPost(false); window.location.hash="/profile/employer"; setPubCelebrate({ open: !!wasOpen }); setPubIdle(true); }}
           onComplete={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}

@@ -319,7 +319,7 @@ function LFFakeFilterRow() {
 
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
-export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
+export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
 
   // ── ログイン後復帰: postLoginReturnTo を確認して draft を読み込む ──
@@ -2095,8 +2095,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                 setDraftJobNumber(null);
                 setPublishModal(false);
-                setPublishedOpen(canOpen); // 完了画面の文言（公開しました／公開間近）に使う
-                setStep(12);
+                // 完了は「ページ」でなくアニメーション（2026-08-07たきと指示）。Appに掲載成功を伝え、
+                // App側で祝祭アニメ＋60秒アイドル→さがす を出す。onPublished 未指定時のみ従来の完了ページに倒す
+                if (typeof onPublished === "function") { onPublished(canOpen); }
+                else { setPublishedOpen(canOpen); setStep(12); }
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
               } finally {
