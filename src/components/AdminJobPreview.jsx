@@ -116,7 +116,9 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     <div onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
       ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
       : { height:"100%", display:"flex", flexDirection:"column" }}>
-      {/* 上部バー：管理者=審査の説明のみ（操作ボタンは下部バーへ）／農家本人=✕(戻る)＋再開・削除（ボトムシートのヘッダー） */}
+      {/* 上部バー：管理者=審査の説明のみ（操作ボタンは下部バーへ）／農家本人=✕(戻る)＋一時非公開のみ。
+          再開・削除・コピーは左下の浮遊ピルへ移設（2026-08-07たきと指示「ハンバーガーメニューの横に設置。
+          役割選択（トグル）と同じ作法・タップで実行」）＝シート表示中は☰that隠れるので、その定位置の並びに置く */}
       {ownerView ? (
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -126,20 +128,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
               <button onClick={()=>setConfirmUnpub(true)} className="f-sans" style={{ padding:"9px 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer" }}>⏸ 一時非公開</button>
             )}
           </div>
-          {(onResumeJob || onDeleteJob) && (
-            <div style={{ display:"flex", gap:8, marginTop:10 }}>
-              {onResumeJob && (
-                <button onClick={onResumeJob} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✏️ 再開</button>
-              )}
-              {onDeleteJob && (
-                <button onClick={onDeleteJob} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>🗑 削除</button>
-              )}
-            </div>
-          )}
-          {/* この求人をコピーして新しい下書きを作る（2026-07-24）：過去の求人の内容を流用 */}
-          {onCopyJob && (
-            <button onClick={async ()=>{ if (copying) return; setCopying(true); try { await onCopyJob(); } finally { setCopying(false); } }} disabled={copying} className="f-sans" style={{ width:"100%", marginTop:8, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor: copying ? "default" : "pointer", opacity: copying ? 0.6 : 1 }}>{copying ? "コピー中..." : "📋 この求人をコピーして新規作成"}</button>
-          )}
         </div>
       ) : (
       <div style={{
@@ -368,6 +356,26 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         </>)}
       </div>
       </div>
+
+      {/* 農家本人の操作ピル（2026-08-07たきと指示「削除・再開・コピーはハンバーガーメニューの横に設置。
+          役割選択（トグル）と同じ作法・タップで実行。削除は下書きのみ」）：
+          シート表示中は浮遊☰that隠れる（cb-lock-scroll）ので、その定位置＝左下の並びに浮遊ピルで置く。
+          タップで即実行（サブメニューを挟まない）。削除の可否は呼び出し元＝下書きかつ未掲載のみ
+          onDeleteJob を渡す（＋DBの trg_block_delete_past_job that二重の壁）。削除だけ confirm は残す（不可逆のため） */}
+      {ownerView && (onResumeJob || onDeleteJob || onCopyJob) && (
+        <div style={{ position:"absolute", left:12, bottom:"calc(12px + env(safe-area-inset-bottom, 0px))", zIndex:6, display:"flex", gap:8, alignItems:"center" }}>
+          {onResumeJob && (
+            <button onClick={onResumeJob} className="f-sans" style={{ padding:"12px 18px", fontSize:13.5, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 14px rgba(0,0,0,0.22)" }}>✏️ 再開</button>
+          )}
+          {onCopyJob && (
+            <button onClick={async ()=>{ if (copying) return; setCopying(true); try { await onCopyJob(); } finally { setCopying(false); } }} disabled={copying}
+              className="f-sans" style={{ padding:"12px 18px", fontSize:13.5, fontWeight:800, background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", borderRadius:24, cursor: copying ? "default" : "pointer", opacity: copying ? 0.6 : 1, boxShadow:"0 4px 14px rgba(0,0,0,0.18)" }}>{copying ? "コピー中..." : "📋 コピー"}</button>
+          )}
+          {onDeleteJob && (
+            <button onClick={onDeleteJob} className="f-sans" style={{ padding:"12px 18px", fontSize:13.5, fontWeight:800, background:"#fff", color:"#E24B4A", border:"1.5px solid #E24B4A", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 14px rgba(0,0,0,0.18)" }}>🗑 削除</button>
+          )}
+        </div>
+      )}
 
       {/* 下部の操作バー（審査のみ・2026-08-05たきと指示）：閉じる・修正を依頼・公開するは
           画面下部に固定＝親指で届く。ボタンは大きめ・セーフエリアぶん下に余白 */}
