@@ -25,10 +25,12 @@ export function SavedJobsView({ me }) {
   // my_job_actions はカードの最小限（報酬・地域・3トグルを含まない）so、開いた求人だけ jobs_public から
   // 1行読み足す。job_number→mapped行｜null(非公開=draft/pending等でビューに無い)。開いたものだけ・1回だけ
   const [boxFull, setBoxFull] = useState({});
-  // ボックス内の求人カードのタップ演出（2026-08-07たきと指示「詳細に遷移するな」）：
-  // タップ＝cbJobShowcase（縮む→一拍→大きく→右へスライド）を再生するだけ。遷移しない。
-  // 求人ページへ行く道は下の📄ボックスに一本化
+  // ボックス内の求人カードのタップ（2026-08-07たきと指示「求人タップでスライドしてね。
+  // そこで、求人詳細の確認しよう」）：タップ＝cbJobShowcase（縮む→一拍→大きく→右へスライドアウト）を
+  // 再生し、終わった合図で面を求人詳細パネルへスライドする。ページ遷移はしない。
+  // boxPane: "main"＝要約・日にち・操作ボックス／"detail"＝求人詳細の確認パネル
   const [cardShow, setCardShow] = useState(false);
+  const [boxPane, setBoxPane] = useState("main");
   // ボックスの下スワイプで畳む（2026-08-07たきと指示「下スクロールはボックスを畳む。指に連動。
   // 画面中央より下で指が離れたなら畳む」）：
   // ・シート内の中身が最上部（scrollTop<=0）のときだけ、下向きのドラッグがシートを掴む＝
@@ -106,7 +108,7 @@ export function SavedJobsView({ me }) {
     };
   }, [boxJob]);
   useEffect(() => {
-    setCardShow(false); // 開き直し・別の求人への切り替えで演出の残骸を持ち越さない
+    setCardShow(false); setBoxPane("main"); // 開き直し・別の求人への切り替えで演出・面の残骸を持ち越さない
     const jn = boxJob?.job_number;
     if (!jn || jn in boxFull) return;
     let dead = false;
@@ -353,7 +355,79 @@ export function SavedJobsView({ me }) {
               <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
                 <button onClick={()=>setBoxJob(null)} aria-label="閉じる" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
               </div>
-              <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+              <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+                {/* ═══ 面の2枚構造（2026-08-07たきと指示「求人タップでスライドしてね。そこで、求人詳細の確認しよう」）：
+                     [詳細パネル｜メイン面] を横に並べ、コンテナのtransformで切り替える。
+                     カードの右スライドアウト（cbJobShowcase）が終わった合図で詳細面へ＝中身全体that右へずれて
+                     左から詳細that現れる（カードの動きと同じ右方向・連続した1つの動きに見える）。
+                     戻るは詳細面の「← 戻る」（cardShowも解除＝カードが定位置に戻る） ═══ */}
+                <div style={{ display:"flex", width:"200%", transform: boxPane === "detail" ? "translateX(0)" : "translateX(-50%)", transition:"transform .35s ease" }}>
+                {/* ── 面2：求人詳細の確認パネル（左側に置く＝右ずれの動きで現れる） ── */}
+                <div style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
+                  {boxPane === "detail" && (() => {
+                    const full = boxFull[r.job_number];
+                    const backBtn = (
+                      <button onClick={()=>{ setBoxPane("main"); setCardShow(false); }} className="f-sans"
+                        style={{ background:"none", border:"none", padding:"0 0 12px", fontSize:14, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>← 戻る</button>
+                    );
+                    if (!full) return (
+                      <div>
+                        {backBtn}
+                        <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
+                          {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : "読み込み中..."}
+                        </p>
+                      </div>
+                    );
+                    const j = full;
+                    const rows = [
+                      ["日程", j.dateLabel], ["勤務時間", j.workTime], ["休憩", j.breakTime],
+                      ["報酬", j.pay > 0 ? (j.payType === "daily" ? `日給${j.pay.toLocaleString()}円` : `時給${j.pay.toLocaleString()}円`) : ""],
+                      ["募集人数", j.count], ["場所", j.region],
+                      ["最寄り駅", [j.nearestStation, j.commuteTime].filter(Boolean).join("から ")],
+                    ].filter(x => x[1]);
+                    return (
+                      <div>
+                        {backBtn}
+                        <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 2px" }}>{[j.crop, j.task].filter(Boolean).join(" ") || "求人"}</p>
+                        <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>#{j.id}{j.region ? "　" + j.region : ""}</p>
+                        <div style={{ background:"#FAFAFA", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", display:"grid", gap:6 }}>
+                          {rows.map(x => (
+                            <div key={x[0]} style={{ display:"flex", gap:10 }}>
+                              <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0, width:64 }}>{x[0]}</span>
+                              <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600, minWidth:0 }}>{x[1]}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {j.jobBody && (
+                          <div style={{ marginTop:12 }}>
+                            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>作業の説明</p>
+                            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{j.jobBody}</p>
+                          </div>
+                        )}
+                        {j.items && (
+                          <div style={{ marginTop:12 }}>
+                            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>持ち物</p>
+                            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{j.items}</p>
+                          </div>
+                        )}
+                        {j.cautions && (
+                          <div style={{ marginTop:12 }}>
+                            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>注意事項</p>
+                            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{j.cautions}</p>
+                          </div>
+                        )}
+                        {/* 危険箇所・地図・保険・募集主・Q&Aは求人ページが正（法定表示・モザイク境界を二重実装しない）。
+                            ここは「確認」用の要約に留め、全文はページへ */}
+                        <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} className="f-sans"
+                          style={{ width:"100%", marginTop:16, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
+                          求人ページで全文を見る →
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+                {/* ── 面1：メイン（バナー・カード・日にち・操作ボックス） ── */}
+                <div style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
                 {/* 現在地バナー（応募者ページと同じ・段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
                 {phase ? (
                   <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
@@ -380,11 +454,14 @@ export function SavedJobsView({ me }) {
                       id: r.job_number, crop: r.crop || "", task: r.task || "", photos: r.photos || [],
                       region: r.town || "", dateStartRaw: r.date_start || "", dateEndRaw: r.date_end || "", pay: 0,
                     };
-                    // タップ＝演出のみ・詳細に遷移しない（2026-08-07たきと指示）。外側のoverflow:hiddenで
-                    // 右スライドのはみ出しを切る（シート内に横スクロールを作らない）
+                    // タップ＝演出→終わった合図で詳細面へスライド（2026-08-07たきと指示）。
+                    // 外側のoverflow:hiddenで右スライドのはみ出しを切る（シート内に横スクロールを作らない）。
+                    // ★onAnimationEndはtarget一致で絞る：JobCard内の写真ポップ（cbPhotoTapZoom・0.35s）that
+                    //   バブルしてくるため、絞らないと演出の途中で面が切り替わる
                     return (
                       <div style={{ overflow:"hidden" }}>
-                        <div className={cardShow ? "cb-job-showcase" : undefined} onAnimationEnd={()=>setCardShow(false)}>
+                        <div className={cardShow ? "cb-job-showcase" : undefined}
+                          onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && cardShow) setBoxPane("detail"); }}>
                           <JobCard job={job} variant="wide" onOpen={()=>{ if (!cardShow) setCardShow(true); }} />
                         </div>
                       </div>
@@ -425,6 +502,8 @@ export function SavedJobsView({ me }) {
                     </button>
                   )}
                 </div>
+                </div>{/* /面1メイン */}
+                </div>{/* /面の2枚構造 */}
               </div>
             </div>
           </div>
