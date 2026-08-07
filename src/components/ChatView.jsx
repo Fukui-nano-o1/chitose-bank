@@ -16,6 +16,7 @@ export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
   const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
+  const nearBottomRef = useRef(true); // 利用者が下端の近く(80px以内)にいるか。onScrollで更新・自動スクロールの条件（2026-08-07）
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState(null);
@@ -183,6 +184,7 @@ export function ChatView({ applicationId, onBack }) {
     //   セッション/相手プロフィール/イニシャル/全応募の再取得（4往復）を丸ごと省き、
     //   手元の行でapplyActive→messagesの読込だけ行う（体感が一気に縮む）
     setMsgs([]); setMsgsLoading(true); // 切替＝前の残像を消し、仮配置に戻す
+    nearBottomRef.current = true; // 開いた直後・スレッド切替は必ず最下部から（前のスレッドで遡った状態を引き継がない）
     const localRow = threadApps.find(r => r.id === applicationId);
     if (localRow && myId) {
       setAppIds([applicationId]);
@@ -273,17 +275,23 @@ export function ChatView({ applicationId, onBack }) {
     const iv = setInterval(refresh, 5000);
     return () => { document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); clearInterval(iv); };
   }, [appIds]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 最新メッセージへ自動スクロール（LINE式・2026-07-19）。
-  // ★末尾のメッセージが増えた時だけ動かす（2026-08-07）：既読化やポーリング由来の再描画では
-  //   スクロールしない＝履歴を読んでいる位置を奪わない（上のsetMsgs同一判定と二重の壁）
+  // 最新メッセージへの自動スクロール（LINE式・2026-07-19／2026-08-07たきと指示
+  // 「更新はしてほしい。だけど、勝手に遷移させないで」で最終形）：
+  //   更新（新着の反映）は常に行う。スクロールで最下部へ動かすのは
+  //   ①自分が下端の近くにいる時（会話を追っている＝ついていく）
+  //   ②末尾の新着が自分の送信の時（自分の発言は必ず見せる）
+  //   の2つだけ。履歴を遡って読んでいる間は、新着が来ても位置を奪わない。
+  //   ポーリング・既読化由来の再描画では動かない（setMsgs同一判定と二重の壁）
   const lastMsgIdRef = useRef(null);
   useEffect(() => {
     const last = msgs.length ? msgs[msgs.length - 1].id : null;
-    if (last === lastMsgIdRef.current) return;
+    if (last === lastMsgIdRef.current) return; // 末尾が増えていない＝再描画のみ
     lastMsgIdRef.current = last;
     const el = msgScrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [msgs]);
+    if (!el) return;
+    const mine = msgs.length > 0 && myId && msgs[msgs.length - 1].sender_id === myId;
+    if (nearBottomRef.current || mine) el.scrollTop = el.scrollHeight;
+  }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
   // 働き手の内容確認専用（農家の採用実行は採用するページ #/calendar/todo/hire に一本化・2026-08-06
   // 「器と機能の役割は一つに絞れ」。二重予約の壁はDB側confirm_termsthat農家の初回確定時のみ見るso、
   // 働き手の確認呼び出しには掛からない＝受諾フラグ不要）
@@ -585,6 +593,7 @@ export function ChatView({ applicationId, onBack }) {
       {/* 横スワイプで求人No.を切り替える（2026-07-30たきと指示）。指に連動＝引いた分だけ中身がずれ、
           離すと切り替わる／戻る。上部の求人No.帯のタップと同じ行き先（hash差し替え＝再読込しない） */}
       <div ref={msgScrollRef}
+        onScroll={(e)=>{ const el = e.currentTarget; nearBottomRef.current = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80; }}
         onTouchStart={onChatSwipeStart} onTouchMove={onChatSwipeMove} onTouchEnd={onChatSwipeEnd} onTouchCancel={onChatSwipeEnd}
         style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8,
                  transform: swipeDx ? `translateX(${swipeDx}px)` : undefined,
