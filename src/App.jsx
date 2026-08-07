@@ -15,12 +15,16 @@ import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 // ※関数宣言（巻き上げあり）にすること：下のconst定義より前に実行されるためconstだとTDZで落ちる
 function lazyChunk(factory) {
   return lazy(() => factory()
-    .then(m => { try { sessionStorage.removeItem("cb_chunkReload"); } catch {} return m; })
+    .then(m => { try { sessionStorage.removeItem("cb_chunkReloadAt"); sessionStorage.removeItem("cb_chunkReload"); } catch {} return m; })
     .catch(err => {
-      // 1セッション1回まで（無限リロード防止）。2回目以降は素直に失敗させる
+      // 自動再読込は「20秒に1回まで」（無限リロード防止）。
+      // ★旧実装の「1セッション1回まで」は、連続デプロイの日に1回分を早々に使い切り、
+      //   以後のチャンク失敗that白画面のまま残っていた（2026-08-07 コピー→白画面の実害）。
+      //   時間制なら連続失敗のループは止まり、時間を置いた別の失敗からは毎回復帰できる
       try {
-        if (!sessionStorage.getItem("cb_chunkReload")) {
-          sessionStorage.setItem("cb_chunkReload", "1");
+        const last = Number(sessionStorage.getItem("cb_chunkReloadAt") || 0);
+        if (!(Date.now() - last < 20000)) {
+          sessionStorage.setItem("cb_chunkReloadAt", String(Date.now()));
           window.location.reload();
         }
       } catch {}
@@ -169,7 +173,7 @@ class AppErrorBoundary extends Component {
           // データだった場合、リロードだけでは同じデータで落ち続ける。再読み込み時は表示キャッシュを
           // 全部捨ててから読み直す（キャッシュは表示専用so捨てても最新を取り直すだけ・実害なし）
           try { clearCache(); } catch {}
-          try { sessionStorage.removeItem("cb_chunkReload"); } catch {}
+          try { sessionStorage.removeItem("cb_chunkReload"); sessionStorage.removeItem("cb_chunkReloadAt"); } catch {}
           window.location.reload();
         }}
           style={{ padding:"12px 26px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>再読み込み</button>
@@ -2747,29 +2751,32 @@ export default function App(){
       {/* この画面を報告：☰やヘルプの章開閉と無関係な階層に常駐（2026-07-14アンマウントバグ修正） */}
       <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
 
+      {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるso、個別に包む
+          （2026-08-07 コピー→白画面の修理）：包まないと、チャンク読み込み失敗・描画エラーthat
+          ここで起きた時にReactthatツリー全体を落とし、復帰ボタンも無い白画面になる */}
       {!me&&showLanding&&(
-        <Suspense fallback={null}><LandingFlow
+        <AppErrorBoundary><Suspense fallback={null}><LandingFlow
           onComplete={()=>setShowLanding(false)}
           onSkip={()=>{setShowLanding(false);setTab("search");}}
           onLogin={()=>{setShowLanding(false);setTab("login");}}
-        /></Suspense>
+        /></Suspense></AppErrorBoundary>
       )}
       {me&&showJobPost&&(
-        <Suspense fallback={null}><LandingFlow
+        <AppErrorBoundary><Suspense fallback={null}><LandingFlow
           initialRole="farmer"
           onComplete={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onStepChange={(s)=>{ if(window.location.hash.replace(/^#\/?/,"").startsWith("work/new")) window.location.hash="/work/new/"+s; }}
           initialStep={(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^work\/new\/(\d+)$/); return m?parseInt(m[1],10):undefined; })()}
-        /></Suspense>
+        /></Suspense></AppErrorBoundary>
       )}
       {me&&showDevJump&&(
-        <Suspense fallback={null}><LandingFlow
+        <AppErrorBoundary><Suspense fallback={null}><LandingFlow
           onComplete={()=>setShowDevJump(false)}
           onSkip={()=>setShowDevJump(false)}
           onLogin={()=>setShowDevJump(false)}
-        /></Suspense>
+        /></Suspense></AppErrorBoundary>
       )}
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
       {showConstitution&&<DataConstitution onClose={()=>setShowConstitution(false)}/>}
