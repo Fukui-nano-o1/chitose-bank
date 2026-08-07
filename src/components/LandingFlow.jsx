@@ -564,6 +564,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // （自由記述3項目=送迎範囲・通勤手当の内容・農家負担の上限はtexts_pending経由＝運営承認後に公開・憲法5条）
   const [perksEditOpen, setPerksEditOpen] = useState(false);
   const [perkDraft, setPerkDraft] = useState(null);
+  // 待遇変更ボックス展開中は下部ナビ（←戻る・保存・掲載する）を画面下へ潜らせる（2026-08-07たきと指示）。
+  // 非表示は unmount でなく transform：mount したまま translateY を切り替えることで、
+  // 「下へ潜る」と「閉じたら戻る」の両方向が CSS transition で動く（unmountだと退場アニメが効かない）。
+  // 移動量＝自分の高さ100%＋下余白＋セーフエリア＝画面外まで確実に出る
+  const perksNavHide = {
+    transform: perksEditOpen ? "translateY(calc(100% + 24px + env(safe-area-inset-bottom, 0px)))" : "translateY(0)",
+    transition: "transform .3s ease",
+    pointerEvents: perksEditOpen ? "none" : "auto",
+  };
   const [perkSaving, setPerkSaving] = useState(false);
   const openPerksEdit = () => {
     const base = jobPerks ? { ...(confEmployer || {}), ...jobPerks } : (confEmployer || {});
@@ -2752,6 +2761,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         <div style={{
           background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 8px",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
+          ...perksNavHide,
         }}>
           {/* step1は戻る先が説明ページしかないため戻るボタンなし（2026-07-16）。spanはspace-betweenの左詰め維持用 */}
           {step === 1
@@ -2782,6 +2792,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               position:"fixed", left:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60,
               display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
               fontSize:14, fontWeight:600, color:"#222", cursor:"pointer", padding:"12px 18px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+              ...perksNavHide,
             }}>← 戻る</button>
           )}
           {/* 次へ（＋スキップ）：右下の浮遊ボックス */}
@@ -2798,7 +2809,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           )}
           {/* 確認ページ(step11)：右下に「保存」＋「掲載する」の浮遊ペア */}
           {isFarmer && step === 11 && (
-            <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10, ...perksNavHide }}>
               <button onClick={() => handleTopSave({ exit: false })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
             </div>
