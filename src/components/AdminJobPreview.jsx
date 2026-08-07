@@ -115,10 +115,9 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     <div onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
       ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
       : { height:"100%", display:"flex", flexDirection:"column" }}>
-      {/* 上部バー：管理者=審査の説明のみ（操作ボタンは下部バーへ）／農家本人=✕(戻る)＋一時非公開のみ。
-          再開・削除・コピーは求人一覧ページの浮遊☰の横へ移設（2026-08-07たきと指示・FarmerDashboardの
-          .cb-job-action-fabs＝役割トグルと同じ作法・タップで実行）。このシートからは撤去済み */}
-      {ownerView ? (
+      {/* 上部バー：農家本人＝✕(戻る)＋一時非公開のみ。管理者（審査）は上部バーなし＝
+          説明文と黄色い枠は削除（2026-08-07たきと指示）。操作は下部の3ボタンだけ */}
+      {ownerView && (
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <button onClick={onClose} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
@@ -128,18 +127,11 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
             )}
           </div>
         </div>
-      ) : (
-      <div style={{
-        flexShrink:0, background:"#FFF8E7", borderBottom:"1px solid #F5D98F",
-        padding:"10px 20px", paddingTop:"calc(10px + env(safe-area-inset-top, 0px))",
-      }}>
-        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", margin:0 }}>審査プレビュー — 各項目の「指摘」を押して修正を依頼できます</p>
-      </div>
       )}
 
       <div style={ownerView
         ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" }
-        : { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+        : { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingTop:"env(safe-area-inset-top, 0px)" }}>
       <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading && (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>読み込み中<Dots /></p>
@@ -363,7 +355,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       {/* 下部の操作バー（審査のみ・2026-08-05たきと指示）：閉じる・修正を依頼・公開するは
           画面下部に固定＝親指で届く。ボタンは大きめ・セーフエリアぶん下に余白 */}
       {!ownerView && (
-        <div style={{ flexShrink:0, display:"flex", gap:8, background:"#FFF8E7", borderTop:"1px solid #F5D98F",
+        <div style={{ flexShrink:0, display:"flex", gap:8, background:"#fff", borderTop:"1px solid #EBEBEB",
           padding:"10px 12px", paddingBottom:"calc(10px + env(safe-area-inset-bottom, 0px))" }}>
           <button onClick={onClose} className="f-sans" style={{ flexShrink:0, padding:"13px 18px", fontSize:14, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>閉じる</button>
           <button onClick={findings.length > 0 ? submitRevision : ()=>alert("修正を依頼したい項目の「指摘」を押して、何がどう問題かを入力してください。")} disabled={!job || revSending} className="f-sans" style={{ flex:1, padding:"13px 0", fontSize:14, fontWeight:700, background: findings.length > 0 ? "#EA580C" : "#fff", color: findings.length > 0 ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>{revSending ? "送信中..." : `修正を依頼${findings.length > 0 ? `（${findings.length}）` : ""}`}</button>
