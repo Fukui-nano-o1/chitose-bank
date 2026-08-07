@@ -4092,3 +4092,28 @@ third_party_publish_allowed=true so一般農家v_Lの求人も運営承認でope
 必要な範囲で残ります」はこの範囲so整合＝不変。build+lint 0 error・distに新文言と版を確認。
 【これでW3bはクローズ】退会まわりの残論点は「退会申請UI→実削除のボタン一発化（現在は運営that手動でprocess_withdrawal）」のみ。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 プラポリ違反の修理：未承認の自己紹介が農家に届く穴を塞ぐ（worker_profiles）━━━
+【指示】同日プラポリ一周で発見した違反にたきと「やれ」。
+【穴】worker_profiles のRLS「wp farmer select via application」が行単位で全列を農家に開く＋フロントが
+select("*")so、未承認の pr_pending/pr_qa_pending（＋pr_hidden_original/pr_revision_targets）が農家の
+クライアントに届いていた（画面には出ないがdevtoolsで読める＝連絡先交換の禁止の審査ゲートもデータ層で迂回）。
+【修理（migration 20260807232859・本番適用・repo写経済み）】雇い手 employer_profiles_public（承認済み列だけの
+ビュー）と同型に揃えた：
+・worker_profile_for_farmer(worker_id)＝フル。承認済み/台帳安全列だけ返す（pr_pending系は絶対返さない）。
+  資格＝本人/運営/応募を受けた農家。moderated は出さない。★審査中（pr_pending あり）は農家に本文を返さず
+  {under_review:true} のみ（2026-07-19の「審査中は本人・運営以外に見せない」ゲートをサーバ側に移設）。本人・運営は
+  審査中でも承認済み内容を見られる。
+・worker_cards_for_farmer(worker_ids[])＝一覧用。nickname/avatar だけ・資格のある働き手ぶんだけ返す。
+・RLS「wp farmer select via application」を DROP。owner（本人）・admin の SELECT は残す＝編集/審査は不変。
+  worker_trust_info 等の SECURITY DEFINER はRLS非依存so無影響。
+【フロント4経路を差し替え】FarmerDashboard（ロスター詳細→フルRPC・ロスター一覧→カードRPC）／
+App.jsx WorkerPreviewSheet（プレビュー→フルRPC・under_reviewでblocked表示）／ChatList（チャット相手→カードRPC）。
+本人/運営の直読み（ProfileHub・WorkerProfileEdit・AdminTab審査・TodayПage等）は owner/admin RLSで不変。
+【検証（全ロールバック）】①農家の生行直読み=0行 ②フルRPC=承認済みprのみ・未承認テキスト非含 ③カードRPC通る
+④無関係者=null/[] ⑤本人・運営は生行維持 ⑥anon拒否 ⑦審査中：農家={under_review:true}のみ・本人/運営は見える・
+審査済で農家に通常表示。build 0エラー・残置ゼロ。並走の worker_profile_view_count は独自テーブル＋DEFINER窓口で
+本RLSに非依存＝衝突なしを確認。
+【雇い手側は元から安全】employer_profiles は admin＋本人のみのRLS＋employer_profiles_public ビュー経由で
+texts_pending を列に含めない＝同じ穴なし。今回の修理で働き手側もこの型に揃った。
+━━━ ここまで ━━━
