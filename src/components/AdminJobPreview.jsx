@@ -109,12 +109,14 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
   return createPortal(
     <div onClick={ownerView ? onClose : undefined} className="cb-lock-scroll" style={ownerView
       ? { position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }
-      : { position:"fixed", inset:0, zIndex:9000, background:"#fff", overflowY:"auto" }}>
-    {/* 下部バーを隠すso画面下端まで伸ばす（角丸は上だけ・セーフエリアは内側の下パディングで確保） */}
+      : { position:"fixed", inset:0, zIndex:9000, background:"#fff" }}>
+    {/* 下部バーを隠すso画面下端まで伸ばす（角丸は上だけ・セーフエリアは内側の下パディングで確保）。
+        審査（!ownerView）も同じ flex column 構造＝上:説明バー／中:スクロール／下:操作ボタン固定バー
+        （2026-08-05たきと指示「閉じる・修正を依頼・公開は下部に。上はタップしずらい」） */}
     <div onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
       ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
-      : undefined}>
-      {/* 上部バー：管理者=審査バー／農家本人=✕(戻る)＋再開・削除（ボトムシートのヘッダー） */}
+      : { height:"100%", display:"flex", flexDirection:"column" }}>
+      {/* 上部バー：管理者=審査の説明のみ（操作ボタンは下部バーへ）／農家本人=✕(戻る)＋再開・削除（ボトムシートのヘッダー） */}
       {ownerView ? (
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -141,19 +143,16 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         </div>
       ) : (
       <div style={{
-        position:"sticky", top:0, zIndex:10, background:"#FFF8E7", borderBottom:"1px solid #F5D98F",
-        padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap",
+        flexShrink:0, background:"#FFF8E7", borderBottom:"1px solid #F5D98F",
+        padding:"10px 20px", paddingTop:"calc(10px + env(safe-area-inset-top, 0px))",
       }}>
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:0 }}>審査プレビュー — 各項目の「指摘」を押して修正を依頼できます</p>
-        <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-          <button onClick={onClose} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-          <button onClick={findings.length > 0 ? submitRevision : ()=>alert("修正を依頼したい項目の「指摘」を押して、何がどう問題かを入力してください。")} disabled={!job || revSending} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background: findings.length > 0 ? "#EA580C" : "#fff", color: findings.length > 0 ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>{revSending ? "送信中..." : `修正を依頼${findings.length > 0 ? `（${findings.length}）` : ""}`}</button>
-          <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
-        </div>
+        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#8A6D1D", margin:0 }}>審査プレビュー — 各項目の「指摘」を押して修正を依頼できます</p>
       </div>
       )}
 
-      <div style={ownerView ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" } : undefined}>
+      <div style={ownerView
+        ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" }
+        : { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
       <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading && (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>読み込み中<Dots /></p>
@@ -369,6 +368,17 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         </>)}
       </div>
       </div>
+
+      {/* 下部の操作バー（審査のみ・2026-08-05たきと指示）：閉じる・修正を依頼・公開するは
+          画面下部に固定＝親指で届く。ボタンは大きめ・セーフエリアぶん下に余白 */}
+      {!ownerView && (
+        <div style={{ flexShrink:0, display:"flex", gap:8, background:"#FFF8E7", borderTop:"1px solid #F5D98F",
+          padding:"10px 12px", paddingBottom:"calc(10px + env(safe-area-inset-bottom, 0px))" }}>
+          <button onClick={onClose} className="f-sans" style={{ flexShrink:0, padding:"13px 18px", fontSize:14, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>閉じる</button>
+          <button onClick={findings.length > 0 ? submitRevision : ()=>alert("修正を依頼したい項目の「指摘」を押して、何がどう問題かを入力してください。")} disabled={!job || revSending} className="f-sans" style={{ flex:1, padding:"13px 0", fontSize:14, fontWeight:700, background: findings.length > 0 ? "#EA580C" : "#fff", color: findings.length > 0 ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>{revSending ? "送信中..." : `修正を依頼${findings.length > 0 ? `（${findings.length}）` : ""}`}</button>
+          <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ flex:1, padding:"13px 0", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
+        </div>
+      )}
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
       {dangerLightbox && (
