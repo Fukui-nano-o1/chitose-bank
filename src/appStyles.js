@@ -610,6 +610,8 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
 body:has(.cb-lock-scroll) .cb-job-action-fabs,
 body:has(.cb-preview-overlay) .cb-job-action-fabs,
 body:has(.cb-box-overlay) .cb-job-action-fabs { display: none !important; }
+/* ペイン切替（作成中⇄公開中）で3つ目のピルthat削除⇄非公開に入れ替わる時のポップ（2026-08-07） */
+@keyframes cbPillSwap { from { transform: translateY(14px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .profile-employer-fab { display: none; }
 @media (max-width: 768px) {
