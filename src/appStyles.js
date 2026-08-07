@@ -1298,6 +1298,13 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   100% { transform: scale(1, 1); }
 }
 body.cb-scrolling .cb-like-heart { animation: cbHeartJelly .55s ease-in-out infinite; }
+/* カード写真のタップポップ（2026-08-07たきと指示）：タップした時、写真that少し拡大して元に戻る。
+   発火・解除はJobCard側（onClick→state・onAnimationEnd→解除） */
+@keyframes cbPhotoTapZoom {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
 
 /* 訪問者の玄関（#/visit）：いま募集中の求人が横に流れる帯（2026-07-27たきと指示・ロゴの差し替え）。
    同じ並びを2回描いて -50% まで流す＝継ぎ目なしで無限ループ。指を置いている間は停止。
