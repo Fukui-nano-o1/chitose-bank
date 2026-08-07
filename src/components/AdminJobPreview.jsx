@@ -105,6 +105,75 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
   };
 
+  // 右スワイプで公開（2026-08-07たきと指示「公開の役割は右スワイプ。指に連動。公開するボタン削除」）。
+  // しきい値（画面幅35%・最大140px）を超えて離すと公開、未満なら弾んで戻る。
+  // スライドで下から公開の緑面thatが現れる（進み具合＝視覚の答え合わせ）。
+  // カルーセル内で始まったタッチは奪わない。修正依頼モード中・公開処理中・読み込み中は発動しない。
+  // ★2026-08-07修理（「機能していない」）：ReactのonTouchMoveはpassive＝preventDefault不可で、
+  //   iOSでは縦スクロール容器thatジェスチャを奪い横の追従that効かなかった。今日ページ・タブスワイプと
+  //   同じ実証済みの作法（ネイティブリスナー{passive:false}・方向ロック8px・transform直書き）に統一
+  const swipeRef = useRef(null);   // {x, y, dx, lock, w}
+  const dragBoxRef = useRef(null); // スライドさせるスクロール容器
+  const pubHintRef = useRef(null); // 下に敷いた公開の緑面（opacityを直書き）
+  // リスナーはマウント時に1度だけ張るso、発動条件は ref 経由で最新を読む
+  const swipeGateRef = useRef({});
+  swipeGateRef.current = { revMode, publishing, hasJob: !!job, editing: !!editTarget, onPublish };
+  useEffect(() => {
+    if (ownerView) return;
+    const el = dragBoxRef.current; if (!el) return;
+    const onStart = (ev) => {
+      const g = swipeGateRef.current;
+      if (g.revMode || g.publishing || !g.hasJob || g.editing) { swipeRef.current = null; return; }
+      if (ev.target.closest && ev.target.closest(".carousel-scroll")) { swipeRef.current = null; return; }
+      const t = ev.touches[0]; if (!t) return;
+      swipeRef.current = { x: t.clientX, y: t.clientY, dx: 0, lock: null, w: window.innerWidth || 1 };
+    };
+    const onMove = (ev) => {
+      const s2 = swipeRef.current; if (!s2) return;
+      const t = ev.touches[0]; if (!t) return;
+      const dx = t.clientX - s2.x, dy = t.clientY - s2.y;
+      if (!s2.lock) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // 8px動くまで判定保留
+        s2.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v"; // 1ジェスチャ1回だけ軸を確定
+      }
+      if (s2.lock !== "h") return; // 縦確定＝ブラウザのスクロールに完全に譲る
+      ev.preventDefault();
+      s2.dx = Math.max(0, dx); // 右方向のみ（左は追従しない）
+      el.style.transition = "none";
+      el.style.transform = `translateX(${s2.dx}px)`;
+      if (pubHintRef.current) pubHintRef.current.style.opacity = String(Math.min(1, s2.dx / 120));
+    };
+    const onEnd = () => {
+      const s2 = swipeRef.current; swipeRef.current = null;
+      if (!s2 || s2.lock !== "h") return;
+      const g = swipeGateRef.current;
+      const commit = s2.dx > Math.min(140, s2.w * 0.35);
+      el.style.transition = "transform .25s ease";
+      if (commit && g.onPublish && g.hasJob && !g.publishing) {
+        el.style.transform = `translateX(${s2.w}px)`;
+        g.onPublish(); // 成功時は親thatプレビューを閉じる（既存挙動）
+        // 失敗（alert後も画面thatが残る）に備えて少し後に戻す
+        setTimeout(() => {
+          if (dragBoxRef.current) { dragBoxRef.current.style.transform = "translateX(0)"; }
+          if (pubHintRef.current) pubHintRef.current.style.opacity = "0";
+        }, 1500);
+      } else {
+        el.style.transform = "translateX(0)";
+        if (pubHintRef.current) pubHintRef.current.style.opacity = "0";
+      }
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [ownerView]);
+
   // document.bodyへポータル（2026-07-19）：呼び出し元の祖先（AdminTabの.appear等）がtransformを
   // 保持していると、その要素がposition:fixedの基準になり全画面に広がらない（審査プレビューが途中で切れる不具合）。
   // bodyへ出せばfixedの基準が確実にビューポートになる
@@ -133,7 +202,14 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         </div>
       )}
 
-      <div style={ownerView
+      {/* 公開の緑面（審査のみ）：右スワイプでスクロール面thaが右へずれると下から現れる */}
+      {!ownerView && (
+        <div ref={pubHintRef} aria-hidden="true" style={{ position:"absolute", inset:0, background:"#00A86B", opacity:0,
+          display:"flex", alignItems:"center", justifyContent:"flex-start", paddingLeft:28, pointerEvents:"none" }}>
+          <span className="f-sans" style={{ color:"#fff", fontSize:22, fontWeight:800 }}>公開する →</span>
+        </div>
+      )}
+      <div ref={ownerView ? undefined : dragBoxRef} style={ownerView
         ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" }
         : { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingTop:"env(safe-area-inset-top, 0px)",
             background:"#fff", position:"relative", touchAction:"pan-y" }}>
@@ -358,11 +434,10 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           実行の窓口を1箇所に保つ。このシートに残る操作は⏸一時非公開（右上）のみ */}
 
       {/* 下部の操作バー（審査のみ・2026-08-05たきと指示・下余白5px固定）。
-          右スワイプ公開は撤回（2026-08-07たきと指示「機能していない。右へスワイプは削除。
-          代わりに修正を依頼の横幅を大きく」）＝案内文を消して「公開する」ボタンを復活。
-          修正を依頼thatflex:1で幅を取り、公開するはコンパクト（誤タップさせない）。
+          公開するボタンは廃止＝右スワイプに置換（2026-08-07たきと指示）。案内文も出さない
+          （同日たきと指示「管理者は僕だから説明は不要」）＝修正を依頼thatバーの幅を広く取る。
           「修正を依頼」は2段構え：押すと指摘チップthaが現れるモードに入り、0件のままもう一度押すと
-          やめる、1件以上で押すと送信 */}
+          やめる、1件以上で押すと送信。zIndex=公開の緑面より上（バーは常に見える） */}
       {!ownerView && (
         <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:8, background:"#fff", borderTop:"1px solid #EBEBEB",
           padding:"10px 12px 5px", position:"relative", zIndex:2 }}>
@@ -376,9 +451,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
               border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>
             {revSending ? "送信中..." : !revMode ? "修正を依頼" : findings.length > 0 ? `修正を依頼（${findings.length}）を送信` : "指摘をやめる"}
           </button>
-          <button onClick={onPublish} disabled={publishing || !job} className="f-sans"
-            style={{ flexShrink:0, padding:"13px 18px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>
-            {publishing ? "公開中..." : "公開する"}</button>
         </div>
       )}
 
