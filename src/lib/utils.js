@@ -438,7 +438,7 @@ export const WORKER_DECLARATIONS = [
   { k:"self_insurance",  label:"自分で傷害保険に加入している", chip:"傷害保険に加入" },
 ];
 
-// 「✓ 本人確認済み（YYYY年M月）」用
+// 「✓ 連絡先確認済み（YYYY年M月）」用
 export function yearMonthLabel(dateStr) {
   const d = new Date(dateStr);
   return `${d.getFullYear()}年${d.getMonth() + 1}月`;

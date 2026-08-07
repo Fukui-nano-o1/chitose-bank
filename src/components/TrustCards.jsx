@@ -41,7 +41,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
             <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{tenureLabel(trust.joined_at)}</span>
           )}
           {trust.verified_at && (
-            <span className="f-sans" style={{ fontSize:11, color:ROLE_ORANGE_INK, fontWeight:600 }}>✓ 本人確認済み（{yearMonthLabel(trust.verified_at)}）</span>
+            <span className="f-sans" style={{ fontSize:11, color:ROLE_ORANGE_INK, fontWeight:600 }}>✓ 連絡先確認済み（{yearMonthLabel(trust.verified_at)}）</span>
           )}
         </div>
       )}
@@ -171,7 +171,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
             <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{trust.member_since}から</span>
           )}
           {trust.id_checked && (
-            <span className="f-sans" style={{ fontSize:11, color:AC, fontWeight:600 }}>✓ 本人確認済み</span>
+            <span className="f-sans" style={{ fontSize:11, color:AC, fontWeight:600 }}>✓ 連絡先確認済み</span>
           )}
         </div>
       )}
