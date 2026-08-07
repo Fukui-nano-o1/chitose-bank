@@ -68,32 +68,6 @@ function Breakdown({ title, rows }) {
   );
 }
 
-// 直近5件の1行。
-// ★求人の中身（No.・作物・作業）は運営と本人にだけDBが返す（2026-08-07・閲覧農家には過去の求人を出さない。
-//   2026-08-05裁定のNo.伏せの徹底＝作物×日付からも辿れないようにした）。無い時は日付と判定だけの行になる
-function RecentRow({ r }) {
-  const p = punchOf(r);
-  const jobLabel = [r.crop, r.task].filter(Boolean).join(" ");
-  return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:"1px solid #F5F5F5" }}>
-      <div style={{ minWidth:0, flex:1 }}>
-        <p className="f-sans" style={{ fontSize:12, color:"#222", margin:0, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-          {r.work_date || "日付なし"}{jobLabel ? `　${jobLabel}` : ""}
-        </p>
-        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0" }}>
-          {r.job_number ? <>No.{r.job_number}　</> : null}
-          {r.scheduled_start && <>予定 {r.scheduled_start}</>}
-          {r.actual_start && <>　打刻 {r.actual_start}</>}
-          {r.auto_started && <>　自動開始</>}
-          {r.started_declared && <>　申告</>}
-          {r.time_corrected && <>　修正あり</>}
-        </p>
-      </div>
-      <span className="f-sans" style={{ flexShrink:0, fontSize:11, fontWeight:800, color:p.color, background:p.bg, borderRadius:20, padding:"3px 10px" }}>{p.label}</span>
-    </div>
-  );
-}
-
 // 記録の本体。showName=名前を出す（ダッシュボードでは出す・プレビューは上に名刺があるので出さない）
 export function WorkRecordBody({ data, showName }) {
   const t = data.totals || {};
@@ -117,9 +91,11 @@ export function WorkRecordBody({ data, showName }) {
       )}
     </div>
 
-    {/* ① 直近5件の遅刻・欠勤 */}
+    {/* ① 直近5件の遅刻・欠勤：要約チップのみ。回ごとの明細行（日付・予定時刻・判定）は
+        2026-08-07たきと指示「丸ごと消せ」で削除した＝日付×時刻から過去の求人を辿らせない徹底。
+        数え方（punchOf・記録なしは遅刻とも時間どおりとも数えない）は不変 */}
     <div className="ledger-card" style={{ padding:"16px", marginBottom:12 }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:2 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
         <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>直近5件</p>
         {recent.length > 0 && (
           <span className="f-sans" style={{ fontSize:11, fontWeight:800, borderRadius:20, padding:"3px 10px",
@@ -128,10 +104,8 @@ export function WorkRecordBody({ data, showName }) {
           </span>
         )}
       </div>
-      {recent.length === 0 ? (
+      {recent.length === 0 && (
         <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"8px 0 0" }}>働いた記録がまだありません</p>
-      ) : (
-        <div style={{ marginTop:6 }}>{recent.map(r => <RecentRow key={r.application_id} r={r} />)}</div>
       )}
     </div>
 
@@ -145,7 +119,7 @@ export function WorkRecordBody({ data, showName }) {
 
     <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"14px 2px 0" }}>
       すべて記録から出しています。時間は求人の勤務時間から数えています（休憩は引いていません）。
-      打刻のない回・自動で開始になった回は「記録なし」と書き、遅刻とも時間どおりとも決めつけません。
+      打刻のない回・自動で開始になった回は、遅刻とも時間どおりとも決めつけません。
       点数や順位は付けません。
     </p>
   </>);
