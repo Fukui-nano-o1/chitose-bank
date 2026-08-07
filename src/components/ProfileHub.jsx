@@ -11,7 +11,46 @@ import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
 
-export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
+// 退会セクション（2026-08-07たきと指示・プロフィール最下部）：タップで説明＋いいえ/はいを展開。
+// いいえ＝閉じる／はい＝退会申請を記録してログアウト。処理はProfileModal（旧・到達不能だった退会）と同一。
+// フォーカス消失バグ回避のためモジュールレベル定義（ProfileHub内に定義しない・CLAUDE.md技術メモ）。
+function ProfileWithdrawSection({ onLogout }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const doWithdraw = async () => {
+    if (busy) return;
+    setBusy(true);
+    // 退会申し出を記録（プラポリv3第7条1：申し出から30日以内に運営が削除）。
+    // insert失敗でもsignOutは実行する＝退会の意思表示を通信エラーで妨げない
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase.from("withdrawal_requests").insert({ auth_id: user.id });
+        if (error) console.error("退会申請の記録に失敗:", error.message);
+      }
+    } catch (e) { console.error("退会申請の記録に失敗:", e); }
+    try { await supabase.auth.signOut(); } catch {}
+    if (onLogout) onLogout();
+  };
+  return (
+    <div style={{ borderTop:"1px solid #EBEBEB", marginTop:32, paddingTop:20, paddingBottom:8 }}>
+      {!open
+        ? <button onClick={()=>setOpen(true)} className="f-sans" style={{ width:"100%", padding:"12px", border:"none", background:"none", fontSize:13, color:"#E24B4A", cursor:"pointer", textAlign:"center" }}>退会する</button>
+        : <div style={{ padding:20, background:"#FCEBEB", borderRadius:14, border:"1px solid #E24B4A22" }}>
+            <p className="f-sans" style={{ fontSize:13, color:"#E24B4A", marginBottom:14, lineHeight:1.8, textAlign:"center" }}>
+              本当に退会しますか？<br/>登録した情報は運営that確認し、申し出から30日以内に削除します。<br/>作業や取引の記録は、法令と紛争対応のため必要な範囲で残ります。
+            </p>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>setOpen(false)} disabled={busy} className="f-sans" style={{ flex:1, padding:"11px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, fontSize:13, cursor:"pointer", color:"#222" }}>いいえ</button>
+              <button onClick={doWithdraw} disabled={busy} className="f-sans" style={{ flex:1, padding:"11px", background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", opacity: busy ? 0.6 : 1 }}>{busy ? "処理中..." : "はい、退会する"}</button>
+            </div>
+          </div>
+      }
+    </div>
+  );
+}
+
+export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout }) {
   const hashToPTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer" || h.startsWith("profile/employer/")) return "employer";
@@ -342,6 +381,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange }) {
         </>
       )}
       </div>
+      {/* 退会（2026-08-07たきと指示）：プロフィール入口の最下部。編集・サブページでは出さない。
+          働き手ホーム・雇い手ホームのどちらでも1箇所に出る（退会はアカウント単位so役割不問） */}
+      {(pTab === "employer" ? eHome : wTab === "home") && <ProfileWithdrawSection onLogout={onLogout} />}
     </div>
   );
 }

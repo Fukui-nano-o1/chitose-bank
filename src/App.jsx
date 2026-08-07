@@ -2600,7 +2600,7 @@ export default function App(){
           ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
-              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} /></Suspense>
+              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} onLogout={handleLogout} /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {/* 新着の応募ページ（#/new-applicants・2026-08-05たきと指示）：応募を受けた雇い手専用。
             未対応の応募があればサイトを開いた時にここへ着地する（起動時の着地判定・topLandingChecked）。読み取り専用＝
