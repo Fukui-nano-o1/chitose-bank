@@ -150,7 +150,7 @@ import { compressImage } from "./lib/image";
 import { peekApplyReturn } from "./lib/applyReturn";
 import { armLoginReturn, takeLoginReturn } from "./lib/loginReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
-import { setCache, clearCache } from "./lib/viewCache";
+import { getCache, setCache, clearCache } from "./lib/viewCache";
 
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 
@@ -324,22 +324,28 @@ function EmployerPreviewSheet() {
     const f = (e) => {
       const farmerId = e.detail;
       if (!farmerId) return;
-      setSt({ farmer_id: farmerId, loading: true, profile: null, trust: null });
-      (async () => {
-        try {
-          const [epRes, trustRes] = await Promise.all([
-            supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,insurance_items,created_at").eq("auth_id", farmerId).maybeSingle(),
-            supabase.rpc("employer_trust_info", { p_farmer_id: farmerId }),
-          ]);
-          setSt(prev => prev && prev.farmer_id === farmerId ? {
-            farmer_id: farmerId, loading: false,
-            profile: epRes.data || null,
-            trust: (trustRes.data && trustRes.data.ok) ? trustRes.data : null,
-          } : prev);
-        } catch {
-          setSt(prev => prev && prev.farmer_id === farmerId ? { ...prev, loading: false } : prev);
-        }
-      })();
+      // 段階表示（2026-08-07・働き手プレビューと同じ3段）：段階0＝前回のプレビュー即表示（viewCache）／
+      // 段階1＝プロフィールが届いた時点で表示／段階2＝実績が届き次第合流（失敗時は上書きしない）
+      const cached = getCache("preview:e:" + farmerId);
+      if (cached?.profile) setSt({ farmer_id: farmerId, loading: false, profile: cached.profile, trust: cached.trust || null });
+      else setSt({ farmer_id: farmerId, loading: true, profile: null, trust: null });
+      Promise.resolve(supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,insurance_items,created_at").eq("auth_id", farmerId).maybeSingle())
+        .then(epRes => {
+          // 通信失敗（res.error）では手元の表示（段階0のキャッシュ）を上書きしない＝2026-08-07規則
+          if (epRes?.error) { setSt(prev => prev && prev.farmer_id === farmerId ? { ...prev, loading: false } : prev); return; }
+          const p = epRes?.data || null;
+          setSt(prev => prev && prev.farmer_id === farmerId ? { ...prev, loading: false, profile: p } : prev);
+          if (p) setCache("preview:e:" + farmerId, { profile: p, trust: getCache("preview:e:" + farmerId)?.trust || null });
+          else clearCache("preview:e:" + farmerId); // 本当に未設定＝キャッシュも消す
+        }).catch(() => { setSt(prev => prev && prev.farmer_id === farmerId ? { ...prev, loading: false } : prev); });
+      Promise.resolve(supabase.rpc("employer_trust_info", { p_farmer_id: farmerId }))
+        .then(trustRes => {
+          const t = (trustRes?.data && trustRes.data.ok) ? trustRes.data : null;
+          if (!t) return;
+          setSt(prev => prev && prev.farmer_id === farmerId ? { ...prev, trust: t } : prev);
+          const c = getCache("preview:e:" + farmerId);
+          if (c?.profile) setCache("preview:e:" + farmerId, { ...c, trust: t });
+        }).catch(() => {});
     };
     window.addEventListener("cb:openEmployerPreview", f);
     return () => window.removeEventListener("cb:openEmployerPreview", f);
@@ -411,29 +417,44 @@ function WorkerPreviewSheet() {
       if (!workerId) return;
       setPage(0); // 開くたびに1枚目から
       setReviewsEmpty(false); // 前の人の空判定を持ち越さない
-      setSt({ worker_id: workerId, loading: true, profile: null, trust: null });
+      // 段階表示（2026-08-07たきと報告「展開が10秒。優先順位つけて表示させて」）：
+      // 従来はプロフィール＋実績RPCの両方が返るまで「読み込み中」＝遅い方（実績のコールドスパイク）が
+      // 全体を人質にしていた。3段に分離：
+      // 段階0（0往復）＝前回のプレビュー（viewCache・表示専用）があれば即表示→裏で最新化
+      // 段階1（1往復目）＝プロフィールが届いた時点で表示（実績を待たない）
+      // 段階2＝実績（worker_trust_info）が届き次第あとから合流。失敗時は上書きしない
+      const cached = getCache("preview:w:" + workerId);
+      if (cached?.profile) setSt({ worker_id: workerId, loading: false, blocked: false, viewer_id: null, profile: cached.profile, trust: cached.trust || null });
+      else setSt({ worker_id: workerId, loading: true, profile: null, trust: null });
       (async () => {
         try {
-          const [wpRes, trustRes, sessRes] = await Promise.all([
-            supabase.from("worker_profiles").select("*").eq("auth_id", workerId).maybeSingle(),
-            supabase.rpc("worker_trust_info", { p_worker_id: workerId }),
-            supabase.auth.getSession(),
-          ]);
-          // 審査中（審査待ち／修正依頼中）の働き手は、本人と運営以外にプレビューを見せない（2026-07-19）
-          const p = wpRes.data || null;
-          const viewer = sessRes?.data?.session?.user || null;
+          const { data: { session } } = await supabase.auth.getSession(); // ローカル読み＝往復なし
+          const viewer = session?.user || null;
           // 閲覧された回数（2026-08-07たきと裁定：匿名カウンター）。誰が見たかは送らない・保存されない。
           // 本人と運営はRPC側でも数えないが、リクエスト自体を省く。失敗しても表示には影響させない
           if (viewer?.id && viewer.id !== workerId && !isAdmin(viewer)) {
             Promise.resolve(supabase.rpc("count_worker_profile_view", { p_worker_id: workerId })).catch(() => {});
           }
-          const underReview = !!(p && (((p.pr_pending || "").trim()) || (Array.isArray(p.pr_qa_pending) && p.pr_qa_pending.length > 0)));
-          const blocked = underReview && viewer?.id !== workerId && !isAdmin(viewer);
-          setSt(prev => prev && prev.worker_id === workerId ? {
-            worker_id: workerId, loading: false, blocked, viewer_id: viewer?.id || null,
-            profile: blocked ? null : p,
-            trust: (!blocked && trustRes.data && trustRes.data.ok) ? trustRes.data : null,
-          } : prev);
+          // 段階1：プロフィール。審査中（審査待ち／修正依頼中）の働き手は本人と運営以外に見せない（2026-07-19）。
+          // 審査中になった人はキャッシュからも消す（次回の段階0で出さない）
+          Promise.resolve(supabase.from("worker_profiles").select("*").eq("auth_id", workerId).maybeSingle()).then(wpRes => {
+            // 通信失敗（res.error）では手元の表示（段階0のキャッシュ）を上書きしない＝2026-08-07規則
+            if (wpRes?.error) { setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false } : prev); return; }
+            const p = wpRes?.data || null;
+            const underReview = !!(p && (((p.pr_pending || "").trim()) || (Array.isArray(p.pr_qa_pending) && p.pr_qa_pending.length > 0)));
+            const blocked = underReview && viewer?.id !== workerId && !isAdmin(viewer);
+            setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false, blocked, viewer_id: viewer?.id || null, profile: blocked ? null : p } : prev);
+            if (p && !blocked) setCache("preview:w:" + workerId, { profile: p, trust: getCache("preview:w:" + workerId)?.trust || null });
+            else clearCache("preview:w:" + workerId);
+          }).catch(() => { setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false } : prev); });
+          // 段階2：実績。届き次第合流（res.errorや拒否は上書きしない＝フェイルオープン規則）
+          Promise.resolve(supabase.rpc("worker_trust_info", { p_worker_id: workerId })).then(trustRes => {
+            const t = (trustRes?.data && trustRes.data.ok) ? trustRes.data : null;
+            if (!t) return;
+            setSt(prev => prev && prev.worker_id === workerId && !prev.blocked ? { ...prev, trust: t } : prev);
+            const c = getCache("preview:w:" + workerId);
+            if (c?.profile) setCache("preview:w:" + workerId, { ...c, trust: t });
+          }).catch(() => {});
         } catch {
           setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false } : prev);
         }
