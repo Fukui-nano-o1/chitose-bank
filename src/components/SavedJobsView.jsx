@@ -59,7 +59,14 @@ export function SavedJobsView({ me }) {
     if (!boxJob || !el) return;
     el.style.transform = ""; el.style.transition = ""; // 開き直し・求人切り替えの残骸を消す
     el.style.willChange = "transform";
-    if (paneRef.current) { paneRef.current.style.transform = ""; paneRef.current.style.transition = ""; }
+    // ★面コンテナの残骸掃除は「空文字」でなく現在の面の定位置を書く（2026-08-07「ボックスが真っ白」の修理）：
+    //   transform="" にするとReactthaが与えた translateX(-50%)（メイン面の位置）まで消え、コンテナthaが
+    //   空の詳細面を向いたまま固定＝真っ白に見えた。Reactは自分の前回値と同じ間は書き直さないため、
+    //   手動で消した値は手動で正しい値に戻すこと（settleHの注記と同じ罠）
+    if (paneRef.current) {
+      paneRef.current.style.transition = "transform .35s ease"; // ""にするとReactの.35sも消えたまま戻らない（同じ罠）
+      paneRef.current.style.transform = boxPaneRef.current === "detail" ? "translateX(0)" : "translateX(-50%)";
+    }
     let sx = 0, sy = 0, baseY = 0, baseTop = 0, lastY = 0, lastX = 0, paneW = 1, axis = null, tracking = false, raf = 0;
     const paint = () => {
       raf = 0;
