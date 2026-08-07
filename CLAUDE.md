@@ -3673,3 +3673,25 @@ PANESから"sql"を除去し【エラー／画像軽量化】の2面構成に。
 【検証】build成功・eslint 0 error・distから「SQLをコピー」等の消失をgrep確認
 【実機目視の残り】システムページが2面（エラー/画像軽量化）でスワイプ・タブとも正常か
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 穴探し5パターン＝★重大な穴を1件発見・修理（応募行の無制限直接UPDATE）━━━
+【立場】新しく建てた壁（app_phase・評価の壁・二重予約壁）を狙った粗探し。合成のみ・全ロールバック・
+残置ゼロ実測（jobs28・apps20・reviews0・test行0）。
+【★穴（修理済み・migration 20260807024537）】applications のRLS "app farmer update" that
+using=auth.uid()=farmer_id のみ・with_checkなし・列制限なし＝農家that自分の応募の【全31列】を
+無制限に直接UPDATEできた。app_phase は status・terms_confirmed_*_at から導出するので、
+農家that列を直接書けば段階を偽装でき、confirm_terms／complete_work の全ガードと今日の評価の壁を
+丸ごと迂回できた。実弾で確認した2経路：
+  ・status='completed', attended=true を直接書く → 働いた事実なしに農家評価that入る＝信頼数字の捏造
+  ・terms_confirmed 両時刻を直接書く → contracted 偽装（二重予約壁・満員処理・snapshot凍結・本名開示を未経由）
+【修理＝ポリシー削除で穴だけ閉じる】applications をUPDATEする正規経路は14関数すべて SECURITY DEFINER
+（定義者権限でRLS迂回）＝このポリシー不依存。フロントも applications 直接UPDATEゼロ（grep）。
+＝正規機能that1つも使わない純粋な攻撃面。削除後の実弾：農家の直接偽装=0行／正規フロー
+（承認→採用→保険→自動開始→開始確認→完了→評価）7段すべて通過。
+★教訓：導出ラベル（app_phase）の壁は、導出元の列that当事者に直接書けると無効になる。
+壁を列の導出に置くなら、その列の直接書き込み経路（RLS UPDATE）も同時に塞ぐ＝二重の壁の完成。
+【他4パターンは元から[OK]】P2 terms直書きしてもapp_phaseはstatus='applied'を優先so偽装不発（ただし
+statusも書ければ偽装可＝上の穴に含まれる）／P3 働き手that自分の応募statusを直接書換=0行（farmer専用
+ポリシーのみ）／P4 評価のUPDATE/DELETE=0行（reviewsに変更系ポリシー無し・不変）／
+P5 第三者that他人の応募を書換=0行。
+━━━ ここまで ━━━
