@@ -520,14 +520,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 求人カードタップ→確認ページと同型の全画面プレビュー（AdminJobPreviewのownerViewモード流用）
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
-  // ── 求人の操作ピル（削除・再開・コピー）の実行部（2026-08-07たきと指示・描画は求人一覧ページ末尾）──
-  const [pickAction, setPickAction] = useState(null); // { kind:'resume'|'copy'|'delete', jobs:[...] }（対象2件以上の選択シート）
+  // ── 求人の操作ピル（2026-08-07たきと指示・同日改定「各役割タップ→求人を直接タップする。
+  //    削除と非公開だけが最終確認」）──
+  // ピルのタップ＝モード選択（もう一度タップで取消）。その状態で一覧の求人カードを直接タップすると実行。
+  // 選択シートは廃止（対象は画面のカードそのものを指させる＝赤ちゃん前提の直接操作）。
+  // 最終確認（confirm）は削除・非公開のみ。再開・コピーはカードタップで即実行
+  const [armedAction, setArmedAction] = useState(null); // 'resume'|'copy'|'delete'|'unpublish'
+  const ARMED_LABEL = { resume:"再開", copy:"コピー", delete:"削除", unpublish:"非公開" };
   const runJobAction = async (kind, num) => {
-    setPickAction(null);
     if (kind === "resume") { onResume(num); return; }
     if (kind === "unpublish") {
-      // 一時非公開（2026-08-07・公開中ペインのピル）：open→draftへ（unpublish_job RPC・本人限定）。
-      // 可逆な操作soタップで即実行（再掲載は作成中→再開→掲載申請＝審査を通る）。シートの⏸と同じ実体
+      // 一時非公開：open→draftへ（unpublish_job RPC・本人限定）。最終確認あり（たきと指定）。
+      // 再掲載は作成中→再開→掲載申請＝審査を通る。シートの⏸と同じ実体
+      if (!confirm("この求人を一時非公開にしますか？（さがすに表示されなくなります。再掲載は審査を通ります）")) return;
       const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: num });
       if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
       // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
@@ -535,7 +540,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       return;
     }
     if (kind === "delete") {
-      // 削除は下書きのみ（呼び出し側で絞り済み＋DBの trg_block_delete_past_job が二重の壁）。不可逆so confirm は残す
+      // 削除は下書きのみ（タップ側で判定済み＋DBの trg_block_delete_past_job が二重の壁）。最終確認あり（不可逆）
       if (!confirm("この求人（下書き）を削除しますか？元に戻せません")) return;
       const { error } = await supabase.from("jobs").delete().eq("job_number", num).eq("farmer_id", me.id);
       if (error) { alert("削除に失敗しました：" + error.message); return; }
@@ -552,21 +557,32 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
     }
   };
-  const tapJobAction = (kind) => {
-    // 対象：再開＝作成中の下書き／コピー＝手元の全求人（作成中＋公開中）／削除＝一度も掲載していない下書きのみ
-    const jobs = kind === "resume" ? dbDrafts
+  // ピルのタップ＝モードの入/切。対象が1件も無い時はモードに入らず理由を案内
+  const armJobAction = (kind) => {
+    if (armedAction === kind) { setArmedAction(null); return; }
+    const jobs = kind === "resume" ? dbDrafts.filter(d => d.status === "draft")
       : kind === "copy" ? [...dbDrafts, ...dbActive]
       : kind === "unpublish" ? dbActive.filter(d => d.status === "open")
-      : dbDrafts.filter(d => !d.opened_at);
+      : dbDrafts.filter(d => d.status === "draft" && !d.opened_at);
     if (jobs.length === 0) {
       alert(kind === "delete" ? "削除できる下書きがありません（一度でも掲載した求人・応募のある求人は削除できません）"
         : kind === "unpublish" ? "非公開にできる公開中の求人がありません"
         : kind === "resume" ? "作成中の求人がありません" : "コピーできる求人がありません");
       return;
     }
-    if (jobs.length === 1) { runJobAction(kind, jobs[0].job_number); return; }
-    setPickAction({ kind, jobs });
+    setArmedAction(kind);
   };
+  // モード中に求人カードをタップ→その求人に実行（適さないカードは理由を出してモード維持）
+  const handleArmedCardTap = (d) => {
+    const kind = armedAction;
+    if (kind === "resume" && d.status !== "draft") { alert("再開できるのは作成中の下書きだけです"); return; }
+    if (kind === "delete" && !(d.status === "draft" && !d.opened_at)) { alert("削除できるのは一度も掲載していない下書きだけです"); return; }
+    if (kind === "unpublish" && d.status !== "open") { alert("非公開にできるのは公開中の求人だけです"); return; }
+    setArmedAction(null);
+    runJobAction(kind, d.job_number);
+  };
+  // ペイン切替（作成中⇄公開中）でモード解除：3つ目のピルthat削除⇄非公開に入れ替わるため持ち越さない
+  useEffect(() => { setArmedAction(null); }, [jobTab]);
   // 「公開間近」（＝掲載申請済み・公開の準備中）のカードをタップした時の説明ボックス（2026-08-07たきと指示）。
   // 詳細も求人者プロフィールも見せず、説明だけを展開する＝「審査されている」感を出さない
   const [nearPublishInfo, setNearPublishInfo] = useState(false);
@@ -1251,7 +1267,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               const nearPublish = d.status === "pending"; // 掲載申請済み＝公開の準備中（「公開間近」）
               return (
               <button key={d.job_number}
-                onClick={()=> nearPublish
+                onClick={()=> armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
+                  : nearPublish
                   ? setNearPublishInfo(true)  // 公開間近は詳細も求人者も見せず、説明ボックスを展開する
                   : setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
                 className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
@@ -1296,7 +1313,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             const renderActiveJobCard = (d, ended=false) => {
               const photo = photoThumb(d.photos?.[0]);
               return (
-              <div key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
+              <div key={d.job_number} onClick={()=> armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
+                : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
                   {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
                   {/* 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」に加え、
@@ -1672,41 +1690,35 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           } : undefined} />
       )}
 
-      {/* ── 求人の操作ピル（2026-08-07たきと指示「削除・再開・コピーはハンバーガーメニューの横に設置。
-           役割選択（トグル）と同じ作法・タップで実行。削除は下書きのみ」）──
+      {/* ── 求人の操作ピル（2026-08-07たきと指示・同日改定「各役割タップ→求人を直接タップする。
+           削除と非公開だけが最終確認」）──
            求人一覧ページ（作成中⇄公開中）に常設。位置は浮遊☰の真横・同じ高さ（CSS .cb-job-action-fabs）。
-           対象が1件ならタップで即実行。複数なら選択シートを1枚だけ挟む（どの求人かは選ばせるしかない）。
+           ピルのタップ＝モード選択（点灯・もう一度で取消）→一覧の求人カードを直接タップで実行。
+           最終確認は削除・非公開のみ（runJobAction内のconfirm）。再開・コピーは即実行。
+           3つ目のピルはペインで切替：作成中＝削除／公開中＝非公開（key切替でcbPillSwapアニメ）。
            削除の対象は下書き（一度も掲載していない）のみ＝DBの trg_block_delete_past_job と二重の壁 */}
       {(jobTab === "draft" || jobTab === "active") && (
         <div className="cb-job-action-fabs">
-          <button onClick={()=>tapJobAction("resume")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.18)", whiteSpace:"nowrap" }}>再開</button>
-          <button onClick={()=>tapJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>コピー</button>
-          {/* 3つ目のピルはペインで切替（2026-08-07たきと指示）：作成中＝削除／公開中＝非公開（一時非公開）。
-              key切替でcbPillSwapアニメ＝スワイプでペインが替わるとピルthatポンと入れ替わる */}
-          {jobTab === "active" ? (
-            <button key="unpublish" onClick={()=>tapJobAction("unpublish")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#C77700", border:"1.5px solid #FFB020", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>非公開</button>
-          ) : (
-            <button key="delete" onClick={()=>tapJobAction("delete")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#E24B4A", border:"1.5px solid #E24B4A", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>削除</button>
-          )}
-        </div>
-      )}
-      {/* 対象の選択シート（対象が2件以上の時だけ）：タップで実行 */}
-      {pickAction && (
-        <div onClick={()=>setPickAction(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px calc(20px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:560, boxSizing:"border-box" }}>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>
-              {pickAction.kind === "resume" ? "どの求人を再開しますか？" : pickAction.kind === "copy" ? "どの求人をコピーしますか？" : pickAction.kind === "unpublish" ? "どの求人を非公開にしますか？" : "どの下書きを削除しますか？"}
-            </p>
-            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップすると実行されます</p>
-            <div style={{ display:"grid", gap:8, maxHeight:"50vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-              {pickAction.jobs.map(j => (
-                <button key={j.job_number} onClick={()=>runJobAction(pickAction.kind, j.job_number)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, padding:"13px 14px", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer", textAlign:"left" }}>
-                  <span style={{ fontSize:13, fontWeight:700, color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || "（内容未入力）"}</span>
-                  <span style={{ fontSize:12, color:"#999", flexShrink:0 }}>#{j.job_number}</span>
-                </button>
-              ))}
+          {/* モード中の案内バブル（ピルの真上）：どの操作モードか・取消の方法を1行で */}
+          {armedAction && (
+            <div className="f-sans" style={{ position:"absolute", bottom:"calc(100% + 10px)", left:0, background:"#222", color:"#fff", fontSize:12, fontWeight:700, padding:"9px 13px", borderRadius:10, whiteSpace:"nowrap", boxShadow:"0 2px 10px rgba(0,0,0,.3)", animation:"cbPillSwap .2s ease" }}>
+              {ARMED_LABEL[armedAction]}する求人をタップ（もう一度ピルで取消）
             </div>
-          </div>
+          )}
+          <button onClick={()=>armJobAction("resume")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
+            boxShadow: armedAction === "resume" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.18)", opacity: (!armedAction || armedAction === "resume") ? 1 : 0.45 }}>再開</button>
+          <button onClick={()=>armJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
+            background: armedAction === "copy" ? "#00A86B" : "#fff", color: armedAction === "copy" ? "#fff" : "#00A86B", border:"1.5px solid #00A86B",
+            boxShadow: armedAction === "copy" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "copy") ? 1 : 0.45 }}>コピー</button>
+          {jobTab === "active" ? (
+            <button key="unpublish" onClick={()=>armJobAction("unpublish")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
+              background: armedAction === "unpublish" ? "#C77700" : "#fff", color: armedAction === "unpublish" ? "#fff" : "#C77700", border:"1.5px solid #FFB020",
+              boxShadow: armedAction === "unpublish" ? "0 0 0 3px rgba(199,119,0,.3), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "unpublish") ? 1 : 0.45 }}>非公開</button>
+          ) : (
+            <button key="delete" onClick={()=>armJobAction("delete")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
+              background: armedAction === "delete" ? "#E24B4A" : "#fff", color: armedAction === "delete" ? "#fff" : "#E24B4A", border:"1.5px solid #E24B4A",
+              boxShadow: armedAction === "delete" ? "0 0 0 3px rgba(226,75,74,.3), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "delete") ? 1 : 0.45 }}>削除</button>
+          )}
         </div>
       )}
 
