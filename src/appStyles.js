@@ -6,7 +6,7 @@ export const CSS = `
    併せて使っていない太さ（Noto 300 / Inter 300,500 / DM Mono italic）を削り、取得量を減らした */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; background: #fff; overflow-x: clip; }
+html { scroll-behavior: smooth; background: #fff; overflow-x: clip; color-scheme: light; }
 body { background: #fff; overflow-x: clip; }
 
 ::-webkit-scrollbar { width: 2px; height: 2px; }
@@ -1247,6 +1247,12 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   box-shadow: 0 0 0 3px #00A86B18;
 }
 .field::placeholder { color: #B0B0B0; }
+
+/* OSダークモード（画面をブラックに切替）でも、native の選択肢を明色に固定する（2026-08-07たきと報告）。
+   html の color-scheme:light が主：これが無いとダークモードで <option> の背景が暗く描かれ、
+   継承文字色も白へ反転して「選択肢の文字が全く見えない」。アプリ全体が明色ハードコードso native も明色に揃える。
+   select/option へも明示（Android・デスクトップのドロップダウンlist向けの二重の保険）。 */
+select, option { color-scheme: light; background-color: #FFFFFF; color: #222222; }
 
 /* ── Mobile responsive ── */
 @media (max-width: 640px) {
