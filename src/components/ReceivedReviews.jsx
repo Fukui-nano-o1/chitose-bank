@@ -4,7 +4,6 @@
 // 個々の評価者は出さない（誰がどう評価したかは出さない＝推薦・選別の回避）。
 // ★審査を感じさせない：作者側にはこの部品を出さない（自分の評価は MyReviewsOfWorker でそのまま見える）。
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 
 // 方向ごとの肯定バッジ定義（falseは公開しない＝第8条2）。順序＝表示順
@@ -24,11 +23,11 @@ const BADGE_DEFS = {
   ],
 };
 
-// centerEmpty=空状態の案内を画面のど真ん中に固定表示する（2026-08-07たきと指示「中央配置・スクロールしても同じ場所」）。
-// スワイプトラック（transform）の内側では position:fixed が画面基準にならないため、createPortal で
-// document.body 直下に出す（プレビューの既存作法）。pointerEvents:none so 背後のタップ・スクロールを奪わない。
-// ★呼び出し側は「この面が表に見えている時だけ」true にすること（他の面の上に浮いてしまうため）
-export function ReceivedReviews({ userId, direction, centerEmpty }) {
+// hideEmpty=空状態の案内文をこの部品からは出さない／onEmptyChange=空かどうかを親へ通知。
+// 働き手プレビューは案内文を親（WorkerPreviewSheet）が画面中央に固定し、スワイプに連動させて描く
+// （2026-08-07たきと指示「中央固定・スワイプにも連動・記録と重ならない」）ため、この2propで
+// 「表示は親・空の判定はこの部品」に分担する。雇い手プレビューは従来どおりインライン表示（prop未指定）
+export function ReceivedReviews({ userId, direction, hideEmpty, onEmptyChange }) {
   const [data, setData] = useState(null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +45,10 @@ export function ReceivedReviews({ userId, direction, centerEmpty }) {
   const badges = (data && data.badges) || {};
   const shown = defs.filter(d => (badges[d.k] || 0) > 0);
   const comments = Array.isArray(data && data.comments) ? data.comments : [];
+  const isEmpty = data !== null && shown.length === 0 && comments.length === 0;
+
+  // 空かどうかを親へ通知（読み込み中は false＝案内を出さない）。setStateを渡す前提so識別子は安定
+  useEffect(() => { onEmptyChange?.(isEmpty); }, [isEmpty, onEmptyChange]);
   // 働き手宛＝農家からの評価＝緑／農家宛＝働き手からの評価＝橙（役割色の規約2026-07-22）
   const AC = direction === "farmer_to_worker" ? "#00A86B" : "#F76B1C";
 
@@ -54,12 +57,8 @@ export function ReceivedReviews({ userId, direction, centerEmpty }) {
       {/* 見出し「🌟 受け取った評価」は削除（2026-08-07たきと指示・タブ名「評価」が見出しを兼ねる） */}
       {data === null ? (
         <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>読み込み中…</p>
-      ) : (shown.length === 0 && comments.length === 0) ? (
-        centerEmpty ? createPortal(
-          <p className="f-sans" style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "min(80vw, 300px)", textAlign: "center", fontSize: 12, color: "#999", lineHeight: 1.7, margin: 0, zIndex: 9750, pointerEvents: "none" }}>
-            お互いの評価が揃うか、完了から3日で表示されます。
-          </p>, document.body
-        ) : (
+      ) : isEmpty ? (
+        hideEmpty ? null : (
           <p className="f-sans" style={{ fontSize: 12, color: "#999", lineHeight: 1.7 }}>
             お互いの評価が揃うか、完了から3日で表示されます。
           </p>
