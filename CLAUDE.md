@@ -3971,3 +3971,23 @@ url=window.location.href は必ず記録されていた（実測：#/help・#/ch
 ＝運営本人のiPhoneの可能性大）。index.htmlに外部ドメインの<script>はゼロ＝サイト起因ではなく
 端末のSafari環境（拡張等）の注入スクリプト起因。様子見＝解決済みで片付けてよいと判断。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 退会の悪意・境界5パターン＝穴1件修理・要判断1件 ━━━
+【立場】退会・削除まわりを悪意/誤操作/境界で撃つ。合成のみ・全ロールバック・残置ゼロ実測。
+【W1〜W2・W5＝壁that効いている】W1 非管理者that他人を退会=not_admin拒否／W2 管理者を退会=target_is_admin拒否／
+W5 BAN中の利用者を退会してもaccount_moderationのBAN記録that残る（退会で消さない設計）＋auth.users.banned_until=infinity
+＝退会でBAN逃れできない。証跡（applications）も残る。
+【★W4修理（migration 20260807144755）】二重実行でwithdrawal_requestsが増殖するバグ。旧(c)は
+update(processed_at is null)→0行ならinsertso、2回目は既にprocessed→update0行→また insert＝増殖。
+coalesce(processed_at,now())で刻む冪等版に修正。実測：二重実行で申請行=1のまま。削除処理は元から冪等so全体that冪等に。
+【★W3b＝穴ではなく設計どおり・ただし要記録】退会後も契約相手that contract_party_name で退会者の本名を見られる。
+原因＝terms_snapshot.party_names.worker に本名that凍結保存されている（confirm_terms that契約時に焼く・2026-08-02）。
+account_holdersは退会で正しく削除（1→0）されるthat、terms_snapshot（契約の凍結記録・3年保存）に本名の複製that残る。
+判断：これは労働条件確認記録＝契約3年保存の対象（プラポリ台帳②・退会UIの「取引の記録は法令と紛争対応のため残る」と整合）。
+契約相手のみ・contract_party_name経由でのみ見える（第三者には出ない）。農家KYC(recruiter_name)that同じくsnapshotに残るのと対称
+＝雇用の法定記録として双方の氏名を契約時点で凍結。勝手に消すと労働者名簿・労働条件通知の法定記録を壊すso変更せず。
+★2026-07-30裁定(B)「account_holders/worker_profilesへの本名コピー禁止」との緊張：terms_snapshotへのparty_names焼き込みは
+その後(2026-08-02)に別途入った仕組み。契約の凍結記録としては正当thatが、退会後の氏名保持がプラポリ第3条データ台帳
+（本人確認情報=退会30日以内削除）と字面で緊張する。台帳に「ただし契約が成立した分の氏名は契約記録の一部として
+3年保存」の1行追記that要るか、たきと判断待ち（DBは変更しない）。
+━━━ ここまで ━━━
