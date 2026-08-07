@@ -3864,3 +3864,15 @@ consignment_deals（相手方=運営のある取引記録）・各種reports・a
 【未変更で残る運用】退会申請UIはまだ無い＝運営that auth_id を指定して手で process_withdrawal を叩く。
 アイコン画像(avatars/{uid}/)はストレージAPIから手動削除（SQL削除はプラットフォーム禁止・関数のnoteに明記）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 法務記録：第三者求人の公開を解禁（third_party_publish_allowed='true'）━━━
+【契機】審査プレビューから第三者の求人（#1063）を公開しようとして trg_block_third_party_open に
+拒否された際、たきと宣言「届出は完了している」＝特定募集情報等提供事業者の届出の受理を本人確認。
+【実施】CLAUDE.md既定の解禁手順どおり app_settings.third_party_publish_allowed を 'false'→'true' に
+1行UPDATE（2026-08-07・デプロイ不要）。トリガー trg_block_third_party_open は撤去していない＝
+フラグを'false'に戻せば即・従来の禁止状態に復帰できる（キルスイッチとして恒久維持）。
+【実測】第三者（app_admins外）のpending求人 #1063 が open へ遷移できることをロールバック付きで確認。
+自己募集の即公開・一般農家のpending申請は従来どおり不変。
+【残タスク】+worker の app_admins 行（自己募集判定のための暫定登録・2026-07-25）は不要になったら
+削除してよい（管理RPC権限も兼ねるため、削除はたきと判断）。
+━━━ ここまで ━━━
