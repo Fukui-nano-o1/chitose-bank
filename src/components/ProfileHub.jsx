@@ -38,7 +38,7 @@ function ProfileWithdrawSection({ onLogout }) {
         ? <button onClick={()=>setOpen(true)} className="f-sans" style={{ width:"100%", padding:"12px", border:"none", background:"none", fontSize:13, color:"#E24B4A", cursor:"pointer", textAlign:"center" }}>退会する</button>
         : <div style={{ padding:20, background:"#FCEBEB", borderRadius:14, border:"1px solid #E24B4A22" }}>
             <p className="f-sans" style={{ fontSize:13, color:"#E24B4A", marginBottom:14, lineHeight:1.8, textAlign:"center" }}>
-              本当に退会しますか？<br/>登録した情報は運営that確認し、申し出から30日以内に削除します。<br/>作業や取引の記録は、法令と紛争対応のため必要な範囲で残ります。
+              本当に退会しますか？<br/>登録した情報は運営が確認し、申し出から30日以内に削除します。<br/>作業や取引の記録は、法令と紛争対応のため必要な範囲で残ります。
             </p>
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={()=>setOpen(false)} disabled={busy} className="f-sans" style={{ flex:1, padding:"11px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, fontSize:13, cursor:"pointer", color:"#222" }}>いいえ</button>
