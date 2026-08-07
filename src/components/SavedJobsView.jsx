@@ -43,29 +43,36 @@ export function SavedJobsView({ me }) {
     const el = sheetRef.current;
     if (!boxJob || !el) return;
     el.style.transform = ""; el.style.transition = ""; // 開き直し・求人切り替えの残骸を消す
-    let startY = 0, dragging = false, tracking = false;
+    // ★滑らかさの3点セット（2026-08-07たきと報告「かくかくだ」の修理）：
+    //  ①will-change:transform＝シートを自前の合成レイヤーへ昇格（毎移動でシート全体を再描画させない。
+    //    下部バーのiOS対策・2026-07-19と同じ手筋）
+    //  ②書き込みはrequestAnimationFrameで1フレーム1回に束ねる（touchmoveは描画より速く連発するため、
+    //    そのまま書くとフレームを跨いで值が飛ぶ＝かくつきの主因）
+    //  ③掴んだ瞬間に基点を置き直す＝発動しきい値8pxぶんの「跳び」を無くす（0pxから滑らかに始まる）
+    el.style.willChange = "transform";
+    let startY = 0, baseY = 0, lastY = 0, dragging = false, tracking = false, raf = 0;
+    const paint = () => { raf = 0; el.style.transform = `translateY(${lastY}px)`; };
     const onStart = (e) => {
       if (e.touches.length !== 1) return;
       startY = e.touches[0].clientY; dragging = false; tracking = true;
     };
     const onMove = (e) => {
       if (!tracking) return;
-      const dy = e.touches[0].clientY - startY;
+      const cy = e.touches[0].clientY;
+      const dy = cy - startY;
       if (!dragging) {
         if (dy < 0) { tracking = false; return; } // 上向き＝通常スクロールに任せる
         const sc = boxScrollRef.current;
-        if (dy > 8 && (!sc || sc.scrollTop <= 0)) { dragging = true; el.style.transition = "none"; }
+        if (dy > 8 && (!sc || sc.scrollTop <= 0)) { dragging = true; baseY = cy; el.style.transition = "none"; }
         else return;
       }
       e.preventDefault();
-      el.style.transform = `translateY(${Math.max(0, dy)}px)`;
+      lastY = Math.max(0, cy - baseY);
+      if (!raf) raf = requestAnimationFrame(paint);
     };
-    const onEnd = (e) => {
-      const wasDragging = dragging;
-      dragging = false; tracking = false;
-      if (!wasDragging) return;
-      const y = e.changedTouches[0]?.clientY ?? 0;
-      if (y > window.innerHeight / 2) {
+    const settle = (toClose) => {
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      if (toClose) {
         el.style.transition = "transform .22s ease";
         el.style.transform = "translateY(105%)";
         setTimeout(() => setBoxJob(null), 220);
@@ -74,17 +81,24 @@ export function SavedJobsView({ me }) {
         el.style.transform = "translateY(0)";
       }
     };
+    const onEnd = (e) => {
+      const wasDragging = dragging;
+      dragging = false; tracking = false;
+      if (!wasDragging) return;
+      const y = e.changedTouches[0]?.clientY ?? 0;
+      settle(y > window.innerHeight / 2); // 畳む条件＝画面中央より下で指が離れた時（不変）
+    };
     const onCancel = () => {
       if (!dragging) { tracking = false; return; }
       dragging = false; tracking = false;
-      el.style.transition = "transform .25s ease";
-      el.style.transform = "translateY(0)";
+      settle(false);
     };
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMove, { passive: false });
     el.addEventListener("touchend", onEnd, { passive: true });
     el.addEventListener("touchcancel", onCancel, { passive: true });
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       el.removeEventListener("touchstart", onStart);
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
