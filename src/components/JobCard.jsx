@@ -26,10 +26,10 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSave(job); }}
           aria-label={saved ? "いいねを解除" : "いいね"}
-          style={{ position:"absolute", top:10, right:10, zIndex:2, width:32, height:32, borderRadius:"50%",
+          style={{ position:"absolute", top:10, right:10, zIndex:2, width:44, height:44, borderRadius:"50%",
                    background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer",
                    display:"flex", alignItems:"center", justifyContent:"center",
-                   boxShadow:"0 1px 4px rgba(0,0,0,.18)", fontSize:16,
+                   boxShadow:"0 1px 4px rgba(0,0,0,.18)", fontSize:24,
                    color: saved ? "#E24B4A" : "#717171" }}>
           {/* グリフだけspanに包む＝ぷるんぷるん（cb-like-heart・スクロール連動）のtransformをボタン円に波及させない */}
           <span className="cb-like-heart" style={{ display:"inline-block" }}>{saved ? "♥" : "♡"}</span>
