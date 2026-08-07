@@ -79,6 +79,7 @@ const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m 
 // 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面so遅延読み込み
 const NewApplicantsPage = lazyChunk(() => import("./components/NewApplicantsPage").then(m => ({ default: m.NewApplicantsPage })));
 import { ChatList } from "./components/ChatList";
+import { AdminErrorStrip } from "./components/AdminErrorStrip";
 import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
 import { ProfileModal } from "./components/ProfileModal";
@@ -2528,6 +2529,9 @@ export default function App(){
       <main style={{maxWidth:1200,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
         <AppErrorBoundary>
+        {/* 管理者専用エラー帯（2026-08-07）：どのタブでも画面上部に出る。システムページ表示中は
+            自分自身を指すだけなので出さない。一般ユーザーには描画も取得も走らない（isAdminゲート） */}
+        {me&&isAdmin(me)&&!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&!systemRoom&&<AdminErrorStrip/>}
         {me&&!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab!=="terms"&&safeTab!=="privacy"&&showLegalV2Banner&&(
           <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"0 0 16px", padding:"14px 18px", background:"#EAF7F0", border:"1px solid #00A86B", borderRadius:12, fontSize:13, color:"#1B5E3F", lineHeight:1.6 }}>
             <span>利用規約とプライバシーポリシーを全面改定しました（7/21）</span>

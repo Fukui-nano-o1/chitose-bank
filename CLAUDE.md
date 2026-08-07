@@ -3819,3 +3819,31 @@ build成功・eslint 0 error（警告29=既存のみ）・distに「状況をコ
 ・最新日付はカード右下（タグ行の下・textAlign:right）へ移動
 ・ボタン文言「📋 状況をコピー」→「📋 コピー」（コピー後は「✓ コピー済」2秒）。機能は不変
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 管理者専用エラー帯（画面上部・常時配置）を新設 ━━━
+【たきと指示】「エラーと管理者のみに限定する。エラーが発生したら画面上部にエラータイトルを表示。
+重要度で色分け。点滅させろ。タップで、システムのエラーへ遷移」＝2026-08-06に撤回した🔔ボックスの
+「次の見える化」。撤回教訓を反映：タップ不要で見える・PC/モバイル共通・数字でなく日本語の見出し。
+【実装（フロントのみ・DB不変・1コミット）】
+・lib/errorCatalog.js 新設＝AdminSystemRoomから辞書・分類・グループ化の純関数を移動
+  （KNOWN_ERRORS/translateError/explainError/deviceLabel/ERROR_CATEGORIES/errorCategoryKey/
+  errorSignature/groupAppErrors）。帯とシステムページの唯一のソース＝二重管理しない。
+  ★既知バグ修理時のKNOWN_ERRORS追記ルールの置き場もここに移った
+・components/AdminErrorStrip.jsx 新設＝main先頭（規約改定バナーと同位置）に管理者のみ描画。
+  【未解決かつ最終発生が直近7日】のグループだけ表示（古い残骸で埋まらない・記録は消えない）。
+  最重要1種の日本語タイトル＋重要度色（重大=赤/注意=橙/不明=灰・システムページのバッジと同色）＋
+  「ほかN種」。取得は status=open・7日窓・300件・5分間隔＋viewCache SWR。res.errorは上書きしない
+  （フェイルオープン規則）。エラー0件なら何も出さない
+・点滅＝.cb-err-strip の opacity脈動1.6s（appStyles）。prefers-reduced-motionでは点滅停止（帯は残る）
+・タップ→#/admin/system＋sessionStorage(cb_sysErrorFocus)に種類の署名→AdminSystemRoom側が
+  読み込み後に該当種類を自動展開＋スタック取得（1回で消費）
+・ゲート＝App.jsx描画条件 isAdmin(me)（一般ユーザーは取得も描画も走らない）＋app_errorsのRLS
+  （SELECT=管理者のみ）の二重。システムページ表示中(systemRoom)は自分を指すだけso非表示
+【検証】build成功・eslint 0 error（警告8=既存exhaustive-depsのみ）・distにcb-err-strip/cbErrBlink/
+cb_sysErrorFocus/辞書文言の包含をgrep確認・グループ化と並びと翻訳をnode機械検算5項目全OK
+（重大が先→同重要度は新しい順→翻訳タイトル→辞書タイトル+件数）・lib以外への関数残存ゼロをgrep確認
+【実機目視の残り】①管理者ログインで画面上部に帯が出るか（現状は「更新直後の旧ファイル読み込み失敗」
+等が対象）②点滅の見え方（うるさすぎないか）③タップでシステムのエラー面に着地し該当種類が
+展開されるか ④まとめて解決済みにすると帯が消えるか（5分以内に自動更新・リロードなら即）
+⑤一般ユーザー・未ログインで帯が出ないこと
+━━━ ここまで ━━━

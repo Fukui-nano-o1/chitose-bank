@@ -1332,4 +1332,13 @@ body.cb-scrolling .cb-like-heart { animation: cbHeartJelly .55s ease-in-out infi
    カードはタップ不可＝止める理由が無いので、常に流し続ける */
 @keyframes cbVisitMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .cb-visit-strip { animation: none; } .cb-visit-marquee { overflow-x: auto; } }
+
+/* 管理者専用エラー帯（AdminErrorStrip・2026-08-07）：画面上部（main先頭）に常時配置。
+   重要度の色は個々のstyle属性で塗る（重大=赤/注意=橙/不明=灰）。点滅はopacityの緩い脈動＝
+   目は引くが読める明度を保つ。reduced-motion環境では点滅を止める（帯自体は出続ける） */
+.cb-err-strip { display: flex; align-items: center; gap: 8px; width: 100%; margin: 0 0 16px; padding: 11px 14px; border: 1.5px solid; border-radius: 12px; font-size: 13px; text-align: left; cursor: pointer; animation: cbErrBlink 1.6s ease-in-out infinite; }
+.cb-err-strip-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.cb-err-strip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+@keyframes cbErrBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .cb-err-strip { animation: none; } }
 `;
