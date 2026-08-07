@@ -200,17 +200,21 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         const insChips = normalizeInsuranceItems(profile.insurance_items).map(k => INSURANCE_ITEMS.find(x => x.k === k)).filter(Boolean);
         const perks = Array.isArray(extraBadges) ? extraBadges : [];
         if (!styleLabel && insChips.length === 0 && perks.length === 0) return null;
+        // タグ群の整理整頓（2026-08-07たきと指示・働き手カードと同じ手当て）：
+        // 3種（🤝関わり方＝灰／🛡保険＝緑／待遇＝灰）を1つの群れにまとめ、チップの形を統一。
+        // 各チップが行の余りを均等に吸収（flexGrow）＝右端まで揃った段組み。長い順で行を詰め、
+        // はみ出しは…で省略。色の区別は不変（保険=緑が自己申告の目印）
+        const chips = [
+          ...(styleLabel ? [{ key:"style", label:(black ? "" : "🤝 ") + styleLabel, bg:"#F7F7F7", color:"#222", isStyle:true }] : []),
+          ...insChips.map(it => ({ key:"ins-" + it.k, label:(black ? "" : "🛡 ") + it.chip, bg: black ? "#EEEEEE" : "#E6F7EF", color: black ? "#111111" : "#0B6B4F" })),
+          ...perks.map(b => ({ key:"perk-" + b, label: black ? String(b).replace(/^\S+\s/, "") : b, bg:"#F7F7F7", color:"#222" })),
+        ].sort((a,b) => String(b.label).length - String(a.label).length);
         return (
           <div style={{ marginTop:12 }}>
             <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-              {styleLabel && (
-                <span {...tap("style")} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...cur }}>{black ? "" : "🤝 "}{styleLabel}</span>
-              )}
-              {insChips.map(it => (
-                <span key={it.k} className="f-sans" style={{ fontSize:12, fontWeight:600, color: black ? "#111111" : "#0B6B4F", background: black ? "#EEEEEE" : "#E6F7EF", borderRadius:20, padding:"4px 10px" }}>{black ? "" : "🛡 "}{it.chip}</span>
-              ))}
-              {perks.map(b => (
-                <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px" }}>{black ? b.replace(/^\S+\s/, "") : b}</span>
+              {chips.map(c => (
+                <span key={c.key} {...(c.isStyle ? tap("style") : {})} className="f-sans"
+                  style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:c.color, background:c.bg, borderRadius:999, padding:"6px 12px", ...(c.isStyle ? cur : {}) }}>{c.label}</span>
               ))}
             </div>
             {insChips.length > 0 && (
