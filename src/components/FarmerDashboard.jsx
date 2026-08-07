@@ -19,7 +19,6 @@ import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
-import { AdminChatFab } from "./AdminChatFab";
 
 // 応募者ページの状態フィルタのキー：lib/utils の APP_FILTER_KEYS に一本化（2026-08-07・
 // 新着の応募ページのピルと並びを共有）。帯5段＋終端（appPhaseKeyの全段階）と同順。
@@ -1530,10 +1529,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     </div>
                   );
                 });
-            // 運営チャット（2026-08-07たきと指示「その上に運営チャット配置」）：絞り込みバーの真上に浮かせる
-            // （raised＝モバイルでバーの高さぶん持ち上げるCSS。共有部品so中身はチャット一覧と同一）
-            const adminChat = <AdminChatFab key="admin-chat" raised />;
-            return [calendarTop, calHint, tabBar, calNote, floatingFilterBar, adminChat, ...body, legend];
+            return [calendarTop, calHint, tabBar, calNote, floatingFilterBar, ...body, legend];
           })()
         )
       ) : jobTab==="expired" ? (

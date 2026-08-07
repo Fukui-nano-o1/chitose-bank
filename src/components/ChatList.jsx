@@ -5,7 +5,7 @@ import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache"
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush } from "../lib/push";
-import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
+import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_FILTER_KEYS } from "../lib/utils";
 import { Avatar } from "./ui";
 import { AdminChatFab } from "./AdminChatFab";
 
@@ -199,6 +199,23 @@ export function ChatList() {
     return rowLastAt(y) - rowLastAt(x);
   });
 
+  // ステータス絞り込み（2026-08-07たきと指示「（応募者ページの絞り込みを）チャットページにコピー」）：
+  // 応募者ページの浮遊バーと同じ見た目・同じ並び（APP_FILTER_KEYS）・同じ段階判定（appPhaseKey）で、
+  // チャット一覧のスレッドを段階で絞る。表示だけの絞り込み＝並び・未読・データ取得は不変
+  const [chatFilter, setChatFilter] = useState(() => {
+    try { const f = sessionStorage.getItem("cb_chatFilter"); if (f && APP_FILTER_KEYS.includes(f)) return f; } catch {}
+    return "all";
+  });
+  useEffect(() => { try { sessionStorage.setItem("cb_chatFilter", chatFilter); } catch {} }, [chatFilter]);
+  const shownRows = chatFilter === "all" ? sortedRows : sortedRows.filter(a => appPhaseKey(a) === chatFilter);
+  const filterButtons = APP_FILTER_KEYS.map(k => (
+    <button key={k} onClick={()=>setChatFilter(k)} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: chatFilter===k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: chatFilter===k?800:600, color: chatFilter===k?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
+      {/* 段階色の点＝帯・チップと同じAPP_PHASE_COLOR */}
+      {k !== "all" && <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[k] || "#999", flexShrink:0 }} />}
+      {k === "all" ? "すべて" : APP_PHASE_LABEL[k]}
+    </button>
+  ));
+
   return (
     <div style={{ maxWidth:600, margin:"0 auto", padding:"5px 0 8px" }}>{/* 上余白はmainの10px＋ここ5px＝15px固定（2026-07-25たきと指示） */}
       {/* 見出し「チャット」は削除（2026-07-27たきと指示）：下部ナビで現在地が分かる＝重複。
@@ -217,8 +234,12 @@ export function ChatList() {
           <button onClick={()=>{ setPushDismissed(true); try{localStorage.setItem("cb_pushBannerDismissed","1");}catch{} }} aria-label="閉じる" style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,0.06)", border:"none", fontSize:12, cursor:"pointer", color:"#5B7B6D" }}>✕</button>
         </div>
       )}
-      {/* 運営チャット（共有部品へ切り出し・2026-08-07）：位置・挙動は従来どおり */}
-      <AdminChatFab />
+      {/* ステータス絞り込みバー（2026-08-07たきと指示）：応募者ページと同じCSSクラスを共用＝
+          モバイルは下部の浮遊バー・PCは本文中の並び。格納・入力中退避・チャット表示中の非表示も同じ作法 */}
+      <div className="cb-applicant-filter-inline" style={{ display:"flex", gap:6, marginBottom:10, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>{filterButtons}</div>
+      <div className="cb-applicant-filter-bar">{filterButtons}</div>
+      {/* 運営チャット＝絞り込みバーの真上（2026-08-07たきと指示「その上に運営チャット配置」） */}
+      <AdminChatFab raised />
       {loading ? (
         /* 空白や「読み込み中...」でなく、これから出るスレッドと同じ形の箱を並べる（2026-07-27たきと指示） */
         <AutoSkeleton shapeKey="chats" />
@@ -227,6 +248,12 @@ export function ChatList() {
           <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
           <p style={{ fontSize:14, margin:0 }}>チャットはまだありません。<br/>応募が承認されると、ここに表示されます。</p>
         </div>
+      ) : shownRows.length === 0 ? (
+        /* 絞り込みで0件（チャット自体はある）＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03） */
+        <div style={{ textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+          <p style={{ fontSize:14, margin:0 }}>「{chatFilter === "all" ? "すべて" : APP_PHASE_LABEL[chatFilter]}」のチャットはいまありません。</p>
+          <button onClick={()=>setChatFilter("all")} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示に戻す</button>
+        </div>
       ) : (
         /* 幅の固定（2026-08-06たきと報告「チャット欄の幅が大きくなった」）：
            列を minmax(0,1fr) にする。既定の auto 列は中身の min-content まで広がるため、
@@ -234,7 +261,7 @@ export function ChatList() {
            画面が狭いと列ごとカードが画面より広くなっていた（body の overflow-x:clip で
            右が切れ、段階チップが画面外に消える）。0 を下限にすれば列は器を超えない */
         <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:10 }}>
-          {sortedRows.map(a => {
+          {shownRows.map(a => {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
             const rowUnread = rowUnreadOf(a); // 相手との全応募の未読合算
             return (
