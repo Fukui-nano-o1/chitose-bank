@@ -3234,6 +3234,40 @@ src/Terms.jsx の TERMS_ARTICLES を読み、条文のうち機構で担保す�
   運用の壁）。九「虚偽の評価の投稿」＝並走セッションthat reviews INSERT の当事者性未検証の穴を報告済み（未修理）。
 【結論】規約が「禁止」する行為の機構担保は概ね立っている。唯一の乖離は第8条の評価【公開・開示】機能that
 DB未実装＝約束の未達（実害ゼロ・要判断）。加えて年齢しきい値のUTC基準は安全側の軽微なズレ。
+━━━ 2026-08-07 プラポリ照合の実機一周（第3条データ台帳をDB実態と全行突き合わせ）＋穴1件を修理 ━━━
+【立場】プラポリ本文（App.jsx PRIVACY_SECTIONS・第3条データ台帳11行）を仮説（合格基準）とし、
+「集める項目・開示先・保存期間」の各約束をDBの現物（RLS・RPC・cron・実データ）で実測して突き合わせた。
+合成データ・全ロールバック・実在利用者の行は不読の作法どおり。
+【一致を確認した行（約束どおり、または約束より狭い開示＝過剰開示ゼロ）】
+・メール：auth.usersにanon/authのgrant=0（他利用者に一切出ない）／admin_list_accountsはmask＝台帳の
+  「伏せ字」と一致。
+・本人確認情報：account_holders self-only＋contract_party_name（契約後のみ・第三者not_party）＝
+  「本人確認済みと確認年月だけ／契約相手にのみ氏名」と一致。
+・プロフィール選択項目：worker_profiles select＝owner＋farmer-via-application＋admin。台帳の
+  「応募先の求人者に表示」と一致（"求人を閲覧する求職者"への開示は求職一覧that未稼働so現状は約束より狭い）。
+・自由記述：pr_pending/pr_qa_pending＝非公開の確認待ち→auto_publish_profile_texts（cron 30分）で公開＝
+  「運営確認後に表示」と一致。
+・集合場所番地：jobs_publicのanonマスク（前回実機一周で実測）＝「公開表示から除外・承認者にのみ」と一致。
+・チャット：messages select＝当事者のみ／改変削除は全経路トリガー拒否＝「当事者以外読めない」と一致。
+・評価：reviews select＝reviewer_id=auth.uid（本人のみ）。相手への開示は別RPC経由＝台帳の
+  「双方揃うか3日で表示・肯定的評価と公開コメントだけ」の設計と整合。
+・通報系（message_reports/job_reports/profile_reports）：select=admin＋reporter本人のみ＝
+  「通報者が誰かは相手に伝わらない」と一致。
+・閲覧履歴：page_events select=admin-only／insert with_check=app_admins本人のみ＝
+  「運営者だけ閲覧・他利用者に一切出ない」と一致。かつ現在の記録は運営者本人の遷移that主
+  （非管理者行1246件は self-admin-only 導入 20260727133449 以前の旧ポリシー時代の残留）。
+【★見つけた穴＝約束と仕組みの乖離1件（修理済み）】
+台帳は閲覧履歴を「取得から30日で削除します」と約束しているのに、削除する仕組み（cron/関数）that無かった。
+summarize_sessions は summarized=true にするだけで消さない＝page_events は無期限に堆積
+（最古2026-07-14・総8215行）。今日時点で30日超は0件だthat、+20日で6187件（75%）that30日を越える見込み
+＝放置すれば静かに約束を破り始める。
+→ migration 20260807000034_purge_page_events_30d：purge_old_page_events()（SECURITY DEFINER・
+  ts<now()-30日を削除・anon/auth revoke）＋ cron 'purge-page-events'（毎日03:40 UTC）。
+  導入検証：cron登録OK・anon/auth実行不可・今日1回実行で削除0件（total 8215不変・30日超残0）＝無害に導入、
+  以後は約束どおり自動で効く。旧非管理者行も30日を過ぎ次第この掃除で消える。
+【意図的に触っていない（別途・約束の期間that長く未到来）】チャット3年・契約3年・通報3年の削除は
+2026-07-19の方針どおり未実装のまま（サービス開始が2026-07so期限は2029年・現時点で違反ではない）。
+【残（コード外）】audit⑥入口（Confirm email）のダッシュボード実物確認は前回同様PC作業として持ち越し。
 ━━━ ここまで ━━━
 ━━━ 2026-08-06 バグ狩り②：仮応募→昇格で「来られる日」that欠落するバグを修理 ━━━
 【★バグ（修理済み・migration 20260806235628）】期間求人（複数日）の来られる日（available_dates）が、
