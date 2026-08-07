@@ -3467,3 +3467,43 @@ Q9：全角空白のみ→既定名が付与され見えない名前を阻止
   以後 agreed_dates／holidays that入った求人で精度that効く。
 【これで二重予約は「精度も」揃った】機構の壁（受諾なしは止める・2026-08-06④）＋精度（実働日で判定・本件）。
 ━━━ ここまで ━━━
+━━━ 2026-08-07 保存・削除の設計台帳の実装（①退会処理・④本文改訂・⑤変更の記録）━━━
+【たきと指示】①は可及的速やかに／④は改訂／⑤承認。3点すべて実装・push済み。
+
+【①退会処理＝実装（migration 20260807020719_process_withdrawal・本番適用・repo写経済み）】
+process_withdrawal(p_auth_id)＝運営専用（app_adminsゲート・対象that運営なら拒否）。設計台帳の原則どおり
+対象テーブルをハードコード列挙・SECURITY DEFINER・anon revoke・authenticatedにgrant（内部でゲート）。
+・行ごと削除（本人の届出情報・行動の好み＝証跡ではない）：worker_profiles/employer_profiles/
+  account_holders/emergency_contacts/push_subscriptions/saved_jobs/repeat_roster/pending_applications/
+  chat_reads/notifications/page_events/auth_logs/farmers/records。
+・メールの削除＝匿名化（★行削除は不可＝jobs.farmer_id等that NO ACTIONで参照・BAN記録/退会記録that
+  CASCADEで消える）：auth.users.email を withdrawn+{uuid}@withdrawn.invalid に書き換え＋identities/
+  sessions/one_time_tokens/mfa_factors削除＋banned_until=infinity。uuidの行は残す＝全FK・全証跡that無傷。
+・残すもの（3年保存の証跡）：applications/messages/reviews/jobs/time_corrections/job_questions/
+  event_audit/feedback/account_moderation。匿名化は「表示名の参照先（プロフィール）that消える」で達成。
+  ★働き手の本名の在り処は account_holders のみso、この削除で contract_party_name は以後 not開示
+  ＝台帳①「個人を特定できない形」と整合（契約の写し3年は募集主側のみ）。
+・ストレージ：storage.objectsのSQL DELETEはプラットフォーム禁止so、アイコン(avatars/{uid})の削除は
+  ストレージAPIから手動＝返り値noteで毎回案内。job-photos/{uid}は求人の証跡so消さない（④と同じ理屈）。
+・実弾検証10項目全OK（ロールバック付き・残置ゼロ実測 jobs28不変・withdrawal_requests0）：
+  一般=not_admin／運営対象=target_is_admin／本実行で14テーブル削除・証跡5/5残存・email匿名化と
+  identities0とBAN・退会記録1行・冪等（2回目ok）・anon実行不可・相手方の求人無傷。
+・killスイッチ／運用：30日以内の期限管理は運営タスク（退会申請メール→本関数を運営that実行→processed_at）。
+  ★まだフロントの退会申請UIは無い＝現状は運営that auth_id を指定して手で叩く。申請UIは別途。
+
+【④集合場所番地の保存期間＝本文改訂（プラポリv3.1→v3.2・PRIVACY_VERSION更新）】
+第3条データ台帳の該当行の保存期間を実態に整合：旧「求人の掲載that終わるまで。」→
+「承認された求職者への表示は掲載that終わるまで。掲載の終了後も、求人の記録として、また契約that成立した分は
+労働条件の確認記録の一部として、紛争への対応と法令上の必要のため保存します」。同じ行の開示列は既に
+「契約成立時は確認記録の一部として保存」と書いており、保存期間列だけthat矛盾していた＝内部整合の修正。
+・PRIVACY_VERSION を v3.1-2026-08 → v3.2-2026-08（lib/utils.js）。現在v3.1同意は1件（運営本人）のみ・
+  9件はv1so、版上げの追加影響は運営1件の再同意だけ。build+lint 0 error・dist反映grep確認。
+・改定日ヘッダーの「2026年8月●日」は据え置き（たきとthat公開時に確定する運用placeholder）。
+
+【⑤変更の記録（event_audit）＝設計台帳に保存期間を追記（DBはまだ触らない・本文改訂とセットで判断）】
+event_audit（第6条2「変更の記録」の実体）はdiffに個人情報の変更前後値を含みうるのに保存期間の定義that無い。
+台帳⑤に「保存期間の設定that必要」と記録済み。実装（purge機構＋プラポリ第3条への行追加）は、
+notifications/push_subscriptionsの保存期間と合わせてプラポリ本文改訂とワンセットにするため次段階
+（たきと承認済みso設計を詰めて実装する）。退会処理では event_audit は消さない（証跡側）。
+
+【設計台帳v1の原則4（設計→確認→実装）を今回は遵守：①④は指示を受けてから実装、⑤は設計のみで止めた】
