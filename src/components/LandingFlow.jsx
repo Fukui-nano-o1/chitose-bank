@@ -517,6 +517,24 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // 再開はrefに掴んだ関数を呼ぶ（handleSaveJobは確認ページのIIFE内定義なので、識別子は外から参照できない）
   const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
   const resumePublishRef = useRef(null);
+  // 掲載that法的に許されるアカウント（運営者本人＝自己募集）は、提出＝即公開にして「審査待ち」を無くす（2026-08-07・③）。
+  // 一般農家の求人は法律（職安法・届出）とRLS／トリガーにより open にできず pending のまま＝画面では「公開間近」。
+  // ★判定は isAdmin（＝ADMIN_EMAIL一致）＝DBの jobs admin write ポリシー（email一致）と厳密に同じ。
+  //   ここを app_admins にすると +worker 等that open を撃ってRLSに弾かれるので、必ず email 一致で揃える。
+  //   実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open thatが最終担保）。ここは体験の分岐だけ。
+  const [meCanOpen, setMeCanOpen] = useState(false);
+  const [publishedOpen, setPublishedOpen] = useState(false); // 直前の掲載that即公開だったか（完了画面の文言に使う）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || cancelled) return;
+        if (!cancelled) setMeCanOpen(isAdmin(session.user));
+      } catch { /* 取得失敗は pending 扱い（安全側） */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ。
   // 定義位置は openPublish（下の掲載ガード）より前でなければならない＝後ろに置くとTDZで
   // 「Cannot access before initialization」＝画面that真っ白になる（lintゲート no-use-before-define that検出）
@@ -1976,7 +1994,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 let _jn = draftJobNumber;
                 if (!_jn) { try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _jn = _d.job_number ?? null; } catch {} }
                 let error;
-                const payload = await buildJobPayload(session.user.id, "pending");
+                // ③ 掲載that許されるアカウント（運営者本人＝自己募集）は提出＝即公開（open）。
+                //    一般農家は pending（法律・RLS・トリガーthat open を許さない）＝画面上は「公開間近」。
+                //    判定は isAdmin（ADMIN_EMAIL一致）＝DBの jobs admin write ポリシー（email一致）と厳密に同一。
+                const canOpen = isAdmin(session.user);
+                const payload = await buildJobPayload(session.user.id, canOpen ? "open" : "pending");
                 if (_jn) {
                   const r = await supabase.from("jobs").update(payload).eq("job_number", _jn).eq("farmer_id", session.user.id);
                   error = r.error;
@@ -2014,6 +2036,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                 setDraftJobNumber(null);
                 setPublishModal(false);
+                setPublishedOpen(canOpen); // 完了画面の文言（公開しました／公開間近）に使う
                 setStep(12);
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
@@ -2462,7 +2485,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                     )}
                     {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
                     <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>{payTermsLine(CURRENT_PAY_POLICY)}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#8A6D1D", background:"#FFF8E7", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:0 }}>「掲載する」を押しても、すぐには掲載されません。運営の確認後に公開されます。</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:0 }}>{meCanOpen ? "「掲載する」を押すと、働き手に公開されます。" : "「掲載する」を押すと、公開の準備に進みます。準備that整いしだい、働き手に公開されます。"}</p>
                   </div>
                 </div>
               )}
@@ -2473,11 +2496,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           {/* ── 農家 Step3: 完了 ── */}
           {isFarmer && step === 12 && (<>
             <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
-              <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
-              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>審査に提出されました</h2>
+              <div style={{ fontSize:56, marginBottom:16 }}>{publishedOpen ? "🎉" : "🌱"}</div>
+              <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>{publishedOpen ? "公開しました！" : "求人ができました！"}</h2>
               <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
-                運営が確認後、公開されます。<br/>
-                公開までしばらくお待ちください。
+                {publishedOpen ? (<>働き手に公開されました。<br/>「さがす」に並んでいます。</>)
+                              : (<>公開の準備that整いしだい、働き手に届きます。<br/>公開されると「さがす」に並び、応募that届きます。</>)}
               </p>
               <div style={{ display:"grid", gap:10, width:"100%" }}>
                 {/* 遷移先は農家プロフィール（App.jsxのonComplete＝/profile/employer）so、ラベルもそれに合わせる。

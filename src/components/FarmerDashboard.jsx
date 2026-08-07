@@ -520,6 +520,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 求人カードタップ→確認ページと同型の全画面プレビュー（AdminJobPreviewのownerViewモード流用）
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
+  // 「公開間近」（＝掲載申請済み・公開の準備中）のカードをタップした時の説明ボックス（2026-08-07たきと指示）。
+  // 詳細も求人者プロフィールも見せず、説明だけを展開する＝「審査されている」感を出さない
+  const [nearPublishInfo, setNearPublishInfo] = useState(false);
+  const [nearPubDetail, setNearPubDetail] = useState(false);
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
   // 面接の質問を一度でも送った応募ID（interview_question_sends・農家本人select可）。
@@ -1197,13 +1201,17 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             // 作成中と審査中をセクションで分離（2026-07-16）。審査中は閲覧のみ（再開/削除は作成中のみ）
             const renderDraftCard = (d) => {
               const photo = photoThumb(d.photos?.[0]);
+              const nearPublish = d.status === "pending"; // 掲載申請済み＝公開の準備中（「公開間近」）
               return (
-              <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
+              <button key={d.job_number}
+                onClick={()=> nearPublish
+                  ? setNearPublishInfo(true)  // 公開間近は詳細も求人者も見せず、説明ボックスを展開する
+                  : setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
                 className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "📝"}
-                  {/* タブ名（作成中）と同じ帯は出さない（2026-07-25たきと指示・重複排除）。タブと違う状態＝審査中だけ帯を出す */}
-                  {d.status === "pending" && <StatusRibbon label="審査中" color="#C77700" />}
+                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : (nearPublish ? "🌱" : "📝")}
+                  {/* タブ名（作成中）と同じ帯は出さない（重複排除）。公開間近だけ帯を出す＝「審査中」ではなく前向きな色（2026-08-07） */}
+                  {nearPublish && <StatusRibbon label="公開間近" color="#0E8A6B" />}
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
               </button>
@@ -1215,7 +1223,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <>
                 {making.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#8A6D1D", margin:"0 0 -2px" }}>作成中（{making.length}）</p>}
                 {making.map(renderDraftCard)}
-                {pending.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#C77700", margin:"8px 0 -2px" }}>審査中（{pending.length}）</p>}
+                {pending.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#0E8A6B", margin:"8px 0 -2px" }}>公開間近（{pending.length}）</p>}
                 {pending.map(renderDraftCard)}
               </>
             );
@@ -1246,7 +1254,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
                   {/* 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」に加え、
                       区画見出し「終了（N）」があるので終了の帯も出さない（写真のグレースケール＋🍂で十分伝わる） */}
-                  {!ended && d.status !== "open" && <StatusRibbon label={d.status==="draft" ? "一時非公開" : "審査中"} color={d.status==="draft" ? "#757575" : "#C77700"} />}
+                  {!ended && d.status !== "open" && <StatusRibbon label={d.status==="draft" ? "一時非公開" : "公開間近"} color={d.status==="draft" ? "#757575" : "#0E8A6B"} />}
                   {qUnansweredMap[d.job_number] > 0 && (
                     // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。
                     // カード本体のプレビュー展開とは別動作なのでstopPropagation。戻るはこのページへ。
@@ -1633,6 +1641,30 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             setPreviewJob(null);
             window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
           }} />
+      )}
+
+      {/* 「公開間近」の説明ボックス（2026-08-07たきと指示）：掲載申請済み求人のタップで開く。
+          求人の詳細も求人者プロフィールも見せず、状態の説明だけを展開する＝「審査されている」感を出さない。
+          法的な公開ゲート（運営承認・届出）は不変で、働き手にはまだ表示されない＝それを前向きに正直に伝える */}
+      {nearPublishInfo && (
+        <div onClick={()=>{ setNearPublishInfo(false); setNearPubDetail(false); }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
+            <button onClick={()=>{ setNearPublishInfo(false); setNearPubDetail(false); }} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <div style={{ fontSize:48, marginBottom:10 }}>🌱</div>
+            <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 16px" }}>もうすぐ公開されます</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:"0 0 6px" }}>この求人は、公開の準備that整いしだい、働き手に公開されます。</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:0 }}>公開されると「さがす」に並び、応募that届くようになります。</p>
+            {nearPubDetail ? (
+              <div className="f-sans fade-in" style={{ marginTop:14, background:"#F1F8F4", borderRadius:12, padding:"12px 14px", textAlign:"left", fontSize:12, color:"#3a5a49", lineHeight:1.9 }}>
+                ・公開までの間も、写真の追加や内容の修正はいつでもできます<br/>
+                ・公開されると、応募のお知らせthatこの画面に届きます<br/>
+                ・公開までの少しの間、この求人はまだ働き手には表示されていません
+              </div>
+            ) : (
+              <button onClick={()=>setNearPubDetail(true)} className="f-sans" style={{ marginTop:14, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#0E8A6B", textDecoration:"underline", cursor:"pointer" }}>詳しく見る ▾</button>
+            )}
+          </div>
+        </div>
       )}
 
       {/* お気に入り登録しました！ボックス（2026-07-19）：働き手アイコンに❤️が付く動作・説明は1文×2・詳細は展開 */}
