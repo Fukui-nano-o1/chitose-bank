@@ -462,7 +462,7 @@ function WorkerPreviewSheet() {
           <>
             {/* 2枚のどちらを見ているかの目印。タップでも切り替わる（スワイプがあることに気づけるように） */}
             <div style={{ display:"flex", gap:8, margin:"0 0 14px" }}>
-              {[{ k:0, l:"プロフィール" }, { k:1, l:"評価" }, { k:2, l:"記録" }].map(t => (
+              {[{ k:0, l:"プロフィール" }, { k:1, l:"記録" }, { k:2, l:"評価" }].map(t => (
                 <button key={t.k} type="button" onClick={()=>setPage(t.k)} className="f-sans"
                   style={{ flex:1, padding:"9px 0", borderRadius:10, cursor:"pointer", background:"#fff",
                     border: page===t.k ? "2px solid #222" : "1px solid #EBEBEB",
@@ -481,14 +481,15 @@ function WorkerPreviewSheet() {
                   <MyReviewsOfWorker workerId={st.worker_id} />
                   {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"profile", field:"", issue:"", detail:"", sending:false, done:false })} />}
                 </div>
-                {/* 2枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定） */}
+                {/* 2枚目：はたらいた記録（働き手ダッシュボードと同じ部品）。
+                    並びは プロフィール→記録→評価（2026-08-07たきと指示で評価と入れ替え） */}
                 <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", padding:"0 5px" }}>
-                  <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
-                </div>
-                {/* 3枚目：はたらいた記録（働き手ダッシュボードと同じ部品） */}
-                <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
                   <WorkerWorkRecord workerId={st.worker_id} />
                   {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
+                </div>
+                {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定） */}
+                <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
+                  <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
                 </div>
               </div>
             </div>
