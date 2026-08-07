@@ -355,24 +355,17 @@ function EmployerPreviewSheet() {
   return (
     <div onClick={()=>setSt(null)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(48px + env(safe-area-inset-top, 0px)) 16px calc(48px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .2s ease" }}>
       <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-        {/* ✕は削除（2026-08-07たきと指示）＝閉じるはボックス外タップ（外側のoverlayタップで発火） */}
-        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{st.profile?.nickname ? `${st.profile.nickname}の農園紹介` : "農園紹介"}</p>
+        {/* ✕・タイトル「〇〇の農園紹介」は削除（2026-08-07たきと指示）＝閉じるはボックス外タップ。
+            名乗りはカード内の氏名行が担う */}
         {st.loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
             {/* 待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
             <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)} />
-            {topics.length > 0 && (
-              <div style={{ display:"grid", gap:10, marginTop:16 }}>
-                {topics.map(t => (
-                  <div key={t.label}>
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{t.label}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* 就農するまで等の紹介文はチャット形式（2026-08-07たきと指示）：お題＝左グレー・
+                本文＝右緑（農家の言葉＝役割色）。働き手Q&AのQaChatをそのまま共用 */}
+            <QaChat items={topics.map(t => ({ q: t.label, a: t.body }))} accent={ROLE_GREEN} />
             {/* 受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定） */}
             <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #EEE" }}>
               <ReceivedReviews userId={st.farmer_id} direction="worker_to_farmer" />

@@ -1,6 +1,6 @@
 // 信頼カード（分割・段階2後半・2026-07-24）：働き手/雇い手の与信情報カード。プレビュー・応募者カード・確認ページで共用。
 import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, interactionStyleLabel, tenureLabel, normalizeInsuranceItems } from "../lib/utils";
-import { ExpandableText, Avatar } from "./ui";
+import { ExpandableText, Avatar, QaChat } from "./ui";
 
 export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare }) {
   if (!profile) return null;
@@ -184,14 +184,12 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
       {okTrust && trust.avg_approval_hours != null && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>承認までの時間：平均{trust.avg_approval_hours}時間</p>
       )}
+      {/* 問いかけQ&A（うちの畑のユニークなところ等）もチャット形式（2026-08-07たきと指示・
+          「就農するまで等の文言」と同じ扱い）。回答＝農家の言葉so緑（blackテーマは黒）。
+          編集モードは従来どおり領域タップで編集ボックス（tap("ask")のラッパーを維持） */}
       {qa.length > 0 && (
-        <div {...tap("ask")} style={{ display:"grid", gap:10, marginTop:4, ...cur }}>
-          {qa.map(({ q, a }) => (
-            <div key={q}>
-              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{q}</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
-            </div>
-          ))}
+        <div {...tap("ask")} style={{ marginTop:4, ...cur }}>
+          <QaChat items={qa} accent={black ? "#111111" : "#00A86B"} style={{ marginTop:0 }} />
         </div>
       )}
       {/* タグは1箇所に集約（2026-07-27たきと指示）：やり取りの雰囲気・保険・待遇を1行に並べる。
