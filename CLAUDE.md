@@ -3527,4 +3527,24 @@ wp_nickname_norm にカタカナ→ひらがなの translate を追加（U+30A1.
 【既存データ】事前実測で仮名折り畳みによる新たな衝突ゼロ（既知の「たき」×2のみ）。
 【残る限界（機構では塞がない・最終形）】漢字・キリル等のホモグリフ（カ vs 力）のみ。
 これはUnicode上の別文字so機構判定は不能＝運営の目視（名簿・審査）が最後の壁。
+━━━ 2026-08-07 保存機能実装後の実機一周＝穴1件（app_work_datesのanon露出）を発見・修理 ━━━
+【立場】退会処理（process_withdrawal）を入れた直後の穴探し。削除機構は間違えると証跡を巻き添えにするso
+そこを重点に、audit①〜⑥＋退会の否定テストを本番の各ロールで実弾（合成のみ・全ロールバック・残置ゼロ実測
+jobs28/apps20不変）。
+【audit再走査】①訪問者マスク[OK]／③b裏方anon露出0[OK]／④フェイルオープン0[OK]／⑤ビュー書込0[OK]／
+退会・purgeのanon不可[OK]／⑥入口は既知NG（PC作業）。
+【★発見＝app_work_dates(uuid) that anon/auth に開いていた（修理済み）】
+二重予約判定の実働日集合を返す confirm_terms の内部ヘルパー（並走セッションthat2026-08-06に新設）that、
+作成時のPUBLIC自動EXECUTE付与のまま残り、任意の応募uuidを知る者thatその応募の稼働日を直接引けた
+（anonロールで実応募の稼働日7件取得を実証）。フロントは直接呼ばない（lib/hire.jsthat自前再実装）so
+開ける理由ゼロ。audit③bのパターン（send_/notify_/expire_/summarize_/purge_/process_）に名前that合わず
+擦り抜けた型。
+→ migration ..._revoke_app_work_dates_from_public：from public,anon,authenticated で全面revoke。
+  検証：anon直叩き拒否／auth直叩き拒否／confirm_terms内部呼びは無傷（同日2求人・受諾なしthat依然
+  double_booked＝二重予約判定that働き続ける）。SECURITY DEFINERの内部呼びはEXECUTE権限に依存しないため機能無傷。
+【退会処理(process_withdrawal)の再確認】anon不可・auth可（内部でapp_adminsゲート）を権限で確認済み。
+本体の実弾10項目は導入時に全OK（証跡5/5残存・匿名化・冪等・相手方無傷）。
+【教訓・audit強化候補】③bの網に「当事者スコープのSECURITY DEFINERヘルパーthat anon/auth にEXECUTE可」を
+足す（名前パターンでなく、prosecdef かつ auth.uid()/party 判定を本体に持たない関数の洗い出し）。
+今回は名前規則の隙間から漏れた＝次回audit改訂で機械化する。
 ━━━ ここまで ━━━
