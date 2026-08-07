@@ -990,10 +990,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     } catch (e) { return { ok:false, reason:String(e) }; }
   };
 
-  // 保存の出口は2つ（2026-08-03たきと指示「更新は完了させるが、ページ遷移はさせるな」）：
-  // ・exit:false ＝ 確認ページ下部ナビの「保存」。その場で保存するだけ。フローは閉じず、
-  //   求人ページ（お仕事タブの作成中）へ引き戻さない。編集を続けられる
-  // ・exit:true  ＝ 終了モーダルの「保存して終了」。保存してからフローを閉じ、作成中へ着地する
+  // 保存の出口（2026-08-07たきと指示「確認ページで保存を押すと求人ページに戻る」で exit:true に一本化）：
+  // ・exit:true  ＝ 保存してフローを閉じ、求人ページ（お仕事タブ）へ着地する。
+  //   確認ページ下部ナビの「保存」も、終了モーダルの「保存して終了」もこちら
+  // ・exit:false ＝ その場保存（現在呼び出し無し。savedToastの仕組みは復活に備えて温存）
+  //   ※2026-08-03「更新は完了させるが、ページ遷移はさせるな」は本日の指示で置き換え
   const handleTopSave = async ({ exit = false } = {}) => {
     if (draftSaving) return;
     setDraftSaving(true); setDraftMsg("");
@@ -2833,7 +2834,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           )}
           {isFarmer && step === 11 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <button onClick={() => handleTopSave({ exit: false })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
             </div>
           )}
@@ -2863,7 +2864,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
           {/* 確認ページ(step11)：右下に「保存」＋「掲載する」の浮遊ペア */}
           {isFarmer && step === 11 && (
             <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10, ...perksNavHide }}>
-              <button onClick={() => handleTopSave({ exit: false })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
             </div>
           )}
