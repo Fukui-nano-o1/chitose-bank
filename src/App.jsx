@@ -1591,7 +1591,14 @@ export default function App(){
   useEffect(() => {
     if (chatAppId) { document.body.classList.remove('cb-scroll-hide'); document.body.classList.remove('cb-at-bottom'); return; }
     let lastY = window.scrollY;
+    let heartTimer = null;
     const onScroll = () => {
+      // いいねハートのぷるんぷるん（2026-08-07たきと指示）：縦スクロール中だけ body.cb-scrolling を
+      // 立て、CSS（appStyles .cb-like-heart）that震わせる。止まって220ms後に外す（振幅は小so途中で
+      // 切れてもスナップthat目立たない）。既存のスクロール監視に相乗り＝リスナーを増やさない
+      document.body.classList.add('cb-scrolling');
+      if (heartTimer) clearTimeout(heartTimer);
+      heartTimer = setTimeout(() => document.body.classList.remove('cb-scrolling'), 220);
       const y = window.scrollY;
       const diff = y - lastY;
       // 最下部からの残り距離（cb-at-bottom判定と下の格納判定で共用）
@@ -1615,6 +1622,8 @@ export default function App(){
     onScroll(); // 初期位置（リロード直後に最下部にいる場合等）でもドック判定を反映
     return () => {
       window.removeEventListener('scroll', onScroll);
+      if (heartTimer) clearTimeout(heartTimer);
+      document.body.classList.remove('cb-scrolling');
       document.body.classList.remove('cb-scroll-hide');
       document.body.classList.remove('cb-at-bottom');
     };

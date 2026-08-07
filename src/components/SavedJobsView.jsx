@@ -212,7 +212,7 @@ export function SavedJobsView({ me }) {
                     応募済みの求人はステータス確認のため一覧に残る（消えるのは「いいねだけ」の求人） */}
                 {r.liked && (
                   <button onClick={()=>handleUnsave(r)} aria-label="いいねを解除" className="f-sans"
-                    style={{ position:"absolute", top:6, right:6, zIndex:1, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:15, lineHeight:1, color:"#E24B4A", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>♥</button>
+                    style={{ position:"absolute", top:6, right:6, zIndex:1, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:15, lineHeight:1, color:"#E24B4A", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}><span className="cb-like-heart" style={{ display:"inline-block" }}>♥</span></button>
                 )}
               </div>
             );

@@ -1273,6 +1273,18 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 /* 今日ページ：役割スワイプ切替のスライドイン（2026-07-25）。右から=cbSlideInR／左から=cbSlideInL */
 @keyframes cbSlideInR { from { transform: translateX(64px); opacity: .35; } to { transform: none; opacity: 1; } }
 @keyframes cbSlideInL { from { transform: translateX(-64px); opacity: .35; } to { transform: none; opacity: 1; } }
+/* いいねハートのぷるんぷるん（2026-08-07たきと指示）：縦スクロール中（body.cb-scrolling＝App.jsxの
+   スクロール監視that立てる）だけ、ゼリーの伸び縮みで震える。transformはグリフのspan（.cb-like-heart）
+   にだけ掛ける＝ボタン円・カード・fixed要素のtransformには波及しない。振幅は小さめ＝スクロールthat
+   止まってクラスthat外れ、アニメthat途中で切れてもスナップthat目立たない */
+@keyframes cbHeartJelly {
+  0%   { transform: scale(1, 1); }
+  30%  { transform: scale(1.22, 0.78) rotate(-5deg); }
+  55%  { transform: scale(0.86, 1.14) rotate(4deg); }
+  78%  { transform: scale(1.1, 0.92) rotate(-2deg); }
+  100% { transform: scale(1, 1); }
+}
+body.cb-scrolling .cb-like-heart { animation: cbHeartJelly .55s ease-in-out infinite; }
 
 /* 訪問者の玄関（#/visit）：いま募集中の求人が横に流れる帯（2026-07-27たきと指示・ロゴの差し替え）。
    同じ並びを2回描いて -50% まで流す＝継ぎ目なしで無限ループ。指を置いている間は停止。

@@ -31,7 +31,8 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
                    display:"flex", alignItems:"center", justifyContent:"center",
                    boxShadow:"0 1px 4px rgba(0,0,0,.18)", fontSize:16,
                    color: saved ? "#E24B4A" : "#717171" }}>
-          {saved ? "♥" : "♡"}
+          {/* グリフだけspanに包む＝ぷるんぷるん（cb-like-heart・スクロール連動）のtransformをボタン円に波及させない */}
+          <span className="cb-like-heart" style={{ display:"inline-block" }}>{saved ? "♥" : "♡"}</span>
         </button>
       )}
       {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16）。終了中（満員/期間終了）は出さない */}

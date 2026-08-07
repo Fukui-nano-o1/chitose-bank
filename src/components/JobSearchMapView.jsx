@@ -942,7 +942,7 @@ export function JobSearchMapView({ onRegister, me }) {
         <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>{savedIds.has(selectedJob.id) ? "♥ いいね済み" : "♡ いいね"}</button>
+        }}><span className="cb-like-heart" style={{ display:"inline-block" }}>{savedIds.has(selectedJob.id) ? "♥" : "♡"}</span>{savedIds.has(selectedJob.id) ? "いいね済み" : "いいね"}</button>
         )}
         <div className="appear job-detail-body-mobile">
           {/* 通報リンク（いいねの上=ページ先頭右） */}
