@@ -53,20 +53,27 @@ function lazyChunk(factory) {
 // 応募完了の法的一言トースト（2026-08-07・①）。完了ページを廃止したので、その画面にあった
 // 「まだ採用ではない／雇用契約は当事者間」の明示を、着地先に一度だけ出して消さない（法務の一線）。
 // 下から出る帯。8秒で自動的に消え、タップでも閉じる。pointer-events:noneにはしない（タップで閉じられるように）。
-function ApplyDoneNote({ promoted = 0, already = false, pending = false, onClose }) {
+function ApplyDoneNote({ promoted = 0, already = false, pending = false, worker = false, onClose }) {
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
   useEffect(() => {
     const t = setTimeout(() => onCloseRef.current?.(), 8000);
     return () => clearTimeout(t);
   }, []);
-  const head = pending ? "仮応募をお預かりしました"
+  const head = worker ? "ありがとうございます"
+             : pending ? "仮応募をお預かりしました"
              : promoted > 0 ? `${promoted}件の応募を農家さんにお届けしました`
              : already ? "この求人には応募済みです" : "応募を農家さんにお届けしました";
   return (
     <div onClick={()=>onClose?.()} style={{ position:"fixed", left:0, right:0, bottom:0, zIndex:9500, display:"flex", justifyContent:"center", padding:"0 12px calc(12px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .25s ease" }}>
       <div className="cb-sheet-up" style={{ maxWidth:460, width:"100%", background:"#111", color:"#fff", borderRadius:14, padding:"14px 16px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)", cursor:"pointer" }}>
-        <p className="f-sans" style={{ fontSize:14, fontWeight:800, margin:"0 0 4px" }}>{pending ? "⏳" : "📩"} {head}</p>
-        {pending ? (
+        <p className="f-sans" style={{ fontSize:14, fontWeight:800, margin:"0 0 4px" }}>{worker ? "🌱" : pending ? "⏳" : "📩"} {head}</p>
+        {worker ? (
+          <>
+            {/* 職安法配慮の明示（旧・働き手フロー完了ページstep8から移設）：構想段階＝稼働していないことを消さない */}
+            <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>この機能は現在構想段階です。実装前に労働局・関係機関へ確認した上で、段階的に追加予定です。</p>
+            <p className="f-sans" style={{ fontSize:11, lineHeight:1.6, color:"#B8B8B8", margin:"6px 0 0" }}>ログインすると実証に参加できます。</p>
+          </>
+        ) : pending ? (
           <>
             {/* 正直さの明示（仮応募＝まだ届いていない）。旧ApplyPendingページの説明を消さずここへ */}
             <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>プロフィールがそろうと、農家さんに応募が届きます。「プロフィールを仕上げる」から続けられます。</p>
@@ -1498,6 +1505,11 @@ export default function App(){
   // チェックリスト（残り項目のタップ入力・昇格ボタン）を出す＝あの導線の受け皿は消さない
   const [pendBurst,setPendBurst]=useState(false); // 仮応募の祝祭（✅・新規到着だけ1回）
   const [pendNote,setPendNote]=useState(false);   // 仮応募の案内トースト（届くのはプロフィール完成後＝正直さの明示）
+  // 働き手フロー完了（LandingFlow step8）もアニメーション化（2026-08-07たきと指示・③）。
+  // ※このフローの本番導線は現在無し（setRole("worker")は管理タブdevJump「働3」等のみ）＝実質プレースホルダーの整理。
+  // 旧ページの3ボタンの置き換え＝主役「実証に参加する」→ログインへ着地／「公開データを見る」→60秒アイドルのさがす行き
+  const [workerFlowBurst,setWorkerFlowBurst]=useState(false); // 祝祭（✅ありがとうございます）
+  const [workerFlowNote,setWorkerFlowNote]=useState(false);   // 案内トースト（構想段階の明示＝職安法配慮を消さない）
   // apply/done に来たら：完了ページを出さず、応募状況（/profile/worker/applying）へ着地させ、
   // 祝祭（applyBurst・既存）＋法的トースト＋アイドル見張りを起動する。promotedCount/applyAlready/applyBurst は
   // hashハンドラthat先に設定済み（この効果はそれらの設定後に走る）。
@@ -2883,6 +2895,9 @@ export default function App(){
           再訪は従来どおり ApplyPending のチェックリストページ（残り項目の受け皿）を出す */}
       {pendBurst && <Celebration emoji="✅" title="仮応募をお預かりしました" onDone={()=>setPendBurst(false)} />}
       {pendNote && <ApplyDoneNote pending onClose={()=>setPendNote(false)} />}
+      {/* 働き手フロー完了もアニメーション（2026-08-07・③）。祝祭＋構想段階トースト。着地はログイン画面 */}
+      {workerFlowBurst && <Celebration emoji="✅" title="ありがとうございます" onDone={()=>setWorkerFlowBurst(false)} />}
+      {workerFlowNote && <ApplyDoneNote worker onClose={()=>setWorkerFlowNote(false)} />}
       {applyIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setApplyIdle(false); if (fired) window.location.hash="/search"; }} />}
 
       {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるso、個別に包む
@@ -2893,6 +2908,8 @@ export default function App(){
           onComplete={()=>setShowLanding(false)}
           onSkip={()=>{setShowLanding(false);setTab("search");}}
           onLogin={()=>{setShowLanding(false);setTab("login");}}
+          onWorkerDone={()=>{ /* ③（2026-08-07）：完了ページの代わりに祝祭＋トースト＋ログインへ着地＋60秒でさがす */
+            setShowLanding(false); setTab("login"); setWorkerFlowBurst(true); setWorkerFlowNote(true); setApplyIdle(true); }}
         /></Suspense></AppErrorBoundary>
       )}
       {me&&showJobPost&&(
@@ -2911,6 +2928,8 @@ export default function App(){
           onComplete={()=>setShowDevJump(false)}
           onSkip={()=>setShowDevJump(false)}
           onLogin={()=>setShowDevJump(false)}
+          onWorkerDone={()=>{ /* devJump（管理者の確認用）：閉じて祝祭＋トーストだけ出す（ログインへは送らない） */
+            setShowDevJump(false); setWorkerFlowBurst(true); setWorkerFlowNote(true); }}
         /></Suspense></AppErrorBoundary>
       )}
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}

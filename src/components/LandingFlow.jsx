@@ -319,7 +319,7 @@ function LFFakeFilterRow() {
 
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
-export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
+export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorkerDone, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
 
   // ── ログイン後復帰: postLoginReturnTo を確認して draft を読み込む ──
@@ -1021,6 +1021,18 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, farmersC
   // devJumpは1回のマウントで消費したら破棄する（残り続けると、後日の通常フロー起動時に
   // _devJumpが読まれて古いstep/roleへ勝手にジャンプする。読み込み済みの_devJump変数には影響しない）
   useEffect(() => { try { localStorage.removeItem('devJump'); } catch {} }, []);
+
+  // 働き手フロー完了（step8）＝ページでなくアニメーション（2026-08-07たきと指示・③）。
+  // onWorkerDone があれば親（App）that祝祭＋案内トースト＋着地を出すので、ここでは1回通知するだけで何も描かない
+  // （フロー自体は親that閉じる＝フロー内に祝祭を置くとアンマウントで消えるため親側に置く・onPublishedと同じ作法）。
+  // 未指定の呼び出しは従来の完了画面にフォールバック（onPublished未指定→step12と同じ後方互換）
+  const workerDoneFired = useRef(false);
+  useEffect(() => {
+    if (!(isWorker && step === 8) || typeof onWorkerDone !== "function") return;
+    if (workerDoneFired.current) return;
+    workerDoneFired.current = true;
+    onWorkerDone();
+  }, [isWorker, step, onWorkerDone]);
 
   // 確認ページ到達時：住所からおおよその座標を取得（保存時のgeocodeTownと同じ手順。
   // 取得失敗・住所未入力ならnullのまま＝JobLocationMapが「地図は準備中です」を表示）
@@ -2724,7 +2736,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, farmersC
             </LFWizCard>
           </>)}
 
-          {isWorker && step === 8 && (<>
+          {/* ③（2026-08-07）：onWorkerDone があれば親thatアニメーションに置換するのでこのページは出さない */}
+          {isWorker && step === 8 && typeof onWorkerDone !== "function" && (<>
             <div style={{ textAlign:"center", paddingTop:20 }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
               <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", marginBottom:10 }}>ありがとうございます</h2>
