@@ -404,11 +404,13 @@ export function SavedJobsView({ me }) {
         const chatOk = !!(r.application_id && CHAT_ELIGIBLE_STATUSES.includes(r.application_status));
         return (
           <div onClick={()=>setBoxJob(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            {/* ✕ボタンは削除（2026-08-07たきと指示「×削除」）＝閉じる道は下スワイプで畳む・背景タップの2つ。
+                代わりに掴み手の目印（グラバー）だけ上部に置く */}
             <div ref={sheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-              <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                <button onClick={()=>setBoxJob(null)} aria-label="閉じる" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              <div aria-hidden="true" style={{ flexShrink:0, display:"flex", justifyContent:"center", padding:"10px 0 2px" }}>
+                <span style={{ width:40, height:4, borderRadius:2, background:"#E0E0E0" }} />
               </div>
-              <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+              <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
                 {/* ═══ 面の2枚構造（2026-08-07たきと指示「求人タップでスライドしてね。そこで、求人詳細の確認しよう」）：
                      [詳細パネル｜メイン面] を横に並べ、コンテナのtransformで切り替える。
                      カードの右スライドアウト（cbJobShowcase）が終わった合図で詳細面へ＝中身全体that右へずれて
