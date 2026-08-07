@@ -510,7 +510,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const [jobPerks, setJobPerks] = useState(d.jobPerks ?? null); // この求人だけの待遇上書き → jobs.perks（NULL=プロフィールの待遇・2026-07-18）
   const [experiencedPreferred, setExperiencedPreferred] = useState(d.experiencedPreferred ?? false); // 💪経験者優遇 → jobs.experienced_preferred（2026-07-18・必要経験の選択式は撤回）
   const [jobSaving, setJobSaving] = useState(false);
-  const [publishChecks, setPublishChecks] = useState([false, false, false, false]);
+  // 掲載前の確認（2026-08-07たきと指示「チェックは1つにまとめる」）：4項目は本文として列挙し、
+  // 「確認しました」1つのチェックで掲載ボタンを解錠する（旧：4つの個別チェックボックス）
+  const [publishConfirmed, setPublishConfirmed] = useState(false);
   const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
   // 募集者情報（①氏名・名称②住所・所在地③連絡先）が無ければ掲載申請できない（法令の明示事項・2026-07-27たきと指示）。
   // ページを移動せず、その場でボックスを開いて入力→保存→掲載申請を続行する。
@@ -583,8 +585,38 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
       has_bonus: !!base.has_bonus,
       employer_pays_supplies: !!base.employer_pays_supplies, supplies_cap: base.supplies_cap || "",
       accessory_ok: !!base.accessory_ok,
+      // 受動喫煙（2026-08-07たきと指示「ここでも変更可能に」）。jobPerksには入らないため常にプロフィール値
+      smoking_policy: (confEmployer && confEmployer.smoking_policy) || "",
+      smoking_area: (confEmployer && confEmployer.smoking_area) || "",
     });
     setPerksEditOpen(true);
+  };
+  // 「この求人のみ」（2026-08-07に関数化）：待遇はこの求人だけの上書き（jobPerks）へ。
+  // ★受動喫煙だけは求人ごとの上書きにしない（2026-08-03たきと裁定：同一募集者が喫煙環境の異なる
+  //   就業場所を掲載する事例が確認されるまで実装しない）。このボックスで変えた受動喫煙は、
+  //   「この求人のみ」を押した場合も事業所の設定＝プロフィールへ保存する（UIにもその旨を明記）
+  const applyPerksToJobOnly = async () => {
+    if (perkSaving || !perkDraft) return;
+    const { smoking_policy, smoking_area, ...jobOnly } = perkDraft;
+    const nextArea = smoking_policy === "喫煙場所あり" ? (smoking_area || "").trim() : "";
+    const changedSmoking = (smoking_policy || "") !== ((confEmployer && confEmployer.smoking_policy) || "")
+      || nextArea !== ((confEmployer && confEmployer.smoking_area) || "");
+    if (changedSmoking) {
+      setPerkSaving(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const payload = { auth_id: session.user.id, smoking_policy: smoking_policy || null, smoking_area: nextArea };
+          const { error } = await supabase.from("employer_profiles").upsert(payload, { onConflict: "auth_id" });
+          if (error) { alert("受動喫煙の保存に失敗しました：" + error.message); setPerkSaving(false); return; }
+          const next = { ...(confEmployer || {}), ...payload };
+          setConfEmployer(next); setCache("farm:empMini", next);
+        }
+      } catch { alert("受動喫煙の保存に失敗しました。"); setPerkSaving(false); return; }
+      setPerkSaving(false);
+    }
+    setJobPerks({ ...jobOnly });
+    setPerksEditOpen(false);
   };
   const savePerksToProfile = async () => {
     if (perkSaving || !perkDraft) return;
@@ -616,6 +648,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
         has_bonus: perkDraft.has_bonus,
         employer_pays_supplies: perkDraft.employer_pays_supplies,
         accessory_ok: perkDraft.accessory_ok,
+        // 受動喫煙（2026-08-07）：EmployerProfileEditと同じ作法＝直接列へ。
+        // 「あり」以外を選んだら場所の記述は保存しない（選び直しの残骸を残さない）
+        smoking_policy: perkDraft.smoking_policy || null,
+        smoking_area: perkDraft.smoking_policy === "喫煙場所あり" ? (perkDraft.smoking_area || "").trim() : "",
         texts_pending: pend,
         texts_submitted_at: Object.keys(pend).length ? new Date().toISOString() : ((cur && cur.texts_submitted_at) || null),
         // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
@@ -2046,7 +2082,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                     const { error: ckErr } = await supabase.from("job_publish_checks").insert({
                       job_number: _jn,
                       farmer_id: session.user.id,
-                      items: PUBLISH_CHECKS.map((text, i) => ({ text, checked: !!publishChecks[i] })),
+                      // 2026-08-07 UI変更：4つの個別チェック→内容の列挙＋「確認しました」1つに。
+                      // 掲載ボタンは確認済みでないと押せないため、記録は従来と同じ形
+                      // （提示した4項目・全てchecked:true）で追記する＝台帳の形は変えない
+                      items: PUBLISH_CHECKS.map((text) => ({ text, checked: true })),
                       agreed_at: new Date().toISOString(),
                     });
                     if (ckErr && isAdmin(session.user)) alert("【管理者デバッグ】掲載前の確認の記録に失敗：" + ckErr.message);
@@ -2291,13 +2330,23 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                               )}
                             </div>
                           ))}
+                          {/* 受動喫煙（2026-08-07たきと指示）：UIはEmployerProfileEditと同じ2択＋場所。
+                              求人ごとの上書きにはしない（2026-08-03裁定を維持）＝どちらのボタンでもプロフィールへ保存 */}
+                          <div style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
+                            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>🚭 受動喫煙の状況</p>
+                            <LFPillSelect options={["禁煙（喫煙場所なし）","喫煙場所あり"]} value={perkDraft.smoking_policy} onSelect={(v)=>setPerkDraft(p=>({ ...p, smoking_policy: v }))} />
+                            {perkDraft.smoking_policy === "喫煙場所あり" && (
+                              <input value={perkDraft.smoking_area} onChange={e=>setPerkDraft(p=>({ ...p, smoking_area: e.target.value }))} placeholder="喫煙場所（例：屋外の休憩小屋の横）" maxLength={100} className="field f-sans" style={{ fontSize:13, marginTop:8, marginBottom:0 }} />
+                            )}
+                            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.6 }}>受動喫煙は事業所（就業場所）の設定のため、「この求人のみ」を押した場合も農家プロフィールに保存されます。</p>
+                          </div>
                           <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:10 }}>
                             「保存」＝農家プロフィールの待遇も更新します（文章の項目は運営の確認後に公開）。「この求人のみ」＝この求人だけに適用し、プロフィールは変わりません（求人審査の中で確認されます）。
                           </p>
                         </div>
                         <div style={{ display:"flex", gap:8, padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
                           <button onClick={savePerksToProfile} disabled={perkSaving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:12, cursor:"pointer", opacity: perkSaving ? 0.6 : 1 }}>{perkSaving ? "保存中..." : "保存"}</button>
-                          <button onClick={()=>{ setJobPerks({ ...perkDraft }); setPerksEditOpen(false); }} disabled={perkSaving} className="btn-primary f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12 }}>この求人のみ</button>
+                          <button onClick={applyPerksToJobOnly} disabled={perkSaving} className="btn-primary f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, opacity: perkSaving ? 0.6 : 1 }}>この求人のみ</button>
                         </div>
                       </div>
                     </div>
@@ -2477,34 +2526,38 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                       <button onClick={() => setPublishModal(false)} aria-label="閉じる" style={{ background:"none", border:"none", fontSize:22, color:"#717171", cursor:"pointer", padding:"0 4px", lineHeight:1 }}>×</button>
                     </div>
                     <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
-                    {/* 文言は lib/utils の PUBLISH_CHECKS（表示と記録で共用・2026-07-30） */}
+                    {/* 文言は lib/utils の PUBLISH_CHECKS（表示と記録で共用・2026-07-30）。
+                        2026-08-07たきと指示：個別チェックをやめ本文の列挙にし、チェックは下の1つに集約 */}
                     {PUBLISH_CHECKS.map((text, i) => (
-                      <label key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"8px 0", cursor:"pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={publishChecks[i]}
-                          onChange={() => setPublishChecks(prev => prev.map((v, idx) => idx === i ? !v : v))}
-                          style={{ marginTop:3, width:18, height:18, flexShrink:0, accentColor:"#00A86B", cursor:"pointer" }}
-                        />
-                        <span className="f-sans" style={{ fontSize:14, color: publishChecks[i] ? "#00A86B" : "#222", lineHeight:1.6 }}>
-                          {publishChecks[i] ? "✓ " : ""}{text}
-                        </span>
-                      </label>
+                      <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"7px 0" }}>
+                        <span aria-hidden="true" style={{ color:"#00A86B", fontWeight:700, flexShrink:0, lineHeight:1.6 }}>・</span>
+                        <span className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.6 }}>{text}</span>
+                      </div>
                     ))}
+                    {/* まとめて1つの確認チェック（同意して掲載するボタンの直上） */}
+                    <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"14px 0 2px", cursor:"pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={publishConfirmed}
+                        onChange={() => setPublishConfirmed(v => !v)}
+                        style={{ width:20, height:20, flexShrink:0, accentColor:"#00A86B", cursor:"pointer" }}
+                      />
+                      <span className="f-sans" style={{ fontSize:15, fontWeight:700, color: publishConfirmed ? "#00A86B" : "#222" }}>確認しました</span>
+                    </label>
                     <button
                       onClick={handleSaveJob}
-                      disabled={jobSaving || !publishChecks.every(Boolean)}
+                      disabled={jobSaving || !publishConfirmed}
                       className="btn-primary"
-                      style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginTop:12, marginBottom:10, ...(!publishChecks.every(Boolean) ? { background:"#EBEBEB", color:"#717171" } : {}) }}
+                      style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginTop:10, marginBottom:10, ...(!publishConfirmed ? { background:"#EBEBEB", color:"#717171" } : {}) }}
                     >
                       {jobSaving ? "保存中..." : "同意して掲載する"}
                     </button>
-                    {!publishChecks.every(Boolean) && (
-                      <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>すべての確認にチェックすると掲載できます</p>
+                    {!publishConfirmed && (
+                      <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>「確認しました」にチェックすると掲載できます</p>
                     )}
                     {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
                     <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>{payTermsLine(CURRENT_PAY_POLICY)}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:0 }}>{meCanOpen ? "「掲載する」を押すと、働き手に公開されます。" : "「掲載する」を押すと、公開の準備に進みます。準備that整いしだい、働き手に公開されます。"}</p>
+                    <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:0 }}>{meCanOpen ? "「掲載する」を押すと、働き手に公開されます。" : "「掲載する」を押すと、公開の準備に進みます。準備が整いしだい、働き手に公開されます。"}</p>
                   </div>
                 </div>
               )}
