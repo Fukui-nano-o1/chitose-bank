@@ -422,6 +422,11 @@ function WorkerPreviewSheet() {
           // 審査中（審査待ち／修正依頼中）の働き手は、本人と運営以外にプレビューを見せない（2026-07-19）
           const p = wpRes.data || null;
           const viewer = sessRes?.data?.session?.user || null;
+          // 閲覧された回数（2026-08-07たきと裁定：匿名カウンター）。誰が見たかは送らない・保存されない。
+          // 本人と運営はRPC側でも数えないが、リクエスト自体を省く。失敗しても表示には影響させない
+          if (viewer?.id && viewer.id !== workerId && !isAdmin(viewer)) {
+            Promise.resolve(supabase.rpc("count_worker_profile_view", { p_worker_id: workerId })).catch(() => {});
+          }
           const underReview = !!(p && (((p.pr_pending || "").trim()) || (Array.isArray(p.pr_qa_pending) && p.pr_qa_pending.length > 0)));
           const blocked = underReview && viewer?.id !== workerId && !isAdmin(viewer);
           setSt(prev => prev && prev.worker_id === workerId ? {

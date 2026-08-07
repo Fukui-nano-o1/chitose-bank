@@ -89,6 +89,17 @@ export function WorkRecordBody({ data, showName }) {
       {(t.unknown_time_count ?? 0) > 0 && (
         <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0" }}>うち{t.unknown_time_count}件は勤務時間の記録がなく、時間に含めていません</p>
       )}
+      {/* 閲覧された回数（2026-08-07たきと裁定）：匿名カウンター＝誰が見たかは記録していない。
+          DBが本人・運営にだけ値を返す（農家にはキーがnull）＝この枠は本人と運営にしか出ない */}
+      {data.profile_view_count != null && (
+        <>
+          <div style={{ marginTop:8, background:"#FAFAFA", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"baseline", justifyContent:"space-between" }}>
+            <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>閲覧された回数</span>
+            <span className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{data.profile_view_count}<span style={{ fontSize:11, fontWeight:700, marginLeft:2 }}>回</span></span>
+          </div>
+          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0" }}>農家がプロフィールを確認した回数。本人と運営にだけ表示され、誰が見たかは記録していません</p>
+        </>
+      )}
     </div>
 
     {/* ① 直近5件の遅刻・欠勤：要約チップのみ。回ごとの明細行（日付・予定時刻・判定）は
