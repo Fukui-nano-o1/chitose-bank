@@ -10,6 +10,7 @@ import { supabase } from "../lib/supabase";
 import { ymdLocal, calFmtDate, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
 
@@ -270,31 +271,61 @@ export function SavedJobsView({ me }) {
                     <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>いいねした求人です。求人ページから応募できます。</p>
                   </div>
                 )}
-                {/* 求人の要約（写真・タイトル・#No.・日程・地域） */}
-                <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
-                  <div style={{ flexShrink:0, width:88, height:88, borderRadius:12, overflow:"hidden", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
-                    {photoOf(r) ? <img loading="lazy" src={photoOf(r)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
-                  </div>
-                  <div style={{ minWidth:0 }}>
-                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{titleOf(r)}</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"2px 0 0" }}>#{r.job_number}{r.town ? "　" + r.town : ""}</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📅 {dateLabel}</p>
+                {/* 求人の要約＝その他の求人カードと同じ配置と要素（2026-08-07たきと指示）：
+                    左＝トップ写真3:4にタイトル・#No.を重ねる（一覧・応募者ページ・新着の応募ページと同じ作法）／
+                    右＝地域・日程・応募日。旧・正方形88pxの独自要約は廃止（カードの顔を二種類持たない） */}
+                <div style={{ display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginBottom:12 }}>
+                  <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} aria-label="求人ページを見る" className="f-sans"
+                    style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                    {photoOf(r) ? <img src={photoOf(r)} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                    <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
+                      <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{titleOf(r)}</span>
+                      <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{r.job_number}</span>
+                    </span>
+                  </button>
+                  <div style={{ flex:1, minWidth:0, padding:"12px 14px", display:"flex", flexDirection:"column", justifyContent:"center", gap:6 }}>
+                    {r.town && <span className="f-sans" style={{ fontSize:12, color:"#717171" }}>📍 {r.town}</span>}
+                    <span className="f-sans" style={{ fontSize:12, color:"#717171" }}>📅 {dateLabel}</span>
                     {r.application_id && (
-                      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>応募日 {new Date(r.applied_at).toLocaleDateString("ja-JP")}</p>
+                      <span className="f-sans" style={{ fontSize:12, color:"#999" }}>応募日 {new Date(r.applied_at).toLocaleDateString("ja-JP")}</span>
                     )}
                   </div>
                 </div>
-                {/* 操作（応募者ページのボタン群と同じ位置づけ） */}
-                <div style={{ display:"grid", gap:8 }}>
+                {/* 選択した日にち（2026-08-07たきと指示）：働く日（農家が確定・濃緑）＞来られる日（応募時に自分が選んだ日）。
+                    共有部品＝応募者カード・返事待ちカード・チャット文脈カードと同じ見た目。
+                    'any'（期間中いつでも）・未選択は部品側で非表示（実データ／未設定／非表示の三択・憲法3条） */}
+                <AgreedDatesRow value={r.agreed_dates} />
+                <AvailDatesChips value={r.available_dates} />
+                {/* 操作＝プロフィールページの入口カードと同じ構造のボックス（2026-08-07たきと指示）：
+                    白カード・絵文字40px・太字タイトル＋説明文（ProfileHub「新しく求職を出す」等と同型） */}
+                <div style={{ display:"grid", gap:10, marginTop:12 }}>
                   <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} className="f-sans"
-                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>求人ページを見る →</button>
+                    style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                    <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📄</span>
+                    <span style={{ minWidth:0 }}>
+                      <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>求人ページを見る</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>募集内容・場所・持ち物をもう一度確認できます。</span>
+                    </span>
+                  </button>
                   {chatOk && (
                     <button onClick={()=>{ setBoxJob(null); window.location.hash = "/chat/" + r.application_id; }} className="f-sans"
-                      style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+                      style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                      <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>💬</span>
+                      <span style={{ minWidth:0 }}>
+                        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>チャットを開く</span>
+                        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>農家さんとのやり取り・面接はここで行います。</span>
+                      </span>
+                    </button>
                   )}
                   {r.application_id && (
                     <button onClick={()=>{ setBoxJob(null); window.location.hash = "/profile/worker/applying"; }} className="f-sans"
-                      style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>応募状況を見る</button>
+                      style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                      <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📋</span>
+                      <span style={{ minWidth:0 }}>
+                        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>応募状況を見る</span>
+                        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>応募の進み具合（承認→面接→採用→仕事→完了）を確認できます。</span>
+                      </span>
+                    </button>
                   )}
                 </div>
               </div>
