@@ -390,7 +390,7 @@ export function SavedJobsView({ me }) {
                     return (
                       <div>
                         {backBtn}
-                        <JobDetailBody job={full} />
+                        <JobDetailBody job={full} me={me} />
                         {/* Q&A・保険・農家プロフィール・応募は求人ページが正（面には持ち込まない） */}
                         <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} className="f-sans"
                           style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>

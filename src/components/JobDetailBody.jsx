@@ -1,20 +1,47 @@
 // 求人詳細の本文（2026-08-07たきと指示「求人詳細ページをボックス化している要素をトレース。
 // ただし浮遊ボックスは除外」）：AdminJobPreview（審査・オーナープレビュー＝求人詳細ページの
 // ボックス化）の本文をそのまま写した表示専用部品。
-// 【除外＝浮遊・操作系】指摘チップ／掲載前の確認の記録／公開の右スワイプ緑面／下部の操作バー／
-// ⏸一時非公開／指摘エディタ。残したのは働き手が見る本文だけ：
-// 写真ギャラリー→ヘッダー→主要情報→作業内容→持ち物・備考→危険箇所→地図→期間カレンダー。
-// job は mapJobPublicRow() で整形済みのオブジェクトを渡すこと。
+// 【除外＝浮遊・操作系】指摘チップ／公開の右スワイプ緑面／下部の操作バー／⏸一時非公開／指摘エディタ。
+// 【追補（2026-08-07たきと指示「一時非公開以外はちゃんと確認できるように」）】求人ページと同じ
+// 確認内容を後段に追加：保険（掲載時凍結のinsuranceSnapshotのみ・現在値へのフォールバック禁止）／
+// 農家プロフィール（job_employer_profile / job_employer_trust_info＝訪問者にも開いている公開RPC）／
+// 質問（JobQuestions＝求人Q&A・詳細/確認ページと同じ部品）。
+// ※掲載前の確認の記録は載せない：job_publish_checks のRLSが本人・運営のみで、働き手には常に0件
+//   ＝「記録なし」という嘘の表示になる。開示するならDB側の判断が先（勝手に開けない）。
+// 【同指示「求人にラベルは貼らなくていい」】ヘッダーのバッジ（はじめてOK等）は出さない
+// ＝AdminJobPreviewとの意図的な差分。
+// job は mapJobPublicRow() で整形済みのオブジェクトを渡すこと。me は Q&A の投稿判定用（任意）。
 // ※本文の見た目を変えるときは AdminJobPreview 側と揃える（出どころが同じ・枝分かれさせない）
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 import { payLabel, disp, stationLabel, payTermsLine, overtimeLine } from "../lib/utils";
-import { Carousel, JobFlagBadges, DangerItem, MaskedAddress } from "./ui";
+import { Carousel, DangerItem, MaskedAddress } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
+import { InsurancePanel } from "./InsurancePanel";
+import { FarmerTrustCard } from "./TrustCards";
+import { JobQuestions } from "./JobQuestions";
 
-export function JobDetailBody({ job }) {
+export function JobDetailBody({ job, me }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const [dangerLightbox, setDangerLightbox] = useState(null);
+  // 農家プロフィール（求人詳細ページと同じ2本を並列で・2026-08-02の作法）
+  const [emp, setEmp] = useState(null);
+  const [empTrust, setEmpTrust] = useState(null);
+  useEffect(() => {
+    if (!job?.id) { setEmp(null); setEmpTrust(null); return; }
+    let cancelled = false;
+    (async () => {
+      const [profRes, trustRes] = await Promise.all([
+        Promise.resolve(supabase.rpc('job_employer_profile', { p_job_number: job.id })).catch(() => ({ data: null })),
+        Promise.resolve(supabase.rpc('job_employer_trust_info', { p_job_number: job.id })).catch(() => ({ data: null })),
+      ]);
+      if (cancelled) return;
+      setEmp((profRes.data && profRes.data[0]) || null);
+      setEmpTrust(trustRes.data || null);
+    })();
+    return () => { cancelled = true; };
+  }, [job?.id]);
   if (!job) return null;
   const handlePhotoScroll = e => {
     const el = e.target;
@@ -64,18 +91,15 @@ export function JobDetailBody({ job }) {
       })()}
       <div style={{ marginBottom:12 }} />
 
-      {/* ヘッダー。番地の開示はDB側が正（jobs_publicのanonマスク）＝ログインしていれば届いた値が出る */}
+      {/* ヘッダー。番地の開示はDB側が正（jobs_publicのanonマスク）＝ログインしていれば届いた値が出る。
+          バッジ（はじめてOK・経験者優遇・リピート即決）は貼らない（2026-08-07たきと指示
+          「求人にラベルは貼らなくていい」＝AdminJobPreviewとの意図的な差分） */}
       <div style={{ position:"relative", marginBottom:20 }}>
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
           {job.crop} {job.task}{job.region ? `｜${job.region}` : ""}
           {job.region && <MaskedAddress value={job.workAddress} unlocked={true} exists={job.hasWorkAddress} />}
         </h2>
         <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"4px 0 0", userSelect:"text" }}>#{job.id}</p>
-        {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
-          <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
-            <JobFlagBadges beginner={job.beginnerOk} expert={job.experiencedPreferred} repeat={job.instantApproveRepeat} />
-          </div>
-        )}
       </div>
 
       {/* 主要情報 */}
@@ -128,6 +152,15 @@ export function JobDetailBody({ job }) {
         ))}
       </div>
 
+      {/* 保険（求人ページの保険タブと同じ規則・2026-08-02）：掲載時に凍結された insuranceSnapshot だけを見る。
+          プロフィール現在値へのフォールバック禁止。snapshotが無い＝レガシー求人はセクションごと非表示 */}
+      {Array.isArray(job.insuranceSnapshot?.items) && job.insuranceSnapshot.items.length > 0 && (
+        <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
+          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>保険</p>
+          <InsurancePanel employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }} />
+        </div>
+      )}
+
       {/* 危険区域セクション（両方空なら見出しごと非表示） */}
       {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
       <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20 }}>
@@ -165,6 +198,19 @@ export function JobDetailBody({ job }) {
           <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} holidays={job.holidays} />
         </div>
       )}
+
+      {/* 農家プロフィール（求人詳細ページと同じFarmerTrustCard・公開RPC由来。取得できるまで非表示） */}
+      {emp && (
+        <div style={{ marginBottom:20 }}>
+          <FarmerTrustCard profile={emp} trust={empTrust} />
+        </div>
+      )}
+
+      {/* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側that従来どおり） */}
+      <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20 }}>
+        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>質問</p>
+        <JobQuestions jobNumber={job.id} me={me} />
+      </div>
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
       {dangerLightbox && (
