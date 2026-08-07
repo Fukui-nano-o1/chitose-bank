@@ -95,6 +95,16 @@ export function deviceLabel(ua) {
   if (s.includes("android")) return "Android";
   return "PC";
 }
+// 発生ページ：page列が空でも url列のハッシュ部で代用する（2026-08-07）。
+// window.onerror／unhandledrejection経路の logAppError は page を渡さないが、
+// url=window.location.href は必ず記録されている（Script error.調査で「ページ：-」になった穴の修理）
+export function errorPage(e) {
+  if (e.page) return e.page;
+  const u = e.url || "";
+  const i = u.indexOf("#");
+  if (i >= 0 && u.length > i + 1) return u.slice(i + 1);
+  return "-";
+}
 
 // ── エラーのグループ細分化（2026-08-07たきと指示「エラーのグループを細分化する」）：
 // 大分類（カテゴリ）→ 種類（部品×発生源×文言の署名）→ 個々の発生、の3階層に束ねる。

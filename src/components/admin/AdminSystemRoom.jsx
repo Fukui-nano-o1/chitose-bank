@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 // エラーの辞書・分類・グループ化は lib/errorCatalog に集約（2026-08-07・画面上部の管理者帯と共有）
-import { explainError, deviceLabel, groupAppErrors } from "../../lib/errorCatalog";
+import { explainError, deviceLabel, errorPage, groupAppErrors } from "../../lib/errorCatalog";
 import { Dots } from "../ui";
 import { AdminNav } from "./AdminNav";
 
@@ -38,7 +38,7 @@ function groupFacts(g) {
     g.rows.forEach(r => { const k = fn(r); t[k] = (t[k] || 0) + 1; });
     return Object.entries(t).sort((a, b) => b[1] - a[1]);
   };
-  return { userN, anonN, devs: tally(r => deviceLabel(r.user_agent)), pages: tally(r => r.page || "-") };
+  return { userN, anonN, devs: tally(r => deviceLabel(r.user_agent)), pages: tally(r => errorPage(r)) };
 }
 // 状況の報告文（2026-08-07たきと指示「コピーボタンを各エラーに設置。君にどんな状況か説明できる状態にする」）：
 // AIや開発者にそのまま貼れる自己完結のテキスト。個人情報は入れない（user_idは人数のみ・メール等なし）
@@ -58,7 +58,7 @@ function buildErrorReport(g, catLabel, ex, stackText) {
     `■ 端末: ${f.devs.map(([k, n]) => `${k} ${n}件`).join("・")}`,
     `■ ページ: ${f.pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}${f.pages.length > 5 ? " ほか" : ""}`,
     "■ 最近の発生（最大5件）:",
-    ...g.rows.slice(0, 5).map(e => `- ${jp(e.created_at)}　${e.page || "-"}　${deviceLabel(e.user_agent)}${e.status === "fixed" ? "　✓解決済み" : ""}`),
+    ...g.rows.slice(0, 5).map(e => `- ${jp(e.created_at)}　${errorPage(e)}　${deviceLabel(e.user_agent)}${e.status === "fixed" ? "　✓解決済み" : ""}`),
     ex ? `■ 既知の説明: 原因=${ex.cause}／どうする=${ex.action}` : "■ 既知の説明: なし（辞書未登録の型）",
     "■ スタック（最新1件・先頭）:",
     stackText || "（取得できませんでした）",
@@ -130,7 +130,7 @@ export function AdminSystemRoom() {
     (async () => {
       try {
         const { data } = await supabase.from("app_errors")
-          .select("id,created_at,source,page,component,action,operation,error_code,message,status,user_id,user_agent")
+          .select("id,created_at,source,page,url,component,action,operation,error_code,message,status,user_id,user_agent")
           .order("created_at", { ascending: false }).limit(500);
         setAppErrors(data || []);
       } catch { setAppErrors([]); }
@@ -283,7 +283,7 @@ export function AdminSystemRoom() {
               <div style={{ display:"grid", gap:2 }}>
                 {g.rows.slice(0, 5).map(e => (
                   <p key={e.id} className="f-sans" style={{ fontSize:10, color:"#717171" }}>
-                    {new Date(e.created_at).toLocaleString("ja-JP")}　{e.page || "-"}　{deviceLabel(e.user_agent)}{e.status === "fixed" ? "　✓解決済み" : ""}
+                    {new Date(e.created_at).toLocaleString("ja-JP")}　{errorPage(e)}　{deviceLabel(e.user_agent)}{e.status === "fixed" ? "　✓解決済み" : ""}
                   </p>
                 ))}
               </div>
