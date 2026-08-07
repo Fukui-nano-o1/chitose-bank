@@ -4044,3 +4044,33 @@ third_party_publish_allowed=true so一般農家v_Lの求人も運営承認でope
 ・退会者の名前解決＝全経路「退会した利用者」。
 【結論】両面・巻き添え・双方向rosterの複雑系でも、削除/closed化/証跡保持/名前解決that整合。修理なし。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 プラポリ一周＝★違反1件発見（未承認の自由記述が農家に届く・worker_profiles）━━━
+【立場】プラポリ第3条データ台帳の各行を「約束」とし、DBの実態が約束より多く開示していないかを実弾照合。
+合成のみ・全ロールバック・残置ゼロ実測。
+【★違反（未修理・要判断）：働き手の未承認自由記述 pr_pending/pr_qa_pending が農家のクライアントに届く】
+・台帳Row4「自己紹介・質問への回答（自由記述）」＝「非公開の確認待ちとして保存／運営者が内容を確認してから
+　（最大2日）応募先などに表示／確認するのは連絡先の記載・個人の特定・不適切な表現の有無だけ」。
+・実態：worker_profiles のRLS「wp farmer select via application」が行単位で全列を農家に開く＋フロントの
+　読み出しが select("*")（FarmerDashboard:673・WorkerPreviewSheet）so、未承認の pr_pending・pr_qa_pending
+　（＋pr_hidden_original・pr_revision_targets）が農家のブラウザに届く。実弾で農家が
+　「未承認テキスト：私の電話は090-…（審査前）」「LINE ID abc123」を取得できた。
+・影響：画面には承認済み pr しか描かないが、生データが転送される＝devtoolsで読める。審査ゲート（連絡先・
+　不適切表現を公開前に弾く仕組み）がデータ層で迂回され、連絡先交換の禁止も破れる。第1条「表に無い開示は
+　行いません」・Row4の約束の両方に反する。
+【根本＝非対称。雇い手側が正解の型】employer_profiles は RLS が admin＋本人のみ・第三者は
+　employer_profiles_public【ビュー】経由でビューが承認済み列だけに絞る（texts_pending は列に無い＝漏れない）。
+　worker_profiles だけが生行RLS＋select("*")。雇い手の「公開ビュー方式」を働き手にも写すのが修理。
+【修理案（未実装）】(1) worker_profile_for_farmer(worker_id) を SECURITY DEFINER で新設し、承認済み/台帳安全列
+　（nickname/avatar/residence_city/transport/experience_entries/self_declared/pr[承認済のみ]/pr_qa[承認済のみ]等）
+　だけ返す。pr_pending系は絶対に返さない。(2) RLS「wp farmer select via application」をDROP（農家は生行を
+　読めなくする）。owner(auth.uid()=auth_id)・admin は編集/審査に必要so全列アクセス維持。(3) フロント
+　FarmerDashboard・WorkerPreviewSheet の select("*") を新RPCへ差し替え。employer_profiles_public と同型に揃う。
+【他の台帳行＝全て遵守（実測）】Row1メール（anon不可・他利用者非表示・管理画面マスク）／Row2登録情報
+　（account_holders self-only）／Row6集合場所番地（anonマスク・20260806110501）／Row7チャット（当事者のみ・
+　無関係者0行）／Row8応募作業記録（当事者RLS・worker_work_record関係ゲート）／Row9労働条件確認記録
+　（terms_snapshot凍結）／Row10評価（reviews_public_badges＝肯定のみ・3日ゲート・コメント審査を本日実装）／
+　Row11閲覧履歴（page_events admin限定・30日削除cron purge-page-events稼働）／Row12通報（admin＋通報者のみ）。
+・farmer-via-applicationの生行SELECTを持つ表は attendance_events(打刻＝正当)・messages(当事者＝正当)・
+　worker_profiles(＝本違反)の3つ。前2つはpending/未承認の自由記述を持たないso問題なし。
+━━━ ここまで ━━━
