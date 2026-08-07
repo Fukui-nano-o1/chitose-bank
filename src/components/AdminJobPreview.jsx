@@ -1,6 +1,6 @@
 // 審査プレビュー兼オーナープレビュー（分割・大物①・2026-07-24）：働き手視点の求人詳細を全画面表示。
 // 管理タブの審査（掲載/差し戻し）・農家自身の下書き/公開中プレビュー（再開/削除/一時非公開/コピー）の二役。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort, payTermsLine, overtimeLine } from "../lib/utils";
@@ -63,8 +63,12 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     setRevSending(false);
     if (ok) { setRevSent(true); setTimeout(() => onClose(), 1200); }
   };
-  // 指摘チップ（!ownerViewの審査時のみ表示）：各項目の右上に置く。指摘済みは色反転
-  const revChip = (label) => ownerView ? null : (
+  // 修正依頼モード（2026-08-07たきと指示「指摘は非表示。修正依頼をタップした時に表示」）：
+  // 指摘チップは普段は出さない＝プレビューthaが働き手に見える姿のまま。下部バーの「修正を依頼」で
+  // モードに入るとチップthaが現れる。0件のままもう一度押すとモード解除、1件以上で押すと送信
+  const [revMode, setRevMode] = useState(false);
+  // 指摘チップ（審査＋修正依頼モード時のみ表示）：各項目の右上に置く。指摘済みは色反転
+  const revChip = (label) => (ownerView || !revMode) ? null : (
     <button onClick={(e)=>{ e.stopPropagation(); openFindingEditor(label); }} className="f-sans"
       style={{ position:"absolute", top:8, right:8, zIndex:4, background: findingFor(label) ? "#EA580C" : "rgba(255,255,255,0.95)", color: findingFor(label) ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:16, padding:"4px 10px", fontSize:11, fontWeight:700, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
       {findingFor(label) ? "指摘済み" : "指摘"}
@@ -101,6 +105,56 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
   };
 
+  // 右スワイプで公開（2026-08-07たきと指示「公開の役割は右スワイプ。指に連動。公開するボタン削除」）。
+  // 作法は今日ページ・ボックス一覧のページャーと同じ：方向ロック8px・transform直書き＝毎フレーム
+  // 再レンダーなしで指に追従。右方向のみ。しきい値（画面幅35%・最大140px）を超えて離すと公開、
+  // 未満なら弾んで戻る。スライドで下から公開の緑面thaが現れる（進み具合＝視覚の答え合わせ）。
+  // カルーセル内で始まったタッチは奪わない（写真の横スクロールと衝突させない）。
+  // 修正依頼モード中・公開処理中・読み込み中は発動しない
+  const swipeRef = useRef(null);   // {x, y, dx, lock, w}
+  const dragBoxRef = useRef(null); // スライドさせるスクロール容器
+  const pubHintRef = useRef(null); // 下に敷いた公開の緑面（opacityを直書き）
+  const onPubSwipeStart = (e) => {
+    if (ownerView || revMode || publishing || !job || editTarget) return;
+    if (e.target.closest && e.target.closest(".carousel-scroll")) return;
+    const t = e.touches[0];
+    swipeRef.current = { x: t.clientX, y: t.clientY, dx: 0, lock: null, w: window.innerWidth || 1 };
+  };
+  const onPubSwipeMove = (e) => {
+    const s = swipeRef.current, el = dragBoxRef.current;
+    if (!s || !el) return;
+    const t = e.touches[0];
+    const dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+    if (s.lock !== "h") return;
+    s.dx = Math.max(0, dx); // 右方向のみ（左は追従しない）
+    el.style.transition = "none";
+    el.style.transform = `translateX(${s.dx}px)`;
+    if (pubHintRef.current) pubHintRef.current.style.opacity = String(Math.min(1, s.dx / 120));
+  };
+  const onPubSwipeEnd = () => {
+    const s = swipeRef.current, el = dragBoxRef.current;
+    swipeRef.current = null;
+    if (!s || !el || s.lock !== "h") return;
+    const commit = s.dx > Math.min(140, s.w * 0.35);
+    el.style.transition = "transform .25s ease";
+    if (commit && onPublish && job && !publishing) {
+      el.style.transform = `translateX(${s.w}px)`;
+      onPublish(); // 成功時は親thaがプレビューを閉じる（既存挙動）
+      // 失敗（alert後も画面thaが残る）に備えて少し後に戻す
+      setTimeout(() => {
+        if (dragBoxRef.current) { dragBoxRef.current.style.transform = "translateX(0)"; }
+        if (pubHintRef.current) pubHintRef.current.style.opacity = "0";
+      }, 1500);
+    } else {
+      el.style.transform = "translateX(0)";
+      if (pubHintRef.current) pubHintRef.current.style.opacity = "0";
+    }
+  };
+
   // document.bodyへポータル（2026-07-19）：呼び出し元の祖先（AdminTabの.appear等）がtransformを
   // 保持していると、その要素がposition:fixedの基準になり全画面に広がらない（審査プレビューが途中で切れる不具合）。
   // bodyへ出せばfixedの基準が確実にビューポートになる
@@ -114,7 +168,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         （2026-08-05たきと指示「閉じる・修正を依頼・公開は下部に。上はタップしずらい」） */}
     <div onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
       ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
-      : { height:"100%", display:"flex", flexDirection:"column" }}>
+      : { height:"100%", display:"flex", flexDirection:"column", position:"relative" }}>
       {/* 上部バー：農家本人＝✕(戻る)＋一時非公開のみ。管理者（審査）は上部バーなし＝
           説明文と黄色い枠は削除（2026-08-07たきと指示）。操作は下部の3ボタンだけ */}
       {ownerView && (
@@ -129,9 +183,21 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         </div>
       )}
 
-      <div style={ownerView
+      {/* 公開の緑面（審査のみ）：右スワイプでスクロール面thaが右へずれると下から現れる */}
+      {!ownerView && (
+        <div ref={pubHintRef} aria-hidden="true" style={{ position:"absolute", inset:0, background:"#00A86B", opacity:0,
+          display:"flex", alignItems:"center", justifyContent:"flex-start", paddingLeft:28, pointerEvents:"none" }}>
+          <span className="f-sans" style={{ color:"#fff", fontSize:22, fontWeight:800 }}>公開する →</span>
+        </div>
+      )}
+      <div ref={ownerView ? undefined : dragBoxRef}
+        onTouchStart={ownerView ? undefined : onPubSwipeStart}
+        onTouchMove={ownerView ? undefined : onPubSwipeMove}
+        onTouchEnd={ownerView ? undefined : onPubSwipeEnd}
+        style={ownerView
         ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" }
-        : { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingTop:"env(safe-area-inset-top, 0px)" }}>
+        : { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingTop:"env(safe-area-inset-top, 0px)",
+            background:"#fff", position:"relative", touchAction:"pan-y" }}>
       <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading && (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"60px 0" }}>読み込み中<Dots /></p>
@@ -352,14 +418,26 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           お仕事タブの求人一覧ページで浮遊☰の横に常設（FarmerDashboardの.cb-job-action-fabs）。
           実行の窓口を1箇所に保つ。このシートに残る操作は⏸一時非公開（右上）のみ */}
 
-      {/* 下部の操作バー（審査のみ・2026-08-05たきと指示）：閉じる・修正を依頼・公開するは
-          画面下部に固定＝親指で届く。下余白は5px固定（2026-08-07たきと指示・セーフエリア加算をやめる） */}
+      {/* 下部の操作バー（審査のみ・2026-08-05たきと指示・下余白5px固定）。
+          公開するボタンは廃止＝右スワイプに置換（2026-08-07たきと指示）。右端はその案内のみ。
+          「修正を依頼」は2段構え：押すと指摘チップthaが現れるモードに入り、0件のままもう一度押すと
+          やめる、1件以上で押すと送信。zIndex=公開の緑面より上（バーは常に見える） */}
       {!ownerView && (
-        <div style={{ flexShrink:0, display:"flex", gap:8, background:"#fff", borderTop:"1px solid #EBEBEB",
-          padding:"10px 12px 5px" }}>
+        <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:8, background:"#fff", borderTop:"1px solid #EBEBEB",
+          padding:"10px 12px 5px", position:"relative", zIndex:2 }}>
           <button onClick={onClose} className="f-sans" style={{ flexShrink:0, padding:"13px 18px", fontSize:14, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>閉じる</button>
-          <button onClick={findings.length > 0 ? submitRevision : ()=>alert("修正を依頼したい項目の「指摘」を押して、何がどう問題かを入力してください。")} disabled={!job || revSending} className="f-sans" style={{ flex:1, padding:"13px 0", fontSize:14, fontWeight:700, background: findings.length > 0 ? "#EA580C" : "#fff", color: findings.length > 0 ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>{revSending ? "送信中..." : `修正を依頼${findings.length > 0 ? `（${findings.length}）` : ""}`}</button>
-          <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ flex:1, padding:"13px 0", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
+          <button
+            onClick={!revMode ? ()=>setRevMode(true) : (findings.length > 0 ? submitRevision : ()=>{ setRevMode(false); })}
+            disabled={!job || revSending} className="f-sans"
+            style={{ flex:1, padding:"13px 0", fontSize:14, fontWeight:700,
+              background: (revMode && findings.length > 0) ? "#EA580C" : "#fff",
+              color: (revMode && findings.length > 0) ? "#fff" : "#EA580C",
+              border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>
+            {revSending ? "送信中..." : !revMode ? "修正を依頼" : findings.length > 0 ? `修正を依頼（${findings.length}）を送信` : "指摘をやめる"}
+          </button>
+          <span className="f-sans" style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#00A86B", padding:"0 4px" }}>
+            {publishing ? "公開中..." : revMode ? "指摘を選ぶ →" : "右へスワイプで公開 →"}
+          </span>
         </div>
       )}
 
