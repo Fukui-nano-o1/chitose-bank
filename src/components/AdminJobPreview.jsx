@@ -353,10 +353,10 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           実行の窓口を1箇所に保つ。このシートに残る操作は⏸一時非公開（右上）のみ */}
 
       {/* 下部の操作バー（審査のみ・2026-08-05たきと指示）：閉じる・修正を依頼・公開するは
-          画面下部に固定＝親指で届く。ボタンは大きめ・セーフエリアぶん下に余白 */}
+          画面下部に固定＝親指で届く。下余白は5px固定（2026-08-07たきと指示・セーフエリア加算をやめる） */}
       {!ownerView && (
         <div style={{ flexShrink:0, display:"flex", gap:8, background:"#fff", borderTop:"1px solid #EBEBEB",
-          padding:"10px 12px", paddingBottom:"calc(10px + env(safe-area-inset-bottom, 0px))" }}>
+          padding:"10px 12px 5px" }}>
           <button onClick={onClose} className="f-sans" style={{ flexShrink:0, padding:"13px 18px", fontSize:14, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>閉じる</button>
           <button onClick={findings.length > 0 ? submitRevision : ()=>alert("修正を依頼したい項目の「指摘」を押して、何がどう問題かを入力してください。")} disabled={!job || revSending} className="f-sans" style={{ flex:1, padding:"13px 0", fontSize:14, fontWeight:700, background: findings.length > 0 ? "#EA580C" : "#fff", color: findings.length > 0 ? "#fff" : "#EA580C", border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>{revSending ? "送信中..." : `修正を依頼${findings.length > 0 ? `（${findings.length}）` : ""}`}</button>
           <button onClick={onPublish} disabled={publishing || !job} className="f-sans" style={{ flex:1, padding:"13px 0", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>{publishing ? "公開中..." : "公開する"}</button>
