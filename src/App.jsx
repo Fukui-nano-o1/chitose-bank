@@ -510,9 +510,10 @@ function WorkerPreviewSheet() {
                   <WorkerWorkRecord workerId={st.worker_id} />
                   {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
                 </div>
-                {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定） */}
+                {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定）。
+                    centerEmpty＝この面が表の時だけ、空状態の案内を画面中央に固定（スクロールしても動かない） */}
                 <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
-                  <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
+                  <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" centerEmpty={page === 2} />
                 </div>
               </div>
             </div>

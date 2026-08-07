@@ -4,6 +4,7 @@
 // 個々の評価者は出さない（誰がどう評価したかは出さない＝推薦・選別の回避）。
 // ★審査を感じさせない：作者側にはこの部品を出さない（自分の評価は MyReviewsOfWorker でそのまま見える）。
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 
 // 方向ごとの肯定バッジ定義（falseは公開しない＝第8条2）。順序＝表示順
@@ -23,7 +24,11 @@ const BADGE_DEFS = {
   ],
 };
 
-export function ReceivedReviews({ userId, direction }) {
+// centerEmpty=空状態の案内を画面のど真ん中に固定表示する（2026-08-07たきと指示「中央配置・スクロールしても同じ場所」）。
+// スワイプトラック（transform）の内側では position:fixed が画面基準にならないため、createPortal で
+// document.body 直下に出す（プレビューの既存作法）。pointerEvents:none so 背後のタップ・スクロールを奪わない。
+// ★呼び出し側は「この面が表に見えている時だけ」true にすること（他の面の上に浮いてしまうため）
+export function ReceivedReviews({ userId, direction, centerEmpty }) {
   const [data, setData] = useState(null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
   useEffect(() => {
     let cancelled = false;
@@ -50,9 +55,15 @@ export function ReceivedReviews({ userId, direction }) {
       {data === null ? (
         <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>読み込み中…</p>
       ) : (shown.length === 0 && comments.length === 0) ? (
-        <p className="f-sans" style={{ fontSize: 12, color: "#999", lineHeight: 1.7 }}>
-          お互いの評価が揃うか、完了から3日で表示されます。
-        </p>
+        centerEmpty ? createPortal(
+          <p className="f-sans" style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "min(80vw, 300px)", textAlign: "center", fontSize: 12, color: "#999", lineHeight: 1.7, margin: 0, zIndex: 9750, pointerEvents: "none" }}>
+            お互いの評価が揃うか、完了から3日で表示されます。
+          </p>, document.body
+        ) : (
+          <p className="f-sans" style={{ fontSize: 12, color: "#999", lineHeight: 1.7 }}>
+            お互いの評価が揃うか、完了から3日で表示されます。
+          </p>
+        )
       ) : (
         <>
           {shown.length > 0 && (
