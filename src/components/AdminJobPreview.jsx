@@ -113,14 +113,17 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
   //   iOSでは縦スクロール容器thatジェスチャを奪い横の追従that効かなかった。今日ページ・タブスワイプと
   //   同じ実証済みの作法（ネイティブリスナー{passive:false}・方向ロック8px・transform直書き）に統一
   const swipeRef = useRef(null);   // {x, y, dx, lock, w}
-  const dragBoxRef = useRef(null); // スライドさせるスクロール容器
+  const swipeRootRef = useRef(null); // リスナーを張る外枠（非スクロール）。★スクロール容器に張ると
+                                     // iOSの加速スクロールthatイベントを飲むことthatあるため外枠で受ける（2026-08-07再修理）
+  const dragBoxRef = useRef(null); // スライドさせるスクロール容器（transformの対象）
   const pubHintRef = useRef(null); // 下に敷いた公開の緑面（opacityを直書き）
   // リスナーはマウント時に1度だけ張るso、発動条件は ref 経由で最新を読む
   const swipeGateRef = useRef({});
   swipeGateRef.current = { revMode, publishing, hasJob: !!job, editing: !!editTarget, onPublish };
   useEffect(() => {
     if (ownerView) return;
-    const el = dragBoxRef.current; if (!el) return;
+    const root = swipeRootRef.current, el = dragBoxRef.current;
+    if (!root || !el) return;
     const onStart = (ev) => {
       const g = swipeGateRef.current;
       if (g.revMode || g.publishing || !g.hasJob || g.editing) { swipeRef.current = null; return; }
@@ -162,15 +165,15 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         if (pubHintRef.current) pubHintRef.current.style.opacity = "0";
       }
     };
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: false });
-    el.addEventListener("touchend", onEnd, { passive: true });
-    el.addEventListener("touchcancel", onEnd, { passive: true });
+    root.addEventListener("touchstart", onStart, { passive: true });
+    root.addEventListener("touchmove", onMove, { passive: false });
+    root.addEventListener("touchend", onEnd, { passive: true });
+    root.addEventListener("touchcancel", onEnd, { passive: true });
     return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
-      el.removeEventListener("touchend", onEnd);
-      el.removeEventListener("touchcancel", onEnd);
+      root.removeEventListener("touchstart", onStart);
+      root.removeEventListener("touchmove", onMove);
+      root.removeEventListener("touchend", onEnd);
+      root.removeEventListener("touchcancel", onEnd);
     };
   }, [ownerView]);
 
@@ -185,7 +188,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     {/* 下部バーを隠すso画面下端まで伸ばす（角丸は上だけ・セーフエリアは内側の下パディングで確保）。
         審査（!ownerView）も同じ flex column 構造＝上:説明バー／中:スクロール／下:操作ボタン固定バー
         （2026-08-05たきと指示「閉じる・修正を依頼・公開は下部に。上はタップしずらい」） */}
-    <div onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
+    <div ref={ownerView ? undefined : swipeRootRef} onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
       ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
       : { height:"100%", display:"flex", flexDirection:"column", position:"relative" }}>
       {/* 上部バー：農家本人＝✕(戻る)＋一時非公開のみ。管理者（審査）は上部バーなし＝
@@ -211,7 +214,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       )}
       <div ref={ownerView ? undefined : dragBoxRef} style={ownerView
         ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" }
-        : { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingTop:"env(safe-area-inset-top, 0px)",
+        : { flex:1, overflowY:"auto", overscrollBehavior:"contain", paddingTop:"env(safe-area-inset-top, 0px)",
             background:"#fff", position:"relative", touchAction:"pan-y" }}>
       <div style={{ maxWidth:720, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading && (
