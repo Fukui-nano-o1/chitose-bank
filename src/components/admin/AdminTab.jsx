@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
-import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 import { openWorkerPreview } from "../../lib/previewBus";
 import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHiragana, MONTHS, cn, man, photoThumb } from "../../lib/utils";
 import { Avatar, LinkifiedText, StatusRibbon, Dots } from "../ui";
@@ -17,24 +16,6 @@ const REVIEW_SECTION_KEYS = ["jobs","accounts","prs","reports","disputes","quest
 
 // 日付キー（YYYY-MM-DD）はローカル整形で統一する。toISOString().slice(0,10)は
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
-
-// 画像一括処理のバックグラウンド実行（2026-08-03たきと指示「一括軽量化は一瞬で終了させろ。
-// 何分も画面に張り付かなくてはならない」）：進捗・結果を【モジュールレベル】に置く＝
-// ボタンを押したらすぐ画面を離れてよい。他のタブ・ページへ移動しても処理は裏で続き、
-// 管理タブに戻れば進捗や完了結果がここに残っている（従来はstateがコンポーネント内so、
-// 離れると進捗が見えなくなり、実行中の見分けもつかず張り付くしかなかった）。
-// ※アプリ自体（PWA/ブラウザのタブ）を閉じると中断されるが、両ツールとも冪等so
-//   もう一度押せば「残りだけ」処理される（途中まで進んだ分は無駄にならない）
-const imgTaskStore = {
-  running: "",        // 実行中の軽量化バケット名（"" = なし）
-  progress: "",       // "3/12"
-  results: {},        // bucket → {candidates, replaced, savedBytes}
-  thumbRunning: false,
-  thumbProgress: "",
-  thumbResult: null,
-  listeners: new Set(),
-};
-const imgTaskNotify = () => imgTaskStore.listeners.forEach(fn => { try { fn(); } catch {} });
 
 // ── Atoms ──────────────────────────────────────────────────
 function DestMark({ name, sz=32, showLabel=true }) {
@@ -67,16 +48,6 @@ function fuzzyMatch(query, target) {
   if (toKatakana(t).includes(toKatakana(q))) return true;
   if (toHiragana(t).includes(toHiragana(q))) return true;
   return false;
-}
-
-function diagnoseError(e) {
-  const msg = (e.message || "").toLowerCase();
-  if (msg.includes("row-level security")) return { title: "RLSポリシーで拒否", fix: "対象テーブルのRLS policyを確認", severity: "high" };
-  if (msg.includes("unique") || msg.includes("duplicate key")) return { title: "重複データ", fix: "既存データを確認し重複を整理", severity: "medium" };
-  if (msg.includes("failed to fetch") || msg.includes("network")) return { title: "通信エラー", fix: "ネットワーク接続を確認", severity: "medium" };
-  if (msg.includes("cannot read properties of null")) return { title: "未選択データ参照", fix: "保存前にnullチェックを追加", severity: "high" };
-  if (msg.includes("auth_id") || msg.includes("null")) return { title: "Auth紐づけ失敗", fix: "farmersのauth_idを確認", severity: "high" };
-  return { title: "未分類エラー", fix: "message・component・operationを確認", severity: "unknown" };
 }
 
 // きっかけ集計（管理者・2026-07-24）：source/reasonsの件数棒＋自由記述一覧。RLS survey admin selectで全件読める。
@@ -196,42 +167,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   // ボックス一覧の台帳は専用ページ（#/boxes・AdminBoxRegistryPage）へ昇格（2026-07-17）
   // お知らせ一覧の台帳は専用ページ（#/boxes/notices・AdminBoxRegistryPageのタブ）へ移設（2026-07-17）
   const [legacyView, setLegacyView] = useState(null); // 旧事業データの表示中コンテンツ: farmers|dests|records|stats|datadef|null
-  const [systemView, setSystemView] = useState(null); // システムの表示中コンテンツ: sql|errors|images|null
-  // 画像の一括軽量化（その他＞システム・2026-07-26）：既存ストレージの重い画像を同一パス上書きで圧縮。
-  // URL不変so DB（avatar_url・jobs.photos jsonb・凍結terms_snapshotのURL参照）は無変更＝参照が壊れない。
-  // 実体はモジュールレベルの imgTaskStore（上部参照・2026-08-03バックグラウンド化）。
-  // ここでは購読して再描画するだけ＝画面を離れても処理は続き、戻れば進捗が見える
-  const [, imgTaskTick] = useState(0);
-  useEffect(() => {
-    const fn = () => imgTaskTick(t => t + 1);
-    imgTaskStore.listeners.add(fn);
-    return () => { imgTaskStore.listeners.delete(fn); };
-  }, []);
-  const { running: imgOptRunning, progress: imgOptProgress, results: imgOptResults,
-          thumbRunning: thumbGenRunning, thumbProgress: thumbGenProgress, thumbResult: thumbGenResult } = imgTaskStore;
-  const runThumbGen = () => {
-    if (imgTaskStore.thumbRunning || imgTaskStore.running) return;
-    if (!window.confirm("サムネの無い求人写真にカード用サムネ（640px）を生成し、jobsのphotosに書き戻します。生成済みは飛ばすので、通常は数秒で終わります。よろしいですか？")) return;
-    imgTaskStore.thumbRunning = true; imgTaskStore.thumbProgress = ""; imgTaskNotify();
-    // awaitしない＝ボタンは即返す。処理は裏で続き、完了結果はストアに残る
-    (async () => {
-      const r = await generateJobPhotoThumbs(supabase, { onProgress: (d, t) => { imgTaskStore.thumbProgress = `${d}/${t}`; imgTaskNotify(); } });
-      imgTaskStore.thumbRunning = false; imgTaskStore.thumbProgress = ""; imgTaskStore.thumbResult = r; imgTaskNotify();
-    })();
-  };
-  const runRecompress = (bucket, maxSide, quality) => {
-    if (imgTaskStore.running) return;
-    // window.confirm と書くこと：同じスコープに確認モーダル用の state `confirm`（{msg,onOk}）があり、
-    // 素の confirm(...) はそちらに解決されて「confirm is not a function」で落ちる（2026-07-29修理）
-    if (!window.confirm(`${bucket} 内の重い画像（400KB以上）を圧縮して差し替えます。実行中は画面を離れてもかまいません。よろしいですか？`)) return;
-    imgTaskStore.running = bucket; imgTaskStore.progress = ""; imgTaskNotify();
-    (async () => {
-      const r = await recompressBucket(supabase, bucket, { maxSide, quality, onProgress: (d, t) => { imgTaskStore.progress = `${d}/${t}`; imgTaskNotify(); } });
-      imgTaskStore.running = ""; imgTaskStore.progress = "";
-      imgTaskStore.results = { ...imgTaskStore.results, [bucket]: r };
-      imgTaskNotify();
-    })();
-  };
+  // システム（SQL／エラー／画像軽量化）は専用ページ #/admin/system（AdminSystemRoom）へ移設（2026-08-03たきと指示）
   const [farmers, setFarmers] = useState([]);
   const [dests, setDests] = useState([]);
   const [records, setRecords] = useState([]);
@@ -249,7 +185,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [newDestName, setNewDestName] = useState("");
   const [newDestNote, setNewDestNote] = useState("");
   const [addingDest, setAddingDest]   = useState(false);
-  const [appErrors, setAppErrors] = useState([]);
   const [pendingJobs, setPendingJobs] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]); // 退会申請の未対応一覧（プラポリv3第7条1：申し出から30日以内に手動削除）
   const [pendingPrs, setPendingPrs] = useState([]); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
@@ -366,11 +301,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fr, de, re, ae, pj, wp, jr, av, la, mr, jq, wd, pr] = await Promise.all([
+    const [fr, de, re, pj, wp, jr, av, la, mr, jq, wd, pr] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
-      supabase.from("app_errors").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("jobs").select("*").eq("status","pending").order("created_at",{ascending:false}),
       supabase.from("worker_profiles").select("auth_id,nickname,avatar_url,pr_pending,pr_qa_pending,pr_submitted_at"),
       supabase.from("job_reports").select("*").order("created_at",{ascending:false}),
@@ -384,7 +318,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (!fr.error) setFarmers(fr.data || []);
     if (!de.error) setDests(de.data || []);
     if (!re.error) setRecords(re.data || []);
-    if (!ae.error) setAppErrors(ae.data || []);
     if (!pj.error) setPendingJobs(pj.data || []);
     // pr_submitted_at必須（2026-07-19）：修正依頼済み（submitted_at=null）は本人が修正して再保存するまで審査待ちに出さない
     if (!wp.error) setPendingPrs((wp.data || []).filter(w => w.pr_submitted_at && ((w.pr_pending || "").trim() || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0))));
@@ -527,24 +460,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const destRecCount = {};
   records.forEach(r => { destRecCount[r.dest_id]=(destRecCount[r.dest_id]||0)+1; });
 
-  const NOTIF_SQL = `CREATE TABLE notifications (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  farmer_id uuid REFERENCES auth.users(id) NOT NULL,
-  type text NOT NULL,
-  message text NOT NULL,
-  read boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "notifications_own" ON notifications
-  FOR ALL USING (auth.uid() = farmer_id)
-  WITH CHECK (auth.uid() = farmer_id);
-CREATE INDEX idx_notifications_farmer
-  ON notifications(farmer_id, created_at DESC);`;
-
-  const VARIETY_SQL = `ALTER TABLE records ADD COLUMN IF NOT EXISTS variety text DEFAULT '';
-ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
-
   // 審査タブに全ての審査待ちを集約（2026-07-14）：求人＋アカウント承認＋自由記述＋通報＋異議
   const pendingFarmerAccounts = farmers.filter(f => f.status === "pending");
   const openReports = reports.filter(r => r.status !== "resolved");
@@ -669,7 +584,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             { k:"notices", l:"お知らせ一覧" },
             { k:"consign", l:"委託 準備室" },
           ].map(c => (
-            <button key={c.k} onClick={()=>{ if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "evaluation") { window.location.hash = "/admin/evaluation"; } else if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else if (c.k === "consign") { window.location.hash = "/admin/consignment"; } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button key={c.k} onClick={()=>{ if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "evaluation") { window.location.hash = "/admin/evaluation"; } else if (c.k === "system") { window.location.hash = "/admin/system"; } else if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else if (c.k === "consign") { window.location.hash = "/admin/consignment"; } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>
           ))}
@@ -683,7 +598,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               <button onClick={()=>setOtherBox(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
               <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>
-                {otherBox==="pages" ? "主要ページ" : otherBox==="flow" ? "求人フロー" : otherBox==="legacy" ? "旧事業データ" : otherBox==="survey" ? "きっかけ" : "システム"}
+                {otherBox==="pages" ? "主要ページ" : otherBox==="flow" ? "求人フロー" : otherBox==="legacy" ? "旧事業データ" : "きっかけ"}
               </p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
@@ -752,7 +667,7 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                     { k:"stats",   l:"統計",       n: null },
                     { k:"datadef", l:"データ定義", n: null },
                   ].map(({ k, l, n }) => (
-                    <button key={k} onClick={() => { setLegacyView(k); setSystemView(null); setOtherBox(null); }} className="f-sans" style={{
+                    <button key={k} onClick={() => { setLegacyView(k); setOtherBox(null); }} className="f-sans" style={{
                       padding:"7px 14px", borderRadius:8, border:"1px solid #EBEBEB",
                       background:legacyView===k?"#222":"#F7F7F7",
                       color:legacyView===k?"#fff":"#717171",
@@ -762,23 +677,6 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                       {l}
                       {n!=null&&n>0&&<span style={{ padding:"1px 6px",borderRadius:8,fontSize:9,fontWeight:700,background:legacyView===k?"#00A86B":"#EBEBEB",color:legacyView===k?"#fff":"#717171" }}>{n}</span>}
                     </button>
-                  ))}
-                </div>
-              )}
-
-              {otherBox==="system" && (
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                  {[
-                    { k:"sql",    l:"SQL" },
-                    { k:"errors", l:"エラー" },
-                    { k:"images", l:"画像軽量化" },
-                  ].map(({ k, l }) => (
-                    <button key={k} onClick={() => { setSystemView(k); setLegacyView(null); setOtherBox(null); }} className="f-sans" style={{
-                      padding:"7px 14px", borderRadius:8, border:"1px solid #EBEBEB",
-                      background:systemView===k?"#222":"#F7F7F7",
-                      color:systemView===k?"#fff":"#717171",
-                      fontSize:11, fontWeight:600, cursor:"pointer",
-                    }}>{l}</button>
                   ))}
                 </div>
               )}
@@ -1616,85 +1514,6 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
         </div>
       )}
 
-      {/* ── SQL（その他＞システム） ── */}
-      {!loading && sub==="other" && systemView==="sql" && (
-        <div className="fade-in" style={{ display:"grid",gap:16 }}>
-          <Card>
-            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>records 列追加SQL（品種・ブランド）</p>
-            <p className="f-sans" style={{ fontSize:11,color:"#717171",marginBottom:16 }}>Supabase SQL Editorで実行してください。</p>
-            <pre style={{
-              background:"#F7F7F7",borderRadius:12,padding:16,overflowX:"auto",
-              fontFamily:"'DM Mono','Courier New',monospace",fontSize:12,color:"#222",lineHeight:1.7,margin:0,
-              border:"1px solid #EBEBEB",whiteSpace:"pre",
-            }}>{VARIETY_SQL}</pre>
-            <button onClick={()=>navigator.clipboard.writeText(VARIETY_SQL)} style={{
-              marginTop:12,padding:"8px 20px",background:"#00A86B",color:"#fff",border:"none",
-              borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",
-            }}>SQLをコピー</button>
-          </Card>
-          <Card>
-            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>notifications テーブル作成SQL</p>
-            <p className="f-sans" style={{ fontSize:11,color:"#717171",marginBottom:16 }}>Supabase SQL Editorで実行してください。</p>
-            <pre style={{
-              background:"#F7F7F7",borderRadius:12,padding:16,overflowX:"auto",
-              fontFamily:"'DM Mono','Courier New',monospace",fontSize:12,color:"#222",lineHeight:1.7,margin:0,
-              border:"1px solid #EBEBEB",whiteSpace:"pre",
-            }}>{NOTIF_SQL}</pre>
-            <button onClick={()=>navigator.clipboard.writeText(NOTIF_SQL)} style={{
-              marginTop:12,padding:"8px 20px",background:"#00A86B",color:"#fff",border:"none",
-              borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",
-            }}>SQLをコピー</button>
-          </Card>
-        </div>
-      )}
-
-      {/* ── 画像軽量化（その他＞システム・2026-07-26） ── */}
-      {!loading && sub==="other" && systemView==="images" && (
-        <div className="fade-in" style={{ display:"grid",gap:16 }}>
-          <Card>
-            <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>画像の一括軽量化</p>
-            <p className="f-sans" style={{ fontSize:11,color:"#717171",lineHeight:1.8,marginBottom:16 }}>
-              圧縮なしで保存された既存の画像（400KB以上）をダウンロード→圧縮→同じ場所に上書きします。
-              URLが変わらないため、求人・プロフィール・凍結済み契約の参照はそのまま。
-              既に軽い画像・処理済みの画像はスキップ＝何度実行しても安全で、2回目以降はほぼ一瞬で終わります。
-              実行は裏で進むため、開始後は画面を離れてかまいません（このページに戻れば進捗と結果が見えます）。
-              使い方ガイドのスクショはガイドページ上部の専用ボタンで。
-            </p>
-            <div style={{ display:"grid", gap:10 }}>
-              {[
-                { bucket:"avatars",    label:"アイコン（avatars）",    maxSide:512,  quality:0.8, note:"表示84px級→512pxに縮小" },
-                { bucket:"job-photos", label:"求人写真（job-photos）", maxSide:1600, quality:0.8, note:"圧縮導入(7/16)前の原寸写真を縮小" },
-              ].map(b => (
-                <div key={b.bucket} style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-                  <button onClick={()=>runRecompress(b.bucket, b.maxSide, b.quality)} disabled={!!imgOptRunning} className="f-sans" style={{ padding:"9px 16px", fontSize:12, fontWeight:700, background: imgOptRunning===b.bucket ? "#EBEBEB" : "#00A86B", color: imgOptRunning===b.bucket ? "#717171" : "#fff", border:"none", borderRadius:10, cursor: imgOptRunning ? "default" : "pointer" }}>
-                    {imgOptRunning===b.bucket ? `軽量化中 ${imgOptProgress}…` : b.label}
-                  </button>
-                  <span className="f-sans" style={{ fontSize:11, color:"#999" }}>
-                    {imgOptResults[b.bucket]
-                      ? `完了：対象${imgOptResults[b.bucket].candidates}枚中 ${imgOptResults[b.bucket].replaced}枚を差し替え（約${Math.round(imgOptResults[b.bucket].savedBytes/1024/1024*10)/10}MB削減）`
-                      : b.note}
-                  </span>
-                </div>
-              ))}
-              {/* カード用サムネの後埋め（2026-08-02・②）：一覧カードは軽量サムネ(thumb)を読む。
-                  thumbが無い既存写真（サムネ導入前のアップロード分）へ640pxサムネを生成する */}
-              <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-                <button onClick={runThumbGen} disabled={thumbGenRunning || !!imgOptRunning} className="f-sans" style={{ padding:"9px 16px", fontSize:12, fontWeight:700, background: thumbGenRunning ? "#EBEBEB" : "#00A86B", color: thumbGenRunning ? "#717171" : "#fff", border:"none", borderRadius:10, cursor: (thumbGenRunning || imgOptRunning) ? "default" : "pointer" }}>
-                  {thumbGenRunning ? `生成中 ${thumbGenProgress}…` : "カード用サムネ生成（job-photos）"}
-                </button>
-                <span className="f-sans" style={{ fontSize:11, color:"#999" }}>
-                  {thumbGenResult
-                    ? (thumbGenResult.error
-                        ? `失敗：${thumbGenResult.error}`
-                        : `完了：${thumbGenResult.made}枚生成（生成済みスキップ${thumbGenResult.skipped ?? 0}・失敗${thumbGenResult.failed}・求人${thumbGenResult.updatedJobs}件更新／全${thumbGenResult.total}枚）`)
-                    : "サムネ無しの写真だけ後埋め（640px・生成済みは飛ばす＝通常は数秒）"}
-                </span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
       {/* ── データ定義（その他＞旧事業データ） ── */}
       {!loading && sub==="other" && legacyView==="datadef" && (
         <div className="fade-in" id="data-definition-print">
@@ -1935,62 +1754,6 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
               本文書の内容は、サービスの発展に伴い改訂される場合があります。
             </p>
           </div>
-        </div>
-      )}
-
-      {/* ── エラー（その他＞システム） ── */}
-      {!loading && sub==="other" && systemView==="errors" && (
-        <div className="fade-in">
-          {appErrors.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"48px 0", color:"#B0B0B0" }}>
-              <p className="f-sans" style={{ fontSize:14 }}>エラーは記録されていません</p>
-            </div>
-          ) : (
-            <div style={{ display:"grid", gap:8 }}>
-              {appErrors.map(e => {
-                const diag = diagnoseError(e);
-                return (
-                  <div key={e.id} style={{
-                    padding:"16px 20px", background:"#fff", border:"1px solid #EBEBEB",
-                    borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)",
-                  }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                      <span style={{
-                        padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700,
-                        background: diag.severity === "high" ? "#FCEBEB" : diag.severity === "medium" ? "#FEF3E2" : "#F7F7F7",
-                        color: diag.severity === "high" ? "#E24B4A" : diag.severity === "medium" ? "#F5A623" : "#717171",
-                      }}>{diag.severity === "high" ? "重大" : diag.severity === "medium" ? "注意" : "不明"}</span>
-                      <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
-                        {new Date(e.created_at).toLocaleString("ja-JP")}
-                      </span>
-                    </div>
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", marginBottom:4 }}>{diag.title}</p>
-                    <p className="f-mono" style={{ fontSize:11, color:"#717171", marginBottom:8, wordBreak:"break-all" }}>{e.message}</p>
-                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
-                      {e.component && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{e.component}</span>}
-                      {e.action && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{e.action}</span>}
-                      {e.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{e.operation}</span>}
-                    </div>
-                    <div style={{ padding:"8px 12px", background:"#E6F7EF", borderRadius:8, borderLeft:"3px solid #00A86B" }}>
-                      <p className="f-sans" style={{ fontSize:11, color:"#00A86B" }}>修正案: {diag.fix}</p>
-                    </div>
-                    {e.status === "open" && (
-                      <button onClick={async () => {
-                        await supabase.from("app_errors").update({ status:"fixed", resolved_at: new Date().toISOString() }).eq("id", e.id);
-                        setAppErrors(prev => prev.map(x => x.id === e.id ? { ...x, status:"fixed" } : x));
-                      }} style={{
-                        marginTop:8, padding:"6px 14px", border:"1px solid #00A86B44", borderRadius:8,
-                        background:"transparent", color:"#00A86B", fontSize:11, fontWeight:600, cursor:"pointer",
-                      }}>解決済みにする</button>
-                    )}
-                    {e.status === "fixed" && (
-                      <span className="f-sans" style={{ display:"inline-block", marginTop:8, fontSize:11, color:"#00A86B", fontWeight:600 }}>解決済み</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       )}
 
