@@ -8,28 +8,41 @@ import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots, QaChat } from "
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
-// チャンク取りこぼしの自己修復（2026-07-26・チャットで画面が真っ暗になる不具合の根治）：
+// チャンク取りこぼしの自己修復（2026-07-26導入・2026-08-07改修）：
 // 新デプロイでチャンク名（ハッシュ）が変わるため、古いページを握ったままの端末は旧チャンクを
-// 404で取りに行き「Importing a module script failed」で失敗する。Suspenseのfallbackはnullso
-// 何も描画されず画面が暗いまま固まる。失敗を捕まえて1度だけ再読込し、新しいビルドを取りに行く。
+// 404で取りに行き「Importing a module script failed」で失敗する。失敗を捕まえて再読込し、
+// 新しいビルドを取りに行く。
+// 【2026-08-07改修の理由＝無限リロードループの根治】旧実装は「成功時にフラグを消す」ため、
+// 再読込後に別チャンクが成功→フラグ消滅→壊れたチャンクが再失敗→また即再読込…の1秒間隔の
+// ループが成立していた（app_errorsに同文言が毎秒連発した真因・×94）。フラグは消さず、
+// 前回の自動再読込からCHUNK_RELOAD_INTERVAL経過で再許可＝次のデプロイでも自己修復は効き続ける。
 // ※関数宣言（巻き上げあり）にすること：下のconst定義より前に実行されるためconstだとTDZで落ちる
+const CHUNK_RELOAD_INTERVAL = 10 * 60 * 1000;
+// 再読込が「また古いビルド」を掴み直すのを防ぐ下ごしらえ（低速回線でNetworkFirstが3秒で諦めると
+// pages-cacheの古いindex.htmlに落ちるため、再読込だけでは治らないことがある）：
+// ①SWに更新チェックをさせる（新しいprecache台帳の取得を開始）②古いページキャッシュを捨てる
+async function prepareFreshReload() {
+  try {
+    await Promise.race([
+      (async () => { const reg = await navigator.serviceWorker?.getRegistration(); await reg?.update(); })(),
+      new Promise(r => setTimeout(r, 3000)),
+    ]);
+  } catch {}
+  try { await caches.delete("pages-cache"); } catch {}
+}
 function lazyChunk(factory) {
-  return lazy(() => factory()
-    .then(m => { try { sessionStorage.removeItem("cb_chunkReloadAt"); sessionStorage.removeItem("cb_chunkReload"); } catch {} return m; })
-    .catch(err => {
-      // 自動再読込は「20秒に1回まで」（無限リロード防止）。
-      // ★旧実装の「1セッション1回まで」は、連続デプロイの日に1回分を早々に使い切り、
-      //   以後のチャンク失敗that白画面のまま残っていた（2026-08-07 コピー→白画面の実害）。
-      //   時間制なら連続失敗のループは止まり、時間を置いた別の失敗からは毎回復帰できる
-      try {
-        const last = Number(sessionStorage.getItem("cb_chunkReloadAt") || 0);
-        if (!(Date.now() - last < 20000)) {
-          sessionStorage.setItem("cb_chunkReloadAt", String(Date.now()));
-          window.location.reload();
-        }
-      } catch {}
-      throw err;
-    }));
+  return lazy(() => factory().catch(async (err) => {
+    try {
+      // 旧実装の値"1"はNumber化で1970年扱い＝経過十分so初回は必ず通る（後方互換）
+      const last = Number(sessionStorage.getItem("cb_chunkReload") || 0);
+      if (Date.now() - last > CHUNK_RELOAD_INTERVAL) {
+        sessionStorage.setItem("cb_chunkReload", String(Date.now()));
+        await prepareFreshReload();
+        window.location.reload();
+      }
+    } catch {}
+    throw err;
+  }));
 }
 const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
 // 仮応募の成功ページ（第15弾・2026-07-30）。応募した人だけが通る画面so遅延読み込み
@@ -144,7 +157,7 @@ async function logAppError({ level = "error", source = "client", page = "", comp
 
 
 // 画面が真っ暗になるのを止める最後の壁（2026-07-31・委託ページで再発）。
-// lazyChunk の自己修復は「1セッション1回だけ再読込」so、デプロイの最中など2回続けて失敗すると
+// lazyChunk の自己修復は「間隔つきの自動再読込」so、間隔内に再失敗すると
 // 例外がそのまま上まで抜け、React がツリーごと外して何も描かれない＝真っ暗になる。
 // ここで受け止めて、原因と次の一手（再読み込み）を必ず画面に出す。エラーは app_errors にも残す。
 class AppErrorBoundary extends Component {
@@ -168,12 +181,14 @@ class AppErrorBoundary extends Component {
             ? "アプリが更新されたため、古い画面のままでは開けません。再読み込みすると最新の画面になります。"
             : "一時的な不具合の可能性があります。再読み込みしても直らない場合は、この画面を報告してください。"}
         </p>
-        <button onClick={()=>{
+        <button onClick={async ()=>{
           // 自己修復（2026-08-03）：描画エラーの原因が永続キャッシュ（viewCache）の壊れた・古い形の
           // データだった場合、リロードだけでは同じデータで落ち続ける。再読み込み時は表示キャッシュを
           // 全部捨ててから読み直す（キャッシュは表示専用so捨てても最新を取り直すだけ・実害なし）
           try { clearCache(); } catch {}
-          try { sessionStorage.removeItem("cb_chunkReload"); sessionStorage.removeItem("cb_chunkReloadAt"); } catch {}
+          try { sessionStorage.removeItem("cb_chunkReload"); } catch {}
+          // 手動の再読み込みも新ビルドを確実に取りに行く（2026-08-07・古いindex.htmlの掴み直し防止）
+          await prepareFreshReload();
           window.location.reload();
         }}
           style={{ padding:"12px 26px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>再読み込み</button>
