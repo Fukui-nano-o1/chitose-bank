@@ -42,42 +42,62 @@ export function SavedJobsView({ me }) {
   //   {passive:false}で張る（2026-08-02今日ページ・TodayPageと同じ理由）
   const sheetRef = useRef(null);
   const boxScrollRef = useRef(null);
+  const paneRef = useRef(null);      // 面の2枚コンテナ（横スワイプの追従対象）
+  const boxPaneRef = useRef("main"); // リスナーは[boxJob]で1回張るso、最新の面はrefで読む
+  useEffect(() => { boxPaneRef.current = boxPane; }, [boxPane]);
+  // ジェスチャは1本のパイプラインで軸ロック（2026-08-07たきと指示「左右スワイプで戻って。
+  // 戻るは削除。指に連動させるが滑らかに」で横を追加）：
+  // ・8px動いた時点で縦か横かを1ジェスチャ1回だけ確定（TodayPage・AdminJobPreviewと同じ作法）
+  // ・縦＝下向き＆中身が最上部のときシートを掴む→引き下げ位置が画面中央より下で離すと畳む（従来）
+  // ・横＝詳細面のときだけ面コンテナを掴む→指に連動（左=戻る方向は1:1・右=行き先が無いのでゴム抵抗）。
+  //   しきい値（幅35%・最大140px）を超えて離すとメイン面へ、未満なら詳細面へ戻す。
+  //   写真カルーセル内で始まったタッチは写真スクロールに譲る
+  // ・滑らかさの3点セット（同日「かくかくだ」の修理）：will-change＝自前の合成レイヤー／
+  //   書き込みはrequestAnimationFrameで1フレーム1回／掴んだ瞬間に基点を置き直す（跳びゼロ）
   useEffect(() => {
     const el = sheetRef.current;
     if (!boxJob || !el) return;
     el.style.transform = ""; el.style.transition = ""; // 開き直し・求人切り替えの残骸を消す
-    // ★滑らかさの3点セット（2026-08-07たきと報告「かくかくだ」の修理）：
-    //  ①will-change:transform＝シートを自前の合成レイヤーへ昇格（毎移動でシート全体を再描画させない。
-    //    下部バーのiOS対策・2026-07-19と同じ手筋）
-    //  ②書き込みはrequestAnimationFrameで1フレーム1回に束ねる（touchmoveは描画より速く連発するため、
-    //    そのまま書くとフレームを跨いで值が飛ぶ＝かくつきの主因）
-    //  ③掴んだ瞬間に基点を置き直す＝発動しきい値8pxぶんの「跳び」を無くす（0pxから滑らかに始まる）
     el.style.willChange = "transform";
-    let startY = 0, baseY = 0, baseTop = 0, lastY = 0, dragging = false, tracking = false, raf = 0;
-    const paint = () => { raf = 0; el.style.transform = `translateY(${lastY}px)`; };
+    if (paneRef.current) { paneRef.current.style.transform = ""; paneRef.current.style.transition = ""; }
+    let sx = 0, sy = 0, baseY = 0, baseTop = 0, lastY = 0, lastX = 0, paneW = 1, axis = null, tracking = false, raf = 0;
+    const paint = () => {
+      raf = 0;
+      if (axis === "v") el.style.transform = `translateY(${lastY}px)`;
+      else if (axis === "h" && paneRef.current) paneRef.current.style.transform = `translateX(${lastX}px)`;
+    };
     const onStart = (e) => {
-      if (e.touches.length !== 1) return;
-      startY = e.touches[0].clientY; dragging = false; tracking = true;
+      if (e.touches.length !== 1) { tracking = false; return; }
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; axis = null; tracking = true;
     };
     const onMove = (e) => {
       if (!tracking) return;
-      const cy = e.touches[0].clientY;
-      const dy = cy - startY;
-      if (!dragging) {
-        if (dy < 0) { tracking = false; return; } // 上向き＝通常スクロールに任せる
-        const sc = boxScrollRef.current;
-        if (dy > 8 && (!sc || sc.scrollTop <= 0)) {
-          dragging = true; baseY = cy; el.style.transition = "none";
-          baseTop = el.getBoundingClientRect().top; // 掴んだ瞬間の定位置（この時点でtransformは0）
+      const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
+      const dx = cx - sx, dy = cy - sy;
+      if (!axis) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // 8px動くまで判定保留
+        if (Math.abs(dy) >= Math.abs(dx)) {
+          // 縦：下向き＆最上部のときだけシートを掴む。上向き・スクロール余地あり＝通常スクロールに譲る
+          const sc = boxScrollRef.current;
+          if (dy > 0 && (!sc || sc.scrollTop <= 0)) {
+            axis = "v"; baseY = cy; el.style.transition = "none";
+            baseTop = el.getBoundingClientRect().top; // 掴んだ瞬間の定位置（この時点でtransformは0）
+          } else { tracking = false; return; }
+        } else {
+          // 横：詳細面のときだけ「戻る」ジェスチャとして面を掴む（メイン面の横スワイプは何もしない）
+          if (boxPaneRef.current !== "detail") { tracking = false; return; }
+          if (e.target.closest && e.target.closest(".carousel-scroll")) { tracking = false; return; }
+          const p = paneRef.current; if (!p) { tracking = false; return; }
+          axis = "h"; paneW = el.clientWidth || 1;
+          p.style.transition = "none"; p.style.willChange = "transform";
         }
-        else return;
       }
       e.preventDefault();
-      lastY = Math.max(0, cy - baseY);
+      if (axis === "v") lastY = Math.max(0, cy - baseY);
+      else lastX = dx < 0 ? Math.max(dx, -paneW) : Math.min(dx * 0.25, 40); // 左=1:1／右=ゴム抵抗
       if (!raf) raf = requestAnimationFrame(paint);
     };
-    const settle = (toClose) => {
-      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    const settleV = (toClose) => {
       if (toClose) {
         el.style.transition = "transform .22s ease";
         el.style.transform = "translateY(105%)";
@@ -87,20 +107,39 @@ export function SavedJobsView({ me }) {
         el.style.transform = "translateY(0)";
       }
     };
+    const settleH = (goBack) => {
+      const p = paneRef.current; if (!p) return;
+      p.style.willChange = "";
+      if (goBack) {
+        // 手動のtransition:noneをReactの値に戻してから面を切り替える＝いまの指の位置から滑らかに-50%へ。
+        // ★Reactはtransitionを書き換えない（diff上は不変）ため、手動で戻さないと'none'のまま跳ぶ
+        p.style.transition = "transform .35s ease";
+        setBoxPane("main"); setCardShow(false);
+      } else {
+        p.style.transition = "transform .3s ease";
+        p.style.transform = "translateX(0)";
+      }
+    };
     const onEnd = () => {
-      const wasDragging = dragging;
-      dragging = false; tracking = false;
-      if (!wasDragging) return;
-      // 畳む発火＝指を離した時、引き下げたボックス（掴んでいる上端）が画面中央より下まで来ている時だけ。
-      // ★指の画面座標で判定しない（2026-08-07たきと報告「まだ下スクロールで畳む」の修理）：
-      //   指の座標だと、画面下半分でタッチを始めて数pxなぞっただけでも「中央より下」になり閉じてしまう
-      //   ＝ただの下スクロールが全部発火していた。ボックス自体を半分より下まで引き下げて離した時だけ畳む
-      settle(baseTop + lastY > window.innerHeight / 2);
+      if (!tracking) return;
+      const a = axis; axis = null; tracking = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      if (a === "v") {
+        // 畳む発火＝指を離した時、引き下げたボックス（掴んでいる上端）が画面中央より下まで来ている時だけ。
+        // ★指の画面座標で判定しない（2026-08-07「まだ下スクロールで畳む」の修理）
+        settleV(baseTop + lastY > window.innerHeight / 2);
+      } else if (a === "h") {
+        settleH(Math.abs(lastX) > Math.min(140, paneW * 0.35));
+      }
+      lastX = 0; lastY = 0;
     };
     const onCancel = () => {
-      if (!dragging) { tracking = false; return; }
-      dragging = false; tracking = false;
-      settle(false);
+      if (!tracking) return;
+      const a = axis; axis = null; tracking = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      if (a === "v") settleV(false);
+      else if (a === "h") settleH(false);
+      lastX = 0; lastY = 0;
     };
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMove, { passive: false });
@@ -368,20 +407,21 @@ export function SavedJobsView({ me }) {
                      カードの右スライドアウト（cbJobShowcase）が終わった合図で詳細面へ＝中身全体that右へずれて
                      左から詳細that現れる（カードの動きと同じ右方向・連続した1つの動きに見える）。
                      戻るは詳細面の「← 戻る」（cardShowも解除＝カードが定位置に戻る） ═══ */}
-                <div style={{ display:"flex", width:"200%", transform: boxPane === "detail" ? "translateX(0)" : "translateX(-50%)", transition:"transform .35s ease" }}>
+                <div ref={paneRef} style={{ display:"flex", width:"200%", transform: boxPane === "detail" ? "translateX(0)" : "translateX(-50%)", transition:"transform .35s ease" }}>
                 {/* ── 面2：求人詳細の確認パネル（左側に置く＝右ずれの動きで現れる）。
                      中身は JobDetailBody＝求人詳細ページのボックス化（AdminJobPreview）の本文を
                      トレースした共有部品（2026-08-07たきと指示・浮遊ボックスは除外済み） ── */}
                 <div style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
                   {boxPane === "detail" && (() => {
                     const full = boxFull[r.job_number];
-                    const backBtn = (
-                      <button onClick={()=>{ setBoxPane("main"); setCardShow(false); }} className="f-sans"
-                        style={{ background:"none", border:"none", padding:"0 0 12px", fontSize:14, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>← 戻る</button>
+                    // 「← 戻る」ボタンは削除（2026-08-07たきと指示）＝戻りは横スワイプ（指に連動）。
+                    // 案内は最上部の小さな1行だけ（操作を増やさない）
+                    const swipeHint = (
+                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:"0 0 10px" }}>横スワイプで戻る</p>
                     );
                     if (!full) return (
                       <div>
-                        {backBtn}
+                        {swipeHint}
                         <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
                           {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : "読み込み中..."}
                         </p>
@@ -389,12 +429,11 @@ export function SavedJobsView({ me }) {
                     );
                     return (
                       <div>
-                        {backBtn}
+                        {swipeHint}
                         <JobDetailBody job={full} me={me} />
-                        {/* Q&A・保険・農家プロフィール・応募は求人ページが正（面には持ち込まない） */}
                         <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} className="f-sans"
                           style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
-                          求人ページで開く（質問・応募はこちら）→
+                          求人ページで開く（応募はこちら）→
                         </button>
                       </div>
                     );
