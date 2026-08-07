@@ -3397,3 +3397,29 @@ DBの壁が正しく塞ぐようになった（二重の壁の内側が本物に
   DB(confirm_terms)＋フロント(lib/hire.js findDoubleBookingJob)の両方を揃える load-bearing 変更so、
   勝手に実装せずたきと判断を待つ（2026-08-06 並走セッションの記載を踏襲・私も再現を確認した）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 評価の公開設計の再照合（たきと訂正：コメント=雇用主のメモ／選択項目=公開・非公開の選択なし）━━━
+【訂正された意図】(1)公開コメント(public_comment)は「雇用主のメモ」の役割＝公開しない。
+(2)評価の選択項目(want_again/entrust/as_described/safety_care/on_time/followed_instructions/completed_work)は
+公開する。非公開にする選択肢は設けない。この基準で実機一周（合成のみ・全ロールバック・残置ゼロ実測）。
+【実測した現実（新意図との乖離）】
+・reviews のRLS SELECT は reviewer_id=auth.uid()＝作者本人しか行を読めない。相手(被評価者)は自分の受けた
+　評価の行を直接読めない（実弾：働き手の直接SELECT=0行）。
+・被評価者・他農家が見られるのは worker_trust_info / my_worker_trust_stats の集計だけ＝reviewed_count と
+　want_again_count のみ。entrust/on_time/as_described/safety_care/followed_instructions/completed_work の
+　6項目は【どのRPC・ビューも読まず】誰にも表示されない（実弾：農家が見る信頼情報に選択項目は非露出）。
+・作者だけが全項目を読める（MyReviewsOfWorker＝reviewer_id=me。public_comment を「働きぶり」、
+　private_memo を「🔒メモ（自分のみ）」と表示）。
+【結論＝現状は新意図と逆】「評価選択は公開する」が満たされていない：want_again 以外の6選択項目は
+de facto 非公開（作者のみ可視）。want_again ですら per-review でなく集計カウントとしてのみ公開。
+【たきとの判断that要る3点（実装はこの決定後）】
+1. スキーマの整理：public_comment を「雇用主のメモ」に寄せるなら、既存の private_memo と役割that重複する
+　（テキスト欄that2つ）。どちらをメモの正とするか＝列の統合/改名/ラベル（「働きぶり」表示の是非）。
+2. 選択項目の公開経路の新設：6項目(＋want_again)を被評価者・閲覧資格者に返すRPC/ビューthat要る
+　（現状ゼロ）。per-review で出すか集計で出すか。
+3. ★利用規約との整合（要改定判断）：新意図「選択項目は公開・非公開の選択なし」は現行規約と衝突する—
+　第8条2「否定的な評価が他の利用者に表示されることはありません」（entrust=false・on_time=false 等の否定的
+　選択を公開すると抵触）／第8条3「相手の評価は双方揃うか完了3日で表示」（即時公開すると抵触・
+　published_at は現状どの関数も未参照＝ゲート未実装）。選択項目を公開するなら規約本文の改定that必要。
+【この一周は照合のみ・実装なし】上記3決定（特に規約改定の要否）はたきとの裁定待ち。
+━━━ ここまで ━━━
