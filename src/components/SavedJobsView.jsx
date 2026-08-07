@@ -29,6 +29,68 @@ export function SavedJobsView({ me }) {
   // タップ＝cbJobShowcase（縮む→一拍→大きく→右へスライド）を再生するだけ。遷移しない。
   // 求人ページへ行く道は下の📄ボックスに一本化
   const [cardShow, setCardShow] = useState(false);
+  // ボックスの下スワイプで畳む（2026-08-07たきと指示「下スクロールはボックスを畳む。指に連動。
+  // 画面中央より下で指が離れたなら畳む」）：
+  // ・シート内の中身が最上部（scrollTop<=0）のときだけ、下向きのドラッグがシートを掴む＝
+  //   スクロールの余地がある間は通常スクロール（上に読み戻す動作を奪わない）
+  // ・掴んだらtransform直書きで指に追従（毎フレーム再レンダーしない＝今日ページのスワイプと同じ作法）
+  // ・指が離れた位置が画面の縦中央より下なら下へ滑らせて閉じる／上なら定位置へ戻す
+  // ・ReactのonTouchMoveはルートでpassive登録されpreventDefaultが効かないため、ネイティブリスナー
+  //   {passive:false}で張る（2026-08-02今日ページ・TodayPageと同じ理由）
+  const sheetRef = useRef(null);
+  const boxScrollRef = useRef(null);
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!boxJob || !el) return;
+    el.style.transform = ""; el.style.transition = ""; // 開き直し・求人切り替えの残骸を消す
+    let startY = 0, dragging = false, tracking = false;
+    const onStart = (e) => {
+      if (e.touches.length !== 1) return;
+      startY = e.touches[0].clientY; dragging = false; tracking = true;
+    };
+    const onMove = (e) => {
+      if (!tracking) return;
+      const dy = e.touches[0].clientY - startY;
+      if (!dragging) {
+        if (dy < 0) { tracking = false; return; } // 上向き＝通常スクロールに任せる
+        const sc = boxScrollRef.current;
+        if (dy > 8 && (!sc || sc.scrollTop <= 0)) { dragging = true; el.style.transition = "none"; }
+        else return;
+      }
+      e.preventDefault();
+      el.style.transform = `translateY(${Math.max(0, dy)}px)`;
+    };
+    const onEnd = (e) => {
+      const wasDragging = dragging;
+      dragging = false; tracking = false;
+      if (!wasDragging) return;
+      const y = e.changedTouches[0]?.clientY ?? 0;
+      if (y > window.innerHeight / 2) {
+        el.style.transition = "transform .22s ease";
+        el.style.transform = "translateY(105%)";
+        setTimeout(() => setBoxJob(null), 220);
+      } else {
+        el.style.transition = "transform .25s ease";
+        el.style.transform = "translateY(0)";
+      }
+    };
+    const onCancel = () => {
+      if (!dragging) { tracking = false; return; }
+      dragging = false; tracking = false;
+      el.style.transition = "transform .25s ease";
+      el.style.transform = "translateY(0)";
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onCancel, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onCancel);
+    };
+  }, [boxJob]);
   useEffect(() => {
     setCardShow(false); // 開き直し・別の求人への切り替えで演出の残骸を持ち越さない
     const jn = boxJob?.job_number;
@@ -273,11 +335,11 @@ export function SavedJobsView({ me }) {
         const chatOk = !!(r.application_id && CHAT_ELIGIBLE_STATUSES.includes(r.application_status));
         return (
           <div onClick={()=>setBoxJob(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div ref={sheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
               <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
                 <button onClick={()=>setBoxJob(null)} aria-label="閉じる" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
               </div>
-              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+              <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
                 {/* 現在地バナー（応募者ページと同じ・段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
                 {phase ? (
                   <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
