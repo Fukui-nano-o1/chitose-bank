@@ -150,15 +150,17 @@ export function AdminSystemRoom() {
     setStackBySig(prev => ({ ...prev, [g.sig]: null }));   // null=取得中
     fetchStack(g);
   };
-  // 画面上部の管理者帯（AdminErrorStrip）から来た時は、渡された種類を最初から展開して見せる
-  // （2026-08-07たきと指示「タップで、システムのエラーへ遷移」の着地側）。1回で消費する
+  // 画面上部の管理者帯（AdminErrorStrip）から来た時は、まず【該当のエラーだけ】をフォーカス表示する
+  // （2026-08-07たきと指示「遷移先に該当するエラーをまず出して。解決した、もしくは閉じるで
+  // システムのエラーへ遷移」）。1回で消費。500件の窓に無い時はフォーカスせず通常の一覧に着地
+  const [focusSig, setFocusSig] = useState(null);
   useEffect(() => {
     if (appErrors === null) return;
     let sig = null;
     try { sig = sessionStorage.getItem("cb_sysErrorFocus"); if (sig) sessionStorage.removeItem("cb_sysErrorFocus"); } catch {}
     if (!sig) return;
     const g = groupAppErrors(appErrors).flatMap(c => c.groups).find(x => x.sig === sig);
-    if (g) { setExpandedSig(sig); loadStack(g); }
+    if (g) { setFocusSig(sig); setExpandedSig(sig); loadStack(g); }
     // loadStack/stackBySigはこの1回の消費にだけ使う（依存に入れると展開のたび再走するため外す）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appErrors]);
@@ -189,11 +191,167 @@ export function AdminSystemRoom() {
     const ids = new Set(g.openIds);
     setAppErrors(prev => (prev || []).map(x => ids.has(x.id) ? { ...x, status:"fixed" } : x));
   };
+  // フォーカス表示の「解決した」：この種類の未解決をfixedにしてから一覧へ
+  // （確認ダイアログは挟まない＝ボタン自体が意思表示。失敗時はalertで留まる）
+  const resolveFocus = async (g) => {
+    if (errBulkBusy) return;
+    if (g.openIds.length) {
+      setErrBulkBusy(g.sig);
+      const { error } = await supabase.from("app_errors")
+        .update({ status:"fixed", resolved_at: new Date().toISOString() }).in("id", g.openIds);
+      setErrBulkBusy("");
+      if (error) { alert("更新に失敗しました：" + error.message); return; }
+      const ids = new Set(g.openIds);
+      setAppErrors(prev => (prev || []).map(x => ids.has(x.id) ? { ...x, status:"fixed" } : x));
+    }
+    setFocusSig(null);
+  };
+
+  // ── 種類カードの描画（エラー一覧とフォーカス表示の両方で使う唯一のソース）
+  const renderGroupCard = (g, c) => {
+    const open = g.openIds.length;
+    const isOpen = expandedSig === g.sig;
+    const ex = explainError(g.latest);
+    return (
+      <div key={g.sig} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden", opacity: open ? 1 : 0.65 }}>
+        {/* ヘッダーは div＋onClick（📋ボタンを入れ子にするため。button入れ子は不正HTML） */}
+        <div onClick={() => { setExpandedSig(isOpen ? null : g.sig); if (!isOpen) loadStack(g); }}
+          style={{ display:"block", width:"100%", textAlign:"left", padding:"13px 16px", cursor:"pointer" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:6 }}>
+            <span style={{ display:"flex", alignItems:"center", gap:6 }}>
+              {open > 0 ? (
+                <span style={{
+                  padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700,
+                  background: c.severity === "high" ? "#FCEBEB" : c.severity === "medium" ? "#FEF3E2" : "#F7F7F7",
+                  color: c.severity === "high" ? "#E24B4A" : c.severity === "medium" ? "#F5A623" : "#717171",
+                }}>{c.severity === "high" ? "重大" : c.severity === "medium" ? "注意" : "不明"}</span>
+              ) : (
+                <span style={{ padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700, background:"#E6F7EF", color:"#00A86B" }}>解決済み</span>
+              )}
+              <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#222" }}>×{g.rows.length}</span>
+              {open > 0 && open < g.rows.length && (
+                <span className="f-sans" style={{ fontSize:10, color:"#999" }}>（未解決{open}）</span>
+              )}
+            </span>
+            <button type="button" onClick={(ev) => { ev.stopPropagation(); copyGroup(g, c.l, ex); }}
+              className="f-sans" style={{
+                padding:"4px 12px", border:"1px solid #DDD", borderRadius:8, background:"#fff",
+                fontSize:10, fontWeight:700, color: copiedSig === g.sig ? "#00A86B" : "#555",
+                cursor:"pointer", flexShrink:0,
+              }}>{copiedSig === g.sig ? "✓ コピー済" : "📋 コピー"}</button>
+          </div>
+          {ex && (
+            <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:4 }}>{ex.title}</p>
+          )}
+          <p className="f-mono" style={{
+            fontSize: ex ? 10 : 11, color: ex ? "#999" : "#444", wordBreak:"break-all", marginBottom:6,
+            ...(isOpen ? {} : { display:"-webkit-box", WebkitLineClamp: ex ? 1 : 2, WebkitBoxOrient:"vertical", overflow:"hidden" }),
+          }}>{g.latest.message || "(メッセージなし)"}</p>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+            {g.latest.component && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.component}</span>}
+            {g.latest.source && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.source}</span>}
+            {g.latest.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.operation}</span>}
+            {g.latest.action && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.action}</span>}
+          </div>
+          {/* 最新の日付は右下（2026-08-07たきと指示・上段は件数とコピーだけにして折り返しを防ぐ） */}
+          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"right", marginTop:6 }}>
+            最新 {new Date(g.latest.created_at).toLocaleString("ja-JP")}
+          </p>
+        </div>
+        {isOpen && (() => {
+          // 具体的な事実（コピー報告文と同じ groupFacts から導出・追加の通信なし）
+          const { userN, anonN, devs, pages } = groupFacts(g);
+          const stackFull = stackBySig[g.sig];
+          // 保存は15行（コピー用）・画面は先頭6行だけ見せる
+          const stack = stackFull ? stackFull.split("\n").slice(0, 6).join("\n") : stackFull;
+          return (
+            <div style={{ padding:"0 16px 14px", borderTop:"1px solid #F3F3F3" }}>
+              {ex && (
+                <div style={{ padding:"10px 12px", background:"#E6F7EF", borderRadius:8, borderLeft:"3px solid #00A86B", margin:"12px 0 0" }}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#1B7A54", lineHeight:1.7 }}>
+                    <b>原因</b>：{ex.cause}<br /><b>どうする</b>：{ex.action}
+                  </p>
+                </div>
+              )}
+              <div className="f-sans" style={{ fontSize:11, color:"#555", lineHeight:1.9, margin:"12px 0 0" }}>
+                <p>期間：{new Date(g.first.created_at).toLocaleString("ja-JP")} 〜 {new Date(g.latest.created_at).toLocaleString("ja-JP")}</p>
+                <p>影響：ログイン利用者 {userN}人{anonN > 0 ? `・未ログインの発生 ${anonN}件` : ""}</p>
+                <p>端末：{devs.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
+                <p>ページ：{pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}{pages.length > 5 ? " ほか" : ""}</p>
+              </div>
+              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>最近の発生（最大5件）</p>
+              <div style={{ display:"grid", gap:2 }}>
+                {g.rows.slice(0, 5).map(e => (
+                  <p key={e.id} className="f-sans" style={{ fontSize:10, color:"#717171" }}>
+                    {new Date(e.created_at).toLocaleString("ja-JP")}　{e.page || "-"}　{deviceLabel(e.user_agent)}{e.status === "fixed" ? "　✓解決済み" : ""}
+                  </p>
+                ))}
+              </div>
+              {stack === null && (
+                <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:8 }}>発生箇所（スタック）を取得中<Dots /></p>
+              )}
+              {stack ? (
+                <>
+                  <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>発生箇所（最新1件のスタック先頭）</p>
+                  <pre className="f-mono" style={{ fontSize:9, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"8px 10px", margin:0, overflowX:"auto", whiteSpace:"pre" }}>{stack}</pre>
+                </>
+              ) : null}
+              {open > 0 && (
+                <button onClick={() => resolveGroup(g)} disabled={!!errBulkBusy} style={{
+                  marginTop:10, padding:"7px 14px", border:"1px solid #00A86B44", borderRadius:8,
+                  background:"transparent", color:"#00A86B", fontSize:11, fontWeight:600,
+                  cursor: errBulkBusy ? "default" : "pointer",
+                }}>{errBulkBusy === g.sig ? "更新中…" : `この種類の${open}件をまとめて解決済みにする`}</button>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+    );
+  };
+
+  // 帯から来たフォーカス対象（500件の窓から探す。見つからなければ通常の一覧）
+  let focusPair = null;
+  if (focusSig && appErrors) {
+    for (const c of groupAppErrors(appErrors)) {
+      const g = c.groups.find(x => x.sig === focusSig);
+      if (g) { focusPair = { c, g }; break; }
+    }
+  }
 
   return (
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
       <AdminNav current="system" />
 
+      {focusPair ? (
+        /* ── 帯から来た時のフォーカス表示：まず該当のエラーだけを出す（2026-08-07たきと指示）。
+              「解決した」＝この種類の未解決をfixedにして一覧へ／「閉じる」＝そのまま一覧へ ── */
+        <div className="appear">
+          <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:2 }}>いま発生中のエラー</p>
+          <p className="f-sans" style={{ fontSize:11, color:"#999", marginBottom:12 }}>
+            内容を確認して「解決した」か「閉じる」を押すと、エラー一覧に進みます。
+          </p>
+          {renderGroupCard(focusPair.g, focusPair.c)}
+          <div style={{ display:"flex", gap:10, marginTop:16 }}>
+            <button type="button" onClick={() => resolveFocus(focusPair.g)} disabled={!!errBulkBusy} className="f-sans"
+              style={{ flex:1, padding:"13px 0", background:"#00A86B", color:"#fff", border:"none",
+                borderRadius:12, fontSize:14, fontWeight:700, cursor: errBulkBusy ? "default" : "pointer" }}>
+              {errBulkBusy ? "更新中…" : "✓ 解決した"}
+            </button>
+            <button type="button" onClick={() => setFocusSig(null)} className="f-sans"
+              style={{ flex:1, padding:"13px 0", background:"#fff", color:"#555", border:"1px solid #DDD",
+                borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer" }}>
+              閉じる
+            </button>
+          </div>
+          {focusPair.g.openIds.length > 0 && (
+            <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:8, textAlign:"center" }}>
+              「解決した」はこの種類の未解決{focusPair.g.openIds.length}件を解決済みにします（記録は残ります）
+            </p>
+          )}
+        </div>
+      ) : (
+      <>
       {/* タブ（タップでも移動・スワイプ中は現在面から点灯を導出） */}
       <div style={{ display:"flex", borderBottom:"1px solid #EBEBEB", marginBottom:16 }}>
         {PANES.map((p, i) => (
@@ -235,107 +393,7 @@ export function AdminSystemRoom() {
                     </div>
                     {c.desc && <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 8px" }}>{c.desc}</p>}
                     <div style={{ display:"grid", gap:8, marginTop: c.desc ? 0 : 8 }}>
-                      {c.groups.map(g => {
-                        const open = g.openIds.length;
-                        const isOpen = expandedSig === g.sig;
-                        const ex = explainError(g.latest);
-                        return (
-                          <div key={g.sig} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden", opacity: open ? 1 : 0.65 }}>
-                            {/* ヘッダーは div＋onClick（📋ボタンを入れ子にするため。button入れ子は不正HTML） */}
-                            <div onClick={() => { setExpandedSig(isOpen ? null : g.sig); if (!isOpen) loadStack(g); }}
-                              style={{ display:"block", width:"100%", textAlign:"left", padding:"13px 16px", cursor:"pointer" }}>
-                              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:6 }}>
-                                <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                  {open > 0 ? (
-                                    <span style={{
-                                      padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700,
-                                      background: c.severity === "high" ? "#FCEBEB" : c.severity === "medium" ? "#FEF3E2" : "#F7F7F7",
-                                      color: c.severity === "high" ? "#E24B4A" : c.severity === "medium" ? "#F5A623" : "#717171",
-                                    }}>{c.severity === "high" ? "重大" : c.severity === "medium" ? "注意" : "不明"}</span>
-                                  ) : (
-                                    <span style={{ padding:"2px 8px", borderRadius:8, fontSize:10, fontWeight:700, background:"#E6F7EF", color:"#00A86B" }}>解決済み</span>
-                                  )}
-                                  <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#222" }}>×{g.rows.length}</span>
-                                  {open > 0 && open < g.rows.length && (
-                                    <span className="f-sans" style={{ fontSize:10, color:"#999" }}>（未解決{open}）</span>
-                                  )}
-                                </span>
-                                <button type="button" onClick={(ev) => { ev.stopPropagation(); copyGroup(g, c.l, ex); }}
-                                  className="f-sans" style={{
-                                    padding:"4px 12px", border:"1px solid #DDD", borderRadius:8, background:"#fff",
-                                    fontSize:10, fontWeight:700, color: copiedSig === g.sig ? "#00A86B" : "#555",
-                                    cursor:"pointer", flexShrink:0,
-                                  }}>{copiedSig === g.sig ? "✓ コピー済" : "📋 コピー"}</button>
-                              </div>
-                              {ex && (
-                                <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:4 }}>{ex.title}</p>
-                              )}
-                              <p className="f-mono" style={{
-                                fontSize: ex ? 10 : 11, color: ex ? "#999" : "#444", wordBreak:"break-all", marginBottom:6,
-                                ...(isOpen ? {} : { display:"-webkit-box", WebkitLineClamp: ex ? 1 : 2, WebkitBoxOrient:"vertical", overflow:"hidden" }),
-                              }}>{g.latest.message || "(メッセージなし)"}</p>
-                              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                                {g.latest.component && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.component}</span>}
-                                {g.latest.source && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.source}</span>}
-                                {g.latest.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.operation}</span>}
-                                {g.latest.action && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.action}</span>}
-                              </div>
-                              {/* 最新の日付は右下（2026-08-07たきと指示・上段は件数とコピーだけにして折り返しを防ぐ） */}
-                              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"right", marginTop:6 }}>
-                                最新 {new Date(g.latest.created_at).toLocaleString("ja-JP")}
-                              </p>
-                            </div>
-                            {isOpen && (() => {
-                              // 具体的な事実（コピー報告文と同じ groupFacts から導出・追加の通信なし）
-                              const { userN, anonN, devs, pages } = groupFacts(g);
-                              const stackFull = stackBySig[g.sig];
-                              // 保存は15行（コピー用）・画面は先頭6行だけ見せる
-                              const stack = stackFull ? stackFull.split("\n").slice(0, 6).join("\n") : stackFull;
-                              return (
-                                <div style={{ padding:"0 16px 14px", borderTop:"1px solid #F3F3F3" }}>
-                                  {ex && (
-                                    <div style={{ padding:"10px 12px", background:"#E6F7EF", borderRadius:8, borderLeft:"3px solid #00A86B", margin:"12px 0 0" }}>
-                                      <p className="f-sans" style={{ fontSize:11, color:"#1B7A54", lineHeight:1.7 }}>
-                                        <b>原因</b>：{ex.cause}<br /><b>どうする</b>：{ex.action}
-                                      </p>
-                                    </div>
-                                  )}
-                                  <div className="f-sans" style={{ fontSize:11, color:"#555", lineHeight:1.9, margin:"12px 0 0" }}>
-                                    <p>期間：{new Date(g.first.created_at).toLocaleString("ja-JP")} 〜 {new Date(g.latest.created_at).toLocaleString("ja-JP")}</p>
-                                    <p>影響：ログイン利用者 {userN}人{anonN > 0 ? `・未ログインの発生 ${anonN}件` : ""}</p>
-                                    <p>端末：{devs.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
-                                    <p>ページ：{pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}{pages.length > 5 ? " ほか" : ""}</p>
-                                  </div>
-                                  <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>最近の発生（最大5件）</p>
-                                  <div style={{ display:"grid", gap:2 }}>
-                                    {g.rows.slice(0, 5).map(e => (
-                                      <p key={e.id} className="f-sans" style={{ fontSize:10, color:"#717171" }}>
-                                        {new Date(e.created_at).toLocaleString("ja-JP")}　{e.page || "-"}　{deviceLabel(e.user_agent)}{e.status === "fixed" ? "　✓解決済み" : ""}
-                                      </p>
-                                    ))}
-                                  </div>
-                                  {stack === null && (
-                                    <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:8 }}>発生箇所（スタック）を取得中<Dots /></p>
-                                  )}
-                                  {stack ? (
-                                    <>
-                                      <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>発生箇所（最新1件のスタック先頭）</p>
-                                      <pre className="f-mono" style={{ fontSize:9, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"8px 10px", margin:0, overflowX:"auto", whiteSpace:"pre" }}>{stack}</pre>
-                                    </>
-                                  ) : null}
-                                  {open > 0 && (
-                                    <button onClick={() => resolveGroup(g)} disabled={!!errBulkBusy} style={{
-                                      marginTop:10, padding:"7px 14px", border:"1px solid #00A86B44", borderRadius:8,
-                                      background:"transparent", color:"#00A86B", fontSize:11, fontWeight:600,
-                                      cursor: errBulkBusy ? "default" : "pointer",
-                                    }}>{errBulkBusy === g.sig ? "更新中…" : `この種類の${open}件をまとめて解決済みにする`}</button>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        );
-                      })}
+                      {c.groups.map(g => renderGroupCard(g, c))}
                     </div>
                   </div>
                 ))}
@@ -392,6 +450,8 @@ export function AdminSystemRoom() {
         </div>
 
       </div>
+      </>
+      )}
     </div>
   );
 }
