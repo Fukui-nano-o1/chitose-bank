@@ -3446,3 +3446,24 @@ Q9：全角空白のみ→既定名が付与され見えない名前を阻止
 【残る既知の限界（機構では塞がない・記録のみ）】漢字・キリル等のホモグリフ（カ vs 力）／
 ひらがな⇄カタカナは別名扱い（仮名折り畳みはトレードオフありso、たきと判断待ちのまま）
 ━━━ ここまで ━━━
+━━━ 2026-08-07 二重予約判定を実働日ベースに（精度バグの修理・DB＋フロント）━━━
+【指示】たきと「着手」＝2026-08-06に再現確認した二重予約の精度バグ（実働日を見ず生の求人範囲で
+  誤警告）の修理に着手。
+【★修理（migration 20260807020647）】confirm_terms の double_booked 判定を、生の date_start..date_end
+  範囲重複から【実働日集合の積】に変更。実働日集合＝agreed_dates（非空配列）thatあればその日付／
+  無ければ求人範囲を展開／いずれからも holidays（jobs.holidays）を除く。
+・新設 app_work_dates(uuid) returns setof date（SECURITY DEFINER・実働日を返す内部ヘルパー・
+  クライアントからは revoke all＝confirm_terms 内からのみ呼ぶ）。
+・confirm_terms は app_work_dates(current) と app_work_dates(other) の積that空でなければ double_booked。
+  受諾フラグ・人数上限・見送りの波及・他の返り値は一切不変。
+【フロント lib/hire.js】findDoubleBookingJob を同じ集合積に書き換え＝effectiveWorkDates(app,job)
+  （agreed_dates優先／範囲展開／holidays除外・'YYYY-MM-DD'のSet）で現在の応募と他の応募の実働日を
+  突き合わせる。★DB app_work_dates と1対1で揃える（ズレると画面とサーバーで警告that食い違う）。
+  applicationsのselectに agreed_dates、jobsのselectに holidays を追加。
+【検証】DB実弾（ロールバック付き）：非重複の実働日=通過（誤警告解消）／重複=double_booked（壁維持）／
+  受諾ありで進める／holidayで除外した日は重複扱いにならない。フロントはnodeでparity検算
+  （非重複=false・重複=true・holiday除外・範囲境界共有=true）。build成功・lint 0 error。
+・データ：現在 agreed_dates は全null・holidays 実データ無し＝既存挙動への影響は範囲展開のみ（従来と同じ）。
+  以後 agreed_dates／holidays that入った求人で精度that効く。
+【これで二重予約は「精度も」揃った】機構の壁（受諾なしは止める・2026-08-06④）＋精度（実働日で判定・本件）。
+━━━ ここまで ━━━
