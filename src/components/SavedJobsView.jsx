@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow } from "../lib/utils";
 import { JobCard } from "./JobCard";
+import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -368,7 +369,9 @@ export function SavedJobsView({ me }) {
                      左から詳細that現れる（カードの動きと同じ右方向・連続した1つの動きに見える）。
                      戻るは詳細面の「← 戻る」（cardShowも解除＝カードが定位置に戻る） ═══ */}
                 <div style={{ display:"flex", width:"200%", transform: boxPane === "detail" ? "translateX(0)" : "translateX(-50%)", transition:"transform .35s ease" }}>
-                {/* ── 面2：求人詳細の確認パネル（左側に置く＝右ずれの動きで現れる） ── */}
+                {/* ── 面2：求人詳細の確認パネル（左側に置く＝右ずれの動きで現れる）。
+                     中身は JobDetailBody＝求人詳細ページのボックス化（AdminJobPreview）の本文を
+                     トレースした共有部品（2026-08-07たきと指示・浮遊ボックスは除外済み） ── */}
                 <div style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
                   {boxPane === "detail" && (() => {
                     const full = boxFull[r.job_number];
@@ -384,49 +387,14 @@ export function SavedJobsView({ me }) {
                         </p>
                       </div>
                     );
-                    const j = full;
-                    const rows = [
-                      ["日程", j.dateLabel], ["勤務時間", j.workTime], ["休憩", j.breakTime],
-                      ["報酬", j.pay > 0 ? (j.payType === "daily" ? `日給${j.pay.toLocaleString()}円` : `時給${j.pay.toLocaleString()}円`) : ""],
-                      ["募集人数", j.count], ["場所", j.region],
-                      ["最寄り駅", [j.nearestStation, j.commuteTime].filter(Boolean).join("から ")],
-                    ].filter(x => x[1]);
                     return (
                       <div>
                         {backBtn}
-                        <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 2px" }}>{[j.crop, j.task].filter(Boolean).join(" ") || "求人"}</p>
-                        <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>#{j.id}{j.region ? "　" + j.region : ""}</p>
-                        <div style={{ background:"#FAFAFA", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", display:"grid", gap:6 }}>
-                          {rows.map(x => (
-                            <div key={x[0]} style={{ display:"flex", gap:10 }}>
-                              <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0, width:64 }}>{x[0]}</span>
-                              <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600, minWidth:0 }}>{x[1]}</span>
-                            </div>
-                          ))}
-                        </div>
-                        {j.jobBody && (
-                          <div style={{ marginTop:12 }}>
-                            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>作業の説明</p>
-                            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{j.jobBody}</p>
-                          </div>
-                        )}
-                        {j.items && (
-                          <div style={{ marginTop:12 }}>
-                            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>持ち物</p>
-                            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{j.items}</p>
-                          </div>
-                        )}
-                        {j.cautions && (
-                          <div style={{ marginTop:12 }}>
-                            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>注意事項</p>
-                            <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{j.cautions}</p>
-                          </div>
-                        )}
-                        {/* 危険箇所・地図・保険・募集主・Q&Aは求人ページが正（法定表示・モザイク境界を二重実装しない）。
-                            ここは「確認」用の要約に留め、全文はページへ */}
+                        <JobDetailBody job={full} />
+                        {/* Q&A・保険・農家プロフィール・応募は求人ページが正（面には持ち込まない） */}
                         <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} className="f-sans"
-                          style={{ width:"100%", marginTop:16, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
-                          求人ページで全文を見る →
+                          style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
+                          求人ページで開く（質問・応募はこちら）→
                         </button>
                       </div>
                     );
