@@ -46,7 +46,7 @@ export function ReceivedReviews({ userId, direction }) {
 
   return (
     <div>
-      <p className="f-sans" style={{ fontSize: 12, fontWeight: 800, color: AC, margin: "0 0 8px" }}>🌟 受け取った評価</p>
+      {/* 見出し「🌟 受け取った評価」は削除（2026-08-07たきと指示・タブ名「評価」が見出しを兼ねる） */}
       {data === null ? (
         <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>読み込み中…</p>
       ) : (shown.length === 0 && comments.length === 0) ? (
