@@ -3846,4 +3846,21 @@ cb_sysErrorFocus/辞書文言の包含をgrep確認・グループ化と並び�
 等が対象）②点滅の見え方（うるさすぎないか）③タップでシステムのエラー面に着地し該当種類が
 展開されるか ④まとめて解決済みにすると帯が消えるか（5分以内に自動更新・リロードなら即）
 ⑤一般ユーザー・未ログインで帯が出ないこと
+━━━ 2026-08-07 退会処理の取りこぼし修理（段①②③・process_withdrawal）━━━
+【契機】「退会する要素を探せ」＝退会機能の漏れ探し。個人を指す列を持つ全テーブルを process_withdrawal と
+突き合わせ、KYC相当の届出情報that1つ漏れているのを発見。段階的に実装（各段ロールバック付き実弾検証・push）。
+【段①（migration 20260807133000）】consignment_profiles を削除対象に追加。employer_profiles等を消すのに
+委託者プロフィール（氏名・カナ・住所・電話・メール・★銀行口座番号・口座名義まで）を消していなかった非対称。
+employer_profiles と同格の「本人の届出情報」so行ごと削除。設計台帳v1(a)の列挙漏れ。現在0行so実害ゼロ。
+【段②（migration 20260807133659）】user_onboarding_survey（きっかけアンケート・auth_id）＝本人の行動データ・
+相手方なし＝行ごと削除。
+【段③（同migration）】feedback（自由記述・reporter_id）＝reporter_id that NOT NULL so匿名化(null化)は
+スキーマ変更なしには不可＝行ごと削除に決定（本人の記述は本人のものso退会で消す）。
+※匿名化して残す案もあったthat、NOT NULL制約＋「個人の自由記述を本人紐づきで残す方that重い」で削除を選択。
+【残す証跡（不変）】applications・messages・reviews・event_audit・job_questions・attendance_*・
+consignment_deals（相手方=運営のある取引記録）・各種reports・account_moderation。auth匿名化で名前解決that
+切れるため氏名は残らない。terms_snapshotに埋まる農家KYC（recruiter_*）は契約3年保存の法定記録so残す（台帳④と整合）。
+【検証】DB定義とrepo写経のDELETE対象17件that並び順まで一致（md5差はpg_get_functiondefの整形由来・意味差なし）。
+【未変更で残る運用】退会申請UIはまだ無い＝運営that auth_id を指定して手で process_withdrawal を叩く。
+アイコン画像(avatars/{uid}/)はストレージAPIから手動削除（SQL削除はプラットフォーム禁止・関数のnoteに明記）。
 ━━━ ここまで ━━━
