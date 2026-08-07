@@ -612,6 +612,17 @@ body:has(.cb-preview-overlay) .cb-job-action-fabs,
 body:has(.cb-box-overlay) .cb-job-action-fabs { display: none !important; }
 /* ペイン切替（作成中⇄公開中）で3つ目のピルthat削除⇄非公開に入れ替わる時のポップ（2026-08-07） */
 @keyframes cbPillSwap { from { transform: translateY(14px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+/* モード中の案内バブル＝画面中央（2026-08-07たきと指示。ピル行anchorだと右にはみ出す）。
+   ピル行の真上の高さ（ピル高さ約46px＋隙間10px）。タップは透過＝下のカードを妨げない */
+.cb-job-action-hint { position: fixed; left: 0; right: 0; bottom: calc(12px + 56px); z-index: 60; display: flex; justify-content: center; pointer-events: none; }
+@media (max-width: 768px) {
+  .cb-job-action-hint { bottom: calc(64px + 12px + 56px + env(safe-area-inset-bottom, 0px)); }
+  body.cb-scroll-hide .cb-job-action-hint { display: none !important; }
+  body.cb-typing .cb-job-action-hint { display: none !important; }
+}
+body:has(.cb-lock-scroll) .cb-job-action-hint,
+body:has(.cb-preview-overlay) .cb-job-action-hint,
+body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
 
 .profile-employer-fab { display: none; }
 @media (max-width: 768px) {

@@ -1697,14 +1697,17 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
            最終確認は削除・非公開のみ（runJobAction内のconfirm）。再開・コピーは即実行。
            3つ目のピルはペインで切替：作成中＝削除／公開中＝非公開（key切替でcbPillSwapアニメ）。
            削除の対象は下書き（一度も掲載していない）のみ＝DBの trg_block_delete_past_job と二重の壁 */}
-      {(jobTab === "draft" || jobTab === "active") && (
-        <div className="cb-job-action-fabs">
-          {/* モード中の案内バブル（ピルの真上）：どの操作モードか・取消の方法を1行で */}
-          {armedAction && (
-            <div className="f-sans" style={{ position:"absolute", bottom:"calc(100% + 10px)", left:0, background:"#222", color:"#fff", fontSize:12, fontWeight:700, padding:"9px 13px", borderRadius:10, whiteSpace:"nowrap", boxShadow:"0 2px 10px rgba(0,0,0,.3)", animation:"cbPillSwap .2s ease" }}>
+      {(jobTab === "draft" || jobTab === "active") && (<>
+        {/* モード中の案内バブル：画面中央に配置（2026-08-07たきと指示。ピル行の左端anchorだと右にはみ出していた）。
+            pointer-events:none＝下のカードのタップを妨げない */}
+        {armedAction && (
+          <div className="cb-job-action-hint">
+            <div className="f-sans" style={{ background:"#222", color:"#fff", fontSize:12, fontWeight:700, padding:"9px 13px", borderRadius:10, whiteSpace:"nowrap", boxShadow:"0 2px 10px rgba(0,0,0,.3)", animation:"cbPillSwap .2s ease" }}>
               {ARMED_LABEL[armedAction]}する求人をタップ（もう一度ピルで取消）
             </div>
-          )}
+          </div>
+        )}
+        <div className="cb-job-action-fabs">
           <button onClick={()=>armJobAction("resume")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
             boxShadow: armedAction === "resume" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.18)", opacity: (!armedAction || armedAction === "resume") ? 1 : 0.45 }}>再開</button>
           <button onClick={()=>armJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
@@ -1720,7 +1723,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               boxShadow: armedAction === "delete" ? "0 0 0 3px rgba(226,75,74,.3), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "delete") ? 1 : 0.45 }}>削除</button>
           )}
         </div>
-      )}
+      </>)}
 
       {/* 「公開間近」の説明ボックス（2026-08-07たきと指示）：掲載申請済み求人のタップで開く。
           求人の詳細も求人者プロフィールも見せず、状態の説明だけを展開する＝「審査されている」感を出さない。
