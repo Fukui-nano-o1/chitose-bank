@@ -199,6 +199,75 @@ export function JobSearchMapView({ onRegister, me }) {
   // 条件を満たさなくなった時（ログアウト・特約の版数更新）に委託レーンに取り残されない
   useEffect(() => { if (!showConsignLane && lane === "consign") setLane("jobs"); }, [showConsignLane, lane]);
 
+  // ── 横スワイプの指連動で求人⇄委託を切替（2026-08-07たきと指示）。
+  // 機構は今日ページの役割スワイプと同一（ネイティブリスナー＋contentRefへのtransform直書き＝
+  // 毎フレーム再レンダーなし・方向ロック8px・50px以上で切替成立・slideKey更新でスライドイン）。
+  // 委託レーンthat見える人（canSeeConsignment）だけ発動＝1レーンの人は従来どおり無反応
+  const laneRootRef = useRef(null);
+  const laneContentRef = useRef(null);
+  const laneGestureRef = useRef(null); // { x, y, lock:'h'|'v'|null }
+  const laneValRef = useRef(lane); laneValRef.current = lane;
+  const laneDualRef = useRef(showConsignLane); laneDualRef.current = showConsignLane;
+  const [laneSlideDir, setLaneSlideDir] = useState(0); // 1=右から（委託へ）・-1=左から（求人へ）
+  const [laneSlideKey, setLaneSlideKey] = useState(0); // key更新でアニメを再生
+  const switchLane = (target) => {
+    if (target === laneValRef.current) return;
+    setLaneSlideDir(target === "consign" ? 1 : -1); // タブ並び：左=求人・右=委託
+    setLaneSlideKey(k => k + 1);
+    setLane(target);
+  };
+  const switchLaneRef = useRef(switchLane); switchLaneRef.current = switchLane;
+  useEffect(() => {
+    const el = laneRootRef.current; if (!el) return;
+    const onStart = (ev) => {
+      // オーバーレイ（シート類=.cb-lock-scroll・全画面の検索パネル=.cb-search-overlay）内で
+      // 始まったタッチは奪わない（パネル操作中に背後のレーンthat切り替わる事故の防止）
+      if (ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll, .cb-search-overlay")) { laneGestureRef.current = null; return; }
+      const t = ev.touches[0]; if (t) laneGestureRef.current = { x: t.clientX, y: t.clientY, lock: null };
+    };
+    const onMove = (ev) => {
+      const g = laneGestureRef.current; if (!g || !laneDualRef.current) return;
+      const t = ev.touches[0]; if (!t) return;
+      const dx = t.clientX - g.x, dy = t.clientY - g.y;
+      if (!g.lock) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // 8px動くまで判定保留
+        g.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";  // 1ジェスチャ1回だけ軸を確定
+      }
+      if (g.lock !== "h") return; // 縦確定＝以後ノータッチ（ブラウザのスクロールに完全に譲る）
+      ev.preventDefault();
+      const c = laneContentRef.current; if (!c) return;
+      const target = dx < 0 ? "consign" : "jobs";
+      const damp = target === laneValRef.current ? 0.12 : 0.4; // 行き先が無い方向は強い抵抗（端の感触）
+      c.style.transition = "none";
+      c.style.transform = `translateX(${Math.max(-100, Math.min(100, dx * damp))}px)`;
+    };
+    const onEnd = (ev) => {
+      const g = laneGestureRef.current; laneGestureRef.current = null;
+      if (!g || g.lock !== "h") return;
+      const c = laneContentRef.current;
+      const t = ev.changedTouches && ev.changedTouches[0];
+      const dx = t ? t.clientX - g.x : 0;
+      const target = dx < 0 ? "consign" : "jobs";
+      if (Math.abs(dx) >= 50 && target !== laneValRef.current) {
+        if (c) { c.style.transition = ""; c.style.transform = ""; }
+        switchLaneRef.current(target); // key更新で新コンテンツがスライドイン
+        return;
+      }
+      if (c) { c.style.transition = "transform .2s ease"; c.style.transform = ""; } // スナップバック
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+    // 詳細ページ⇄一覧でrootの実DOMthat差し替わるため、戻るたびに現在のrootへ張り直す
+  }, [selectedJob]);
+
   // ── Airbnb風検索（2026-07-27たきと指示・骨格②の段階解禁を運営判断で前倒し）：
   // 上部ピルバー→タップで全画面パネル。なにを（作物・作業）／どこで（地域）／いつ（月）の3セクションを
   // アコーディオンで選び「検索」で確定。チップは実在の求人から生成（ダミー禁止・憲法3条）。
@@ -729,12 +798,54 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* ── レーンタブ（求人／委託・2026-08-03たきと指示）：契約の性質that違う別レーンso絞り込みでなくタブで並べる。
            委託タブは canSeeConsignment（管理者 かつ 特約同意）を満たす人にだけ現れる。
            条件を満たさない人にはタブ自体that出ない＝従来どおり求人一覧のまま（1レーンなら非表示） ── */}
-      <SearchLaneTabs value={lane} onChange={setLane}
+      {/* ── スワイプ容器（2026-08-07たきと指示・指連動でレーン切替）。タブは容器内・アニメの外＝動かない。
+           1レーンの人もrootは張るthatタッチ判定thatlaneDualRefで眠る＝従来どおり無反応 ── */}
+      <div ref={laneRootRef} style={{ overflowX:"hidden", touchAction:"pan-y" }}>
+      <SearchLaneTabs value={lane} onChange={switchLane}
         lanes={showConsignLane ? [{ k:"jobs", label:"求人" }, { k:"consign", label:"委託" }] : [{ k:"jobs", label:"求人" }]} />
+      {/* ドラッグ追従はlaneContentRefへのtransform直書き（再レンダーなし）。切替成立時はkey更新でスライドイン再生 */}
+      <div key={laneSlideKey} ref={laneContentRef} style={laneSlideDir ? { animation: `${laneSlideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` } : undefined}>
 
       {/* 委託レーン：一覧だけを出す（絞り込みバー・支払いの注記は求人の話so出さない） */}
       {lane === "consign" && <ConsignmentSearchList />}
 
+      {lane === "jobs" && (<>
+      {/* 仕事リスト（検索適用中はfilteredList） */}
+      <div className="job-search-layout">
+        <div ref={skelRef}>
+          {/* 読み込み中（dbJobs未取得）は「ありません」でなく仮の箱を並べる（2026-07-27たきと指示）。
+              空だと確定してから初めて空状態を出す＝一瞬「求人ゼロ」に見える誤解を防ぐ */}
+          {dbJobs === null && <AutoSkeleton shapeKey="search" />}
+          {dbJobs !== null && jobList.length === 0 && (
+            <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
+              <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
+              <p style={{ fontSize:16, margin:0, lineHeight:1.6 }}>現在、募集中の求人はありません</p>
+            </div>
+          )}
+          {jobList.length > 0 && filteredList.length === 0 && (
+            <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
+              <div style={{ fontSize:40, marginBottom:12 }}>🔍</div>
+              <p style={{ fontSize:16, margin:"0 0 16px", lineHeight:1.6 }}>条件に合う求人が見つかりませんでした</p>
+              <button onClick={clearSearch} className="f-sans" style={{ padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#00A86B", cursor:"pointer" }}>条件をクリア</button>
+            </div>
+          )}
+          {filteredList.map(job => (
+            <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} />
+          ))}
+        </div>
+      </div>
+      {/* 支払いの注記（2026-07-27たきと指示で最上部から求人一覧の一番下へ移植）。
+          一覧全体の原則案内なので個別求人の保存値ではなく共通定数（現在の固定ポリシー）から導出（2026-08-02） */}
+      <div style={{ padding:"7px 12px", background:"#F7F7F7", borderRadius:8, marginTop:12 }}>
+        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
+          お支払いは、{PAY_TIMING_LABELS[CURRENT_PAY_POLICY.payTiming]}の{PAY_METHOD_LABELS[CURRENT_PAY_POLICY.payMethod]}が原則です。
+        </p>
+      </div>
+      </>)}
+      </div>
+      {/* 検索バー・検索パネル（position:fixed）はスワイプ容器のtransformの外に置く：
+          祖先にtransformthatあるとfixedの基準that画面でなくなる（2026-07-14既知の罠）ため。
+          fixed同士なので描画位置は従来と同一 */}
       {lane === "jobs" && (<>
       {/* ── Airbnb風検索バー（2026-07-27）：下部バー直上の浮遊ピル（上は遠い・たきと指示）。
            スクロールで他のFABと同じくcb-scroll-hideで格納。適用中は条件の要約＋✕クリア ── */}
@@ -756,7 +867,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* ── 検索パネル（Airbnb風）：半透明の暗幕で背景の一覧が薄く見える。チップはタップの瞬間に一覧へ
            リアルタイム反映（2026-07-27たきと指示）。暗幕タップ・✕・「N件を表示」いずれでも閉じる ── */}
       {searchOpen && (
-        <div className="fade-in" onClick={()=>setSearchOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch", display:"flex" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
+        <div className="fade-in cb-search-overlay" onClick={()=>setSearchOpen(false)} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch", display:"flex" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
           {/* margin:auto＝縦横中央（2026-07-27たきと指示）。中身が画面より高い時はflex+autoマージンで正しくスクロールできる */}
           {/* ★この包み(全幅)では止めない（2026-08-06）：ここでstopPropagationすると、カードとカードの
                隙間・左右の余白も「枠内」になり、枠外タップで閉じられなくなる。止めるのは白いカード自身だけ */}
@@ -795,39 +906,8 @@ export function JobSearchMapView({ onRegister, me }) {
           </div>
         </div>
       )}
-
-      {/* 仕事リスト（検索適用中はfilteredList） */}
-      <div className="job-search-layout">
-        <div ref={skelRef}>
-          {/* 読み込み中（dbJobs未取得）は「ありません」でなく仮の箱を並べる（2026-07-27たきと指示）。
-              空だと確定してから初めて空状態を出す＝一瞬「求人ゼロ」に見える誤解を防ぐ */}
-          {dbJobs === null && <AutoSkeleton shapeKey="search" />}
-          {dbJobs !== null && jobList.length === 0 && (
-            <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
-              <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
-              <p style={{ fontSize:16, margin:0, lineHeight:1.6 }}>現在、募集中の求人はありません</p>
-            </div>
-          )}
-          {jobList.length > 0 && filteredList.length === 0 && (
-            <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
-              <div style={{ fontSize:40, marginBottom:12 }}>🔍</div>
-              <p style={{ fontSize:16, margin:"0 0 16px", lineHeight:1.6 }}>条件に合う求人が見つかりませんでした</p>
-              <button onClick={clearSearch} className="f-sans" style={{ padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#00A86B", cursor:"pointer" }}>条件をクリア</button>
-            </div>
-          )}
-          {filteredList.map(job => (
-            <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} />
-          ))}
-        </div>
-      </div>
-      {/* 支払いの注記（2026-07-27たきと指示で最上部から求人一覧の一番下へ移植）。
-          一覧全体の原則案内なので個別求人の保存値ではなく共通定数（現在の固定ポリシー）から導出（2026-08-02） */}
-      <div style={{ padding:"7px 12px", background:"#F7F7F7", borderRadius:8, marginTop:12 }}>
-        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
-          お支払いは、{PAY_TIMING_LABELS[CURRENT_PAY_POLICY.payTiming]}の{PAY_METHOD_LABELS[CURRENT_PAY_POLICY.payMethod]}が原則です。
-        </p>
-      </div>
       </>)}
+      </div>
       </>)}
 
       {/* ── 詳細ページ ── */}
