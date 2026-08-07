@@ -3959,3 +3959,15 @@ sessionStorage(cb_sysErrorFocus) に種類の署名を渡す。従来の着地�
 該当が解決済み表示・帯が消える ③閉じる→一覧に進み帯は残る ④直リンクで#/admin/systemを開いた時は
 従来どおり一覧から始まる
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 エラーの発生ページ「-」の穴を修理（b8bf695・main push済み）━━━
+【経緯】Script error.（×9）の調査で、報告文が「ページ：-（9）」になる穴を発見。
+window.onerror／unhandledrejection経路の logAppError は page を渡さないが、
+url=window.location.href は必ず記録されていた（実測：#/help・#/chat/…等がDBに残存）。
+【修理】lib/errorCatalog に errorPage(e)＝page || urlのハッシュ部 || "-" を新設。
+適用3箇所（AdminSystemRoom）：ページ別件数の集計（groupFacts）・コピー報告文の最近の発生・
+展開表示の発生一覧。取得列に url を追加。node機械検算6ケース全OK・build+lint 0 error。
+【Script error.調査の結論（同日・記録）】9件中7件が同一端末（session d3c26aea・複数アカウント切替
+＝運営本人のiPhoneの可能性大）。index.htmlに外部ドメインの<script>はゼロ＝サイト起因ではなく
+端末のSafari環境（拡張等）の注入スクリプト起因。様子見＝解決済みで片付けてよいと判断。
+━━━ ここまで ━━━
