@@ -436,14 +436,12 @@ export function SavedJobsView({ me }) {
                         </p>
                       </div>
                     );
+                    {/* 「求人ページで開く」ボタンは削除（2026-08-07たきと指示）＝
+                        求人ページへの道はメイン面の📄ボックスに一本化 */}
                     return (
                       <div>
                         {swipeHint}
                         <JobDetailBody job={full} me={me} />
-                        <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} className="f-sans"
-                          style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
-                          求人ページで開く（応募はこちら）→
-                        </button>
                       </div>
                     );
                   })()}
