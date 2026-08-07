@@ -5,8 +5,12 @@ import { Avatar, StatusRibbonLeft } from "./ui";
 
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
 // saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
-export function JobCard({ job, variant, saved, onToggleSave }) {
+// variant="wide"（2026-08-07）：関連カードと同じ「写真に情報を重ねる」型を全幅で。
+//   ステータスページの展開ボックス等、シート内の求人要約用（要約の顔を独自に作らない＝このカードが唯一のソース）
+// onOpen（任意）：渡すと新しいタブでなくその場の遷移をonOpenに任せる（シート内から同一タブで開く用）
+export function JobCard({ job, variant, saved, onToggleSave, onOpen }) {
   const isList = variant === "list";
+  const isWide = variant === "wide";
   // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真that少し拡大して元に戻る。
   // 発火はonClick（スクロール開始のタッチでは鳴らない）。ハートはstopPropagationでカードに
   // 伝わらないため、ハート側からも同じトリガーを呼ぶ。アニメ終了でclass解除＝次のタップで再生
@@ -21,14 +25,16 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
   const photoRadius = 16;
   const cardStyle = isList
     ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", border:"none", marginBottom:22, position:"relative" }
+    : isWide
+    ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", border:"none", position:"relative" }
     : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", position:"relative" };
   return (
     <a
       href={"#/work/job/" + job.id}
-      target="_blank"
+      target={onOpen ? undefined : "_blank"}
       rel="noopener noreferrer"
       style={cardStyle}
-      onClick={popPhoto}
+      onClick={onOpen ? (e) => { e.preventDefault(); popPhoto(); onOpen(); } : popPhoto}
     >
       {typeof onToggleSave === "function" && !(job.filled || job.expired || job.closed) && (
         <button
@@ -85,7 +91,8 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
         </div>
         <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:8 }}>
           <p className="f-mono" style={{ fontSize: isList?16:13, fontWeight: isList?700:800, color: isList?"#00A86B":"#fff", margin:0, textShadow: isList?"none":"0 1px 3px rgba(0,0,0,0.6)" }}>
-            {payLabel(job)}
+            {/* 報酬が取れていない行（wide要約の非公開求人フォールバック等）は0円を出さず空にする（ダミー禁止・憲法3条） */}
+            {job.pay > 0 ? payLabel(job) : ""}
           </p>
           {!isList && job.dateStartRaw && (
             <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.92)", flexShrink:0, whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>

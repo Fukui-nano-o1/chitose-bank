@@ -7,7 +7,8 @@
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, calFmtDate, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb } from "../lib/utils";
+import { ymdLocal, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow } from "../lib/utils";
+import { JobCard } from "./JobCard";
 import { openPhaseInfo } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -20,6 +21,22 @@ export function SavedJobsView({ me }) {
   const [rows, setRows] = useState(() => getCache("saved:rows") ?? null);
   const [myProfile, setMyProfile] = useState(() => getCache("saved:me") ?? null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
+  // ボックス内の求人カード用の全体像（2026-08-07たきと指示「その他の求人と同じ配置と要素」＝JobCard）。
+  // my_job_actions はカードの最小限（報酬・地域・3トグルを含まない）so、開いた求人だけ jobs_public から
+  // 1行読み足す。job_number→mapped行｜null(非公開=draft/pending等でビューに無い)。開いたものだけ・1回だけ
+  const [boxFull, setBoxFull] = useState({});
+  useEffect(() => {
+    const jn = boxJob?.job_number;
+    if (!jn || jn in boxFull) return;
+    let dead = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("jobs_public").select("*").eq("job_number", jn).maybeSingle();
+        if (!dead) setBoxFull(prev => ({ ...prev, [jn]: data ? mapJobPublicRow(data) : null }));
+      } catch { if (!dead) setBoxFull(prev => ({ ...prev, [jn]: null })); }
+    })();
+    return () => { dead = true; };
+  }, [boxJob]); // eslint-disable-line react-hooks/exhaustive-deps -- boxFullは取得済み判定のみ（依存に入れると再取得ループ）
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
   // カレンダー（2026-07-27たきと指示）：働き手のカレンダーページを廃止し、この面の上部へ移植。
   // 開閉は雇い手の応募者ページと同じ作法＝横スワイプ or 案内行のタップ。今日ページのカレンダー箱から
@@ -248,7 +265,6 @@ export function SavedJobsView({ me }) {
         const r = boxJob;
         const phase = phaseOf(r);
         const c = APP_PHASE_COLOR[phase] || "#717171";
-        const dateLabel = r.date_start ? (r.date_end && r.date_end !== r.date_start ? `${calFmtDate(r.date_start)}〜${calFmtDate(r.date_end)}` : calFmtDate(r.date_start)) : "未設定";
         const chatOk = !!(r.application_id && CHAT_ELIGIBLE_STATUSES.includes(r.application_status));
         return (
           <div onClick={()=>setBoxJob(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
@@ -271,60 +287,52 @@ export function SavedJobsView({ me }) {
                     <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>いいねした求人です。求人ページから応募できます。</p>
                   </div>
                 )}
-                {/* 求人の要約＝その他の求人カードと同じ配置と要素（2026-08-07たきと指示）：
-                    左＝トップ写真3:4にタイトル・#No.を重ねる（一覧・応募者ページ・新着の応募ページと同じ作法）／
-                    右＝地域・日程・応募日。旧・正方形88pxの独自要約は廃止（カードの顔を二種類持たない） */}
-                <div style={{ display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginBottom:12 }}>
-                  <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} aria-label="求人ページを見る" className="f-sans"
-                    style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                    {photoOf(r) ? <img src={photoOf(r)} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
-                    <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
-                      <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{titleOf(r)}</span>
-                      <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{r.job_number}</span>
-                    </span>
-                  </button>
-                  <div style={{ flex:1, minWidth:0, padding:"12px 14px", display:"flex", flexDirection:"column", justifyContent:"center", gap:6 }}>
-                    {r.town && <span className="f-sans" style={{ fontSize:12, color:"#717171" }}>📍 {r.town}</span>}
-                    <span className="f-sans" style={{ fontSize:12, color:"#717171" }}>📅 {dateLabel}</span>
-                    {r.application_id && (
-                      <span className="f-sans" style={{ fontSize:12, color:"#999" }}>応募日 {new Date(r.applied_at).toLocaleDateString("ja-JP")}</span>
-                    )}
-                  </div>
+                {/* 求人の要約＝その他の求人と同じカード（2026-08-07たきと指示・スクショ＝関連求人カード）：
+                    JobCard variant="wide"＝写真に タイトル・地域・#No.・報酬・日程・3トグル を重ねる型を全幅で。
+                    要約の顔を独自に作らない＝JobCardが唯一のソース。my_job_actions は報酬・地域・3トグルを
+                    持たないso、開いた求人だけ jobs_public から読み足す（boxFull）。届くまで／非公開求人は
+                    手元の行から作った仮の姿（写真・タイトル・#No.・日程・町域）＝報酬0円やダミーは出さない */}
+                <div style={{ marginBottom:12 }}>
+                  {(() => {
+                    const full = boxFull[r.job_number];
+                    const job = full || {
+                      id: r.job_number, crop: r.crop || "", task: r.task || "", photos: r.photos || [],
+                      region: r.town || "", dateStartRaw: r.date_start || "", dateEndRaw: r.date_end || "", pay: 0,
+                    };
+                    return <JobCard job={job} variant="wide" onOpen={()=>{ setBoxJob(null); openJobPage(r); }} />;
+                  })()}
+                  {r.application_id && (
+                    <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"8px 4px 0" }}>応募日 {new Date(r.applied_at).toLocaleDateString("ja-JP")}</p>
+                  )}
                 </div>
                 {/* 選択した日にち（2026-08-07たきと指示）：働く日（農家が確定・濃緑）＞来られる日（応募時に自分が選んだ日）。
                     共有部品＝応募者カード・返事待ちカード・チャット文脈カードと同じ見た目。
                     'any'（期間中いつでも）・未選択は部品側で非表示（実データ／未設定／非表示の三択・憲法3条） */}
                 <AgreedDatesRow value={r.agreed_dates} />
                 <AvailDatesChips value={r.available_dates} />
-                {/* 操作＝プロフィールページの入口カードと同じ構造のボックス（2026-08-07たきと指示）：
-                    白カード・絵文字40px・太字タイトル＋説明文（ProfileHub「新しく求職を出す」等と同型） */}
-                <div style={{ display:"grid", gap:10, marginTop:12 }}>
+                {/* 操作ボックス＝横2列（2026-08-07たきと指示）。形は今日ページの「やること」箱と同型
+                    （絵文字を上に・太字タイトル・中央寄せの2列格子）＝ボックス格子の作法を増やさない */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:10, marginTop:12 }}>
                   <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} className="f-sans"
-                    style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                    <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📄</span>
-                    <span style={{ minWidth:0 }}>
-                      <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>求人ページを見る</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>募集内容・場所・持ち物をもう一度確認できます。</span>
-                    </span>
+                    style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                    <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>📄</span>
+                    <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>求人ページ</span>
+                    <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>募集内容・場所・持ち物をもう一度確認できます</span>
                   </button>
                   {chatOk && (
                     <button onClick={()=>{ setBoxJob(null); window.location.hash = "/chat/" + r.application_id; }} className="f-sans"
-                      style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                      <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>💬</span>
-                      <span style={{ minWidth:0 }}>
-                        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>チャットを開く</span>
-                        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>農家さんとのやり取り・面接はここで行います。</span>
-                      </span>
+                      style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                      <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>💬</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>チャットを開く</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>農家さんとのやり取り・面接はここで行います</span>
                     </button>
                   )}
                   {r.application_id && (
                     <button onClick={()=>{ setBoxJob(null); window.location.hash = "/profile/worker/applying"; }} className="f-sans"
-                      style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                      <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📋</span>
-                      <span style={{ minWidth:0 }}>
-                        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>応募状況を見る</span>
-                        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>応募の進み具合（承認→面接→採用→仕事→完了）を確認できます。</span>
-                      </span>
+                      style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                      <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>📋</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>応募状況</span>
+                      <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>応募の進み具合（承認→面接→採用）を確認できます</span>
                     </button>
                   )}
                 </div>
