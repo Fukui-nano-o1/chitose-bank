@@ -92,17 +92,10 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
           )}
         </div>
       )}
-      {/* ── 🌟 実績ブロック（このサイトの台帳のみ。自己申告チップはこの枠に絶対に入れない）。自己申告より上に置く（2026-07-23） ── */}
-      {trust?.ok && ((trust.completed_count || 0) > 0 || (trust.want_again_count || 0) > 0 || (trust.total_hours || 0) > 0) && (
-        <div style={{ marginTop:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px" }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#0B6B4F", margin:"0 0 8px" }}>🌟 実績（このサイトの記録）</p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:14 }}>
-            <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>完了 {trust.completed_count || 0}回</span>
-            {(trust.want_again_count || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>🌟 また働きたい {trust.want_again_count}</span>}
-            {(trust.total_hours || 0) > 0 && <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600 }}>作業 {trust.total_hours}時間</span>}
-          </div>
-        </div>
-      )}
+      {/* 🌟実績ブロック（完了回数・作業時間・また働きたい）は削除（2026-08-07たきと指示
+          「記録に入ってるからプロフィールからは除外」）＝件数・時間は記録面（WorkerWorkRecord）、
+          また呼びたいは評価面（ReceivedReviews）が持つ。二重表示させない。
+          trust は ✓本人確認済み（verified_at）の表示で引き続き使用so propは残す */}
       {/* 旧・📋自己申告ブロック（白枠＋見出し）は撤回（2026-08-05たきと指示）＝上のタグ群へ統合済み。
           本人のわたしの実績モーダルでは hideSelfDeclare で非表示・農家の応募者カードでは表示、の扱いは不変 */}
     </div>
