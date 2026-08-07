@@ -3695,3 +3695,32 @@ statusも書ければ偽装可＝上の穴に含まれる）／P3 働き手that�
 ポリシーのみ）／P4 評価のUPDATE/DELETE=0行（reviewsに変更系ポリシー無し・不変）／
 P5 第三者that他人の応募を書換=0行。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 評価の公開を実装（利用規約 第8条どおり・たきと承認）━━━
+【意図】選択項目の評価を公開／コメントは良心的なものを審査して公開／審査を作者に感じさせない（ストレス回避）。
+置き場所＝プロフィールプレビューの横スワイプに新設。
+【DB（migration 20260807024258・本番適用済み・repo写経済み）】
+・reviews.comment_status（pending/approved/rejected・default pending・CHECK制約）を追加。
+・reviews_public_badges(p_user_id,p_direction)＝被評価者のpublishedな評価から【trueの選択項目の件数】と
+  【approvedかつpublishedのコメント】を返す。個々の評価者は返さない（推薦・選別回避）。
+  公開判定（第8条3）＝完了3日経過 OR 相手方向の評価も存在（read時計算・published_at列は不使用）。
+  肯定のみ（第8条2）＝falseの選択項目は誰にも出さない。閲覧資格は既存trust RPCと同一
+  （働き手宛=本人/応募を受けた農家、農家宛=本人/応募した働き手/公開求人のある農家）。anon revoke。
+・admin_pending_review_comments()／moderate_review_comment(id,approve)＝app_admins限定・審査キューと承認/却下。
+  審査は本文だけを見る（当事者名を返さない＝運営の主観・関与を最小化）。両RPCともanon/authからrevoke→authへgrant。
+・前提の壁は既設：捏造穴 trg_reviews_party_consistency／段階ゲート trg_reviews_phase_gate（別セッション）。
+【フロント】
+・components/ReceivedReviews.jsx（新規）＝肯定バッジ＋審査済みコメントを表示。空なら「お互いの評価が揃うか、
+  完了から3日で表示されます」。★作者側にはこの部品を出さない＝審査を感じさせない（自分の評価はMyReviewsOfWorkerで
+  そのまま見える）。働き手宛=緑／農家宛=橙（役割色）。
+・WorkerPreviewSheet を2枚→3枚スワイプに一般化（PV_PAGES=3・pvStep=100/3）。2枚目「受け取った評価」を新設
+  （farmer_to_worker）。EmployerPreviewSheet（単ページ）にも受け取った評価セクションを追加（worker_to_farmer）。
+・components/admin/AdminReviewCommentsRoom.jsx（新規・#/admin/review-comments・管理者専用・lazyChunk）。
+  配線4点＋AdminNav＋readHashTab＋_subTabOfAdmin＋AdminTabガード!commentRoom を追加（systemRoomを雛形）。
+【検証】実弾（全ロールバック）：①完了直後は非公開（publishedゲート）②双方揃うと肯定バッジのみ・entrust(false)非表示・
+pendingコメント非公開 ③④承認でコメント公開 ⑤anon拒否 ⑥無関係者=not_entitled ⑦非管理者=not_admin。
+build 0エラー・残置ゼロ（reviews=0）。実機目視は未（スワイプ3枚・審査ルームの見た目）。
+【コメントの位置づけ】たきと訂正「コメントは公開しないのが原則。良心的なものは審査対象」＝pending既定・approvedのみ公開。
+既存 private_memo は「必要ないと感じるが保留」＝今回は不変。規約第8条1「公開されるのは肯定的な評価と公開コメントだけ」
+に一致（本文改定は不要）。
+━━━ ここまで ━━━
