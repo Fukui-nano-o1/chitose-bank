@@ -105,56 +105,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
   };
 
-  // 右スワイプで公開（2026-08-07たきと指示「公開の役割は右スワイプ。指に連動。公開するボタン削除」）。
-  // 作法は今日ページ・ボックス一覧のページャーと同じ：方向ロック8px・transform直書き＝毎フレーム
-  // 再レンダーなしで指に追従。右方向のみ。しきい値（画面幅35%・最大140px）を超えて離すと公開、
-  // 未満なら弾んで戻る。スライドで下から公開の緑面thaが現れる（進み具合＝視覚の答え合わせ）。
-  // カルーセル内で始まったタッチは奪わない（写真の横スクロールと衝突させない）。
-  // 修正依頼モード中・公開処理中・読み込み中は発動しない
-  const swipeRef = useRef(null);   // {x, y, dx, lock, w}
-  const dragBoxRef = useRef(null); // スライドさせるスクロール容器
-  const pubHintRef = useRef(null); // 下に敷いた公開の緑面（opacityを直書き）
-  const onPubSwipeStart = (e) => {
-    if (ownerView || revMode || publishing || !job || editTarget) return;
-    if (e.target.closest && e.target.closest(".carousel-scroll")) return;
-    const t = e.touches[0];
-    swipeRef.current = { x: t.clientX, y: t.clientY, dx: 0, lock: null, w: window.innerWidth || 1 };
-  };
-  const onPubSwipeMove = (e) => {
-    const s = swipeRef.current, el = dragBoxRef.current;
-    if (!s || !el) return;
-    const t = e.touches[0];
-    const dx = t.clientX - s.x, dy = t.clientY - s.y;
-    if (!s.lock) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
-    }
-    if (s.lock !== "h") return;
-    s.dx = Math.max(0, dx); // 右方向のみ（左は追従しない）
-    el.style.transition = "none";
-    el.style.transform = `translateX(${s.dx}px)`;
-    if (pubHintRef.current) pubHintRef.current.style.opacity = String(Math.min(1, s.dx / 120));
-  };
-  const onPubSwipeEnd = () => {
-    const s = swipeRef.current, el = dragBoxRef.current;
-    swipeRef.current = null;
-    if (!s || !el || s.lock !== "h") return;
-    const commit = s.dx > Math.min(140, s.w * 0.35);
-    el.style.transition = "transform .25s ease";
-    if (commit && onPublish && job && !publishing) {
-      el.style.transform = `translateX(${s.w}px)`;
-      onPublish(); // 成功時は親thaがプレビューを閉じる（既存挙動）
-      // 失敗（alert後も画面thaが残る）に備えて少し後に戻す
-      setTimeout(() => {
-        if (dragBoxRef.current) { dragBoxRef.current.style.transform = "translateX(0)"; }
-        if (pubHintRef.current) pubHintRef.current.style.opacity = "0";
-      }, 1500);
-    } else {
-      el.style.transform = "translateX(0)";
-      if (pubHintRef.current) pubHintRef.current.style.opacity = "0";
-    }
-  };
-
   // document.bodyへポータル（2026-07-19）：呼び出し元の祖先（AdminTabの.appear等）がtransformを
   // 保持していると、その要素がposition:fixedの基準になり全画面に広がらない（審査プレビューが途中で切れる不具合）。
   // bodyへ出せばfixedの基準が確実にビューポートになる
@@ -183,18 +133,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         </div>
       )}
 
-      {/* 公開の緑面（審査のみ）：右スワイプでスクロール面thaが右へずれると下から現れる */}
-      {!ownerView && (
-        <div ref={pubHintRef} aria-hidden="true" style={{ position:"absolute", inset:0, background:"#00A86B", opacity:0,
-          display:"flex", alignItems:"center", justifyContent:"flex-start", paddingLeft:28, pointerEvents:"none" }}>
-          <span className="f-sans" style={{ color:"#fff", fontSize:22, fontWeight:800 }}>公開する →</span>
-        </div>
-      )}
-      <div ref={ownerView ? undefined : dragBoxRef}
-        onTouchStart={ownerView ? undefined : onPubSwipeStart}
-        onTouchMove={ownerView ? undefined : onPubSwipeMove}
-        onTouchEnd={ownerView ? undefined : onPubSwipeEnd}
-        style={ownerView
+      <div style={ownerView
         ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" }
         : { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingTop:"env(safe-area-inset-top, 0px)",
             background:"#fff", position:"relative", touchAction:"pan-y" }}>
@@ -419,9 +358,11 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           実行の窓口を1箇所に保つ。このシートに残る操作は⏸一時非公開（右上）のみ */}
 
       {/* 下部の操作バー（審査のみ・2026-08-05たきと指示・下余白5px固定）。
-          公開するボタンは廃止＝右スワイプに置換（2026-08-07たきと指示）。右端はその案内のみ。
+          右スワイプ公開は撤回（2026-08-07たきと指示「機能していない。右へスワイプは削除。
+          代わりに修正を依頼の横幅を大きく」）＝案内文を消して「公開する」ボタンを復活。
+          修正を依頼thatflex:1で幅を取り、公開するはコンパクト（誤タップさせない）。
           「修正を依頼」は2段構え：押すと指摘チップthaが現れるモードに入り、0件のままもう一度押すと
-          やめる、1件以上で押すと送信。zIndex=公開の緑面より上（バーは常に見える） */}
+          やめる、1件以上で押すと送信 */}
       {!ownerView && (
         <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:8, background:"#fff", borderTop:"1px solid #EBEBEB",
           padding:"10px 12px 5px", position:"relative", zIndex:2 }}>
@@ -435,9 +376,9 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
               border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>
             {revSending ? "送信中..." : !revMode ? "修正を依頼" : findings.length > 0 ? `修正を依頼（${findings.length}）を送信` : "指摘をやめる"}
           </button>
-          <span className="f-sans" style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#00A86B", padding:"0 4px" }}>
-            {publishing ? "公開中..." : revMode ? "指摘を選ぶ →" : "右へスワイプで公開 →"}
-          </span>
+          <button onClick={onPublish} disabled={publishing || !job} className="f-sans"
+            style={{ flexShrink:0, padding:"13px 18px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity:(publishing||!job)?0.6:1 }}>
+            {publishing ? "公開中..." : "公開する"}</button>
         </div>
       )}
 
