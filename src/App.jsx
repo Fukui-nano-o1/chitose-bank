@@ -49,6 +49,28 @@ function lazyChunk(factory) {
 // マウント中に一度でも操作（タップ・キー・スクロール・タッチ）or 画面遷移thatあれば取り消す＝
 // 本当に何もせず滞在した時だけ /search へ送る。onEnd(fired)：firedならタイムアウト発火・falseなら取り消し。
 // ★モジュールレベル定義（フォーカス消失バグ回避の作法）。pointer-events等は一切奪わない（listenerのみ）。
+// 応募完了の法的一言トースト（2026-08-07・①）。完了ページを廃止したので、その画面にあった
+// 「まだ採用ではない／雇用契約は当事者間」の明示を、着地先に一度だけ出して消さない（法務の一線）。
+// 下から出る帯。8秒で自動的に消え、タップでも閉じる。pointer-events:noneにはしない（タップで閉じられるように）。
+function ApplyDoneNote({ promoted = 0, already = false, onClose }) {
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useEffect(() => {
+    const t = setTimeout(() => onCloseRef.current?.(), 8000);
+    return () => clearTimeout(t);
+  }, []);
+  const head = promoted > 0 ? `${promoted}件の応募を農家さんにお届けしました`
+             : already ? "この求人には応募済みです" : "応募を農家さんにお届けしました";
+  return (
+    <div onClick={()=>onClose?.()} style={{ position:"fixed", left:0, right:0, bottom:0, zIndex:9500, display:"flex", justifyContent:"center", padding:"0 12px calc(12px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .25s ease" }}>
+      <div className="cb-sheet-up" style={{ maxWidth:460, width:"100%", background:"#111", color:"#fff", borderRadius:14, padding:"14px 16px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)", cursor:"pointer" }}>
+        <p className="f-sans" style={{ fontSize:14, fontWeight:800, margin:"0 0 4px" }}>📩 {head}</p>
+        <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>これはまだ採用ではありません。農家が内容を確認し、承認するとお知らせします。</p>
+        <p className="f-sans" style={{ fontSize:11, lineHeight:1.6, color:"#B8B8B8", margin:"6px 0 0" }}>chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。</p>
+      </div>
+    </div>
+  );
+}
+
 function PublishIdleRedirect({ seconds = 60, onEnd }) {
   const onEndRef = useRef(onEnd); onEndRef.current = onEnd;
   useEffect(() => {
@@ -1429,6 +1451,19 @@ export default function App(){
   // 祝祭が消えたあと、60秒ノーアクションなら さがす へ自動遷移（何かタップ/操作すれば取り消す）。
   const [pubCelebrate,setPubCelebrate]=useState(null); // { open:bool } | null（3秒の祝祭）
   const [pubIdle,setPubIdle]=useState(false);          // 60秒アイドル→/search の見張り
+  // 応募完了も「ページ」でなくアニメーション化（2026-08-07たきと指示・①）。祝祭＋法的一言トースト＋
+  // 応募状況に着地＋60秒ノーアクションで さがす。法的一文（まだ採用でない・当事者間契約）は消さずトーストで残す。
+  const [applyNote,setApplyNote]=useState(false); // 着地先で1回だけ出す法的一言トースト
+  const [applyIdle,setApplyIdle]=useState(false); // 60秒アイドル→/search の見張り
+  // apply/done に来たら：完了ページを出さず、応募状況（/profile/worker/applying）へ着地させ、
+  // 祝祭（applyBurst・既存）＋法的トースト＋アイドル見張りを起動する。promotedCount/applyAlready/applyBurst は
+  // hashハンドラthat先に設定済み（この効果はそれらの設定後に走る）。
+  useEffect(() => {
+    if (!showApplyDone) return;
+    setApplyNote(true);
+    setApplyIdle(true);
+    window.location.hash = "/profile/worker/applying";
+  }, [showApplyDone]);
   // 全ボタン共通のタップの手応え（振動のみ・無音・iOSでは静かに無視される）。
   // 「押せた」の証拠＝文字が読めない利用者への最小のフィードバック（2026-08-06）
   useEffect(() => {
@@ -2556,30 +2591,9 @@ export default function App(){
         ) : showApplyPending ? (
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ApplyPending /></Suspense>
         ) : showApplyDone ? (
-          <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
-            {/* 祝祭（音＋振動＋花びら・自動で消える・操作を奪わない）。文字の案内は従来どおり全部残す */}
-            {applyBurst && <Celebration emoji="📩" title="応募できました" onDone={()=>setApplyBurst(false)} />}
-            <div style={{ fontSize:56, marginBottom:16 }}>📩</div>
-            {/* タイトルは応募完了しました！に統一・タイトルだけ文字ジャンプ（2026-07-19）。
-                仮応募からの昇格で来た時は、届いた件数を見出しに出す（第15弾・2026-07-30） */}
-            <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}><NoticeJumpText text={promotedCount > 0 ? `${promotedCount}件の応募を農家さんにお届けしました` : applyAlready ? "この求人には応募済みです" : "応募完了しました！"} /></h2>
-            <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, marginBottom:8 }}>
-              {promotedCount > 0 ? (
-                "これはまだ採用ではありません。農家が内容を確認し、承認するとお知らせします。"
-              ) : applyAlready ? (
-                "農家が内容を確認し、承認するとお知らせします。"
-              ) : (<>
-                これはまだ採用ではありません。<br/>
-                農家が内容を確認し、承認するとお知らせします。<br/>
-                その後、打ち合わせ・面接を経て、契約となります。
-              </>)}
-            </p>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginBottom:16 }}>
-              chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。
-            </p>
-            <button onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans" style={{ background:"none", border:"none", fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer", marginBottom:20 }}>どんなメールが来るか確認する →</button>
-            <button onClick={()=>{ window.location.hash="/search"; }} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>ほかの仕事を探す</button>
-          </div>
+          /* 完了ページは廃止（2026-08-07・①）＝アニメーションに置換。上のuseEffectthat応募状況へ着地させ、
+             祝祭・法的トースト・60秒アイドルはグローバルに出す。ここは着地までの一瞬なので何も描かない */
+          null
         ) : safeTab==="search" ? <JobSearchMapView onRegister={goLogin} me={me} /> : null}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="profile"&&(me
           ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
@@ -2806,6 +2820,12 @@ export default function App(){
           掲載後に /profile/employer へ遷移した先で祝祭that重なり、60秒ノーアクションで さがす へ送る */}
       {pubCelebrate && <Celebration emoji={pubCelebrate.open ? "🎉" : "🌱"} title={pubCelebrate.open ? "公開しました！" : "求人ができました！"} onDone={()=>setPubCelebrate(null)} />}
       {pubIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setPubIdle(false); if (fired) window.location.hash="/search"; }} />}
+
+      {/* 応募完了もアニメーション（2026-08-07・①）。祝祭（新規到着のみ）＋法的トースト＋60秒アイドル→さがす。
+          着地先（応募状況）の上に重なる。promotedCount/applyAlready で見出しを出し分ける */}
+      {applyBurst && <Celebration emoji="📩" title={promotedCount > 0 ? `${promotedCount}件を届けました` : "応募できました"} onDone={()=>setApplyBurst(false)} />}
+      {applyNote && <ApplyDoneNote promoted={promotedCount} already={applyAlready} onClose={()=>setApplyNote(false)} />}
+      {applyIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setApplyIdle(false); if (fired) window.location.hash="/search"; }} />}
 
       {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるso、個別に包む
           （2026-08-07 コピー→白画面の修理）：包まないと、チャンク読み込み失敗・描画エラーthat
