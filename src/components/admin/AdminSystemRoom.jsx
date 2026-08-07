@@ -1,7 +1,7 @@
 // システム専用ページ（#/admin/system・管理者専用・2026-08-03たきと指示「システムページを作れ。
 // システムタップで遷移。全て横スワイプで切り替えられるように」）：
-// 管理タブ「その他＞システム」のポップアップ＋区画表示（SQL／エラー／画像軽量化）を独立ページ化。
-// 3面はネイティブ横スクロール＋scroll-snap（指に追従・1スワイプ1面＝WorkerExperienceEntriesSwipeと
+// 管理タブ「その他＞システム」のポップアップ＋区画表示（エラー／画像軽量化）を独立ページ化。
+// 各面はネイティブ横スクロール＋scroll-snap（指に追従・1スワイプ1面＝WorkerExperienceEntriesSwipeと
 // 同じ作法）で切り替え、上部タブのタップでも移動できる。
 // 書き込みは従来と同一の2つだけ（エラーの解決済み化・画像ツールの上書き）＝新しい保存機能は無い
 import { useState, useEffect, useRef } from "react";
@@ -88,32 +88,14 @@ function groupAppErrors(rows) {
   })).filter(c => c.groups.length > 0);
 }
 
-// 手動SQLの雛形（AdminTabから移設・旧事業データ時代の資料。Supabase SQL Editorで使う）
-const NOTIF_SQL = `CREATE TABLE notifications (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  farmer_id uuid REFERENCES auth.users(id) NOT NULL,
-  type text NOT NULL,
-  message text NOT NULL,
-  read boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "notifications_own" ON notifications
-  FOR ALL USING (auth.uid() = farmer_id)
-  WITH CHECK (auth.uid() = farmer_id);
-CREATE INDEX idx_notifications_farmer
-  ON notifications(farmer_id, created_at DESC);`;
-
-const VARIETY_SQL = `ALTER TABLE records ADD COLUMN IF NOT EXISTS variety text DEFAULT '';
-ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
-
 const Card = ({ children, style }) => (
   <div className="ledger-card" style={{ padding:"16px 20px", ...style }}>{children}</div>
 );
 
-// 3面の並びの正はここ1箇所（タブとスワイプ面はこの順で対応する）
+// 面の並びの正はここ1箇所（タブとスワイプ面はこの順で対応する）
+// ※旧・面1「SQL」（notifications作成SQL・records列追加SQL）は2026-08-07に削除：
+//   どちらも本番適用済みの旧遺物だった（notificationsは現役稼働中・recordsは旧事業データ）
 const PANES = [
-  { k:"sql",    l:"SQL" },
   { k:"errors", l:"エラー" },
   { k:"images", l:"画像軽量化" },
 ];
@@ -208,39 +190,7 @@ export function AdminSystemRoom() {
         style={{ display:"flex", alignItems:"flex-start", overflowX:"auto", WebkitOverflowScrolling:"touch",
           scrollSnapType:"x mandatory", overscrollBehaviorX:"contain", touchAction:"pan-x pan-y" }}>
 
-        {/* ── 面1：SQL ── */}
-        <div style={paneStyle}>
-          <div style={{ display:"grid", gap:16 }}>
-            <Card>
-              <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>records 列追加SQL（品種・ブランド）</p>
-              <p className="f-sans" style={{ fontSize:11,color:"#717171",marginBottom:16 }}>Supabase SQL Editorで実行してください。</p>
-              <pre style={{
-                background:"#F7F7F7",borderRadius:12,padding:16,overflowX:"auto",
-                fontFamily:"'DM Mono','Courier New',monospace",fontSize:12,color:"#222",lineHeight:1.7,margin:0,
-                border:"1px solid #EBEBEB",whiteSpace:"pre",
-              }}>{VARIETY_SQL}</pre>
-              <button onClick={()=>navigator.clipboard.writeText(VARIETY_SQL)} style={{
-                marginTop:12,padding:"8px 20px",background:"#00A86B",color:"#fff",border:"none",
-                borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",
-              }}>SQLをコピー</button>
-            </Card>
-            <Card>
-              <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>notifications テーブル作成SQL</p>
-              <p className="f-sans" style={{ fontSize:11,color:"#717171",marginBottom:16 }}>Supabase SQL Editorで実行してください。</p>
-              <pre style={{
-                background:"#F7F7F7",borderRadius:12,padding:16,overflowX:"auto",
-                fontFamily:"'DM Mono','Courier New',monospace",fontSize:12,color:"#222",lineHeight:1.7,margin:0,
-                border:"1px solid #EBEBEB",whiteSpace:"pre",
-              }}>{NOTIF_SQL}</pre>
-              <button onClick={()=>navigator.clipboard.writeText(NOTIF_SQL)} style={{
-                marginTop:12,padding:"8px 20px",background:"#00A86B",color:"#fff",border:"none",
-                borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",
-              }}>SQLをコピー</button>
-            </Card>
-          </div>
-        </div>
-
-        {/* ── 面2：エラー（グループ細分化：大分類→種類→個々の発生・2026-08-07） ── */}
+        {/* ── 面1：エラー（グループ細分化：大分類→種類→個々の発生・2026-08-07） ── */}
         <div style={paneStyle}>
           {appErrors === null ? (
             <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>
@@ -346,7 +296,7 @@ export function AdminSystemRoom() {
           })()}
         </div>
 
-        {/* ── 面3：画像軽量化 ── */}
+        {/* ── 面2：画像軽量化 ── */}
         <div style={paneStyle}>
           <div style={{ display:"grid", gap:16 }}>
             <Card>
