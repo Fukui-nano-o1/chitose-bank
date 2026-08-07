@@ -25,7 +25,12 @@ export function SavedJobsView({ me }) {
   // my_job_actions はカードの最小限（報酬・地域・3トグルを含まない）so、開いた求人だけ jobs_public から
   // 1行読み足す。job_number→mapped行｜null(非公開=draft/pending等でビューに無い)。開いたものだけ・1回だけ
   const [boxFull, setBoxFull] = useState({});
+  // ボックス内の求人カードのタップ演出（2026-08-07たきと指示「詳細に遷移するな」）：
+  // タップ＝cbJobShowcase（縮む→一拍→大きく→右へスライド）を再生するだけ。遷移しない。
+  // 求人ページへ行く道は下の📄ボックスに一本化
+  const [cardShow, setCardShow] = useState(false);
   useEffect(() => {
+    setCardShow(false); // 開き直し・別の求人への切り替えで演出の残骸を持ち越さない
     const jn = boxJob?.job_number;
     if (!jn || jn in boxFull) return;
     let dead = false;
@@ -299,7 +304,15 @@ export function SavedJobsView({ me }) {
                       id: r.job_number, crop: r.crop || "", task: r.task || "", photos: r.photos || [],
                       region: r.town || "", dateStartRaw: r.date_start || "", dateEndRaw: r.date_end || "", pay: 0,
                     };
-                    return <JobCard job={job} variant="wide" onOpen={()=>{ setBoxJob(null); openJobPage(r); }} />;
+                    // タップ＝演出のみ・詳細に遷移しない（2026-08-07たきと指示）。外側のoverflow:hiddenで
+                    // 右スライドのはみ出しを切る（シート内に横スクロールを作らない）
+                    return (
+                      <div style={{ overflow:"hidden" }}>
+                        <div className={cardShow ? "cb-job-showcase" : undefined} onAnimationEnd={()=>setCardShow(false)}>
+                          <JobCard job={job} variant="wide" onOpen={()=>{ if (!cardShow) setCardShow(true); }} />
+                        </div>
+                      </div>
+                    );
                   })()}
                   {r.application_id && (
                     <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"8px 4px 0" }}>応募日 {new Date(r.applied_at).toLocaleDateString("ja-JP")}</p>

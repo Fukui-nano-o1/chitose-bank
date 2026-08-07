@@ -1331,6 +1331,23 @@ body.cb-scrolling .cb-like-heart { animation: cbHeartJelly .55s ease-in-out infi
   100% { transform: scale(1); }
 }
 
+/* ステータスページ・展開ボックス内の求人カードのタップ演出（2026-08-07たきと指示
+   「詳細に遷移するな。右横にスライド。求人タップで小さく、ワンテンポ置いて大きくみせる。そして、右にずれる」）：
+   縮む(0.88)→ワンテンポ静止→大きく(1.07)見せて静止→右へスライドアウト→左から定位置へ戻る。
+   画面外に置き去りにしない＝最後は必ず元の位置（カードの操作は下の2列ボックスが担う）。
+   発火・解除はSavedJobsView側（タップ→class付与・onAnimationEnd→解除＝次のタップで再生） */
+@keyframes cbJobShowcase {
+  0%   { transform: scale(1) translateX(0); }
+  12%  { transform: scale(0.88) translateX(0); }
+  30%  { transform: scale(0.88) translateX(0); }
+  48%  { transform: scale(1.07) translateX(0); }
+  64%  { transform: scale(1.07) translateX(0); }
+  82%  { transform: scale(1) translateX(112%); }
+  100% { transform: scale(1) translateX(0); }
+}
+.cb-job-showcase { animation: cbJobShowcase 1.6s ease both; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .cb-job-showcase { animation: none; } }
+
 /* 訪問者の玄関（#/visit）：いま募集中の求人が横に流れる帯（2026-07-27たきと指示・ロゴの差し替え）。
    同じ並びを2回描いて -50% まで流す＝継ぎ目なしで無限ループ。指を置いている間は停止。
    高さはカード側の clamp が持つ（同意ボタンを画面外へ押し出さないための伸縮） */
