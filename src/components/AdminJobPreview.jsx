@@ -243,7 +243,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           <div style={{ position:"relative", marginBottom:20, borderRadius:12, padding: ownerView ? 0 : 4, ...revOutline("求人タイトル・募集タグ") }}>
             {revChip("求人タイトル・募集タグ")}
             {/* 集合場所は番地まで明記（2026-08-03たきと指示）。この画面は管理者の審査・農家本人の
-                プレビューso常にログイン済み＝unlocked。訪問者向けのモザイクは求人詳細側that担う */}
+                プレビューso常にログイン済み＝unlocked。訪問者向けのモザイクは求人詳細側が担う */}
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
               {job.crop} {job.task}{job.region ? `｜${job.region}` : ""}
               {job.region && <MaskedAddress value={job.workAddress} unlocked={true} exists={job.hasWorkAddress} />}

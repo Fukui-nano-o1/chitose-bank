@@ -278,7 +278,7 @@ export const CURRENT_PAY_POLICY = { payMethod: "cash", payTiming: "same_day_afte
 // 時間外労働の表示（2026-08-03たきと指示）：所定の勤務時間を超える労働の有無は労働条件の明示事項。
 // 求人詳細・確認ページ・審査プレビューで同じ文言を出すためここに一本化する。
 // policy: "なし"／"あり"／空（未設定）、detail: "あり"のときの目安。未設定は "" を返し、
-// 呼び出し側that他の項目と同じ体裁（「ー」「未設定」）で描く
+// 呼び出し側が他の項目と同じ体裁（「ー」「未設定」）で描く
 export const OVERTIME_OPTIONS = ["なし", "あり"];
 export function overtimeLine(policy, detail) {
   const p = String(policy || "").trim();
@@ -309,10 +309,10 @@ export function mapJobPublicRow(j) {
     // jobs_public.work_address は anon に NULL マスク済み（2026-07-31・訪問者開示レベル第1弾）＝
     // 未ログインには常に空で届く。開示の境界はDB側が正・フロントは届いた値を表示するだけ
     // j.address フォールバック＝オーナープレビュー等 jobs テーブルを直読みする経路（列名がaddress）用。
-    // jobs_public 経由では address 列that存在しないso訪問者の値that漏れることはない
+    // jobs_public 経由では address 列が存在しないso訪問者の値が漏れることはない
     workAddress: j.work_address || j.address || "",
     // 番地の「有無」だけは訪問者にも届く（jobs_public.has_work_address・2026-08-03）＝
-    // 番地that設定された求人にだけモザイクを出すための判定。番地本文は届かない
+    // 番地が設定された求人にだけモザイクを出すための判定。番地本文は届かない
     hasWorkAddress: j.has_work_address != null ? !!j.has_work_address : !!((j.work_address || j.address || "").trim()),
     experience: j.job_exp || "", // 必要経験の選択式は撤回（2026-07-18）。旧求人の保存値のみ表示・未入力はdispで「ー」
     icon: "🌾",

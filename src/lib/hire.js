@@ -34,10 +34,10 @@ function effectiveWorkDates(app, job) {
   return set;
 }
 
-// 二重予約の下調べ：同じ働き手が、【実働日that重なる】自分の別の求人にも進んでいないか。
+// 二重予約の下調べ：同じ働き手が、【実働日が重なる】自分の別の求人にも進んでいないか。
 // 求人票の生の範囲ではなく、agreed_dates（実際に働く日）と holidays を反映した実働日の積で見る
 // （2026-08-06 精度修理・旧実装は範囲重複だけで、別々の日に雇う正当な採用に毎回誤警告を出していた）。
-// 返り値＝重なっている別の求人番号（無ければ null）。取得に失敗しても採用は止めない（警告that出ないだけ）
+// 返り値＝重なっている別の求人番号（無ければ null）。取得に失敗しても採用は止めない（警告が出ないだけ）
 export async function findDoubleBookingJob(farmerId, workerId, jobNumber) {
   try {
     const { data: apps } = await supabase.from("applications")

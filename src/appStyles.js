@@ -222,7 +222,7 @@ input:focus { outline: none; }
 .pflip-in  { animation: pflipIn .4s ease-out; }
 .pulse-slow  { animation: pulse 2s ease infinite; }
 /* いま これだけ（今日ページの最優先カード・2026-08-06）：呼吸のような脈動＝
-   動くものだけthatが見える、の原則。opacity点滅(pulse)は情報thatが消えて見えるso使わない */
+   動くものだけが見える、の原則。opacity点滅(pulse)は情報が消えて見えるso使わない */
 @keyframes cbNowPulse {
   0%,100% { transform: scale(1);     box-shadow: 0 2px 10px rgba(0,0,0,.08); }
   50%     { transform: scale(1.015); box-shadow: 0 8px 24px rgba(0,0,0,.16); }
@@ -1274,9 +1274,9 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 @keyframes cbSlideInR { from { transform: translateX(64px); opacity: .35; } to { transform: none; opacity: 1; } }
 @keyframes cbSlideInL { from { transform: translateX(-64px); opacity: .35; } to { transform: none; opacity: 1; } }
 /* いいねハートのぷるんぷるん（2026-08-07たきと指示）：縦スクロール中（body.cb-scrolling＝App.jsxの
-   スクロール監視that立てる）だけ、ゼリーの伸び縮みで震える。transformはグリフのspan（.cb-like-heart）
-   にだけ掛ける＝ボタン円・カード・fixed要素のtransformには波及しない。振幅は小さめ＝スクロールthat
-   止まってクラスthat外れ、アニメthat途中で切れてもスナップthat目立たない */
+   スクロール監視が立てる）だけ、ゼリーの伸び縮みで震える。transformはグリフのspan（.cb-like-heart）
+   にだけ掛ける＝ボタン円・カード・fixed要素のtransformには波及しない。振幅は小さめ＝スクロールが
+   止まってクラスが外れ、アニメが途中で切れてもスナップが目立たない */
 @keyframes cbHeartJelly {
   0%   { transform: scale(1, 1); }
   30%  { transform: scale(1.22, 0.78) rotate(-5deg); }

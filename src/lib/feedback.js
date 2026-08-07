@@ -1,22 +1,22 @@
 // 音と振動のフィードバック（2026-08-06・赤ちゃん前提の第0歩）
-// 思想：音・振動は装飾ではなく「あなたの操作で世界that動いた」ことの証拠。
-// 文字thatが読めない利用者にとって、無音のタップは「何も起きなかった」に等しい。
+// 思想：音・振動は装飾ではなく「あなたの操作で世界が動いた」ことの証拠。
+// 文字が読めない利用者にとって、無音のタップは「何も起きなかった」に等しい。
 //
 // ・音はWebAudioの合成音＝音源ファイルなし・オフライン可・追加コストゼロ
 // ・【解錠】iOS/Chromeはユーザー操作の同期文脈でしかAudioContextを起動できない。
-//   App.jsxの全域リスナー（pointerdown＋click）thatが毎タップ unlockAudio() を呼ぶ＝
-//   最初のタップで音の道thatが開通し、以後は await（RPC往復）の後でも音thatが出る。
+//   App.jsxの全域リスナー（pointerdown＋click）が毎タップ unlockAudio() を呼ぶ＝
+//   最初のタップで音の道が開通し、以後は await（RPC往復）の後でも音が出る。
 //   ※旧実装はawaitの後に初めてAudioContextを作っていた＝永久suspended＝無音（2026-08-06根治）
 // ・【消音スイッチ】iPhoneのマナーモード中、WebAudioは既定で完全ミュート。
 //   iOS 17+ の Audio Session API（navigator.audioSession.type='transient'）で
 //   「通知のような短いUI音」として消音中でも鳴らす（他アプリの音楽は止めない）。
-//   iOS 16以前は消音スイッチthatON だと鳴らない（打つ手なし＝仕様。振動と視覚thatが担う）
+//   iOS 16以前は消音スイッチがON だと鳴らない（打つ手なし＝仕様。振動と視覚が担う）
 // ・【音量】UI音はスマホのスピーカーでは想像よりずっと小さく出る。sine波90ms/gain0.07は
 //   実機でほぼ聞こえなかった（2026-08-06実機報告）→ VOL=0.3・0.15〜0.2s・倍音のある波形に増強。
 //   うるさければ VOL の1箇所だけ下げる
 // ・navigator.vibrate は iOS Safari 非対応＝静かに無視される（try/catchで安全）
 // ・【法的リスク回避・絶対】音は情報の代替ではない。法定の文字・エラー文は一切消さず、音は添えるだけ。
-//   この方針を変える（文字を音に置き換える）場合は労働局確認thatが先（CLAUDE.md 2026-08-06前提）
+//   この方針を変える（文字を音に置き換える）場合は労働局確認が先（CLAUDE.md 2026-08-06前提）
 // ・【使い分け】fbSuccess=行動の成功／fbError=失敗（柔らかく。威圧しない）／fbCelebrate=節目の祝祭。
 //   負の場面（見送り・欠勤・失効の記録）では鳴らさない＝祝わない・責めない
 
@@ -47,7 +47,7 @@ export function unlockAudio() {
   } catch {}
 }
 
-// notes=周波数の列を gap 秒ずつずらして鳴らす。三角波＝倍音thatがありスマホのスピーカーでも通る
+// notes=周波数の列を gap 秒ずつずらして鳴らす。三角波＝倍音がありスマホのスピーカーでも通る
 function tone(notes, { type = "triangle", gain = VOL, dur = 0.18, gap = 0.09 } = {}) {
   const c = ctx(); if (!c) return;
   try {
@@ -62,11 +62,11 @@ function tone(notes, { type = "triangle", gain = VOL, dur = 0.18, gap = 0.09 } =
       o.start(t); o.stop(t + dur + 0.05);
       t += gap;
     }
-  } catch { /* 音thatが出せない環境では黙って何もしない（振動と視覚thatが担う） */ }
+  } catch { /* 音が出せない環境では黙って何もしない（振動と視覚が担う） */ }
 }
 
 // タップの手応え（振動＋音の解錠）。全ボタン共通＝「押せた」の証拠。
-// unlockAudioをここでも呼ぶ＝どのボタンでも最初のタップで音の道thatが開通する
+// unlockAudioをここでも呼ぶ＝どのボタンでも最初のタップで音の道が開通する
 export function fbTap() { vibrate(8); unlockAudio(); }
 
 function vibrate(pattern) { try { navigator.vibrate?.(pattern); } catch {} }
@@ -78,7 +78,7 @@ export function fbSuccess() { vibrate([15, 40, 15]); tone([659.25, 880]); }
 export function fbError() { vibrate(60); tone([220, 174.61], { type: "sine", gain: VOL * 0.7, dur: 0.2, gap: 0.13 }); }
 
 // 祝祭＝花火のファンファーレ（上昇アルペジオC5-E5-G5-C6＋てっぺんで和音）＋リズム振動。
-// Celebration部品（暗幕→打ち上げ→炸裂）thatがマウント時に鳴らす
+// Celebration部品（暗幕→打ち上げ→炸裂）がマウント時に鳴らす
 export function fbCelebrate() {
   vibrate([15, 50, 15, 50, 30]);
   tone([523.25, 659.25, 783.99, 1046.5], { dur: 0.16, gap: 0.11 });

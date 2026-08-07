@@ -318,7 +318,7 @@ function HireStagePanel({ items, meId, onHired }) {
     if (!t || hiring) return;
     setHiring(true);
     // 二重予約はDB側confirm_termsも同じ式で見張る（2026-08-06・警告の機構化）。警告を見て
-    // OKした時（t.dupあり）だけ受諾フラグを渡す。下調べthat取りこぼした時はDBがdouble_bookedを
+    // OKした時（t.dupあり）だけ受諾フラグを渡す。下調べが取りこぼした時はDBがdouble_bookedを
     // 返すので、確認カードに警告を出し直し、もう一度OKで受諾ありになる
     const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: t.application_id, p_accept_double_booking: !!t.dup });
     setHiring(false);
@@ -1082,16 +1082,16 @@ export function TodayPage({ me, defaultRole }) {
           }
           const catalog = TODO_STAGE_CATALOG[role] || [];
           const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
-          // いま これだけ（2026-08-06）：正規フロー順（catalog順）で最初に該当thatある用件。
-          // 昇格した用件は下の格子から抜く（複製でなく移動＝「上に動いた」thatが一目で分かる。同日たきと指示）
+          // いま これだけ（2026-08-06）：正規フロー順（catalog順）で最初に該当がある用件。
+          // 昇格した用件は下の格子から抜く（複製でなく移動＝「上に動いた」が一目で分かる。同日たきと指示）
           const nowStage = catalog.filter(st => !st.startsWith("t_")).find(st => (byStage.get(st) || []).length > 0) || null;
           return (
             <div style={{ marginBottom:24 }}>
               {/* 件数は打刻修正の承認ぶんも足す＝ナビのバッジ(todo)と一致させる（my_nav_badgesも同じ加算） */}
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length + corrections.length}）</p>
               {/* いま これだけ（2026-08-06・赤ちゃん前提の第0歩）：分かれ道10本の手前に「最優先の1本」を
-                  大きく1枚だけ出す。正規フロー順（catalog順）で最初に該当thatある用件＝次の一歩。
-                  タップの行き先は下のボックスと同じ専用ページ＝入口thatが増えるだけで、実行の窓口は増やさない。
+                  大きく1枚だけ出す。正規フロー順（catalog順）で最初に該当がある用件＝次の一歩。
+                  タップの行き先は下のボックスと同じ専用ページ＝入口が増えるだけで、実行の窓口は増やさない。
                   10ボックスは従来どおり下に残す（追加可能・削除可能・他を壊さない） */}
               {(() => {
                 if (!nowStage) return null;

@@ -5,7 +5,7 @@
 // 読み取り専用（admin_working_jobs RPC・security definer + app_admins ゲート）。ここからの書き込みは無し。
 // 2026-08-06追加：失効の見張り＝直近14日に失効した応募の一覧。採用の押し忘れのまま作業開始を
 // 迎えると cron that失効させ「働いた事実thaあるのに記録thaない」thaできる（#1054・#1056で実際に
-// 起きた）。運営that当事者に確認する入口。ここも読み取り専用（記録し直しはDB作業＝運営判断）。
+// 起きた）。運営が当事者に確認する入口。ここも読み取り専用（記録し直しはDB作業＝運営判断）。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { dateRangeLabel, isTodayWork } from "../../lib/utils";
@@ -96,8 +96,8 @@ function WorkCard({ item, today }) {
   );
 }
 
-// 失効カード（読み取り専用）：誰の応募that・どの求人で・いつ失効したか。
-// 「承認済みのまま失効」は実際に働いていた可能性thatより高いso赤帯で目立たせる（#1054型）
+// 失効カード（読み取り専用）：誰の応募が・どの求人で・いつ失効したか。
+// 「承認済みのまま失効」は実際に働いていた可能性がより高いso赤帯で目立たせる（#1054型）
 function ExpiredCard({ item }) {
   return (
     <div className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid " + (item.was_approved ? "#E24B4A" : "#C8C8C8") }}>

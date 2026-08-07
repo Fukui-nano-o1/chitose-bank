@@ -3,8 +3,8 @@
 // サーバー側でも consignment_deals のRLSthat app_admins 限定so、フロントの条件を外しただけでは中身は出ない（二重の壁）。
 //
 // カードの見た目は委託準備室の一覧と揃える（さがすのJobCardの型・カラーはブラック）。
-// ★準備室（components/admin/ConsignmentRoom.jsx）のカードとは別実装：あちらは別セッションthat活発に編集中so、
-//   共通部品への切り出しは所有権that1本になってから行う（CLAUDE.md・分割作業中は触る手を1本に固定）。
+// ★準備室（components/admin/ConsignmentRoom.jsx）のカードとは別実装：あちらは別セッションが活発に編集中so、
+//   共通部品への切り出しは所有権が1本になってから行う（CLAUDE.md・分割作業中は触る手を1本に固定）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
@@ -26,7 +26,7 @@ const dateChipLabel = (ds, de) => {
 };
 
 export function ConsignmentSearchList() {
-  // 前回の内容thatあればまず出す→裏で最新に差し替える（viewCache・他ページと同じ作法）
+  // 前回の内容があればまず出す→裏で最新に差し替える（viewCache・他ページと同じ作法）
   const [deals, setDeals] = useState(() => getCache("search:consignDeals") ?? null);
   const skelRef = useSkeletonProbe("searchConsign");
 

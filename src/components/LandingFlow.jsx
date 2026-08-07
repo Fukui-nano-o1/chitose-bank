@@ -342,7 +342,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   const _editJobNumber = (() => { const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/edit\/(\d+)$/); return m ? parseInt(m[1],10) : null; })();
   const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? (_editJobNumber ? "farmer" : null) ?? initialRole ?? ""); // "" | "farmer" | "worker"
   // 編集・コピー（#/work/edit/{n}）は確認ページ(11)から始める（2026-08-03）。
-  // 初期値that0（入口）だと、jobsを読み終えるまで「はじめから」の画面that見えてしまう。
+  // 初期値が0（入口）だと、jobsを読み終えるまで「はじめから」の画面が見えてしまう。
   // 実際のstepは読み込み後に draft_step で上書きされる（copy_jobも draft_step=11 で作る）
   const [step, setStep] = useState((initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : (_editJobNumber ? 11 : 0)))); // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
 
@@ -519,13 +519,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   // 再開はrefに掴んだ関数を呼ぶ（handleSaveJobは確認ページのIIFE内定義なので、識別子は外から参照できない）
   const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
   const resumePublishRef = useRef(null);
-  // 掲載that法的に許されるアカウント（運営者本人＝自己募集）は、提出＝即公開にして「審査待ち」を無くす（2026-08-07・③）。
+  // 掲載が法的に許されるアカウント（運営者本人＝自己募集）は、提出＝即公開にして「審査待ち」を無くす（2026-08-07・③）。
   // 一般農家の求人は法律（職安法・届出）とRLS／トリガーにより open にできず pending のまま＝画面では「公開間近」。
   // ★判定は isAdmin（＝ADMIN_EMAIL一致）＝DBの jobs admin write ポリシー（email一致）と厳密に同じ。
-  //   ここを app_admins にすると +worker 等that open を撃ってRLSに弾かれるので、必ず email 一致で揃える。
+  //   ここを app_admins にすると +worker 等が open を撃ってRLSに弾かれるので、必ず email 一致で揃える。
   //   実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open thatが最終担保）。ここは体験の分岐だけ。
   const [meCanOpen, setMeCanOpen] = useState(false);
-  const [publishedOpen, setPublishedOpen] = useState(false); // 直前の掲載that即公開だったか（完了画面の文言に使う）
+  const [publishedOpen, setPublishedOpen] = useState(false); // 直前の掲載が即公開だったか（完了画面の文言に使う）
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -539,7 +539,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   }, []);
   // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ。
   // 定義位置は openPublish（下の掲載ガード）より前でなければならない＝後ろに置くとTDZで
-  // 「Cannot access before initialization」＝画面that真っ白になる（lintゲート no-use-before-define that検出）
+  // 「Cannot access before initialization」＝画面が真っ白になる（lintゲート no-use-before-define that検出）
   const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
   const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
   const [overtimeInfoOpen,  setOvertimeInfoOpen]  = useState(false); // タイトル横「？」の説明展開（UI一時state・保存しない）
@@ -838,8 +838,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
   };
 
   // 編集・コピーで開いた時の復元（2026-08-03に高速化）。
-  // 【従来の問題】stepの初期値that0（＝フローの入口）で、jobsを読み終えてから確認ページへ飛ぶ設計だった。
-  // そのため通信that少しでも遅いと「はじめから」の画面that見え続けた（コピー直後に多発）。
+  // 【従来の問題】stepの初期値が0（＝フローの入口）で、jobsを読み終えてから確認ページへ飛ぶ設計だった。
+  // そのため通信が少しでも遅いと「はじめから」の画面が見え続けた（コピー直後に多発）。
   // 【対処】①stepの初期値を編集モードでは11（確認ページ）に変更＝入口をそもそも描かない
   //        ②コピー直後は copy_job that返した行をsessionStorage経由で受け取り、通信を待たずに即復元
   //        ③通常の読み込みは getSession の往復を待たない（jobsのRLS owner select that自分の行に絞るso
@@ -857,8 +857,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
     } catch {}
     (async () => {
       try {
-        // ③セッションと求人を並列で取る（従来はgetSession→jobsの直列で、JWT更新that走ると
-        //   その待ちthatまるまる上乗せされていた）。取れなければ何もしない（prefillの値を残す）
+        // ③セッションと求人を並列で取る（従来はgetSession→jobsの直列で、JWT更新が走ると
+        //   その待ちがまるまる上乗せされていた）。取れなければ何もしない（prefillの値を残す）
         const [sessRes, jobRes] = await Promise.all([
           supabase.auth.getSession(),
           supabase.from("jobs").select("*").eq("job_number", _editJobNumber).maybeSingle(),
@@ -2049,8 +2049,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                 let _jn = draftJobNumber;
                 if (!_jn) { try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _jn = _d.job_number ?? null; } catch {} }
                 let error;
-                // ③ 掲載that許されるアカウント（運営者本人＝自己募集）は提出＝即公開（open）。
-                //    一般農家は pending（法律・RLS・トリガーthat open を許さない）＝画面上は「公開間近」。
+                // ③ 掲載が許されるアカウント（運営者本人＝自己募集）は提出＝即公開（open）。
+                //    一般農家は pending（法律・RLS・トリガーが open を許さない）＝画面上は「公開間近」。
                 //    判定は isAdmin（ADMIN_EMAIL一致）＝DBの jobs admin write ポリシー（email一致）と厳密に同一。
                 const canOpen = isAdmin(session.user);
                 const payload = await buildJobPayload(session.user.id, canOpen ? "open" : "pending");
@@ -2188,7 +2188,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
                 {/* 集合場所は番地まで明記（2026-08-03たきと指示）。確認ページ＝掲載前プレビューso
-                    自分の入力値（farmerAddr）をそのまま出す。訪問者向けのモザイクは求人詳細側that担う */}
+                    自分の入力値（farmerAddr）をそのまま出す。訪問者向けのモザイクは求人詳細側が担う */}
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}${farmerAddr ? farmerAddr : ""}` : ""}</h2>
                 {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
                 {(beginnerOk || experiencedPreferred || instantApproveRepeat || perkBadges(jobPerks ? { ...(confEmployer || {}), ...jobPerks } : confEmployer).length > 0) && (
@@ -2251,7 +2251,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
                       { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
                       // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
                       // 確認ページは掲載前のプレビューso、プロフィールの現在値（confEmployer）を出す。
-                      // 掲載すると掲載時トリガーthatこの値をperksへ凍結し、以後は詳細ページにも同じ形で出る
+                      // 掲載すると掲載時トリガーがこの値をperksへ凍結し、以後は詳細ページにも同じ形で出る
                       { label:"受動喫煙", on: !!pk.smoking_policy,
                         value: pk.smoking_policy
                           ? (pk.smoking_policy === "喫煙場所あり"
@@ -2572,7 +2572,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, farmersCount = 0, emb
               <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>{publishedOpen ? "公開しました！" : "求人ができました！"}</h2>
               <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
                 {publishedOpen ? (<>働き手に公開されました。<br/>「さがす」に並んでいます。</>)
-                              : (<>公開の準備that整いしだい、働き手に届きます。<br/>公開されると「さがす」に並び、応募that届きます。</>)}
+                              : (<>公開の準備が整いしだい、働き手に届きます。<br/>公開されると「さがす」に並び、応募が届きます。</>)}
               </p>
               <div style={{ display:"grid", gap:10, width:"100%" }}>
                 {/* 遷移先は農家プロフィール（App.jsxのonComplete＝/profile/employer）so、ラベルもそれに合わせる。

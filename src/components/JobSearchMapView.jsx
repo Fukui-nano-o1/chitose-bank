@@ -177,7 +177,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // 委託タブを出す条件は lib/consignAccess.js の canSeeConsignment ただ1箇所（管理者 かつ 特約同意）。
   // 後日その1行から管理者条件を外すだけで一般公開になる（＋DB側のRLSも同時に開ける・詳細はlibのコメント）。
   // 特約の同意状況は consignment_profiles を読んで判定する。RLSthat管理者限定so、
-  // 一般ユーザーで無駄な往復をしないよう「見せる可能性thatある人」だけ引く
+  // 一般ユーザーで無駄な往復をしないよう「見せる可能性がある人」だけ引く
   const [consignor, setConsignor] = useState(() => getCache("search:consignor") ?? null);
   useEffect(() => {
     if (!isAdmin(me)) { setConsignor(null); return; } // ★解禁時：この行も一緒に外す（読む相手を広げる）
@@ -202,7 +202,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // ── 横スワイプの指連動で求人⇄委託を切替（2026-08-07たきと指示）。
   // 機構は今日ページの役割スワイプと同一（ネイティブリスナー＋contentRefへのtransform直書き＝
   // 毎フレーム再レンダーなし・方向ロック8px・50px以上で切替成立・slideKey更新でスライドイン）。
-  // 委託レーンthat見える人（canSeeConsignment）だけ発動＝1レーンの人は従来どおり無反応
+  // 委託レーンが見える人（canSeeConsignment）だけ発動＝1レーンの人は従来どおり無反応
   const laneRootRef = useRef(null);
   const laneContentRef = useRef(null);
   const laneGestureRef = useRef(null); // { x, y, lock:'h'|'v'|null }
@@ -221,7 +221,7 @@ export function JobSearchMapView({ onRegister, me }) {
     const el = laneRootRef.current; if (!el) return;
     const onStart = (ev) => {
       // オーバーレイ（シート類=.cb-lock-scroll・全画面の検索パネル=.cb-search-overlay）内で
-      // 始まったタッチは奪わない（パネル操作中に背後のレーンthat切り替わる事故の防止）
+      // 始まったタッチは奪わない（パネル操作中に背後のレーンが切り替わる事故の防止）
       if (ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll, .cb-search-overlay")) { laneGestureRef.current = null; return; }
       const t = ev.touches[0]; if (t) laneGestureRef.current = { x: t.clientX, y: t.clientY, lock: null };
     };
@@ -647,8 +647,8 @@ export function JobSearchMapView({ onRegister, me }) {
       // 昇格の引き金は本人のプロフィール完成だけ（運営の自由記述審査は間に立たない）
       const ready = await fetchWorkerReady();
       if (!ready.ready) {
-        // 来られる日（期間求人のみ）を仮応募でも渡す（2026-08-06）。渡さないと昇格時に来られる日that
-        // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募that成立してしまう
+        // 来られる日（期間求人のみ）を仮応募でも渡す（2026-08-06）。渡さないと昇格時に来られる日が
+        // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募が成立してしまう
         const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id, p_available_dates: applyAvailRef.current });
         setApplying(false);
         if (pend && pend.ok) { window.location.hash = "/apply/pending"; return; }
@@ -795,11 +795,11 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* 見出し「近くの仕事を探す」は削除（2026-07-27たきと指示）。現在地は下部ナビの点灯が示すため冗長。
           支払いの注記は求人一覧の一番下へ移植（下記） */}
 
-      {/* ── レーンタブ（求人／委託・2026-08-03たきと指示）：契約の性質that違う別レーンso絞り込みでなくタブで並べる。
+      {/* ── レーンタブ（求人／委託・2026-08-03たきと指示）：契約の性質が違う別レーンso絞り込みでなくタブで並べる。
            委託タブは canSeeConsignment（管理者 かつ 特約同意）を満たす人にだけ現れる。
-           条件を満たさない人にはタブ自体that出ない＝従来どおり求人一覧のまま（1レーンなら非表示） ── */}
+           条件を満たさない人にはタブ自体が出ない＝従来どおり求人一覧のまま（1レーンなら非表示） ── */}
       {/* ── スワイプ容器（2026-08-07たきと指示・指連動でレーン切替）。タブは容器内・アニメの外＝動かない。
-           1レーンの人もrootは張るthatタッチ判定thatlaneDualRefで眠る＝従来どおり無反応 ── */}
+           1レーンの人もrootは張るがタッチ判定がlaneDualRefで眠る＝従来どおり無反応 ── */}
       <div ref={laneRootRef} style={{ overflowX:"hidden", touchAction:"pan-y" }}>
       <SearchLaneTabs value={lane} onChange={switchLane}
         lanes={showConsignLane ? [{ k:"jobs", label:"求人" }, { k:"consign", label:"委託" }] : [{ k:"jobs", label:"求人" }]} />
@@ -844,7 +844,7 @@ export function JobSearchMapView({ onRegister, me }) {
       </>)}
       </div>
       {/* 検索バー・検索パネル（position:fixed）はスワイプ容器のtransformの外に置く：
-          祖先にtransformthatあるとfixedの基準that画面でなくなる（2026-07-14既知の罠）ため。
+          祖先にtransformthatあるとfixedの基準が画面でなくなる（2026-07-14既知の罠）ため。
           fixed同士なので描画位置は従来と同一 */}
       {lane === "jobs" && (<>
       {/* ── Airbnb風検索バー（2026-07-27）：下部バー直上の浮遊ピル（上は遠い・たきと指示）。
@@ -1018,7 +1018,7 @@ export function JobSearchMapView({ onRegister, me }) {
           <div style={{ marginBottom:20 }}>
             {/* タイトルの場所＝集合場所（2026-08-03たきと指示）：ログイン済み利用者には番地まで含む正式な住所。
                 訪問者はDBマスクによりworkAddress/townが空で届く（市区町村まで）＋番地の位置に伏せ字のモザイク
-                （MaskedAddress・番地that設定された求人のときだけ描く） */}
+                （MaskedAddress・番地が設定された求人のときだけ描く） */}
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
               {selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}
               {selectedJob.region && <MaskedAddress value={selectedJob.workAddress} unlocked={!!me} exists={selectedJob.hasWorkAddress} />}

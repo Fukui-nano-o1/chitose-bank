@@ -530,7 +530,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // シートのボタン出し分け「初面接後=採用する」の判定に使用（2026-07-26たきと指示）
   // 採用の実行窓口は「採用するページ」1箇所に一本化（2026-08-06たきと指示「器と機能の役割は一つに絞れ」）。
   // シートの役割は判断材料を見せることに徹し、採用ボタンは採用ページへのリンク。
-  // 最終確認・二重予約警告・本名開示の明示・実行（confirm_terms）はすべて採用ページ側that担う。
+  // 最終確認・二重予約警告・本名開示の明示・実行（confirm_terms）はすべて採用ページ側が担う。
   const goHirePage = () => { window.location.hash = "/calendar/todo/hire"; };
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
@@ -1633,8 +1633,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           onCopyJob={async ()=>{
             const { data, error } = await supabase.rpc("copy_job", { p_job_number: previewJob.num });
             if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-            // コピーした行をそのまま次の画面へ渡す（2026-08-03）：求人フローはこれthatあれば
-            // jobsの読み直しを待たずに復元できる＝「更新that遅くてはじめから始まる」の解消
+            // コピーした行をそのまま次の画面へ渡す（2026-08-03）：求人フローはこれがあれば
+            // jobsの読み直しを待たずに復元できる＝「更新が遅くてはじめから始まる」の解消
             try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
             // 元の日程が過ぎていた場合は空で複製される（終了扱い防止・2026-07-24）。選び直しを案内
             if (data.dates_cleared) alert("コピーしました。元の作業日程は終了しているため空にしています。確認ページの「日程」から新しい日を選んでください。");
@@ -1652,12 +1652,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button onClick={()=>{ setNearPublishInfo(false); setNearPubDetail(false); }} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <div style={{ fontSize:48, marginBottom:10 }}>🌱</div>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 16px" }}>もうすぐ公開されます</p>
-            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:"0 0 6px" }}>この求人は、公開の準備that整いしだい、働き手に公開されます。</p>
-            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:0 }}>公開されると「さがす」に並び、応募that届くようになります。</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:"0 0 6px" }}>この求人は、公開の準備が整いしだい、働き手に公開されます。</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:0 }}>公開されると「さがす」に並び、応募が届くようになります。</p>
             {nearPubDetail ? (
               <div className="f-sans fade-in" style={{ marginTop:14, background:"#F1F8F4", borderRadius:12, padding:"12px 14px", textAlign:"left", fontSize:12, color:"#3a5a49", lineHeight:1.9 }}>
                 ・公開までの間も、写真の追加や内容の修正はいつでもできます<br/>
-                ・公開されると、応募のお知らせthatこの画面に届きます<br/>
+                ・公開されると、応募のお知らせがこの画面に届きます<br/>
                 ・公開までの少しの間、この求人はまだ働き手には表示されていません
               </div>
             ) : (

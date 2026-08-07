@@ -1378,10 +1378,10 @@ export default function App(){
   // 応募済み（already）の再訪では祝わない。演出のみ＝記録・フローには触れない
   const [applyBurst,setApplyBurst]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")!=="1");
   // 全ボタン共通のタップの手応え（振動のみ・無音・iOSでは静かに無視される）。
-  // 「押せた」の証拠＝文字thatが読めない利用者への最小のフィードバック（2026-08-06）
+  // 「押せた」の証拠＝文字が読めない利用者への最小のフィードバック（2026-08-06）
   useEffect(() => {
     const h = (e) => { try { unlockAudio(); if (e.target?.closest?.("button, a, [role='button']")) fbTap(); } catch {} };
-    // pointerdown＝指thatが触れた最初の瞬間（clickより早く・確実にユーザー操作の同期文脈）でも解錠する
+    // pointerdown＝指が触れた最初の瞬間（clickより早く・確実にユーザー操作の同期文脈）でも解錠する
     document.addEventListener("pointerdown", unlockAudio, true);
     document.addEventListener("click", h, true);
     return () => { document.removeEventListener("pointerdown", unlockAudio, true); document.removeEventListener("click", h, true); };
@@ -1611,8 +1611,8 @@ export default function App(){
     let heartTimer = null;
     const onScroll = () => {
       // いいねハートのぷるんぷるん（2026-08-07たきと指示）：縦スクロール中だけ body.cb-scrolling を
-      // 立て、CSS（appStyles .cb-like-heart）that震わせる。止まって220ms後に外す（振幅は小so途中で
-      // 切れてもスナップthat目立たない）。既存のスクロール監視に相乗り＝リスナーを増やさない
+      // 立て、CSS（appStyles .cb-like-heart）が震わせる。止まって220ms後に外す（振幅は小so途中で
+      // 切れてもスナップが目立たない）。既存のスクロール監視に相乗り＝リスナーを増やさない
       document.body.classList.add('cb-scrolling');
       if (heartTimer) clearTimeout(heartTimer);
       heartTimer = setTimeout(() => document.body.classList.remove('cb-scrolling'), 220);

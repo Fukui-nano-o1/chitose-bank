@@ -1,8 +1,8 @@
 // 完了の祝祭 v2（2026-08-06たきと指示「もっと過激で印象に残るように。参考元は委託ページ遷移」）
 // 委託ページ入場演出（ConsignmentRoom）の視覚言語をそのまま借りる：
-//   一瞬の暗幕 → 打ち上げの尾thatが昇る → 閃光 → 菊の光条の炸裂（本体・特大）→
-//   絵文字thatが押印で叩き込まれ画面thatが揺れる → 追い花火4〜6発thatが続けざまに開く → 幕thatが引く
-// 白い画面の上では白い花火は見えないso、委託の「黒幕」を敷いてから開く＝これthatが過激さの土台。
+//   一瞬の暗幕 → 打ち上げの尾が昇る → 閃光 → 菊の光条の炸裂（本体・特大）→
+//   絵文字が押印で叩き込まれ画面が揺れる → 追い花火4〜6発が続けざまに開く → 幕が引く
+// 白い画面の上では白い花火は見えないso、委託の「黒幕」を敷いてから開く＝これが過激さの土台。
 //
 // 【法的リスク回避・絶対（v1から不変）】
 // ・pointer-events:none＝操作を一切奪わない。自動で消える＝記録・ゲート・フローには触れない
@@ -51,14 +51,14 @@ function BurstSVG({ rays, spin, color, stroke = 1 }) {
 
 export function Celebration({ emoji = "🎉", title = "", duration = 3000, onDone }) {
   const onDoneRef = useRef(onDone); onDoneRef.current = onDone;
-  const [shells] = useState(makeShells); // マウント時に1回だけ抽選（再レンダーで夜空thatが変わらない）
+  const [shells] = useState(makeShells); // マウント時に1回だけ抽選（再レンダーで夜空が変わらない）
   useEffect(() => {
     fbCelebrate();
     const t = setTimeout(() => onDoneRef.current?.(), duration);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const out = ((duration - 450) / 1000).toFixed(2) + "s"; // 幕thatが引き始める時刻
+  const out = ((duration - 450) / 1000).toFixed(2) + "s"; // 幕が引き始める時刻
   return (
     <div style={{ position:"fixed", inset:0, zIndex:12000, pointerEvents:"none", overflow:"hidden" }}>
       <style>{`
@@ -88,7 +88,7 @@ export function Celebration({ emoji = "🎉", title = "", duration = 3000, onDon
                                 60% { transform:translateY(0) scale(1.06); opacity:1; }
                                 100% { transform:translateY(0) scale(1); opacity:1; } }
       `}</style>
-      {/* 暗幕（0.18sで落ちる→終わりで引く）。花火thatが見えるのはこの闇thatがあるから */}
+      {/* 暗幕（0.18sで落ちる→終わりで引く）。花火が見えるのはこの闇があるから */}
       <div style={{ position:"absolute", inset:0, background:"rgba(8,10,8,.82)",
         animation:`cbFb2Dim .18s ease-out both, cbFb2Out .45s ease-in ${out} both` }} />
       {/* 以降ぜんぶ暗幕の上。全体も幕と一緒に引く */}
