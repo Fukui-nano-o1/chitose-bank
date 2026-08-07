@@ -19,7 +19,12 @@ export function ChatView({ applicationId, onBack }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState(null);
-  const [partner, setPartner] = useState(null); // { nickname, avatar_url }
+  // { nickname, avatar_url }。一覧から来た時はchatCacheの相手名で即描画し、本物の取得で上書き
+  // （2026-08-07たきと指示「アイコンの写真は後でいい。すぐに復元しろ」＝名前を待たせない。画像は<img>so届き次第出る）
+  const [partner, setPartner] = useState(() => {
+    const r = chatCache.v?.rows?.find(x => x.id === applicationId);
+    return (r && r.partnerName) ? { nickname: r.partnerName, avatar_url: r.partnerAvatar || "" } : null;
+  });
   const [partnerInitials, setPartnerInitials] = useState(""); // ニックネーム未設定時のアイコン用・メール頭文字2文字（2026-07-22）
   const [partnerWorkerId, setPartnerWorkerId] = useState(null); // 相手が働き手ならそのauth_id（アイコンタップでプレビュー・2026-07-19）
   const [partnerFarmerId, setPartnerFarmerId] = useState(null); // 相手が農家ならそのauth_id（アイコンタップで雇い手プレビュー・2026-07-19）
@@ -178,8 +183,14 @@ export function ChatView({ applicationId, onBack }) {
     }
     (async () => {
       try {
-        const { data:{ session } } = await supabase.auth.getSession();
-        if (!session) { load([applicationId]); return; }
+        const { data:{ session } } = await supabase.auth.getSession(); // ローカル読み＝往復なし
+        // ★本文の復元を最優先（2026-08-07たきと報告「チャットの復元が遅い」）：
+        //   メッセージは applicationId だけで取れる（RLSが当事者に絞る）so、応募行→相手情報の
+        //   取得を待たずに最初の往復で取りに行く。従来は直列3往復目（応募行→相手情報の並列取得→本文）で、
+        //   DBのコールドスパイク（数秒/往復）が3回重なると復元が数秒×3になっていた。
+        //   相手の名前・アイコン・求人No.帯・文脈カードは後から埋まる（先に会話を出す）
+        load([applicationId]);
+        if (!session) return;
         setMyId(session.user.id);
         const { data: app } = await supabase.from("applications")
           .select("farmer_id,worker_id")
@@ -221,13 +232,11 @@ export function ChatView({ applicationId, onBack }) {
           setAppIds(ids);
           setThreadApps(relRows || []);
           if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
-          // メッセージ読込は求人情報の取得を待たない（2026-07-27：awaitで直列化していたぶん表示が遅れていた）
-          load(ids);
+          // メッセージ読込は冒頭で発火済み（本文最優先）。ここでは重ねて取らない
           if (active) applyActive(active);
           return;
         }
       } catch {}
-      load([applicationId]);
     })();
   }, [applicationId]);
   // リアルタイム受信（2026-07-19）：この相手との応募IDへの新着メッセージINSERTを購読し、即時再読込。
