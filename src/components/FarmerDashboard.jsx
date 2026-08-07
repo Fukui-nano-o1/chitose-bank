@@ -1668,9 +1668,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
            削除の対象は下書き（一度も掲載していない）のみ＝DBの trg_block_delete_past_job と二重の壁 */}
       {(jobTab === "draft" || jobTab === "active") && (
         <div className="cb-job-action-fabs">
-          <button onClick={()=>tapJobAction("resume")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.18)", whiteSpace:"nowrap" }}>✏️ 再開</button>
-          <button onClick={()=>tapJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>📋 コピー</button>
-          <button onClick={()=>tapJobAction("delete")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#E24B4A", border:"1.5px solid #E24B4A", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>🗑 削除</button>
+          <button onClick={()=>tapJobAction("resume")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.18)", whiteSpace:"nowrap" }}>再開</button>
+          <button onClick={()=>tapJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>コピー</button>
+          <button onClick={()=>tapJobAction("delete")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, background:"#fff", color:"#E24B4A", border:"1.5px solid #E24B4A", borderRadius:24, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,.15)", whiteSpace:"nowrap" }}>削除</button>
         </div>
       )}
       {/* 対象の選択シート（対象が2件以上の時だけ）：タップで実行 */}
@@ -1678,7 +1678,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         <div onClick={()=>setPickAction(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px calc(20px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:560, boxSizing:"border-box" }}>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>
-              {pickAction.kind === "resume" ? "✏️ どの求人を再開しますか？" : pickAction.kind === "copy" ? "📋 どの求人をコピーしますか？" : "🗑 どの下書きを削除しますか？"}
+              {pickAction.kind === "resume" ? "どの求人を再開しますか？" : pickAction.kind === "copy" ? "どの求人をコピーしますか？" : "どの下書きを削除しますか？"}
             </p>
             <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップすると実行されます</p>
             <div style={{ display:"grid", gap:8, maxHeight:"50vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
