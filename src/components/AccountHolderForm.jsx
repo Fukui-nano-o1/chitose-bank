@@ -127,7 +127,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
           <div className="f-sans" style={{ fontSize:20, fontWeight:700, color:C.ink }}>新規登録：本人情報の入力</div>
-          <p className="f-sans" style={{ fontSize:11, color:C.dim, marginTop:6 }}>ご利用のために、本人確認情報をご入力ください</p>
+          <p className="f-sans" style={{ fontSize:11, color:C.dim, marginTop:6 }}>ご利用のために、登録情報をご入力ください</p>
         </div>
 
         <div className="ledger-card" style={{ padding:28, display:"grid", gap:28 }}>
@@ -152,7 +152,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
           </div>
 
           <div>
-            <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>本人確認</div>
+            <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>本人情報</div>
             <div style={{ marginBottom:16 }}>
               <label className="lbl f-sans">{entityType==="corporate" ? "代表者氏名" : "氏名"}</label>
               <input className="field f-sans" type="text" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="山田 太郎" />
