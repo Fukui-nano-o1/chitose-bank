@@ -52,7 +52,7 @@ export function SavedJobsView({ me }) {
     //    そのまま書くとフレームを跨いで值が飛ぶ＝かくつきの主因）
     //  ③掴んだ瞬間に基点を置き直す＝発動しきい値8pxぶんの「跳び」を無くす（0pxから滑らかに始まる）
     el.style.willChange = "transform";
-    let startY = 0, baseY = 0, lastY = 0, dragging = false, tracking = false, raf = 0;
+    let startY = 0, baseY = 0, baseTop = 0, lastY = 0, dragging = false, tracking = false, raf = 0;
     const paint = () => { raf = 0; el.style.transform = `translateY(${lastY}px)`; };
     const onStart = (e) => {
       if (e.touches.length !== 1) return;
@@ -65,7 +65,10 @@ export function SavedJobsView({ me }) {
       if (!dragging) {
         if (dy < 0) { tracking = false; return; } // 上向き＝通常スクロールに任せる
         const sc = boxScrollRef.current;
-        if (dy > 8 && (!sc || sc.scrollTop <= 0)) { dragging = true; baseY = cy; el.style.transition = "none"; }
+        if (dy > 8 && (!sc || sc.scrollTop <= 0)) {
+          dragging = true; baseY = cy; el.style.transition = "none";
+          baseTop = el.getBoundingClientRect().top; // 掴んだ瞬間の定位置（この時点でtransformは0）
+        }
         else return;
       }
       e.preventDefault();
@@ -83,12 +86,15 @@ export function SavedJobsView({ me }) {
         el.style.transform = "translateY(0)";
       }
     };
-    const onEnd = (e) => {
+    const onEnd = () => {
       const wasDragging = dragging;
       dragging = false; tracking = false;
       if (!wasDragging) return;
-      const y = e.changedTouches[0]?.clientY ?? 0;
-      settle(y > window.innerHeight / 2); // 畳む条件＝画面中央より下で指が離れた時（不変）
+      // 畳む発火＝指を離した時、引き下げたボックス（掴んでいる上端）が画面中央より下まで来ている時だけ。
+      // ★指の画面座標で判定しない（2026-08-07たきと報告「まだ下スクロールで畳む」の修理）：
+      //   指の座標だと、画面下半分でタッチを始めて数pxなぞっただけでも「中央より下」になり閉じてしまう
+      //   ＝ただの下スクロールが全部発火していた。ボックス自体を半分より下まで引き下げて離した時だけ畳む
+      settle(baseTop + lastY > window.innerHeight / 2);
     };
     const onCancel = () => {
       if (!dragging) { tracking = false; return; }
