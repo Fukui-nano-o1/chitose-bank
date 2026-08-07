@@ -387,16 +387,12 @@ export function AdminSystemRoom() {
                                     <span className="f-sans" style={{ fontSize:10, color:"#999" }}>（未解決{open}）</span>
                                   )}
                                 </span>
-                                <span style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-                                  <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
-                                    最新 {new Date(g.latest.created_at).toLocaleString("ja-JP")}
-                                  </span>
-                                  <button type="button" onClick={(ev) => { ev.stopPropagation(); copyGroup(g, c.l, ex); }}
-                                    className="f-sans" style={{
-                                      padding:"4px 10px", border:"1px solid #DDD", borderRadius:8, background:"#fff",
-                                      fontSize:10, fontWeight:700, color: copiedSig === g.sig ? "#00A86B" : "#555", cursor:"pointer",
-                                    }}>{copiedSig === g.sig ? "✓ コピーしました" : "📋 状況をコピー"}</button>
-                                </span>
+                                <button type="button" onClick={(ev) => { ev.stopPropagation(); copyGroup(g, c.l, ex); }}
+                                  className="f-sans" style={{
+                                    padding:"4px 12px", border:"1px solid #DDD", borderRadius:8, background:"#fff",
+                                    fontSize:10, fontWeight:700, color: copiedSig === g.sig ? "#00A86B" : "#555",
+                                    cursor:"pointer", flexShrink:0,
+                                  }}>{copiedSig === g.sig ? "✓ コピー済" : "📋 コピー"}</button>
                               </div>
                               {ex && (
                                 <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:4 }}>{ex.title}</p>
@@ -411,6 +407,10 @@ export function AdminSystemRoom() {
                                 {g.latest.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.operation}</span>}
                                 {g.latest.action && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.action}</span>}
                               </div>
+                              {/* 最新の日付は右下（2026-08-07たきと指示・上段は件数とコピーだけにして折り返しを防ぐ） */}
+                              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"right", marginTop:6 }}>
+                                最新 {new Date(g.latest.created_at).toLocaleString("ja-JP")}
+                              </p>
                             </div>
                             {isOpen && (() => {
                               // 具体的な事実（コピー報告文と同じ groupFacts から導出・追加の通信なし）
