@@ -3369,3 +3369,31 @@ btrim（半角空白しか削れない）が先・NFKCが後so、U+3000がbtrim�
 フロント入力はJSのtrim()が全角空白も削るため通常操作ではP4に到達しないが、API直叩きを
 DBの壁が正しく塞ぐようになった（二重の壁の内側が本物になった）。
 ━━━ ここまで ━━━
+━━━ 2026-08-06 バグ狩り③：素のcurrent_date（UTC）でバッジthatJST早朝に1日ズレる ━━━
+【★バグ（修理済み・migration 20260807015500）】DBはUTC稼働so素の current_date はUTC日付。
+  コードベースの日付規約は (now() at time zone 'Asia/Tokyo')::date で統一されているのに、3関数だけ
+  素の current_date を使い、JST 00:00〜08:59（UTC15:00〜23:59）の約9時間、日付that1日ズレていた。
+  実測：UTC22:30 で current_date=8/6・JST日付=8/7。
+・本命＝my_nav_badges の calendar_today／job_revision：JST早朝（働き手that農園へ向かう時間帯）に
+  「今日の予定」バッジthatその日の求人を数えず前日扱いになる。他のカレンダー系（get_my_calendar_jobs）は
+  JSTで正しいのにバッジだけズレていた＝画面間の食い違い。
+・併せて整合修理：enforce_min_age（18歳判定・UTCだと本日18歳の人を約9時間過剰拒否＝JSTthat正・
+  日本の年齢はJSTで数える。実測：誕生日当日を旧=拒否/新=許可）／get_minimum_wage（最賃発効日照合・
+  掲載トリガーは既にJST日付で引くのにこの関数だけUTC＝不整合）。
+・検証：JST早朝を模擬した固定時刻で式を検算＝旧UTCは今日の求人を数えず・18歳を過剰拒否／新JSTは両方正しい。
+  my_nav_badges の返り値の構造・キーは不変。フロント変更なし。repo写経同期済み・本番適用済み。
+【この一連のバグ狩りの収穫（本物の欠陥・累計4件）】①レビュー捏造②日またぎで負の労働時間
+  ③仮応募昇格の来られる日欠落④バッジのUTC日付ズレ。①〜③は「正規経路の検証that別経路に無い」型、
+  ④は「JST日付規約からの逸脱」型。
+
+【★確定・未修理（たきと判断待ち）：二重予約判定that実働日を見ない】
+・confirm_terms の double_booked 判定（私that2026-08-06に実装した壁）は、求人票の生の date_start..date_end
+  範囲重複だけを見て、実際の稼働日 applications.agreed_dates も holidays も参照していない。
+・実弾で再現：同じ働き手that2つの期間求人（同じ範囲 +10〜+15日）に応募し、実働日を A=+10 / B=+14
+  （重ならない）で合意しても、confirm_terms(B) that double_booked を返した。
+・影響：正当な採用（同じ働き手を別々の日に雇う）に毎回「二重予約」警告that出て、農家that受諾フラグで
+  押し切る運用になる＝壁の精度の欠陥（セキュリティ穴ではない・受諾で進める）。
+・修理案：effective work-days（agreed_dates優先／無ければ範囲・holidays除外）の集合積で判定する。
+  DB(confirm_terms)＋フロント(lib/hire.js findDoubleBookingJob)の両方を揃える load-bearing 変更so、
+  勝手に実装せずたきと判断を待つ（2026-08-06 並走セッションの記載を踏襲・私も再現を確認した）。
+━━━ ここまで ━━━
