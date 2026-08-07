@@ -4024,3 +4024,23 @@ process_withdrawal は jobs を消さない（過去求人=証跡）ため、農
 status=closed・応募that job_not_open で拒否・求人の行は残る（削除でなくclosed）。
 削除17テーブル・匿名化・冪等な(c)は不変。DB定義とrepo写経の削除17件が一致。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 退会・複雑パターン C1〜C5（両面フル・全て[OK]・修理なし）━━━
+【立場】退会者that複数の役割・複数の取引に同時に絡む複雑な状態で、片方の退会thatもう片方を壊さないか。
+合成のみ・全ロールバック・残置ゼロ実測（cx-*ユーザー0・apps20/jobs30不変）。
+【シナリオ】退会者v_Lを両面フル装備：農家Aの求人に働き手として応募・採用・working（はたらいた記録源）／
+自分の求人で別働き手v_Bを採用・working（雇い主）／別農家Cthav_Lをお気に入り登録／v_L自身thav_Bをお気に入り。
+third_party_publish_allowed=true so一般農家v_Lの求人も運営承認でopenにできる状態で実施。
+【結果＝全て[OK]】
+・C1 退会者の農家分求人jL that掲載終了(closed・X4対処that効く)／働き手分応募aL（jAへ）は証跡so残る。
+・C2 退会者に雇われた別働き手v_Bの進行中取引aB(working)that求人closedの巻き添えを受けず残る／
+  v_B本人that自分のはたらいた記録を保てる（worker_work_record thajobsと外部結合so求人closed後も落ちない・
+  2026-08-06の内部→外部結合修正that効いている）。
+・C3 農家Athat退会者(働き手)のはたらいた記録を引ける（相手の画面that壊れない）。
+・C4 退会者絡みのrepeat_roster両方向（別農家のお気に入り=worker=v_L／退会者のお気に入り=farmer=v_L）that両方消える
+  （process_withdrawalの farmer_id=p or worker_id=p that両向きを拾う）。
+・C5 consignment_deals は auth_id列なし＝counterparty_name（手入力の取引先名）だけの運営台帳so個人と紐づかない
+  ＝退会対象外で正しい（委託者のKYCは consignment_profiles 側＝削除済み）。
+・退会者の名前解決＝全経路「退会した利用者」。
+【結論】両面・巻き添え・双方向rosterの複雑系でも、削除/closed化/証跡保持/名前解決that整合。修理なし。
+━━━ ここまで ━━━
