@@ -74,6 +74,28 @@ begin
   L := L || case when n=0 then '[OK] ' else '[NG] ' end
     || '③b バックエンド専用のanon露出: '||n||'本'||coalesce(' → '||names,'') || E'\n';
 
+  -- ── ③c 当事者ゲート無しのDefinerヘルパーthat直叩き露出していないか（名前でなく構造で拾う）──
+  -- ③bは名前（send_/notify_…）でしか拾えず、app_work_dates（応募の稼働日）・job_ref（下書き求人の
+  -- 農園名）that名前規則の隙間から漏れた（2026-08-07）。ここは構造で拾う＝
+  -- 「SECURITY DEFINER・id引数を取る（リソース指定型）・本体に auth.uid()/app_admins の当事者判定that無い・
+  --  anon か authenticated にEXECUTE可」。列挙は目視（訪問者に見せる仕様のもの＝下記WHITELISTは除外）。
+  -- WHITELIST（求人詳細で訪問者に見せる公開情報・RLS内で評価される判定）：
+  --   employer_public_jobs/employer_public_job_counts/job_employer_profile/job_employer_trust_info/
+  --   job_exists/is_account_moderated/is_measured/employer_trust_info/signup_open/push_vapid_public/
+  --   is_worker_profile_ready（boolean・uuid推測不能・フロントthat本人uidで呼ぶ）
+  select count(*), string_agg(p.proname, ' / ' order by p.proname) into n, names
+    from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace
+   where ns.nspname='public' and p.prokind='f' and p.prosecdef
+     and pg_get_function_result(p.oid) <> 'trigger'
+     and pg_get_function_arguments(p.oid) ~* '(uuid|integer|bigint)'
+     and not (pg_get_functiondef(p.oid) ~* 'auth\.uid\(\)')
+     and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute'))
+     and p.proname not in ('employer_public_jobs','employer_public_job_counts','job_employer_profile',
+       'job_employer_trust_info','job_exists','is_account_moderated','is_measured','employer_trust_info',
+       'signup_open','push_vapid_public','is_worker_profile_ready');
+  L := L || case when n=0 then '[OK] ' else '[NG(要判断)] ' end
+    || '③c 当事者ゲート無しDefinerの露出（WHITELIST外）: '||n||'本'||coalesce(' → '||names,'') || E'\n';
+
   -- ── ④ フェイルオープン候補（auth.uid()のNULL弾き忘れ）───────────────────
   -- `auth.uid() <> x and not exists(...)` の型は、未ログインで auth.uid() が NULL →
   -- 条件全体がNULL＝偽になり拒否に入らない（前例2回：worker_trust_info・worker_want_again_count）。

@@ -3605,3 +3605,26 @@ distチャンクに新文言の包含をgrep確認
 【メモ】このセッションもローカルmainが07-31で止まった無関係履歴のミラー→ checkout -B main
 origin/main で乗せ替えてから着手（既定の手順どおり）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 実機一周（構造で掘る）＝穴1件（job_refで下書き求人が連番で漏れる）＋audit③c新設 ━━━
+【立場】前回のapp_work_dates（当事者ゲート無しDefinerヘルパーの露出）を名前でなく【構造】で総ざらい：
+「SECURITY DEFINER・id引数を取る・本体にauth.uid()/app_admins判定that無い・anon/authにEXECUTE可」を全列挙。
+合成のみ・全ロールバック・残置ゼロ実測（jobs28/apps20不変・test_users0）。
+【網に9本→7本は仕様・1本は低リスク・1本thが本物の穴】
+・訪問者に見せる仕様7本（employer_public_*／job_employer_*／job_exists／is_account_moderated／is_measured）＝求人詳細の公開情報so問題なし。
+・is_worker_profile_ready(uuid)＝boolean・uuid推測不能・フロントthat本人uidで呼ぶ＝低リスク（anonは既にrevoke済み）。据え置き＋WHITELIST。
+【★本物の穴＝job_ref(integer,text)（修理済み・migration 20260807023121）】
+通知・メールの「求人の参照名」を作る内部ヘルパー。23本の内部トリガー/RPCが呼ぶthat、フロントは直接呼ばない。
+にもかかわらずPUBLIC自動EXECUTEで anon/auth から直叩き可能so、【求人番号that1000からの連番＝推測容易】を
+悪用され、任意のログインユーザーthat連番を舐めるだけで【未公開のdraft/pending求人の農園名＋作物＋作業】を
+引けた（無関係ユーザーthat draft #1029 の農園名「せんと」取得を実証）。jobs_publicはopen/closedしか出さないのに
+job_refはjobsを直読みso、未公開の下書きの中身that漏れていた＝プラポリ第1条「表に無い開示は行いません」の趣旨に反する。
+→ from public,anon,authenticated で全面revoke。内部呼び出しはDefinerの所有者権限で走るため23本は無傷
+（apply_to_job→通知経路that通り続けることを実測）。anon/auth直叩きは拒否を実測。
+【audit③c新設（前回「次回audit改訂で機械化する」の宿題を実行）】audit.sqlに構造ベースの検査を追加：
+上記の網＋WHITELIST（訪問者に見せる仕様のもの）除外。本番で実行し【WHITELIST外0本】を実証＝この型の穴は
+全て塞がった。以後この検査that自動でこの型を拾う（名前規則の隙間から漏れない）。
+【プラポリ照合の追加確認】feedback（利用者の自由記述）＝SELECT admin限定・INSERT own、テーブルgrantthat
+anon/authに広い（DELETE/UPDATE/TRUNCATE）thatRLSthat効いて全て0行/拒否＝無害（ポリシー無し＝拒否）を実測。
+穴ではない。audit①訪問者マスク・③b・④・⑤は前回同様[OK]、⑥入口のみ既知NG（PC作業）。
+━━━ ここまで ━━━
