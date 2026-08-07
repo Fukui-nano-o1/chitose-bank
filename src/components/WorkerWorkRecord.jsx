@@ -82,8 +82,8 @@ export function WorkRecordBody({ data, showName }) {
 
       {/* ② 働いた回数・時間・欠勤 */}
       <div style={{ display:"flex", gap:8 }}>
-        <BigStat label="働いた回数" value={t.completed_count ?? 0} unit="件" />
-        <BigStat label="働いた時間" value={Math.floor((t.total_minutes ?? 0) / 60)} unit="時間" />
+        <BigStat label="件数" value={t.completed_count ?? 0} unit="件" />
+        <BigStat label="時間" value={Math.floor((t.total_minutes ?? 0) / 60)} unit="時間" />
         <BigStat label="欠勤" value={t.absent_count ?? 0} unit="件" tone={(t.absent_count ?? 0) > 0 ? "#E24B4A" : "#222"} />
       </div>
       {(t.unknown_time_count ?? 0) > 0 && (
