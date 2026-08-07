@@ -3547,4 +3547,34 @@ jobs28/apps20不変）。
 【教訓・audit強化候補】③bの網に「当事者スコープのSECURITY DEFINERヘルパーthat anon/auth にEXECUTE可」を
 足す（名前パターンでなく、prosecdef かつ auth.uid()/party 判定を本体に持たない関数の洗い出し）。
 今回は名前規則の隙間から漏れた＝次回audit改訂で機械化する。
+━━━ 2026-08-07 段階ラベルのDB化（一気実装）＝app_phase・評価の壁・実害1件の発見と修理 ━━━
+【たきと採用の設計】「利用者にステータスラベルを貼る」案は【貼らずに導く】形で採用（行動記録の憲法と整合）。
+・貼るラベル（列保存）＝運営の判断のみ（farmers.status・account_moderation・app_settings＝既存のまま）
+・導くラベル＝応募の段階。フロント appPhaseKey に加え、DB側の鏡 public.app_phase(applications) を新設
+  （migration 20260807020852・immutable・14ケース行列で一致確認・実データ全行NULLなし）。
+  ★以後、DB側で状態条件を書くときは status リストの手書きでなく app_phase を使う。
+  ★フロント appPhaseKey と app_phase は同じ式＝片方を変えたら必ず両方変える（utils.jsに注記済み）。
+  ★ラベルを農家への表示・並び替え・優先提示に使うのは推薦・選別の禁止に抵触しうる＝処理の内部語彙に留める。
+【評価の壁（20260807020949・最短3遷移の穴の修理）】trg_reviews_phase_gate（BEFORE INSERT）：
+farmer_to_worker=completedのみ／worker_to_farmer=working以上（働き手評価UIは開始後に出る仕様に整合・
+農家の完了記録より先の働き手評価は正当so通す）。正規経路2本（submit_farmer_review・
+confirm_end→直INSERT）は無傷を実弾確認。偽造3種（応募中×2方向・面接中）は拒否を実弾確認。
+【ラベル参照化の第1弾（20260807021037）】confirm_terms の二重予約判定の status リスト→
+app_phase in ('interview','contracted','working')。同値性は実データ全行（不一致0）で機械確認。
+【★実害の発見と修理（20260807021418）】回帰検証G5that不発→診断で発見：app_work_dates が
+agreed_dates=SQL NULL（単日求人・日程未合意＝標準ケース）のとき【空集合】を返し、
+二重予約のDB壁that標準ケースで無音のまま素通りだった。原因＝jsonb_typeof(NULL)=NULL that
+`not (typeof='array' and ...)` ごとNULL化して行落ち（2026-07-29 auth.uid()フェイルオープンの jsonb版）。
+coalesce(...,false)で修理。修理後、単日求人同士のdouble_bookedを実測確認。フロントlib/hireは
+元からNULL安全（求人範囲へフォールバック）＝バグはDB側のみ。
+★教訓：「期間求人（agreed_datesあり）だけで検証すると標準ケース（NULL）の穴は見えない。
+jsonb条件も NULL を coalesce で先に潰す」
+【ラベル化②で意図的に見送ったもの（変換すると挙動that変わる・記録）】
+・expire_stale_applications の対象条件＝terms_confirmed_farmer_at is null が本体で段階と別物
+  （approved＋農家確認済み＋働き手未確認の古い行の扱いthat変わるのを机上で確認）
+・my_todo_items＝各やることの条件that段階の定義そのもの／admin_working_jobs＝started_at条件that別途必要
+【検証】G0〜G9全11項目[OK]・build+lint 0 error・写経4本はDB現物とposition()照合・残置ゼロ実測
+（jobs28・apps20=運営の実応募込みの基準値・reviews0・test行0）。
+【実機目視の残り】評価の壁の画面側＝正規の評価送信（農家・働き手）that従来どおり通るか。
+壁のエラー文that出る場面は通常操作では無い（UIthat出さない段階でのみ発火）
 ━━━ ここまで ━━━
