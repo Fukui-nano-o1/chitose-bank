@@ -419,6 +419,14 @@ export const QA_SHORT_LABELS = {
 };
 export const qaShort = (q) => QA_SHORT_LABELS[String(q || "").trim()] || q;
 
+// 働き手プレビューのQ&A（コメント形式）に流す項目の唯一のソース（2026-08-07たきと指示）。
+// 選択式の「希望する作業の強さ」（💪バッジだったもの）も質問要素として先頭に合流させる。
+// ★ラベルは必ず「希望する作業の強さ」を使う（「体力」等の身体属性を想起させる表現は禁止・2026-07-14規則）
+export const workerQaItems = (profile) => [
+  ...(profile?.physical_level ? [{ q: "希望する作業の強さは？", a: `💪 ${profile.physical_level}` }] : []),
+  ...(Array.isArray(profile?.pr_qa) ? profile.pr_qa : []),
+];
+
 // 働き手の「できること・資格（自己申告）」（2026-07-23）：worker_profiles.self_declared に key配列で保存。
 // 免許・資格・保険方針のみ。身体属性（体力等）に類する項目は絶対に追加しない（CLAUDE.mdルール・今後も）。
 export const WORKER_DECLARATIONS = [

@@ -45,10 +45,12 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
           )}
         </div>
       )}
-      {badges.length > 0 && (
+      {/* 💪希望する作業の強さ：閲覧時はQ&A（コメント形式・workerQaItems）に質問要素として合流したので
+          バッジは出さない（2026-08-07たきと指示・二重表示を避ける）。編集モードだけは残す＝編集の入口 */}
+      {onEditItem && badges.length > 0 && (
         <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
           {badges.map((b,i) => (
-            <span key={i} {...tap(b.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{b.icon} {b.text}</span>
+            <span key={i} {...tap(b.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", cursor:"pointer" }}>{b.icon} {b.text}</span>
           ))}
         </div>
       )}

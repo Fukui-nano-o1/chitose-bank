@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -953,8 +953,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 <ContractEmergencyContact applicationId={a.id} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
               </div>
-              {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
-              <QaChat items={wp?.pr_qa} style={{ marginTop:10, marginBottom:10 }} />
+              {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
+              <QaChat items={workerQaItems(wp)} style={{ marginTop:10, marginBottom:10 }} />
               {/* 求人名はタップで求人プレビューを開くリンク（2026-07-19） */}
               {(() => {
                 const info = jobInfoMap[a.job_number] || dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number) || {};
@@ -1789,8 +1789,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <>
                 <WorkerTrustCard profile={rosterDetail.profile} trust={rosterDetail.trust} />
                 <MyReviewsOfWorker workerId={rosterDetail.worker_id} />
-                {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
-                <QaChat items={rosterDetail.profile.pr_qa} />
+                {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
+                <QaChat items={workerQaItems(rosterDetail.profile)} />
               </>
             ) : (
               <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この方のプロフィールは未設定です</p>

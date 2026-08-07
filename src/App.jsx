@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./lib/supabase";
-import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon } from "./lib/utils";
+import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon, workerQaItems } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
 import { Celebration } from "./components/Celebration";
 import { TodayPage } from "./components/TodayPage";
@@ -533,8 +533,8 @@ function WorkerPreviewSheet() {
                 {/* 1枚目：プロフィール（従来の中身をそのまま） */}
                 <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
                   <WorkerTrustCard profile={st.profile} trust={st.trust} />
-                  {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
-                  <QaChat items={st.profile.pr_qa} />
+                  {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
+                  <QaChat items={workerQaItems(st.profile)} />
                   <MyReviewsOfWorker workerId={st.worker_id} />
                   {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"profile", field:"", issue:"", detail:"", sending:false, done:false })} />}
                 </div>

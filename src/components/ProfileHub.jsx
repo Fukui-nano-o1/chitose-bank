@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
-import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems } from "../lib/utils";
 import { Avatar, QaChat } from "./ui";
 import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
@@ -276,8 +276,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                     {wMini ? (
                       <>
                         <WorkerTrustCard profile={wMini} trust={wTrust} />
-                        {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示） */}
-                        <QaChat items={wMini.pr_qa} />
+                        {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
+                        <QaChat items={workerQaItems(wMini)} />
                       </>
                     ) : (
                       <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>
