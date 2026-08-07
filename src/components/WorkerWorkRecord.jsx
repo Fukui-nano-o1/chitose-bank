@@ -72,6 +72,8 @@ function Breakdown({ title, rows }) {
 export function WorkRecordBody({ data, showName }) {
   const t = data.totals || {};
   const recent = data.recent || [];
+  // 閲覧された回数の説明は？タップで展開（2026-08-07たきと指示・常時表示をやめる）
+  const [showViewHelp, setShowViewHelp] = useState(false);
   // 直近5件の要約＝この面で農家がまず知りたい1行
   const lateCount = recent.filter(r => punchOf(r).key === "late").length;
   const absentCount = recent.filter(r => punchOf(r).key === "absent").length;
@@ -93,11 +95,17 @@ export function WorkRecordBody({ data, showName }) {
           DBが本人・運営にだけ値を返す（農家にはキーがnull）＝この枠は本人と運営にしか出ない */}
       {data.profile_view_count != null && (
         <>
-          <div style={{ marginTop:8, background:"#FAFAFA", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"baseline", justifyContent:"space-between" }}>
-            <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>閲覧された回数</span>
+          <div style={{ marginTop:8, background:"#FAFAFA", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <span style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>閲覧された回数</span>
+              <button type="button" onClick={()=>setShowViewHelp(v=>!v)} aria-label="説明" className="f-sans"
+                style={{ width:16, height:16, borderRadius:"50%", border:"1px solid #D9D9D9", background: showViewHelp ? "#EFEFEF" : "#fff", color:"#999", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0, lineHeight:1 }}>？</button>
+            </span>
             <span className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{data.profile_view_count}<span style={{ fontSize:11, fontWeight:700, marginLeft:2 }}>回</span></span>
           </div>
-          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0" }}>農家がプロフィールを確認した回数。本人と運営にだけ表示され、誰が見たかは記録していません</p>
+          {showViewHelp && (
+            <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0", lineHeight:1.6 }}>農家がプロフィールを確認した回数。本人と運営にだけ表示され、誰が見たかは記録していません</p>
+          )}
         </>
       )}
     </div>
