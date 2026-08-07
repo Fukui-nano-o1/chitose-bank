@@ -155,6 +155,22 @@ export function WorkerWorkRecord({ workerId, showName }) {
   }, [cacheKey, workerId]);
   useEffect(() => { load(); }, [load]);
 
+  // 閲覧された回数のリアルタイム表示（2026-08-07たきと指示）：本人・運営が記録面を開いている間、
+  // 農家の閲覧（+1）をその場で数字に反映する。チャットのライブ購読（ChatView）と同じ作法。
+  // RLSにより本人・運営以外には行が届かない＝農家が購読しても何も来ない（開示範囲は不変）
+  const canLive = !!(state && typeof state === "object" && state.profile_view_count != null);
+  useEffect(() => {
+    if (!canLive) return;
+    const ch = supabase.channel("wpv-" + workerId)
+      .on("postgres_changes", { event: "*", schema: "public", table: "worker_profile_view_counts", filter: "worker_id=eq." + workerId }, (payload) => {
+        const v = payload?.new?.view_count;
+        if (v == null) return;
+        setState(prev => (prev && typeof prev === "object") ? { ...prev, profile_view_count: Number(v) } : prev);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [canLive, workerId]);
+
   if (state === null) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>;
   if (state === "denied") return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>この方のはたらいた記録は表示できません</p>;
   if (state === "error") return <p className="f-sans" style={{ textAlign:"center", color:"#E24B4A", fontSize:13, padding:"40px 0" }}>読み込みに失敗しました。開き直してください</p>;
