@@ -14,8 +14,8 @@
 // ※本文の見た目を変えるときは AdminJobPreview 側と揃える（出どころが同じ・枝分かれさせない）
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { payLabel, disp, stationLabel, payTermsLine, overtimeLine } from "../lib/utils";
-import { Carousel, DangerItem, MaskedAddress } from "./ui";
+import { payLabel, disp, stationLabel, payTermsLine, overtimeLine, EMPTY_MARK } from "../lib/utils";
+import { Avatar, Carousel, DangerItem, MaskedAddress } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { InsurancePanel } from "./InsurancePanel";
@@ -121,6 +121,54 @@ export function JobDetailBody({ job, me }) {
         </div>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>{payTermsLine(job)}</p>
       </div>
+
+      {/* 雇い手カード＋待遇表（2026-08-07たきと指示「詳細と同じ構造にしよう。待遇がない」＝
+          求人詳細ページの主要情報直後のブロックをトレース）。
+          待遇は掲載時に確定保存された job.perks のみを見る（2026-08-02規則・プロフィール現在値とのマージ禁止）。
+          農園紹介モーダルへのタップは持ち込まない（この部品は表示専用） */}
+      {emp && emp.nickname && (() => {
+        const pk = job.perks || {};
+        const perkRows = [
+          { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
+          { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
+          { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
+          { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
+          { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
+          { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
+          { label:"受動喫煙", on: !!pk.smoking_policy,
+            value: pk.smoking_policy
+              ? (pk.smoking_policy === "喫煙場所あり"
+                  ? `喫煙場所あり${pk.smoking_area ? "（" + pk.smoking_area + "）" : ""}`
+                  : pk.smoking_policy)
+              : EMPTY_MARK },
+        ];
+        return (
+          <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left" }}>
+              <Avatar url={emp.avatar_url} name={emp.nickname} size={70} />
+              <div style={{ minWidth:0 }}>
+                <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{emp.nickname}さん</p>
+                {empTrust?.ok && empTrust.member_since && (
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>chitose-bank利用 {empTrust.member_since}から</p>
+                )}
+              </div>
+            </div>
+            <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em", textAlign:"center" }}>待遇</p>
+            <div style={{ width:"fit-content", margin:"0 auto" }}>
+              {perkRows.map((row, i) => (
+                <div key={row.label} style={{
+                  display:"flex", alignItems:"center", gap:12, padding:"8px 0",
+                  borderBottom: i < perkRows.length - 1 ? "1px solid #F7F7F7" : "none",
+                }}>
+                  <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:72, flexShrink:0 }}>{row.label}</span>
+                  <span className="f-sans" style={{ fontSize:15, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400, lineHeight:1.6 }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 作業説明 */}
       {job.jobBody && job.jobBody.trim() && (
