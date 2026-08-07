@@ -1,0 +1,21 @@
+-- applications への農家の直接UPDATE権限を削除（2026-08-07・穴探し5パターンthat発見）
+--
+-- 【★穴】RLSポリシー "app farmer update"（using=auth.uid()=farmer_id・with_checkなし・列制限なし）that、
+-- 農家に自分の応募行の【全31列】の無制限UPDATEを許していた。app_phase は status・
+-- terms_confirmed_*_at から導出するので、農家that列を直接書けば段階を偽装でき、
+-- confirm_terms／complete_work のガード（承認前提・作業日・二重予約・満員・snapshot凍結・本名開示）と
+-- 2026-08-07の評価の壁を丸ごと迂回できた。実弾で確認：
+--   ・status='completed', attended=true を直接書いて → 働いた事実なしに農家評価を捏造（信頼数字の偽造）
+--   ・terms_confirmed 両時刻を直接書いて contracted 偽装（採用処理の全ゲートを未経由）
+--
+-- 【なぜ消してよいか】applications をUPDATEする正規経路は14関数すべて SECURITY DEFINER
+-- （approve_application・confirm_terms・complete_work・confirm_start・auto_start_work・
+--  set_agreed_dates・decide_time_correction・punch_start 等）＝定義者権限で動きRLSを迂回するので、
+-- このポリシーに依存しない。フロントも applications を直接UPDATEしていない（grep 0件）。
+-- ＝このポリシーは正規機能that1つも使わない純粋な攻撃面so、削除で穴だけ閉じる。
+--
+-- 検証済み（ロールバック付き実弾）：削除後、農家の直接completed偽装=0行／
+-- 正規フロー（承認→採用→保険→自動開始→開始確認→完了→評価）7段すべて通過。
+-- SELECTポリシー（app farmer select・app worker select）とINSERT（app worker insert）は不変。
+
+drop policy if exists "app farmer update" on public.applications;
