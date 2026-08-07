@@ -1,4 +1,5 @@
 // 求人カード（分割・段階2後半・2026-07-24）：さがす一覧・関連求人・いいね一覧で共用。
+import { useState } from "react";
 import { payLabel, dateRangeLabel, CROP_OPTIONS, photoThumb } from "../lib/utils";
 import { Avatar, StatusRibbonLeft } from "./ui";
 
@@ -6,6 +7,12 @@ import { Avatar, StatusRibbonLeft } from "./ui";
 // saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
 export function JobCard({ job, variant, saved, onToggleSave }) {
   const isList = variant === "list";
+  // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真that少し拡大して元に戻る。
+  // 発火はonClick（スクロール開始のタッチでは鳴らない）。ハートはstopPropagationでカードに
+  // 伝わらないため、ハート側からも同じトリガーを呼ぶ。アニメ終了でclass解除＝次のタップで再生
+  const [photoPop, setPhotoPop] = useState(false);
+  const popPhoto = () => setPhotoPop(true);
+  const photoAnim = photoPop ? { animation: "cbPhotoTapZoom .35s ease" } : {};
   const p0 = job.photos?.[0];
   const topSrc = photoThumb(p0); // カードは軽量サムネ（thumbが無い古い写真は原寸へフォールバック）
   const cropIcon = CROP_OPTIONS.find(c => job.crop && job.crop.includes(c.name))?.icon || "🌱";
@@ -21,10 +28,11 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
       target="_blank"
       rel="noopener noreferrer"
       style={cardStyle}
+      onClick={popPhoto}
     >
       {typeof onToggleSave === "function" && !(job.filled || job.expired || job.closed) && (
         <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSave(job); }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); popPhoto(); onToggleSave(job); }}
           aria-label={saved ? "いいねを解除" : "いいね"}
           style={{ position:"absolute", top:10, right:10, zIndex:2, width:44, height:44, borderRadius:"50%",
                    background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer",
@@ -54,11 +62,11 @@ export function JobCard({ job, variant, saved, onToggleSave }) {
         </div>
       )}
       {topSrc ? (
-        <img loading="lazy" src={topSrc} alt="" style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius }} />
+        <img loading="lazy" src={topSrc} alt="" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius, ...photoAnim }} />
       ) : (
         /* 写真が無い求人は求人者のアイコンを大きく出す（2026-07-30たきと指示・詳細/確認ページと同じ扱い）。
            アイコン未設定なら Avatar が名前の頭文字の丸を出し、名前も無ければ作物の絵文字に落とす */
-        <div style={{ width:"100%", height:photoHeight, borderRadius:photoRadius, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>
+        <div onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, borderRadius:photoRadius, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48, ...photoAnim }}>
           {(job.employerAvatar || job.employerName)
             ? <Avatar url={job.employerAvatar} name={job.employerName || "？"} size={isList ? 112 : 88} />
             : cropIcon}
