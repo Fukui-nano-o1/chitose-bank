@@ -125,7 +125,12 @@ export function ChatView({ applicationId, onBack }) {
     const scope = ids || appIds || [applicationId];
     try {
       const { data } = await supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true});
-      if (data) setMsgs(data);
+      // ★内容が同じなら前の配列を保つ（2026-08-07たきと報告「3〜5秒静止で最下部に自動遷移する」の根治）：
+      //   5秒間隔の保険ポーリングが毎回新しい配列でsetMsgsし、下の自動スクロール（[msgs]依存）が
+      //   毎回発火して、履歴を読んでいる最中でも数秒ごとに最下部へ引き戻していた。
+      //   本文・送信者・時刻は改変不可（履歴保全トリガー）so、件数と末尾idが同じ＝同一と判定してよい
+      if (data) setMsgs(prev =>
+        (prev.length === data.length && (data.length === 0 || prev[prev.length-1].id === data[data.length-1].id)) ? prev : data);
       setMsgsLoading(false); // 取得できた時点で仮配置を畳む（0件なら「まだメッセージはありません」に切り替わる）
       // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
       try {
@@ -268,8 +273,14 @@ export function ChatView({ applicationId, onBack }) {
     const iv = setInterval(refresh, 5000);
     return () => { document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); clearInterval(iv); };
   }, [appIds]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 最新メッセージへ自動スクロール（LINE式・2026-07-19）：メッセージ更新のたびに一番下へ
+  // 最新メッセージへ自動スクロール（LINE式・2026-07-19）。
+  // ★末尾のメッセージが増えた時だけ動かす（2026-08-07）：既読化やポーリング由来の再描画では
+  //   スクロールしない＝履歴を読んでいる位置を奪わない（上のsetMsgs同一判定と二重の壁）
+  const lastMsgIdRef = useRef(null);
   useEffect(() => {
+    const last = msgs.length ? msgs[msgs.length - 1].id : null;
+    if (last === lastMsgIdRef.current) return;
+    lastMsgIdRef.current = last;
     const el = msgScrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [msgs]);

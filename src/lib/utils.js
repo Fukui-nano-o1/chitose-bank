@@ -523,6 +523,10 @@ export const APP_PHASE_DESC = {
   expired:    "承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募です",
 };
 export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#111111" };
+// 応募者ページのステータス絞り込みのキー（2026-08-07・帯5段＋終端と同順）。
+// 使う側＝FarmerDashboard（絞り込みの実体）と NewApplicantsPage（同じ並びのピル＝タップで応募者ページへ送る）。
+// 並び・ラベルの唯一のソース＝この配列＋APP_PHASE_LABEL（片方だけ変えない）
+export const APP_FILTER_KEYS = ["all","applied","interview","contracted","working","completed","rejected","expired"];
 // 定型文（2026-07-22・第8弾）：チャット入力欄の＋から役割別に挿入。「何を書けばいいか分からない」摩擦を消す
 export const CHAT_TEMPLATES_FARMER = [
   "承認しました。日程のご相談をお願いします",

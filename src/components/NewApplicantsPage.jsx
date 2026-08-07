@@ -13,11 +13,12 @@
 //   並列で1往復。新しいDBオブジェクトは作らない。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { dateRangeLabel, photoThumb, fmtJstShort, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
+import { dateRangeLabel, photoThumb, fmtJstShort, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_FILTER_KEYS } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { Dots, NoticeJumpText } from "./ui";
 import { AvailDatesChips } from "./DateChips";
 import { WorkerTrustCard } from "./TrustCards";
+import { AdminChatFab } from "./AdminChatFab";
 
 // 応募者シートを開くための着地フラグ（応募者ページ側 FarmerDashboard が cb_openApplicantId を消費する）。
 // 今日ページの cb_completeAppId / cb_agreeAppId と同じ作法＝どの応募のシートを開くかだけを渡す
@@ -136,8 +137,31 @@ export function NewApplicantsPage() {
 
   const apps = (state && typeof state === "object") ? state.apps : [];
 
+  // ステータス絞り込みバー（2026-08-07たきと指示・応募者ページと同じ並び＝APP_FILTER_KEYS）。
+  // このページは新着（応募中）専用so、ピルは【応募者ページの該当絞り込みへ送る】リンク＝
+  // 絞り込みの実体は応募者ページ1箇所のまま（このページの読み取り専用の建て付けを崩さない）。
+  // 「応募中」ピルを現在地として点灯（このページの中身＝応募中だけのため）
+  const goFilter = (k) => {
+    try { sessionStorage.setItem("cb_appFilter", k); } catch {}
+    window.location.hash = "/profile/employer/applicants";
+  };
+  const filterButtons = APP_FILTER_KEYS.map(k => {
+    const cur = k === "applied";
+    return (
+      <button key={k} onClick={()=>goFilter(k)} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: cur ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: cur?800:600, color: cur?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
+        {k !== "all" && <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[k] || "#999", flexShrink:0 }} />}
+        {k === "all" ? "すべて" : APP_PHASE_LABEL[k]}
+      </button>
+    );
+  });
+
   return (
     <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 100px" }}>
+      {/* PCは本文中の並び・モバイルは下部の浮遊バー（応募者ページと同じCSSクラス＝格納・退避の作法も同じ） */}
+      <div className="cb-applicant-filter-inline" style={{ display:"flex", gap:6, marginBottom:10, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>{filterButtons}</div>
+      <div className="cb-applicant-filter-bar">{filterButtons}</div>
+      {/* 運営チャット＝絞り込みバーの真上（2026-08-07たきと指示「その上に運営チャット配置」） */}
+      <AdminChatFab raised />
       {state === null && (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
       )}

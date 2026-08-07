@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -21,10 +21,9 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { AdminChatFab } from "./AdminChatFab";
 
-// 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）。
-// 2026-08-07たきと指示「ステータス絞り込みを導入」：帯5段＋終端（appPhaseKeyの全段階）と同じ並びに統一。
+// 応募者ページの状態フィルタのキー：lib/utils の APP_FILTER_KEYS に一本化（2026-08-07・
+// 新着の応募ページのピルと並びを共有）。帯5段＋終端（appPhaseKeyの全段階）と同順。
 // 旧キー「active（進行中）」は廃止＝保存済みの値は検証で弾かれ「すべて」に落ちる（壊れない）
-const APP_FILTER_KEYS = ["all","applied","interview","contracted","working","completed","rejected","expired"];
 
 
 export function FarmerDashboard({ onNewJob, onResume, me }) {
