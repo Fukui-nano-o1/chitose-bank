@@ -501,6 +501,8 @@ export const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "comple
 // 「打合せ」段階はトリガーを定義できないため削除（2026-07-25たきと判断）。
 // statusだけでは面接中/採用を区別できない（採用はterms確認時刻で管理・contracted/meeting/interviewは書き込まれない）ため、
 // 応募行(a)から段階キーを導出する：承認〜採用前＝面接中／採用（双方確認）後〜開始前＝採用
+// ★DB側の鏡＝public.app_phase(applications)（migration 20260807 app_phase_derived_label）。
+//   同じ式のSQL版で、DB側の状態条件（二重予約壁・評価の壁等）はそちらを参照する。片方を変えたら必ず両方変えること
 export const appPhaseKey = (a) => {
   const st = a?.status;
   if (["applied","rejected","expired","completed","working"].includes(st)) return st;
