@@ -11,12 +11,32 @@ import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
 
+// 退会で削除される情報の一覧（2026-08-07たきと指示）＝process_withdrawal(migration 20260807133659)の
+// 削除対象を利用者の言葉に噛み砕いたもの。★DBの削除対象を増減したらここも合わせること（表示と実処理を揃える）。
+// 「削除される情報のみ」＝残る証跡（応募・チャット・評価等）はここに載せない。表示専用（編集不可）。
+// DBの17テーブルとの対応：farmers（農家の基本情報）は「農園・雇い手プロフィール」に含意／
+// records（旧・経営記録）は現行UIで作成できない遺物so利用者向けには省略（持たない情報を列挙しない）。
+const WITHDRAW_DELETED_ITEMS = [
+  "メールアドレス・ログイン情報",
+  "本人確認情報（氏名・ふりがな・住所・生年月日・電話番号）",
+  "働き手プロフィール（自己紹介・経験・希望条件など）",
+  "農園・雇い手プロフィール（農園紹介・待遇・募集者情報など）",
+  "委託者プロフィール（氏名・住所・連絡先・振込先の口座情報）",
+  "緊急連絡先",
+  "お知らせの通知設定（プッシュ購読）",
+  "いいねした求人・お気に入り登録",
+  "下書きの応募・既読の記録・お知らせ",
+  "閲覧履歴・ログイン履歴",
+  "きっかけアンケート・ご意見（フィードバック）の回答",
+];
+
 // 退会セクション（2026-08-07たきと指示・プロフィール最下部）：タップで説明＋いいえ/はいを展開。
 // いいえ＝閉じる／はい＝退会申請を記録してログアウト。処理はProfileModal（旧・到達不能だった退会）と同一。
 // フォーカス消失バグ回避のためモジュールレベル定義（ProfileHub内に定義しない・CLAUDE.md技術メモ）。
 function ProfileWithdrawSection({ onLogout }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showItems, setShowItems] = useState(false); // 「登録した情報」タップで削除される情報を羅列（表示専用）
   const doWithdraw = async () => {
     if (busy) return;
     setBusy(true);
@@ -38,8 +58,20 @@ function ProfileWithdrawSection({ onLogout }) {
         ? <button onClick={()=>setOpen(true)} className="f-sans" style={{ width:"100%", padding:"12px", border:"none", background:"none", fontSize:13, color:"#E24B4A", cursor:"pointer", textAlign:"center" }}>退会する</button>
         : <div style={{ padding:20, background:"#FCEBEB", borderRadius:14, border:"1px solid #E24B4A22" }}>
             <p className="f-sans" style={{ fontSize:13, color:"#E24B4A", marginBottom:14, lineHeight:1.8, textAlign:"center" }}>
-              本当に退会しますか？<br/>登録した情報は運営が確認し、申し出から30日以内に削除します。<br/>作業や取引の記録は、法令と紛争対応のため必要な範囲で残ります。
+              本当に退会しますか？<br/>
+              <button onClick={()=>setShowItems(v=>!v)} className="f-sans" style={{ border:"none", background:"none", padding:0, color:"#E24B4A", fontSize:13, fontWeight:700, cursor:"pointer", textDecoration:"underline" }}>登録した情報</button>
+              は運営が確認し、申し出から30日以内に削除します。<br/>作業や取引の記録は、法令と紛争対応のため必要な範囲で残ります。
             </p>
+            {showItems && (
+              <div className="f-sans" style={{ marginBottom:14, padding:"12px 14px", background:"#fff", border:"1px solid #E24B4A22", borderRadius:12, textAlign:"left" }}>
+                <p style={{ fontSize:12, fontWeight:700, color:"#B54A0E", margin:"0 0 8px" }}>退会で削除される情報</p>
+                <ul style={{ margin:0, paddingLeft:18, listStyle:"disc" }}>
+                  {WITHDRAW_DELETED_ITEMS.map(t => (
+                    <li key={t} style={{ fontSize:12, color:"#444", lineHeight:1.9 }}>{t}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={()=>setOpen(false)} disabled={busy} className="f-sans" style={{ flex:1, padding:"11px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, fontSize:13, cursor:"pointer", color:"#222" }}>いいえ</button>
               <button onClick={doWithdraw} disabled={busy} className="f-sans" style={{ flex:1, padding:"11px", background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", opacity: busy ? 0.6 : 1 }}>{busy ? "処理中..." : "はい、退会する"}</button>
