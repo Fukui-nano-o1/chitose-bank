@@ -118,6 +118,41 @@ function deviceLabel(ua) {
   if (s.includes("android")) return "Android";
   return "PC";
 }
+// 種類の具体的な事実（展開表示とコピー報告文の両方が使う唯一のソース）
+function groupFacts(g) {
+  const userN = new Set(g.rows.filter(r => r.user_id).map(r => r.user_id)).size;
+  const anonN = g.rows.filter(r => !r.user_id).length;
+  const tally = (fn) => {
+    const t = {};
+    g.rows.forEach(r => { const k = fn(r); t[k] = (t[k] || 0) + 1; });
+    return Object.entries(t).sort((a, b) => b[1] - a[1]);
+  };
+  return { userN, anonN, devs: tally(r => deviceLabel(r.user_agent)), pages: tally(r => r.page || "-") };
+}
+// 状況の報告文（2026-08-07たきと指示「コピーボタンを各エラーに設置。君にどんな状況か説明できる状態にする」）：
+// AIや開発者にそのまま貼れる自己完結のテキスト。個人情報は入れない（user_idは人数のみ・メール等なし）
+function buildErrorReport(g, catLabel, ex, stackText) {
+  const f = groupFacts(g);
+  const jp = (d) => new Date(d).toLocaleString("ja-JP");
+  const L = g.latest;
+  return [
+    "【エラー状況の報告】chitose-bank 管理・システムページから生成",
+    `■ 種類: ${ex ? ex.title : "（辞書に該当なし）"}`,
+    `■ 大分類: ${catLabel}`,
+    `■ 状態: 未解決${g.openIds.length}件／記録${g.rows.length}件（直近500件の集計）`,
+    `■ 生メッセージ: ${L.message || "(なし)"}`,
+    `■ 発生場所: 部品=${L.component || "-"}／発生源=${L.source || "-"}／操作=${L.operation || "-"}／エラーコード=${L.error_code || "-"}`,
+    `■ 期間: ${jp(g.first.created_at)} 〜 ${jp(L.created_at)}`,
+    `■ 影響: ログイン利用者${f.userN}人・未ログインの発生${f.anonN}件`,
+    `■ 端末: ${f.devs.map(([k, n]) => `${k} ${n}件`).join("・")}`,
+    `■ ページ: ${f.pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}${f.pages.length > 5 ? " ほか" : ""}`,
+    "■ 最近の発生（最大5件）:",
+    ...g.rows.slice(0, 5).map(e => `- ${jp(e.created_at)}　${e.page || "-"}　${deviceLabel(e.user_agent)}${e.status === "fixed" ? "　✓解決済み" : ""}`),
+    ex ? `■ 既知の説明: 原因=${ex.cause}／どうする=${ex.action}` : "■ 既知の説明: なし（辞書未登録の型）",
+    "■ スタック（最新1件・先頭）:",
+    stackText || "（取得できませんでした）",
+  ].join("\n");
+}
 
 // ── エラーのグループ細分化（2026-08-07たきと指示「エラーのグループを細分化する」）：
 // 大分類（カテゴリ）→ 種類（部品×発生源×文言の署名）→ 個々の発生、の3階層に束ねる。
@@ -240,16 +275,34 @@ export function AdminSystemRoom() {
       } catch { setAppErrors([]); }
     })();
   }, []);
-  // スタックは重いので一覧では取らず、種類を展開した時に最新1件だけ取りにいく
+  // スタックは重いので一覧では取らず、種類を展開・コピーした時に最新1件だけ取りにいく
+  // （保存は先頭15行＝コピー報告文用。画面表示は先頭6行に切って出す）
   const [stackBySig, setStackBySig] = useState({});
+  const fetchStack = async (g) => {
+    const res = await supabase.from("app_errors").select("stack").eq("id", g.latest.id).maybeSingle();
+    const stack = (!res.error && res.data?.stack) ? res.data.stack.split("\n").slice(0, 15).join("\n") : "";
+    setStackBySig(prev => ({ ...prev, [g.sig]: stack }));
+    return stack;
+  };
   const loadStack = (g) => {
     if (stackBySig[g.sig] !== undefined) return;
     setStackBySig(prev => ({ ...prev, [g.sig]: null }));   // null=取得中
-    (async () => {
-      const res = await supabase.from("app_errors").select("stack").eq("id", g.latest.id).maybeSingle();
-      const stack = (!res.error && res.data?.stack) ? res.data.stack.split("\n").slice(0, 6).join("\n") : "";
-      setStackBySig(prev => ({ ...prev, [g.sig]: stack }));
-    })();
+    fetchStack(g);
+  };
+  // 状況をコピー（各種類カードの📋）。スタック未取得なら1件だけ取ってから報告文を作る
+  // ※awaitを挟んでもiOSのユーザー操作猶予（約5秒）内so clipboard は通る。失敗時はalertで案内
+  const [copiedSig, setCopiedSig] = useState(null);
+  const copyGroup = async (g, catLabel, ex) => {
+    let stack = stackBySig[g.sig];
+    if (stack === undefined || stack === null) { try { stack = await fetchStack(g); } catch { stack = ""; } }
+    const text = buildErrorReport(g, catLabel, ex, stack);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedSig(g.sig);
+      setTimeout(() => setCopiedSig(prev => (prev === g.sig ? null : prev)), 2000);
+    } catch {
+      alert("コピーできませんでした。もう一度タップしてください。");
+    }
   };
   // 種類ごとの一括解決（従来の1件ずつのstatus更新と同じ書き込みを、同型のid群にまとめて行うだけ）
   const resolveGroup = async (g) => {
@@ -315,8 +368,9 @@ export function AdminSystemRoom() {
                         const ex = explainError(g.latest);
                         return (
                           <div key={g.sig} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden", opacity: open ? 1 : 0.65 }}>
-                            <button type="button" onClick={() => { setExpandedSig(isOpen ? null : g.sig); if (!isOpen) loadStack(g); }}
-                              style={{ display:"block", width:"100%", textAlign:"left", padding:"13px 16px", background:"none", border:"none", cursor:"pointer" }}>
+                            {/* ヘッダーは div＋onClick（📋ボタンを入れ子にするため。button入れ子は不正HTML） */}
+                            <div onClick={() => { setExpandedSig(isOpen ? null : g.sig); if (!isOpen) loadStack(g); }}
+                              style={{ display:"block", width:"100%", textAlign:"left", padding:"13px 16px", cursor:"pointer" }}>
                               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:6 }}>
                                 <span style={{ display:"flex", alignItems:"center", gap:6 }}>
                                   {open > 0 ? (
@@ -333,8 +387,15 @@ export function AdminSystemRoom() {
                                     <span className="f-sans" style={{ fontSize:10, color:"#999" }}>（未解決{open}）</span>
                                   )}
                                 </span>
-                                <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0", flexShrink:0 }}>
-                                  最新 {new Date(g.latest.created_at).toLocaleString("ja-JP")}
+                                <span style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                                  <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>
+                                    最新 {new Date(g.latest.created_at).toLocaleString("ja-JP")}
+                                  </span>
+                                  <button type="button" onClick={(ev) => { ev.stopPropagation(); copyGroup(g, c.l, ex); }}
+                                    className="f-sans" style={{
+                                      padding:"4px 10px", border:"1px solid #DDD", borderRadius:8, background:"#fff",
+                                      fontSize:10, fontWeight:700, color: copiedSig === g.sig ? "#00A86B" : "#555", cursor:"pointer",
+                                    }}>{copiedSig === g.sig ? "✓ コピーしました" : "📋 状況をコピー"}</button>
                                 </span>
                               </div>
                               {ex && (
@@ -350,19 +411,13 @@ export function AdminSystemRoom() {
                                 {g.latest.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.operation}</span>}
                                 {g.latest.action && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.action}</span>}
                               </div>
-                            </button>
+                            </div>
                             {isOpen && (() => {
-                              // 具体的な事実を集計（追加の通信なし・手元の500件から導出）
-                              const userN = new Set(g.rows.filter(r => r.user_id).map(r => r.user_id)).size;
-                              const anonN = g.rows.filter(r => !r.user_id).length;
-                              const tally = (fn) => {
-                                const t = {};
-                                g.rows.forEach(r => { const k = fn(r); t[k] = (t[k] || 0) + 1; });
-                                return Object.entries(t).sort((a, b) => b[1] - a[1]);
-                              };
-                              const devs = tally(r => deviceLabel(r.user_agent));
-                              const pages = tally(r => r.page || "-").slice(0, 5);
-                              const stack = stackBySig[g.sig];
+                              // 具体的な事実（コピー報告文と同じ groupFacts から導出・追加の通信なし）
+                              const { userN, anonN, devs, pages } = groupFacts(g);
+                              const stackFull = stackBySig[g.sig];
+                              // 保存は15行（コピー用）・画面は先頭6行だけ見せる
+                              const stack = stackFull ? stackFull.split("\n").slice(0, 6).join("\n") : stackFull;
                               return (
                                 <div style={{ padding:"0 16px 14px", borderTop:"1px solid #F3F3F3" }}>
                                   {ex && (
@@ -376,7 +431,7 @@ export function AdminSystemRoom() {
                                     <p>期間：{new Date(g.first.created_at).toLocaleString("ja-JP")} 〜 {new Date(g.latest.created_at).toLocaleString("ja-JP")}</p>
                                     <p>影響：ログイン利用者 {userN}人{anonN > 0 ? `・未ログインの発生 ${anonN}件` : ""}</p>
                                     <p>端末：{devs.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
-                                    <p>ページ：{pages.map(([k, n]) => `${k}（${n}）`).join("・")}{tally(r => r.page || "-").length > 5 ? " ほか" : ""}</p>
+                                    <p>ページ：{pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}{pages.length > 5 ? " ほか" : ""}</p>
                                   </div>
                                   <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>最近の発生（最大5件）</p>
                                   <div style={{ display:"grid", gap:2 }}>
