@@ -5,8 +5,9 @@ import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache"
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush } from "../lib/push";
-import { fmtJstShort, ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
-import { Avatar, LinkifiedText } from "./ui";
+import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
+import { Avatar } from "./ui";
+import { AdminChatFab } from "./AdminChatFab";
 
 // チャット一覧の直近スナップショット（2026-07-22）：チャットから戻った時にスピナーを出さず即表示し、
 // 裏で静かに更新する（リロード感の解消）。モジュールレベルなので再マウントをまたいで生き残る
@@ -19,12 +20,7 @@ export function ChatList() {
   const [loading, setLoading] = useState(() => !chatCache.v); // キャッシュがあれば最初からスピナーを出さない
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("chats");
-  // 運営DM（2026-07-16）：チャット最上部の固定タブ。運営からのメッセージ閲覧＋返信（admin_messages・本人スレのみRLS）
-  const [dmOpen, setDmOpen] = useState(false);
-  const [dmMsgs, setDmMsgs] = useState([]);
-  const [dmUnread, setDmUnread] = useState(0);
-  const [dmText, setDmText] = useState("");
-  const [dmSending, setDmSending] = useState(false);
+  // 運営DM（2026-07-16）は共有部品 AdminChatFab へ切り出し（2026-08-07・応募者ページにも設置するため）
   const [unreadMap, setUnreadMap] = useState(() => chatCache.v?.unreadMap || {}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
   const [initialsMap, setInitialsMap] = useState(() => chatCache.v?.initialsMap || {}); // { partner_auth_id: メール頭文字2文字 }（ニックネーム未設定時のアイコン・2026-07-22）
   // アクション順（2026-07-27たきと指示・同日改定）：並びの既定は「利用者が最後にアクションした順」。
@@ -60,7 +56,6 @@ export function ChatList() {
     else if (r.reason === "denied") { alert("通知がブロックされています。端末の設定からこのアプリの通知を許可してください。"); setPushSt("denied"); }
     else { alert("通知をオンにできませんでした。時間をおいてお試しください。"); }
   };
-  const dmUid = useRef(null);
   useEffect(() => {
     (async () => {
       try {
@@ -74,27 +69,8 @@ export function ChatList() {
       } catch {}
     })();
   }, []);
-  const loadDm = async (markRead) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      dmUid.current = session.user.id;
-      const { data } = await supabase.from("admin_messages").select("*").eq("user_id", session.user.id).order("created_at", { ascending: true });
-      setDmMsgs(data || []);
-      const unread = (data || []).filter(m => m.from_admin && !m.read_at).length;
-      setDmUnread(unread);
-      if (markRead && unread > 0) {
-        await supabase.from("admin_messages").update({ read_at: new Date().toISOString() }).eq("user_id", session.user.id).eq("from_admin", true).is("read_at", null);
-        setDmUnread(0);
-        window.dispatchEvent(new Event("cb:unreadRefresh"));
-      }
-    } catch {}
-  };
-  useEffect(() => { loadDm(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // リアルタイム（2026-07-19）：チャット一覧を開いている間、新着を購読して一覧の未読数と運営DMを即時更新。
-  // 配信はRLS準拠（自分の当事者チャット・自分宛DMのみ）。DMポップアップを開いていれば既読化も走る
-  const dmOpenRef = useRef(false);
-  useEffect(() => { dmOpenRef.current = dmOpen; }, [dmOpen]);
+  // リアルタイム（2026-07-19）：チャット一覧を開いている間、新着を購読して一覧の未読数を即時更新。
+  // 配信はRLS準拠（自分の当事者チャットのみ）。運営DMの購読・既読化はAdminChatFab側が担う
   useEffect(() => {
     const refreshUnreadMap = async () => {
       try {
@@ -116,12 +92,11 @@ export function ChatList() {
     };
     const ch = supabase.channel("chatlist-live")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, onNewMsg)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, () => loadDm(dmOpenRef.current))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "applications" }, onAppUpdate)
       .subscribe();
     // 復帰時の再読込＋保険ポーリング（2026-07-27たきと指示）：iOS PWAのバックグラウンドで
     // WebSocketが凍結・切断されるため、画面復帰で未読を即再取得＋表示中は10秒ごとの保険
-    const onWake = () => { if (document.visibilityState === "visible") { refreshUnreadMap(); loadDm(dmOpenRef.current); } };
+    const onWake = () => { if (document.visibilityState === "visible") refreshUnreadMap(); };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
     const iv = setInterval(() => { if (document.visibilityState === "visible") refreshUnreadMap(); }, 10000);
@@ -132,15 +107,6 @@ export function ChatList() {
       clearInterval(iv);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const sendDm = async () => {
-    const body = dmText.trim();
-    if (!body || dmSending || !dmUid.current) return;
-    setDmSending(true);
-    const { error } = await supabase.from("admin_messages").insert({ user_id: dmUid.current, from_admin: false, body });
-    if (error) alert("送信に失敗しました：" + error.message);
-    else { setDmText(""); await loadDm(false); }
-    setDmSending(false);
-  };
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -251,39 +217,8 @@ export function ChatList() {
           <button onClick={()=>{ setPushDismissed(true); try{localStorage.setItem("cb_pushBannerDismissed","1");}catch{} }} aria-label="閉じる" style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,0.06)", border:"none", fontSize:12, cursor:"pointer", color:"#5B7B6D" }}>✕</button>
         </div>
       )}
-      {/* 運営チャット＝下部フッター上の浮遊ボックス（2026-07-25たきと指示・一覧の最上部行から移設） */}
-      <button onClick={()=>{ setDmOpen(true); loadDm(true); }} className={"f-sans cb-admin-chat-fab" + (dmUnread > 0 ? " cb-urgent-card" : "")}
-        style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
-        <span style={{ fontSize:18, lineHeight:1 }}>🛡</span>
-        <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>運営チャット</span>
-        {dmUnread > 0 && <span style={{ minWidth:20, height:20, borderRadius:10, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{dmUnread}</span>}
-      </button>
-      {/* 運営DMスレッド（ポップアップ0.8秒・✕/背景で閉じる） */}
-      {dmOpen && (
-        <div onClick={()=>setDmOpen(false)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-              <button onClick={()=>setDmOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
-              <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>🛡 chitose-bank運営</p>
-            </div>
-            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:16, display:"flex", flexDirection:"column", gap:10 }}>
-              {dmMsgs.length === 0 ? (
-                <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>まだメッセージはありません。運営への連絡もここから送れます。</p>
-              ) : dmMsgs.map(m => (
-                <div key={m.id} style={{ alignSelf: m.from_admin ? "flex-start" : "flex-end", maxWidth:"85%" }}>
-                  {m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>🛡 運営</p>}
-                  <div className="f-sans" style={{ background: m.from_admin ? "#F5F5F5" : "#00A86B", color: m.from_admin ? "#222" : "#fff", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={m.body} onNavigate={()=>setDmOpen(false)} /></div>
-                  <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "left" : "right" }}>{fmtJstShort(m.created_at)}</p>
-                </div>
-              ))}
-            </div>
-            <div style={{ display:"flex", gap:8, padding:"10px 12px", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
-              <input value={dmText} onChange={e=>setDmText(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") sendDm(); }} placeholder="運営へのメッセージ" className="field f-sans" style={{ flex:1, marginBottom:0, fontSize:14 }} />
-              <button onClick={sendDm} disabled={dmSending || !dmText.trim()} className="btn-primary f-sans" style={{ padding:"0 18px", fontSize:14, fontWeight:700, opacity: (dmSending || !dmText.trim()) ? 0.5 : 1 }}>送信</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 運営チャット（共有部品へ切り出し・2026-08-07）：位置・挙動は従来どおり */}
+      <AdminChatFab />
       {loading ? (
         /* 空白や「読み込み中...」でなく、これから出るスレッドと同じ形の箱を並べる（2026-07-27たきと指示） */
         <AutoSkeleton shapeKey="chats" />

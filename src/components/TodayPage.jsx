@@ -838,7 +838,9 @@ export function TodayPage({ me, defaultRole }) {
     confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start",
                    desc:"働き手が現場に来て作業が始まったことを確認します。来なかった場合の記録もここからできます。",
                    alt: { label:"来なかった", flag:"cb_completeAppId", to:"/profile/employer/applicants",
-                          before: () => { try { sessionStorage.setItem("cb_appFilter", "active"); } catch {} } } },
+                          // 旧「active（進行中）」はステータス絞り込み統一（2026-08-07）で廃止。該当応募は
+                          // 採用/作業中のどちらもありうるso「すべて」で開く（対象シートはcb_completeAppIdが自動展開）
+                          before: () => { try { sessionStorage.setItem("cb_appFilter", "all"); } catch {} } } },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
     // 完了して評価する（2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。

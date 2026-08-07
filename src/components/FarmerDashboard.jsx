@@ -19,9 +19,12 @@ import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
+import { AdminChatFab } from "./AdminChatFab";
 
-// 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）
-const APP_FILTER_KEYS = ["all","applied","interview","active","completed"];
+// 応募者ページの状態フィルタのキー（APP_FILTERSと同順・保存/復元の検証にも使う）。
+// 2026-08-07たきと指示「ステータス絞り込みを導入」：帯5段＋終端（appPhaseKeyの全段階）と同じ並びに統一。
+// 旧キー「active（進行中）」は廃止＝保存済みの値は検証で弾かれ「すべて」に落ちる（壊れない）
+const APP_FILTER_KEYS = ["all","applied","interview","contracted","working","completed","rejected","expired"];
 
 
 export function FarmerDashboard({ onNewJob, onResume, me }) {
@@ -599,14 +602,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   const appRibbonLabel = (a) => APP_PHASE_LABEL[appPhaseKey(a)] || a.status;
   const appRibbonColor = (a) => APP_PHASE_COLOR[appPhaseKey(a)] || "#00A86B";
-  // 応募者ページの状態フィルタ（2026-07-22）：上部タブ＝タップ＋横スワイプで切替
+  // 応募者ページの状態フィルタ（2026-07-22・2026-08-07ステータス統一）：
+  // 帯と同じ段階判定（appPhaseKey）で絞る＝帯5段（応募中→面接中→採用→作業中→完了）＋終端（見送り/失効）。
+  // ラベル・並びは APP_FILTER_KEYS と APP_PHASE_LABEL から引く＝帯・凡例と文言が枝分かれしない
   const APP_FILTERS = [
-    { k:"all",       l:"すべて",   match: () => true },
-    { k:"applied",   l:"応募中",   match: (s) => s==="applied" },
-    // 面接中＝帯と同じ段階判定（appPhaseKey・承認後〜採用前）。今日ページ「採用する」の着地先（2026-07-27）
-    { k:"interview", l:"面接中",   match: (s, a) => appPhaseKey(a) === "interview" },
-    { k:"active",    l:"進行中",   match: (s) => ["approved","meeting","interview","contracted","working"].includes(s) },
-    { k:"completed", l:"完了",     match: (s) => s==="completed" },
+    { k:"all", l:"すべて", match: () => true },
+    ...APP_FILTER_KEYS.filter(k => k !== "all").map(k => ({ k, l: APP_PHASE_LABEL[k], match: (s, a) => appPhaseKey(a) === k })),
   ];
   // 応募者ページの横スワイプ＝上部カレンダーの開閉（2026-07-27たきと指示。旧・フィルタ切替から置換）。
   // フィルタは上部/浮遊バーのボタンタップで切り替える（スワイプとの二重割り当てをやめる）。
@@ -1390,7 +1391,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             // スクロール格納・入力中の退避・オーバーレイ中の非表示は、浮遊☰と同じCSS作法で揃えてある
             // （.cb-applicant-filter-bar / body.cb-scroll-hide 等）。PCは従来どおり本文中に並べる
             const filterButtons = APP_FILTERS.map(f => (
-              <button key={f.k} onClick={()=>setAppFilter(f.k)} className="f-sans" style={{ flex:"1 0 auto", padding:"8px 14px", borderRadius:20, border: appFilter===f.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: appFilter===f.k?800:600, color: appFilter===f.k?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>{f.l}</button>
+              <button key={f.k} onClick={()=>setAppFilter(f.k)} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: appFilter===f.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: appFilter===f.k?800:600, color: appFilter===f.k?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
+                {/* 段階色の点＝帯・凡例と同じAPP_PHASE_COLOR（ステータス絞り込みだと一目で分かる目印） */}
+                {f.k !== "all" && <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[f.k] || "#999", flexShrink:0 }} />}
+                {f.l}
+              </button>
             ));
             const tabBar = (
               <div key="app-tabs" className="cb-applicant-filter-inline" style={{ gridColumn:"1/-1", display:"flex", gap:6, marginBottom:2, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
@@ -1526,7 +1531,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     </div>
                   );
                 });
-            return [calendarTop, calHint, tabBar, calNote, floatingFilterBar, ...body, legend];
+            // 運営チャット（2026-08-07たきと指示「その上に運営チャット配置」）：絞り込みバーの真上に浮かせる
+            // （raised＝モバイルでバーの高さぶん持ち上げるCSS。共有部品so中身はチャット一覧と同一）
+            const adminChat = <AdminChatFab key="admin-chat" raised />;
+            return [calendarTop, calHint, tabBar, calNote, floatingFilterBar, adminChat, ...body, legend];
           })()
         )
       ) : jobTab==="expired" ? (
