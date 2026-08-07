@@ -18,6 +18,24 @@ const REVIEW_SECTION_KEYS = ["jobs","accounts","prs","reports","disputes","quest
 // 日付キー（YYYY-MM-DD）はローカル整形で統一する。toISOString().slice(0,10)は
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
 
+// 画像一括処理のバックグラウンド実行（2026-08-03たきと指示「一括軽量化は一瞬で終了させろ。
+// 何分も画面に張り付かなくてはならない」）：進捗・結果を【モジュールレベル】に置く＝
+// ボタンを押したらすぐ画面を離れてよい。他のタブ・ページへ移動しても処理は裏で続き、
+// 管理タブに戻れば進捗や完了結果がここに残っている（従来はstateがコンポーネント内so、
+// 離れると進捗が見えなくなり、実行中の見分けもつかず張り付くしかなかった）。
+// ※アプリ自体（PWA/ブラウザのタブ）を閉じると中断されるが、両ツールとも冪等so
+//   もう一度押せば「残りだけ」処理される（途中まで進んだ分は無駄にならない）
+const imgTaskStore = {
+  running: "",        // 実行中の軽量化バケット名（"" = なし）
+  progress: "",       // "3/12"
+  results: {},        // bucket → {candidates, replaced, savedBytes}
+  thumbRunning: false,
+  thumbProgress: "",
+  thumbResult: null,
+  listeners: new Set(),
+};
+const imgTaskNotify = () => imgTaskStore.listeners.forEach(fn => { try { fn(); } catch {} });
+
 // ── Atoms ──────────────────────────────────────────────────
 function DestMark({ name, sz=32, showLabel=true }) {
   const col = destColor(name);
@@ -180,31 +198,39 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [legacyView, setLegacyView] = useState(null); // 旧事業データの表示中コンテンツ: farmers|dests|records|stats|datadef|null
   const [systemView, setSystemView] = useState(null); // システムの表示中コンテンツ: sql|errors|images|null
   // 画像の一括軽量化（その他＞システム・2026-07-26）：既存ストレージの重い画像を同一パス上書きで圧縮。
-  // URL不変so DB（avatar_url・jobs.photos jsonb・凍結terms_snapshotのURL参照）は無変更＝参照が壊れない
-  const [imgOptRunning, setImgOptRunning] = useState("");   // 実行中のバケット名
-  const [imgOptProgress, setImgOptProgress] = useState(""); // "3/12"
-  const [imgOptResults, setImgOptResults] = useState({});   // bucket → {candidates, replaced, savedBytes}
-  // カード用サムネの後埋め（2026-08-02・②）：既存jobs.photosに640pxサムネを生成しjsonbへ書き戻す
-  const [thumbGenRunning, setThumbGenRunning] = useState(false);
-  const [thumbGenProgress, setThumbGenProgress] = useState("");
-  const [thumbGenResult, setThumbGenResult] = useState(null);
-  const runThumbGen = async () => {
-    if (thumbGenRunning || imgOptRunning) return;
-    if (!window.confirm("求人写真のカード用サムネ（640px）を一括生成し、jobsのphotosに書き戻します。再実行しても増殖しません。よろしいですか？")) return;
-    setThumbGenRunning(true); setThumbGenProgress("");
-    const r = await generateJobPhotoThumbs(supabase, { onProgress: (d, t) => setThumbGenProgress(`${d}/${t}`) });
-    setThumbGenRunning(false); setThumbGenProgress("");
-    setThumbGenResult(r);
+  // URL不変so DB（avatar_url・jobs.photos jsonb・凍結terms_snapshotのURL参照）は無変更＝参照が壊れない。
+  // 実体はモジュールレベルの imgTaskStore（上部参照・2026-08-03バックグラウンド化）。
+  // ここでは購読して再描画するだけ＝画面を離れても処理は続き、戻れば進捗が見える
+  const [, imgTaskTick] = useState(0);
+  useEffect(() => {
+    const fn = () => imgTaskTick(t => t + 1);
+    imgTaskStore.listeners.add(fn);
+    return () => { imgTaskStore.listeners.delete(fn); };
+  }, []);
+  const { running: imgOptRunning, progress: imgOptProgress, results: imgOptResults,
+          thumbRunning: thumbGenRunning, thumbProgress: thumbGenProgress, thumbResult: thumbGenResult } = imgTaskStore;
+  const runThumbGen = () => {
+    if (imgTaskStore.thumbRunning || imgTaskStore.running) return;
+    if (!window.confirm("サムネの無い求人写真にカード用サムネ（640px）を生成し、jobsのphotosに書き戻します。生成済みは飛ばすので、通常は数秒で終わります。よろしいですか？")) return;
+    imgTaskStore.thumbRunning = true; imgTaskStore.thumbProgress = ""; imgTaskNotify();
+    // awaitしない＝ボタンは即返す。処理は裏で続き、完了結果はストアに残る
+    (async () => {
+      const r = await generateJobPhotoThumbs(supabase, { onProgress: (d, t) => { imgTaskStore.thumbProgress = `${d}/${t}`; imgTaskNotify(); } });
+      imgTaskStore.thumbRunning = false; imgTaskStore.thumbProgress = ""; imgTaskStore.thumbResult = r; imgTaskNotify();
+    })();
   };
-  const runRecompress = async (bucket, maxSide, quality) => {
-    if (imgOptRunning) return;
+  const runRecompress = (bucket, maxSide, quality) => {
+    if (imgTaskStore.running) return;
     // window.confirm と書くこと：同じスコープに確認モーダル用の state `confirm`（{msg,onOk}）があり、
     // 素の confirm(...) はそちらに解決されて「confirm is not a function」で落ちる（2026-07-29修理）
-    if (!window.confirm(`${bucket} 内の重い画像（400KB以上）を圧縮して差し替えます。よろしいですか？`)) return;
-    setImgOptRunning(bucket); setImgOptProgress("");
-    const r = await recompressBucket(supabase, bucket, { maxSide, quality, onProgress: (d, t) => setImgOptProgress(`${d}/${t}`) });
-    setImgOptRunning(""); setImgOptProgress("");
-    setImgOptResults(prev => ({ ...prev, [bucket]: r }));
+    if (!window.confirm(`${bucket} 内の重い画像（400KB以上）を圧縮して差し替えます。実行中は画面を離れてもかまいません。よろしいですか？`)) return;
+    imgTaskStore.running = bucket; imgTaskStore.progress = ""; imgTaskNotify();
+    (async () => {
+      const r = await recompressBucket(supabase, bucket, { maxSide, quality, onProgress: (d, t) => { imgTaskStore.progress = `${d}/${t}`; imgTaskNotify(); } });
+      imgTaskStore.running = ""; imgTaskStore.progress = "";
+      imgTaskStore.results = { ...imgTaskStore.results, [bucket]: r };
+      imgTaskNotify();
+    })();
   };
   const [farmers, setFarmers] = useState([]);
   const [dests, setDests] = useState([]);
@@ -1630,7 +1656,9 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
             <p className="f-sans" style={{ fontSize:11,color:"#717171",lineHeight:1.8,marginBottom:16 }}>
               圧縮なしで保存された既存の画像（400KB以上）をダウンロード→圧縮→同じ場所に上書きします。
               URLが変わらないため、求人・プロフィール・凍結済み契約の参照はそのまま。
-              既に軽い画像はスキップ＝何度実行しても安全。使い方ガイドのスクショはガイドページ上部の専用ボタンで。
+              既に軽い画像・処理済みの画像はスキップ＝何度実行しても安全で、2回目以降はほぼ一瞬で終わります。
+              実行は裏で進むため、開始後は画面を離れてかまいません（このページに戻れば進捗と結果が見えます）。
+              使い方ガイドのスクショはガイドページ上部の専用ボタンで。
             </p>
             <div style={{ display:"grid", gap:10 }}>
               {[
@@ -1658,8 +1686,8 @@ ALTER TABLE records ADD COLUMN IF NOT EXISTS is_brand boolean DEFAULT false;`;
                   {thumbGenResult
                     ? (thumbGenResult.error
                         ? `失敗：${thumbGenResult.error}`
-                        : `完了：${thumbGenResult.total}枚中 ${thumbGenResult.made}枚生成（失敗${thumbGenResult.failed}・求人${thumbGenResult.updatedJobs}件更新）`)
-                    : "一覧カードの転送を軽くする（640px・既存写真の後埋め・再実行OK）"}
+                        : `完了：${thumbGenResult.made}枚生成（生成済みスキップ${thumbGenResult.skipped ?? 0}・失敗${thumbGenResult.failed}・求人${thumbGenResult.updatedJobs}件更新／全${thumbGenResult.total}枚）`)
+                    : "サムネ無しの写真だけ後埋め（640px・生成済みは飛ばす＝通常は数秒）"}
                 </span>
               </div>
             </div>
