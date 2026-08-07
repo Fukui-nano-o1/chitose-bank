@@ -1,6 +1,10 @@
 // 仮応募の成功ページ（#/apply/pending・第15弾・2026-07-30たきと指示）。
 // 応募の意思は預かった。届くのは本人のプロフィールがそろった時＝引き金は本人の操作だけで、
 // 運営の自由記述審査は間に立たない（本弾の原則）。
+// ★2026-08-07（②ハイブリッド）：仮応募の【新規到着】はこのページを出さずアニメーション
+// （祝祭＋トースト＋応募状況へ着地・App.jsxのcb_pendingNewフラグ消費）。このページが出るのは
+// 再訪だけ＝応募状況「プロフィールを仕上げる→」・求人詳細の応募ボタン（仮応募あり時）。
+// 残り項目のチェックリストと「応募を農家さんに届ける」（昇格）の受け皿としてここは残す。
 import { useState, useEffect } from "react";
 import { fetchWorkerReady, promotePendingApplications } from "../lib/workerReady";
 import { NoticeJumpText, Dots } from "./ui";

@@ -651,7 +651,9 @@ export function JobSearchMapView({ onRegister, me }) {
         // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募が成立してしまう
         const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id, p_available_dates: applyAvailRef.current });
         setApplying(false);
-        if (pend && pend.ok) { window.location.hash = "/apply/pending"; return; }
+        // 新規の仮応募＝ページでなくアニメーション（②・2026-08-07）。App側thatこのフラグを消費して
+        // 祝祭＋トースト＋応募状況への着地に切り替える。フラグ無しの /apply/pending は従来のチェックリスト
+        if (pend && pend.ok) { try { sessionStorage.setItem("cb_pendingNew", "1"); } catch {} window.location.hash = "/apply/pending"; return; }
         if (pend && pend.reason === "already_applied") { window.location.hash = "/apply/done"; return; }
         if (pend && pend.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return; }
         // 預かりに失敗した時は、従来どおり本応募を試して理由をサーバーに言わせる

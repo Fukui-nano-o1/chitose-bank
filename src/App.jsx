@@ -52,20 +52,31 @@ function lazyChunk(factory) {
 // 応募完了の法的一言トースト（2026-08-07・①）。完了ページを廃止したので、その画面にあった
 // 「まだ採用ではない／雇用契約は当事者間」の明示を、着地先に一度だけ出して消さない（法務の一線）。
 // 下から出る帯。8秒で自動的に消え、タップでも閉じる。pointer-events:noneにはしない（タップで閉じられるように）。
-function ApplyDoneNote({ promoted = 0, already = false, onClose }) {
+function ApplyDoneNote({ promoted = 0, already = false, pending = false, onClose }) {
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
   useEffect(() => {
     const t = setTimeout(() => onCloseRef.current?.(), 8000);
     return () => clearTimeout(t);
   }, []);
-  const head = promoted > 0 ? `${promoted}件の応募を農家さんにお届けしました`
+  const head = pending ? "仮応募をお預かりしました"
+             : promoted > 0 ? `${promoted}件の応募を農家さんにお届けしました`
              : already ? "この求人には応募済みです" : "応募を農家さんにお届けしました";
   return (
     <div onClick={()=>onClose?.()} style={{ position:"fixed", left:0, right:0, bottom:0, zIndex:9500, display:"flex", justifyContent:"center", padding:"0 12px calc(12px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .25s ease" }}>
       <div className="cb-sheet-up" style={{ maxWidth:460, width:"100%", background:"#111", color:"#fff", borderRadius:14, padding:"14px 16px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)", cursor:"pointer" }}>
-        <p className="f-sans" style={{ fontSize:14, fontWeight:800, margin:"0 0 4px" }}>📩 {head}</p>
-        <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>これはまだ採用ではありません。農家が内容を確認し、承認するとお知らせします。</p>
-        <p className="f-sans" style={{ fontSize:11, lineHeight:1.6, color:"#B8B8B8", margin:"6px 0 0" }}>chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。</p>
+        <p className="f-sans" style={{ fontSize:14, fontWeight:800, margin:"0 0 4px" }}>{pending ? "⏳" : "📩"} {head}</p>
+        {pending ? (
+          <>
+            {/* 正直さの明示（仮応募＝まだ届いていない）。旧ApplyPendingページの説明を消さずここへ */}
+            <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>プロフィールがそろうと、農家さんに応募が届きます。「プロフィールを仕上げる」から続けられます。</p>
+            <p className="f-sans" style={{ fontSize:11, lineHeight:1.6, color:"#B8B8B8", margin:"6px 0 0" }}>自己紹介文の確認は運営が行いますが、応募はそれを待たずに届きます。</p>
+          </>
+        ) : (
+          <>
+            <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>これはまだ採用ではありません。農家が内容を確認し、承認するとお知らせします。</p>
+            <p className="f-sans" style={{ fontSize:11, lineHeight:1.6, color:"#B8B8B8", margin:"6px 0 0" }}>chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。</p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1455,7 +1466,13 @@ export default function App(){
   // 応募完了も「ページ」でなくアニメーション化（2026-08-07たきと指示・①）。祝祭＋法的一言トースト＋
   // 応募状況に着地＋60秒ノーアクションで さがす。法的一文（まだ採用でない・当事者間契約）は消さずトーストで残す。
   const [applyNote,setApplyNote]=useState(false); // 着地先で1回だけ出す法的一言トースト
-  const [applyIdle,setApplyIdle]=useState(false); // 60秒アイドル→/search の見張り
+  const [applyIdle,setApplyIdle]=useState(false); // 60秒アイドル→/search の見張り（①応募完了・②仮応募で共用）
+  // 仮応募の直後も同じ型でアニメーション化（2026-08-07たきと指示・②）。ただしハイブリッド＝
+  // 新規の仮応募（JobSearchMapViewがcb_pendingNewを立てて遷移）だけ祝祭＋トースト＋応募状況へ着地し、
+  // 再訪（応募状況「プロフィールを仕上げる→」・求人詳細の応募ボタン）は従来どおり ApplyPending の
+  // チェックリスト（残り項目のタップ入力・昇格ボタン）を出す＝あの導線の受け皿は消さない
+  const [pendBurst,setPendBurst]=useState(false); // 仮応募の祝祭（✅・新規到着だけ1回）
+  const [pendNote,setPendNote]=useState(false);   // 仮応募の案内トースト（届くのはプロフィール完成後＝正直さの明示）
   // apply/done に来たら：完了ページを出さず、応募状況（/profile/worker/applying）へ着地させ、
   // 祝祭（applyBurst・既存）＋法的トースト＋アイドル見張りを起動する。promotedCount/applyAlready/applyBurst は
   // hashハンドラthat先に設定済み（この効果はそれらの設定後に走る）。
@@ -1492,7 +1509,18 @@ export default function App(){
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
       if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
       setShowApplyDone(rawHash === "apply/done");
-      setShowApplyPending(rawHash === "apply/pending");
+      // 仮応募の新規到着（②・2026-08-07）：チェックリストページを出さず、祝祭＋トースト＋応募状況へ。
+      // フラグ無しの到着（再訪）は従来どおりページを出す（ハイブリッド）
+      let _pendNew = false;
+      try { _pendNew = rawHash === "apply/pending" && sessionStorage.getItem("cb_pendingNew") === "1"; } catch {}
+      if (_pendNew) {
+        try { sessionStorage.removeItem("cb_pendingNew"); } catch {}
+        setShowApplyPending(false);
+        setPendBurst(true); setPendNote(true); setApplyIdle(true);
+        window.location.hash = "/profile/worker/applying";
+      } else {
+        setShowApplyPending(rawHash === "apply/pending");
+      }
       setConsignRoom(rawHash.startsWith("admin/consignment"));
       setWorkingRoom(rawHash.startsWith("admin/working"));
       setUpcomingRoom(rawHash.startsWith("admin/upcoming"));
@@ -2826,6 +2854,10 @@ export default function App(){
           着地先（応募状況）の上に重なる。promotedCount/applyAlready で見出しを出し分ける */}
       {applyBurst && <Celebration emoji="📩" title={promotedCount > 0 ? `${promotedCount}件を届けました` : "応募できました"} onDone={()=>setApplyBurst(false)} />}
       {applyNote && <ApplyDoneNote promoted={promotedCount} already={applyAlready} onClose={()=>setApplyNote(false)} />}
+      {/* 仮応募の新規到着もアニメーション（2026-08-07・②ハイブリッド）。祝祭＋案内トースト。
+          再訪は従来どおり ApplyPending のチェックリストページ（残り項目の受け皿）を出す */}
+      {pendBurst && <Celebration emoji="✅" title="仮応募をお預かりしました" onDone={()=>setPendBurst(false)} />}
+      {pendNote && <ApplyDoneNote pending onClose={()=>setPendNote(false)} />}
       {applyIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setApplyIdle(false); if (fired) window.location.hash="/search"; }} />}
 
       {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるso、個別に包む
