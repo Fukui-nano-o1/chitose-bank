@@ -3991,3 +3991,22 @@ account_holdersは退会で正しく削除（1→0）されるthat、terms_snaps
 （本人確認情報=退会30日以内削除）と字面で緊張する。台帳に「ただし契約が成立した分の氏名は契約記録の一部として
 3年保存」の1行追記that要るか、たきと判断待ち（DBは変更しない）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 退会後の余波5パターン（X2修理・X4は将来リスク）━━━
+【立場】退会「後」の匿名化ユーザー（withdrawn+uuid・banned_until=infinity・プロフィール全消し）that
+既存フローで壊れないか。合成のみ・全ロールバック・残置ゼロ実測。
+【★X2修理（migration 20260807145825）】退会者の名前解決that「wi」（email先頭2文字）になっていた。
+email先頭を使う3関数（resolve_actor_name・my_chat_partner_initials・get_my_calendar_jobs）を揃えて、
+退会者は名前「退会した利用者」・頭文字「－」に。検証：退会前=従来名／退会後=退会した利用者・頭文字－。
+※email先頭を使う4つ目 wp_default_nickname は新規登録の既定名生成so退会と無関係＝対象外。
+【X3=無事】working中に退会しても complete_work that通る（進行中取引は落ちない）。
+【X5=無事】退会者の worker_work_record that応募を受けた農家から引ける（記録壊れない）。
+【X1=確認済み】退会で banned_until='infinity'＝GoTrueがログイン拒否（再ログイン不可）。auth側so実弾は不可。
+【X3b=誤検知】auto_start_work that authenticated から permission denied＝cron専用（anon/auth revoke済み）で正しい。
+私のテストのロール誤り（cronはpostgres/service_roleで走る）。
+【★X4=将来リスク・未対処（要判断）】process_withdrawal は jobs を消さない（過去求人は消さない・証跡）。
+農家that退会してもopen求人that jobs_public に残り応募を受け付け続けうる。ただし現状open求人を持てるのは
+admin（自己募集）のみでadminは退会不可（target_is_admin）＝現状は発生しない。third_party_publish_allowed=true
+（第三者公開解禁）後に一般農家thatopen求人を持てるようになると顕在化＝退会時にその農家のopen求人をclosedに
+する処理that要る。解禁とセットで実装すべき。今は撃っていない（現状シナリオthat成立しないため）。
+━━━ ここまで ━━━
