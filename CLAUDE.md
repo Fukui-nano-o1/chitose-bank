@@ -3235,3 +3235,30 @@ src/Terms.jsx の TERMS_ARTICLES を読み、条文のうち機構で担保す�
 【結論】規約が「禁止」する行為の機構担保は概ね立っている。唯一の乖離は第8条の評価【公開・開示】機能that
 DB未実装＝約束の未達（実害ゼロ・要判断）。加えて年齢しきい値のUTC基準は安全側の軽微なズレ。
 ━━━ ここまで ━━━
+━━━ 2026-08-06 バグ狩り②：仮応募→昇格で「来られる日」that欠落するバグを修理 ━━━
+【★バグ（修理済み・migration 20260806235628）】期間求人（複数日）の来られる日（available_dates）が、
+  仮応募→昇格の経路で欠落していた。
+・apply_to_job は期間求人に available_dates を必須にし（無ければ dates_required で拒否）
+  applications.available_dates へ保存する。しかし create_pending_application は日付を受け取らず、
+  promote_my_pending_applications も日付を持たずに applied をINSERT＝昇格経路thatこの必須を迂回。
+  ＝正規経路なら弾かれる「来られる日なしの期間求人応募」that成立できた。
+・実弾で確定：期間求人 apply_to_job(job,null)=dates_required に対し、create_pending→promote は
+  available_dates=NULL の applied を1件生成。農家thatスケジュールを組む材料（働き手の来られる日）が
+  無い応募that取引フローに入る。
+・フロントも共犯：JobSearchMapView の仮応募は applyAvailRef（選択済みの来られる日）を
+  create_pending_application に渡していなかった＝期間求人でも日付を捨てていた。
+【修理】
+・pending_applications に available_dates(jsonb) 列を追加（既存0件so移行リスクなし）。
+・create_pending_application(p_job, p_available_dates default null)：期間求人は apply_to_job と
+  同一の式で来られる日を必須化（dates_required）し、pending に保存。旧1引数版はオーバーロード
+  曖昧化を避けてdrop（新版は default 付きso1引数呼び出しも受かる）。anon revoke＋authenticated grant。
+・promote_my_pending_applications：pending.available_dates を applications へ引き継ぐ。期間求人で
+  日付を持たない残骸は昇格させずスキップ（不変条件を破る応募を作らない・削除もしない）。
+・JobSearchMapView：仮応募でも applyAvailRef.current を渡し、dates_required を正規経路と同じ文言で案内。
+【検証】ロールバック付き実弾：期間・日付なし=dates_required／期間・日付あり=昇格で引き継ぎ／
+  単日=従来どおりnull／1引数呼び出しも通過。build成功・lint 0 error・repo写経同期済み・本番適用済み。
+・影響範囲：本番の pending_applications は現在0件＝潜在バグ・既存データの汚染なし。
+【この一連のバグ狩りの収穫（本物の欠陥）】①レビュー捏造（評判の完全性・トリガー）②日またぎで負の
+  労働時間（集計・ヘルパー統一）③仮応募昇格の来られる日欠落（不変条件・pending側で必須化）。
+  いずれも「正規経路にはある検証that、別経路・別関数に無い」型＝単一の不変条件から漏れた枝を塞ぐ修理。
+━━━ ここまで ━━━

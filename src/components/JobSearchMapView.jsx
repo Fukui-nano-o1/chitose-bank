@@ -578,10 +578,13 @@ export function JobSearchMapView({ onRegister, me }) {
       // 昇格の引き金は本人のプロフィール完成だけ（運営の自由記述審査は間に立たない）
       const ready = await fetchWorkerReady();
       if (!ready.ready) {
-        const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id });
+        // 来られる日（期間求人のみ）を仮応募でも渡す（2026-08-06）。渡さないと昇格時に来られる日that
+        // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募that成立してしまう
+        const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id, p_available_dates: applyAvailRef.current });
         setApplying(false);
         if (pend && pend.ok) { window.location.hash = "/apply/pending"; return; }
         if (pend && pend.reason === "already_applied") { window.location.hash = "/apply/done"; return; }
+        if (pend && pend.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return; }
         // 預かりに失敗した時は、従来どおり本応募を試して理由をサーバーに言わせる
         await doApply();
         return;
