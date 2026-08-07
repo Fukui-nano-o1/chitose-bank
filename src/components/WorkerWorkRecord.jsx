@@ -68,14 +68,17 @@ function Breakdown({ title, rows }) {
   );
 }
 
-// 直近5件の1行
+// 直近5件の1行。
+// ★求人の中身（No.・作物・作業）は運営と本人にだけDBが返す（2026-08-07・閲覧農家には過去の求人を出さない。
+//   2026-08-05裁定のNo.伏せの徹底＝作物×日付からも辿れないようにした）。無い時は日付と判定だけの行になる
 function RecentRow({ r }) {
   const p = punchOf(r);
+  const jobLabel = [r.crop, r.task].filter(Boolean).join(" ");
   return (
     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:"1px solid #F5F5F5" }}>
       <div style={{ minWidth:0, flex:1 }}>
         <p className="f-sans" style={{ fontSize:12, color:"#222", margin:0, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-          {r.work_date || "日付なし"}　{r.crop || "作物未設定"} {r.task || ""}
+          {r.work_date || "日付なし"}{jobLabel ? `　${jobLabel}` : ""}
         </p>
         <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0" }}>
           {r.job_number ? <>No.{r.job_number}　</> : null}
