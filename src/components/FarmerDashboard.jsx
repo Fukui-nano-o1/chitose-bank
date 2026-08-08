@@ -1614,7 +1614,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           <div>
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:"0 0 10px" }}>横スワイプで戻る</p>
             {full
-              ? <JobDetailBody job={full} me={me} />
+              ? <JobDetailBody job={full} me={me} onBack={()=>{ setSheetPane("main"); setSheetShowcase(false); }} />
               : <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
                   {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : "読み込み中..."}
                 </p>}

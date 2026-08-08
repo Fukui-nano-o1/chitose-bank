@@ -20,10 +20,16 @@ import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { InsurancePanel } from "./InsurancePanel";
 import { FarmerTrustCard } from "./TrustCards";
-import { JobQuestions } from "./JobQuestions";
+import { JobQuestions, ContentQTabs, ContentQSwipeArea } from "./JobQuestions";
 
-export function JobDetailBody({ job, me }) {
+export function JobDetailBody({ job, me, onBack }) {
   const [activeSlide, setActiveSlide] = useState(0);
+  // 仕事の内容／保険／質問のタブ（2026-08-08たきと指示「保険と質問も横スワイプ機能付きで変更しろ」）＝
+  // 求人詳細ページと同じ部品（ContentQTabs＋ContentQSwipeArea）。タップでも横スワイプでも切り替わる。
+  // ★最初のタブでさらに右スワイプ＝onEdgeSwipe("prev")→onBack（面を戻る）＝
+  //   タブ切替と「横スワイプで戻る」that同じ指の動きで両立する
+  const [tab, setTab] = useState("content");
+  const rootRef = useRef(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
   // トップ写真のループ（2026-08-08たきと指示「最後の写真をスライドしたらトップ写真に戻れ」）＝
   // 求人詳細ページ（JobSearchMapView・2026-07-16）の実装をそのままトレース：
@@ -57,6 +63,19 @@ export function JobDetailBody({ job, me }) {
     setActiveSlide(0);
   }, [job?.id, photosLooped]);
   if (!job) return null;
+  // 右下の「トップ」浮遊ボックス（2026-08-08たきと指示）：最寄りのスクロール容器を先頭へ戻す。
+  // ボックスの中（シートのスクロール領域）でもページでも同じ1実装で効く
+  const scrollToTop = () => {
+    for (let n = rootRef.current?.parentElement; n; n = n.parentElement) {
+      try {
+        const st = window.getComputedStyle(n);
+        if ((st.overflowY === "auto" || st.overflowY === "scroll") && n.scrollHeight > n.clientHeight + 1) {
+          n.scrollTo({ top: 0, behavior: "smooth" }); return;
+        }
+      } catch { break; }
+    }
+    try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); }
+  };
   const handlePhotoScroll = e => {
     const el = e.target;
     const w = el.clientWidth;
@@ -68,8 +87,9 @@ export function JobDetailBody({ job, me }) {
     if (settled && idx === photoCount + 1) { el.scrollLeft = w; setActiveSlide(0); return; }
     setActiveSlide(((idx - 1) % photoCount + photoCount) % photoCount);
   };
+  const hasInsurance = Array.isArray(job.insuranceSnapshot?.items) && job.insuranceSnapshot.items.length > 0;
   return (
-    <div>
+    <div ref={rootRef}>
       {/* 写真ギャラリー（原寸＝詳細・審査プレビューと同じ扱い。カード用サムネにしない・2026-08-02規則） */}
       {(() => {
         const photos = job.photos.length > 0 ? job.photos : [job.icon, job.icon, job.icon];
@@ -114,6 +134,20 @@ export function JobDetailBody({ job, me }) {
         );
       })()}
       <div style={{ marginBottom:12 }} />
+
+      {/* 仕事の内容／保険／質問（2026-08-08たきと指示）＝求人詳細ページと同じタブ＋横スワイプ。
+          最初のタブでさらに右スワイプ＝面を戻る（onBack）＝1つの指の動きで両立させる */}
+      <ContentQSwipeArea value={tab} onChange={setTab} showInsurance={hasInsurance}
+        onEdgeSwipe={(d)=>{ if (d === "prev" && onBack) onBack(); }}>
+      <ContentQTabs value={tab} onChange={setTab} showInsurance={hasInsurance} />
+      {tab === "questions" ? (
+        /* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側that従来どおり） */
+        <JobQuestions jobNumber={job.id} me={me} />
+      ) : tab === "insurance" ? (
+        /* 保険（求人ページの保険タブと同じ規則・2026-08-02）：掲載時に凍結された insuranceSnapshot だけを見る。
+           プロフィール現在値へのフォールバック禁止。snapshotが無い＝レガシー求人はタブごと出さない */
+        <InsurancePanel employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }} />
+      ) : (<>
 
       {/* ヘッダー。番地の開示はDB側が正（jobs_publicのanonマスク）＝ログインしていれば届いた値が出る。
           バッジ（はじめてOK・経験者優遇・リピート即決）は貼らない（2026-08-07たきと指示
@@ -224,14 +258,7 @@ export function JobDetailBody({ job, me }) {
         ))}
       </div>
 
-      {/* 保険（求人ページの保険タブと同じ規則・2026-08-02）：掲載時に凍結された insuranceSnapshot だけを見る。
-          プロフィール現在値へのフォールバック禁止。snapshotが無い＝レガシー求人はセクションごと非表示 */}
-      {Array.isArray(job.insuranceSnapshot?.items) && job.insuranceSnapshot.items.length > 0 && (
-        <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>保険</p>
-          <InsurancePanel employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }} />
-        </div>
-      )}
+      {/* 保険は「保険」タブへ移動（2026-08-08）＝ここには置かない */}
 
       {/* 危険区域セクション（両方空なら見出しごと非表示） */}
       {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
@@ -278,10 +305,21 @@ export function JobDetailBody({ job, me }) {
         </div>
       )}
 
-      {/* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側that従来どおり） */}
-      <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20 }}>
-        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>質問</p>
-        <JobQuestions jobNumber={job.id} me={me} />
+      {/* 質問は「質問」タブへ移動（2026-08-08）＝ここには置かない */}
+      </>)}
+      </ContentQSwipeArea>
+
+      {/* 右下の「トップ」浮遊ボックス（2026-08-08たきと指示）：sticky＝面のスクロールに合わせて
+          右下に留まる（position:fixedは親のtransform（面の横スライド）で基準thatずれるため使わない）。
+          高さ0の帯にぶら下げる＝レイアウトの高さを増やさない */}
+      <div style={{ position:"sticky", bottom:16, height:0, zIndex:5 }}>
+        <button onClick={scrollToTop} aria-label="先頭に戻る" className="f-sans"
+          style={{ position:"absolute", right:0, bottom:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1,
+            width:56, height:56, borderRadius:16, background:"rgba(255,255,255,0.96)", border:"1px solid #EBEBEB",
+            boxShadow:"0 2px 10px rgba(0,0,0,0.12)", cursor:"pointer", color:"#222" }}>
+          <span style={{ fontSize:18, lineHeight:1 }}>↑</span>
+          <span style={{ fontSize:10, fontWeight:800 }}>トップ</span>
+        </button>
       </div>
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}

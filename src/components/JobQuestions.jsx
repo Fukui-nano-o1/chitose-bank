@@ -15,8 +15,13 @@ import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginRet
 //     preventDefault不可so、ネイティブリスナーを{passive:false}で張る）
 //   ④50px以上で切替成立→slideKey更新で新しいタブがスライドイン（cbSlideInR/L・今日ページと共用のCSS）
 // 中の横スクロール要素（写真カルーセル・その他の求人等）内で始まったタッチは従来どおり奪わない。
-// オーバーレイ（.cb-lock-scroll＝下からのシート等）内で始まったタッチも奪わない（今日ページと同じ守り）。
-export function ContentQSwipeArea({ value, onChange, showInsurance, children }) {
+// オーバーレイ（.cb-lock-scroll）が【この中に開いた】時（下からのシート等）も奪わない（今日ページと同じ守り）。
+//   ★2026-08-08訂正：自分thatオーバーレイの【中にいる】場合（ボックスの詳細面で使う時）は奪ってよい。
+//     旧実装は祖先に.cb-lock-scrollがあるだけで降りていたため、シート内ではタブ切替that死んでいた。
+// onEdgeSwipe（任意・2026-08-08）：端でさらにスワイプされた時の合図（"prev"/"next"）。
+//   ボックスの詳細面では "prev"（最初のタブでさらに右スワイプ）＝面を戻る、に使う
+//   ＝タブ切替と「戻る」that同じ横スワイプで両立する。
+export function ContentQSwipeArea({ value, onChange, showInsurance, children, onEdgeSwipe }) {
   const rootRef = useRef(null);
   const contentRef = useRef(null);
   const gestureRef = useRef(null); // { x, y, lock:'h'|'v'|null }
@@ -27,6 +32,7 @@ export function ContentQSwipeArea({ value, onChange, showInsurance, children }) 
   const keysRef = useRef(keys); keysRef.current = keys;
   const valueRef = useRef(value); valueRef.current = value;
   const onChangeRef = useRef(onChange); onChangeRef.current = onChange;
+  const onEdgeSwipeRef = useRef(onEdgeSwipe); onEdgeSwipeRef.current = onEdgeSwipe;
 
   useEffect(() => {
     const el = rootRef.current; if (!el) return;
@@ -46,7 +52,9 @@ export function ContentQSwipeArea({ value, onChange, showInsurance, children }) 
       return dx < 0 ? Math.min(ks.length - 1, idx + 1) : Math.max(0, idx - 1);
     };
     const onStart = (ev) => {
-      if (ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll")) { gestureRef.current = null; return; }
+      // オーバーレイthatこの中に開いている時だけ譲る（自分thatオーバーレイの中にいる時は奪ってよい・2026-08-08）
+      const ov = ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll");
+      if (ov && el.contains(ov)) { gestureRef.current = null; return; }
       if (inHScroll(ev.target)) { gestureRef.current = null; return; }
       const t = ev.touches[0]; if (t) gestureRef.current = { x: t.clientX, y: t.clientY, lock: null };
     };
@@ -81,6 +89,13 @@ export function ContentQSwipeArea({ value, onChange, showInsurance, children }) 
         onChangeRef.current(next);
         return;
       }
+      // 端でさらにスワイプ＝行き先が無い（2026-08-08）：合図を親へ。
+      // ボックスの詳細面では "prev"（最初のタブで右スワイプ）＝面を戻る、に使われる
+      if (Math.abs(dx) >= 50 && next === valueRef.current && onEdgeSwipeRef.current) {
+        if (c) { c.style.transition = "transform .2s ease"; c.style.transform = ""; }
+        onEdgeSwipeRef.current(dx > 0 ? "prev" : "next");
+        return;
+      }
       if (c) { c.style.transition = "transform .2s ease"; c.style.transform = ""; } // スナップバック
     };
     el.addEventListener("touchstart", onStart, { passive: true });
@@ -96,7 +111,8 @@ export function ContentQSwipeArea({ value, onChange, showInsurance, children }) 
   }, []);
 
   return (
-    <div ref={rootRef} style={{ touchAction:"pan-y" }}>
+    // cb-content-swipe＝親のシートthat「この中の横スワイプはタブ切替のもの」と判別する目印（2026-08-08）
+    <div ref={rootRef} className="cb-content-swipe" style={{ touchAction:"pan-y" }}>
       <div key={slideKey} ref={contentRef} style={{ animation: slideDir ? `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` : undefined }}>
         {children}
       </div>
