@@ -77,6 +77,14 @@ const PANES = [
   { k:"images", l:"画像軽量化" },
 ];
 
+// エラー面のステータス絞り込み（2026-08-08たきと指示「ステータス切り替えボタン設置しよう」＝
+// 応募者ページの絞り込みバーと同じ浮遊ピルの型）。グループ単位で絞る
+const ERR_FILTERS = [
+  { k:"all",   l:"すべて" },
+  { k:"open",  l:"未解決" },
+  { k:"fixed", l:"解決済み" },
+];
+
 export function AdminSystemRoom() {
   // ── 横スワイプ機構：ネイティブ横スクロール＝指に追従。snapで必ず1面に着地。タブタップでも移動
   const scrollRef = useRef(null);
@@ -126,6 +134,7 @@ export function AdminSystemRoom() {
   const [appErrors, setAppErrors] = useState(null);
   const [expandedSig, setExpandedSig] = useState(null);
   const [errBulkBusy, setErrBulkBusy] = useState("");
+  const [errFilter, setErrFilter] = useState("all");
   useEffect(() => {
     (async () => {
       try {
@@ -375,14 +384,23 @@ export function AdminSystemRoom() {
               <p className="f-sans" style={{ fontSize:14 }}>エラーは記録されていません</p>
             </div>
           ) : (() => {
-            const cats = groupAppErrors(appErrors);
+            const allCats = groupAppErrors(appErrors);
             const openTotal = appErrors.filter(x => x.status === "open").length;
-            const kindTotal = cats.reduce((s, c) => s + c.groups.length, 0);
+            const kindTotal = allCats.reduce((s, c) => s + c.groups.length, 0);
+            // ステータス絞り込み（グループ単位：未解決あり／全部解決済み）。集計行は全体の真実のまま
+            const cats = errFilter === "all" ? allCats
+              : allCats.map(c => ({ ...c, groups: c.groups.filter(g => errFilter === "open" ? g.openIds.length > 0 : g.openIds.length === 0) }))
+                  .filter(c => c.groups.length > 0);
             return (
               <div style={{ display:"grid", gap:20 }}>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>
                   未解決 <b style={{ color:"#222" }}>{openTotal}件</b>・{kindTotal}種類（直近{appErrors.length}件から集計）
                 </p>
+                {cats.length === 0 && (
+                  <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, padding:"32px 0" }}>
+                    {errFilter === "open" ? "未解決のエラーはありません" : "解決済みのエラーはありません"}
+                  </p>
+                )}
                 {cats.map(c => (
                   <div key={c.k}>
                     <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
@@ -451,6 +469,29 @@ export function AdminSystemRoom() {
 
       </div>
       </>
+      )}
+
+      {/* ── ステータス切り替えの浮遊ピルバー（エラー面のみ・応募者ページの絞り込みバーと同じ型）。
+            位置は下部バーの12px上＝浮遊☰と同じ規約（管理ページは下部バーを出す・2026-08-05） */}
+      {!focusPair && pageIdx === 0 && appErrors !== null && appErrors.length > 0 && (
+        <div className="f-sans" style={{
+          position:"fixed", left:"50%", transform:"translateX(-50%)",
+          bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:60,
+          background:"#fff", borderRadius:999, boxShadow:"0 4px 20px rgba(0,0,0,0.16)",
+          padding:"8px 10px", display:"flex", gap:8, maxWidth:"92vw",
+          overflowX:"auto", WebkitOverflowScrolling:"touch",
+        }}>
+          {ERR_FILTERS.map(f => (
+            <button key={f.k} type="button" onClick={() => setErrFilter(f.k)}
+              style={{
+                padding:"10px 20px", borderRadius:999, whiteSpace:"nowrap", cursor:"pointer",
+                background:"#fff",
+                border: errFilter === f.k ? "2px solid #222" : "1px solid #DDD",
+                fontSize:14, fontWeight: errFilter === f.k ? 800 : 600,
+                color: errFilter === f.k ? "#222" : "#999",
+              }}>{f.l}</button>
+          ))}
+        </div>
       )}
     </div>
   );
