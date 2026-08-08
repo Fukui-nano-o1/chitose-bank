@@ -752,6 +752,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   }, [step, isFarmer]); // eslint-disable-line react-hooks/exhaustive-deps
   // 農家プロの作業場所が未入力のとき：⎘タップでこの入力ボックスを展開し、保存で「農家プロ＋求人フロー」両方へ反映（2026-07-16）
   const [placeBoxOpen, setPlaceBoxOpen] = useState(false);
+  // 集合場所の説明の一本化（2026-08-08たきと指示「各説明が散乱して読まない。1箇所に・〇〇とは？形式で」）：
+  // 欄ごとに散らばっていた注記（自動入力・町域まで公開・番地は会員のみ・プライバシー）を
+  // 「集合場所の公開範囲とは？」のタップ展開1つに集約。UI一時state・保存しない
+  const [placeInfoOpen, setPlaceInfoOpen] = useState(false);
   const [pbZip, setPbZip] = useState("");
   const [pbPref, setPbPref] = useState("");
   const [pbCity, setPbCity] = useState("");
@@ -1370,9 +1374,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 }
               }} aria-label="作業場所を復元" className="f-sans" style={{ position:"absolute", top:0, right:0, zIndex:1, width:36, height:36, borderRadius:"50%", border:"none", background:"#00A86B", fontSize:16, fontWeight:700, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}>⎘</button>
             </div>
-            {/* 開示説明の更新（2026-08-03たきと指示）：番地・建物名は会員（ログイン済み）にのみ求人ページで表示。
-                未ログインの訪問者には町域まで（jobs_public.work_addressのanonマスクが正） */}
-            <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。番地・建物名は、ログインした利用者にのみ求人ページに表示されます（未ログインの訪問者には表示されません）。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。</p>
+            {/* 説明の一本化（2026-08-08たきと指示）：欄ごとに散らばっていた注記（自動入力・町域まで公開・
+                番地は会員のみ・プライバシー）をこの1箇所に集約。「はじめてOKとは？」と同じ〜とは？形式。
+                開示の実態はDBが正（jobs_public：町域・番地はanonマスク・2026-08-03） */}
+            <button type="button" onClick={() => setPlaceInfoOpen(v => !v)} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 8px", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>集合場所の公開範囲とは？</button>
+            {placeInfoOpen && (
+              <div className="f-sans" style={{ fontSize:13, color:"#0B6B4F", background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:8, padding:"10px 12px", margin:"0 0 12px", lineHeight:1.8 }}>
+                <p style={{ margin:0 }}>・郵便番号を入れると、都道府県・市区町村は自動で入ります。違っているときは郵便番号を直してください</p>
+                <p style={{ margin:0 }}>・町域までの住所は、求人ページで誰でも見られます</p>
+                <p style={{ margin:0 }}>・番地・建物名は、ログインした利用者にだけ表示されます（未ログインの訪問者には伏せ字になります）</p>
+                <p style={{ margin:0 }}>・最寄り駅からの移動時間は任意です。書くと働き手が通えるか判断しやすくなります</p>
+                <p style={{ margin:0 }}>・本名・電話番号がこのページから公開されることはありません。詳細情報の無断共有は禁止です</p>
+              </div>
+            )}
 
             <LFWizCard>
               <div>
@@ -1419,9 +1434,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   className="field f-sans"
                   style={{ fontSize:16, marginBottom:12, background:"#F7F7F7", color:"#717171", cursor:"not-allowed" }}
                 />
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:4 }}>
-                  郵便番号から自動で入力されます。誤りがある場合は郵便番号を修正してください
-                </p>
                 <label className="f-sans" style={lfStyles.inputLabel}>町域</label>
                 <input
                   ref={townRef}
@@ -1432,7 +1444,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   className="field f-sans"
                   style={{ fontSize:16, marginBottom:12 }}
                 />
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:-6, marginBottom:12 }}>この項目は求人票に公開されます</p>
                 <label className="f-sans" style={lfStyles.inputLabel}>番地・建物名</label>
                 <input
                   ref={addrRef}
@@ -1446,9 +1457,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   className="field f-sans"
                   style={{ fontSize:16 }}
                 />
-                {/* 開示の実態に合わせて更新（2026-08-03）：番地は求人ページに出る（ログインした利用者にのみ）。
-                    旧文言「求人票には公開されません」は現在の動きと食い違うため差し替え */}
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:6 }}>番地・建物名は、ログインした利用者にのみ求人ページに表示されます（未ログインの訪問者には伏せられます）。</p>
                 {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerTown.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:14, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
                 {prefNotAllowed && (
                   <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:4 }}>
@@ -1473,8 +1481,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 </div>
               </div>
             </LFWizCard>
-
-            <LFPrivacyNote />
+            {/* LFPrivacyNote は削除（2026-08-08）：内容は上の「集合場所の公開範囲とは？」に統合 */}
           </>)}
 
                     {/* ── 農家 Step3: 詳細入力 ── */}
