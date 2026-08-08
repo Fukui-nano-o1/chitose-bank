@@ -11,7 +11,12 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  /* ★light固定（2026-08-03たきと報告「リロードやサイトに入った時、画面が真っ黒」の根治）：
+     ここが light dark だったため、端末がダークモードだと下の@media（Vite雛形の残骸）が効いて
+     背景が #16171d（ほぼ黒）になっていた。このCSSはheadで読まれ最初の描画から効くのに対し、
+     白を敷く appStyles は React が動いてから注入されるため、JSが動くまでずっと黒画面だった。
+     アプリは白基調の1テーマ設計（appStylesもhtml/bodyに#fffを敷く）＝ダーク対応は持たない */
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -24,15 +29,9 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-  }
-}
+/* ダークモードの上書き（Vite雛形の残骸）は削除（2026-08-03）。
+   背景を黒にしていたほか、--text/--text-h も明るい灰に変えていたため、
+   白背景のアプリでダークモードの端末だけ文字が薄くなる潜在バグでもあった */
 
 body {
   margin: 0;

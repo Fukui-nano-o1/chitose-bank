@@ -26,10 +26,41 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" />
+    <!-- 起動スケルトン（2026-08-03たきと報告「リロードやサイトに入った時、画面が真っ黒のまま」の根治・第2層）：
+         この<style>と直後の#cb-bootは【HTMLに直接書く】ことに意味がある。JSもCSSファイルも待たずに
+         最初の描画から効くため、JSの読み込み〜Reactのマウントまでの空白（＝黒画面だった区間）が
+         白いページの骨に変わる。Reactが立ち上がる瞬間に main.jsx が #cb-boot を外して本体に引き継ぐ。
+         ★色・寸法はアプリの実物に合わせる（ヘッダ64px／下部バー64px／本文は角丸14の帯）＝
+         骨から本体への切り替わりが飛ばない -->
+    <style>
+      html { background: #fff; color-scheme: light; }
+      body { margin: 0; background: #fff; }
+      #cb-boot { position: fixed; inset: 0; background: #fff; z-index: 1; }
+      #cb-boot .cb-boot-head { height: 64px; border-bottom: 1px solid #F0F0F0; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box; }
+      #cb-boot .cb-boot-body { padding: 16px; display: grid; gap: 10px; }
+      #cb-boot .cb-boot-foot { position: fixed; left: 0; right: 0; bottom: 0; height: calc(64px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid #F0F0F0; background: #fff; display: flex; align-items: center; justify-content: space-around; padding: 0 16px env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
+      #cb-boot i { display: block; border-radius: 14px; background: linear-gradient(90deg, #F2F2F2 25%, #E9E9E9 37%, #F2F2F2 63%); background-size: 400% 100%; animation: cbBootShim 1.4s ease infinite; }
+      @keyframes cbBootShim { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+    </style>
     <title>chitose-bank</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="cb-boot" aria-busy="true" aria-label="読み込み中">
+        <div class="cb-boot-head"><i style="width:120px;height:22px;border-radius:6px"></i></div>
+        <div class="cb-boot-body">
+          <i style="height:44px;border-radius:22px"></i>
+          <i style="height:190px"></i>
+          <i style="height:190px"></i>
+          <i style="height:190px"></i>
+        </div>
+        <div class="cb-boot-foot">
+          <i style="width:34px;height:34px;border-radius:10px"></i>
+          <i style="width:34px;height:34px;border-radius:10px"></i>
+          <i style="width:34px;height:34px;border-radius:10px"></i>
+        </div>
+      </div>
+    </div>
     <!-- 真っ白画面の自己修復（2026-07-29）：新デプロイでファイル名（ハッシュ）が変わるため、
          古いindex.htmlを握ったままの端末は存在しないJSを404で取りに行き、何も描画されないまま止まる。
          この場合アプリのJSが1行も動かないので、アプリ内のエラー捕捉も自己修復も働かない。

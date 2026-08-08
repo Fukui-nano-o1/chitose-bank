@@ -2252,10 +2252,32 @@ export default function App(){
   },[destPend,savDP]);
 
 
+  // 起動中（セッション復元が返るまで）の骨（2026-08-03たきと指摘「スケルトンとか設計したのが無意味だ」）：
+  // 以前はここが中央に「読み込み中」の1行だけで、各ページのスケルトンは一切見えなかった
+  //（スナップショットが無い＝訪問者・初回ログイン端末は必ずここを通る）。
+  // index.html の #cb-boot と【同じ形】にして、HTML→Reactの引き継ぎで見た目が飛ばないようにする。
+  // ★<style>{CSS}</style>をここでも注入する：本体の返り値の中にしか無かったため、この画面では
+  //   アプリのCSS（ghost-lineのシマー等）が未適用だった
   if(!loaded)return(
-    <div style={{minHeight:"100vh",background:C.deep,display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <p className="f-sans pulse-slow" style={{color:C.dim,fontSize:12,letterSpacing:".1em"}}>読み込み中</p>
-    </div>
+    <>
+      <style>{CSS}</style>
+      <div style={{position:"fixed",inset:0,background:"#fff"}} aria-busy="true" aria-label="読み込み中">
+        <div style={{height:64,borderBottom:"1px solid #F0F0F0",display:"flex",alignItems:"center",padding:"0 16px",boxSizing:"border-box"}}>
+          <div className="ghost-line" style={{width:120,height:22,borderRadius:6}} />
+        </div>
+        <div style={{padding:16,display:"grid",gap:10}}>
+          <div className="ghost-line" style={{height:44,borderRadius:22}} />
+          <div className="ghost-line" style={{height:190,borderRadius:14}} />
+          <div className="ghost-line" style={{height:190,borderRadius:14}} />
+          <div className="ghost-line" style={{height:190,borderRadius:14}} />
+        </div>
+        <div style={{position:"fixed",left:0,right:0,bottom:0,height:"calc(64px + env(safe-area-inset-bottom, 0px))",borderTop:"1px solid #F0F0F0",background:"#fff",display:"flex",alignItems:"center",justifyContent:"space-around",padding:"0 16px env(safe-area-inset-bottom, 0px)",boxSizing:"border-box"}}>
+          <div className="ghost-line" style={{width:34,height:34,borderRadius:10}} />
+          <div className="ghost-line" style={{width:34,height:34,borderRadius:10}} />
+          <div className="ghost-line" style={{width:34,height:34,borderRadius:10}} />
+        </div>
+      </div>
+    </>
   );
 
   // 停止／追放されたアカウントの制限画面（2026-07-19）：ログイン封鎖が効くまでの猶予も含めここで止める
