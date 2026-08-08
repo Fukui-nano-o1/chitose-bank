@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -254,17 +254,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 未設定の項目数（編集ページの7ボックス基準・従業員数は削除済み2026-08-01）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
   // 核（アイコン・農園名・作業場所）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（紹介PR→作業場所に差替・2026-07-16）
-  const empUnsetReq = empMini ? [
-    !!empMini.avatar_url,
-    !!(empMini.nickname || "").trim(),
-    !!(empMini.place_city || "").trim(),
-  ].filter(x => !x).length : 3;
-  const empUnsetCount = empMini ? empUnsetReq + [
-    !!(empMini.has_transport || empMini.has_parking || empMini.has_commute_allowance || empMini.has_bonus || empMini.employer_pays_supplies || empMini.accessory_ok),
-    [empMini.intro_path, empMini.intro_joy, empMini.intro_crops, empMini.intro_atmosphere, empMini.intro_message, empMini.owner_comment].some(t => t && String(t).trim()),
-    [empMini.unique_point, empMini.always_do, empMini.break_style].some(t => t && String(t).trim()),
-    !!empMini.interaction_style,
-  ].filter(x => !x).length : 7;
+  // 数え方はlib/utilsのemployerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）
+  const { req: empUnsetReq, total: empUnsetCount } = employerUnsetCount(empMini);
   // 自由記述の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中（差し戻し済み）=赤帯（修正のためタップは可能）
   const empHasPending = !!(empMini && empMini.texts_pending && Object.keys(empMini.texts_pending).length > 0);
   const empReview = empHasPending ? "pending" : (empMini?.texts_revision_requested_at ? "revision" : null);

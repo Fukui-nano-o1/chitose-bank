@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb,
-  appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../lib/utils";
+  appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES,
+  workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS } from "../lib/utils";
 import { openPhaseInfo } from "../lib/previewBus";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
 import { fbSuccess, fbError } from "../lib/feedback";
@@ -565,6 +566,8 @@ export function TodayPage({ me, defaultRole }) {
   const [todos, setTodos] = useState(() => getCache("today:todos") ?? []);     // やることフィード（my_todo_items・状態カードの単一ソース）
   // jobCount（自分が出した求人の数）のstateは廃止（2026-08-03）：カレンダー箱のタップ可否判定が
   // 唯一の読み手だったが、タップ不能を全廃したため不要になった。求人の有無は下の f（農家か）の算出で今も使う
+  // プロフィールの未入力数（役割ごと）。未入力がある間だけ「プロフィールの未入力」ボックスが現れる（2026-08-03たきと指示）
+  const [profileUnset, setProfileUnset] = useState(() => getCache("today:unset") ?? null);
   const [hiredIds, setHiredIds] = useState(() => new Set(getCache("today:hired") ?? [])); // 採用済み（両者の確認が揃った）自分の応募ID
   // 画面の状態→キャッシュの写し（2026-07-27）。やることは片付けると手元のstateだけから消えるため、
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
@@ -604,9 +607,11 @@ export function TodayPage({ me, defaultRole }) {
         const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: apps }, { data: facts }, { data: corr }] = await Promise.all([
           supabase.rpc("get_my_calendar_jobs"),
           supabase.rpc("my_todo_items"),
-          supabase.from("worker_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
+          // 役割の判定に加えて、プロフィールの未入力を数えるための列も一緒に取る（往復は増やさない・2026-08-03）。
+          // 列は lib/utils の *_UNSET_COLUMNS が唯一のソース＝数え方と列リストが枝分かれしない
+          supabase.from("worker_profiles").select("auth_id," + WORKER_UNSET_COLUMNS).eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
-          supabase.from("employer_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
+          supabase.from("employer_profiles").select("auth_id," + EMPLOYER_UNSET_COLUMNS).eq("auth_id", session.user.id).maybeSingle(),
           // 採用の判定に要る時刻。採用してもstatusは'approved'のままなので（contractedは表示用の値で
           // DBには書かれない・CLAUDE.md）、両者の確認時刻で見るしかない。get_my_calendar_jobsは
           // この2列を返さないため、自分の応募から直に引く（当事者RLSの内側・2026-07-27）
@@ -634,6 +639,10 @@ export function TodayPage({ me, defaultRole }) {
         const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
         setHasWorker(w); setHasFarmer(f);
         setCache("today:roles", { w, f });
+        // プロフィールの未入力数（2026-08-03たきと指示）。埋まれば0＝ボックスが消え、
+        // 後で空にすればまた1以上になって現れる＝状態を持たず毎回いまの行から数える
+        const unset = { w: workerUnsetCount(wp).total, f: employerUnsetCount(ep).total };
+        setProfileUnset(unset); setCache("today:unset", unset);
         const hired = (apps || [])
           .filter(a => a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at
                     && !["rejected","expired","completed"].includes(a.status))
@@ -783,6 +792,13 @@ export function TodayPage({ me, defaultRole }) {
   // ── やること（採配台）：状態カード。①②⑧=遷移／③〜⑦=直接実行（保険・開始確認はインライン、日程決定・完了/評価は既存モーダルへ橋渡し） ──
   const removeTodo = (id, st) => setTodos(prev => prev.filter(t => !(t.application_id === id && t.stage === st)));
   const TODO_META = {
+    // プロフィールの未入力（2026-08-03たきと指示）：未入力がある間だけ、やることの先頭に現れる。
+    // 埋まれば消える／後で空にすればまた現れる（状態を持たず、毎回いまのプロフィール行から数える）。
+    // 行き先は編集ページ＝専用ページを挟まない（用件の一覧ではなく自分の入力そのものが行き先so・boxNav）。
+    // バッジ＝未入力の項目数＝プロフィール入口の名刺バッジと同じ数（数え方はlib/utilsが唯一のソース）
+    profile:     { icon:"👤", title:"プロフィールの未入力", btn:"入力する →",
+                   desc:"農家はあなたのプロフィールを見て、応募を承認するか決めます。埋まっているほど選ばれやすくなります。",
+                   boxNav: () => role === "farmer" ? "/profile/employer/profile" : "/profile/worker/profile" },
     // カレンダー（2026-07-27たきと指示：確認カードをカレンダーに差し替え・統合）：
     // 応募（予定）が1件でもあれば件数0でも常にタップ可＝月カレンダーへ直行。バッジ＝きょうが作業日の仕事の数。
     // 現場情報の確認はカレンダーの日タップ→求人ページで担う（確認カードの役割を吸収）
@@ -903,9 +919,10 @@ export function TodayPage({ me, defaultRole }) {
       else if (m.rpc === "confirm_start") setCelebrate({ emoji:"🌅", title:"作業が始まりました" });
     }
   };
-  const TodoStageBox = ({ stage, items }) => {
+  // count＝バッジの数の上書き（一覧を持たない箱＝プロフィールの未入力数。省略時は対象件数）
+  const TodoStageBox = ({ stage, items, count }) => {
     const m = TODO_META[stage]; if (!m) return null;
-    const n = items.length;
+    const n = count ?? items.length;
     // 各ボックス＝専用ページ(#/calendar/todo/{stage})へのリンクに統一（2026-08-02たきと指示
     // 「各ボックスの遷移先を新設。リンクも新設」）。1件直行・direct直行は廃止＝
     // 実行・個別遷移は専用ページの行が担う。カレンダー（always）だけはカレンダー面へ直行（専用ページを挟まない）。
@@ -917,6 +934,7 @@ export function TodayPage({ me, defaultRole }) {
     const calendarReady = entries.some(e => e.my_role === role) || mine.length > 0;
     const dim = n === 0;
     const onTapBox = () => {
+      if (m.boxNav) { window.location.hash = m.boxNav(); return; }   // 専用ページを挟まず直接その面へ（プロフィールの未入力）
       if (m.always && calendarReady) { window.location.hash = m.nav(); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
@@ -1087,6 +1105,11 @@ export function TodayPage({ me, defaultRole }) {
           // いま これだけ（2026-08-06）：正規フロー順（catalog順）で最初に該当がある用件。
           // 昇格した用件は下の格子から抜く（複製でなく移動＝「上に動いた」が一目で分かる。同日たきと指示）
           const nowStage = catalog.filter(st => !st.startsWith("t_")).find(st => (byStage.get(st) || []).length > 0) || null;
+          // プロフィールの未入力（2026-08-03たきと指示）：未入力がある間だけ格子の先頭に差し込む。
+          // カタログには入れない＝埋まれば箱ごと消える（薄表示で残さない）。読み込み前(null)は出さない。
+          // 「いま これだけ」はcatalogから選ぶのでprofileは昇格しない＝格子の先頭に置く（二重表示にならない）
+          const unsetN = profileUnset ? (role === "farmer" ? profileUnset.f : profileUnset.w) : 0;
+          if (unsetN > 0) stageOrder.unshift("profile");
           return (
             <div style={{ marginBottom:24 }}>
               {/* 件数は打刻修正の承認ぶんも足す＝ナビのバッジ(todo)と一致させる（my_nav_badgesも同じ加算） */}
@@ -1138,7 +1161,7 @@ export function TodayPage({ me, defaultRole }) {
                 </div>
               )}
               <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
-                {stageOrder.filter(st => st !== nowStage).map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} />)}
+                {stageOrder.filter(st => st !== nowStage).map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} count={st === "profile" ? unsetN : undefined} />)}
               </div>
             </div>
           );

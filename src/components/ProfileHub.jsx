@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
-import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems } from "../lib/utils";
+import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
 import { Avatar, QaChat } from "./ui";
 import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
@@ -201,20 +201,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   }, [wTab]);
   // 働き手プロフィールの未設定項目数（編集ページの10ボックスに対応。トップボックス右上のバッジ＋赤影に使用）
   // 核（アイコン・ニックネーム・自己紹介）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（2026-07-16）
-  const wUnsetReq = wMini ? [
-    !!wMini.avatar_url,
-    !!(wMini.nickname || "").trim(),
-    !!((wMini.pr_pending ?? wMini.pr) || "").trim(),
-  ].filter(x => !x).length : 3;
-  const wUnsetCount = wMini ? wUnsetReq + [
-    !!(wMini.residence_city || "").trim(),
-    !!wMini.transport,
-    !!wMini.farm_experience,
-    !!wMini.physical_level,
-    Array.isArray(wMini.interests) && wMini.interests.length > 0,
-    Array.isArray(wMini.languages) && wMini.languages.length > 0,
-    (Array.isArray(wMini.pr_qa_pending) ? wMini.pr_qa_pending.length : (Array.isArray(wMini.pr_qa) ? wMini.pr_qa.length : 0)) > 0,
-  ].filter(x => !x).length : 10;
+  // 数え方はlib/utilsのworkerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）
+  const { req: wUnsetReq, total: wUnsetCount } = workerUnsetCount(wMini);
   // 自己紹介の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中=赤帯（修正のためタップは可能）
   const wHasPending = !!(wMini && (((wMini.pr_pending || "").trim()) || (Array.isArray(wMini.pr_qa_pending) && wMini.pr_qa_pending.length > 0)));
   const wReview = wHasPending ? (wMini.pr_submitted_at ? "pending" : "revision") : null;

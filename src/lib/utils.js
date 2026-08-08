@@ -762,3 +762,49 @@ export function splitTextsForReview(desired, approved) {
   });
   return { pending, cleared };
 }
+
+// ── プロフィールの未設定項目数（2026-08-03・唯一のソース）──────────────────────
+// 「まだ入力されていない項目」の数え方を1箇所に集約する。読み手は3つ：
+//   ①プロフィール入口の名刺バッジ・赤影（ProfileHub／FarmerDashboard）
+//   ②今日ページの「プロフィールの未入力」ボックス（未入力がある間だけ現れ、埋まると消える）
+// 数え方が枝分かれすると「今日ページには出るのに名刺は0件」のような食い違いが起きるため、
+// 項目を足す時は必ずここだけを直すこと（編集ページのボックス構成と対応させる）。
+// 返り値 { req: 核（アイコン・名前・場所/自己紹介）の未設定数, total: 全体の未設定数 }。
+// 行そのものが無い（プロフィール未作成）＝全項目が未設定として数える。
+export function workerUnsetCount(w) {
+  if (!w) return { req: 3, total: 10 };     // 編集ページの10ボックス基準
+  const req = [
+    !!w.avatar_url,
+    !!(w.nickname || "").trim(),
+    !!((w.pr_pending ?? w.pr) || "").trim(),
+  ].filter(x => !x).length;
+  const opt = [
+    !!(w.residence_city || "").trim(),
+    !!w.transport,
+    !!w.farm_experience,
+    !!w.physical_level,
+    Array.isArray(w.interests) && w.interests.length > 0,
+    Array.isArray(w.languages) && w.languages.length > 0,
+    (Array.isArray(w.pr_qa_pending) ? w.pr_qa_pending.length : (Array.isArray(w.pr_qa) ? w.pr_qa.length : 0)) > 0,
+  ].filter(x => !x).length;
+  return { req, total: req + opt };
+}
+export function employerUnsetCount(e) {
+  if (!e) return { req: 3, total: 7 };      // 編集ページの7ボックス基準（従業員数は2026-08-01に削除）
+  const req = [
+    !!e.avatar_url,
+    !!(e.nickname || "").trim(),
+    !!(e.place_city || "").trim(),
+  ].filter(x => !x).length;
+  const opt = [
+    !!(e.has_transport || e.has_parking || e.has_commute_allowance || e.has_bonus || e.employer_pays_supplies || e.accessory_ok),
+    [e.intro_path, e.intro_joy, e.intro_crops, e.intro_atmosphere, e.intro_message, e.owner_comment].some(t => t && String(t).trim()),
+    [e.unique_point, e.always_do, e.break_style].some(t => t && String(t).trim()),
+    !!e.interaction_style,
+  ].filter(x => !x).length;
+  return { req, total: req + opt };
+}
+// 上の判定に必要な列だけ（今日ページはプロフィール全列を読まない＝転送量を増やさない）。
+// ★項目を足したら、上の関数と一緒にこの列リストも直すこと
+export const WORKER_UNSET_COLUMNS = "avatar_url,nickname,pr,pr_pending,residence_city,transport,farm_experience,physical_level,interests,languages,pr_qa,pr_qa_pending";
+export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,place_city,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style";
