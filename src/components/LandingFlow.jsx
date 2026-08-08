@@ -282,15 +282,9 @@ function LFWageNote() {
     </div>
   );
 }
-function LFPrivacyNote() {
-  return (
-    <div style={{ padding:"8px 12px", background:"#F7F7F7", borderRadius:8, marginTop:8, marginBottom:8 }}>
-      <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", lineHeight:1.7 }}>
-        本名・電話番号・詳細住所は初期表示しません。詳細情報の無断共有は禁止です。
-      </p>
-    </div>
-  );
-}
+// LFPrivacyNote（本名・電話番号・詳細住所は初期表示しません…）は全廃（2026-08-08たきと指示
+// 「削除。何度も警告しているよね？」）：同じ警告が複数ページで繰り返されていた。
+// 公開範囲の事実の説明は step3「集合場所の公開範囲とは？」に一本化済み
 function LFWageCompare({ type, value, avg, count }) {
   if (!value || value <= 0) return null;
   const median = Math.round(avg * 0.97);
@@ -1385,7 +1379,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 <p style={{ margin:0 }}>・町域までの住所は、求人ページで誰でも見られます</p>
                 <p style={{ margin:0 }}>・番地・建物名は、ログインした利用者にだけ表示されます（未ログインの訪問者には伏せ字になります）</p>
                 <p style={{ margin:0 }}>・最寄り駅からの移動時間は任意です。書くと働き手が通えるか判断しやすくなります</p>
-                <p style={{ margin:0 }}>・本名・電話番号がこのページから公開されることはありません。詳細情報の無断共有は禁止です</p>
+                <p style={{ margin:0 }}>・本名・電話番号がこのページから公開されることはありません</p>
               </div>
             )}
 
@@ -1568,7 +1562,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 </div>
               </div>
             ))}
-            <LFPrivacyNote />
           </>)}
 
           {/* ── 農家 step5: 採用人数（骨格・中身は段階Bで移植） ── */}
@@ -2665,7 +2658,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 <LFPillSelect options={["トマト","キュウリ","イチゴ","米","なんでも"]} value={workerCrop} onSelect={setWorkerCrop} />
               </div>
             </LFWizCard>
-            <LFPrivacyNote />
           </>)}
 
           {isWorker && step === 4 && (<>
@@ -2708,7 +2700,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               <LFSummaryRow label="作業"     value={workerWork || "未設定"} />
               <LFSummaryRow label="目的"     value={workerPurpose==="open" ? "働ける日を公開" : "募集を探す"} />
             </LFWizCard>
-            <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", lineHeight:1.7 }}>※ 本名・電話番号・詳細住所は表示されません。詳細情報の無断共有は禁止です。</p>
           </>)}
 
           {isWorker && step === 6 && workerPurpose === "open" && (<>
