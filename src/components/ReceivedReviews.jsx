@@ -23,11 +23,11 @@ const BADGE_DEFS = {
   ],
 };
 
-// hideEmpty=空状態の案内文をこの部品からは出さない／onEmptyChange=空かどうかを親へ通知。
-// 働き手プレビューは案内文を親（WorkerPreviewSheet）が画面中央に固定し、スワイプに連動させて描く
-// （2026-08-07たきと指示「中央固定・スワイプにも連動・記録と重ならない」）ため、この2propで
-// 「表示は親・空の判定はこの部品」に分担する。雇い手プレビューは従来どおりインライン表示（prop未指定）
-export function ReceivedReviews({ userId, direction, hideEmpty, onEmptyChange }) {
+// 空（まだ公開できる評価が無い）の時は【何も描かない】（2026-08-08たきと指示「削除」）。
+// 以前は「お互いの評価が揃うか、完了から3日で表示されます。」の案内を出していたが、
+// プロフィールプレビューの最下部に常時出るため撤去した。公開判定の仕組み自体は不変（DB側）。
+// ★hideEmpty/onEmptyChange の2propも役目を終えたので廃止（親が中央固定で描いていた層ごと削除）
+export function ReceivedReviews({ userId, direction }) {
   const [data, setData] = useState(null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
   useEffect(() => {
     let cancelled = false;
@@ -46,9 +46,6 @@ export function ReceivedReviews({ userId, direction, hideEmpty, onEmptyChange })
   const shown = defs.filter(d => (badges[d.k] || 0) > 0);
   const comments = Array.isArray(data && data.comments) ? data.comments : [];
   const isEmpty = data !== null && shown.length === 0 && comments.length === 0;
-
-  // 空かどうかを親へ通知（読み込み中は false＝案内を出さない）。setStateを渡す前提so識別子は安定
-  useEffect(() => { onEmptyChange?.(isEmpty); }, [isEmpty, onEmptyChange]);
   // 働き手宛＝農家からの評価＝緑／農家宛＝働き手からの評価＝橙（役割色の規約2026-07-22）
   const AC = direction === "farmer_to_worker" ? "#00A86B" : "#F76B1C";
 
@@ -57,13 +54,7 @@ export function ReceivedReviews({ userId, direction, hideEmpty, onEmptyChange })
       {/* 見出し「🌟 受け取った評価」は削除（2026-08-07たきと指示・タブ名「評価」が見出しを兼ねる） */}
       {data === null ? (
         <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>読み込み中…</p>
-      ) : isEmpty ? (
-        hideEmpty ? null : (
-          <p className="f-sans" style={{ fontSize: 12, color: "#999", lineHeight: 1.7 }}>
-            お互いの評価が揃うか、完了から3日で表示されます。
-          </p>
-        )
-      ) : (
+      ) : isEmpty ? null : (
         <>
           {shown.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: comments.length > 0 ? 12 : 0 }}>

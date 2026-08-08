@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
-import { createPortal } from "react-dom";
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon, workerQaItems } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
@@ -431,8 +430,6 @@ function WorkerPreviewSheet() {
   const [st, setSt] = useState(null); // {worker_id, loading, profile, trust, viewer_id}
   // 通報モーダル：{ source:"profile"|"work_record", field, issue, detail, sending, done }
   const [rep, setRep] = useState(null);
-  // 評価面が空か（ReceivedReviewsが判定して通知）。空の案内文は親のここが画面中央に固定して描く
-  const [reviewsEmpty, setReviewsEmpty] = useState(false);
   // ボックスは2枚（0=プロフィール／1=はたらいた記録）。横スワイプで行き来する（2026-08-05たきと指示）
   const [page, setPage] = useState(0);
   useEffect(() => {
@@ -440,7 +437,6 @@ function WorkerPreviewSheet() {
       const workerId = e.detail;
       if (!workerId) return;
       setPage(0); // 開くたびに1枚目から
-      setReviewsEmpty(false); // 前の人の空判定を持ち越さない
       // 段階表示（2026-08-07たきと報告「展開が10秒。優先順位つけて表示させて」）：
       // 従来はプロフィール＋実績RPCの両方が返るまで「読み込み中」＝遅い方（実績のコールドスパイク）が
       // 全体を人質にしていた。3段に分離：
@@ -516,8 +512,6 @@ function WorkerPreviewSheet() {
   const pvStep = 100 / PV_PAGES; // トラック幅に対する1ページ分の割合
   const trackRef = useRef(null);
   const dragRef = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
-  // 評価面の空の案内文（画面中央固定）のスライド層。評価パネルと同じ量だけ横に動かす＝スワイプに指連動
-  const msgSlideRef = useRef(null);
   const basePct = () => -page * pvStep;
   const onPagerStart = (e) => {
     dragRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
@@ -535,9 +529,6 @@ function WorkerPreviewSheet() {
     s.dx = atEdge ? dx / 3 : dx;
     el.style.transition = "none";
     el.style.transform = `translateX(calc(${basePct()}% + ${s.dx}px))`;
-    // 空の案内文も評価パネルと同量だけ動かす（(2-page)*100%＝評価面が表の時0%＝画面中央）
-    const m = msgSlideRef.current;
-    if (m) { m.style.transition = "none"; m.style.transform = `translateX(calc(${(2 - page) * 100}% + ${s.dx}px))`; }
   };
   const onPagerEnd = () => {
     const s = dragRef.current, el = trackRef.current;
@@ -549,8 +540,6 @@ function WorkerPreviewSheet() {
     if (s.dx < -threshold && page < PV_PAGES - 1) next = page + 1;
     else if (s.dx > threshold && page > 0) next = page - 1;
     el.style.transform = `translateX(${-next * pvStep}%)`;
-    const m = msgSlideRef.current;
-    if (m) { m.style.transition = "transform .3s ease"; m.style.transform = `translateX(${(2 - next) * 100}%)`; }
     if (next !== page) setPage(next);
   };
 
@@ -592,9 +581,9 @@ function WorkerPreviewSheet() {
                   {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
                 </div>
                 {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定）。
-                    空状態の案内文はこの部品からは出さず（hideEmpty）、下のポータルが画面中央に固定して描く */}
+                    公開できる評価がまだ無い時は何も描かない（2026-08-08たきと指示で案内文を撤去） */}
                 <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
-                  <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" hideEmpty onEmptyChange={setReviewsEmpty} />
+                  <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
                 </div>
               </div>
             </div>
@@ -610,19 +599,8 @@ function WorkerPreviewSheet() {
         )}
       </div>
 
-      {/* 評価面の空の案内文：画面のど真ん中に固定（スクロールしても動かない）しつつ、評価パネルと
-          同じ量だけ横に動く（スワイプに指連動・記録面と重ならない）。スワイプトラックのtransform内では
-          position:fixedが画面基準にならないためcreatePortalでbody直下へ。外枠＝プレビューボックスの
-          内寸と同じ幅で overflow:hidden＝ボックスの外にはみ出た分は見えない。pointerEvents:none */}
-      {!st.loading && st.profile && reviewsEmpty && createPortal(
-        <div style={{ position:"fixed", top:0, left:"50%", transform:"translateX(-50%)", width:"min(352px, calc(100vw - 80px))", height:"100%", overflow:"hidden", pointerEvents:"none", zIndex:9750 }}>
-          <div ref={msgSlideRef} style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", transform:`translateX(${(2 - page) * 100}%)`, transition:"transform .3s ease" }}>
-            <p className="f-sans" style={{ width:"min(80vw, 300px)", textAlign:"center", fontSize:12, color:"#999", lineHeight:1.7, margin:0 }}>
-              お互いの評価が揃うか、完了から3日で表示されます。
-            </p>
-          </div>
-        </div>, document.body
-      )}
+      {/* 評価が空のときの案内文は撤去（2026-08-08たきと指示「削除」）。
+          中央固定のポータル層・スワイプ連動（msgSlideRef）も、この案内のためだけの仕掛けso一緒に削除した */}
 
       {/* 通報モーダル：求人の通報（JobSearchMapView）と同じ視覚文法・語彙。2枚のボタンの共通の行き先 */}
       {rep && (
