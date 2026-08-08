@@ -284,7 +284,8 @@ export function SavedJobsView({ me }) {
   // 見送り・失効のアイコンは「その時の状態」で出す（2026-07-27たきと指示）。どちらも応募中から進まずに
   // 終わった応募なので、アイコンは応募中のまま。終わった事実はカード全体の暗幕＋ラベルが担う
   const phaseOf = (r) => { const a = appOf(r); return a ? appPhaseKey((a.status === "expired" || a.status === "rejected") ? { ...a, status: "applied" } : a) : null; };
-  const openJobPage = (r) => { try { sessionStorage.setItem("cb_jobBackTo", "/saved"); } catch { /* 戻り先が無くても遷移はする */ } window.location.hash = "/work/job/" + r.job_number; };
+  // openJobPage（求人ページへの遷移）は削除（2026-08-08たきと指示「ボックスの求人ページは不要」）
+  // ＝ボックス内の確認は求人カードタップ→詳細面that担う。求人ページ自体は さがす から従来どおり開ける
 
   return (
     <div>
@@ -459,7 +460,7 @@ export function SavedJobsView({ me }) {
                 ) : (
                   <div style={{ background:"#F7F7F7", borderLeft:"4px solid #B0B0B0", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
                     <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#717171", margin:0 }}>まだ応募していません</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>いいねした求人です。求人ページから応募できます。</p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>いいねした求人です。カードをタップすると内容を確認できます。応募は さがす の求人ページから。</p>
                   </div>
                 )}
                 {/* 求人の要約＝その他の求人と同じカード（2026-08-07たきと指示・スクショ＝関連求人カード）：
@@ -497,14 +498,12 @@ export function SavedJobsView({ me }) {
                 <AgreedDatesRow value={r.agreed_dates} />
                 <AvailDatesChips value={r.available_dates} />
                 {/* 操作ボックス＝横2列（2026-08-07たきと指示）。形は今日ページの「やること」箱と同型
-                    （絵文字を上に・太字タイトル・中央寄せの2列格子）＝ボックス格子の作法を増やさない */}
+                    （絵文字を上に・太字タイトル・中央寄せの2列格子）＝ボックス格子の作法を増やさない。
+                    📄求人ページは削除（2026-08-08たきと指示「求人タップで詳細確認できるからボックスの
+                    求人ページは不要」）＝内容の確認は求人カードタップ→詳細面が担う。
+                    応募していない求人はボックスが無い＝格子ごと出さない */}
+                {r.application_id && (
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:10, marginTop:12 }}>
-                  <button onClick={()=>{ setBoxJob(null); openJobPage(r); }} className="f-sans"
-                    style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-                    <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>📄</span>
-                    <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>求人ページ</span>
-                    <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>募集内容・場所・持ち物をもう一度確認できます</span>
-                  </button>
                   {chatOk && (
                     <button onClick={()=>{ setBoxJob(null); window.location.hash = "/chat/" + r.application_id; }} className="f-sans"
                       style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
@@ -522,6 +521,7 @@ export function SavedJobsView({ me }) {
                     </button>
                   )}
                 </div>
+                )}
                 </div>{/* /面1メイン */}
                 </div>{/* /面の2枚構造 */}
               </div>
