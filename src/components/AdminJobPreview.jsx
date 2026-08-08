@@ -520,6 +520,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
             <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 8px" }}>この求人を一時非公開にしますか？</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 0 18px" }}>
               非公開にすると「作成中」に移動し、内容を編集できます。働き手からは見えなくなります。再掲載するときは、もう一度審査を通ります。
+              応募中・面接中の方は見送りになり、その旨のお知らせが届きます（採用が決まっている方はそのままです）。
             </p>
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={() => { setConfirmUnpub(false); onUnpublishJob && onUnpublishJob(); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:14, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>はい、一時非公開にする</button>

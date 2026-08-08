@@ -532,8 +532,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (kind === "resume") { onResume(num); return; }
     if (kind === "unpublish") {
       // 一時非公開：open→draftへ（unpublish_job RPC・本人限定）。最終確認あり（たきと指定）。
-      // 再掲載は作成中→再開→掲載申請＝審査を通る。シートの⏸と同じ実体
-      if (!confirm("この求人を一時非公開にしますか？（さがすに表示されなくなります。再掲載は審査を通ります）")) return;
+      // 再掲載は作成中→再開→掲載申請＝審査を通る。シートの⏸と同じ実体。
+      // ★応募中・面接中は見送りになる（migration 20260808004900・採用済みは不変）＝確認文に明記
+      if (!confirm("この求人を一時非公開にしますか？（さがすに表示されなくなります。応募中・面接中の方は見送りになります。再掲載は審査を通ります）")) return;
       const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: num });
       if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
       // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
