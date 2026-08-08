@@ -526,7 +526,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (kind === "resume") { onResume(num); return; }
     if (kind === "unpublish") {
       // 一時非公開：open→draftへ（unpublish_job RPC・本人限定）。最終確認あり（たきと指定）。
-      // 再掲載は作成中→再開→掲載申請＝審査を通る。シートの⏸と同じ実体。
+      // 再掲載は作成中→再開→掲載申請＝審査を通る（旧・シート右上の一時非公開ボタンの後継＝実体は同じRPC）。
       // ★応募中・面接中は見送りになる（migration 20260808004900・採用済みは不変）＝確認文に明記
       if (!confirm("この求人を一時非公開にしますか？（さがすに表示されなくなります。応募中・面接中の方は見送りになります。再掲載は審査を通ります）")) return;
       const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: num });
@@ -1711,20 +1711,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       )}
 
-      {/* 求人カードタップ→確認ページと同型のボトムシート。再開・削除・コピーはシートから撤去
-          （2026-08-07たきと指示＝求人一覧ページの浮遊☰の横に常設・下の .cb-job-action-fabs）。
-          シートに残る操作は⏸一時非公開のみ */}
+      {/* 求人カードタップ→確認ページと同型のボトムシート＝【閲覧専用】（2026-08-07〜08たきと指示）。
+          再開・削除・コピー・非公開はすべて求人一覧ページの浮遊ピル（.cb-job-action-fabs）に集約。
+          畳む道はステータスページのボックスと同じ規格＝背景タップ／下スワイプ（✕は置かない） */}
       {previewJob && (
-        <AdminJobPreview jobNumber={previewJob.num} ownerView
-          onClose={()=>setPreviewJob(null)}
-          onUnpublishJob={previewJob.open ? async ()=>{
-            // 一時非公開（2026-07-16）：open→draftへ（unpublish_job RPC・本人限定）。編集は作成中→再開から。再掲載は審査を通る
-            const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: previewJob.num });
-            if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
-            // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
-            setDbActive(prev => prev.map(d => d.job_number === previewJob.num ? { ...d, status: "draft" } : d));
-            setPreviewJob(null);
-          } : undefined} />
+        <AdminJobPreview jobNumber={previewJob.num} ownerView onClose={()=>setPreviewJob(null)} />
       )}
 
       {/* ── 求人の操作ピル（2026-08-07たきと指示・同日改定「各役割タップ→求人を直接タップする。

@@ -1,5 +1,5 @@
 // 審査プレビュー兼オーナープレビュー（分割・大物①・2026-07-24）：働き手視点の求人詳細を全画面表示。
-// 管理タブの審査（掲載/差し戻し）・農家自身の下書き/公開中プレビュー（再開/削除/一時非公開/コピー）の二役。
+// 管理タブの審査（掲載/差し戻し）・農家自身の下書き/公開中プレビュー（閲覧のみ）の二役。
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
@@ -16,8 +16,7 @@ const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い
 // JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
 // 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
 // mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
-export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView, onUnpublishJob }) {
-  const [confirmUnpub, setConfirmUnpub] = useState(false); // 一時非公開の確認ボックス（2026-07-16）
+export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView }) {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   // 掲載前の確認の記録（2026-07-30）：undefined=読み込み中／null=記録なし／オブジェクト=最新の1件
@@ -177,6 +176,58 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     };
   }, [ownerView]);
 
+  // 本人シートを畳む（2026-08-08たきと指示「畳む条件はステータスページのアイコンタップボックスの規格と同じ」）。
+  // 規格＝DragSheet／SavedJobsViewのboxJob：中身thatが最上部（scrollTop<=0）のときだけ下向きドラッグthat
+  // シートを掴み、指に連動（transform直書き＝毎フレーム再レンダーしない）。引き下げたシートの上端thatが
+  // 画面の縦中央より下で指を離すと閉じる／上なら定位置へ戻す。閉じる道は背景タップとこの2つだけ（✕は置かない）
+  const sheetRef = useRef(null);
+  const ownerScrollRef = useRef(null);
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useEffect(() => {
+    if (!ownerView) return;
+    const el = sheetRef.current; if (!el) return;
+    el.style.transform = ""; el.style.transition = "";
+    el.style.willChange = "transform";
+    let sy = 0, baseY = 0, baseTop = 0, lastY = 0, tracking = false, grabbed = false, raf = 0;
+    const paint = () => { raf = 0; el.style.transform = `translateY(${lastY}px)`; };
+    const onStart = (e) => { if (e.touches.length !== 1) { tracking = false; return; } sy = e.touches[0].clientY; grabbed = false; tracking = true; };
+    const onMove = (e) => {
+      if (!tracking) return;
+      const cy = e.touches[0].clientY, dy = cy - sy;
+      if (!grabbed) {
+        if (Math.abs(dy) < 8) return;              // 8px動くまで判定保留
+        const sc = ownerScrollRef.current;
+        if (!(dy > 0 && (!sc || sc.scrollTop <= 0))) { tracking = false; return; } // 上向き・スクロール余地あり＝通常スクロールに譲る
+        grabbed = true; baseY = cy; baseTop = el.getBoundingClientRect().top;      // 掴んだ瞬間に基点を置き直す（跳びゼロ）
+        el.style.transition = "none";
+      }
+      e.preventDefault();
+      lastY = Math.max(0, cy - baseY);
+      if (!raf) raf = requestAnimationFrame(paint);                                 // 1フレーム1回だけ書く
+    };
+    const onEnd = () => {
+      if (!tracking || !grabbed) { tracking = false; return; }
+      tracking = false; grabbed = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      const top = baseTop + lastY;
+      el.style.transition = "transform .25s ease";
+      if (top > window.innerHeight / 2) { el.style.transform = `translateY(${window.innerHeight}px)`; setTimeout(() => onCloseRef.current && onCloseRef.current(), 180); }
+      else { el.style.transform = "translateY(0)"; }
+      lastY = 0;
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [ownerView, jobNumber]);
+
   // document.bodyへポータル（2026-07-19）：呼び出し元の祖先（AdminTabの.appear等）がtransformを
   // 保持していると、その要素がposition:fixedの基準になり全画面に広がらない（審査プレビューが途中で切れる不具合）。
   // bodyへ出せばfixedの基準が確実にビューポートになる
@@ -188,23 +239,16 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     {/* 下部バーを隠すso画面下端まで伸ばす（角丸は上だけ・セーフエリアは内側の下パディングで確保）。
         審査（!ownerView）も同じ flex column 構造＝上:説明バー／中:スクロール／下:操作ボタン固定バー
         （2026-08-05たきと指示「閉じる・修正を依頼・公開は下部に。上はタップしずらい」） */}
-    <div ref={ownerView ? undefined : swipeRootRef} onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
-      ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
+    <div ref={ownerView ? sheetRef : swipeRootRef} onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
+      ? { position:"absolute", left:0, right:0, bottom:0, top:"6vh", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }
       : { height:"100%", display:"flex", flexDirection:"column", position:"relative" }}>
-      {/* 上部バー：農家本人＝✕(戻る)＋一時非公開のみ。管理者（審査）は上部バーなし＝
-          説明文と黄色い枠は削除（2026-08-07たきと指示）。操作は下部の3ボタンだけ */}
+      {/* グラバー（ステータスページの展開ボックスと同じ規格・2026-08-08たきと指示）。
+          ✕は置かない＝閉じる道は「背景タップ」と「下スワイプで畳む」の2つ（DragSheetと同じ作法） */}
       {ownerView && (
-        <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <button onClick={onClose} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-            {/* 公開中の求人のみ：右上に一時非公開（タップ→確認ボックス・2026-07-16） */}
-            {onUnpublishJob && (
-              <button onClick={()=>setConfirmUnpub(true)} className="f-sans" style={{ padding:"9px 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer" }}>⏸ 一時非公開</button>
-            )}
-          </div>
+        <div aria-hidden="true" style={{ flexShrink:0, display:"flex", justifyContent:"center", padding:"10px 0 2px" }}>
+          <span style={{ width:40, height:4, borderRadius:2, background:"#E0E0E0" }} />
         </div>
       )}
-
       {/* 公開の緑面（審査のみ）：右スワイプでスクロール面thaが右へずれると下から現れる */}
       {!ownerView && (
         <div ref={pubHintRef} aria-hidden="true" style={{ position:"absolute", inset:0, background:"#00A86B", opacity:0,
@@ -212,7 +256,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           <span className="f-sans" style={{ color:"#fff", fontSize:22, fontWeight:800 }}>公開する →</span>
         </div>
       )}
-      <div ref={ownerView ? undefined : dragBoxRef} style={ownerView
+      <div ref={ownerView ? ownerScrollRef : dragBoxRef} style={ownerView
         ? { flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", paddingBottom:"env(safe-area-inset-bottom, 0px)" }
         : { flex:1, overflowY:"auto", overscrollBehavior:"contain", paddingTop:"env(safe-area-inset-top, 0px)",
             background:"#fff", position:"relative", touchAction:"pan-y" }}>
@@ -432,9 +476,9 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       </div>
       </div>
 
-      {/* 再開・削除・コピーの操作はこのシートから撤去（2026-08-07たきと指示）＝
-          お仕事タブの求人一覧ページで浮遊☰の横に常設（FarmerDashboardの.cb-job-action-fabs）。
-          実行の窓口を1箇所に保つ。このシートに残る操作は⏸一時非公開（右上）のみ */}
+      {/* 本人ビューの操作ボタンはこのシートに置かない（2026-08-07〜08たきと指示）＝
+          再開・削除・コピー・非公開はすべて求人一覧ページの浮遊ピル（FarmerDashboardの
+          .cb-job-action-fabs）に集約。このシートは閲覧専用＝実行の窓口を1箇所に保つ */}
 
       {/* 下部の操作バー（審査のみ・2026-08-05たきと指示・下余白5px固定）。
           公開するボタンは廃止＝右スワイプに置換（2026-08-07たきと指示）。案内文も出さない
@@ -513,22 +557,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
         document.body
       )}
 
-      {/* 一時非公開の確認ボックス（2026-07-16）：はい=非公開化・いいえ/背景タップ=閉じる */}
-      {confirmUnpub && (
-        <div onClick={e => { e.stopPropagation(); setConfirmUnpub(false); }} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
-          <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"24px 20px", maxWidth:360, width:"100%", boxShadow:"0 12px 48px rgba(0,0,0,0.25)" }}>
-            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 8px" }}>この求人を一時非公開にしますか？</p>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 0 18px" }}>
-              非公開にすると「作成中」に移動し、内容を編集できます。働き手からは見えなくなります。再掲載するときは、もう一度審査を通ります。
-              応募中・面接中の方は見送りになり、その旨のお知らせが届きます（採用が決まっている方はそのままです）。
-            </p>
-            <div style={{ display:"flex", gap:8 }}>
-              <button onClick={() => { setConfirmUnpub(false); onUnpublishJob && onUnpublishJob(); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:14, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>はい、一時非公開にする</button>
-              <button onClick={() => setConfirmUnpub(false)} className="f-sans" style={{ flex:1, padding:"12px", fontSize:14, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>いいえ</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
     </div>,
     document.body
