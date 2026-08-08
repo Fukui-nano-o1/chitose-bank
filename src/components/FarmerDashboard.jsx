@@ -1580,20 +1580,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       </>
       )}
 
-      {/* 応募者カードのボトムシート（タップで展開・中身は従来の応募者カード＝操作ボタン込み） */}
+      {/* 応募者カードのボックス（アイコンタップで展開・中身は従来の応募者カード＝操作ボタン込み）。
+          枠＝チャットのアイコンタップで開く働き手プレビュー（WorkerPreviewSheet・App.jsx）と同じ規格
+          （2026-08-08たきと指示「チャットページのアイコンタップで展開されるボックスと規格や枠は同じ」）：
+          中央の浮きカード・角丸16・padding24・maxWidth400・上下48px余白・背景タップで閉じる（✕は無し）。
+          .cb-preview-overlay＝プレビューと同じ目印so、下部バー・浮遊☰の非表示も同じ規則that効く。
+          ★枠を変えるときはWorkerPreviewSheet側と揃えること（規格の枝分かれをさせない） */}
       {(() => {
         const live = dbApplicants.find(x => x.id === sheetApplicantId);
         if (!live) return null;
-        // cb-lock-scroll＝展開中は背後のページを固定し、スクロールをシート内だけにする（2026-07-26たきと指示）
         return (
-          <div onClick={()=>setSheetApplicantId(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-              <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                <button onClick={()=>setSheetApplicantId(null)} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-              </div>
-              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
-                {renderApplicantCard(live)}
-              </div>
+          <div onClick={()=>setSheetApplicantId(null)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(48px + env(safe-area-inset-top, 0px)) 16px calc(48px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .2s ease" }}>
+            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+              {renderApplicantCard(live)}
             </div>
           </div>
         );
