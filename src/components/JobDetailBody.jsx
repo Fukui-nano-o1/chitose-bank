@@ -19,7 +19,6 @@ import { Avatar, Carousel, DangerItem, MaskedAddress } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { InsurancePanel } from "./InsurancePanel";
-import { FarmerTrustCard } from "./TrustCards";
 import { JobQuestions, ContentQTabs, ContentQSwipeArea } from "./JobQuestions";
 
 export function JobDetailBody({ job, me, onBack }) {
@@ -298,12 +297,9 @@ export function JobDetailBody({ job, me, onBack }) {
         </div>
       )}
 
-      {/* 農家プロフィール（求人詳細ページと同じFarmerTrustCard・公開RPC由来。取得できるまで非表示） */}
-      {emp && (
-        <div style={{ marginBottom:20 }}>
-          <FarmerTrustCard profile={emp} trust={empTrust} />
-        </div>
-      )}
+      {/* 農家プロフィールのカード（FarmerTrustCard＝氏名・住所・連絡先・受け入れ実績）は削除
+          （2026-08-08たきと指示）。求人詳細ページでも常設せず農園紹介モーダルの中に置いている
+          ＝ここだけ常設で連絡先まで出ていた。雇い手の情報は主要情報の下の「雇い手カード＋待遇表」で足りる */}
 
       {/* 質問は「質問」タブへ移動（2026-08-08）＝ここには置かない */}
       </>)}
