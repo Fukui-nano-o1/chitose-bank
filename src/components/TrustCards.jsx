@@ -1,4 +1,5 @@
 // 信頼カード（分割・段階2後半・2026-07-24）：働き手/雇い手の与信情報カード。プレビュー・応募者カード・確認ページで共用。
+import { Fragment } from "react";
 import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, interactionStyleLabel, tenureLabel, normalizeInsuranceItems } from "../lib/utils";
 import { ExpandableText, Avatar, QaChat } from "./ui";
 
@@ -142,10 +143,23 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
           })(), "nickname"],
           ["住所", profile.recruiter_address, "recruiter"],
           ["連絡先", profile.recruiter_contact, "recruiter"]].map(([l, v, k]) => (v && String(v).trim()) ? (
-          <div key={l} {...tap(k)} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:4, ...cur }}>
-            <span className="f-sans" style={{ flexShrink:0, width:56, fontSize:12, color:"#999", lineHeight:1.6 }}>{l}</span>
-            <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: l === "氏名" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>{v}</span>
-          </div>
+          <Fragment key={l}>
+            <div {...tap(k)} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:4, ...cur }}>
+              <span className="f-sans" style={{ flexShrink:0, width:56, fontSize:12, color:"#999", lineHeight:1.6 }}>{l}</span>
+              <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: l === "氏名" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>{v}</span>
+            </div>
+            {/* 利用歴・連絡先確認は氏名の直下に配置（2026-08-07たきと指示）。値の列（ラベル56px+gap10）に揃える */}
+            {l === "氏名" && okTrust && (trust.member_since || trust.id_checked) && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:10, margin:"0 0 4px", paddingLeft:66 }}>
+                {trust.member_since && (
+                  <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{trust.member_since}から</span>
+                )}
+                {trust.id_checked && (
+                  <span className="f-sans" style={{ fontSize:11, color:AC, fontWeight:600 }}>✓ 連絡先確認済み</span>
+                )}
+              </div>
+            )}
+          </Fragment>
         ) : null)}
       </div>
       {okTrust && trust.want_again_workers > 0 && (
@@ -171,16 +185,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
           実績：{trust.ended_jobs}件{onTapExperience ? " →" : ""}
         </p>
       )}
-      {okTrust && (trust.member_since || trust.id_checked) && (
-        <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:6 }}>
-          {trust.member_since && (
-            <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{trust.member_since}から</span>
-          )}
-          {trust.id_checked && (
-            <span className="f-sans" style={{ fontSize:11, color:AC, fontWeight:600 }}>✓ 連絡先確認済み</span>
-          )}
-        </div>
-      )}
+      {/* 利用歴・連絡先確認は氏名の直下（ヘッダー内）へ移動（2026-08-07たきと指示） */}
       {okTrust && trust.avg_approval_hours != null && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>承認までの時間：平均{trust.avg_approval_hours}時間</p>
       )}
