@@ -12,7 +12,7 @@
 // ＝AdminJobPreviewとの意図的な差分。
 // job は mapJobPublicRow() で整形済みのオブジェクトを渡すこと。me は Q&A の投稿判定用（任意）。
 // ※本文の見た目を変えるときは AdminJobPreview 側と揃える（出どころが同じ・枝分かれさせない）
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { payLabel, disp, stationLabel, payTermsLine, overtimeLine, EMPTY_MARK } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, MaskedAddress } from "./ui";
@@ -25,6 +25,13 @@ import { JobQuestions } from "./JobQuestions";
 export function JobDetailBody({ job, me }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const [dangerLightbox, setDangerLightbox] = useState(null);
+  // トップ写真のループ（2026-08-08たきと指示「最後の写真をスライドしたらトップ写真に戻れ」）＝
+  // 求人詳細ページ（JobSearchMapView・2026-07-16）の実装をそのままトレース：
+  // 両端にクローンを置き（[最後, ...本物, 最初]）、端に着地した瞬間に本物へ瞬間ジャンプする。
+  // 1枚目で左へ→最後の写真／最後の写真で右へ→1枚目。ドットは本物の枚数ぶんだけ出す
+  const photoScrollerRef = useRef(null);
+  const photoCount = job?.photos?.length || 0;
+  const photosLooped = photoCount > 1;
   // 農家プロフィール（求人詳細ページと同じ2本を並列で・2026-08-02の作法）
   const [emp, setEmp] = useState(null);
   const [empTrust, setEmpTrust] = useState(null);
@@ -42,10 +49,24 @@ export function JobDetailBody({ job, me }) {
     })();
     return () => { cancelled = true; };
   }, [job?.id]);
+  // 開いた時・求人が変わった時は本物の1枚目（＝クローンの次）に置く。フックは早期returnより前に置く
+  useEffect(() => {
+    if (!photosLooped) return;
+    const el = photoScrollerRef.current;
+    if (el) requestAnimationFrame(() => { el.scrollLeft = el.clientWidth; });
+    setActiveSlide(0);
+  }, [job?.id, photosLooped]);
   if (!job) return null;
   const handlePhotoScroll = e => {
     const el = e.target;
-    setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
+    const w = el.clientWidth;
+    if (!w) return;
+    const idx = Math.round(el.scrollLeft / w);
+    if (!photosLooped) { setActiveSlide(idx); return; }
+    const settled = Math.abs(el.scrollLeft - idx * w) < 2;
+    if (settled && idx === 0) { el.scrollLeft = photoCount * w; setActiveSlide(photoCount - 1); return; }
+    if (settled && idx === photoCount + 1) { el.scrollLeft = w; setActiveSlide(0); return; }
+    setActiveSlide(((idx - 1) % photoCount + photoCount) % photoCount);
   };
   return (
     <div>
@@ -53,6 +74,8 @@ export function JobDetailBody({ job, me }) {
       {(() => {
         const photos = job.photos.length > 0 ? job.photos : [job.icon, job.icon, job.icon];
         const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
+        // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側（詳細ページと同型）
+        const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
         return (
           <div style={{ position:"relative", borderRadius:12, marginBottom:8 }}>
             <Carousel
@@ -60,8 +83,9 @@ export function JobDetailBody({ job, me }) {
               style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
               wrapperStyle={{ marginBottom:8 }}
               onScroll={handlePhotoScroll}
+              scrollerRef={photoScrollerRef}
             >
-              {photos.map((photo, i) => {
+              {slides.map((photo, i) => {
                 const src = typeof photo === "string" ? photo : photo?.url;
                 const cap = typeof photo === "string" ? "" : photo?.caption;
                 return (
