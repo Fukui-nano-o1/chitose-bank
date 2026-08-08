@@ -1747,10 +1747,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         <div className="cb-job-action-fabs">
           {/* 再開は作成中のみ（2026-08-07たきと指示「公開中タブのときは再開は非表示」）。
               公開中の求人は再開＝編集の対象ではない（編集は一時非公開→作成中→再開の順）。
-              出入りは削除⇄非公開と同じ cbPillSwap ＝ペイン切替でポンと現れ／消える */}
-          {jobTab !== "active" && (
+              ★消える時も枠は空けたまま（同日たきと指示「詰めるな」）＝visibility:hiddenの同じ寸法の
+              ダミーを残す。display:noneにすると後続のピルthat左へ動いてしまう。
+              出入りは削除⇄非公開と同じ cbPillSwap */}
+          {jobTab !== "active" ? (
             <button key="resume" onClick={()=>armJobAction("resume")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
               boxShadow: armedAction === "resume" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.18)", opacity: (!armedAction || armedAction === "resume") ? 1 : 0.45 }}>再開</button>
+          ) : (
+            <span aria-hidden="true" className="f-sans" style={{ visibility:"hidden", pointerEvents:"none", padding:"12px 16px", fontSize:13, fontWeight:800, border:"none", borderRadius:24, whiteSpace:"nowrap" }}>再開</span>
           )}
           <button onClick={()=>armJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
             background: armedAction === "copy" ? "#00A86B" : "#fff", color: armedAction === "copy" ? "#fff" : "#00A86B", border:"1.5px solid #00A86B",
