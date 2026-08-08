@@ -4117,3 +4117,29 @@ App.jsx WorkerPreviewSheet（プレビュー→フルRPC・under_reviewでblocke
 【雇い手側は元から安全】employer_profiles は admin＋本人のみのRLS＋employer_profiles_public ビュー経由で
 texts_pending を列に含めない＝同じ穴なし。今回の修理で働き手側もこの型に揃った。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-07 最終確認：プラポリ違反しやすい8パターンの実機検証＝全て[OK]（修理なし）━━━
+【立場】プラポリ第3条データ台帳の各行の「開示先・保存期間」の約束を、本番の実ロールでDBが破っていないか。
+合成のみ・全ロールバック・残置ゼロ実測（test行0・apps20/reviews0不変）。
+【結果＝全8パターン[OK]】
+P1 メール「他利用者に一切表示されない」＝農家that応募者のemailをauth.users直読み→権限拒否
+   （authenticatedにauth.users SELECT権なし＝権限レベルで遮断）。
+P2 本人確認情報「他利用者に値は非表示・契約相手にのみ氏名」＝①account_holders直読み0行②契約前の
+   contract_party_name=not_contracted③worker_trust_info that生年月日/本名/連絡先を出さない(not_entitled)。
+P3 自由記述「運営確認前は非公開」＝①worker_profilesの農家向け生行RLSは廃止済み（直読み0行）
+   ②worker_profile_for_farmer RPC that審査中はunder_reviewのみ返し未承認pr_pending/pr_qa_pending
+   （電話/LINE）を漏らさない。★応募成立後に自己紹介を編集して審査中にした正しい順序で確認
+   （pr_pendingありだと応募自体that profile_under_review で弾かれる＝最初の誤検知の教訓）。
+P4 集合場所番地「公開表示から除外・承認された求職者にのみ」＝anon that work_address 0件／
+   承認前の応募者that job_meeting_place=not_entitled。
+P5 チャット「当事者以外読めない」＝第三者that messages 0行。
+P6 評価「公開は肯定的な評価と公開コメントだけ・双方揃うか3日まで非表示・非公開メモは本人のみ」＝
+   ①双方揃う前は want_again=0（非表示）②双方揃うと肯定項目のみカウント・否定項目(entrust/on_time=false)は
+   0で数えない③非公開メモ(private_memo)が公開バッジに出ない④被評価者本人でも自分への非公開メモを
+   reviews直読み不可(0行・RLS reviewer_id=auth.uid())。
+P7 閲覧履歴「運営者だけ・30日で削除」＝一般農家that page_events 0行／purge-page-events cron 存在。
+P8 通報「通報者が誰かは相手に伝わらない」＝通報された相手that message_reports 0行（admin＋reporter本人のみ）。
+【結論】プラポリの各約束はDBの層（RLS・SECURITY DEFINERゲート・権限）で守られている。修理不要。
+検証スクリプトの教訓：pr_pendingがある働き手は応募が profile_under_review で弾かれるので、審査中の
+漏洩テストは「応募成立→後から自己紹介を編集」の順序で作る（いきなりpr_pending付きで作ると誤検知）。
+━━━ ここまで ━━━
