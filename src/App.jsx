@@ -15,10 +15,26 @@ import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 // 新しいビルドを取りに行く。
 // 【2026-08-07改修の理由＝無限リロードループの根治】旧実装は「成功時にフラグを消す」ため、
 // 再読込後に別チャンクが成功→フラグ消滅→壊れたチャンクが再失敗→また即再読込…の1秒間隔の
-// ループが成立していた（app_errorsに同文言が毎秒連発した真因・×94）。フラグは消さず、
-// 前回の自動再読込からCHUNK_RELOAD_INTERVAL経過で再許可＝次のデプロイでも自己修復は効き続ける。
-// ※関数宣言（巻き上げあり）にすること：下のconst定義より前に実行されるためconstだとTDZで落ちる
-const CHUNK_RELOAD_INTERVAL = 10 * 60 * 1000;
+// ループが成立していた（app_errorsに同文言が毎秒連発した真因・×94）。
+// 【2026-08-08再改修＝「新しく求人を出すが遷移しない」の真因】10分に1回だけの時刻ガードは、
+// デプロイが連続する日に2回目の失敗をブロックし、タップしても無反応になっていた
+// （14:12のapp_errorsに同文言×4＝ガード作動中の実録）。時刻1点でなく履歴方式に変更：
+// ・前回の自動再読込から20秒以内は再読込しない（毎秒ループの芯止めはこれで足りる）
+// ・直近10分間で最大3回まで（連続デプロイ日でも自己修復が効き続ける。壊れたままなら3回で止まる）
+const CHUNK_RELOAD_INTERVAL = 10 * 60 * 1000; // 履歴の窓
+const CHUNK_RELOAD_MIN_GAP = 20 * 1000;       // 再読込どうしの最小間隔
+const CHUNK_RELOAD_MAX = 3;                   // 窓内の最大回数
+function chunkReloadAllowed(now) {
+  let hist = [];
+  try { hist = JSON.parse(sessionStorage.getItem("cb_chunkReloadHist") || "[]"); } catch {}
+  if (!Array.isArray(hist)) hist = [];
+  hist = hist.filter(t => Number.isFinite(t) && now - t < CHUNK_RELOAD_INTERVAL);
+  if (hist.length >= CHUNK_RELOAD_MAX) return false;
+  if (hist.length && now - Math.max(...hist) < CHUNK_RELOAD_MIN_GAP) return false;
+  hist.push(now);
+  try { sessionStorage.setItem("cb_chunkReloadHist", JSON.stringify(hist)); } catch {}
+  return true;
+}
 // 再読込が「また古いビルド」を掴み直すのを防ぐ下ごしらえ（低速回線でNetworkFirstが3秒で諦めると
 // pages-cacheの古いindex.htmlに落ちるため、再読込だけでは治らないことがある）：
 // ①SWに更新チェックをさせる（新しいprecache台帳の取得を開始）②古いページキャッシュを捨てる
@@ -34,10 +50,7 @@ async function prepareFreshReload() {
 function lazyChunk(factory) {
   return lazy(() => factory().catch(async (err) => {
     try {
-      // 旧実装の値"1"はNumber化で1970年扱い＝経過十分so初回は必ず通る（後方互換）
-      const last = Number(sessionStorage.getItem("cb_chunkReload") || 0);
-      if (Date.now() - last > CHUNK_RELOAD_INTERVAL) {
-        sessionStorage.setItem("cb_chunkReload", String(Date.now()));
+      if (chunkReloadAllowed(Date.now())) {
         await prepareFreshReload();
         window.location.reload();
       }
