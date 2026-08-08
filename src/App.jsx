@@ -66,6 +66,24 @@ function lazyChunk(factory) {
 // 応募完了の法的一言トースト（2026-08-07・①）。完了ページを廃止したので、その画面にあった
 // 「まだ採用ではない／雇用契約は当事者間」の明示を、着地先に一度だけ出して消さない（法務の一線）。
 // 下から出る帯。8秒で自動的に消え、タップでも閉じる。pointer-events:noneにはしない（タップで閉じられるように）。
+// 求人フローの読み込み中に出す全画面の待ち画面（2026-08-08たきと指示「新しく求人を出すタップで
+// 働き手に切り替えられる。1秒後に遷移する。切り替えを止めろ。せめて更新していることをアニメーションで見せろ」）。
+// 【症状の正体】求人フローは遅延読み込み。タップ→hash=work/new→tab=profile になるが、フロー本体が
+// 届くまでの約1秒間、Suspenseのfallbackがnullだったため背後のプロフィール（既定＝働き手面）が丸見えで、
+// 「働き手に切り替わってから1秒後に遷移する」ように見えていた。
+// 【対処】①背後を描かない（ProfileHubの描画条件に !showJobPost）②その1秒をこの画面で埋める。
+// 意匠は保存中オーバーレイ（LandingFlow）と同じ緑のスピナー＝アプリ内で待ち画面の見た目を1つに保つ。
+// ★モジュールレベル定義（フォーカス消失バグ回避の作法）
+function FlowLoading({ label = "求人フローを開いています…" }) {
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:8500, background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+      <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
+      <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>{label}</p>
+      <style>{`@keyframes cbspin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 function ApplyDoneNote({ promoted = 0, already = false, pending = false, worker = false, onClose }) {
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
   useEffect(() => {
@@ -2717,7 +2735,9 @@ export default function App(){
              祝祭・法的トースト・60秒アイドルはグローバルに出す。ここは着地までの一瞬なので何も描かない */
           null
         ) : safeTab==="search" ? <JobSearchMapView onRegister={goLogin} me={me} /> : null}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="profile"&&(me
+        {/* 求人フロー中（showJobPost）は背後を描かない（2026-08-08）：描くとフロー本体が届くまでの
+            約1秒、プロフィールの働き手面が露出し「働き手に切り替わった」ように見える＝オーバーレイ描画の鉄則 */}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&!showJobPost&&safeTab==="profile"&&(me
           ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
@@ -2969,7 +2989,7 @@ export default function App(){
         /></Suspense></AppErrorBoundary>
       )}
       {me&&showJobPost&&(
-        <AppErrorBoundary><Suspense fallback={null}><LandingFlow
+        <AppErrorBoundary><Suspense fallback={<FlowLoading />}><LandingFlow
           initialRole="farmer"
           onPublished={(wasOpen)=>{ setShowJobPost(false); window.location.hash="/profile/employer"; setPubCelebrate({ open: !!wasOpen }); setPubIdle(true); }}
           onComplete={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
