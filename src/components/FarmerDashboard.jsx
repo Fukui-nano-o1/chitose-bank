@@ -8,6 +8,7 @@ import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkele
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
+import { DragSheet } from "./DragSheet";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
@@ -1581,20 +1582,17 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       )}
 
       {/* 応募者カードのボックス（アイコンタップで展開・中身は従来の応募者カード＝操作ボタン込み）。
-          枠＝チャットのアイコンタップで開く働き手プレビュー（WorkerPreviewSheet・App.jsx）と同じ規格
-          （2026-08-08たきと指示「チャットページのアイコンタップで展開されるボックスと規格や枠は同じ」）：
-          中央の浮きカード・角丸16・padding24・maxWidth400・上下48px余白・背景タップで閉じる（✕は無し）。
-          .cb-preview-overlay＝プレビューと同じ目印so、下部バー・浮遊☰の非表示も同じ規則that効く。
-          ★枠を変えるときはWorkerPreviewSheet側と揃えること（規格の枝分かれをさせない） */}
+          枠＝ステータスページの展開ボックスと同じ規格・非表示条件（2026-08-08たきと指示
+          「ステータスページのボックスと同じ規格や枠、非表示条件にしよう」＝共有部品DragSheet）：
+          下から生える全画面シート・グラバー・✕なし。閉じる＝背景タップ／下スワイプで畳む
+          （中身最上部から指に連動・シート上端が画面中央より下で離すと閉じる） */}
       {(() => {
         const live = dbApplicants.find(x => x.id === sheetApplicantId);
         if (!live) return null;
         return (
-          <div onClick={()=>setSheetApplicantId(null)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(48px + env(safe-area-inset-top, 0px)) 16px calc(48px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .2s ease" }}>
-            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-              {renderApplicantCard(live)}
-            </div>
-          </div>
+          <DragSheet onClose={()=>setSheetApplicantId(null)}>
+            {renderApplicantCard(live)}
+          </DragSheet>
         );
       })()}
 
