@@ -508,12 +508,9 @@ export function QaChat({ items, accent = ROLE_ORANGE, style }) {
     <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:16, ...style }}>
       {list.map(({ q, a }, i) => (
         <Fragment key={i}>
-          {/* 質問側は「本当に運営が質問している」体裁（2026-08-07たきと指示）＝運営DMスレッドと同じ
-              🛡運営の名乗りを吹き出しの上に付ける（AdminChatFabの from_admin 表示と同じ様式） */}
-          <div style={{ alignSelf:"flex-start", maxWidth:"75%" }}>
-            <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>🛡 運営</p>
-            <div className="f-sans" style={{ padding:"8px 12px", borderRadius:14, fontSize:12, background:"#F0F0F0", color:"#717171", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{qaShort(q)}</div>
-          </div>
+          {/* 🛡運営の名乗りは削除（2026-08-08たきと指示「🛡 運営はいらない。削除」）＝
+              質問はグレーの吹き出しだけで出す（2026-08-07の名乗り付与を撤回） */}
+          <div className="f-sans" style={{ alignSelf:"flex-start", maxWidth:"75%", padding:"8px 12px", borderRadius:14, fontSize:12, background:"#F0F0F0", color:"#717171", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{qaShort(q)}</div>
           {a && (
             <div className="f-sans" style={{ alignSelf:"flex-end", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background:accent, color:"#fff", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</div>
           )}
