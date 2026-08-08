@@ -103,7 +103,9 @@ export function SavedJobsView({ me }) {
         } else {
           // 横：詳細面のときだけ「戻る」ジェスチャとして面を掴む（メイン面の横スワイプは何もしない）
           if (boxPaneRef.current !== "detail") { tracking = false; return; }
-          if (e.target.closest && e.target.closest(".carousel-scroll")) { tracking = false; return; }
+          // 写真カルーセル＝写真送りに譲る／タブの中身（.cb-content-swipe）＝タブ切替に譲る（2026-08-08・
+          // 端でのスワイプはContentQSwipeAreaのonEdgeSwipe→onBackで面that戻る）
+          if (e.target.closest && (e.target.closest(".carousel-scroll") || e.target.closest(".cb-content-swipe"))) { tracking = false; return; }
           const p = paneRef.current; if (!p) { tracking = false; return; }
           axis = "h"; paneW = el.clientWidth || 1;
           p.style.transition = "none"; p.style.willChange = "transform";
@@ -452,7 +454,7 @@ export function SavedJobsView({ me }) {
                     return (
                       <div>
                         {swipeHint}
-                        <JobDetailBody job={full} me={me} />
+                        <JobDetailBody job={full} me={me} onBack={()=>{ setBoxPane("main"); setCardShow(false); }} />
                       </div>
                     );
                   })()}

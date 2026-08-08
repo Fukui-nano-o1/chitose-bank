@@ -66,7 +66,10 @@ export function DragSheet({ onClose, children, detail, pane = "main", onPaneChan
         } else {
           // 横：詳細面のときだけ「戻る」ジェスチャとして面を掴む。カルーセル内は写真スクロールに譲る
           if (!hasPanesRef.current || paneStateRef.current !== "detail") { tracking = false; return; }
-          if (e.target.closest && e.target.closest(".carousel-scroll")) { tracking = false; return; }
+          // 写真カルーセルの中＝写真送りに譲る／タブの中身（.cb-content-swipe）＝タブ切替に譲る
+          // （2026-08-08：詳細面に仕事の内容/保険/質問タブthat入った。端でのスワイプは
+          //  ContentQSwipeAreaのonEdgeSwipe→onBackで面が戻る＝戻る動作は失われない）
+          if (e.target.closest && (e.target.closest(".carousel-scroll") || e.target.closest(".cb-content-swipe"))) { tracking = false; return; }
           const p = paneRef.current; if (!p) { tracking = false; return; }
           axis = "h"; paneW = el.clientWidth || 1;
           p.style.transition = "none"; p.style.willChange = "transform";
