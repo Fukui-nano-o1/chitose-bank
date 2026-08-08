@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, punchDivergence, PUNCH_GAP_MIN, qaShort, ROLE_ORANGE } from "../lib/utils";
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
+import { CropIcon } from "./CropIcon";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
 export function StatusRibbon({ label, color }) {
@@ -251,7 +252,8 @@ export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange,
               borderColor: sel ? "#00A86B" : "#EBEBEB",
               background: sel ? "#E6F7EF" : "#fff",
             }}>
-              {c.icon && <span style={{ fontSize:28 }}>{c.icon}</span>}
+              {/* 絵文字が無い作物は自作SVG（2026-08-08・アイコン重複の解消）。CropIconが出し分ける */}
+              <CropIcon crop={c.name} size={28} />
               <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222" }}>{c.name}</span>
             </button>
           );

@@ -386,7 +386,10 @@ export function mapJobPublicRow(j) {
 //   なると金時→サツマイモ、シャインマスカット→ブドウ）。一覧に無いものは従来どおり「その他」で自由入力
 // ★並びの制約：JobCardのアイコン照合が job.crop.includes(name) の先頭一致so、
 //   名前が他の名前を含む組は長い方を先に置く（タマネギ→ネギ の順を崩さない）
-// ・絵文字は近いもので代用している項目あり（ダイコン・ネギ等＝カードの飾りで意味は名前が正）
+// 2026-08-08たきと指示「アイコンが重複している。ないなら描画して挿入しろ」：
+//   絵文字を近いもので流用した結果 🥬が4種・🌿が4種・🥕が3種…と重複していたため、
+//   絵文字が無い作物は svg:"キー" を指定し components/CropIcon.jsx の自作SVGで描く（全種が別の絵）。
+//   ★icon（絵文字）と svg（自作）はどちらか一方だけを持たせる。増やす時もこの規則を守ること
 export const CROP_OPTIONS = [
   // 野菜（果菜）
   { name:"ブロッコリー", icon:"🥦" },
@@ -396,48 +399,48 @@ export const CROP_OPTIONS = [
   { name:"イチゴ",       icon:"🍓" },
   { name:"ピーマン",     icon:"🫑" },
   { name:"カボチャ",     icon:"🎃" },
-  { name:"ズッキーニ",   icon:"🥒" },
-  { name:"オクラ",       icon:"🌿" },
+  { name:"ズッキーニ",   svg:"zucchini" },
+  { name:"オクラ",       svg:"okra" },
   { name:"トウモロコシ", icon:"🌽" },
   { name:"スイカ",       icon:"🍉" },
   { name:"メロン",       icon:"🍈" },
   // 野菜（葉茎菜）
   { name:"キャベツ",     icon:"🥬" },
-  { name:"レタス",       icon:"🥬" },
-  { name:"ホウレンソウ", icon:"🥬" },
-  { name:"ハクサイ",     icon:"🥬" },
-  { name:"カリフラワー", icon:"🥦" },
-  { name:"アスパラガス", icon:"🌿" },
+  { name:"レタス",       svg:"lettuce" },
+  { name:"ホウレンソウ", svg:"spinach" },
+  { name:"ハクサイ",     svg:"napa" },
+  { name:"カリフラワー", svg:"cauliflower" },
+  { name:"アスパラガス", svg:"asparagus" },
   { name:"タマネギ",     icon:"🧅" },
-  { name:"ネギ",         icon:"🧅" },
+  { name:"ネギ",         svg:"negi" },
   { name:"ニンニク",     icon:"🧄" },
-  { name:"シソ",         icon:"🌿" },
+  { name:"シソ",         svg:"shiso" },
   // 野菜（根菜・イモ）
   { name:"ニンジン",     icon:"🥕" },
-  { name:"ダイコン",     icon:"🥕" },
-  { name:"カブ",         icon:"🥕" },
+  { name:"ダイコン",     svg:"daikon" },
+  { name:"カブ",         svg:"turnip" },
   { name:"ジャガイモ",   icon:"🥔" },
   { name:"サツマイモ",   icon:"🍠" },
-  { name:"サトイモ",     icon:"🥔" },
-  { name:"ショウガ",     icon:"🌿" },
+  { name:"サトイモ",     svg:"taro" },
+  { name:"ショウガ",     svg:"ginger" },
   { name:"レンコン",     icon:"🪷" },
   // 穀類・豆
   { name:"米",           icon:"🌾" },
-  { name:"麦",           icon:"🌾" },
-  { name:"ソバ",         icon:"🌾" },
+  { name:"麦",           svg:"wheat" },
+  { name:"ソバ",         svg:"soba" },
   { name:"大豆",         icon:"🫘" },
-  { name:"エダマメ",     icon:"🫘" },
+  { name:"エダマメ",     svg:"edamame" },
   // 果樹
   { name:"ブドウ",       icon:"🍇" },
   { name:"リンゴ",       icon:"🍎" },
   { name:"ミカン",       icon:"🍊" },
-  { name:"スダチ",       icon:"🍋" },
-  { name:"ユズ",         icon:"🍋" },
+  { name:"スダチ",       svg:"sudachi" },
+  { name:"ユズ",         svg:"yuzu" },
   { name:"レモン",       icon:"🍋" },
-  { name:"カキ",         icon:"🍊" },
+  { name:"カキ",         svg:"persimmon" },
   { name:"ナシ",         icon:"🍐" },
   { name:"モモ",         icon:"🍑" },
-  { name:"ウメ",         icon:"🌸" },
+  { name:"ウメ",         svg:"ume" },
   { name:"クリ",         icon:"🌰" },
   { name:"キウイ",       icon:"🥝" },
   // その他

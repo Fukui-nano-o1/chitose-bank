@@ -1,7 +1,8 @@
 // 求人カード（分割・段階2後半・2026-07-24）：さがす一覧・関連求人・いいね一覧で共用。
 import { useState } from "react";
-import { payLabel, dateRangeLabel, CROP_OPTIONS, photoThumb } from "../lib/utils";
+import { payLabel, dateRangeLabel, photoThumb } from "../lib/utils";
 import { Avatar, StatusRibbonLeft } from "./ui";
+import { CropIcon } from "./CropIcon";
 
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
 // saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
@@ -19,7 +20,6 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen }) {
   const photoAnim = photoPop ? { animation: "cbPhotoTapZoom .35s ease" } : {};
   const p0 = job.photos?.[0];
   const topSrc = photoThumb(p0); // カードは軽量サムネ（thumbが無い古い写真は原寸へフォールバック）
-  const cropIcon = CROP_OPTIONS.find(c => job.crop && job.crop.includes(c.name))?.icon || "🌱";
   const photoHeight = isList ? 220 : 220;
   // Airbnb風：写真は四隅を丸く（枠なしカード・2026-07-19）
   const photoRadius = 16;
@@ -75,7 +75,7 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen }) {
         <div onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, borderRadius:photoRadius, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48, ...photoAnim }}>
           {(job.employerAvatar || job.employerName)
             ? <Avatar url={job.employerAvatar} name={job.employerName || "？"} size={isList ? 112 : 88} />
-            : cropIcon}
+            : <CropIcon crop={job.crop} size={48} />}
         </div>
       )}
       {/* 概要：list=写真の下／related=写真の上に黒半透明グラデで重ねる（2026-07-23） */}
