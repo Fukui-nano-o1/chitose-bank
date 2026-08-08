@@ -3,12 +3,14 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 import { DragSheet } from "./DragSheet";
+import { JobCard } from "./JobCard";
+import { JobDetailBody } from "./JobDetailBody";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
@@ -592,6 +594,25 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [nearPubDetail, setNearPubDetail] = useState(false);
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
+  // シート内の求人カード→詳細面（2026-08-08たきと指示「ここも同じにしよう。アニメーションもコピー」＝
+  // ステータスページのボックスと同じ：求人タップで面全体that演出→詳細面へスライド・横スワイプで戻る）
+  const [sheetPane, setSheetPane] = useState("main");        // main | detail
+  const [sheetShowcase, setSheetShowcase] = useState(false); // 面全体の演出（cbJobShowcase）
+  const [sheetJobFull, setSheetJobFull] = useState({});      // job_number → jobs_publicのmapped行｜null(非公開)
+  useEffect(() => {
+    setSheetPane("main"); setSheetShowcase(false); // 開き直しで面と演出の残骸を持ち越さない
+    const live = dbApplicants.find(x => x.id === sheetApplicantId);
+    const jn = live?.job_number;
+    if (!jn || jn in sheetJobFull) return;
+    let dead = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("jobs_public").select("*").eq("job_number", jn).maybeSingle();
+        if (!dead) setSheetJobFull(prev => ({ ...prev, [jn]: data ? mapJobPublicRow(data) : null }));
+      } catch { if (!dead) setSheetJobFull(prev => ({ ...prev, [jn]: null })); }
+    })();
+    return () => { dead = true; };
+  }, [sheetApplicantId]); // eslint-disable-line react-hooks/exhaustive-deps -- sheetJobFullは取得済み判定のみ（依存に入れると再取得ループ）
   // 面接の質問を一度でも送った応募ID（interview_question_sends・農家本人select可）。
   // シートのボタン出し分け「初面接後=採用する」の判定に使用（2026-07-26たきと指示）
   // 採用の実行窓口は「採用するページ」1箇所に一本化（2026-08-06たきと指示「器と機能の役割は一つに絞れ」）。
@@ -958,16 +979,22 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               </div>
               {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
               <QaChat items={workerQaItems(wp)} style={{ marginTop:10, marginBottom:10 }} />
-              {/* 求人名はタップで求人プレビューを開くリンク（2026-07-19） */}
+              {/* 求人＝ステータスページのボックスと同じカード＋動き（2026-08-08たきと指示
+                  「ここも同じにしよう。アニメーションもコピー」）：旧・下線リンク（タップで求人プレビュー）を
+                  廃止し、wide JobCardに。タップ＝面全体の演出→シート内の詳細面へスライド（DragSheetのdetail）。
+                  jobs_publicの読み足し（sheetJobFull）that届くまで／非公開求人は手元の情報で仮の姿
+                  （報酬0円やダミーは出さない＝JobCard側でpay>0のみ表示） */}
               {(() => {
                 const info = jobInfoMap[a.job_number] || dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number) || {};
-                const title = [info.crop, info.task].filter(Boolean).join(" ") || "求人";
+                const full = sheetJobFull[a.job_number];
+                const job = full || {
+                  id: a.job_number, crop: info.crop || "", task: info.task || "", photos: info.photos || [],
+                  region: "", dateStartRaw: info.date_start || "", dateEndRaw: info.date_end || "", pay: 0,
+                };
                 return (
-                  <button onClick={()=>setPreviewJob({ num: a.job_number })} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"none", border:"none", padding:0, margin:"0 0 4px", cursor:"pointer" }}>
-                    <span style={{ fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline" }}>{title}</span>
-                    <span style={{ color:"#999", fontWeight:700, fontSize:12, marginLeft:6 }}>#{a.job_number}</span>
-                    <span style={{ color:"#00A86B", fontWeight:700, fontSize:12, marginLeft:6 }}>→</span>
-                  </button>
+                  <div style={{ margin:"0 0 8px" }}>
+                    <JobCard job={job} variant="wide" onOpen={()=>{ if (!sheetShowcase && sheetPane === "main") setSheetShowcase(true); }} />
+                  </div>
                 );
               })()}
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
@@ -1589,8 +1616,25 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       {(() => {
         const live = dbApplicants.find(x => x.id === sheetApplicantId);
         if (!live) return null;
+        // 詳細面（2026-08-08たきと指示「アニメーションもコピー」）＝ステータスページのボックスと同じ：
+        // シート内の求人カードタップ→面全体の演出→この面へスライド。横スワイプで戻る
+        const full = sheetJobFull[live.job_number];
+        const detailPane = (
+          <div>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:"0 0 10px" }}>横スワイプで戻る</p>
+            {full
+              ? <JobDetailBody job={full} me={me} />
+              : <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
+                  {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : "読み込み中..."}
+                </p>}
+          </div>
+        );
         return (
-          <DragSheet onClose={()=>setSheetApplicantId(null)}>
+          <DragSheet onClose={()=>setSheetApplicantId(null)}
+            pane={sheetPane} showcase={sheetShowcase}
+            onShowcaseEnd={()=>setSheetPane("detail")}
+            onPaneChange={(p)=>{ setSheetPane(p); if (p === "main") setSheetShowcase(false); }}
+            detail={detailPane}>
             {renderApplicantCard(live)}
           </DragSheet>
         );
