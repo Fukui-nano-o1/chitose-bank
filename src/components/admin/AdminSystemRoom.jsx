@@ -77,12 +77,14 @@ const PANES = [
   { k:"images", l:"画像軽量化" },
 ];
 
-// エラー面のステータス絞り込み（2026-08-08たきと指示「ステータス切り替えボタン設置しよう」＝
-// 応募者ページの絞り込みバーと同じ浮遊ピルの型）。グループ単位で絞る
+// エラー面の絞り込み（2026-08-08たきと指示「重要度で分けてくれ。解決済みは非表示」）＝
+// 応募者ページの絞り込みバーと同じ浮遊ピルの型。重要度は大分類（ERROR_CATEGORIES）が持つ。
+// ★一覧は【未解決だけ】＝解決済みの種類は出さない（片付けたら消える。記録はDBに残る）
 const ERR_FILTERS = [
-  { k:"all",   l:"すべて" },
-  { k:"open",  l:"未解決" },
-  { k:"fixed", l:"解決済み" },
+  { k:"all",     l:"すべて" },
+  { k:"high",    l:"重大" },
+  { k:"medium",  l:"注意" },
+  { k:"unknown", l:"不明" },
 ];
 
 export function AdminSystemRoom() {
@@ -134,7 +136,7 @@ export function AdminSystemRoom() {
   const [appErrors, setAppErrors] = useState(null);
   const [expandedSig, setExpandedSig] = useState(null);
   const [errBulkBusy, setErrBulkBusy] = useState("");
-  const [errFilter, setErrFilter] = useState("all");
+  const [errFilter, setErrFilter] = useState("all");   // 重要度（all/high/medium/unknown）
   useEffect(() => {
     (async () => {
       try {
@@ -384,21 +386,22 @@ export function AdminSystemRoom() {
               <p className="f-sans" style={{ fontSize:14 }}>エラーは記録されていません</p>
             </div>
           ) : (() => {
-            const allCats = groupAppErrors(appErrors);
+            // ①解決済みの種類は出さない（たきと指示）②重要度で絞る。集計行は全体の真実のまま
+            const openCats = groupAppErrors(appErrors)
+              .map(c => ({ ...c, groups: c.groups.filter(g => g.openIds.length > 0) }))
+              .filter(c => c.groups.length > 0);
             const openTotal = appErrors.filter(x => x.status === "open").length;
-            const kindTotal = allCats.reduce((s, c) => s + c.groups.length, 0);
-            // ステータス絞り込み（グループ単位：未解決あり／全部解決済み）。集計行は全体の真実のまま
-            const cats = errFilter === "all" ? allCats
-              : allCats.map(c => ({ ...c, groups: c.groups.filter(g => errFilter === "open" ? g.openIds.length > 0 : g.openIds.length === 0) }))
-                  .filter(c => c.groups.length > 0);
+            const kindTotal = openCats.reduce((s, c) => s + c.groups.length, 0);
+            const cats = errFilter === "all" ? openCats : openCats.filter(c => c.severity === errFilter);
+            const sevLabel = ERR_FILTERS.find(f => f.k === errFilter)?.l || "";
             return (
               <div style={{ display:"grid", gap:20 }}>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>
-                  未解決 <b style={{ color:"#222" }}>{openTotal}件</b>・{kindTotal}種類（直近{appErrors.length}件から集計）
+                  未解決 <b style={{ color:"#222" }}>{openTotal}件</b>・{kindTotal}種類（直近{appErrors.length}件から集計・解決済みは表示していません）
                 </p>
                 {cats.length === 0 && (
                   <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, padding:"32px 0" }}>
-                    {errFilter === "open" ? "未解決のエラーはありません" : "解決済みのエラーはありません"}
+                    {errFilter === "all" ? "未解決のエラーはありません" : `「${sevLabel}」の未解決エラーはありません`}
                   </p>
                 )}
                 {cats.map(c => (
@@ -473,26 +476,41 @@ export function AdminSystemRoom() {
 
       {/* ── ステータス切り替えの浮遊ピルバー（エラー面のみ・応募者ページの絞り込みバーと同じ型）。
             位置は下部バーの12px上＝浮遊☰と同じ規約（管理ページは下部バーを出す・2026-08-05） */}
-      {!focusPair && pageIdx === 0 && appErrors !== null && appErrors.length > 0 && (
-        <div className="f-sans" style={{
-          position:"fixed", left:"50%", transform:"translateX(-50%)",
-          bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:60,
-          background:"#fff", borderRadius:999, boxShadow:"0 4px 20px rgba(0,0,0,0.16)",
-          padding:"8px 10px", display:"flex", gap:8, maxWidth:"92vw",
-          overflowX:"auto", WebkitOverflowScrolling:"touch",
-        }}>
-          {ERR_FILTERS.map(f => (
-            <button key={f.k} type="button" onClick={() => setErrFilter(f.k)}
-              style={{
-                padding:"10px 20px", borderRadius:999, whiteSpace:"nowrap", cursor:"pointer",
-                background:"#fff",
-                border: errFilter === f.k ? "2px solid #222" : "1px solid #DDD",
-                fontSize:14, fontWeight: errFilter === f.k ? 800 : 600,
-                color: errFilter === f.k ? "#222" : "#999",
-              }}>{f.l}</button>
-          ))}
-        </div>
-      )}
+      {!focusPair && pageIdx === 0 && appErrors !== null && appErrors.length > 0 && (() => {
+        // 重要度ごとの未解決の種類数（ピルに添える）。解決済みは数えない＝一覧の表示と揃える
+        const openCats = groupAppErrors(appErrors)
+          .map(c => ({ ...c, groups: c.groups.filter(g => g.openIds.length > 0) }))
+          .filter(c => c.groups.length > 0);
+        const countOf = (k) => k === "all"
+          ? openCats.reduce((s, c) => s + c.groups.length, 0)
+          : openCats.filter(c => c.severity === k).reduce((s, c) => s + c.groups.length, 0);
+        // 選択中は重要度の色で示す（重大=赤・注意=橙・不明/すべて=黒）＝カードのバッジと同じ系統
+        const SEV_INK = { high:"#E24B4A", medium:"#F5A623", unknown:"#717171", all:"#222" };
+        return (
+          <div className="f-sans" style={{
+            position:"fixed", left:"50%", transform:"translateX(-50%)",
+            bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:60,
+            background:"#fff", borderRadius:999, boxShadow:"0 4px 20px rgba(0,0,0,0.16)",
+            padding:"8px 10px", display:"flex", gap:8, maxWidth:"92vw",
+            overflowX:"auto", WebkitOverflowScrolling:"touch",
+          }}>
+            {ERR_FILTERS.map(f => {
+              const on = errFilter === f.k;
+              const n = countOf(f.k);
+              const ink = SEV_INK[f.k] || "#222";
+              return (
+                <button key={f.k} type="button" onClick={() => setErrFilter(f.k)}
+                  style={{
+                    padding:"10px 18px", borderRadius:999, whiteSpace:"nowrap", cursor:"pointer",
+                    background:"#fff", border: on ? `2px solid ${ink}` : "1px solid #DDD",
+                    fontSize:14, fontWeight: on ? 800 : 600,
+                    color: on ? ink : (n > 0 ? "#999" : "#CCC"),
+                  }}>{f.l}{n > 0 ? ` ${n}` : ""}</button>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
