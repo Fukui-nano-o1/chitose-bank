@@ -26,6 +26,16 @@ export function DragSheet({ onClose, children, detail, pane = "main", onPaneChan
   const onPaneChangeRef = useRef(onPaneChange); onPaneChangeRef.current = onPaneChange;
   const paneStateRef = useRef(pane); paneStateRef.current = pane;
   const hasPanesRef = useRef(hasPanes); hasPanesRef.current = hasPanes;
+  // 面の切り替えとスクロール位置（2026-08-08たきと指示「スライドしたならトップから始めろ。
+  // 求人詳細はまだスクロールしていないんだから」）：詳細面に入る時はトップから。
+  // メイン面のスクロール位置は覚えておき、戻った時に復元する（読みかけの位置を失わない）
+  const savedScrollRef = useRef(0);
+  useEffect(() => {
+    const sc = scrollRef.current;
+    if (!sc || !hasPanes) return;
+    if (pane === "detail") { savedScrollRef.current = sc.scrollTop; sc.scrollTop = 0; }
+    else { sc.scrollTop = savedScrollRef.current || 0; }
+  }, [pane, hasPanes]);
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;

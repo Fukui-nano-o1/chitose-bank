@@ -45,6 +45,16 @@ export function SavedJobsView({ me }) {
   const paneRef = useRef(null);      // 面の2枚コンテナ（横スワイプの追従対象）
   const boxPaneRef = useRef("main"); // リスナーは[boxJob]で1回張るso、最新の面はrefで読む
   useEffect(() => { boxPaneRef.current = boxPane; }, [boxPane]);
+  // 面の切り替えとスクロール位置（2026-08-08たきと指示「スライドしたならトップから始めろ。
+  // ステータスページも同じにしろ」＝DragSheetと同じ規則）：詳細面に入る時はトップから。
+  // メイン面のスクロール位置は覚えておき、戻った時に復元する（読みかけの位置を失わない）
+  const boxScrollSavedRef = useRef(0);
+  useEffect(() => {
+    const sc = boxScrollRef.current;
+    if (!sc) return;
+    if (boxPane === "detail") { boxScrollSavedRef.current = sc.scrollTop; sc.scrollTop = 0; }
+    else { sc.scrollTop = boxScrollSavedRef.current || 0; }
+  }, [boxPane]);
   // ジェスチャは1本のパイプラインで軸ロック（2026-08-07たきと指示「左右スワイプで戻って。
   // 戻るは削除。指に連動させるが滑らかに」で横を追加）：
   // ・8px動いた時点で縦か横かを1ジェスチャ1回だけ確定（TodayPage・AdminJobPreviewと同じ作法）
