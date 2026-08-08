@@ -250,6 +250,20 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     }
     return null;
   };
+  // 今日ページ「プロフィールの未入力」からの着地（2026-08-03たきと指示）：
+  // 最初の未入力ボックスをその場で開く。以後は保存のたびに次の未入力へ（上の既存の連鎖に乗る）。
+  // ★読み込みが終わってから判定する（読み込み前は全項目が空に見え、必ずアイコンが開いてしまう）。
+  // 1回だけ（refで消費）＝閉じたあと再び勝手に開かない
+  const fillGuideRef = useRef(false);
+  useEffect(() => {
+    if (loading || fillGuideRef.current) return;
+    let want = false;
+    try { want = sessionStorage.getItem("cb_fillProfile") === "1"; if (want) sessionStorage.removeItem("cb_fillProfile"); } catch {}
+    if (!want) return;
+    fillGuideRef.current = true;
+    const k = BOX_ORDER.find(b => !boxFilled(b));   // 先頭から最初の未入力（nextUnfilledBoxは「次」so先頭を飛ばす）
+    if (k) setEditBox(k);
+  }, [loading]);   // eslint-disable-line react-hooks/exhaustive-deps -- 読み込み完了の1回だけ走らせる（入力途中の再判定はしない）
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);

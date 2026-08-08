@@ -798,7 +798,12 @@ export function TodayPage({ me, defaultRole }) {
     // バッジ＝未入力の項目数＝プロフィール入口の名刺バッジと同じ数（数え方はlib/utilsが唯一のソース）
     profile:     { icon:"👤", title:"プロフィールの未入力", btn:"入力する →",
                    desc:"農家はあなたのプロフィールを見て、応募を承認するか決めます。埋まっているほど選ばれやすくなります。",
-                   boxNav: () => role === "farmer" ? "/profile/employer/profile" : "/profile/worker/profile" },
+                   // 合図（cb_fillProfile）＝着地した編集ページが最初の未入力ボックスをその場で開く。
+                   // 以後は保存のたびに次の未入力へ進む（編集ページ側の既存の連鎖・2026-07-16）
+                   boxNav: () => {
+                     try { sessionStorage.setItem("cb_fillProfile", "1"); } catch {}
+                     return role === "farmer" ? "/profile/employer/profile" : "/profile/worker/profile";
+                   } },
     // カレンダー（2026-07-27たきと指示：確認カードをカレンダーに差し替え・統合）：
     // 応募（予定）が1件でもあれば件数0でも常にタップ可＝月カレンダーへ直行。バッジ＝きょうが作業日の仕事の数。
     // 現場情報の確認はカレンダーの日タップ→求人ページで担う（確認カードの役割を吸収）
