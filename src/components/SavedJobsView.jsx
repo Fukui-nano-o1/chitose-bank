@@ -447,8 +447,15 @@ export function SavedJobsView({ me }) {
                     );
                   })()}
                 </div>
-                {/* ── 面1：メイン（バナー・カード・日にち・操作ボックス） ── */}
-                <div style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
+                {/* ── 面1：メイン（バナー・カード・日にち・操作ボックス） ──
+                    演出の対象は面全体（2026-08-08たきと指示「求人タップで全てスライド」）：
+                    カード単体でなく、バナー・カード・日にち・操作ボックスがまとまって
+                    縮む→一拍→右スライドアウトし、終わった合図で詳細面へ。
+                    ★onAnimationEndはtarget一致で絞る：JobCard内の写真ポップ等がバブルしてくるため、
+                      絞らないと演出の途中で面が切り替わる */}
+                <div className={cardShow ? "cb-job-showcase" : undefined}
+                  onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && cardShow) setBoxPane("detail"); }}
+                  style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
                 {/* 現在地バナー（応募者ページと同じ・段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
                 {phase ? (
                   <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
@@ -475,18 +482,9 @@ export function SavedJobsView({ me }) {
                       id: r.job_number, crop: r.crop || "", task: r.task || "", photos: r.photos || [],
                       region: r.town || "", dateStartRaw: r.date_start || "", dateEndRaw: r.date_end || "", pay: 0,
                     };
-                    // タップ＝演出→終わった合図で詳細面へスライド（2026-08-07たきと指示）。
-                    // 外側のoverflow:hiddenで右スライドのはみ出しを切る（シート内に横スクロールを作らない）。
-                    // ★onAnimationEndはtarget一致で絞る：JobCard内の写真ポップ（cbPhotoTapZoom・0.35s）that
-                    //   バブルしてくるため、絞らないと演出の途中で面が切り替わる
-                    return (
-                      <div style={{ overflow:"hidden" }}>
-                        <div className={cardShow ? "cb-job-showcase" : undefined}
-                          onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && cardShow) setBoxPane("detail"); }}>
-                          <JobCard job={job} variant="wide" onOpen={()=>{ if (!cardShow) setCardShow(true); }} />
-                        </div>
-                      </div>
-                    );
+                    // タップ＝面全体の演出を発火（cb-job-showcaseは面1のdivに付く・2026-08-08「全てスライド」）。
+                    // はみ出しはスクロール容器のoverflowX:hiddenが切る
+                    return <JobCard job={job} variant="wide" onOpen={()=>{ if (!cardShow) setCardShow(true); }} />;
                   })()}
                   {r.application_id && (
                     <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"8px 4px 0" }}>応募日 {new Date(r.applied_at).toLocaleDateString("ja-JP")}</p>

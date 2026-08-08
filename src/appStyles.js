@@ -1331,11 +1331,12 @@ body.cb-scrolling .cb-like-heart { animation: cbHeartJelly .55s ease-in-out infi
   100% { transform: scale(1); }
 }
 
-/* ステータスページ・展開ボックス内の求人カードのタップ演出（2026-08-07たきと指示。
-   最終形＝同日「アニメーションは小さいままで横スライド」）：
+/* ステータスページ・展開ボックスの求人タップ演出（2026-08-07たきと指示。
+   最終形＝2026-08-08「求人タップで全てスライド」＝対象はカード単体でなくメイン面全体）：
+   面の中身（バナー・カード・日にち・操作ボックス）がまとまって
    縮む(0.88)→ワンテンポ静止→小さいまま右へスライドアウトして終わる（fill both・拡大はしない）。
-   終わりの合図（onAnimationEnd・SavedJobsView側）で面が求人詳細パネルへスライドする＝
-   カードの右ずれがそのまま面の切り替えに繋がる。ページ遷移はしない（詳細ページへは面内のボタンで） */
+   終わりの合図（onAnimationEnd・SavedJobsView側）で面が求人詳細パネルへスライドする。
+   ページ遷移はしない */
 @keyframes cbJobShowcase {
   0%   { transform: scale(1) translateX(0); }
   22%  { transform: scale(0.88) translateX(0); }
