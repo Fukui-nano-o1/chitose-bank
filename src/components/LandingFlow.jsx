@@ -532,23 +532,12 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     return () => { cancelled = true; };
   }, []);
   // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ。
-  // 定義位置は openPublish（下の掲載ガード）より前でなければならない＝後ろに置くとTDZで
-  // 「Cannot access before initialization」＝画面が真っ白になる（lintゲート no-use-before-define that検出）
   const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
   const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
   const [overtimeInfoOpen,  setOvertimeInfoOpen]  = useState(false); // タイトル横「？」の説明展開（UI一時state・保存しない）
-  // 掲載前の日程ガード（2026-07-24）：日程未設定のまま掲載に進ませない（終了求人コピー→日程空で複製、の受け皿）
+  // 掲載前の必須ガード（2026-07-24〜）：未入力のまま掲載に進ませない（終了求人コピー・編集の受け皿）。
+  // 判定の中身は getPublishMissingFields（下）に集約し、openPublish もそこで定義している
   const [returnToConfirm, setReturnToConfirm] = useState(false);
-  const openPublish = () => {
-    if (!jobDateStart) { alert("作業日程が未設定です。「日程」から新しい日を選んでから掲載してください。"); setReturnToConfirm(true); setStep(4); return; }
-    // 時間外労働のガード（2026-08-03）：必須化より前に作った下書きは未入力のまま確認ページへ来られる
-    // （再開・コピーはstep11から始まりstep5を通らない）so、掲載の直前でも止めて入力させる
-    if (!overtimePolicy || (overtimePolicy === "あり" && !overtimeDetail.trim())) {
-      alert("時間外労働が未設定です。「勤務条件」で有無（「あり」の場合はどれくらいの時間か）を入力してから掲載してください。");
-      setReturnToConfirm(true); setStep(5); return;
-    }
-    setPublishModal(true);
-  };
   // 確認ページ用：本人の雇い手プロフィール（詳細ページempEmployerと同じデータ源employer_profiles）。
   // 読み込み前から出す（2026-08-03たきと指示「確認ページのプロフィールの復元が遅い」）：お仕事タブが
   // 保存した同じ全列データ（viewCache farm:empMini → アプリ再起動後は snapshot empMini）を初期値にし、
@@ -1189,21 +1178,41 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     }
   };
 
-  // 掲載（status=pending投入）前の必須項目チェック。欠けている項目名を返す
+  // 掲載（status=pending投入）前の必須項目チェック。欠けている項目を {label, step} で返す。
+  // ★掲載前チェックの唯一のソース＝「掲載する」(openPublish)と保存(handleSaveJob)の両方がここを見る。
+  //   必須項目を足すときはこの表だけ直す。2箇所に散らすと、確認ページに直接入る経路
+  //   （求人の編集・コピー＝step3/4/5を通らない）がフロントを素通りし、DBのエラーで止まることになる。
+  // step はその項目を入力するページ＝案内するだけでなく、その欄へ実際に送るために持たせている。
   const getPublishMissingFields = () => {
     const checks = [
-      ["作物",                   !!farmerCrop],
-      ["作業",                   !!farmerTask],
-      ["郵便番号",                !!farmerZip.trim()],
-      ["都道府県（徳島県）",        isAllowedPrefecture(farmerPref)],
-      ["市区町村",                !!farmerCity.trim()],
-      ["町域",                   !!farmerTown.trim()],
-      ["作業日程（開始日）",       !!jobDateStart],
-      ["採用人数",                Number(jobCount) > 0],
-      ["日給（最低賃金以上）", !!dailyWageInput && !dailyViolation],
-      ["休憩時間",                breakTime !== ""],
+      ["作物",                   !!farmerCrop,                        1],
+      ["作業",                   !!farmerTask,                        2],
+      ["郵便番号",                !!farmerZip.trim(),                  3],
+      ["都道府県（徳島県）",        isAllowedPrefecture(farmerPref),     3],
+      ["市区町村",                !!farmerCity.trim(),                 3],
+      ["町域",                   !!farmerTown.trim(),                 3],
+      ["番地・建物名",             !!farmerAddr.trim(),                 3],
+      ["作業日程（開始日）",       !!jobDateStart,                      4],
+      ["採用人数",                Number(jobCount) > 0,                4],
+      // 勤務時間：終了が開始以前だと、DB側の job_scheduled_minutes が null を返して掲載が止まる。
+      // かつ日給の最賃判定（validateMinWage）も workHours>0 のときしか働かないため、ここで先に止める
+      ["勤務時間（開始〜終了）",    workHours > 0,                       5],
+      ["日給（最低賃金以上）", !!dailyWageInput && !dailyViolation,      5],
+      ["休憩時間",                breakTime !== "",                    5],
+      ["時間外労働",              overtimeOk,                          5],
     ];
-    return checks.filter(([, ok]) => !ok).map(([label]) => label);
+    return checks.filter(([, ok]) => !ok).map(([label, , step]) => ({ label, step }));
+  };
+  // 足りない欄を伝えて、その欄のページへ送る（案内だけで終わらせない）。戻り先は確認ページ
+  const goToMissingField = (missing) => {
+    alert("掲載前に以下の項目を入力してください：\n" + missing.map(m => "・" + m.label).join("\n"));
+    setReturnToConfirm(true);
+    setStep(missing[0].step);
+  };
+  const openPublish = () => {
+    const missing = getPublishMissingFields();
+    if (missing.length > 0) { goToMissingField(missing); return; }
+    setPublishModal(true);
   };
 
   // ── OUTER SHELL ─────────────────────────────────────────────
@@ -2014,7 +2023,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               if (jobSaving) return;
               const missing = getPublishMissingFields();
               if (missing.length > 0) {
-                alert("掲載前に以下の項目を入力してください：\n" + missing.join("\n"));
+                setPublishModal(false); // チェックリストを閉じてから足りない欄のページへ送る
+                goToMissingField(missing);
                 return;
               }
               setJobSaving(true);
