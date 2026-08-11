@@ -2,9 +2,9 @@
 // 「今日」ページ(TodayPage)の奥の画面。プロフィール内蔵カレンダー・応募者ページ上部でも使用（backToToday無し）。
 // 予定カード（アジェンダ）は2026-07-27に廃止：カレンダーは「日を選ぶ」だけを担い、
 // 選んだ日の求人をどう見せるかは置き場所を持つページ側（応募者ページ）の仕事＝onDayTapJobsで渡す。
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, isJobDraft, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, photoThumb } from "../lib/utils";
+import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, isJobDraft, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, photoThumb, entryWorkDays } from "../lib/utils";
 import { StatusRibbonLeft, NoticeJumpText } from "./ui";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
@@ -57,10 +57,18 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   }, []);
 
   const todayYmd = ymdLocal(new Date());
-  const entriesOnDay = (dt) => {
-    const ymd = ymdLocal(dt);
-    return entries.filter(e => e.date_start && ymd >= e.date_start && ymd <= (e.date_end || e.date_start));
+  // その予定が占める日は lib/utils の entryWorkDays に一本化（2026-08-11）。
+  // 以前はここが求人期間の生の範囲だけを見ており、①働き手が申請した労働希望日（available_dates）が
+  // どこにも反映されず、②農家が働く日を確定した後（agreed_dates）ですら期間まるごとを塗っていた
+  // （名前チップだけが合意日を見ていた＝同じ画面の中で食い違っていた）。
+  // 予定1件につき1回だけ日の集合を作る（月グリッドは3か月×42マスを走査するため、毎マス作り直さない）
+  const workDays = useMemo(() => entries.map(e => entryWorkDays(e)), [entries]);
+  const entryIdxOnDay = (ymd) => {
+    const out = [];
+    for (let i = 0; i < entries.length; i++) if (workDays[i].days.has(ymd)) out.push(i);
+    return out;
   };
+  const entriesOnDay = (dt) => entryIdxOnDay(ymdLocal(dt)).map(i => entries[i]);
   // ── 名前チップ「誰がいつ来るか」（2026-07-29たきと指示）──
   // 出すのは採用済みだけ＝両者の確認時刻が揃った応募（面接中はまだ来ると確定していないので出さない）。
   // 段階は appPhaseKey（帯の唯一のソース）で導く。statusは承認後も'approved'のままで、
@@ -72,14 +80,14 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
     terms_confirmed_worker_at: e.terms_confirmed_worker_at,
     terms_confirmed_farmer_at: e.terms_confirmed_farmer_at,
   });
-  // 働く日（agreed_dates）が確定していればその日だけ、未確定なら求人の日程どおりに出す
-  const comesOnDay = (e, ymd) => {
-    if (e.relation !== "application" || !e.partner_name) return false;
-    if (!HIRED_PHASES.includes(phaseOfEntry(e))) return false;
-    if (Array.isArray(e.agreed_dates) && e.agreed_dates.length > 0) return e.agreed_dates.includes(ymd);
-    return !!e.date_start && ymd >= e.date_start && ymd <= (e.date_end || e.date_start);
+  // 誰が来る日か＝塗りと同じ entryWorkDays で見る（働く日が確定していればその日、
+  // 未確定なら働き手が申請した労働希望日、それも無ければ求人の日程どおり）
+  const chipsOnDay = (dt) => {
+    const ymd = ymdLocal(dt);
+    return entryIdxOnDay(ymd)
+      .map(i => entries[i])
+      .filter(e => e.relation === "application" && e.partner_name && HIRED_PHASES.includes(phaseOfEntry(e)));
   };
-  const chipsOnDay = (dt) => { const ymd = ymdLocal(dt); return entries.filter(e => comesOnDay(e, ymd)); };
 
   const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
   const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
@@ -253,7 +261,8 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                 // 予定のある日は塗りつぶし（2026-07-27たきと指示：求人フローのカレンダーと同じ形式に統一）。
                 // 求人期間（農家として）=緑／求職期間（働き手として）=橙／両方が重なる日=赤。
                 // 濃さは公開中（jobs.status='open'）だけ濃色、それ以外（下書き・審査中・終了等）は薄色（同日改定）
-                const es = entriesOnDay(dt);
+                const idxs = entryIdxOnDay(ymd);
+                const es = idxs.map(k => entries[k]);
                 const farmerEs = es.filter(e => e.my_role === "farmer");
                 const workerEs = es.filter(e => e.my_role === "worker");
                 const hasFarmer = farmerEs.length > 0;
@@ -263,9 +272,17 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                 // 名前チップが乗る日は塗りを薄くする（2026-07-29たきと指示）＝濃い地に濃いチップを重ねない。
                 // 濃淡の既存ルール（濃い=公開中）はチップの無い日でそのまま維持される
                 const chips = chipsOnDay(dt);
+                // まだ希望でしかない日（2026-08-11）＝この日に出ている予定が全部 available_dates 由来。
+                // 働き手が「来られる」と申請しただけで、農家はまだ働く日を決めていない＝ベタ塗りにすると
+                // 決まったように見えるので、斜線にして「確定していない」ことを見た目で分ける
+                const onlyWish = idxs.length > 0 && idxs.every(k => workDays[k].kind === "available");
                 // 薄色＝同じ色の8%（+"14"）。文字は色に沿った濃い字にして読めるようにする
-                const solid = isOpen && chips.length === 0;
-                const fillBg = baseColor ? (solid ? baseColor : baseColor + "22") : null;
+                const solid = isOpen && chips.length === 0 && !onlyWish;
+                const fillBg = baseColor
+                  ? (onlyWish
+                      ? `repeating-linear-gradient(135deg, ${baseColor}3D 0 4px, ${baseColor}0F 4px 8px)`
+                      : (solid ? baseColor : baseColor + "22"))
+                  : null;
                 const fillFg = baseColor ? (solid ? "#fff" : baseColor) : "#222";
                 const liked = es.some(e => e.relation === "liked" || likedIds.has(e.job_number)); // いいね済み＝右上に小さく❤️
                 const isToday = ymd === todayYmd;
@@ -319,6 +336,14 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                 {APP_PHASE_LABEL[k]}
               </span>
             ))}
+          </div>
+          {/* 斜線＝働く日がまだ決まっていない（2026-08-11）：働き手が申請した「来られる日」だけが分かっている状態。
+              農家が働く日を決める（set_agreed_dates）と、その日はふつうの塗りに変わる */}
+          <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:6 }}>
+            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}>
+              <span style={{ width:10, height:10, borderRadius:3, background:`repeating-linear-gradient(135deg, ${ROLE_GREEN}3D 0 4px, ${ROLE_GREEN}0F 4px 8px)` }} />
+              来られる日（働く日は未確定）
+            </span>
           </div>
           {/* 濃淡の意味（2026-07-27たきと指示）：公開中だけ濃く、それ以外（下書き・審査中・終了）は薄く */}
           <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"4px 0 0" }}>濃い色＝公開中／薄い色＝それ以外　❤️＝いいね</p>

@@ -75,6 +75,44 @@ export const isTodayWork = (item) => {
 // まもなく開始に出す対象＝開始 days 日以内、ただし当日は除く（当日は仕事中ページが持つ）
 export const isUpcomingSoon = (item, days = 7) => startsWithinDays(item, days) && !isTodayWork(item);
 
+// ── カレンダーに出す日（唯一のソース・2026-08-11たきと指示「希望日は反映されているか」）──
+// この予定が実際に占める日を返す。優先順は「決まったもの＞申請されたもの＞求人票の期間」：
+//   1. agreed_dates    … 農家が確定した働く日（確定）
+//   2. available_dates … 働き手が応募時に申請した労働希望日（未確定。承認直後はこれが最新の事実）
+//   3. 求人期間 date_start〜date_end … 上のどちらも無いとき
+// いずれからも holidays（求人の休日）を除く。
+// available_dates は配列のほかに "any"（期間中いつでもOK）と null（単日求人）を取り、
+// どちらも「日を絞っていない」＝3の期間へ倒す（配列のときだけ絞り込む）。
+// 返り値 kind は、確定した日（agreed）と、まだ希望でしかない日（available）を
+// 画面が描き分けるための目印。日の集合そのものは days（"YYYY-MM-DD" の Set）。
+//
+// ★カレンダーの塗り・名前チップ・きょうの仕事は必ずこの関数を使うこと。
+//   別々に書くと同じ画面の中で食い違う（塗りは期間・チップは合意日、が実際に起きていた）。
+// ★lib/hire.js の effectiveWorkDates とは別物。あちらは二重予約の壁の判定で、
+//   DBの app_work_dates と1対1で揃える約束があるため、未確定の希望日を混ぜない
+//   （混ぜると採用を止める壁の意味が変わる＝load-bearing so、変えるなら両方＋DBを揃える）。
+export function entryWorkDays(entry) {
+  const holidays = new Set(Array.isArray(entry?.holidays) ? entry.holidays.filter(d => typeof d === "string") : []);
+  const pickDays = (v) => (Array.isArray(v) ? v.filter(d => typeof d === "string" && d).map(d => d.slice(0, 10)) : null);
+  const keep = (list, kind) => ({ kind, days: new Set(list.filter(d => !holidays.has(d))) });
+
+  const agreed = pickDays(entry?.agreed_dates);
+  if (agreed && agreed.length) return keep(agreed, "agreed");
+  const avail = pickDays(entry?.available_dates);
+  if (avail && avail.length) return keep(avail, "available");
+
+  const start = entry?.date_start ? String(entry.date_start).slice(0, 10) : null;
+  if (!start) return { kind: "range", days: new Set() };
+  const end = entry?.date_end ? String(entry.date_end).slice(0, 10) : start;
+  const out = [];
+  // 比較は "YYYY-MM-DD" の文字列で行う（時差の影響を受けない）。
+  // 上限400は保険＝終了日が壊れていても無限ループにしない
+  for (let t = new Date(start + "T00:00:00"), i = 0; ymdLocal(t) <= end && i < 400; t.setDate(t.getDate() + 1), i++) {
+    out.push(ymdLocal(t));
+  }
+  return keep(out, "range");
+}
+
 // ── 打刻の時間窓（第13弾(1)・2026-07-30たきと指示）──
 // 他社（タイミー・メルカリハロ・LINEスキマニ）は全て打刻可能な時間窓を持つ。当方も入れる。
 // 判定はここに集約し、打刻ボタンのある画面（応募状況ページ・求人詳細）はこの関数を使う。
