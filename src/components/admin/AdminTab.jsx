@@ -567,12 +567,15 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       </div>
       </>)}
 
-      {/* ── その他（ボックス化・2026-07-16）：絵文字カード格子。タップでポップアップ展開（他画面と同じ意匠）。
-           旧アコーディオン（開発ツール／旧事業データ／システム）は、開発ツールを主要ページ・求人フローに分解し、ボックス一覧を追加した5ボックスに再編 ── */}
+      {/* ── その他（ボックス化・2026-07-16）：カード格子。タップの行き先はカードごとに3種類ある
+           （①専用ページへ遷移＝仕事中・まもなく開始・評価・システム・ボックス一覧・お知らせ一覧・委託・農家のアクションページ
+             ②その場で画面を開く＝新規登録画面
+             ③ポップアップ展開＝求人フロー・旧事業データ・きっかけ）。
+           行き先は下のonClickの分岐1箇所に集約する（カードを足したらここに1行足す） ── */}
       {sub==="other" && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12, marginBottom:24 }}>
           {[
-            { k:"pages",   l:"主要ページ" },
+            { k:"signup",  l:"新規登録画面" },
             { k:"flow",    l:"求人フロー" },
             { k:"legacy",  l:"旧事業データ" },
             { k:"system",  l:"システム" },
@@ -585,7 +588,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
             { k:"consign", l:"委託 準備室" },
             { k:"farmerpages", l:"農家のアクションページ" },
           ].map(c => (
-            <button key={c.k} onClick={()=>{ if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "evaluation") { window.location.hash = "/admin/evaluation"; } else if (c.k === "system") { window.location.hash = "/admin/system"; } else if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else if (c.k === "consign") { window.location.hash = "/admin/consignment"; } else if (c.k === "farmerpages") { window.location.hash = "/admin/farmer-pages"; } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button key={c.k} onClick={()=>{ if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "evaluation") { window.location.hash = "/admin/evaluation"; } else if (c.k === "system") { window.location.hash = "/admin/system"; } else if (c.k === "boxlist") { window.location.hash = "/boxes"; } else if (c.k === "notices") { window.location.hash = "/boxes/notices"; } else if (c.k === "consign") { window.location.hash = "/admin/consignment"; } else if (c.k === "farmerpages") { window.location.hash = "/admin/farmer-pages"; } else if (c.k === "signup") { onShowAccountForm(); } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>
           ))}
@@ -599,35 +602,17 @@ export function AdminTab({ onJump, onShowAccountForm }) {
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               <button onClick={()=>setOtherBox(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
               <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>
-                {otherBox==="pages" ? "主要ページ" : otherBox==="flow" ? "求人フロー" : otherBox==="legacy" ? "旧事業データ" : "きっかけ"}
+                {otherBox==="flow" ? "求人フロー" : otherBox==="legacy" ? "旧事業データ" : "きっかけ"}
               </p>
             </div>
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
 
               {otherBox==="survey" && <SurveyStats />}
 
-              {otherBox==="pages" && (<>
-                <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>開発: 画面ジャンプ</p>
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:16 }}>
-                  {[
-                    { k:"search",  l:"さがす" },
-                    { k:"profile", l:"プロフィール" },
-                    { k:"login",   l:"ログイン" },
-                    { k:"charter", l:"運営憲章" },
-                  ].map(({ k, l }) => (
-                    <button key={k} onClick={() => onJump(k)} className="f-sans" style={{
-                      padding:"6px 12px", borderRadius:8, border:"1px solid #EBEBEB",
-                      background:"#F7F7F7", color:"#717171", fontSize:11, fontWeight:600,
-                      cursor:"pointer",
-                    }}>{l}</button>
-                  ))}
-                </div>
-                <button onClick={onShowAccountForm} className="f-sans" style={{
-                  padding:"8px 14px", borderRadius:8, border:"1px solid #EBEBEB",
-                  background:"#fff", color:"#717171", fontSize:11, fontWeight:600,
-                  cursor:"pointer",
-                }}>①登録画面を再表示(開発用)</button>
-              </>)}
+              {/* 「主要ページ」ボックスは削除（2026-08-11たきと指示）。中にあった画面ジャンプ
+                  （さがす／プロフィール／ログイン／運営憲章）も一緒に廃止。
+                  唯一の実務用途だった「①登録画面を再表示」は、格子の「新規登録画面」カードに昇格した
+                  （カード＝1タップで新規登録画面へ・ポップアップを挟まない） */}
 
               {otherBox==="flow" && (<>
                 <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>開発: 画面ジャンプ(LandingFlow)</p>
