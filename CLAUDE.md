@@ -4262,3 +4262,19 @@ tab同期がURLを #/admin に巻き戻す）＋AdminTab描画ガードに !farm
 【検証】build成功・eslint 0 error（警告29=既存のみ・新規ゼロ）・distで「新規登録画面」の追加と
 「①登録画面を再表示」の消滅（0件）、求人フローのポップアップが残っていることをgrep確認。実機目視は未実施。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-11(続2) 見本帳の旧遺物を差し替え（役割をえらぶ #/role）━━━
+【たきと指摘】見本帳5枚目「役割をえらぶ」は旧遺物。
+【裏取り】コードに RoleSelectScreen も "/role" も存在しない（grepで0件）。AccountHolderForm の
+onDone は #/search（応募の戻り先があればその求人）へ送る＝登録の流れに役割選択ページは無い。
+CLAUDE.md 2026-07-25の申し送り「役割選択ページは無い」とも一致。
+【差し替え】5枚目を実物に：「農家をはじめる」＝プロフィール入口の浮遊トグル
+「🌱 農家（緑）を作る」（ProfileHub・hasEmployerSide=false のときの表示）→ #/profile/employer。
+骨格⑥「認証は役割を聞かない。役割はどのプロフィールを作ったかで決まる」がそのまま画面になっている。
+4枚目（本人情報の登録）の説明にも「終わると さがす に戻る」を追記。
+【他35枚の総点検】見本帳が使う全URLを実コードに突き合わせ、実在を確認（用件ページの段階キー6種＝
+interview/insurance/confirm_start/complete/hire/t_emergency は TODO_META に実在／#/new-applicants・
+#/saved・#/calendar・#/profile/employer/{profile,applicants,calendar}・#/visit も実在）。旧遺物は #/role のみだった。
+【教訓】見本帳のように「本番の画面を写す」ものは、書いた時点の記憶でなく必ずコードで裏を取る。
+画面を足すときは STEPS の url を実コードにgrepで当てること。
+━━━ ここまで ━━━

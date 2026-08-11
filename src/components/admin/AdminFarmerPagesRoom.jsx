@@ -143,7 +143,7 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:12, color:GREEN, fontWeight:700, textAlign:"center", marginTop:16 }}>はじめての方はこちら</p>
       </div>
     ) },
-  { ch:"準備", name:"本人情報の登録", url:"#/account", act:"氏名・生年月日・住所・連絡先を入れて、規約とプラポリに同意する（1回だけ）。",
+  { ch:"準備", name:"本人情報の登録", url:"#/account", act:"氏名・生年月日・住所・連絡先を入れて、規約とプラポリに同意する（1回だけ）。終わると さがす に戻る。",
     body: () => (
       <div style={{ padding:"22px 16px" }}>
         <MockH sub="お仕事のやりとりに使う、いちばん大事な情報です。">本人の情報を教えてください</MockH>
@@ -155,20 +155,22 @@ const STEPS = [
         <MockBtn kind="green">登録する</MockBtn>
       </div>
     ) },
-  { ch:"準備", name:"役割をえらぶ", url:"#/role", act:"「農家として始める」を選ぶ。ここで農家の顔ができる（働き手の顔は後からでも作れる）。",
+  /* 旧「役割をえらぶ（#/role）」は実装から消えているので置かない（2026-08-11たきと指摘・コードで確認）。
+     いまは、認証は役割を聞かず、どのプロフィールを作ったかで役割が決まる（骨格⑥）＝この画面が実物 */
+  { ch:"準備", name:"農家をはじめる", url:"#/profile/worker → #/profile/employer", act:"プロフィール入口の浮遊ボタン「🌱 農家（緑）を作る」で、雇い手の顔に切り替える。登録の時点では役割を聞かれない。",
     body: () => (
-      <div style={{ padding:"24px 16px" }}>
-        <MockH sub="あとから、もう一方の顔を作ることもできます。">どちらで始めますか？</MockH>
-        <MockCard style={{ borderColor:GREEN, borderWidth:2, marginBottom:12 }}>
-          <p className="f-sans" style={{ fontSize:26, margin:0 }}>🌱</p>
-          <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:INK, margin:"6px 0 4px" }}>農家として始める</p>
-          <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.8, margin:0 }}>人手がほしい。求人を出して、働き手を迎える。</p>
+      <div style={{ padding:14, position:"relative", minHeight:270 }}>
+        <MockCard style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, borderColor:ORANGE }}>
+          <MockAvatar label="ち" color={ORANGE} size={48} />
+          <div>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, margin:0 }}>ちとせ さん</p>
+            <p className="f-sans" style={{ fontSize:11, color:SUB, margin:"3px 0 0" }}>働き手のプロフィール</p>
+          </div>
         </MockCard>
-        <MockCard>
-          <p className="f-sans" style={{ fontSize:26, margin:0 }}>🤝</p>
-          <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:INK, margin:"6px 0 4px" }}>働き手として始める</p>
-          <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.8, margin:0 }}>農園で働きたい。仕事をさがして応募する。</p>
-        </MockCard>
+        <MockCards items={[{ e:"🔍", l:"さがす" }, { e:"📮", l:"応募中" }, { e:"❤️", l:"いいね" }]} />
+        <div style={{ position:"absolute", right:14, bottom:14 }}>
+          <span className="f-sans" style={{ display:"inline-block", padding:"12px 20px", borderRadius:24, background:GREEN, color:"#fff", fontSize:14, fontWeight:800, boxShadow:"0 4px 12px rgba(0,0,0,.18)" }}>🌱 農家（緑）を作る</span>
+        </div>
       </div>
     ) },
   { ch:"準備", name:"雇い手プロフィール", url:"#/profile/employer/profile", act:"農園名・写真・待遇・保険・緊急連絡先を埋める。働き手はここを見て応募を決める。",
