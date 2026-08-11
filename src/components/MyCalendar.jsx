@@ -65,7 +65,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   const workDays = useMemo(() => entries.map(e => entryWorkDays(e)), [entries]);
   const entryIdxOnDay = (ymd) => {
     const out = [];
-    for (let i = 0; i < entries.length; i++) if (workDays[i].days.has(ymd)) out.push(i);
+    for (let i = 0; i < entries.length; i++) if (workDays[i].has(ymd)) out.push(i);
     return out;
   };
   const entriesOnDay = (dt) => entryIdxOnDay(ymdLocal(dt)).map(i => entries[i]);
@@ -88,6 +88,13 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       .map(i => entries[i])
       .filter(e => e.relation === "application" && e.partner_name && HIRED_PHASES.includes(phaseOfEntry(e)));
   };
+  // 確定したか＝【採用したか】（2026-08-11たきと指示「承認したらならばカレンダーに反映。採用したならば確定」）。
+  // 承認（面接中）はカレンダーに出すが、まだその日に働くと決まったわけではない＝未確定。
+  // 採用（両者の確認時刻が揃う＝契約成立）で確定する。
+  // ★確定の分かれ目は段階であって、農家が「働く日を決める」を押したか（agreed_dates の有無）ではない。
+  //   働く日を決めるのは日を絞る操作で、契約の成立とは別（採用前に決めても確定にはならない）。
+  // 求人期間の行（own＝自分の出した求人／liked＝いいね）は人との約束ではないso従来どおりの塗り。
+  const isConfirmedEntry = (e) => e.relation !== "application" || HIRED_PHASES.includes(phaseOfEntry(e));
 
   const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
   const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
@@ -272,10 +279,11 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                 // 名前チップが乗る日は塗りを薄くする（2026-07-29たきと指示）＝濃い地に濃いチップを重ねない。
                 // 濃淡の既存ルール（濃い=公開中）はチップの無い日でそのまま維持される
                 const chips = chipsOnDay(dt);
-                // まだ希望でしかない日（2026-08-11）＝この日に出ている予定が全部 available_dates 由来。
-                // 働き手が「来られる」と申請しただけで、農家はまだ働く日を決めていない＝ベタ塗りにすると
-                // 決まったように見えるので、斜線にして「確定していない」ことを見た目で分ける
-                const onlyWish = idxs.length > 0 && idxs.every(k => workDays[k].kind === "available");
+                // まだ確定していない日（2026-08-11）＝この日に出ている予定that全部「承認済み・採用前」。
+                // 承認された時点で希望日はカレンダーに出すthat、採用までは働くと決まっていない＝
+                // ベタ塗りにすると決まったように見えるので、斜線にして見た目で分ける。
+                // 採用（確定）that1件でもあればその日は確定扱い＝斜線にしない
+                const onlyWish = idxs.length > 0 && idxs.every(k => !isConfirmedEntry(entries[k]));
                 // 薄色＝同じ色の8%（+"14"）。文字は色に沿った濃い字にして読めるようにする
                 const solid = isOpen && chips.length === 0 && !onlyWish;
                 const fillBg = baseColor
@@ -337,12 +345,12 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
               </span>
             ))}
           </div>
-          {/* 斜線＝働く日がまだ決まっていない（2026-08-11）：働き手が申請した「来られる日」だけが分かっている状態。
-              農家が働く日を決める（set_agreed_dates）と、その日はふつうの塗りに変わる */}
+          {/* 斜線＝承認済み・採用前（2026-08-11たきと指示）：希望日はカレンダーに出すthat、
+              採用までは働くと決まっていない。採用するとその日はふつうの塗りに変わる */}
           <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:6 }}>
             <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}>
               <span style={{ width:10, height:10, borderRadius:3, background:`repeating-linear-gradient(135deg, ${ROLE_GREEN}3D 0 4px, ${ROLE_GREEN}0F 4px 8px)` }} />
-              来られる日（働く日は未確定）
+              斜線＝まだ確定していない（採用で確定）
             </span>
           </div>
           {/* 濃淡の意味（2026-07-27たきと指示）：公開中だけ濃く、それ以外（下書き・審査中・終了）は薄く */}

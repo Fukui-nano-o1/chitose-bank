@@ -664,7 +664,7 @@ export function TodayPage({ me, defaultRole }) {
   // 当日判定（2026-07-24 追記3／2026-08-11に entryWorkDays へ一本化）：
   // 確定した働く日（agreed_dates）＞働き手が申請した労働希望日（available_dates）＞求人の期間、の順で見る。
   // カレンダー（MyCalendar）の塗り・名前チップと同じ関数＝「今日」と「カレンダー」で予定が食い違わない
-  const isTodayJob = (e) => entryWorkDays(e).days.has(todayYmd);
+  const isTodayJob = (e) => entryWorkDays(e).has(todayYmd);
   const todayJobs = mine
     .filter(isTodayJob)
     .sort((a, b) => (a.work_time || "").localeCompare(b.work_time || ""));

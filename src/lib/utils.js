@@ -80,29 +80,30 @@ export const isUpcomingSoon = (item, days = 7) => startsWithinDays(item, days) &
 //   1. agreed_dates    … 農家が確定した働く日（確定）
 //   2. available_dates … 働き手が応募時に申請した労働希望日（未確定。承認直後はこれが最新の事実）
 //   3. 求人期間 date_start〜date_end … 上のどちらも無いとき
-// いずれからも holidays（求人の休日）を除く。
+// いずれからも holidays（求人の休日）を除く。返り値は "YYYY-MM-DD" の Set。
 // available_dates は配列のほかに "any"（期間中いつでもOK）と null（単日求人）を取り、
 // どちらも「日を絞っていない」＝3の期間へ倒す（配列のときだけ絞り込む）。
-// 返り値 kind は、確定した日（agreed）と、まだ希望でしかない日（available）を
-// 画面が描き分けるための目印。日の集合そのものは days（"YYYY-MM-DD" の Set）。
 //
+// ★この関数that答えるのは「どの日か」だけ。「確定したか」は別＝段階（appPhaseKey）で見る
+//   ＝承認（面接中）は未確定・採用（contracted）で確定（2026-08-11たきと指示）。
+//   日の出どころ（希望日か合意日か）を確定の判定に使わないこと。
 // ★カレンダーの塗り・名前チップ・きょうの仕事は必ずこの関数を使うこと。
-//   別々に書くと同じ画面の中で食い違う（塗りは期間・チップは合意日、が実際に起きていた）。
+//   別々に書くと同じ画面の中で食い違う（塗りは期間・チップは合意日、that実際に起きていた）。
 // ★lib/hire.js の effectiveWorkDates とは別物。あちらは二重予約の壁の判定で、
 //   DBの app_work_dates と1対1で揃える約束があるため、未確定の希望日を混ぜない
 //   （混ぜると採用を止める壁の意味が変わる＝load-bearing so、変えるなら両方＋DBを揃える）。
 export function entryWorkDays(entry) {
   const holidays = new Set(Array.isArray(entry?.holidays) ? entry.holidays.filter(d => typeof d === "string") : []);
   const pickDays = (v) => (Array.isArray(v) ? v.filter(d => typeof d === "string" && d).map(d => d.slice(0, 10)) : null);
-  const keep = (list, kind) => ({ kind, days: new Set(list.filter(d => !holidays.has(d))) });
+  const keep = (list) => new Set(list.filter(d => !holidays.has(d)));
 
   const agreed = pickDays(entry?.agreed_dates);
-  if (agreed && agreed.length) return keep(agreed, "agreed");
+  if (agreed && agreed.length) return keep(agreed);
   const avail = pickDays(entry?.available_dates);
-  if (avail && avail.length) return keep(avail, "available");
+  if (avail && avail.length) return keep(avail);
 
   const start = entry?.date_start ? String(entry.date_start).slice(0, 10) : null;
-  if (!start) return { kind: "range", days: new Set() };
+  if (!start) return new Set();
   const end = entry?.date_end ? String(entry.date_end).slice(0, 10) : start;
   const out = [];
   // 比較は "YYYY-MM-DD" の文字列で行う（時差の影響を受けない）。
@@ -110,7 +111,7 @@ export function entryWorkDays(entry) {
   for (let t = new Date(start + "T00:00:00"), i = 0; ymdLocal(t) <= end && i < 400; t.setDate(t.getDate() + 1), i++) {
     out.push(ymdLocal(t));
   }
-  return keep(out, "range");
+  return keep(out);
 }
 
 // ── 打刻の時間窓（第13弾(1)・2026-07-30たきと指示）──
