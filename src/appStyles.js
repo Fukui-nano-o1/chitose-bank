@@ -1047,6 +1047,25 @@ body:has(.cb-exp-page) .site-footer-fixed { display: none !important; }
    メディアクエリの外に置く＝画面幅に関係なく効く（PCでも管理画面にはフッターを出さない）。
    下部バー・浮遊☰は出したままso、管理画面から他のページへ抜ける道は残る */
 body:has(.cb-admin-page) .site-footer-fixed { display: none !important; }
+/* ── 農家のアクションページ（#/admin/farmer-pages・2026-08-11たきと指示「下部ヘッダーは戻ると次へに差し替え」）──
+   この画面だけ、下部バー（.app-header-mobile）と浮遊☰を出さず、代わりに .cb-walk-bar（戻る／次へ）を置く。
+   目印 .cb-farmer-walk-page はページのルートに付く。管理へ帰る道は上部の管理ナビと「← 管理へ」が担う */
+body:has(.cb-farmer-walk-page) .app-header-mobile,
+body:has(.cb-farmer-walk-page) .app-header-mobile-float { display: none !important; }
+.cb-walk-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 520;
+  background: #fff; border-top: 1px solid #EBEBEB;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 10px;
+}
+.cb-walk-bar button {
+  flex: 1; padding: 13px 0; border-radius: 14px;
+  font-size: 15px; font-weight: 800; cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.cb-walk-bar .cb-walk-prev { background: #fff; border: 1px solid #DDD; color: #444; }
+.cb-walk-bar .cb-walk-next { background: #222; border: 1px solid #222; color: #fff; }
+.cb-walk-bar .cb-walk-count { flex: 0 0 auto; min-width: 56px; text-align: center; font-size: 12px; font-weight: 700; color: #999; }
 html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
 /* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。
