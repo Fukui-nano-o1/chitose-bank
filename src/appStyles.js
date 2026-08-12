@@ -821,6 +821,10 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
   /* 経験・資格ページ（#/experience）：下部バー・浮遊☰を出さない（2026-08-03たきと指示・入力に集中） */
   body:has(.cb-exp-page) .app-header-mobile,
   body:has(.cb-exp-page) .app-header-mobile-float { display: none !important; }
+  /* 新着の応募ページ（#/new-applicants・2026-08-11たきと指示「下部ヘッダーフッター、ハンバーガーメニュー非表示」）：
+     決める作業に集中させる。抜ける道はページ内の導線（求人詳細・応募者ページ）that持つ */
+  body:has(.cb-new-applicants-page) .app-header-mobile,
+  body:has(.cb-new-applicants-page) .app-header-mobile-float { display: none !important; }
   /* 保険の準備ページ（#/insurance）：浮遊☰・下部バーを出さない（2026-08-03たきと指示。サイトフッターも既存ルールで非表示） */
   body:has(.ins-prep-page) .app-header-mobile,
   body:has(.ins-prep-page) .app-header-mobile-float { display: none !important; }
@@ -1043,6 +1047,8 @@ body:has(.qset-full) .site-footer-fixed { display: none !important; }
 body:has(.ins-prep-page) .site-footer-fixed { display: none !important; }
 /* 経験・資格ページ（#/experience）もフッター（サポート等）を出さない（2026-08-03たきと指示） */
 body:has(.cb-exp-page) .site-footer-fixed { display: none !important; }
+/* 新着の応募ページもサイトフッターを出さない（2026-08-11たきと指示・画面幅に関係なく効かせる） */
+body:has(.cb-new-applicants-page) .site-footer-fixed { display: none !important; }
 /* 管理画面で操作するページはサイトフッター（サポート等）を出さない（2026-08-05たきと指示）。
    メディアクエリの外に置く＝画面幅に関係なく効く（PCでも管理画面にはフッターを出さない）。
    下部バー・浮遊☰は出したままso、管理画面から他のページへ抜ける道は残る */

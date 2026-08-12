@@ -13,7 +13,7 @@
 //   並列で1往復。新しいDBオブジェクトは作らない。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { dateRangeLabel, photoThumb, fmtJstShort, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
+import { photoThumb, fmtJstShort } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { Dots, NoticeJumpText } from "./ui";
 import { AvailDatesChips } from "./DateChips";
@@ -60,7 +60,6 @@ function Petals({ ids }) {
 function ApplicantCard({ app, job, profile, trust }) {
   const title = [job.crop, job.task].filter(Boolean).join(" ") || `求人 #${app.job_number}`;
   const photo = photoThumb(job.photos?.[0]);
-  const schedule = job.date_start ? dateRangeLabel(job.date_start, job.date_end) : (job.date_label || "日程未設定");
   const openJob = () => {
     try { sessionStorage.setItem("cb_jobBackTo", "/new-applicants"); } catch {}
     window.location.hash = "/work/job/" + app.job_number;
@@ -76,12 +75,12 @@ function ApplicantCard({ app, job, profile, trust }) {
             <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{app.job_number}</span>
           </span>
         </button>
-        {/* 右＝この応募の状態と、応募があった仕事の日程。応募者の顔・名前は下の信頼カードが持つ
-            （応募者シートと同じ＝アイコンと名前の出どころを二重に持たない） */}
-        <div style={{ flex:1, minWidth:0, padding:"12px 14px", display:"flex", flexDirection:"column", justifyContent:"center", gap:6 }}>
-          <span className="f-sans" style={{ alignSelf:"flex-start", fontSize:11, fontWeight:700, color:"#fff", background:APP_PHASE_COLOR.applied, borderRadius:6, padding:"3px 9px" }}>{APP_PHASE_LABEL.applied}</span>
-          <span className="f-sans" style={{ fontSize:11, color:"#999" }}>{fmtJstShort(app.created_at)} に届きました</span>
-          <span className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.6 }}>📅 {schedule}{job.work_time ? <><br />🕒 {job.work_time}</> : null}</span>
+        {/* 右＝「いつ応募thatが届いたか」だけ（2026-08-11たきと指示：応募中チップ・求人の日程/勤務時間は削除）。
+            日程はタップ先の求人詳細thatが持つ＝同じ事実を2画面に置かない。
+            応募者の顔・名前は下の信頼カードthatが持つ（応募者シートと同じ＝出どころを二重に持たない） */}
+        <div style={{ flex:1, minWidth:0, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center", gap:4 }}>
+          <span className="f-sans" style={{ fontSize:11, color:"#999" }}>応募thatが届いた日</span>
+          <span className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222" }}>{fmtJstShort(app.created_at)}</span>
         </div>
       </div>
       <div style={{ padding:"12px 14px 14px", borderTop:"1px solid #F5F5F5" }}>
@@ -137,7 +136,9 @@ export function NewApplicantsPage() {
   const apps = (state && typeof state === "object") ? state.apps : [];
 
   return (
-    <div className="appear" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 100px" }}>
+    // 左右を広く取る（2026-08-11たきと指示）＝最大幅を広げ、左右の余白を6pxまで詰める。
+    // 下部バー・☰・サイトフッターは出さない（cb-new-applicants-page＝appStyles）so下の余白も詰める
+    <div className="appear cb-new-applicants-page" style={{ maxWidth:900, margin:"0 auto", padding:"20px 6px 28px" }}>
       {state === null && (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
       )}

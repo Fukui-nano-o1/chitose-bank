@@ -948,8 +948,10 @@ export function JobSearchMapView({ onRegister, me }) {
         }}><span className="cb-like-heart" style={{ display:"inline-block", fontSize:18 }}>{savedIds.has(selectedJob.id) ? "♥" : "♡"}</span>{savedIds.has(selectedJob.id) ? "いいね済み" : "いいね"}</button>
         )}
         <div className="appear job-detail-body-mobile">
-          {/* 通報リンク（いいねの上=ページ先頭右） */}
-          {me && (
+          {/* 通報リンク（いいねの上=ページ先頭右）。自分の求人には出さない（2026-08-11たきと指示
+              「戻る以外のボタンを設置するな」＝新着の応募ページから開く自分の求人。
+              自分の求人を自分で報告する意味thatも無いso、出どころに関係なく isOwnJob で伏せる） */}
+          {me && !isOwnJob && (
             <div className="job-detail-back-btn" style={{ textAlign:"right", marginBottom:8 }}>
               <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
                 background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
