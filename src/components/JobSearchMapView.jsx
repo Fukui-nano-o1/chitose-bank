@@ -174,6 +174,24 @@ export function JobSearchMapView({ onRegister, me }) {
   }, [me?.id]);
   const jobList = dbJobs || [];
 
+  // ── 「まもなく公開」カード（2026-08-12たきと指示）──────────────────────────
+  // 掲載申請済み（pending）の求人を、タップできないカードとしてさがすの末尾に並べる。
+  // 出るのはトップ写真だけ＝作物・作業・地域・報酬・募集主は取得すらしない（pending_job_previews が
+  // 2列しか返さない＝データ最小化）。タップは求人詳細へ行かず「まもなく公開されます」の説明だけ開く。
+  // ★運営のキルスイッチ：app_settings.pending_preview_on_search='false' で即0件（デプロイ不要）
+  const [pendingPreviews, setPendingPreviews] = useState(() => getCache("search:pendingPreviews") ?? []);
+  const [pendingInfo, setPendingInfo] = useState(false); // 説明ボックスの開閉
+  useEffect(() => {
+    (async () => {
+      const res = await supabase.rpc("pending_job_previews");
+      // 失敗時は手元の値を残す（supabase-jsはHTTPエラーでthrowしない＝errorを見る・2026-08-07規則）
+      if (res.error) return;
+      const list = res.data || [];
+      setPendingPreviews(list);
+      setCache("search:pendingPreviews", list);
+    })();
+  }, [me?.id]);
+
   // ── レーン切替（求人／委託）＝2026-08-03たきと指示 ──────────────────────────
   // 委託タブを出す条件は lib/consignAccess.js の canSeeConsignment ただ1箇所（管理者 かつ 特約同意）。
   // 後日その1行から管理者条件を外すだけで一般公開になる（＋DB側のRLSも同時に開ける・詳細はlibのコメント）。
@@ -837,6 +855,29 @@ export function JobSearchMapView({ onRegister, me }) {
           ))}
         </div>
       </div>
+      {/* ── まもなく公開（2026-08-12たきと指示）：掲載申請済みの求人を「タップできないカード」で並べる。
+           見せるのはトップ写真だけ（RPCthat2列しか返さない）。タップ＝求人詳細へ行かず説明ボックスだけ開く。
+           絞り込み（作物・地域・月）の対象にしない＝条件になる情報を持っていないため（条件を推測しない） ── */}
+      {pendingPreviews.length > 0 && (
+        <div style={{ marginTop:8 }}>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0E8A6B", margin:"0 0 10px" }}>まもなく公開（{pendingPreviews.length}）</p>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:10 }}>
+            {pendingPreviews.map(p => (
+              <button key={p.job_number} onClick={()=>setPendingInfo(true)} aria-label="まもなく公開される求人"
+                className="f-sans" style={{ display:"block", width:"100%", padding:0, border:"none", background:"transparent", cursor:"pointer", position:"relative" }}>
+                <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#F7F7F7" }}>
+                  <img loading="lazy" src={p.photo} alt="" style={{ width:"100%", aspectRatio:"1 / 1", objectFit:"cover", display:"block" }} />
+                  {/* 白いすりガラスの帯：写真は見せるthat「まだ応募できない」ことを目で分からせる */}
+                  <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.30)", backdropFilter:"blur(1.5px)", WebkitBackdropFilter:"blur(1.5px)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
+                    <span className="f-sans" style={{ background:"rgba(14,138,107,0.92)", color:"#fff", fontSize:12, fontWeight:800, letterSpacing:".04em", padding:"6px 14px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.25)" }}>まもなく公開</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 支払いの注記（2026-07-27たきと指示で最上部から求人一覧の一番下へ移植）。
           一覧全体の原則案内なので個別求人の保存値ではなく共通定数（現在の固定ポリシー）から導出（2026-08-02） */}
       <div style={{ padding:"7px 12px", background:"#F7F7F7", borderRadius:8, marginTop:12 }}>
@@ -912,6 +953,21 @@ export function JobSearchMapView({ onRegister, me }) {
       </>)}
       </div>
       </>)}
+
+      {/* 「まもなく公開」の説明ボックス（2026-08-12たきと指示）：カードのタップで開く唯一の行き先。
+          求人の中身も募集主も見せない＝働き手にはまだ「もうすぐ何かが出る」ことだけを伝える。
+          cb-lock-scroll＝レーンの横スワイプにタッチを奪われない（2026-08-07のガードと同じ作法） */}
+      {pendingInfo && (
+        <div onClick={()=>setPendingInfo(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
+            <button onClick={()=>setPendingInfo(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            <div style={{ fontSize:48, marginBottom:10 }}>🌱</div>
+            <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 16px" }}>まもなく公開されます</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:"0 0 6px" }}>この求人は、公開の準備が整いしだい、ここに並びます。</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:0 }}>公開されると、内容を見て応募できるようになります。</p>
+          </div>
+        </div>
+      )}
 
       {/* ── 詳細ページ ── */}
       {selectedJob && (<>
