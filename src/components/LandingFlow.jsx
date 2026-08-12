@@ -553,27 +553,33 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 非表示は unmount でなく transform：mount したまま translateY を切り替えることで、
   // 「下へ潜る」と「閉じたら戻る」の両方向が CSS transition で動く（unmountだと退場アニメが効かない）。
   // 移動量＝自分の高さ100%＋下余白＋セーフエリア＝画面外まで確実に出る
-  const perksNavHide = {
-    transform: perksEditOpen ? "translateY(calc(100% + 24px + env(safe-area-inset-bottom, 0px)))" : "translateY(0)",
+  // 確認ページのシートは3つとも同じ規格（枠・見出し・スクロール領域・下部ボタン）＝待遇の変更／
+  // 農園プロフィール／掲載前の確認（2026-08-09たきと指示「最後の確認ボックスも待遇と同じ規格に」）。
+  // 開いている間の扱い（下部ナビを潜らせる・背後のスクロールを止める）もここで一括して決める。
+  const sheetOpen = perksEditOpen || confProfileOpen || publishModal;
+  const sheetNavHide = {
+    transform: sheetOpen ? "translateY(calc(100% + 24px + env(safe-area-inset-bottom, 0px)))" : "translateY(0)",
     transition: "transform .3s ease",
-    pointerEvents: perksEditOpen ? "none" : "auto",
+    pointerEvents: sheetOpen ? "none" : "auto",
   };
-  // 待遇変更ボックス展開中は背後のページを動かさず、スクロールはボックス内だけに効かせる（2026-08-09たきと指示）。
+  // シート展開中は背後のページを動かさず、スクロールはシート内だけに効かせる（2026-08-09たきと指示）。
   // ★フローの本体は body ではなく flowScrollRef 自身がスクロールするため、汎用の cb-lock-scroll
   //   （html/bodyを固定・オーバーレイ側に付ける）だけでは止まらない。ここで overflowY も塞ぐ＝2枚で塞ぐ。
-  //   ボックス内のスクロールは position:fixed の別要素なので、この overflow:hidden の影響を受けない。
-  const flowScrollLock = perksEditOpen ? { overflowY: "hidden" } : null;
-  // overflow の切り替えでスクロール位置を失う環境への保険＝開く直前の位置を控え、閉じたらそこへ戻す
+  //   シート内のスクロールは position:fixed の別要素なので、この overflow:hidden の影響を受けない。
+  const flowScrollLock = sheetOpen ? { overflowY: "hidden" } : null;
+  // overflow の切り替えでスクロール位置を失う環境への保険＝開く直前の位置を控え、閉じたらそこへ戻す。
+  // 控えは必ず state を変える前に取る（描画後だと overflow:hidden 適用済みで 0 が返る環境がある）ため、
+  // シートを開く3箇所で rememberFlowScroll() を呼ぶ
   const flowScrollTopRef = useRef(0);
+  const rememberFlowScroll = () => { flowScrollTopRef.current = flowScrollRef.current?.scrollTop || 0; };
   useEffect(() => {
-    if (perksEditOpen) return;
+    if (sheetOpen) return;
     const el = flowScrollRef.current;
     if (el && flowScrollTopRef.current && el.scrollTop !== flowScrollTopRef.current) el.scrollTop = flowScrollTopRef.current;
-  }, [perksEditOpen]);
+  }, [sheetOpen]);
   const [perkSaving, setPerkSaving] = useState(false);
   const openPerksEdit = () => {
-    // 位置の控えは state を変える前に取る（描画後だと overflow:hidden 適用済みで読めない環境がある）
-    flowScrollTopRef.current = flowScrollRef.current?.scrollTop || 0;
+    rememberFlowScroll();
     const base = jobPerks ? { ...(confEmployer || {}), ...jobPerks } : (confEmployer || {});
     setPerkDraft({
       has_transport: !!base.has_transport, transport_area: base.transport_area || "",
@@ -1095,7 +1101,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
   // お知らせの「はじめる」リンク（event:cb:openConfProfile）＝農家プロ入力ボックスをこの場で展開
   useEffect(() => {
-    const f = () => setConfProfileOpen(true);
+    const f = () => { rememberFlowScroll(); setConfProfileOpen(true); };
     window.addEventListener("cb:openConfProfile", f);
     return () => window.removeEventListener("cb:openConfProfile", f);
   }, []);
@@ -1226,6 +1232,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   const openPublish = () => {
     const missing = getPublishMissingFields();
     if (missing.length > 0) { goToMissingField(missing); return; }
+    rememberFlowScroll();
     setPublishModal(true);
   };
 
@@ -1330,6 +1337,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             <p className="f-sans" style={lfStyles.subtitle}>募集する作業を選びます。一覧にない場合は「その他」から入力できます。</p>
             <LFCropGrid
               options={TASK_OPTIONS}
+              noIcon
               value={farmerTaskPill}
               onSelect={v => {
                 if (v === "__other__") { setFarmerTaskPill("__other__"); }
@@ -2331,7 +2339,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       </div>
                     );
                   })() : (
-                    <div onClick={()=>setConfProfileOpen(true)} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, cursor:"pointer" }}>{/* 未入力＝タップで農家プロの入力項目を展開（2026-07-16） */}
+                    <div onClick={()=>{ rememberFlowScroll(); setConfProfileOpen(true); }} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, cursor:"pointer" }}>{/* 未入力＝タップで農家プロの入力項目を展開（2026-07-16） */}
                       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
                         <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, marginBottom:8 }}>🧑‍🌾</div>
                         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
@@ -2395,7 +2403,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   )}
                   {/* 農家プロの入力項目ボックス（確認ページから・2026-07-16）。閉じるとカードに即反映 */}
                   {confProfileOpen && (
-                    <div onClick={()=>setConfProfileOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+                    <div onClick={()=>setConfProfileOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
                       <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
                           <button onClick={()=>setConfProfileOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
@@ -2561,45 +2569,47 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
               {/* ═══ 掲載モーダル（下部ナビ「掲載する」から展開。チェックリスト・同意・掲載・注意文を右パネルから移植） ═══ */}
               {publishModal && (
-                <div onClick={() => setPublishModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-                  <div onClick={(e) => e.stopPropagation()} style={{ width:"100%", maxWidth:520, maxHeight:"85vh", overflowY:"auto", background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 20px calc(20px + env(safe-area-inset-bottom, 0px))", boxSizing:"border-box" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-                      <h3 className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:0 }}>掲載前の確認</h3>
-                      <button onClick={() => setPublishModal(false)} aria-label="閉じる" style={{ background:"none", border:"none", fontSize:22, color:"#717171", cursor:"pointer", padding:"0 4px", lineHeight:1 }}>×</button>
+                <div onClick={() => setPublishModal(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+                  <div onClick={(e) => e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
+                      <button onClick={() => setPublishModal(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
+                      <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>📋 掲載前の確認</p>
                     </div>
-                    <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
-                    {/* 文言は lib/utils の PUBLISH_CHECKS（表示と記録で共用・2026-07-30）。
-                        2026-08-07たきと指示：個別チェックをやめ本文の列挙にし、チェックは下の1つに集約 */}
-                    {PUBLISH_CHECKS.map((text, i) => (
-                      <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"7px 0" }}>
-                        <span aria-hidden="true" style={{ color:"#00A86B", fontWeight:700, flexShrink:0, lineHeight:1.6 }}>・</span>
-                        <span className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.6 }}>{text}</span>
+                    <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
+                      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
+                      {/* 文言は lib/utils の PUBLISH_CHECKS（表示と記録で共用・2026-07-30）。
+                          2026-08-07たきと指示：個別チェックをやめ本文の列挙にし、チェックは下の1つに集約 */}
+                      {PUBLISH_CHECKS.map((text, i) => (
+                        <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"7px 0" }}>
+                          <span aria-hidden="true" style={{ color:"#00A86B", fontWeight:700, flexShrink:0, lineHeight:1.6 }}>・</span>
+                          <span className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.6 }}>{text}</span>
+                        </div>
+                      ))}
+                      <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:"10px 0 0" }}>{meCanOpen ? "「掲載する」を押すと、働き手に公開されます。" : "「掲載する」を押すと、公開の準備に進みます。準備が整いしだい、働き手に公開されます。"}</p>
                       </div>
-                    ))}
-                    {/* まとめて1つの確認チェック（同意して掲載するボタンの直上） */}
-                    <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"14px 0 2px", cursor:"pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={publishConfirmed}
-                        onChange={() => setPublishConfirmed(v => !v)}
-                        style={{ width:20, height:20, flexShrink:0, accentColor:"#00A86B", cursor:"pointer" }}
-                      />
-                      <span className="f-sans" style={{ fontSize:15, fontWeight:700, color: publishConfirmed ? "#00A86B" : "#222" }}>確認しました</span>
-                    </label>
-                    <button
-                      onClick={handleSaveJob}
-                      disabled={jobSaving || !publishConfirmed}
-                      className="btn-primary"
-                      style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:14, marginTop:10, marginBottom:10, ...(!publishConfirmed ? { background:"#EBEBEB", color:"#717171" } : {}) }}
-                    >
-                      {jobSaving ? "保存中..." : "同意して掲載する"}
-                    </button>
-                    {!publishConfirmed && (
-                      <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>「確認しました」にチェックすると掲載できます</p>
-                    )}
-                    {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
-                    <p style={{ fontSize:14, color:"#888", textAlign:"center", marginTop:8, marginBottom:8 }}>{payTermsLine(CURRENT_PAY_POLICY)}</p>
-                    <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:0 }}>{meCanOpen ? "「掲載する」を押すと、働き手に公開されます。" : "「掲載する」を押すと、公開の準備に進みます。準備が整いしだい、働き手に公開されます。"}</p>
+                    {/* 下部の固定ボタン（待遇の変更ボックスと同じ規格）。まとめて1つの確認チェックはボタンの直上 */}
+                    <div style={{ padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
+                      <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"2px 0 8px", cursor:"pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={publishConfirmed}
+                          onChange={() => setPublishConfirmed(v => !v)}
+                          style={{ width:20, height:20, flexShrink:0, accentColor:"#00A86B", cursor:"pointer" }}
+                        />
+                        <span className="f-sans" style={{ fontSize:15, fontWeight:700, color: publishConfirmed ? "#00A86B" : "#222" }}>確認しました</span>
+                      </label>
+                      <button
+                        onClick={handleSaveJob}
+                        disabled={jobSaving || !publishConfirmed}
+                        className="btn-primary"
+                        style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, ...(!publishConfirmed ? { background:"#EBEBEB", color:"#717171" } : {}) }}
+                      >
+                        {jobSaving ? "保存中..." : "同意して掲載する"}
+                      </button>
+                      {!publishConfirmed && (
+                        <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"8px 0 0" }}>「確認しました」にチェックすると掲載できます</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -2855,7 +2865,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         <div style={{
           background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 8px",
           display:"flex", alignItems:"center", justifyContent: isAutoStep ? "flex-start" : "space-between",
-          ...perksNavHide,
+          ...sheetNavHide,
         }}>
           {/* step1は戻る先が説明ページしかないため戻るボタンなし（2026-07-16）。spanはspace-betweenの左詰め維持用 */}
           {step === 1
@@ -2886,7 +2896,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               position:"fixed", left:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60,
               display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
               fontSize:14, fontWeight:600, color:"#222", cursor:"pointer", padding:"12px 18px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-              ...perksNavHide,
+              ...sheetNavHide,
             }}>← 戻る</button>
           )}
           {/* 次へ（＋スキップ）：右下の浮遊ボックス */}
@@ -2903,7 +2913,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           )}
           {/* 確認ページ(step11)：右下に「保存」＋「掲載する」の浮遊ペア */}
           {isFarmer && step === 11 && (
-            <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10, ...perksNavHide }}>
+            <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10, ...sheetNavHide }}>
               <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
             </div>

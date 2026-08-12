@@ -238,33 +238,32 @@ export function LFCardBtn({ selected, onClick, children }) {
 
 
 // 選択カードグリッド（Airbnb型・汎用）。options=[{name,icon}], value=選択中, onSelect=カード選択, otherText=自由入力値, onOtherChange=自由入力
-export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange, otherPlaceholder }) {
+// noIcon＝絵を出さず文字だけのカードにする（2026-08-09たきと指示「作業カードにアイコンは必要ない」）。
+//   作業（収穫・準備…）は作物と違って絵で見分ける必要がなく、CropIconの既定の🌱が全カードに並んでいた。
+//   作物グリッドは従来どおり絵つき＝呼び出し側で切り替える
+export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange, otherPlaceholder, noIcon }) {
   const isOther = value === "__other__";
+  const cardStyle = (sel) => ({
+    display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
+    padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
+    borderColor: sel ? "#00A86B" : "#EBEBEB",
+    background: sel ? "#E6F7EF" : "#fff",
+  });
   return (
     <div style={{ marginBottom:8 }}>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12 }}>
         {options.map(c => {
           const sel = value === c.name;
           return (
-            <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={{
-              display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
-              padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
-              borderColor: sel ? "#00A86B" : "#EBEBEB",
-              background: sel ? "#E6F7EF" : "#fff",
-            }}>
-              {/* 絵文字が無い作物は自作SVG（2026-08-08・アイコン重複の解消）。CropIconが出し分ける */}
-              <CropIcon crop={c.name} size={28} />
+            <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={cardStyle(sel)}>
+              {/* 絵文字が無い作物は既製アイコン（2026-08-08・アイコン重複の解消）。CropIconが出し分ける */}
+              {!noIcon && <CropIcon crop={c.name} size={28} />}
               <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222" }}>{c.name}</span>
             </button>
           );
         })}
-        <button onClick={() => onSelect("__other__")} className="f-sans crop-card" style={{
-          display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
-          padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
-          borderColor: isOther ? "#00A86B" : "#EBEBEB",
-          background: isOther ? "#E6F7EF" : "#fff",
-        }}>
-          <span style={{ fontSize:28 }}>✏️</span>
+        <button onClick={() => onSelect("__other__")} className="f-sans crop-card" style={cardStyle(isOther)}>
+          {!noIcon && <span style={{ fontSize:28 }}>✏️</span>}
           <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222" }}>その他</span>
         </button>
       </div>

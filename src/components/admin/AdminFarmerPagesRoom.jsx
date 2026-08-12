@@ -257,7 +257,7 @@ const STEPS = [
       <LFPage>
         <h2 className="f-sans" style={lfStyles.stepTitle}>作業内容を選んでください</h2>
         <p className="f-sans" style={lfStyles.subtitle}>募集する作業を選びます。一覧にない場合は「その他」から入力できます。</p>
-        <LFCropGrid options={TASK_OPTIONS} value="収穫" onSelect={noop} otherText="" onOtherChange={noop} otherPlaceholder="作業名を入力（例：畝立て、マルチ張り）" />
+        <LFCropGrid options={TASK_OPTIONS} noIcon value="収穫" onSelect={noop} otherText="" onOtherChange={noop} otherPlaceholder="作業名を入力（例：畝立て、マルチ張り）" />
       </LFPage>
     ) },
   { ch:"求人をつくる", name:"場所", url:"#/work/new/3", act:"郵便番号から住所を呼び出し、町域・番地まで入れる。5欄すべて必須。",
