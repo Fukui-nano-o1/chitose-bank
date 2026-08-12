@@ -558,8 +558,22 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     transition: "transform .3s ease",
     pointerEvents: perksEditOpen ? "none" : "auto",
   };
+  // 待遇変更ボックス展開中は背後のページを動かさず、スクロールはボックス内だけに効かせる（2026-08-09たきと指示）。
+  // ★フローの本体は body ではなく flowScrollRef 自身がスクロールするため、汎用の cb-lock-scroll
+  //   （html/bodyを固定・オーバーレイ側に付ける）だけでは止まらない。ここで overflowY も塞ぐ＝2枚で塞ぐ。
+  //   ボックス内のスクロールは position:fixed の別要素なので、この overflow:hidden の影響を受けない。
+  const flowScrollLock = perksEditOpen ? { overflowY: "hidden" } : null;
+  // overflow の切り替えでスクロール位置を失う環境への保険＝開く直前の位置を控え、閉じたらそこへ戻す
+  const flowScrollTopRef = useRef(0);
+  useEffect(() => {
+    if (perksEditOpen) return;
+    const el = flowScrollRef.current;
+    if (el && flowScrollTopRef.current && el.scrollTop !== flowScrollTopRef.current) el.scrollTop = flowScrollTopRef.current;
+  }, [perksEditOpen]);
   const [perkSaving, setPerkSaving] = useState(false);
   const openPerksEdit = () => {
+    // 位置の控えは state を変える前に取る（描画後だと overflow:hidden 適用済みで読めない環境がある）
+    flowScrollTopRef.current = flowScrollRef.current?.scrollTop || 0;
     const base = jobPerks ? { ...(confEmployer || {}), ...jobPerks } : (confEmployer || {});
     setPerkDraft({
       has_transport: !!base.has_transport, transport_area: base.transport_area || "",
@@ -1263,8 +1277,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
       {/* スクロール領域（全stepスワイプで次へ/戻る・2026-07-16） */}
       <div ref={flowScrollRef} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={embedded ? {} : ((step === 0 || step === 6)
-        ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center" }
-        : { height:"100%", overflowY:"auto" })}>
+        ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center", ...flowScrollLock }
+        : { height:"100%", overflowY:"auto", ...flowScrollLock })}>
         <div key={step} className={stepAnim || "fade-in"}
           onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && stepAnim.startsWith("step-in")) setStepAnim(""); }}
           style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "calc(64px + env(safe-area-inset-top, 0px)) 20px calc(76px + env(safe-area-inset-bottom, 0px))" : "calc(56px + env(safe-area-inset-top, 0px)) 20px 40px") }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px）。上余白はblack-translucent対応でsafe-area加算（2026-07-31） */}
@@ -2328,7 +2342,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   )}
                   {/* 待遇の編集ボックス（2026-07-18）：送迎から順。下部に「保存」（プロフィールにも反映）と「この求人のみ」 */}
                   {perksEditOpen && perkDraft && (
-                    <div onClick={()=>setPerksEditOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+                    // cb-lock-scroll＝html/bodyを固定する汎用クラス（embedded表示ではページ自体が
+                    // スクロールするため必要）。フロー本体のスクロール領域は flowScrollLock で塞ぐ。
+                    // 背景に touch-action は付けない＝祖先に付けるとボックス内のスクロールまで止まる
+                    <div onClick={()=>setPerksEditOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
                       <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
                           <button onClick={()=>setPerksEditOpen(false)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
