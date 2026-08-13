@@ -95,6 +95,11 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   // 承認済みの自己紹介が審査待ちに逆戻りし、応募のたびに運営の許可が必要になっていた。
   // 本文が実際に変わった時だけ審査に出すため、承認済みの中身をここに控えて比べる
   const approvedRef = useRef({ pr: "", pr_qa: [] });
+  // いま審査に出ている内容の控え（2026-08-13たきと報告「応募するたびに自由記述that申請される」）：
+  // 承認済み(approvedRef)と比べるだけだと、初めて書いた自由記述は承認thatあるまで永久に「違う」ままso、
+  // 住所を直しただけの保存でも審査thatやり直し（申請時刻thatリセット＝48時間の自動公開も後ろにずれる）になっていた。
+  // 審査中の内容と同じなら、申請時刻を据え置いて出し直さない＝運営の承認待ちの列に並び直さない
+  const pendingRef = useRef({ pr: null, pr_qa: null, submitted_at: null });
   useEffect(() => {
     (async () => {
       try {
@@ -108,6 +113,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           setAvatarUrl(data.avatar_url || "");
           setPrQa(Array.isArray(data.pr_qa_pending) ? data.pr_qa_pending : (Array.isArray(data.pr_qa) ? data.pr_qa : []));
           approvedRef.current = { pr: data.pr || "", pr_qa: Array.isArray(data.pr_qa) ? data.pr_qa : [] };
+          pendingRef.current = { pr: data.pr_pending ?? null, pr_qa: Array.isArray(data.pr_qa_pending) ? data.pr_qa_pending : null, submitted_at: data.pr_submitted_at ?? null };
           setResidenceCity(data.residence_city || "");
           setTransport(data.transport || "");
           setFarmExperience(data.farm_experience || "");
@@ -289,8 +295,17 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       const clearedFields = {};
       if (prChanged && pr.trim() === "") clearedFields.pr = "";      // 自己紹介を消した＝即反映
       if (qaChanged && qaOnlyRemoved) clearedFields.pr_qa = prQa;    // Q&Aを消しただけ＝即反映
+      // 審査に出す中身thatいま審査中のものと同じなら、申請時刻を据え置く（2026-08-13）＝
+      // 待っている間に他の項目を直して保存しても、審査の列に並び直さない／48時間の自動公開thatずれない
+      const nextPrPending = prNeedsReview ? pr.trim() : null;
+      const nextQaPending = qaNeedsReview ? prQa : null;
+      const samePending = inReview
+        && (nextPrPending ?? "") === (pendingRef.current.pr ?? "")
+        && qaKey(nextQaPending) === qaKey(pendingRef.current.pr_qa)
+        && !!pendingRef.current.submitted_at;
       const reviewFields = inReview
-        ? { pr_pending: prNeedsReview ? pr.trim() : null, pr_qa_pending: qaNeedsReview ? prQa : null, pr_submitted_at: new Date().toISOString(),
+        ? { pr_pending: nextPrPending, pr_qa_pending: nextQaPending,
+            pr_submitted_at: samePending ? pendingRef.current.submitted_at : new Date().toISOString(),
             pr_revision_targets: null } // 再提出＝修正依頼の赤帯を解除（2026-07-19）
         : { pr_pending: null, pr_qa_pending: null, pr_submitted_at: null };
       const { error } = await supabase.from("worker_profiles").upsert({
@@ -317,6 +332,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         // 即反映した分は「承認済みの控え」も更新する（次の保存で再び差分と見なさないため）
         if (clearedFields.pr !== undefined) approvedRef.current.pr = "";
         if (clearedFields.pr_qa !== undefined) approvedRef.current.pr_qa = prQa;
+        // いま審査に出ている内容の控えも更新（同じ画面で続けて保存しても列に並び直さない・2026-08-13）
+        pendingRef.current = { pr: reviewFields.pr_pending ?? null, pr_qa: reviewFields.pr_qa_pending ?? null,
+                               submitted_at: reviewFields.pr_submitted_at ?? null };
         setSaved(true);
         setSavedInReview(inReview);
         if (inReview) setRevTargets([]); // 赤帯が消えるのは再提出した時だけ（本文を直さない保存では残す）
