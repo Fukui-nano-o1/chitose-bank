@@ -148,17 +148,25 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
               <span className="f-sans" style={{ flexShrink:0, width:56, fontSize:12, color:"#999", lineHeight:1.6 }}>{l}</span>
               <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: l === "氏名" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>{v}</span>
             </div>
-            {/* 利用歴・連絡先確認は氏名の直下に配置（2026-08-07たきと指示）。値の列（ラベル56px+gap10）に揃える */}
-            {l === "氏名" && okTrust && (trust.member_since || trust.id_checked) && (
-              <div style={{ display:"flex", flexWrap:"wrap", gap:10, margin:"0 0 4px", paddingLeft:66 }}>
-                {trust.member_since && (
-                  <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{trust.member_since}から</span>
-                )}
-                {trust.id_checked && (
-                  <span className="f-sans" style={{ fontSize:11, color:AC, fontWeight:600 }}>✓ 連絡先確認済み</span>
-                )}
-              </div>
-            )}
+            {/* 利用歴は氏名の直下（2026-08-07たきと指示）。✓連絡先確認済みは連絡先の直下へ移植
+                （2026-08-14たきと指示）。訪問者には連絡先thatマスクされ行ごと出ないため、その場合だけ
+                従来どおり氏名の直下に出す（信頼の目印を訪問者から消さない）。値の列（ラベル56px+gap10）に揃える */}
+            {(() => {
+              const hasContact = !!(profile.recruiter_contact && String(profile.recruiter_contact).trim());
+              const showMember = l === "氏名" && trust?.member_since;
+              const showChecked = trust?.id_checked && (hasContact ? l === "連絡先" : l === "氏名");
+              if (!okTrust || (!showMember && !showChecked)) return null;
+              return (
+                <div style={{ display:"flex", flexWrap:"wrap", gap:10, margin:"0 0 4px", paddingLeft:66 }}>
+                  {showMember && (
+                    <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>chitose-bank利用{trust.member_since}から</span>
+                  )}
+                  {showChecked && (
+                    <span className="f-sans" style={{ fontSize:11, color:AC, fontWeight:600 }}>✓ 連絡先確認済み</span>
+                  )}
+                </div>
+              );
+            })()}
           </Fragment>
         ) : null)}
       </div>
