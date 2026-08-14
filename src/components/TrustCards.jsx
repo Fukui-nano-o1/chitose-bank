@@ -163,25 +163,30 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         {avatarZoom && profile.avatar_url && <AvatarLightbox url={profile.avatar_url} onClose={()=>setAvatarZoom(false)} />}
         {/* 氏名の横にフリガナを（）付きで表示（2026-08-03たきと指示）。recruiter_name_kana は
             employer_profiles 直読みの画面は自動で載り、農園紹介は job_employer_profile が返す（anonはNULL） */}
-        {[["氏名", (() => {
+        {/* ラベルは登録区分で出し分け（2026-08-14たきと指示）：個人＝氏名・住所／法人＝名称・所在地。
+            区分は trust.entity_type（employer_trust_info that account_holders から返す）。
+            届いていない間（キャッシュ更新前・trustなしの画面）は従来どおり個人表記に倒す */}
+        {(() => { const corp = trust?.entity_type === "corporate"; return (
+        [[corp ? "名称" : "氏名", (() => {
             const n = profile.recruiter_name || profile.nickname || "";
             const k = (profile.recruiter_name_kana || "").trim();
             return n ? (k ? `${n}（${k}）` : n) : "";
           })(), "nickname"],
-          ["住所", profile.recruiter_address, "recruiter"],
-          ["連絡先", profile.recruiter_contact, "recruiter"]].map(([l, v, k]) => (v && String(v).trim()) ? (
+          [corp ? "所在地" : "住所", profile.recruiter_address, "recruiter"],
+          ["連絡先", profile.recruiter_contact, "recruiter"]]); })().map(([l, v, k]) => (v && String(v).trim()) ? (
           <Fragment key={l}>
             <div {...tap(k)} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:4, ...cur }}>
               <span className="f-sans" style={{ flexShrink:0, width:56, fontSize:12, color:"#999", lineHeight:1.6 }}>{l}</span>
-              <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: l === "氏名" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>{v}</span>
+              {/* 行の判定はラベル文字でなくキーで（2026-08-14）：法人はラベルthat「名称/所在地」に変わるため */}
+              <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: k === "nickname" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>{v}</span>
             </div>
             {/* 利用歴は氏名の直下（2026-08-07たきと指示）。✓連絡先確認済みは連絡先の直下へ移植
                 （2026-08-14たきと指示）。訪問者には連絡先thatマスクされ行ごと出ないため、その場合だけ
                 従来どおり氏名の直下に出す（信頼の目印を訪問者から消さない）。値の列（ラベル56px+gap10）に揃える */}
             {(() => {
               const hasContact = !!(profile.recruiter_contact && String(profile.recruiter_contact).trim());
-              const showMember = l === "氏名" && trust?.member_since;
-              const showChecked = trust?.id_checked && (hasContact ? l === "連絡先" : l === "氏名");
+              const showMember = k === "nickname" && trust?.member_since;
+              const showChecked = trust?.id_checked && (hasContact ? l === "連絡先" : k === "nickname");
               if (!okTrust || (!showMember && !showChecked)) return null;
               return (
                 <div style={{ display:"flex", flexWrap:"wrap", gap:10, margin:"0 0 4px", paddingLeft:66 }}>
