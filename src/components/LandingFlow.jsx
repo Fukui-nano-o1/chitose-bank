@@ -2518,14 +2518,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, padding:20,
                       overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y",
                     }}>
-                      <button onClick={() => setConfIntroOpen(false)} style={{
-                        position:"absolute", top:12, right:12,
-                        width:36, height:36, borderRadius:"50%",
-                        background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
-                      }}>✕</button>
-                      <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>
-                        {confEmployer.nickname ? `${confEmployer.nickname}の農園紹介` : "農園紹介"}
-                      </h3>
+                      {/* ✕・タイトルは削除（2026-08-14たきと指示・詳細ページの農園紹介と同一様式）＝
+                          閉じるはボックス外タップ。名乗りは信頼カード内の氏名行が担う */}
                       {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16・詳細ページと同じ） */}
                       {(farmHostQa(confEmployer).length > 0 || !!confEmployer.interaction_style || !!confTrust) && (
                         <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>

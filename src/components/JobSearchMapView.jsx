@@ -1643,14 +1643,8 @@ export function JobSearchMapView({ onRegister, me }) {
               maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, padding:20,
               overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y",
             }}>
-              <button onClick={() => setFarmIntroOpen(false)} style={{
-                position:"absolute", top:12, right:12,
-                width:36, height:36, borderRadius:"50%",
-                background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer",
-              }}>✕</button>
-              <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>
-                {empEmployer.nickname ? `${empEmployer.nickname}の農園紹介` : "農園紹介"}
-              </h3>
+              {/* ✕・タイトル「〇〇の農園紹介」は削除（2026-08-14たきと指示・EmployerPreviewSheetの
+                  2026-08-07と同じ作法）＝閉じるはボックス外タップ。名乗りは信頼カード内の氏名行が担う */}
               {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16） */}
               {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
