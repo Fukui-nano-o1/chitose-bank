@@ -1134,6 +1134,27 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     if (role === "farmer" && step >= 1 && step <= 11) saveDraft();
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 入力のたびの自動保存（2026-08-09たきと報告「休日にした日が募集日に反転する」の根治）。
+  // 従来の自動保存はstep移動時のみで、同じページに留まったまま入力した分（日程ページの休日・
+  // 期間・人数など）は、リロードやアプリ切替からの再起動（iOSのメモリ整理・引き下げ更新・
+  // 更新直後の自動復旧）で失われていた。期間は先のstep移動時に保存済みのことが多く残るため、
+  // 「休日だけ消えて募集日に戻る」ように見える（jsdom＋実コンポーネントで再現・修正後の復元を実測）。
+  // → 主要入力が変わるたび800msのデバウンスで下書きへ書く＝いつ再起動しても直前の入力から再開できる。
+  //   saveDraft自体が編集・コピー中は書かないガード（_editJobNumber）を持つので、汚染の再発はない
+  const draftInputSaveTimer = useRef(null);
+  useEffect(() => {
+    if (!(role === "farmer" && step >= 1 && step <= 11)) return;
+    if (draftInputSaveTimer.current) clearTimeout(draftInputSaveTimer.current);
+    draftInputSaveTimer.current = setTimeout(saveDraft, 800);
+    return () => { if (draftInputSaveTimer.current) clearTimeout(draftInputSaveTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmerExp, farmerPurpose, farmerDisplayName, farmerRegion, farmerZip, farmerPref, farmerCity, farmerTown, farmerAddr,
+      jobPhotos, farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText, farmerWanted, farmerPayType, payTiming, payMethod,
+      startHour, startMinute, endHour, endMinute, jobCount, breakTime, commuteTime, nearestStation,
+      jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput, jobExp, jobTemplate, jobNotes, jobCautions,
+      overtimePolicy, overtimeDetail, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
+      jobDateStart, jobDateEnd, jobHolidays]);
+
   // step遷移時にスクロール位置をトップへリセット（前ページの途中位置が引き継がれるのを防ぐ）
   useEffect(() => {
     try {
