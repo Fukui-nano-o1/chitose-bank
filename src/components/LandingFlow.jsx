@@ -1209,17 +1209,33 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       ["休憩時間",                breakTime !== "",                    5],
       ["時間外労働",              overtimeOk,                          5],
     ];
+    // プロフィール由来の掲載必須（2026-08-07たきと承認＝「掲載を押して初めて要求される」の予防）。
+    // confEmployer（farm:empMiniキャッシュ＝step11で最新化）が読めている時だけ判定＝
+    // 読めていない時は誤って空扱いにせず、従来どおり掲載時のDBゲート・recruitBoxに任せる。
+    // step=null＝行き先がフロー内に無い（プロフィール編集の項目）so goToMissingField は案内だけ
+    if (confEmployer) {
+      checks.push(["受動喫煙の状況（プロフィールの「待遇」で設定）", !!(confEmployer.smoking_policy || "").trim(), null]);
+      checks.push(["募集者の氏名・名称", !!(confEmployer.recruiter_name || "").trim(), null]);
+      checks.push(["募集者の住所", !!(confEmployer.recruiter_address || "").trim(), null]);
+      checks.push(["募集者の連絡先", !!(confEmployer.recruiter_contact || "").trim(), null]);
+    }
     return checks.filter(([, ok]) => !ok).map(([label, , step]) => ({ label, step }));
   };
-  // 足りない欄を伝えて、その欄のページへ送る（案内だけで終わらせない）。戻り先は確認ページ
+  // 足りない欄を伝えて、その欄のページへ送る（案内だけで終わらせない）。戻り先は確認ページ。
+  // プロフィール由来の項目（step=null）しか無い時は案内だけ＝フロー内に行き先が無い
   const goToMissingField = (missing) => {
     alert("掲載前に以下の項目を入力してください：\n" + missing.map(m => "・" + m.label).join("\n"));
+    const target = missing.find(m => m.step != null);
+    if (!target) return;
     setReturnToConfirm(true);
-    setStep(missing[0].step);
+    setStep(target.step);
   };
   const openPublish = () => {
     const missing = getPublishMissingFields();
-    if (missing.length > 0) { goToMissingField(missing); return; }
+    // 募集者の項目【だけ】が欠けている時は止めない＝掲載実行時のrecruitBox（新規登録の内容が
+    // 初期値で入った入力ボックス）がその場で開く方が親切（2026-08-07）。他が混ざる時は一覧で知らせる
+    const nonRecruiter = missing.filter(m => !m.label.startsWith("募集者"));
+    if (nonRecruiter.length > 0) { goToMissingField(missing); return; }
     rememberFlowScroll();
     setPublishModal(true);
   };
@@ -2025,7 +2041,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             const handleSaveJob = async () => {
               if (jobSaving) return;
               const missing = getPublishMissingFields();
-              if (missing.length > 0) {
+              // 募集者の項目【だけ】が欠けている時はここで止めない＝この直後のrecruitBox
+              // （新規登録の内容が初期値で入った入力ボックス）がその場で開く方が親切（2026-08-07）
+              const nonRecruiterMissing = missing.filter(m => !m.label.startsWith("募集者"));
+              if (nonRecruiterMissing.length > 0) {
                 setPublishModal(false); // チェックリストを閉じてから足りない欄のページへ送る
                 goToMissingField(missing);
                 return;

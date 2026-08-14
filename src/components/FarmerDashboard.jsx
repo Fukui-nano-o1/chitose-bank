@@ -205,6 +205,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 名刺の氏名・アイコンを読み込み前から出す（2026-08-02たきと指示）：viewCacheに無ければsnapshot
   // （localStorage・本人の自分用データ・ログアウトで全消去）から前回値を即表示→裏で最新に差し替え
   const [empMini, setEmpMini] = useState(() => getCache("farm:empMini") ?? snapGet("empMini") ?? null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
+  const [hasEmergency, setHasEmergency] = useState(() => getCache("farm:hasEmergency") ?? false); // 🆘緊急連絡先の登録有無（未設定バッジ用・2026-08-07）
   const [empTrust, setEmpTrust] = useState(() => getCache("farm:empTrust") ?? null); // 名刺カード裏面＝本物のプレビュー（FarmerTrustCard）用の信頼情報
   const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
@@ -252,10 +253,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     } catch (e) { alert("保存に失敗しました：" + (e?.message || "不明")); }
     finally { setInsSaving(false); }
   };
-  // 未設定の項目数（編集ページの7ボックス基準・従業員数は削除済み2026-08-01）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
+  // 未設定の項目数（編集ページの9ボックス基準・従業員数は削除済み2026-08-01）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
   // 核（アイコン・農園名・作業場所）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（紹介PR→作業場所に差替・2026-07-16）
-  // 数え方はlib/utilsのemployerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）
-  const { req: empUnsetReq, total: empUnsetCount } = employerUnsetCount(empMini);
+  // 数え方はlib/utilsのemployerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）。
+  // 2026-08-07追加：募集者の連絡先＋緊急連絡先（hasEmergency＝emergency_contactsの有無）も同関数で数える
+  const { req: empUnsetReq, total: empUnsetCount } = employerUnsetCount(empMini, { hasEmergency });
   // 自由記述の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中（差し戻し済み）=赤帯（修正のためタップは可能）
   const empHasPending = !!(empMini && empMini.texts_pending && Object.keys(empMini.texts_pending).length > 0);
   const empReview = empHasPending ? "pending" : (empMini?.texts_revision_requested_at ? "revision" : null);
@@ -273,13 +275,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         const uid = session.user.id;
-        const [epRes, trustRes, rosterRes] = await Promise.all([
+        const [epRes, trustRes, rosterRes, emgRes] = await Promise.all([
           supabase.from("employer_profiles").select("*").eq("auth_id", uid).maybeSingle(), // トップボックス裏面プレビュー用に全列（2026-07-16）
           supabase.rpc('employer_trust_info', { p_farmer_id: uid }).then(r => r, () => ({ data: null })),
           supabase.from("repeat_roster").select("worker_id,created_at").eq("farmer_id", uid).order("created_at",{ascending:false}),
+          supabase.from("emergency_contacts").select("auth_id").eq("auth_id", uid).maybeSingle(), // 🆘の有無だけ（self-only RLS・バッジ用）
         ]);
         const epMini = epRes.data, tI = trustRes.data, rosterData = rosterRes.data;
         setEmpTrust(tI && tI.ok ? tI : null); setCache("farm:empTrust", tI && tI.ok ? tI : null);
+        if (!emgRes.error) { const has = !!emgRes.data; setHasEmergency(has); setCache("farm:hasEmergency", has); }
         if (epMini) { setEmpMini(epMini); setCache("farm:empMini", epMini); snapSet("empMini", epMini); }
         if (rosterData && rosterData.length > 0) {
           const { data: rosterWp } = await supabase.rpc("worker_cards_for_farmer", { p_worker_ids: rosterData.map(r => r.worker_id) });

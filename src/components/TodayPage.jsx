@@ -604,7 +604,7 @@ export function TodayPage({ me, defaultRole }) {
         if (!session) { setLoading(false); return; }
         // 6本とも互いに独立なので1回で同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 以前はカレンダー→やること→残り4本の3段階で待っていた
-        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: apps }, { data: facts }, { data: corr }] = await Promise.all([
+        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: emg }, { data: apps }, { data: facts }, { data: corr }] = await Promise.all([
           supabase.rpc("get_my_calendar_jobs"),
           supabase.rpc("my_todo_items"),
           // 役割の判定に加えて、プロフィールの未入力を数えるための列も一緒に取る（往復は増やさない・2026-08-03）。
@@ -612,6 +612,8 @@ export function TodayPage({ me, defaultRole }) {
           supabase.from("worker_profiles").select("auth_id," + WORKER_UNSET_COLUMNS).eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
           supabase.from("employer_profiles").select("auth_id," + EMPLOYER_UNSET_COLUMNS).eq("auth_id", session.user.id).maybeSingle(),
+          // 🆘緊急連絡先の有無（未入力の数え・self-only RLS・2026-08-07）。失敗時はnull＝未登録扱い
+          supabase.from("emergency_contacts").select("auth_id").eq("auth_id", session.user.id).maybeSingle().then(r => r, () => ({ data: null })),
           // 採用の判定に要る時刻。採用してもstatusは'approved'のままなので（contractedは表示用の値で
           // DBには書かれない・CLAUDE.md）、両者の確認時刻で見るしかない。get_my_calendar_jobsは
           // この2列を返さないため、自分の応募から直に引く（当事者RLSの内側・2026-07-27）
@@ -641,7 +643,7 @@ export function TodayPage({ me, defaultRole }) {
         setCache("today:roles", { w, f });
         // プロフィールの未入力数（2026-08-03たきと指示）。埋まれば0＝ボックスが消え、
         // 後で空にすればまた1以上になって現れる＝状態を持たず毎回いまの行から数える
-        const unset = { w: workerUnsetCount(wp).total, f: employerUnsetCount(ep).total };
+        const unset = { w: workerUnsetCount(wp).total, f: employerUnsetCount(ep, { hasEmergency: !!emg }).total };
         setProfileUnset(unset); setCache("today:unset", unset);
         const hired = (apps || [])
           .filter(a => a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at

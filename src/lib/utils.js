@@ -834,8 +834,10 @@ export function workerUnsetCount(w) {
   ].filter(x => !x).length;
   return { req, total: req + opt };
 }
-export function employerUnsetCount(e) {
-  if (!e) return { req: 3, total: 7 };      // 編集ページの7ボックス基準（従業員数は2026-08-01に削除）
+// opts.hasEmergency＝emergency_contacts（別テーブル・self-only RLS）の登録有無。呼び出し側が引いて渡す
+// （2026-08-07たきと承認：募集者の連絡先＋緊急連絡先＝掲載時必須なのにバッジに数えられていなかった2つを合流）
+export function employerUnsetCount(e, { hasEmergency = false } = {}) {
+  if (!e) return { req: 3, total: 9 };      // 編集ページの9ボックス基準（従業員数は2026-08-01に削除）
   // ★編集ページ（EmployerProfileEdit の boxFilled）と同じ物差しで数える（2026-08-03）：
   //   氏名・名称＝recruiter_name（保存時に nickname へも写るので両方見る）
   //   住所・所在地＝recruiter_* の分割値、無ければ1行の recruiter_address
@@ -854,10 +856,12 @@ export function employerUnsetCount(e) {
     [e.intro_path, e.intro_joy, e.intro_crops, e.intro_atmosphere, e.intro_message, e.owner_comment].some(t => t && String(t).trim()),
     [e.unique_point, e.always_do, e.break_style].some(t => t && String(t).trim()),
     !!e.interaction_style,
+    !!(e.recruiter_contact || "").trim(), // 募集者の連絡先（掲載時必須・2026-08-07）
+    hasEmergency,                          // 🆘緊急連絡先（2026-08-07）
   ].filter(x => !x).length;
   return { req, total: req + opt };
 }
 // 上の判定に必要な列だけ（今日ページはプロフィール全列を読まない＝転送量を増やさない）。
 // ★項目を足したら、上の関数と一緒にこの列リストも直すこと
 export const WORKER_UNSET_COLUMNS = "avatar_url,nickname,pr,pr_pending,residence_city,transport,farm_experience,physical_level,interests,languages,pr_qa,pr_qa_pending";
-export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style";
+export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_contact,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style";
