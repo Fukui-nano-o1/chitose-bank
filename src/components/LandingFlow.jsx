@@ -2030,13 +2030,6 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {isFarmer && step === 11 && (() => {
-            const JT_MAP = {
-              "収穫補助": { body:"作物の収穫、運搬補助、簡単な選別作業をお願いします。未経験の方でも、当日説明します。", items:["汚れてもよい服","長靴","手袋","飲み物","帽子"], notes:"屋外作業のため、天候により時間変更の可能性があります。" },
-              "選果作業": { body:"収穫した作物の仕分け、箱詰め、出荷前の確認作業をお願いします。", items:["動きやすい服","飲み物","手袋"], notes:"立ち作業が中心になる場合があります。" },
-              "定植作業": { body:"苗の植え付け、苗運び、簡単な圃場作業をお願いします。", items:["長靴","手袋","汚れてもよい服","飲み物"], notes:"土に触れる作業があります。" },
-              "草刈り":   { body:"圃場周辺の草刈り、片付け、運搬補助をお願いします。", items:["長袖","長ズボン","飲み物","タオル"], notes:"機械を使う作業は経験者のみを想定しています。" },
-            };
-            const tmpl = JT_MAP[jobTemplate] || JT_MAP["収穫補助"];
             const rewardLabel = dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定"; // 時給は廃止（2026-07-16）
 
 
@@ -2422,7 +2415,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:0 }}>作業内容</p>
                       <button onClick={() => { setReturnToConfirm(true); setStep(8); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
-                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{jobDescription || tmpl.body}</p>
+                    {/* 未入力の定型文フォールバック（JT_MAP）は廃止（2026-08-09たきと報告「入力した覚えのない
+                        文字が出力される」）。定型文は画面に出るだけで保存されず、公開後の求人には出ない＝
+                        確認ページだけ嘘をついていた。憲法3条どおり実データ／未設定の二択にする */}
+                    <p className="f-sans" style={{ fontSize:15, color: (jobDescription && jobDescription.trim()) ? "#222" : "#B0B0B0", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...((jobDescription && jobDescription.trim()) ? {} : { textAlign:"center" }) }}>{(jobDescription && jobDescription.trim()) ? jobDescription : "未設定"}</p>
                   </div>
 
                   {/* 経験・持ち物・備考カード：詳細ページと同じ3行縦積み設計（2026-07-16・タブ式から戻した）。
