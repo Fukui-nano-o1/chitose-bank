@@ -2110,6 +2110,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 }
                 // 一般農家：保存（pending）→ 即公開（publish_my_job）。失敗時は pending のまま残る
                 // ＝「公開間近」表示・運営が手動で開ける従来経路が救済として生きる
+                let publishedNow = true;
                 if (!canOpen && _jn) {
                   const pub = await supabase.rpc("publish_my_job", { p_job_number: _jn });
                   if (pub.error || !pub.data?.ok) {
@@ -2117,6 +2118,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       "\n求人は保存されています。時間をおいて、もう一度「掲載する」をお試しください。");
                     return;
                   }
+                  // 修正のお願い中の求人だけは運営の確認を経て公開（2026-08-14・pending:true）
+                  // ＝祝祭は「公開の準備が整いしだい」側に分岐（onPublished(false)）
+                  if (pub.data?.pending) publishedNow = false;
                 }
                 // 掲載前の確認を記録に残す（2026-07-30たきと指示・行動記録の憲法）。
                 // 画面のstateだけだった同意を、押した文言と時刻ごと追記のみの台帳へ。
@@ -2140,9 +2144,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 setPublishModal(false);
                 // 完了は「ページ」でなくアニメーション（2026-08-07たきと指示）。Appに掲載成功を伝え、
                 // App側で祝祭アニメ＋60秒アイドル→さがす を出す。onPublished 未指定時のみ従来の完了ページに倒す
-                // 掲載＝即公開になったため、祝祭は常に「公開しました」（2026-08-14）
-                if (typeof onPublished === "function") { onPublished(true); }
-                else { setPublishedOpen(true); setStep(12); }
+                // 掲載＝即公開の祝祭。修正のお願い中の再掲載（publishedNow=false）だけ
+                // 「公開の準備が整いしだい」側に分岐（2026-08-14）
+                if (typeof onPublished === "function") { onPublished(publishedNow); }
+                else { setPublishedOpen(publishedNow); setStep(12); }
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
               } finally {
