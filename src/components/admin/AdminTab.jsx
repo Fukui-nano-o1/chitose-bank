@@ -235,14 +235,27 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     always_do:"いつもしていること", break_style:"休憩とお茶", transport_area:"送迎エリア",
     commute_allowance_detail:"通勤手当の内容", supplies_cap:"持ち物の上限設定",
   };
+  // 承認・差し戻しの多重送信ガード（2026-08-07「承認に失敗した」報告の根治）：
+  // 実体は1回目の承認が成功済みで、二度押し・SWRの古いカードからの再実行が
+  // nothing_pending（審査するものが既に無い）を返し「失敗」と表示されていた。
+  // nothing_pending は失敗ではなく処理済みso、一覧を最新にして知らせるだけにする
+  const [empTextBusy, setEmpTextBusy] = useState(false);
   const approveEmpTexts = async (authId) => {
+    if (empTextBusy) return;
+    setEmpTextBusy(true);
     const { data, error } = await supabase.rpc("approve_employer_texts", { p_auth_id: authId });
+    setEmpTextBusy(false);
+    if (data?.reason === "nothing_pending") { await loadEmpTexts(); alert("この申請はすでに処理済みです（一覧を最新にしました）"); return; }
     if (error || !data?.ok) { alert("承認に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     loadEmpTexts();
   };
   const rejectEmpTexts = async (authId) => {
+    if (empTextBusy) return;
     if (!window.confirm("この審査待ちの自由記述を差し戻し（破棄）しますか？公開中の文はそのまま残ります")) return;
+    setEmpTextBusy(true);
     const { data, error } = await supabase.rpc("reject_employer_texts", { p_auth_id: authId });
+    setEmpTextBusy(false);
+    if (data?.reason === "nothing_pending") { await loadEmpTexts(); alert("この申請はすでに処理済みです（一覧を最新にしました）"); return; }
     if (error || !data?.ok) { alert("差し戻しに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     loadEmpTexts();
   };
@@ -1086,7 +1099,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                     </div>
                   ))}
                   <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                    <button onClick={()=>approveEmpTexts(r.auth_id)} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認して公開</button>
+                    <button onClick={()=>approveEmpTexts(r.auth_id)} disabled={empTextBusy} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: empTextBusy ? 0.6 : 1 }}>{empTextBusy ? "処理中..." : "承認して公開"}</button>
                     <button onClick={()=>rejectEmpTexts(r.auth_id)} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>差し戻す</button>
                   </div>
                 </div>
