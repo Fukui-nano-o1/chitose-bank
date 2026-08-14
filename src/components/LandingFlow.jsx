@@ -841,17 +841,24 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   //          farmer_idの明示条件は冗長だった）＝1往復ぶん速くなる
   useEffect(() => {
     if (!_editJobNumber) return;
+    let prefillApplied = false; // コピー直後の即時復元が済んだら、遅れて届くDB復元で上書きしない（下記★）
     // ②コピー直後の即時復元：copy_jobの返り値をそのまま使う（ネット往復ゼロ）。一度きりで消費する
     try {
       const raw = sessionStorage.getItem("cb_editJobPrefill");
       if (raw) {
         sessionStorage.removeItem("cb_editJobPrefill");
         const row = JSON.parse(raw);
-        if (row && row.job_number === _editJobNumber) applyJobRow(row);
+        if (row && row.job_number === _editJobNumber) { applyJobRow(row); prefillApplied = true; }
       }
     } catch {}
     (async () => {
       try {
+        // ★コピー直後（prefill適用済み）はネットワーク側の復元をしない（2026-08-09たきと報告
+        //   「休日を連続で入力すると募集日に反転する」の根治）。prefillの行とDBの行は同一なのに、
+        //   遅れて届いた2回目の applyJobRow が、その間に入力した休日などを丸ごと巻き戻していた
+        //   （DBのコールドスパイクで2〜6秒遅れる実測あり＝入力が数タップ進んでから上書きされる）。
+        //   直接の編集（prefillなし）は復元がこの1回だけ＝従来どおり実行する
+        if (prefillApplied) return;
         // ③セッションと求人を並列で取る（従来はgetSession→jobsの直列で、JWT更新が走ると
         //   その待ちがまるまる上乗せされていた）。取れなければ何もしない（prefillの値を残す）
         const [sessRes, jobRes] = await Promise.all([
