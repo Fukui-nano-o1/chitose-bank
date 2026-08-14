@@ -135,7 +135,10 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
 // 渡さない画面（求人詳細など）は従来どおり呼び出し元が自前で並べる＝表示は不変
 // black（任意・2026-07-31たきと指示）：委託プレビュー用の黒テーマ。緑→黒・絵文字アイコンは出さない。
 // 既定false＝求人詳細・雇い手プレビュー等の既存画面は不変
-export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false }) {
+// extraQa（任意・2026-08-14たきと指示「自己紹介以外の長文は質問形式として表示。同じ要素は視覚的にグループ分け」）：
+// 紹介文のお題（farmIntroTopics）等を {q,a} で渡すと、カード内の問いかけQ&Aと同じQaChatの群れに合流する
+// ＝質問形式の要素that1箇所にまとまる。渡さない画面は不変
+export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa }) {
   const [avatarZoom, setAvatarZoom] = useState(false); // フックは早期returnより前（rules-of-hooks）
   if (!profile) return null;
   const AC = black ? "#111111" : "#00A86B";
@@ -224,11 +227,17 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
       {/* 問いかけQ&A（うちの畑のユニークなところ等）もチャット形式（2026-08-07たきと指示・
           「就農するまで等の文言」と同じ扱い）。回答＝農家の言葉so緑（blackテーマは黒）。
           編集モードは従来どおり領域タップで編集ボックス（tap("ask")のラッパーを維持） */}
-      {qa.length > 0 && (
-        <div {...tap("ask")} style={{ marginTop:4, ...cur }}>
-          <QaChat items={qa} accent={black ? "#111111" : "#00A86B"} style={{ marginTop:0 }} />
-        </div>
-      )}
+      {/* 質問形式の要素は1つの群れに（2026-08-14たきと指示）：問いかけQ&A＋extraQa（紹介文のお題）を
+          同じQaChatに合流＝視覚的なグループ分け。編集モードはextraQathat来ない（tap("ask")の役割は不変） */}
+      {(() => {
+        const qaAll = [...qa, ...(Array.isArray(extraQa) ? extraQa : [])];
+        if (qaAll.length === 0) return null;
+        return (
+          <div {...tap("ask")} style={{ marginTop:4, ...cur }}>
+            <QaChat items={qaAll} accent={black ? "#111111" : "#00A86B"} style={{ marginTop:0 }} />
+          </div>
+        );
+      })()}
       {/* タグは1箇所に集約（2026-07-27たきと指示）：やり取りの雰囲気・保険・待遇を1行に並べる。
           「🛡 保険の準備（自己申告）」の見出しは削除し、自己申告の注記だけタグ行の下に残す */}
       {(() => {

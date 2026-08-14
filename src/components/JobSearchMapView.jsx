@@ -1646,9 +1646,13 @@ export function JobSearchMapView({ onRegister, me }) {
               {/* ✕・タイトル「〇〇の農園紹介」は削除（2026-08-14たきと指示・EmployerPreviewSheetの
                   2026-08-07と同じ作法）＝閉じるはボックス外タップ。名乗りは信頼カード内の氏名行が担う */}
               {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16） */}
-              {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
+              {/* 紹介文のお題（就農するまで等）は質問形式（QaChat）としてカード内の問いかけQ&Aと同じ群れに合流
+                  （2026-08-14たきと指示「自己紹介以外の長文は質問形式として表示。同じ要素は視覚的にグループ分け」）。
+                  自己紹介（代表より）だけは下の専用枠のまま */}
+              {(farmHostQa(empEmployer).length > 0 || topics.length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
-                  <FarmerTrustCard profile={empEmployer} trust={empTrust} onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")} />
+                  <FarmerTrustCard profile={empEmployer} trust={empTrust} onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")}
+                    extraQa={topics.map(t => ({ q: t.label, a: t.body }))} />
                 </div>
               )}
               {/* 過去の求人ボックス（受け入れ実績タップで展開・公開中/終了の帯・タップで詳細へ） */}
@@ -1757,14 +1761,7 @@ export function JobSearchMapView({ onRegister, me }) {
                   <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.owner_comment}</p>
                 </div>
               )}
-              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-                {topics.map((t, i) => (
-                  <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px" }}>
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>{t.label}</p>
-                    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
-                  </div>
-                ))}
-              </div>
+              {/* お題の個別カードは廃止（2026-08-14）＝質問形式として上の信頼カード内QaChatへ合流済み */}
             </div>
           </div>
         );

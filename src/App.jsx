@@ -393,10 +393,10 @@ function EmployerPreviewSheet() {
         ) : st.profile ? (
           <>
             {/* 待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
-            <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)} />
-            {/* 就農するまで等の紹介文はチャット形式（2026-08-07たきと指示）：お題＝左グレー・
-                本文＝右緑（農家の言葉＝役割色）。働き手Q&AのQaChatをそのまま共用 */}
-            <QaChat items={topics.map(t => ({ q: t.label, a: t.body }))} accent={ROLE_GREEN} />
+            {/* 紹介文のお題（就農するまで等）もextraQaでカード内QaChatへ合流（2026-08-14たきと指示
+                「同じ要素は視覚的にグループ分け」）＝質問形式の要素that1つの群れになる。3画面共通 */}
+            <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)}
+              extraQa={topics.map(t => ({ q: t.label, a: t.body }))} />
             {/* 受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定） */}
             <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #EEE" }}>
               <ReceivedReviews userId={st.farmer_id} direction="worker_to_farmer" />
