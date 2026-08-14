@@ -926,7 +926,7 @@ const HELP_CONTENT = {
       { key:"mails-applyCanceled",     label: "M05　応募の取り消し", body: "いつ：働き手が応募を取り消した時／誰に：農家" },
       { key:"mails-applyExpired",      label: "M06　応募の失効", body: "いつ：農家の判断がないまま作業日を迎えた時（自動で失効します）／誰に：働き手／内容：働き手に不利益の記録は残りません" },
       { key:"mails-replyReminder",     label: "M07　応募への返答のお願い", body: "いつ：作業前日（承認待ちのままの応募がある時）／誰に：農家" },
-      { key:"mails-message",           label: "M20　新着メッセージ", body: "いつ：チャットにメッセージが届くたび（毎回・例外なし）／誰に：受信した側" },
+      { key:"mails-message",           label: "M20　新着メッセージ", body: "いつ：チャットにメッセージが届くたび（毎回・例外なし）／誰に：受信した側／件名：相手の名前。本文にメッセージの全文と送信日時、最後にチャットを開くリンクがあります" },
       { key:"mails-revision",          label: "M21　求人修正のお願い", body: "いつ：公開後の確認で修正をお願いする時／誰に：農家" },
       { key:"mails-insuranceReminder", label: "M08　保険のご準備を", body: "いつ：承認後・作業日の3日前・前日17時／誰に：農家" },
       { key:"mails-insuranceDone",     label: "M09　保険の準備の報告", body: "いつ：農家が「保険を準備した」と報告した時／誰に：働き手\nこのお知らせは農家からの報告に基づきます（運営が保険の証書を確認するものではありません）" },
