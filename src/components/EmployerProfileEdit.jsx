@@ -311,6 +311,20 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   };
   // ホームの「🛡 保険の準備」から来た時は、その場で保険ボックスを開く（移植・2026-07-23）
   const [editBox, setEditBox] = useState(null);
+  // 🆘緊急連絡先のカード表示用サマリー（2026-08-14たきと報告「保存しても空のまま」の修理）：
+  // 別テーブル（emergency_contacts・self-only）soこのページの本体読み込みとは独立に読む。
+  // 従来は v:"" 固定＝保存してもカードが永久に「未設定」＋赤影のままだった
+  const [emgSummary, setEmgSummary] = useState("");
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from("emergency_contacts").select("name,relation").eq("auth_id", session.user.id).maybeSingle();
+        if (data) setEmgSummary([data.relation, data.name].filter(x => (x || "").trim()).join("・"));
+      } catch {}
+    })();
+  }, []);
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→FarmerProfilePreviewをモーダル展開
   // editFromPreview（プレビュー発の編集の往復）は削除（2026-07-31）：プレビューの項目タップ編集の
   // 廃止（2026-07-25）で発火元が消え、永久にfalseの死に状態だった
@@ -444,8 +458,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"place",    l:"住所・所在地",   req:true, v: composeRecruiterAddress() },
           { k:"perks",    l:"待遇",           v: perksOn.join("・") },
           { k:"recruiter", l:"連絡先",         req:true, v: recruiterContact },
-          // 緊急連絡先（2026-08-03）：別テーブル保存so格子の値表示は持たない（開いた先で読み書きする）
-          { k:"emergency", l:"緊急連絡先",     v: "" },
+          // 緊急連絡先（2026-08-03）：別テーブル保存。カードのサマリーは emgSummary（2026-08-14修理）
+          { k:"emergency", l:"緊急連絡先",     v: emgSummary },
           { k:"intro",    l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
@@ -619,7 +633,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       {editBox==="emergency" && (<>
       {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
           （emergency_contacts テーブル・self-only）so、下の共通「保存する」は押さなくてよい */}
-      <EmergencyContactBox accent={AC} />
+      <EmergencyContactBox accent={AC} onSaved={({ name, relation }) => setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"))} />
       <div style={{ marginBottom:8 }} />
       </>)}
 

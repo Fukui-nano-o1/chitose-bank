@@ -224,6 +224,20 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     setUploading(false);
   };
   // ハブの「📋 経験・できること」カードから来た時は、その場でそのボックスを開く（2026-07-23）
+  // 🆘緊急連絡先のカード表示用サマリー（2026-08-14たきと報告「保存しても空のまま」の修理）：
+  // 別テーブル（emergency_contacts・self-only）soこのページの本体読み込みとは独立に読む。
+  // 従来は v:"" 固定＝保存してもカードが永久に「未設定」＋赤影のままだった
+  const [emgSummary, setEmgSummary] = useState("");
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from("emergency_contacts").select("name,relation").eq("auth_id", session.user.id).maybeSingle();
+        if (data) setEmgSummary([data.relation, data.name].filter(x => (x || "").trim()).join("・"));
+      } catch {}
+    })();
+  }, []);
   const [editBox, setEditBox] = useState(() => { try { const b = sessionStorage.getItem("cb_wkOpenBox"); if (b) { sessionStorage.removeItem("cb_wkOpenBox"); return b; } } catch {} return null; }); // avatar|nickname|residence|transport|exp|intensity|interests|languages|declared|pr|qa（declaredは2026-08-02にボックスへ復帰）
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→WorkerProfilePreviewをモーダル展開
   const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復）
@@ -421,7 +435,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"declared",  l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
           { k:"qa",        l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
           // 緊急連絡先（2026-08-03）：別テーブル保存so格子の値表示は持たない（開いた先で読み書きする）
-          { k:"emergency", l:"緊急連絡先",   v: "" },
+          { k:"emergency", l:"緊急連絡先",   v: emgSummary }, // サマリーは emgSummary（2026-08-14修理）
         ].map(b => {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
           const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
@@ -597,7 +611,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {editBox==="emergency" && (<>
       {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
           （emergency_contacts テーブル・self-only）so、下の共通「保存する」は押さなくてよい */}
-      <EmergencyContactBox accent="#00A86B" />
+      <EmergencyContactBox accent="#00A86B" onSaved={({ name, relation }) => setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"))} />
       <div style={{ marginBottom:8 }} />
       </>)}
 

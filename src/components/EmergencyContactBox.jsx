@@ -4,6 +4,7 @@
 // 開示は採用成立後・相手方のみ（contract_emergency_contact RPC）＝ContractEmergencyContact が表示側。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { setCache } from "../lib/viewCache";
 
 // 既定は「本人」（2026-08-03たきと指示）＝緊急時はまずご本人に連絡する。家族等へは本人が変更する
 const RELATIONS = ["本人", "家族", "配偶者", "親", "子", "兄弟姉妹", "親戚", "友人", "その他"];
@@ -53,6 +54,9 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
       }, { onConflict: "auth_id" });
       setSaving(false);
       if (error) { alert("保存に失敗しました：" + error.message); return; }
+      // 名刺の未設定バッジ用キャッシュも更新（FarmerDashboard farm:hasEmergency・2026-08-14）。
+      // 空欄で保存し直した時はfalseに戻す＝バッジが実態から乖離しない
+      try { setCache("farm:hasEmergency", !!(name.trim() || phone.trim())); } catch {}
       setSaved(true); setTimeout(()=>setSaved(false), 2000);
       if (typeof onSaved === "function") onSaved({ name: name.trim(), relation: relation.trim(), phone: phone.trim() });
     } catch { setSaving(false); alert("保存に失敗しました。"); }
