@@ -7,6 +7,7 @@ import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, C, uid, toKatakana, toHira
 import { Avatar, LinkifiedText, StatusRibbon, Dots } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
 import { AdminNav } from "./AdminNav";
+import { getCache, setCache } from "../../lib/viewCache";
 
 const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F","#6B3A18"];
 
@@ -117,7 +118,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       setContracts(Array.isArray(data) ? data : []);
     })();
   }, [reviewSec]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [accounts, setAccounts] = useState([]); // 新アカウントタブ：admin_list_accounts()の全ユーザー台帳
+  const [accounts, setAccounts] = useState(() => getCache("admin:console")?.accounts || []); // 新アカウントタブ：admin_list_accounts()の全ユーザー台帳
   const [expandedAccount, setExpandedAccount] = useState(null); // 展開中のauth_id
   const [emailShown, setEmailShown] = useState(null); // 「メールを表示」で全文表示中のauth_id（既定はemail_masked）
   // アカウントの停止／追放（2026-07-19）：一時停止・永久追放・解除。管理者のみ・解除は手動
@@ -168,10 +169,11 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   // お知らせ一覧の台帳は専用ページ（#/boxes/notices・AdminBoxRegistryPageのタブ）へ移設（2026-07-17）
   const [legacyView, setLegacyView] = useState(null); // 旧事業データの表示中コンテンツ: farmers|dests|records|stats|datadef|null
   // システム（SQL／エラー／画像軽量化）は専用ページ #/admin/system（AdminSystemRoom）へ移設（2026-08-03たきと指示）
-  const [farmers, setFarmers] = useState([]);
-  const [dests, setDests] = useState([]);
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [farmers, setFarmers] = useState(() => getCache("admin:console")?.farmers || []);
+  const [dests, setDests] = useState(() => getCache("admin:console")?.dests || []);
+  const [records, setRecords] = useState(() => getCache("admin:console")?.records || []);
+  // 前回の内容（viewCache）があれば読み込み中を出さず即描画する（他ページと同じSWR・2026-08-07）
+  const [loading, setLoading] = useState(() => !getCache("admin:console"));
   const [confirm, setConfirm] = useState(null); // {msg, onOk}
   const [expandedFarmer, setExpandedFarmer] = useState(null);
 
@@ -185,12 +187,12 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [newDestName, setNewDestName] = useState("");
   const [newDestNote, setNewDestNote] = useState("");
   const [addingDest, setAddingDest]   = useState(false);
-  const [pendingJobs, setPendingJobs] = useState([]);
-  const [withdrawals, setWithdrawals] = useState([]); // 退会申請の未対応一覧（プラポリv3第7条1：申し出から30日以内に手動削除）
-  const [pendingPrs, setPendingPrs] = useState([]); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
+  const [pendingJobs, setPendingJobs] = useState(() => getCache("admin:console")?.pendingJobs || []);
+  const [withdrawals, setWithdrawals] = useState(() => getCache("admin:console")?.withdrawals || []); // 退会申請の未対応一覧（プラポリv3第7条1：申し出から30日以内に手動削除）
+  const [pendingPrs, setPendingPrs] = useState(() => getCache("admin:console")?.pendingPrs || []); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
   const [sheetPrId, setSheetPrId] = useState(null); // 自由記述審査：タップした働き手のボトムシート（auth_id）
   // 全ての自由記述の審査（2026-07-16）：農家プロフィールの自由記述はtexts_pendingに溜まり、ここで承認して初めて公開される
-  const [empTexts, setEmpTexts] = useState([]);
+  const [empTexts, setEmpTexts] = useState(() => getCache("admin:empTexts") || []);
   const loadEmpTexts = async () => {
     try {
       const { data } = await supabase.from("employer_profiles")
@@ -199,7 +201,9 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       if (!data) return;
       const hasText = (r) => (r.texts_pending && Object.keys(r.texts_pending).length > 0)
         || [r.owner_comment, r.intro_path, r.intro_joy, r.intro_crops, r.intro_atmosphere, r.intro_message, r.unique_point, r.always_do, r.break_style, r.transport_area, r.commute_allowance_detail, r.supplies_cap, r.pr].some(t => t && String(t).trim());
-      setEmpTexts(data.filter(hasText));
+      const rows = data.filter(hasText);
+      setEmpTexts(rows);
+      setCache("admin:empTexts", rows);
     } catch {}
   };
   useEffect(() => { if (sub === "jobs") loadEmpTexts(); }, [sub]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -224,10 +228,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (error || !data?.ok) { alert("差し戻しに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     loadEmpTexts();
   };
-  const [reports, setReports] = useState([]); // 通報（job_reports）
-  const [msgReports, setMsgReports] = useState([]); // チャットのコメント報告（message_reports・2026-07-19）
-  const [profReports, setProfReports] = useState([]); // 働き手プレビューからの報告（profile_reports・2026-08-06）
-  const [adminQuestions, setAdminQuestions] = useState([]); // 求人Q&A（job_questions・第10弾・非表示スイッチ）
+  const [reports, setReports] = useState(() => getCache("admin:console")?.reports || []); // 通報（job_reports）
+  const [msgReports, setMsgReports] = useState(() => getCache("admin:console")?.msgReports || []); // チャットのコメント報告（message_reports・2026-07-19）
+  const [profReports, setProfReports] = useState(() => getCache("admin:console")?.profReports || []); // 働き手プレビューからの報告（profile_reports・2026-08-06）
+  const [adminQuestions, setAdminQuestions] = useState(() => getCache("admin:console")?.adminQuestions || []); // 求人Q&A（job_questions・第10弾・非表示スイッチ）
   const [qHidingId, setQHidingId] = useState(null);
   const hideQuestion = async (id, hidden) => {
     if (qHidingId) return;
@@ -238,7 +242,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     } catch {}
     setQHidingId(null);
   };
-  const [disputes, setDisputes] = useState([]); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
+  const [disputes, setDisputes] = useState(() => getCache("admin:console")?.disputes || []); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
   const [prPublishing, setPrPublishing] = useState(null);
   // 自己紹介（働き手・審査待ち）への修正依頼（2026-07-19）：どこの何がどう問題かを選んで積み上げ→運営チャット＋メールをセット送信
   const [prRevTarget, setPrRevTarget] = useState(null); // フォームを開いている対象（auth_id）
@@ -300,7 +304,8 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const TIERS = ["1-3","4-10","10+"];
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // 前回内容を表示中ならスピナーで隠さない（裏で差し替え）。初回だけ読み込み中を出す
+    if (!getCache("admin:console")) setLoading(true);
     const [fr, de, re, pj, wp, jr, av, la, mr, jq, wd, pr] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
@@ -315,19 +320,34 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       supabase.from("withdrawal_requests").select("*").is("processed_at", null).order("requested_at",{ascending:true}),
       supabase.from("profile_reports").select("*").order("created_at",{ascending:false}),
     ]);
-    if (!fr.error) setFarmers(fr.data || []);
-    if (!de.error) setDests(de.data || []);
-    if (!re.error) setRecords(re.data || []);
-    if (!pj.error) setPendingJobs(pj.data || []);
+    // 成功した分だけを反映し、同じものをviewCacheへ写す（次に開いた時・引き下げ更新後は即描画）
+    const next = {};
+    if (!fr.error) next.farmers = fr.data || [];
+    if (!de.error) next.dests = de.data || [];
+    if (!re.error) next.records = re.data || [];
+    if (!pj.error) next.pendingJobs = pj.data || [];
     // pr_submitted_at必須（2026-07-19）：修正依頼済み（submitted_at=null）は本人が修正して再保存するまで審査待ちに出さない
-    if (!wp.error) setPendingPrs((wp.data || []).filter(w => w.pr_submitted_at && ((w.pr_pending || "").trim() || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0))));
-    if (!jr.error) setReports(jr.data || []);
-    if (!av.error) setDisputes(av.data || []);
-    if (!la.error && Array.isArray(la.data)) setAccounts(la.data); // {ok:false,reason:'not_admin'}時は配列でないため無視
-    if (!mr.error) setMsgReports(mr.data || []);
-    if (!jq.error) setAdminQuestions(jq.data || []);
-    if (!wd.error) setWithdrawals(wd.data || []);
-    if (!pr.error) setProfReports(pr.data || []);
+    if (!wp.error) next.pendingPrs = (wp.data || []).filter(w => w.pr_submitted_at && ((w.pr_pending || "").trim() || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0)));
+    if (!jr.error) next.reports = jr.data || [];
+    if (!av.error) next.disputes = av.data || [];
+    if (!la.error && Array.isArray(la.data)) next.accounts = la.data; // {ok:false,reason:'not_admin'}時は配列でないため無視
+    if (!mr.error) next.msgReports = mr.data || [];
+    if (!jq.error) next.adminQuestions = jq.data || [];
+    if (!wd.error) next.withdrawals = wd.data || [];
+    if (!pr.error) next.profReports = pr.data || [];
+    if (next.farmers) setFarmers(next.farmers);
+    if (next.dests) setDests(next.dests);
+    if (next.records) setRecords(next.records);
+    if (next.pendingJobs) setPendingJobs(next.pendingJobs);
+    if (next.pendingPrs) setPendingPrs(next.pendingPrs);
+    if (next.reports) setReports(next.reports);
+    if (next.disputes) setDisputes(next.disputes);
+    if (next.accounts) setAccounts(next.accounts);
+    if (next.msgReports) setMsgReports(next.msgReports);
+    if (next.adminQuestions) setAdminQuestions(next.adminQuestions);
+    if (next.withdrawals) setWithdrawals(next.withdrawals);
+    if (next.profReports) setProfReports(next.profReports);
+    setCache("admin:console", { ...(getCache("admin:console") || {}), ...next });
     setLoading(false);
   }, []);
 
@@ -539,7 +559,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
           <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
           <p className="f-sans" style={{ fontSize:12,color:"#717171" }}>審査・アカウント・運営ツール</p>
         </div>
-        <button onClick={() => { setLoading(true); load(); }} style={{
+        <button onClick={() => { load(); }} style={{
           padding:"8px 16px", borderRadius:10, border:"1px solid #EBEBEB",
           background:"#fff", fontSize:12, fontWeight:600, color:"#222",
           cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:6,

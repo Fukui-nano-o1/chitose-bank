@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort, payTermsLine, overtimeLine } from "../lib/utils";
 import { Carousel, JobFlagBadges, DangerItem, Dots, MaskedAddress } from "./ui";
+import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 // 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
@@ -17,8 +18,15 @@ const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い
 // 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
 // mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
 export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView }) {
-  const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // 前回開いた同じ求人（viewCache）は即描画→裏で最新に差し替え（SWR・2026-08-07たきと指示「一瞬でだせ」）。
+  // ★キャッシュには生の行（JSON安全）だけを入れ、読む側で mapJobPublicRow する
+  //   （Dateを含む整形後を入れると復元で文字列化して壊れる＝2026-08-03 getFullYear事故の教訓）
+  const [job, setJob] = useState(() => {
+    if (ownerView) return null;
+    const raw = getCache("admin:previewRow:" + jobNumber);
+    return raw ? mapJobPublicRow(raw) : null;
+  });
+  const [loading, setLoading] = useState(() => ownerView || !getCache("admin:previewRow:" + jobNumber));
   // 掲載前の確認の記録（2026-07-30）：undefined=読み込み中／null=記録なし／オブジェクト=最新の1件
   const [pubChecks, setPubChecks] = useState(undefined);
   const [pubOpen, setPubOpen] = useState(false);
@@ -77,8 +85,8 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setJob(null);
+    // キャッシュ表示中はスピナー・白紙に戻さない（裏で最新へ差し替えるだけ）
+    if (ownerView || !getCache("admin:previewRow:" + jobNumber)) { setLoading(true); setJob(null); }
     (async () => {
       if (ownerView) {
         // 農家本人の求人プレビュー：RLS(owner select)で自分の行のみ読める。審査RPCは使わない
@@ -93,7 +101,8 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       const { data, error } = await supabase.rpc('admin_preview_job', { p_job_number: jobNumber });
       if (cancelled) return;
       const row = Array.isArray(data) ? data[0] : data;
-      if (!error && row) setJob(mapJobPublicRow(row));
+      // 失敗時は手元の表示を保つ（エラーの空で上書きしない＝2026-08-07規則）
+      if (!error && row) { setJob(mapJobPublicRow(row)); setCache("admin:previewRow:" + jobNumber, row); }
       setLoading(false);
     })();
     return () => { cancelled = true; };
