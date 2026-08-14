@@ -1122,7 +1122,8 @@ export function JobSearchMapView({ onRegister, me }) {
                   ))}
                 </div>
                 {/* 掲載時に確定保存された支払条件を表示（2026-08-02・ハードコード廃止） */}
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>{payTermsLine(selectedJob)}</p>
+                {/* 支払条件は頭から1文字ずつ跳ねさせて目に留める（2026-08-14たきと指示・NoticeJumpText） */}
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}><NoticeJumpText text={payTermsLine(selectedJob)} /></p>
               </div>
 
               {/* 集合場所の表示は詳細ページから削除（2026-07-16）。承認後の共有はチャットの「はじめる前の確認」カードに一本化 */}
@@ -1297,7 +1298,7 @@ export function JobSearchMapView({ onRegister, me }) {
                 style={{ width:"100%", padding:"16px", fontSize:15, fontWeight:700, borderRadius:14, ...(hideApply ? { background:"#EBEBEB", color:"#717171" } : applyBtnStyle) }}
               >{hideApply ? closedLabel : applyBtnLabel}</button>
               {/* 掲載時に確定保存された支払条件を表示（2026-08-02・ハードコード廃止） */}
-              <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8 }}>{payTermsLine(selectedJob)}</p>
+              <p style={{ fontSize:12, color:"#888", textAlign:"center", marginTop:8 }}><NoticeJumpText text={payTermsLine(selectedJob)} /></p>
 
               {/* 補足文 */}
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:0, marginTop:10 }}>
