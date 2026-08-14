@@ -331,7 +331,7 @@ export function AdminSystemRoom() {
   }
 
   return (
-    <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
+    <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
       <AdminNav current="system" />
 
       {focusPair ? (

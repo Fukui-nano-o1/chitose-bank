@@ -90,7 +90,7 @@ export function AdminBoxRegistryPage() {
   };
   return (
     /* cb-admin-page＝サイトフッターを隠す目印（下部バー・浮遊☰は出す・appStyles・2026-08-05） */
-    <div className="fade-in cb-admin-page" style={{ maxWidth:560, margin:"0 auto", padding:"24px 16px 120px" }}>
+    <div className="fade-in cb-admin-page" style={{ maxWidth:560, margin:"0 auto", padding:"24px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
       {/* 管理ページの共通ナビ（全ページ導線・2026-08-02）。旧「← 管理」ボタンは管理チップが兼ねる */}
       <AdminNav current={pTab === "notices" ? "notices" : "boxes"} />
       <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>

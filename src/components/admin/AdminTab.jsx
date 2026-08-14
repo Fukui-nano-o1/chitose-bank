@@ -535,8 +535,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   );
 
   return (
-    /* cb-admin-page＝管理画面で操作するページの目印。サイトフッターを隠す（下部バー・浮遊☰は出す・appStyles・2026-08-05たきと指示） */
-    <div className="appear cb-admin-page" style={{ maxWidth:800, margin:"0 auto" }}>
+    /* cb-admin-page＝管理画面で操作するページの目印。サイトフッターを隠す（下部バー・浮遊☰は出す・appStyles・2026-08-05たきと指示）
+       下余白＝下部バー(64px)＋浮遊☰(バーの12px上・高さ約44px)ぶんを空けておく
+       （2026-08-07たきと指示「邪魔してタップできないカードがある」＝最下段のカードが隠れない） */
+    <div className="appear cb-admin-page" style={{ maxWidth:800, margin:"0 auto", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
 
       {/* 確認ダイアログ */}
       {confirm && (

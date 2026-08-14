@@ -89,7 +89,7 @@ export function AdminUpcomingRoom() {
   // 読み込み中・権限なし・失敗・0件は最小の1行テキストだけ（直URLで開いた時に白紙に見えないための最低限）
   return (
     /* cb-admin-page＝サイトフッターを隠す目印（下部バー・浮遊☰は出す・appStyles・2026-08-05） */
-    <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px 120px" }}>
+    <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
       {/* 管理ページの共通ナビ（全ページ導線・2026-08-02たきと指示）。見出し等は置かない方針のまま、導線のみ */}
       <AdminNav current="upcoming" />
       {state === null && (
