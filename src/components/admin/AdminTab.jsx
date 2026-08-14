@@ -309,11 +309,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   };
 
   // ── 審査タブ集約アクション（2026-07-14・DB側は app_admins 基準の審査ポリシーで担保） ──
-  const approveFarmerAccount = async (f) => {
-    const { error } = await supabase.from("farmers").update({ status: "approved" }).eq("id", f.id);
-    if (error) { alert("承認に失敗しました：" + error.message); return; }
-    setFarmers(prev => prev.map(x => x.id === f.id ? { ...x, status: "approved" } : x));
-  };
+  // アカウント承認（approveFarmerAccount）は2026-08-07廃止（たきと指示）：
+  // 現在の登録フローは farmers 行を作らない＝キューに新規that入らず、farmers.status を見る
+  // ポリシー・関数もゼロ＝承認しても何も変わらない死んだ機能だった。アカウントの統制は
+  // signup_open（入口・キルスイッチ）＋account_holders（本人確認）＋account_moderation（停止/追放）that担う
   const resolveReport = async (r) => {
     const { error } = await supabase.from("job_reports").update({ status: "resolved" }).eq("id", r.id);
     if (error) { alert("更新に失敗しました：" + error.message); return; }
@@ -418,11 +417,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   records.forEach(r => { destRecCount[r.dest_id]=(destRecCount[r.dest_id]||0)+1; });
 
   // 審査タブに全ての審査待ちを集約（2026-07-14）：求人＋アカウント承認＋自由記述＋通報＋異議
-  const pendingFarmerAccounts = farmers.filter(f => f.status === "pending");
   const openReports = reports.filter(r => r.status !== "resolved");
   const openMsgReports = msgReports.filter(r => r.status !== "resolved");
   const openProfReports = profReports.filter(r => r.status !== "resolved");
-  const reviewTotal = pendingFarmerAccounts.length + openReports.length + openMsgReports.length + openProfReports.length + disputes.length;
+  const reviewTotal = openReports.length + openMsgReports.length + openProfReports.length + disputes.length;
   const TOP_TABS = [
     { k:"jobs",    l:"審査",       n: reviewTotal },
     { k:"account", l:"アカウント", n: null },
@@ -892,7 +890,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       {sub==="jobs" && !reviewSec && !loading && (
         <div className="fade-in" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
           {[
-            { k:"accounts", l:"アカウント承認", n:pendingFarmerAccounts.length },
             { k:"reports",  l:"通報",           n:openReports.length + openMsgReports.length + openProfReports.length },
             { k:"disputes", l:"欠勤異議",       n:disputes.length },
             { k:"questions",l:"質問",           n:0 },
@@ -911,26 +908,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       {sub==="jobs" && reviewSec && (
         <div className="fade-in" style={{ display:"grid", gap:16 }}>
         <button onClick={backToReviewGrid} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
-
-        {/* ② アカウント承認（農家の審査待ち） */}
-        {reviewSec==="accounts" && (
-        <div>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>アカウント承認{pendingFarmerAccounts.length > 0 ? `（${pendingFarmerAccounts.length}）` : ""}</p>
-          <div style={{ display:"grid", gap:12 }}>
-            {pendingFarmerAccounts.length === 0 ? (
-              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>承認待ちのアカウントはありません</p>
-            ) : pendingFarmerAccounts.map(f => (
-              <div key={f.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff", display:"flex", justifyContent:"space-between", alignItems:"center", gap:16 }}>
-                <div style={{ minWidth:0 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{f.name || "名前未設定"}</p>
-                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>{[f.prefecture, f.municipality].filter(Boolean).join("")}　{f.email || ""}</p>
-                </div>
-                <button onClick={()=>approveFarmerAccount(f)} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>承認する</button>
-              </div>
-            ))}
-          </div>
-        </div>
-        )}
 
         {/* ④ 通報（job_reports。対応済みで一覧から消える） */}
         {reviewSec==="reports" && (
