@@ -867,6 +867,28 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       } catch {}
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 汚染された下書きの自浄（2026-08-09）：修正前は編集・コピー中も localStorage 下書きに書いていたため、
+  // 端末に「既存求人の全項目＋job_number」が残っている場合がある。#/work/new でそれを復元すると
+  // 入力した覚えのない文字（前の求人の備考・注意など）が出る上、保存すると既存求人を上書きしてしまう。
+  // → 復元した下書きが job_number を持つのに、その求人が status='draft' でない（掲載済み・終了等）なら
+  //   下書きごと捨てて白紙から始める。本物の下書きの再開（status='draft'）はそのまま通す。
+  // 通信失敗時は消さない（フェイルセーフ規則＝res.errorで手元を上書きしない・2026-08-07）
+  useEffect(() => {
+    if (_editJobNumber || !_draftInit?.job_number) return;
+    (async () => {
+      try {
+        const { data, error } = await supabase.from("jobs").select("job_number,status")
+          .eq("job_number", _draftInit.job_number).maybeSingle();
+        if (error) return;
+        if (!data || data.status !== "draft") {
+          try { localStorage.removeItem("landingFlowDraft_v1"); localStorage.removeItem("postLoginReturnTo"); } catch {}
+          applyJobRow({ draft_step: 1 }); // 全項目を白紙へ（applyJobRowの既定値＝空で統一）
+          setDraftJobNumber(null);
+        }
+      } catch {}
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftMsg, setDraftMsg] = useState("");
   const [draftBarFull, setDraftBarFull] = useState(false);
@@ -879,6 +901,12 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
   const saveDraft = () => {
+    // ★編集・コピー（#/work/edit/N）のセッションでは localStorage 下書きに書かない（2026-08-09たきと報告
+    //   「備考・注意に入力した覚えのない文字」の根治）。書いてしまうと、その求人の全項目＋job_number が
+    //   landingFlowDraft_v1 に残り、次に「新しく求人を出す」(#/work/new)を開いた時に前の求人の内容ごと
+    //   復元される＝新規のつもりが既存求人の続き（保存すると上書き）になる。
+    //   編集セッションの再開はDBの求人行（draft_step）が担う＝localStorageは新規フロー専用に戻す
+    if (_editJobNumber) return;
     try {
       const draft = {
         role: "farmer", farmerStep: step, job_number: draftJobNumber, // 保存時点の実ステップとupsertキーを記録
