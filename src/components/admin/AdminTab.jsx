@@ -9,6 +9,9 @@ import { AdminJobPreview } from "../AdminJobPreview";
 import { AdminNav } from "./AdminNav";
 import { getCache, setCache } from "../../lib/viewCache";
 
+// あいうえお順の比較（アカウント面・2026-08-07）。毎描画で作らないためモジュールレベルに置く
+const JA_COLLATOR = new Intl.Collator("ja");
+
 const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#55610F","#6B3A18"];
 
 // 審査セクションのURLキー（#/admin/review/{key}）。ボックス格子の並びと一致させる唯一の正本。
@@ -164,6 +167,21 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     }
     setDmBusy(false);
   };
+  // アカウント面の役割切り替え（2026-08-07たきと指示「雇い手と働き手で切り替え」）：
+  // 働き手タブ＝worker_profilesを持つ人＋プロフィール未作成の人（受け皿・誰も消えない）／
+  // 雇い手タブ＝employer_profilesを持つ人。両方持ちは両タブに出る。
+  // 並びはあいうえお順（2026-08-07たきと指示・表示名のロケール比較。名前なしは最後）
+  const [accountTab, setAccountTab] = useState("worker");
+  const acctDisplay = (u) => accountTab === "employer"
+    ? { name: u.employer_nickname || u.nickname || u.email_masked || "", avatar: u.employer_avatar_url || u.avatar_url }
+    : { name: u.nickname || u.email_masked || "", avatar: u.avatar_url };
+  const acctWorkers = accounts.filter(u => u.has_worker || !u.has_employer);
+  const acctEmployers = accounts.filter(u => !!u.has_employer);
+  const acctList = (accountTab === "employer" ? acctEmployers : acctWorkers)
+    .slice()
+    .sort((a, b) => JA_COLLATOR.compare(
+      String(acctDisplay(a).name).trim() || "\uffff",
+      String(acctDisplay(b).name).trim() || "\uffff"));
   const [otherBox, setOtherBox] = useState(null); // その他タブのポップアップ: pages|flow|legacy|system|notices|null（boxlistは#/boxes専用ページへ昇格・2026-07-17）
   // ボックス一覧の台帳は専用ページ（#/boxes・AdminBoxRegistryPage）へ昇格（2026-07-17）
   // お知らせ一覧の台帳は専用ページ（#/boxes/notices・AdminBoxRegistryPageのタブ）へ移設（2026-07-17）
@@ -699,15 +717,32 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       {!loading && sub==="account" && (
         <div className="fade-in">
           {accounts.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>アカウントを取得できませんでした。「更新」を押してください</p>}
+          {/* 役割切り替え（ボックス一覧の2タブと同じ意匠） */}
+          {accounts.length > 0 && (
+            <div style={{ display:"flex", gap:8, margin:"0 0 14px" }}>
+              {[
+                { k:"worker",   l:"働き手", n:acctWorkers.length },
+                { k:"employer", l:"雇い手", n:acctEmployers.length },
+              ].map(t => (
+                <button key={t.k} onClick={()=>setAccountTab(t.k)} className="f-sans"
+                  style={{ flex:1, padding:"11px 0", borderRadius:12, border: accountTab===t.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:14, fontWeight: accountTab===t.k ? 800 : 600, color: accountTab===t.k ? "#222" : "#999", cursor:"pointer" }}>
+                  {t.l}{t.n > 0 ? `（${t.n}）` : ""}
+                </button>
+              ))}
+            </div>
+          )}
+          {accounts.length > 0 && acctList.length === 0 && (
+            <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>このタブに該当するアカウントはありません</p>
+          )}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-            {accounts.map(u => (
+            {acctList.map(u => (
               <button key={u.auth_id} onClick={()=>{ setEmailShown(null); setExpandedAccount(u.auth_id); }}
                 className="f-sans"
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-                  {u.avatar_url
-                    ? <img loading="lazy" src={u.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: u.mod_state && u.mod_state !== "active" ? "grayscale(1) opacity(0.6)" : "none" }} />
-                    : <Avatar url={null} name={u.nickname || u.email_masked || "？"} size={64} />}
+                  {acctDisplay(u).avatar
+                    ? <img loading="lazy" src={acctDisplay(u).avatar} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: u.mod_state && u.mod_state !== "active" ? "grayscale(1) opacity(0.6)" : "none" }} />
+                    : <Avatar url={null} name={acctDisplay(u).name || "？"} size={64} />}
                   {/* 状態マーク（右上）：停止/追放＞通報＞確認待ち＞未ログインの優先順で1つだけ */}
                   {(u.mod_state && u.mod_state !== "active") ? (
                     <span style={{ position:"absolute", top:6, right:6, padding:"2px 7px", borderRadius:9, background: u.mod_state === "banned" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:10, fontWeight:800, boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{u.mod_state === "banned" ? "追放" : "停止"}</span>
@@ -717,7 +752,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                     </span>
                   )}
                 </div>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: u.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.nickname || u.email_masked || "—"}</p>
+                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: acctDisplay(u).name ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{acctDisplay(u).name || "—"}</p>
               </button>
             ))}
           </div>
@@ -732,8 +767,8 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                 <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
                     <button onClick={()=>{ setExpandedAccount(null); setEmailShown(null); }} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
-                    <Avatar url={u.avatar_url} name={u.nickname || u.email_masked} size={30} />
-                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.nickname || u.email_masked || "—"}</p>
+                    <Avatar url={acctDisplay(u).avatar} name={acctDisplay(u).name} size={30} />
+                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{acctDisplay(u).name || "—"}</p>
                   </div>
                   <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
                     <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
