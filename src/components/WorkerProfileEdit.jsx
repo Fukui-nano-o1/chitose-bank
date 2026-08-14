@@ -408,28 +408,30 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         {[
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16・農家プロと同じ規則）
           // 配置（2026-07-16）：アイコン・ニックネーム／アイコンの下に自己紹介。任意は農家プロと同じ系統順（条件系→属性→問いかけ系が最後）
-          { k:"avatar",    e:"🖼️", l:"アイコン",     v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
-          { k:"nickname",  e:"✏️", l:"ニックネーム", req:true, v: nickname },
-          { k:"pr",        e:"📝", l:"自己紹介",     req:true, v: pr },
-          { k:"residence", e:"📍", l:"居住地",       v: residenceCity },
-          { k:"transport", e:"🚗", l:"移動手段",     v: transport },
-          { k:"exp",       e:"🌾", l:"農業経験",     v: farmExperience },
-          { k:"intensity", e:"💪", l:"作業の強さ",   v: physicalLevel },
-          { k:"interests", e:"🎨", l:"趣味",         v: interests.join("・") },
-          { k:"languages", e:"🗣️", l:"言語",         v: languages.join("・") },
-          { k:"declared",  e:"📋", l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
-          { k:"qa",        e:"💬", l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
+          // カードの絵文字アイコンは削除＝テキストのみ（2026-08-14たきと指示・雇い手編集ページと同型）
+          { k:"avatar",    l:"アイコン",     v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
+          { k:"nickname",  l:"ニックネーム", req:true, v: nickname },
+          { k:"pr",        l:"自己紹介",     req:true, v: pr },
+          { k:"residence", l:"居住地",       v: residenceCity },
+          { k:"transport", l:"移動手段",     v: transport },
+          { k:"exp",       l:"農業経験",     v: farmExperience },
+          { k:"intensity", l:"作業の強さ",   v: physicalLevel },
+          { k:"interests", l:"趣味",         v: interests.join("・") },
+          { k:"languages", l:"言語",         v: languages.join("・") },
+          { k:"declared",  l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
+          { k:"qa",        l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
           // 緊急連絡先（2026-08-03）：別テーブル保存so格子の値表示は持たない（開いた先で読み書きする）
-          { k:"emergency", e:"🆘", l:"緊急連絡先",   v: "" },
+          { k:"emergency", l:"緊急連絡先",   v: "" },
         ].map(b => {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
           const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
           return (
-          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0 }}>
+          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
             {revFlagged && (
               <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:1, padding:"5px 6px", borderRadius:"0 0 20px 20px", background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>⚠️ 修正のお願い</span>
             )}
-            {b.k === "avatar" ? <Avatar url={avatarUrl} name={nickname} size={36} /> : <span style={{ fontSize:34, lineHeight:1 }}>{b.e}</span>}
+            {/* アイコンのカードだけ1行まるごと＋アイコン本体を大きく（2026-08-14たきと指示・雇い手編集ページと同型） */}
+            {b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} />}
             <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
             <span style={{ fontSize:11, color: b.v ? "#00A86B" : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
           </button>
