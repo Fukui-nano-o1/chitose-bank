@@ -231,7 +231,7 @@ export function JobDetailBody({ job, me, onBack }) {
       {job.jobBody && job.jobBody.trim() && (
       <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
         <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
-        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
+        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
       </div>
       )}
 
@@ -252,7 +252,7 @@ export function JobDetailBody({ job, me, onBack }) {
                   ))}
                 </div>
               )
-              : <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", display:"block", textAlign:"center" }}>{row.value}</span>}
+              : <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", display:"block", textAlign:"center" }}>{row.value}</span>}
           </div>
         ))}
       </div>
