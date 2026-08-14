@@ -276,6 +276,20 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
+      // 比べる土台を保存の直前に取り直す（2026-08-14たきと報告「応募するたびに自己紹介の申請がくる」）：
+      // 画面を開いたまま運営that承認すると approvedRef が古いままになり、同じ内容をもう一度
+      // 審査に出していた（承認直後は old.pending が null so 通知トリガーの変更なしスキップも
+      // 効かず、運営に申請メールthat毎回届く）。保存は稀な操作so 1往復の追加を許容。
+      // 取得に失敗した時は手元の控えのまま進める（失敗時は上書きしない・2026-08-07規則）。
+      // 同じ壁はDB側にもある（trg_wp_review_dedupe＝承認済みと同一内容は審査に入れない）＝二重の壁
+      const freshRes = await supabase.from("worker_profiles")
+        .select("pr,pr_qa,pr_pending,pr_qa_pending,pr_submitted_at")
+        .eq("auth_id", session.user.id).maybeSingle();
+      if (!freshRes.error && freshRes.data) {
+        const f = freshRes.data;
+        approvedRef.current = { pr: f.pr || "", pr_qa: Array.isArray(f.pr_qa) ? f.pr_qa : [] };
+        pendingRef.current = { pr: f.pr_pending ?? null, pr_qa: Array.isArray(f.pr_qa_pending) ? f.pr_qa_pending : null, submitted_at: f.pr_submitted_at ?? null };
+      }
       // 自由記述(pr/pr_qa)は運営確認後に公開。pr_pending/pr_qa_pendingに保存し、
       // 公開版のpr/pr_qaは書かない(承認RPC/48時間cronだけが書く)。選択式項目は従来どおり即時保存
       // 審査に出すのは「承認済みと中身が違う」時だけ（2026-07-27）。同じなら pending を空にする＝

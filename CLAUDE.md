@@ -4355,3 +4355,31 @@ DBはロールバック付きで実測：新2列が届くこと、配列＋休�
 【検証】build成功・eslint 0 error（警告29=既存のみ・新規ゼロ）・同じ文言that見本帳チャンクと
 LandingFlowチャンクの両方に入っていることをgrepで確認（＝写し間違いなし）。実機目視は未実施。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-14 応募フロー：同一内容の自己紹介that何度も審査に来る件の根治（キリトで再現）━━━
+【たきと報告】「応募するたびに自己紹介の申請がくる。内容に変更はないが何度も許可している」
+【真因（event_auditで実測）】プロフィール編集画面を開いたまま（またはキャッシュthat古いまま）保存すると、
+画面側の「承認済みの控え」（approvedRef）that古く、承認済みと同一の内容を pr_qa_pending に再セットしていた。
+承認直後は old.pending=null so trg_notify_worker_profile の「変更なしスキップ」をすり抜け、申請メールthat毎回届く。
+応募フローはプロフィールゲート経由でこの保存を踏ませるため「応募するたび」に見えた。キリトの行で
+07-27・08-13 の再申請と 08-14 06:16 の承認（pr_qa old=null→array＝同一内容の初承認）を裏取り。
+あわせて承認処理（publishPendingPr）that pr_submitted_at を消し忘れる取りこぼしも実測（キリトの行に残存）。
+【修理＝二重の壁】
+・DB（migration 20260814063811_wp_review_dedupe_same_as_approved・適用済み・repo同期済み）：
+  trg_wp_review_dedupe（BEFORE INSERT OR UPDATE on worker_profiles）＝どの経路から書いても
+  「承認済みと同一内容」は審査に入れない。規則5つ：①空白のみのpr_pendingはnull ②pr_pendingthat
+  承認済みprと同一（btrim）ならnull ③pr_qa_pendingの(質問,回答btrim)集合that承認済みpr_qaと同一なら
+  null（並び・重複・q/a／question/answer両形式を吸収）④両方nullなら pr_submitted_at・
+  pr_revision_targets も消す（承認処理の消し忘れも自動で塞がる）⑤中身の変わらない再提出で
+  申請時刻を進めない（48h自動公開thatずれない）。★⑤は new.pr_submitted_at is not null が必須条件＝
+  修正依頼（request_worker_pr_revision＝pendingを残して時刻をnull化）を打ち消さない（実弾T4で検出・修正）。
+・フロント（WorkerProfileEdit.save）：保存の直前に pr/pr_qa/pr_pending/pr_qa_pending/pr_submitted_at を
+  取り直して approvedRef/pendingRef を更新（失敗時は上書きしない・2026-08-07規則）＝古い画面の控えで
+  差分judgeしない。「審査に出しました」の表示も実態と一致する。
+・掃除：申請時刻だけ残った行（審査するものthat無いのに pr_submitted_at 残存）を一括null化（キリト含む・実測0件に）。
+【検証】実弾8項目全OK（同一内容ブロック・新規内容は通る・時刻据え置き・修正依頼のnull化通過・
+再提出で列に復帰・承認の自動掃除・承認直後の古い画面からの再保存ブロック・本文同一/Q&A新規の部分判定）。
+全ロールバック・残置ゼロ実測。build成功・eslint 0 error（警告29=既存のみ）。
+【実機目視の残り】キリトのアカウントで応募→保存しても運営に申請メールthat来ないこと／
+本当に本文を変えた時は従来どおり審査に入ること（AdminTabの審査待ちに出る）
+━━━ ここまで ━━━
