@@ -684,8 +684,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
             if (!u) return null;
             const badgeSt = (bg, fg) => ({ padding:"3px 10px", borderRadius:9, fontSize:11, fontWeight:700, background:bg, color:fg, whiteSpace:"nowrap" });
             return (
-              <div onClick={()=>{ setExpandedAccount(null); setEmailShown(null); }} style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-                <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div onClick={()=>{ setExpandedAccount(null); setEmailShown(null); }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+                {/* cb-lock-scroll＝展開中は背後のページを固定（2026-08-07たきと指示「ボックス展開中は画面スクロール解除」）。
+                    下部バー・☰thが隠れるので、下端はバー前提でなくセーフエリア+10pxまで伸ばす */}
+                <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
                     <button onClick={()=>{ setExpandedAccount(null); setEmailShown(null); }} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
                     <Avatar url={acctDisplay(u).avatar} name={acctDisplay(u).name} size={30} />
@@ -703,9 +705,11 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                       <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:72, flexShrink:0 }}>メール</span>
                       <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-all", userSelect:"text" }}>
                         {emailShown === u.auth_id ? (u.email || "—") : (u.email_masked || "—")}
-                        {emailShown !== u.auth_id && u.email && (
+                        {u.email && (emailShown === u.auth_id ? (
+                          <button onClick={()=>setEmailShown(null)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0, marginLeft:8 }}>隠す</button>
+                        ) : (
                           <button onClick={()=>setEmailShown(u.auth_id)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0, marginLeft:8 }}>メールを表示</button>
-                        )}
+                        ))}
                       </span>
                     </div>
                     {[
