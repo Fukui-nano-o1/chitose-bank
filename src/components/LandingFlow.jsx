@@ -9,7 +9,7 @@ import { uploadJobPhoto } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
-import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge } from "./ui";
+import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
@@ -2406,7 +2406,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     {/* 未入力の定型文フォールバック（JT_MAP）は廃止（2026-08-09たきと報告「入力した覚えのない
                         文字が出力される」）。定型文は画面に出るだけで保存されず、公開後の求人には出ない＝
                         確認ページだけ嘘をついていた。憲法3条どおり実データ／未設定の二択にする */}
-                    <p className="f-sans" style={{ fontSize:15, color: (jobDescription && jobDescription.trim()) ? "#222" : "#B0B0B0", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...((jobDescription && jobDescription.trim()) ? {} : { textAlign:"center" }) }}>{(jobDescription && jobDescription.trim()) ? jobDescription : "未設定"}</p>
+                    <p className="f-sans" style={{ fontSize:15, color: (jobDescription && jobDescription.trim()) ? "#222" : "#B0B0B0", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...((jobDescription && jobDescription.trim()) ? {} : { textAlign:"center" }) }}>{(jobDescription && jobDescription.trim()) ? <LinkifiedText text={jobDescription} /> : "未設定"}</p>
                   </div>
 
                   {/* 経験・持ち物・備考カード：詳細ページと同じ3行縦積み設計（2026-07-16・タブ式から戻した）。

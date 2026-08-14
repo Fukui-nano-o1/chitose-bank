@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort, payTermsLine, overtimeLine } from "../lib/utils";
-import { Carousel, JobFlagBadges, DangerItem, Dots, MaskedAddress } from "./ui";
+import { Carousel, JobFlagBadges, DangerItem, Dots, LinkifiedText, MaskedAddress } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
@@ -400,7 +400,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, ...revOutline("作業内容") }}>
             {revChip("作業内容")}
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
-            <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
+            <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={job.jobBody} /></p>
           </div>
           )}
 

@@ -15,7 +15,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { payLabel, disp, stationLabel, payTermsLine, overtimeLine, EMPTY_MARK } from "../lib/utils";
-import { Avatar, Carousel, DangerItem, MaskedAddress } from "./ui";
+import { Avatar, Carousel, DangerItem, LinkifiedText, MaskedAddress } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { InsurancePanel } from "./InsurancePanel";
@@ -231,7 +231,7 @@ export function JobDetailBody({ job, me, onBack }) {
       {job.jobBody && job.jobBody.trim() && (
       <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
         <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
-        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{job.jobBody}</p>
+        <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={job.jobBody} /></p>
       </div>
       )}
 
