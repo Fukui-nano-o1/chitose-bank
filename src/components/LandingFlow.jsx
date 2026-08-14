@@ -9,7 +9,7 @@ import { uploadJobPhoto } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
-import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText } from "./ui";
+import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
@@ -2540,12 +2540,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       {/* ✕・タイトルは削除（2026-08-14たきと指示・詳細ページの農園紹介と同一様式）＝
                           閉じるはボックス外タップ。名乗りは信頼カード内の氏名行が担う */}
                       {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16・詳細ページと同じ） */}
-                      {/* 紹介文のお題は質問形式としてカード内QaChatへ合流（2026-08-14たきと指示・詳細ページと同一様式）。
-                          自己紹介（代表より）だけは下の専用枠のまま */}
-                      {(farmHostQa(confEmployer).length > 0 || topics.length > 0 || !!confEmployer.interaction_style || !!confTrust) && (
+                      {/* 質問形式の群れは代表よりの下へ移植（2026-08-14たきと指示・詳細ページと同一様式）。
+                          カード内のQaChatはhideQaで出さない */}
+                      {(farmHostQa(confEmployer).length > 0 || !!confEmployer.interaction_style || !!confTrust) && (
                         <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
-                          <FarmerTrustCard profile={confEmployer} trust={confTrust}
-                            extraQa={topics.map(t => ({ q: t.label, a: t.body }))} />
+                          <FarmerTrustCard profile={confEmployer} trust={confTrust} hideQa />
                         </div>
                       )}
                       {confEmployer.owner_comment && confEmployer.owner_comment.trim() && (
@@ -2554,7 +2553,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                           <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{confEmployer.owner_comment}</p>
                         </div>
                       )}
-                      {/* お題の個別カードは廃止（2026-08-14）＝質問形式として上の信頼カード内QaChatへ合流済み */}
+                      {/* 質問形式の群れ（問いかけQ&A＋紹介文のお題）＝代表よりの下（2026-08-14たきと指示） */}
+                      {(() => {
+                        const qaAll = [...farmHostQa(confEmployer), ...topics.map(t => ({ q: t.label, a: t.body }))];
+                        return qaAll.length > 0 ? <QaChat items={qaAll} accent="#00A86B" /> : null;
+                      })()}
                     </div>
                   </div>
                 );

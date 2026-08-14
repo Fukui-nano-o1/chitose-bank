@@ -5,7 +5,7 @@ import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
 import { isAdmin, ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
-import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress } from "./ui";
+import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds } from "../lib/searchJobs";
 import { CalendarView } from "./CalendarView";
@@ -1646,13 +1646,11 @@ export function JobSearchMapView({ onRegister, me }) {
               {/* ✕・タイトル「〇〇の農園紹介」は削除（2026-08-14たきと指示・EmployerPreviewSheetの
                   2026-08-07と同じ作法）＝閉じるはボックス外タップ。名乗りは信頼カード内の氏名行が担う */}
               {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16） */}
-              {/* 紹介文のお題（就農するまで等）は質問形式（QaChat）としてカード内の問いかけQ&Aと同じ群れに合流
-                  （2026-08-14たきと指示「自己紹介以外の長文は質問形式として表示。同じ要素は視覚的にグループ分け」）。
-                  自己紹介（代表より）だけは下の専用枠のまま */}
-              {(farmHostQa(empEmployer).length > 0 || topics.length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
+              {/* 質問形式の群れ（問いかけQ&A＋紹介文のお題）は代表よりの下へ移植（2026-08-14たきと指示）。
+                  カード内のQaChatはhideQaで出さない＝カードは身元・実績・タグに専念 */}
+              {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
-                  <FarmerTrustCard profile={empEmployer} trust={empTrust} onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")}
-                    extraQa={topics.map(t => ({ q: t.label, a: t.body }))} />
+                  <FarmerTrustCard profile={empEmployer} trust={empTrust} onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")} hideQa />
                 </div>
               )}
               {/* 過去の求人ボックス（受け入れ実績タップで展開・公開中/終了の帯・タップで詳細へ） */}
@@ -1761,7 +1759,12 @@ export function JobSearchMapView({ onRegister, me }) {
                   <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.owner_comment}</p>
                 </div>
               )}
-              {/* お題の個別カードは廃止（2026-08-14）＝質問形式として上の信頼カード内QaChatへ合流済み */}
+              {/* 質問形式の群れ（問いかけQ&A＋紹介文のお題）＝代表よりの下（2026-08-14たきと指示）。
+                  1つのQaChatに合流＝同じ要素の視覚的グループ分けは維持 */}
+              {(() => {
+                const qaAll = [...farmHostQa(empEmployer), ...topics.map(t => ({ q: t.label, a: t.body }))];
+                return qaAll.length > 0 ? <QaChat items={qaAll} accent="#00A86B" /> : null;
+              })()}
             </div>
           </div>
         );

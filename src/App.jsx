@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
 import { supabase } from "./lib/supabase";
-import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, perkBadges, isUpcomingSoon, workerQaItems } from "./lib/utils";
+import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, farmHostQa, perkBadges, isUpcomingSoon, workerQaItems } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
 import { Celebration } from "./components/Celebration";
 import { TodayPage } from "./components/TodayPage";
@@ -393,10 +393,13 @@ function EmployerPreviewSheet() {
         ) : st.profile ? (
           <>
             {/* 待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
-            {/* 紹介文のお題（就農するまで等）もextraQaでカード内QaChatへ合流（2026-08-14たきと指示
-                「同じ要素は視覚的にグループ分け」）＝質問形式の要素that1つの群れになる。3画面共通 */}
-            <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)}
-              extraQa={topics.map(t => ({ q: t.label, a: t.body }))} />
+            {/* 質問形式の群れ（問いかけQ&A＋紹介文のお題）はカードの下に1つのQaChatで（2026-08-14たきと指示
+                「質問形式は代表よりの下に移植」＝このシートに代表よりは無いのでカード直下・3画面同順） */}
+            <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)} hideQa />
+            {(() => {
+              const qaAll = [...farmHostQa(st.profile), ...topics.map(t => ({ q: t.label, a: t.body }))];
+              return qaAll.length > 0 ? <QaChat items={qaAll} accent={ROLE_GREEN} /> : null;
+            })()}
             {/* 受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定） */}
             <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #EEE" }}>
               <ReceivedReviews userId={st.farmer_id} direction="worker_to_farmer" />

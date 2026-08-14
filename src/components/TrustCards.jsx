@@ -138,7 +138,10 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
 // extraQa（任意・2026-08-14たきと指示「自己紹介以外の長文は質問形式として表示。同じ要素は視覚的にグループ分け」）：
 // 紹介文のお題（farmIntroTopics）等を {q,a} で渡すと、カード内の問いかけQ&Aと同じQaChatの群れに合流する
 // ＝質問形式の要素that1箇所にまとまる。渡さない画面は不変
-export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa }) {
+// hideQa（任意・2026-08-14たきと指示「質問形式は代表よりの下に移植」）：カード内のQaChatを出さない。
+// 農園紹介モーダル等that、質問形式の群れを代表よりの下（カードの外）に自前で描くときに使う。
+// 編集モード（onEditItem）はhideQaを渡さない＝tap("ask")の編集入口は不変
+export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa, hideQa = false }) {
   const [avatarZoom, setAvatarZoom] = useState(false); // フックは早期returnより前（rules-of-hooks）
   if (!profile) return null;
   const AC = black ? "#111111" : "#00A86B";
@@ -236,7 +239,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
           同じQaChatに合流＝視覚的なグループ分け。編集モードはextraQathat来ない（tap("ask")の役割は不変） */}
       {(() => {
         const qaAll = [...qa, ...(Array.isArray(extraQa) ? extraQa : [])];
-        if (qaAll.length === 0) return null;
+        if (hideQa || qaAll.length === 0) return null;
         return (
           <div {...tap("ask")} style={{ marginTop:4, ...cur }}>
             <QaChat items={qaAll} accent={black ? "#111111" : "#00A86B"} style={{ marginTop:0 }} />
