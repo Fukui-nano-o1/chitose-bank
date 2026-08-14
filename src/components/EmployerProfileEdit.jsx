@@ -9,6 +9,8 @@ import { Avatar, AutoSkeleton, Dots, LFPillSelect } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { EmergencyContactBox } from "./EmergencyContactBox";
+import { getCache, setCache } from "../lib/viewCache";
+import { snapSet } from "../lib/snapshot";
 
 // table/avatarDir で保存先を差し替え可能（2026-07-31たきと指示・委託専用プロフィールが同じ項目/配置で
 // 別テーブルに保存するため）。既定は雇い手プロフィール（employer_profiles・avatarは avatars/employer/）＝現行不変
@@ -386,7 +388,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       // 審査フロー（texts_pending→運営承認）は employer_profiles 専用。別テーブル（委託＝管理者専用レーン）は
       // 審査UIが無く pending が永久に滞留するため、自由記述を本欄へ直接保存する
       const reviewFlow = table === "employer_profiles";
-      const { error } = await supabase.from(table).upsert({
+      const payload = {
         auth_id: session.user.id,
         // 表示名(nickname)は既存の値を尊重し、空のときだけ氏名・名称で埋める（チャット等の「〇〇さん」が空にならないように）
         nickname: (nickname.trim() || recruiterName.trim()), pr: pr.trim(),
@@ -417,11 +419,25 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           texts_submitted_at: null,
         }),
         updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
+      };
+      const { error } = await supabase.from(table).upsert(payload, { onConflict: "auth_id" });
       setSaving(false);
       if (!error) {
         // 即反映した空欄は「承認済みの控え」も空にする（次の保存で再び差分と見なさないため）
         Object.keys(clearedTexts).forEach(k => { approvedTextsRef.current[k] = ""; });
+        // 名刺裏面・確認ページが読むキャッシュ（farm:empMini＝FarmerDashboard/LandingFlowの正本）へ
+        // 保存内容を即時反映（2026-08-14たきと報告「問いかけも保存しても反映されない」の修理）。
+        // 自由記述は保存＝即公開（trg_ep_z_publish_texts）so、公開後の姿＝desiredTexts で写す。
+        // キャッシュthat無い時は何もしない＝次の画面that新規に取得する（誤った部分行を正本にしない）
+        if (table === "employer_profiles") {
+          try {
+            const cur = getCache("farm:empMini");
+            if (cur) {
+              const nx = { ...cur, ...payload, ...desiredTexts, texts_pending: {}, texts_submitted_at: null };
+              setCache("farm:empMini", nx); snapSet("empMini", nx);
+            }
+          } catch {}
+        }
         setSaved(true);
         if (stay === true) {
           // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
