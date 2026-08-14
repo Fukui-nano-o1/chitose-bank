@@ -55,9 +55,9 @@
          ② WebフォントはJS内の@importから移設。@importはJSが落ちてCSSが注入された後にようやく走るため、
             文字の出方が遅れていた。リンクにするとHTML解析の時点で並行して取りに行ける -->
     <link rel="preconnect" href="https://aegwepgtmwcnwzybpgsh.supabase.co" crossorigin />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" />
+    <!-- フォントはセルフホスト（2026-08-14 プラポリv3.7）：Google Fontsへの外部送信（IPアドレスが米Googleへ届く）を
+         無くすため、woff2実体を /fonts/ に同梱。CSSの中身は従来のGoogle配信版と同一（unicode-range分割・display=swap） -->
+    <link rel="stylesheet" href="/fonts/fonts.css" />
     <!-- 起動スケルトン（2026-08-03たきと報告「リロードやサイトに入った時、画面が真っ黒のまま」の根治・第2層）：
          この<style>と直後の#cb-bootは【HTMLに直接書く】ことに意味がある。JSもCSSファイルも待たずに
          最初の描画から効くため、JSの読み込み〜Reactのマウントまでの空白（＝黒画面だった区間）が

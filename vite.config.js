@@ -52,21 +52,22 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
             },
           },
-          // Google Fonts（2026-08-02・更新時間の短縮）：index.htmlの<link rel="stylesheet">は
-          // 描画ブロッキングで、SWキャッシュが無いとリロードのたびネット往復を待ってから
-          // 初回描画になっていた。CSSはキャッシュ即返し＋裏で更新（StaleWhileRevalidate）、
-          // フォント実体(woff2)は内容不変なのでCacheFirstで1年保持
+          // フォント（2026-08-14 セルフホスト化＝プラポリv3.7・外部送信の削減）：
+          // Google Fonts（fonts.googleapis.com / fonts.gstatic.com）への接続は廃止し、/fonts/ に同梱。
+          // 旧ルールの狙い（リロード時に描画ブロッキングのネット往復を待たない）はそのまま引き継ぐ：
+          // CSSはキャッシュ即返し＋裏で更新（StaleWhileRevalidate）、woff2実体は内容不変soCacheFirstで1年保持。
+          // woff2はprecacheに入れない（globPatternsが拾わない・全部で約6MBあるため必要な字体だけ読む）
           {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
+            urlPattern: /\/fonts\/fonts\.css$/,
             handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-css' },
+            options: { cacheName: 'local-fonts-css' },
           },
           {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
+            urlPattern: /\/fonts\/.*\.woff2$/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'google-fonts-woff',
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheName: 'local-fonts-woff',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
