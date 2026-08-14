@@ -1,11 +1,29 @@
 // 信頼カード（分割・段階2後半・2026-07-24）：働き手/雇い手の与信情報カード。プレビュー・応募者カード・確認ページで共用。
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
+import { createPortal } from "react-dom";
 import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, interactionStyleLabel, tenureLabel, normalizeInsuranceItems } from "../lib/utils";
 import { ExpandableText, Avatar, QaChat } from "./ui";
 
+// アイコンの大画面表示（2026-08-14たきと指示「アイコンタップで大画面表示にしよう」）。
+// createPortalでbody直下へ＝モーダル内（transform祖先）からでもfixedの基準thatが画面に保たれる
+// （AdminJobPreview・プロフィール編集ボックスと同じ手法）。どこをタップしても閉じる
+// （✕は置かない＝農園紹介のヘッダー整理と同じ思想）。写真のある時だけ入口thatが開く（頭文字アバターは拡大しない）
+function AvatarLightbox({ url, onClose }) {
+  return createPortal(
+    <div onClick={onClose} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", animation:"fadeIn .2s ease", padding:16 }}>
+      <img src={url} alt="" style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:12 }} />
+    </div>,
+    document.body
+  );
+}
+
 export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare }) {
+  const [avatarZoom, setAvatarZoom] = useState(false); // フックは早期returnより前（rules-of-hooks）
   if (!profile) return null;
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
+  // アイコンタップ：編集モード＝従来どおり編集ボックス／閲覧＝写真thatあれば大画面表示
+  const avatarTap = onEditItem ? tap("avatar")
+    : (profile.avatar_url ? { onClick: () => setAvatarZoom(true), role: "button", "aria-label": "アイコンを大きく表示" } : {});
   // 移動手段・経験区分は本人申告なので📋自己申告ブロックへ集約（2026-07-23）。バッジ列は希望条件（作業の強さ）のみ
   const badges = [
     profile.physical_level && { icon:"💪", text: profile.physical_level, k:"intensity" },
@@ -26,9 +44,10 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-        <div {...tap("avatar")} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid " + ROLE_ORANGE, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>
+        <div {...avatarTap} style={{ width:56, height:56, borderRadius:"50%", border:"1.5px solid " + ROLE_ORANGE, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0, ...(avatarTap.onClick ? { cursor:"pointer" } : {}) }}>
           <Avatar url={profile.avatar_url} name={profile.nickname} size={56} ring={ROLE_ORANGE} />
         </div>
+        {avatarZoom && profile.avatar_url && <AvatarLightbox url={profile.avatar_url} onClose={()=>setAvatarZoom(false)} />}
         <div style={{ minWidth:0 }}>
           <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{profile.nickname || "名前未設定"}</p>
           {profile.residence_city && (
@@ -117,10 +136,14 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
 // black（任意・2026-07-31たきと指示）：委託プレビュー用の黒テーマ。緑→黒・絵文字アイコンは出さない。
 // 既定false＝求人詳細・雇い手プレビュー等の既存画面は不変
 export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false }) {
+  const [avatarZoom, setAvatarZoom] = useState(false); // フックは早期returnより前（rules-of-hooks）
   if (!profile) return null;
   const AC = black ? "#111111" : "#00A86B";
   const tap = onEditItem ? (key) => ({ onClick: () => onEditItem(key), role: "button" }) : () => ({});
   const cur = onEditItem ? { cursor:"pointer" } : {};
+  // アイコンタップ：編集モード＝従来どおり編集ボックス／閲覧＝写真thatあれば大画面表示
+  const avatarTap = onEditItem ? tap("avatar")
+    : (profile.avatar_url ? { onClick: () => setAvatarZoom(true), role: "button", "aria-label": "アイコンを大きく表示" } : {});
   // black（委託）では 問いかけQ&A・関わり方チップを出さない（2026-07-31たきと指示・委託に該当ボックスが無いため）
   const qa = black ? [] : farmHostQa(profile);
   const styleLabel = black ? "" : interactionStyleLabel(profile.interaction_style);
@@ -131,9 +154,10 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
           ラベル｜内容の行で表示。値は募集者の法定3項目（recruiter_*）＝求人詳細の農園紹介では
           job_employer_profile 経由でanonにはNULLで届く（訪問者には氏名（公開ニックネーム）以外出ない） */}
       <div style={{ marginBottom:12 }}>
-        <div {...tap("avatar")} style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid " + AC, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", margin:"0 auto 12px", ...cur }}>
+        <div {...avatarTap} style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid " + AC, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", margin:"0 auto 12px", ...cur, ...(avatarTap.onClick ? { cursor:"pointer" } : {}) }}>
           <Avatar url={profile.avatar_url} name={profile.nickname} size={64} bg={black ? "#111111" : undefined} />
         </div>
+        {avatarZoom && profile.avatar_url && <AvatarLightbox url={profile.avatar_url} onClose={()=>setAvatarZoom(false)} />}
         {/* 氏名の横にフリガナを（）付きで表示（2026-08-03たきと指示）。recruiter_name_kana は
             employer_profiles 直読みの画面は自動で載り、農園紹介は job_employer_profile が返す（anonはNULL） */}
         {[["氏名", (() => {
