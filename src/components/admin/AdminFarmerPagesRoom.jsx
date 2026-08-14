@@ -417,7 +417,7 @@ const STEPS = [
         </p>
       </div>
     ) },
-  { ch:"掲載する", name:"自分の求人", url:"#/profile/employer/drafts ／ /active", act:"作成中と公開中を上のタブで行き来する。指でも横に送れる。掲載申請中の求人には「公開間近」の帯が付く。",
+  { ch:"掲載する", name:"自分の求人", url:"#/profile/employer/drafts ／ /active", act:"作成中と公開中を上のタブで行き来する。指でも横に送れる。掲載は即公開（2026-08-14承認プロセス削除）。公開の処理が完了しなかった求人にだけ「公開間近」の帯が付く（運営が開く救済経路）。",
     body: () => (
       <div style={{ padding:14 }}>
         <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
