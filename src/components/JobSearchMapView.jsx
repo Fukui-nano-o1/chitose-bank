@@ -805,7 +805,10 @@ export function JobSearchMapView({ onRegister, me }) {
   // ★自分の応募が分かるまでは締切扱いにしない（2026-07-27たきと報告「一瞬だけ満員が映る」）。
   //   未取得の間はmyAppStatusがundefinedso、応募済みの人にも一度「満員」を出してから戻っていた
   const hideApply = recruitClosed && myAppLoaded && !myAppStatus;
-  const closedLabel = selectedJob?.filled ? "この募集は終了しました（満員）" : selectedJob?.closed ? "この募集は終了しました" : "この募集は終了しました（期間終了）";
+  // 満員の2段階（2026-08-14たきと指示・JobCardの帯と同じ区別）：満員のみ＝募集終了／満員かつ終了済み＝掲載終了
+  const closedLabel = selectedJob?.filled
+    ? ((selectedJob.closed || selectedJob.expired) ? "この求人は掲載を終了しました（満員）" : "この募集は終了しました（満員）")
+    : selectedJob?.closed ? "この募集は終了しました" : "この募集は終了しました（期間終了）";
   // 下部フッターは幅が狭いso短い言葉に差し替える（2026-07-27たきと指示）。
   // 「応募する」の位置＝そのままボタンの場所に「満員」（期間終了なら「募集終了」）を出す
   const closedLabelShort = selectedJob?.filled ? "満員" : "募集終了";  // closed も期間終了も同じ短縮語

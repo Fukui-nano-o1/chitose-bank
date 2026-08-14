@@ -63,7 +63,9 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen }) {
       {(job.filled || job.expired || job.closed) && (
         <div style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, borderRadius:photoRadius, background:"rgba(0,0,0,0.34)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1, pointerEvents:"none" }}>
           <span className="f-sans" style={{ background:"rgba(30,30,30,0.88)", color:"#fff", fontSize: isList?14:12, fontWeight:800, letterSpacing:".04em", padding:"7px 18px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>
-            {job.filled ? "募集終了（満員）" : job.closed ? "募集終了" : "募集期間終了"}
+            {/* 満員の2段階（2026-08-14たきと指示）：満員でまだ期間中＝募集終了（満員）／
+                満員かつ終了済み（closed or 期間経過）＝掲載終了（満員） */}
+            {job.filled ? ((job.closed || job.expired) ? "掲載終了（満員）" : "募集終了（満員）") : job.closed ? "募集終了" : "募集期間終了"}
           </span>
         </div>
       )}
