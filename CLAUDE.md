@@ -833,7 +833,10 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 2. 必須と任意を構造で分離。必須＝マッチング成立に不可欠（5分で完了）、任意＝質を上げる情報（後から追加可能）。
 3. 表示にダミー禁止。実データ・「未設定」・非表示の三択のみ。
 4. 全設計は追加可能・削除可能・他を壊さない。
-5. 公開・成立は運営ゲート経由のみ。求人公開=status:pending→運営承認→open。マッチ成立=応募→農家承認。品質・安全・信頼を同じゲート機構で担保する。
+5. 公開は機構の壁経由・成立は当事者ゲート経由のみ（2026-08-14改定・たきと指示「申請承認を削除する」）。
+   求人公開=掲載＝即open（最賃・時間外・募集主情報・第三者フラグのDBトリガーが掲載時に自動検査＝壁は審査でなく機構）。
+   マッチ成立=応募→農家承認（不変・運営は採用に関与しない）。運営の確認は公開後（FYIメール＋修正依頼・非公開化）。
+   ※旧規定「求人公開=pending→運営承認→open」は2026-08-14に廃止。キルスイッチ＝third_party_publish_allowed='false'で即・従来の承認制へ復帰
 
 【マッチング様式（確定）】
 ・承認制（Airbnb型）：働き手thが応募→農家thが承認→成立。即マッチは採用しない。
@@ -4382,4 +4385,56 @@ LandingFlowチャンクの両方に入っていることをgrepで確認（＝�
 全ロールバック・残置ゼロ実測。build成功・eslint 0 error（警告29=既存のみ）。
 【実機目視の残り】キリトのアカウントで応募→保存しても運営に申請メールthat来ないこと／
 本当に本文を変えた時は従来どおり審査に入ること（AdminTabの審査待ちに出る）
+━━━ ここまで ━━━
+
+━━━ 2026-08-14 承認プロセスの削除（申請→承認→掲載の「申請承認」を廃止・たきと指示）━━━
+【指示】「プロフィールや求人の掲載にあたって申請承認掲載(公開)の段階的プロセスだが、申請承認を削除する」
+＝A+B+C全部・NG検査あり・規約プラポリ同時改訂（AskUserQuestionで3点とも推奨案を採用）。
+【廃止した承認3本】
+A 求人：掲載する＝即公開。一般農家は pending 保存→publish_my_job RPC（新設・本人のdraft/pending→open・
+  SECURITY DEFINER・anon revoke）で即open。RLSは広げない（直接のopen書き込みは従来どおり不可）。
+  運営本人は従来どおり直接open。AdminTab審査キュー（求人）撤去。AdminJobPreviewと「公開する」ボタンは
+  残置＝RPC失敗でpendingに詰まった求人の救済窓口（「公開間近」表示も同じ救済用フォールバック）。
+B 働き手の自由記述：保存＝即公開。trg_wp_z_publish_texts（BEFORE trigger）が pr_pending/pr_qa_pending を
+  書かれた瞬間に公開列へ畳む＝全書き込み経路をDBで受ける（フロントの書き込みは pending 経由のまま不変）。
+  発火順は trg_wp_review_dedupe（'r'）→本トリガー（'z'）＝同一内容の保存は畳む前に落ちFYIも出ない。
+  48h自動公開cron（profile-auto-publish）と関数は削除。notify_worker_profile（審査依頼メール）も削除。
+C 農家の自由記述：保存＝即公開。trg_ep_z_publish_texts が texts_pending の12キーを公開列へ畳む。
+  approve/reject_employer_texts・request_worker_pr_revision はDROP（即公開トリガー下では
+  「pendingへ戻す」型の修正依頼が自己矛盾するため。公開後の対処＝運営DM＋管理者RLSの直接編集）。
+  trg_block_publish_profile_review（審査中は掲載不能）もDROP。
+【新しい壁＝自動NG検査】profile_text_ng(text)＝電話・メール・URLをjq_ng_checkと同じパターンで検出。
+  worker（pr・pr_qa回答）/employer（12キー＋pr）の【変わった値だけ】を保存時に検査し日本語例外で拒否
+  ＝既存の公開済み文面は編集されるまで対象外so既存ユーザーの保存を止めない。連絡先交換禁止は機構で維持。
+【見張り（的確表示義務への構え）】審査依頼メール→「[公開・事後確認]」FYIメールに差し替え
+  （trg_notify_job_open_fyi＝openへの遷移時・app_admins本人は除く・目視項目のreview_boxは審査メールから継承。
+  自由記述の公開もFYIメール）。#/admin/review/{job_number} の深いリンクは従来どおりAdminJobPreviewへ。
+【文言・法務の整合（同push）】利用規約 第5条「掲載と審査」→「掲載と確認」（掲載＝即公開・自動検査・
+  公開後確認・v2.3-2026-08）／第3条一号も公開後確認に。プラポリ自由記述行→「保存すると表示・NG自動拒否・
+  公開後確認」（v3.5-2026-08）＝版上げで全利用者に再同意表示が出る。PUBLISH_CHECKSの4項目目
+  「運営の審査があること」→「公開後に運営が確認すること」（過去のjob_publish_checks記録は不変・追記のみの台帳）。
+  ヘルプ（農家の流れ③④・M01・M21・働き手プロフィール③・FAQ）・フッター「審査のしくみ」→「掲載のしくみ」・
+  M15（自己紹介修正のお願い）はメール自体が消えたため一覧から削除。ProfileHubの承認待ちバナー削除。
+【変えていないもの】評価コメントの審査（comment_status・規約第8条の仕組み）／通報・異議・退会申請・
+  アカウント承認の各キュー／応募の承認制（農家の承認）／最賃・時間外・募集主情報・スナップショット凍結・
+  block_third_party_open（キルスイッチとして恒久維持）／job_publish_checks の記録。
+【migration】20260814073038_remove_approval_process（DB適用済み・repo同名・履歴表同期）。
+  審査待ちの残件は切替時点で全部ゼロ（pending求人0・pr_pending0・texts_pending0）＝移行データなし。
+【残メモ】審査プレビュー（AdminJobPreview）の「審査」表記は救済窓口用に残置。FarmerDashboard・ProfileHub・
+  WorkerProfileEditの審査帯・確認待ちボックスはdead-state（pendingが存在しなくなるため描画されない）として残置。
+  worker_profile_for_farmer の under_review 分岐も同様（穴ではない・pendingが無いだけ）。
+━━━ ここまで ━━━
+
+━━━ 2026-08-14(続) 定期点検で位置マスクの再発を検出・即修理（migration 20260814074411）━━━
+【検出】承認プロセス削除の作業終了前に audit.sql を実施 → ①訪問者マスクthat[NG]：anon that座標6桁・
+半径500・駅名9/9件を取得できた（町域・募集主・番地のマスクは無事＝気づきにくい同型・2026-08-06実害1の2回目）。
+【原因】20260807021647_jobs_public_open_or_filled_only that位置マスク（20260806110501）導入前の定義を
+土台に jobs_public を作り直したため、位置系3点だけthat静かに外れていた（〜1週間露出）。
+【修理】今の本番定義を土台に、位置系4式（lat/lng小数2桁・半径3000m・nearest_station非表示）だけを
+マスク版へ戻した。列の数・順は不変so admin_preview_job 連動不要（実測：42P13なし・1行取得）。
+実測：anon=2桁/3000m/駅0/町域0 ／ ログイン=6桁/500m/駅・町域可視。SELECT専用のrevoke/grantも再宣言。
+【点検の他の結果】②42P13なし ③anon実行可RPC=11本（+pending_job_previews＝2026-08-12の意図的な
+キルスイッチ付き機能・写真とNo.のみso問題なし。audit.sqlのWHITELIST追記は次回検討）
+③b/③c/④/⑤=0件 ⑥入口=直近7日の幽霊0件（8/4分は7日窓から抜けた＝Confirm emailのダッシュボード実物確認は
+引き続きたきとのPC作業）。
 ━━━ ここまで ━━━

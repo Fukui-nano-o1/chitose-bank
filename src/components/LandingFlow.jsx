@@ -513,24 +513,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 再開はrefに掴んだ関数を呼ぶ（handleSaveJobは確認ページのIIFE内定義なので、識別子は外から参照できない）
   const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
   const resumePublishRef = useRef(null);
-  // 掲載が法的に許されるアカウント（運営者本人＝自己募集）は、提出＝即公開にして「審査待ち」を無くす（2026-08-07・③）。
-  // 一般農家の求人は法律（職安法・届出）とRLS／トリガーにより open にできず pending のまま＝画面では「公開間近」。
-  // ★判定は isAdmin（＝ADMIN_EMAIL一致）＝DBの jobs admin write ポリシー（email一致）と厳密に同じ。
-  //   ここを app_admins にすると +worker 等が open を撃ってRLSに弾かれるので、必ず email 一致で揃える。
-  //   実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open thatが最終担保）。ここは体験の分岐だけ。
-  const [meCanOpen, setMeCanOpen] = useState(false);
+  // 掲載＝即公開（2026-08-14 承認プロセスの削除・届出受理済み）。運営者本人は直接 open で INSERT、
+  // 一般農家は pending 保存→publish_my_job RPC で即 open（RLSは draft/pending のまま＝直接の open 書き込みは不可）。
+  // 掲載＝即公開（2026-08-14 承認プロセスの削除）：管理者か一般農家かの体験の分岐（meCanOpen）は廃止。
+  // 実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open thatが最終担保）。
   const [publishedOpen, setPublishedOpen] = useState(false); // 直前の掲載が即公開だったか（完了画面の文言に使う）
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session || cancelled) return;
-        if (!cancelled) setMeCanOpen(isAdmin(session.user));
-      } catch { /* 取得失敗は pending 扱い（安全側） */ }
-    })();
-    return () => { cancelled = true; };
-  }, []);
   // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ。
   const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
   const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
@@ -628,7 +615,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setPerkSaving(false); return; }
       const { data: cur } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-      // 自由記述はtexts_pending経由（承認済み値と異なるキーだけ積む・EmployerProfileEdit.saveと同じ作法）
+      // 自由記述はtexts_pending経由（変わったキーだけ積む・EmployerProfileEdit.saveと同じ作法）。
+      // 2026-08-14承認プロセス廃止後は、DBトリガー（trg_ep_z_publish_texts）that書いた瞬間に公開列へ畳む＝実質即公開
       const desired = {
         transport_area: perkDraft.has_transport ? (perkDraft.transport_area || "") : "",
         commute_allowance_detail: perkDraft.has_commute_allowance ? (perkDraft.commute_allowance_detail || "") : "",
@@ -2071,25 +2059,16 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     return;
                   }
                 }
-                // プロフィール審査中の農家は掲載不能（編集・下書きは可・2026-07-19）。DBトリガーの手前で分かりやすく案内
-                if (!isAdmin(session.user)) {
-                  try {
-                    const { data: ep } = await supabase.from("employer_profiles").select("texts_pending,texts_revision_requested_at").eq("auth_id", session.user.id).maybeSingle();
-                    const epPending = !!(ep?.texts_pending && Object.keys(ep.texts_pending).length > 0);
-                    if (epPending || ep?.texts_revision_requested_at) {
-                      alert(!epPending && ep?.texts_revision_requested_at
-                        ? "プロフィールに修正のお願いが届いているため、いまは掲載できません。\nプロフィールを修正して保存すると、審査のうえ掲載できるようになります。\n（この求人の編集・下書き保存はいつでも可能です）"
-                        : "プロフィールが運営の審査待ちのため、いまは掲載できません。\n審査が終わると掲載できるようになります（最大2日）。\n（この求人の編集・下書き保存はいつでも可能です）");
-                      return;
-                    }
-                  } catch {}
-                }
+                // プロフィール審査中の掲載ブロックは廃止（2026-08-14 承認プロセスの削除。
+                // 自由記述は保存＝即公開になったため「審査待ちの農家」という状態が存在しない）
                 let _jn = draftJobNumber;
                 if (!_jn) { try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _jn = _d.job_number ?? null; } catch {} }
                 let error;
-                // ③ 掲載が許されるアカウント（運営者本人＝自己募集）は提出＝即公開（open）。
-                //    一般農家は pending（法律・RLS・トリガーが open を許さない）＝画面上は「公開間近」。
-                //    判定は isAdmin（ADMIN_EMAIL一致）＝DBの jobs admin write ポリシー（email一致）と厳密に同一。
+                // 掲載＝即公開（2026-08-14 承認プロセスの削除）。
+                //  ・運営者本人（ADMIN_EMAIL＝jobs admin write と厳密に同一）は従来どおり status='open' で直接INSERT。
+                //  ・一般農家は RLS が draft/pending しか許さないので、pending で保存→直後に publish_my_job RPC で open に。
+                //    掲載の壁（最賃・時間外・募集主情報・第三者フラグ＝キルスイッチ）は全てDBトリガーで発火する。
+                //    フラグが 'false' に戻された時は RPC が拒否し、求人は pending（公開間近）のまま残る＝従来の承認制に自動復帰。
                 const canOpen = isAdmin(session.user);
                 const payload = await buildJobPayload(session.user.id, canOpen ? "open" : "pending");
                 if (_jn) {
@@ -2107,10 +2086,18 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   return;
                 }
                 if (error) {
-                  alert(String(error.message || "").includes("PROFILE_UNDER_REVIEW")
-                    ? "プロフィールが審査中のため、いまは掲載できません（下書き保存は可能です）。審査が終わると掲載できるようになります。"
-                    : "掲載エラー: " + error.message);
+                  alert("掲載エラー: " + error.message);
                   return;
+                }
+                // 一般農家：保存（pending）→ 即公開（publish_my_job）。失敗時は pending のまま残る
+                // ＝「公開間近」表示・運営が手動で開ける従来経路が救済として生きる
+                if (!canOpen && _jn) {
+                  const pub = await supabase.rpc("publish_my_job", { p_job_number: _jn });
+                  if (pub.error || !pub.data?.ok) {
+                    alert("掲載エラー: " + (pub.error?.message || pub.data?.reason || "不明") +
+                      "\n求人は保存されています。時間をおいて、もう一度「掲載する」をお試しください。");
+                    return;
+                  }
                 }
                 // 掲載前の確認を記録に残す（2026-07-30たきと指示・行動記録の憲法）。
                 // 画面のstateだけだった同意を、押した文言と時刻ごと追記のみの台帳へ。
@@ -2134,8 +2121,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 setPublishModal(false);
                 // 完了は「ページ」でなくアニメーション（2026-08-07たきと指示）。Appに掲載成功を伝え、
                 // App側で祝祭アニメ＋60秒アイドル→さがす を出す。onPublished 未指定時のみ従来の完了ページに倒す
-                if (typeof onPublished === "function") { onPublished(canOpen); }
-                else { setPublishedOpen(canOpen); setStep(12); }
+                // 掲載＝即公開になったため、祝祭は常に「公開しました」（2026-08-14）
+                if (typeof onPublished === "function") { onPublished(true); }
+                else { setPublishedOpen(true); setStep(12); }
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
               } finally {
@@ -2384,7 +2372,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.6 }}>受動喫煙は事業所（就業場所）の設定のため、「この求人のみ」を押した場合も農家プロフィールに保存されます。</p>
                           </div>
                           <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:10 }}>
-                            「保存」＝農家プロフィールの待遇も更新します（文章の項目は運営の確認後に公開）。「この求人のみ」＝この求人だけに適用し、プロフィールは変わりません（求人審査の中で確認されます）。
+                            「保存」＝農家プロフィールの待遇も更新します。「この求人のみ」＝この求人だけに適用し、プロフィールは変わりません。
                           </p>
                         </div>
                         <div style={{ display:"flex", gap:8, padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
@@ -2581,7 +2569,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                           <span className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.6 }}>{text}</span>
                         </div>
                       ))}
-                      <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:"10px 0 0" }}>{meCanOpen ? "「掲載する」を押すと、働き手に公開されます。" : "「掲載する」を押すと、公開の準備に進みます。準備が整いしだい、働き手に公開されます。"}</p>
+                      <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:"10px 0 0" }}>「掲載する」を押すと、働き手に公開されます。</p>
                       </div>
                     {/* 下部の固定ボタン（待遇の変更ボックスと同じ規格）。まとめて1つの確認チェックはボタンの直上 */}
                     <div style={{ padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>

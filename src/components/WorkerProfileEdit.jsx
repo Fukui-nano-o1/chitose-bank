@@ -437,7 +437,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         })}
       </div>
       {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>{savedInReview ? "保存しました ✓　自己紹介は運営の確認後に公開されます（最大2日）" : "保存しました ✓"}</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>{savedInReview ? "保存しました ✓　自己紹介も公開されました" : "保存しました ✓"}</p>
       )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
@@ -674,7 +674,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
       )}
       {(editBox === "pr" || editBox === "qa") && (
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>自由記述は運営の確認後に公開されます（最大2日）</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>保存すると公開されます（電話番号・メールアドレス・URLは記載できません）</p>
       )}
       </div>
       </div>

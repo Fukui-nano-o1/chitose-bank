@@ -392,11 +392,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
       ) : (
         <>
           {/* 「← プロフィールへ」ボタンは削除（2026-07-14）。働き手側への行き来は浮遊「🤝 働く」トグルが担う */}
-          {me&&!me.isWorker&&me.status==="pending"&&(
-            <div className="f-sans" style={{margin:"0 auto 16px",padding:"14px 18px",background:"#FFF8E7",border:"1px solid #F5D98F",borderRadius:12,fontSize:13,color:"#8A6D1D",lineHeight:1.7}}>
-              🕊 ご登録ありがとうございます。現在、運営が内容を確認しています。<b>承認後に求人の公開ができるようになります</b>（通常1〜2日以内）。
-            </div>
-          )}
+          {/* 承認待ちバナーは削除（2026-08-14 承認プロセスの廃止＝掲載は即公開。「承認後に公開できます」は嘘になるため） */}
           <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} />
         </>
       )}

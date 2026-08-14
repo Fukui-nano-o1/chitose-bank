@@ -16,7 +16,8 @@ const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#
 
 // 審査セクションのURLキー（#/admin/review/{key}）。ボックス格子の並びと一致させる唯一の正本。
 // 数字（#/admin/review/{job_number}）は求人審査プレビューへの深いリンク（従来どおり）。
-const REVIEW_SECTION_KEYS = ["jobs","accounts","prs","reports","disputes","questions","withdrawals","contracts"];
+// 「jobs（求人審査）」「prs（自由記述審査）」は承認プロセスの削除（2026-08-14）で廃止＝掲載・保存は即公開に
+const REVIEW_SECTION_KEYS = ["accounts","reports","disputes","questions","withdrawals","contracts"];
 
 // 日付キー（YYYY-MM-DD）はローカル整形で統一する。toISOString().slice(0,10)は
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
@@ -205,60 +206,9 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [newDestName, setNewDestName] = useState("");
   const [newDestNote, setNewDestNote] = useState("");
   const [addingDest, setAddingDest]   = useState(false);
-  const [pendingJobs, setPendingJobs] = useState(() => getCache("admin:console")?.pendingJobs || []);
   const [withdrawals, setWithdrawals] = useState(() => getCache("admin:console")?.withdrawals || []); // 退会申請の未対応一覧（プラポリv3第7条1：申し出から30日以内に手動削除）
-  const [pendingPrs, setPendingPrs] = useState(() => getCache("admin:console")?.pendingPrs || []); // 働き手プロフィール自由記述の確認待ち（pr_pending/pr_qa_pending）
-  const [sheetPrId, setSheetPrId] = useState(null); // 自由記述審査：タップした働き手のボトムシート（auth_id）
-  // 全ての自由記述の審査（2026-07-16）：農家プロフィールの自由記述はtexts_pendingに溜まり、ここで承認して初めて公開される
-  const [empTexts, setEmpTexts] = useState(() => getCache("admin:empTexts") || []);
-  const loadEmpTexts = async () => {
-    try {
-      const { data } = await supabase.from("employer_profiles")
-        .select("auth_id,nickname,avatar_url,updated_at,texts_pending,texts_submitted_at,owner_comment,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,transport_area,commute_allowance_detail,supplies_cap,pr")
-        .order("updated_at", { ascending: false });
-      if (!data) return;
-      const hasText = (r) => (r.texts_pending && Object.keys(r.texts_pending).length > 0)
-        || [r.owner_comment, r.intro_path, r.intro_joy, r.intro_crops, r.intro_atmosphere, r.intro_message, r.unique_point, r.always_do, r.break_style, r.transport_area, r.commute_allowance_detail, r.supplies_cap, r.pr].some(t => t && String(t).trim());
-      const rows = data.filter(hasText);
-      setEmpTexts(rows);
-      setCache("admin:empTexts", rows);
-    } catch {}
-  };
-  useEffect(() => { if (sub === "jobs") loadEmpTexts(); }, [sub]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 審査に出るのは「中身のある pending」だけ（2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。
-  // 空欄はフロント側で即反映するようになったが、過去に積まれた空だけの pending を審査待ちに見せないための防御でもある
-  const hasPendingText = (r) => !!r.texts_pending && Object.values(r.texts_pending).some(v => String(v ?? "").trim() !== "");
-  const empPendingCount = empTexts.filter(hasPendingText).length;
-  const EMP_TEXT_LABELS = {
-    owner_comment:"代表より", intro_path:"就農するまで", intro_joy:"いま楽しいこと", intro_crops:"どんな作物を、どんな想いで",
-    intro_atmosphere:"職場の雰囲気", intro_message:"初めての人へのメッセージ", unique_point:"畑・農園のユニークなところ",
-    always_do:"いつもしていること", break_style:"休憩とお茶", transport_area:"送迎エリア",
-    commute_allowance_detail:"通勤手当の内容", supplies_cap:"持ち物の上限設定",
-  };
-  // 承認・差し戻しの多重送信ガード（2026-08-07「承認に失敗した」報告の根治）：
-  // 実体は1回目の承認が成功済みで、二度押し・SWRの古いカードからの再実行が
-  // nothing_pending（審査するものが既に無い）を返し「失敗」と表示されていた。
-  // nothing_pending は失敗ではなく処理済みso、一覧を最新にして知らせるだけにする
-  const [empTextBusy, setEmpTextBusy] = useState(false);
-  const approveEmpTexts = async (authId) => {
-    if (empTextBusy) return;
-    setEmpTextBusy(true);
-    const { data, error } = await supabase.rpc("approve_employer_texts", { p_auth_id: authId });
-    setEmpTextBusy(false);
-    if (data?.reason === "nothing_pending") { await loadEmpTexts(); alert("この申請はすでに処理済みです（一覧を最新にしました）"); return; }
-    if (error || !data?.ok) { alert("承認に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-    loadEmpTexts();
-  };
-  const rejectEmpTexts = async (authId) => {
-    if (empTextBusy) return;
-    if (!window.confirm("この審査待ちの自由記述を差し戻し（破棄）しますか？公開中の文はそのまま残ります")) return;
-    setEmpTextBusy(true);
-    const { data, error } = await supabase.rpc("reject_employer_texts", { p_auth_id: authId });
-    setEmpTextBusy(false);
-    if (data?.reason === "nothing_pending") { await loadEmpTexts(); alert("この申請はすでに処理済みです（一覧を最新にしました）"); return; }
-    if (error || !data?.ok) { alert("差し戻しに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-    loadEmpTexts();
-  };
+  // 求人審査キュー（pendingJobs）・自由記述の審査キュー（pendingPrs・empTexts）は
+  // 承認プロセスの削除（2026-08-14）で廃止。掲載・保存＝即公開＋運営FYIメール（事後確認）に置き換え
   const [reports, setReports] = useState(() => getCache("admin:console")?.reports || []); // 通報（job_reports）
   const [msgReports, setMsgReports] = useState(() => getCache("admin:console")?.msgReports || []); // チャットのコメント報告（message_reports・2026-07-19）
   const [profReports, setProfReports] = useState(() => getCache("admin:console")?.profReports || []); // 働き手プレビューからの報告（profile_reports・2026-08-06）
@@ -274,34 +224,8 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     setQHidingId(null);
   };
   const [disputes, setDisputes] = useState(() => getCache("admin:console")?.disputes || []); // 欠勤記録への異議（attendance_events kind=dispute_no_show）
-  const [prPublishing, setPrPublishing] = useState(null);
-  // 自己紹介（働き手・審査待ち）への修正依頼（2026-07-19）：どこの何がどう問題かを選んで積み上げ→運営チャット＋メールをセット送信
-  const [prRevTarget, setPrRevTarget] = useState(null); // フォームを開いている対象（auth_id）
-  const emptyPrFinding = () => ({ target:"", issueType:"", note:"" });
-  const [prRevFindings, setPrRevFindings] = useState([emptyPrFinding()]);
-  const [prRevSending, setPrRevSending] = useState(false);
-  const [prRevDone, setPrRevDone] = useState(false);
-  const PR_REVISION_ISSUE_TYPES = ["連絡先・外部サービスへの誘導","個人情報の書きすぎ（本名・住所など）","禁止項目に触れる内容（年代・学校名・家族構成・国籍など）","誹謗中傷・不適切な表現","虚偽・誇大の疑い","表現が不明瞭","その他"];
-  const buildPrRevisionText = (fs) => fs
-    .filter(f => f.target && f.issueType)
-    .map(f => `【${f.target}】→ ${f.issueType}${f.note.trim() ? `（${f.note.trim()}）` : ""}`)
-    .join("\n");
-  const sendPrRevision = async (w) => {
-    const reasonText = buildPrRevisionText(prRevFindings);
-    if (prRevSending || !reasonText) return;
-    setPrRevSending(true);
-    // 指摘対象（どこ）も渡す＝本人の編集ページで該当ボックスに赤帯を出すため（2026-07-19）
-    const targets = [...new Set(prRevFindings.filter(f => f.target && f.issueType).map(f => f.target))];
-    const { data, error } = await supabase.rpc("request_worker_pr_revision", { p_auth_id: w.auth_id, p_reason: reasonText, p_targets: targets });
-    setPrRevSending(false);
-    if (error || !data?.ok) { alert("修正依頼の送信に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-    setPrRevDone(true);
-    setTimeout(() => {
-      setPrRevDone(false); setPrRevTarget(null); setPrRevFindings([emptyPrFinding()]);
-      setSheetPrId(null);
-      setPendingPrs(prev => prev.filter(x => x.auth_id !== w.auth_id));
-    }, 1100);
-  };
+  // 自由記述の審査（公開ボタン・修正依頼フォーム）は承認プロセスの削除（2026-08-14）で廃止。
+  // 公開後の対処＝アカウント面の運営DM＋管理者RLSでの直接編集
   const [publishing, setPublishing] = useState(null);
   const [previewJobNumber, setPreviewJobNumber] = useState(null);
   // 修正依頼は審査プレビュー内のタップ式指摘に一本化（2026-07-19）。送信はsubmitJobRevisionで実行
@@ -337,12 +261,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const load = useCallback(async () => {
     // 前回内容を表示中ならスピナーで隠さない（裏で差し替え）。初回だけ読み込み中を出す
     if (!getCache("admin:console")) setLoading(true);
-    const [fr, de, re, pj, wp, jr, av, la, mr, jq, wd, pr] = await Promise.all([
+    const [fr, de, re, jr, av, la, mr, jq, wd, pr] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
-      supabase.from("jobs").select("*").eq("status","pending").order("created_at",{ascending:false}),
-      supabase.from("worker_profiles").select("auth_id,nickname,avatar_url,pr_pending,pr_qa_pending,pr_submitted_at"),
       supabase.from("job_reports").select("*").order("created_at",{ascending:false}),
       supabase.from("attendance_events").select("*").eq("kind","dispute_no_show").order("created_at",{ascending:false}),
       supabase.rpc("admin_list_accounts"),
@@ -356,9 +278,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (!fr.error) next.farmers = fr.data || [];
     if (!de.error) next.dests = de.data || [];
     if (!re.error) next.records = re.data || [];
-    if (!pj.error) next.pendingJobs = pj.data || [];
-    // pr_submitted_at必須（2026-07-19）：修正依頼済み（submitted_at=null）は本人が修正して再保存するまで審査待ちに出さない
-    if (!wp.error) next.pendingPrs = (wp.data || []).filter(w => w.pr_submitted_at && ((w.pr_pending || "").trim() || (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0)));
     if (!jr.error) next.reports = jr.data || [];
     if (!av.error) next.disputes = av.data || [];
     if (!la.error && Array.isArray(la.data)) next.accounts = la.data; // {ok:false,reason:'not_admin'}時は配列でないため無視
@@ -369,8 +288,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (next.farmers) setFarmers(next.farmers);
     if (next.dests) setDests(next.dests);
     if (next.records) setRecords(next.records);
-    if (next.pendingJobs) setPendingJobs(next.pendingJobs);
-    if (next.pendingPrs) setPendingPrs(next.pendingPrs);
     if (next.reports) setReports(next.reports);
     if (next.disputes) setDisputes(next.disputes);
     if (next.accounts) setAccounts(next.accounts);
@@ -396,17 +313,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     const { error } = await supabase.from("farmers").update({ status: "approved" }).eq("id", f.id);
     if (error) { alert("承認に失敗しました：" + error.message); return; }
     setFarmers(prev => prev.map(x => x.id === f.id ? { ...x, status: "approved" } : x));
-  };
-  const publishPendingPr = async (w) => {
-    if (prPublishing) return;
-    setPrPublishing(w.auth_id);
-    const payload = { pr_pending: null, pr_qa_pending: null };
-    if (w.pr_pending) payload.pr = w.pr_pending;
-    if (Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.length > 0) payload.pr_qa = w.pr_qa_pending;
-    const { error } = await supabase.from("worker_profiles").update(payload).eq("auth_id", w.auth_id);
-    setPrPublishing(null);
-    if (error) { alert("公開に失敗しました：" + error.message); return; }
-    setPendingPrs(prev => prev.filter(x => x.auth_id !== w.auth_id));
   };
   const resolveReport = async (r) => {
     const { error } = await supabase.from("job_reports").update({ status: "resolved" }).eq("id", r.id);
@@ -516,7 +422,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const openReports = reports.filter(r => r.status !== "resolved");
   const openMsgReports = msgReports.filter(r => r.status !== "resolved");
   const openProfReports = profReports.filter(r => r.status !== "resolved");
-  const reviewTotal = pendingJobs.length + pendingFarmerAccounts.length + pendingPrs.length + empPendingCount + openReports.length + openMsgReports.length + openProfReports.length + disputes.length;
+  const reviewTotal = pendingFarmerAccounts.length + openReports.length + openMsgReports.length + openProfReports.length + disputes.length;
   const TOP_TABS = [
     { k:"jobs",    l:"審査",       n: reviewTotal },
     { k:"account", l:"アカウント", n: null },
@@ -814,11 +720,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                       </div>
                     ))}
                     <button onClick={()=>openAccountDm(u)} className="f-sans" style={{ marginTop:12, width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>運営メッセージを送る</button>
-                    {u.pending_text && (
-                      <p className="f-sans" style={{ marginTop:12, fontSize:12, color:"#C77700", background:"#FFFBF2", border:"1px solid #F5D98F", borderRadius:10, padding:"10px 12px", lineHeight:1.7 }}>
-                        自由記述の確認待ちがあります。承認・差し戻しは「審査」タブで行ってください（このボックスでは行いません）
-                      </p>
-                    )}
+                    {/* 自由記述の確認待ち注記は削除（2026-08-14 承認プロセスの廃止＝保存で即公開・確認待ちが存在しない） */}
 
                     {/* アカウントの停止／追放（2026-07-19）：管理者のみ。ログイン封鎖＋アプリ内操作の封鎖＋公開物の非表示 */}
                     <div style={{ marginTop:16, borderTop:"1px solid #F0F0F0", paddingTop:14 }}>
@@ -986,9 +888,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       {sub==="jobs" && !reviewSec && !loading && (
         <div className="fade-in" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
           {[
-            { k:"jobs",     l:"求人",           n:pendingJobs.length },
             { k:"accounts", l:"アカウント承認", n:pendingFarmerAccounts.length },
-            { k:"prs",      l:"自由記述",       n:pendingPrs.length + empPendingCount },
             { k:"reports",  l:"通報",           n:openReports.length + openMsgReports.length + openProfReports.length },
             { k:"disputes", l:"欠勤異議",       n:disputes.length },
             { k:"questions",l:"質問",           n:0 },
@@ -1008,35 +908,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
         <div className="fade-in" style={{ display:"grid", gap:16 }}>
         <button onClick={backToReviewGrid} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
 
-        {/* ① 求人 */}
-        {reviewSec==="jobs" && (
-        <div>
-        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>求人{pendingJobs.length > 0 ? `（${pendingJobs.length}）` : ""}</p>
-        {/* 農家・働き手の一覧と同設計（2026-07-16）：3列グリッド・画像＋タイトルのみ・未審査は赤影アニメ。
-            タップ→審査プレビュー（公開する/修正を依頼はプレビュー上部バーに集約済み） */}
-        {pendingJobs.length === 0 ? (
-          <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>公開待ちの求人はありません</p>
-        ) : (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-          {pendingJobs.map(j => {
-            const photo = photoThumb(j.photos?.[0]);
-            return (
-              <button key={j.job_number} onClick={()=>setPreviewJobNumber(j.job_number)}
-                className="f-sans cb-urgent-card"
-                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : null}
-                  <StatusRibbon label="審査待ち" color="#C77700" />
-                </div>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>
-              </button>
-            );
-          })}
-        </div>
-        )}
-        </div>
-        )}
-
         {/* ② アカウント承認（農家の審査待ち） */}
         {reviewSec==="accounts" && (
         <div>
@@ -1054,183 +925,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
               </div>
             ))}
           </div>
-        </div>
-        )}
-
-        {/* ③ プロフィール自由記述（働き手の確認待ち。公開で pr_pending→pr に反映） */}
-        {reviewSec==="prs" && (
-        <div>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>プロフィール自由記述{pendingPrs.length > 0 ? `（${pendingPrs.length}）` : ""}</p>
-          {/* 求人審査と同設計（2026-07-16）：3列グリッド・アイコン＋ニックネームのみ・未審査は赤影アニメ。タップでボトムシート */}
-          {pendingPrs.length === 0 ? (
-            <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>確認待ちの自由記述はありません</p>
-          ) : (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-            {pendingPrs.map(w => (
-              <button key={w.auth_id} onClick={()=>setSheetPrId(w.auth_id)}
-                className="f-sans cb-urgent-card"
-                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-                  {w.avatar_url
-                    ? <img loading="lazy" src={w.avatar_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                    : <Avatar url={null} name={w.nickname || "？"} size={64} />}
-                  <StatusRibbon label="審査待ち" color="#C77700" />
-                </div>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color: w.nickname ? "#222" : "#999", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{w.nickname || "（名前未設定）"}</p>
-              </button>
-            ))}
-          </div>
-          )}
-          {/* ── 農家プロフィールの自由記述（2026-07-16）：texts_pendingの審査キュー＋公開中全件の目視一覧 ── */}
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#C77700", letterSpacing:".08em", margin:"24px 0 10px" }}>農家プロフィール：審査待ち{empPendingCount > 0 ? `（${empPendingCount}）` : ""}</p>
-          {empPendingCount === 0 ? (
-            <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>審査待ちの自由記述はありません</p>
-          ) : (
-            <div style={{ display:"grid", gap:10 }}>
-              {empTexts.filter(hasPendingText).map(r => (
-                <div key={"pend-" + r.auth_id} className="cb-urgent-card" style={{ background:"#fff", border:"1px solid #F5D98F", borderRadius:12, padding:"12px 14px" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                    <Avatar url={r.avatar_url} name={r.nickname || "？"} size={30} />
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, flex:1 }}>{r.nickname || "（名前未設定）"}</p>
-                    {r.texts_submitted_at && <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{String(r.texts_submitted_at).slice(0, 10)}提出</span>}
-                  </div>
-                  {Object.entries(r.texts_pending).map(([k, v]) => (
-                    <div key={k} style={{ padding:"6px 0", borderTop:"1px solid #F7F7F7" }}>
-                      <span className="f-sans" style={{ fontSize:11, color:"#C77700", fontWeight:700, display:"block", marginBottom:2 }}>{EMP_TEXT_LABELS[k] || k}</span>
-                      <span className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{String(v).trim() ? v : "（この項目を空にする）"}</span>
-                    </div>
-                  ))}
-                  <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                    <button onClick={()=>approveEmpTexts(r.auth_id)} disabled={empTextBusy} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: empTextBusy ? 0.6 : 1 }}>{empTextBusy ? "処理中..." : "承認して公開"}</button>
-                    <button onClick={()=>rejectEmpTexts(r.auth_id)} className="f-sans" style={{ flex:1, padding:"10px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>差し戻す</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 10px" }}>農家プロフィールの公開中の自由記述（全件・更新順）</p>
-          {empTexts.length === 0 ? (
-            <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>自由記述のある農家プロフィールはありません</p>
-          ) : (
-            <div style={{ display:"grid", gap:10 }}>
-              {empTexts.map(r => {
-                const fields = [
-                  { l:"代表より", v:r.owner_comment },
-                  { l:"就農するまで", v:r.intro_path },
-                  { l:"いま楽しいこと", v:r.intro_joy },
-                  { l:"どんな作物を、どんな想いで", v:r.intro_crops },
-                  { l:"職場の雰囲気", v:r.intro_atmosphere },
-                  { l:"初めての人へのメッセージ", v:r.intro_message },
-                  { l:"畑・農園のユニークなところ", v:r.unique_point },
-                  { l:"いつもしていること", v:r.always_do },
-                  { l:"休憩とお茶", v:r.break_style },
-                  { l:"送迎エリア", v:r.transport_area },
-                  { l:"通勤手当の内容", v:r.commute_allowance_detail },
-                  { l:"持ち物の上限設定", v:r.supplies_cap },
-                  { l:"旧・紹介PR", v:r.pr },
-                ].filter(f => f.v && String(f.v).trim());
-                return (
-                  <div key={r.auth_id} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                      <Avatar url={r.avatar_url} name={r.nickname || "？"} size={30} />
-                      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, flex:1 }}>{r.nickname || "（名前未設定）"}</p>
-                      {r.updated_at && <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{String(r.updated_at).slice(0, 10)}</span>}
-                    </div>
-                    {fields.map(f => (
-                      <div key={f.l} style={{ padding:"6px 0", borderTop:"1px solid #F7F7F7" }}>
-                        <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2 }}>{f.l}</span>
-                        <span className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{f.v}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {/* 自由記述のボトムシート（本文・Q&A・公開ボタン。公開後は一覧から消えて自動で閉じる） */}
-          {(() => {
-            const w = pendingPrs.find(x => x.auth_id === sheetPrId);
-            if (!w) return null;
-            return (
-              <div onClick={()=>setSheetPrId(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-                <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-                  <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                    <button onClick={()=>setSheetPrId(null)} aria-label="戻る" style={{ width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                  </div>
-                  <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:10 }}>
-                      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{w.nickname || "名前未設定"}</p>
-                      <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{w.pr_submitted_at ? new Date(w.pr_submitted_at).toLocaleString("ja-JP") : ""}</span>
-                    </div>
-                    {w.pr_pending && (
-                      <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:"0 0 10px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#F7F7F7", borderRadius:10, padding:"10px 12px" }}>{w.pr_pending}</p>
-                    )}
-                    {Array.isArray(w.pr_qa_pending) && w.pr_qa_pending.map(({ q, a }) => (
-                      <div key={q} style={{ background:"#F7FBF9", borderRadius:10, padding:"8px 12px", marginBottom:8 }}>
-                        <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 2px" }}>{q}</p>
-                        <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
-                      </div>
-                    ))}
-                    {(() => {
-                      // 修正依頼フォーム（2026-07-19）：どこ（本文/各質問）×どう問題か を選んで積み上げ→チャット＋メールで本人へ
-                      const targets = [
-                        ...(w.pr_pending ? ["自己紹介本文"] : []),
-                        ...((Array.isArray(w.pr_qa_pending) ? w.pr_qa_pending : []).map(x => x.q).filter(Boolean)),
-                      ];
-                      const formOpen = prRevTarget === w.auth_id;
-                      const reasonText = buildPrRevisionText(prRevFindings);
-                      const pill = (selected) => ({ padding:"7px 11px", borderRadius:18, border: selected ? "2px solid #EA580C" : "1px solid #EBEBEB", background: selected ? "#FFF1E7" : "#fff", fontSize:12, fontWeight:600, color: selected ? "#EA580C" : "#717171", cursor:"pointer", textAlign:"left" });
-                      return (
-                        <>
-                          <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
-                            <button onClick={()=>{ setPrRevTarget(formOpen ? null : w.auth_id); setPrRevFindings([emptyPrFinding()]); setPrRevDone(false); }} className="f-sans" style={{ padding:"10px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#EA580C", border:"1px solid #EA580C", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{formOpen ? "修正依頼をやめる" : "修正を依頼"}</button>
-                            <button onClick={()=>publishPendingPr(w)} disabled={prPublishing===w.auth_id} className="f-sans" style={{ padding:"10px 20px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", whiteSpace:"nowrap" }}>{prPublishing===w.auth_id ? "公開中..." : "公開する"}</button>
-                          </div>
-                          {formOpen && (
-                            <div className="fade-in" style={{ marginTop:14, background:"#FFF7ED", border:"1px solid #FDBA74", borderRadius:12, padding:"12px 14px" }}>
-                              {prRevDone ? (
-                                <p className="f-sans" style={{ textAlign:"center", fontSize:14, fontWeight:700, color:"#EA580C", margin:"8px 0" }}>✓ 修正依頼を送信しました（チャット＋メール）</p>
-                              ) : (
-                                <>
-                                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#9A3412", margin:"0 0 10px" }}>どこの何が、どう問題かを選んでください（複数可）</p>
-                                  {prRevFindings.map((f, i) => (
-                                    <div key={i} style={{ background:"#fff", borderRadius:10, padding:"10px 12px", marginBottom:8, position:"relative" }}>
-                                      {prRevFindings.length > 1 && (
-                                        <button onClick={()=>setPrRevFindings(prev => prev.filter((_,idx)=>idx!==i))} aria-label="この指摘を削除" style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:12, cursor:"pointer" }}>✕</button>
-                                      )}
-                                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>どこ</p>
-                                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
-                                        {targets.map(t => (
-                                          <button key={t} onClick={()=>setPrRevFindings(prev=>prev.map((x,idx)=>idx===i?{...x,target:t}:x))} className="f-sans" style={pill(f.target===t)}>{t}</button>
-                                        ))}
-                                      </div>
-                                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#717171", margin:"0 0 6px" }}>どう問題か</p>
-                                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
-                                        {PR_REVISION_ISSUE_TYPES.map(t => (
-                                          <button key={t} onClick={()=>setPrRevFindings(prev=>prev.map((x,idx)=>idx===i?{...x,issueType:t}:x))} className="f-sans" style={pill(f.issueType===t)}>{t}</button>
-                                        ))}
-                                      </div>
-                                      <input value={f.note} onChange={e=>setPrRevFindings(prev=>prev.map((x,idx)=>idx===i?{...x,note:e.target.value}:x))} placeholder="補足があれば（任意）" className="field f-sans" style={{ fontSize:12 }} />
-                                    </div>
-                                  ))}
-                                  <button onClick={()=>setPrRevFindings(prev=>[...prev, emptyPrFinding()])} className="f-sans" style={{ width:"100%", padding:"8px", fontSize:12, fontWeight:700, background:"#fff", color:"#717171", border:"1px dashed #D0D0D0", borderRadius:10, cursor:"pointer", marginBottom:10 }}>＋ 指摘を追加</button>
-                                  {reasonText && (
-                                    <div className="f-sans" style={{ background:"#fff", borderRadius:10, padding:"8px 12px", fontSize:12, color:"#444", lineHeight:1.8, whiteSpace:"pre-wrap", marginBottom:10 }}>{reasonText}</div>
-                                  )}
-                                  <p className="f-sans" style={{ fontSize:11, color:"#9A3412", lineHeight:1.7, margin:"0 0 10px" }}>送信すると、本人に運営チャットとメールがセットで届きます。この提出は審査待ちから外れ、本人が修正して保存すると再び審査に届きます。</p>
-                                  <button onClick={()=>sendPrRevision(w)} disabled={!reasonText || prRevSending} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background: reasonText ? "#EA580C" : "#EBEBEB", color: reasonText ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{prRevSending ? "送信中..." : "修正を依頼する（チャット＋メール）"}</button>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
         </div>
         )}
 
