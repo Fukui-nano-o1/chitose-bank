@@ -477,6 +477,12 @@ export function JobSearchMapView({ onRegister, me }) {
   const [empTrust, setEmpTrust] = useState(null);
   useEffect(() => {
     if (!selectedJob) { setEmpEmployer(null); setEmpTrust(null); return; }
+    // 前回の内容（求人ごとのviewCache）をまず出す→裏で最新に差し替える（SWR・2026-08-14たきと指摘
+    // 「求人者と待遇の復元that10秒」＝コールドスパイクのRPC待ちthatそのまま画面の待ちだった）。
+    const cacheKey = "search:jobEmp:" + selectedJob.id;
+    const cached = getCache(cacheKey);
+    setEmpEmployer((cached && cached.emp) || null);
+    setEmpTrust((cached && cached.trust) || null);
     let cancelled = false;
     (async () => {
       // 依存のない2本は並列で（2026-08-02・更新時間の短縮：直列2往復→1往復ぶんの待ちに）
@@ -485,8 +491,12 @@ export function JobSearchMapView({ onRegister, me }) {
         Promise.resolve(supabase.rpc('job_employer_trust_info', { p_job_number: selectedJob.id })).catch(() => ({ data: null })),
       ]);
       if (cancelled) return;
-      setEmpEmployer((profRes.data && profRes.data[0]) || null);
-      setEmpTrust(trustRes.data || null);
+      const emp = (profRes.data && profRes.data[0]) || null;
+      const trust = trustRes.data || null;
+      // 失敗（null）の時はキャッシュ表示を上書きしない（2026-08-07規則・フェイルオープンにしない）
+      if (emp) setEmpEmployer(emp);
+      if (trust) setEmpTrust(trust);
+      if (emp || trust) setCache(cacheKey, { emp: emp || (cached && cached.emp) || null, trust: trust || (cached && cached.trust) || null });
     })();
     return () => { cancelled = true; };
   }, [selectedJob?.id]);
@@ -1024,7 +1034,7 @@ export function JobSearchMapView({ onRegister, me }) {
             const photos = Array.isArray(selectedJob.photos) ? selectedJob.photos : [];
             if (photos.length === 0) return (
               <div style={{ marginBottom:20 }}>
-                <JobPhotoFallback url={empEmployer?.avatar_url} name={empEmployer?.nickname || "？"} />
+                <JobPhotoFallback url={empEmployer?.avatar_url || selectedJob.employerAvatar} name={empEmployer?.nickname || selectedJob.employerName || "？"} />
               </div>
             );
             const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
@@ -1152,7 +1162,11 @@ export function JobSearchMapView({ onRegister, me }) {
                 </div>
               )}
 
-              {empEmployer && empEmployer.nickname && (() => {
+              {/* 門番をRPC待ちから外す（2026-08-14）：名前・アイコンは一覧の行（jobs_public＝
+                  employerName/employerAvatar）thatが最初から持っている。待遇表も selectedJob.perks
+                  （掲載時凍結）だけで描ける＝RPCの到着を待たずカードを即描画する。
+                  RPC（empEmployer）は農園紹介モーダルの中身と信頼情報の補強にだけ使う */}
+              {(empEmployer?.nickname || selectedJob.employerName) && (() => {
                 const pk = selectedJob.perks || {}; // 掲載時に確定保存された待遇のみ（2026-08-02・プロフィール現在値とのマージ廃止）
                 const perkRows = [
                   { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
@@ -1175,9 +1189,9 @@ export function JobSearchMapView({ onRegister, me }) {
                     {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16） */}
                     {/* アイコン・名前タップ→農園紹介をボックス展開（2026-07-16） */}
                     <div onClick={()=>setFarmIntroOpen(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor:"pointer" }}>
-                      <Avatar url={empEmployer.avatar_url} name={empEmployer.nickname} size={70} />
+                      <Avatar url={empEmployer?.avatar_url || selectedJob.employerAvatar} name={empEmployer?.nickname || selectedJob.employerName} size={70} />
                       <div style={{ minWidth:0 }}>
-                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{empEmployer.nickname}さん</p>
+                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{empEmployer?.nickname || selectedJob.employerName}さん</p>
                         {empTrust?.ok && empTrust.member_since && (
                           <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>chitose-bank利用 {empTrust.member_since}から</p>
                         )}
