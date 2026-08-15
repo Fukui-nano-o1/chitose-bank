@@ -1500,9 +1500,10 @@ export function JobSearchMapView({ onRegister, me }) {
       )}
 
       {/* 応募確認ボックス（2026-07-18）：応募ボタンタップで展開。承認制の説明＋下部に「戻る」「応募する」。
-          意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・上限30px/下限フッター+40px・本文18） */}
+          意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・上限30px/下限フッター+40px・本文18）。
+          cb-lock-scroll＝展開中は背後ページのスクロールを固定（2026-08-15たきと指示）＋レーンの横スワイプにタッチを奪われない（仮応募案内ボックスと同じ作法） */}
       {applyConfirmOpen && selectedJob && (
-        <div onClick={()=>setApplyConfirmOpen(false)} className="cb-box-overlay" style={{ zIndex:9000 }}>
+        <div onClick={()=>setApplyConfirmOpen(false)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9000 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップ＋下部「戻る」で閉じられるso重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="応募の確認" /></p>
