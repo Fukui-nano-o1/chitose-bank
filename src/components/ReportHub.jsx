@@ -111,14 +111,16 @@ export default function ReportHub() {
     }
   };
 
-  // 文脈が無いジャンルは、正しい入口への案内を出す（送信ボタンは出さない）
+  // 文脈が無いジャンルは、正しい入口への案内を出す（送信ボタンは出さない）。
+  // link＝該当ページへタップで遷移（2026-08-15たきと指示「該当するリンクを添付。タップで遷移」）
   const guidance =
     st.genre === "job" && !st.job
-      ? "求人の報告は、該当の求人ページを開いて、末尾の「⚑ この求人を報告する」から送れます。"
+      ? { text: "求人の報告は、該当の求人ページを開いて、末尾の「⚑ この求人を報告する」から送れます。" }
     : st.genre === "person" && !st.worker
-      ? "人の報告は、その方のプロフィール（アイコンをタップして開くプレビュー）の末尾にある「⚑ この人を報告する」から送れます。"
+      ? { text: "人の報告は、その方のプロフィール（アイコンをタップして開くプレビュー）の末尾にある「⚑ この人を報告する」から送れます。",
+          link: { label: "👥 応募者ページを開く", hash: "/profile/employer/applicants" } }
     : st.genre === "comment"
-      ? "コメントの報告は、証拠として本文をそのまま保存するため、チャット画面から行います。チャット右上の「🚩 報告する」を押して、該当のコメントを選んでください。"
+      ? { text: "コメントの報告は、証拠として本文をそのまま保存するため、チャット画面から行います。チャット右上の「🚩 報告する」を押して、該当のコメントを選んでください。" }
     : null;
 
   const doneMsg = st.genre === "screen"
@@ -150,7 +152,13 @@ export default function ReportHub() {
 
             {guidance ? (
               <>
-                <p className="f-sans" style={{ fontSize:13, color:"#333", lineHeight:1.8, background:"#F7F7F7", borderRadius:10, padding:"12px 14px", margin:"0 0 16px" }}>{guidance}</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#333", lineHeight:1.8, background:"#F7F7F7", borderRadius:10, padding:"12px 14px", margin:"0 0 12px" }}>{guidance.text}</p>
+                {guidance.link && (
+                  <button onClick={() => { close(); window.location.hash = guidance.link.hash; }} className="f-sans" style={{
+                    display:"block", width:"100%", padding:"12px", fontSize:14, fontWeight:700, textAlign:"center",
+                    background:"#E6F7EF", color:"#00A86B", border:"none", borderRadius:12, cursor:"pointer", marginBottom:12,
+                  }}>{guidance.link.label} →</button>
+                )}
                 <div style={{ display:"flex", justifyContent:"flex-end" }}>
                   <button onClick={close} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
                 </div>
