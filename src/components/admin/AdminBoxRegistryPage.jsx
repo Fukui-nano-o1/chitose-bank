@@ -187,7 +187,7 @@ export function AdminBoxRegistryPage() {
       {nPreview && (() => {
         const st = noticeStatus(nPreview);
         return (
-        <div onClick={()=>setNPreview(null)} className="cb-box-overlay" style={{ zIndex:8000 }}>
+        <div onClick={()=>setNPreview(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <button onClick={()=>setNPreview(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>

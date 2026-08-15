@@ -1588,7 +1588,7 @@ export function JobSearchMapView({ onRegister, me }) {
           意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・本文18・リンク18）。
           求人カードに❤️が付く動作（cb-heart-pop）＋「いいね一覧を見る →」リンク */}
       {likeDone && (
-        <div onClick={()=>setLikeDone(null)} className="cb-box-overlay" style={{ zIndex:9000 }}>
+        <div onClick={()=>setLikeDone(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9000 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられるso重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="いいねしました！" /></p>

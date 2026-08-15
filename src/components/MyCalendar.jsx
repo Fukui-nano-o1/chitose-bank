@@ -201,7 +201,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       {/* 下書きを進めませんか？ボックス（2026-07-19）：下書きカードタップ→保存済みステップから求人フロー再開。
           意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルと説明の間に横線・上限30px/下限フッター+40px・タイトル20/本文18） */}
       {draftPrompt && (
-        <div onClick={()=>setDraftPrompt(null)} className="cb-box-overlay" style={{ zIndex:8000 }}>
+        <div onClick={()=>setDraftPrompt(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられるso重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="📝 下書きを進めませんか？" /></p>

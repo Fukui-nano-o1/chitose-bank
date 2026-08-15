@@ -1084,7 +1084,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
       {/* 契約スナップショット詳細（凍結内容の全項目・閲覧専用・中央ボックス規格） */}
       {contractDetail && createPortal(
-        <div onClick={()=>setContractDetail(null)} className="cb-box-overlay" style={{ zIndex:9600 }}>
+        <div onClick={()=>setContractDetail(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9600 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <button onClick={()=>setContractDetail(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}>✕</button>
             {(() => {

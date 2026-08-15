@@ -2871,9 +2871,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
       {/* 下部ナビのバーは削除（2026-07-16）：戻る／次へは浮遊固定ボックス（スクロール追従）に。
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
-      {/* 募集者情報の入力ボックス（2026-07-27たきと指示）：掲載申請が止まった時、ページを変えずにここで入力する */}
+      {/* 募集者情報の入力ボックス（2026-07-27たきと指示）：掲載申請が止まった時、ページを変えずにここで入力する。
+          cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15）。このボックスは flowScrollRef の外側soこれだけで足りる
+          （553行の「2枚で塞ぐ」が要るのはスクロール領域の内側に開くモーダルの話） */}
       {recruitBox && (
-        <div onClick={()=>{ if (!recruitBox.saving) setRecruitBox(null); }} className="cb-box-overlay" style={{ zIndex:10500 }}>
+        <div onClick={()=>{ if (!recruitBox.saving) setRecruitBox(null); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10500 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>掲載には募集者情報が必要です</p>
             <div style={{ height:1, background:"#E5E5E5", margin:"12px 0" }} />

@@ -2382,7 +2382,7 @@ export default function App(){
           上限=画面上から30px・下限=下部フッターの40px上（2026-07-18に20px引き上げ）・最後の段に「〇〇する」形式のリンク（タップ=既読化して遷移）。
           文字はタイトル20/本文18/リンク18（2026-07-17縮小・説明文が5行を超えると読まれないため）。1回の起動で1件、残りは次回（たきと方針） */}
       {!consignRoom && activeNotices && !welcomeApproved && (
-        <div onClick={dismissNotices} className="cb-box-overlay" style={{ zIndex:10900 }}>
+        <div onClick={dismissNotices} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10900 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられる（＝既読化も同じdismissNotices）so重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
