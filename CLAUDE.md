@@ -4598,3 +4598,29 @@ draftへ引き下げ・再掲載は運営確認制20260814093042）②アカウ�
 実機目視の残り：応募確認ボックスを開いて背後がスクロールしないか／日程チップ選択でレーンが動かないか／
 閉じたら（戻る・外タップ）スクロールが戻るか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-15(続) 報告：入力の一本化を撤回→集計の一本化（#/admin/reports）━━━
+【たきと指示】「入力を一本化するのはやめよう。集計する方を一本化しよう」
+【撤回】ReportHub関連4コミット（5e44ccd/66c5ea8/91b807a/4ce1797）をrevert（bfcfe1f）＝
+FeedbackModal・求人通報モーダル（JobSearchMapView）・人の通報モーダル（WorkerPreviewSheet）・
+☰の「💬この画面を報告」を復元。台帳・保存経路はもともと不変so利用者への影響なし。
+【集計の一本化＝統合報告ページ新設】components/admin/AdminReportsRoom.jsx（#/admin/reports・
+管理者専用・lazyChunk・配線はcommentRoomと同じ4点セット＋AdminNav「報告」チップ）。
+・4台帳（求人=job_reports／コメント=message_reports／人=profile_reports／画面=feedback）を
+  1つの一覧に束ね、created_at降順。ジャンルピル（すべて/求人/コメント/人/画面・未対応件数つき・
+  0件も押せる）で絞り込み。表示は未対応のみ（解決済みはDBに残る＝システムページ2026-08-08方針）
+・カードの中身・「対応済みにする」（status:'resolved'更新）は旧AdminTab通報節と同一＝
+  新しい書き込みは作らない。導線：求人=#/admin/review/{No.}／人=openWorkerPreview
+・viewCache（admin:reports）でSWR・4台帳全滅時は手元の値を上書きしない（フェイルオープン規則）
+【DB】migration 20260815060344_feedback_status_admin_update（適用済み・repo写経・履歴表同期）＝
+feedbackにstatus列（default 'open'・CHECK open/resolved）＋管理者UPDATEポリシー。
+★feedbackは4台帳で唯一、運営UIも対応済み記録も無かった（送れるのに見る場所が無い）＝今回初めて画面を持つ。
+【AdminTab】審査格子「通報」カード→#/admin/reportsへ遷移に変更（reviewSecの旧3節JSX・
+resolve関数3本は撤去・REVIEW_SECTION_KEYSからreportsを除去＝旧URL #/admin/review/reports は
+格子に安全フォールバック）。バッジはfeedback未対応も合算（loadにfeedback id,status取得を追加）。
+reviewTotal（審査タブのバッジ）にも合算。
+【検証】build+eslint通過・distにAdminReportsRoomチャンク生成確認・DBメール等に旧URL参照ゼロを
+関数全文走査で確認。実機目視の残り：①管理タブ審査→「通報」カード→統合ページに着地するか
+②ジャンルピルの絞り込み・件数 ③対応済み→カードが消えバッジが減るか ④求人を見る/働き手を見るの導線
+⑤AdminNav「報告」チップ ⑥画面（feedback）の報告が初めて見えるか
+━━━ ここまで ━━━
