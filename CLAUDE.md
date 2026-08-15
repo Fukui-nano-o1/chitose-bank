@@ -4554,3 +4554,25 @@ AdminJobPreview「公開する」で開いた瞬間にフラグ解消（trg_clea
   （✕で既読・デプロイ不要）。execute_sqlによるDML（コンテンツ行）so migrationなし＝2026-07-21規則の
   対象（スキーマ）外。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-15 報告の入口を1つに統合（ReportHub・ジャンル切り替え式）━━━
+【たきと指示】「報告のプロセス」→AskUserQuestionで「報告の入口を1つに統合」を採択。3コミットでmainへ。
+【新設】components/ReportHub.jsx＝統合報告モーダル。App.jsxに1つだけ常駐し、openReportHub({genre, job, worker})
+（lib/previewBusに追加）でどこからでも開く（旧FeedbackModalと同じ常駐＋外部制御方式＝2026-07-14アンマウントバグの型を回避）。
+・ジャンルピル4つ：求人／相手の人／コメント／この画面。フォーム内で切り替え可能
+・★保存経路は不変（行動記録の憲法）：求人=job_reports／人=profile_reports／画面=feedback。
+  insertはハブに移設しただけで列・値の形は旧モーダルと同一（source列＝どの面からの記録も維持）
+・コメントの報告だけはハブから送れない＝本文の凍結コピーを取るためChatViewの🚩（該当コメントを選ぶ）が
+  唯一の窓口。ハブのコメントジャンルは案内文のみ（新しい書き込み経路を作らない）
+・文脈が無いジャンル（☰から開いて求人/人を選んだ時）はタップ不能にせず「どこから送るか」の案内を表示
+【入口の差し替え（全部ハブを開くだけに）】求人詳細の⚑2箇所（JobSearchMapView・openJobReport）／
+働き手プレビューの⚑2ボタン（App.jsx・openPersonReport(source)）／☰PC・☰モバイル・ヘルプFAQの
+「💬この画面を報告」→「⚑ 報告する」（screenジャンルで開く）。旧モーダル3つ（FeedbackModal・
+JobSearchMapViewの通報モーダル・WorkerPreviewSheetの通報モーダル）と選択肢定数はハブへ移設・撤去
+【検証】build+eslint通過（buildゲート）・distに新文言包含と旧実装の残存ゼロをgrep確認。
+実機目視の残り：①☰「⚑ 報告する」→ハブが開きジャンル切り替え ②求人詳細⚑→求人ジャンルで#No.表示
+③プレビュー⚑→相手の人ジャンル（面のラベル）④各ジャンルの送信が台帳に入るか ⑤文脈なしジャンルの案内文
+【同日の調査記録（コード変更なし）】求人の差し止めは実装済みを確認：①request_job_revision（運営・openも
+draftへ引き下げ・再掲載は運営確認制20260814093042）②アカウント停止（jobs_publicがis_account_moderated除外）
+③third_party_publish_allowedキルスイッチ。通報→差し止めの流れは一気通貫で機能している
+━━━ ここまで ━━━
