@@ -8,8 +8,6 @@ import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots, QaChat } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
-import ReportHub from "./components/ReportHub";
-import { openReportHub } from "./lib/previewBus";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
 // チャンク取りこぼしの自己修復（2026-07-26導入・2026-08-07改修）：
 // 新デプロイでチャンク名（ハッシュ）が変わるため、古いページを握ったままの端末は旧チャンクを
@@ -422,7 +420,8 @@ function EmployerPreviewSheet() {
 // 選択肢は事実の申告だけを並べる＝運営の主観（評価・おすすめ度）は混ぜない（2026-07-16あっせん回避）。
 // ★2ページ（プロフィール／はたらいた記録）の末尾に同じボタンを1つずつ置く。中身は共通で、
 //   どちらの面から出したかは source 列に自動で入る＝運営が「何についての報告か」を取り違えない
-// 選択肢・フォーム・profile_reportsへのinsertは統合報告ハブ（components/ReportHub・2026-08-15）に移設
+const PROFILE_REPORT_FIELDS = ["自己紹介", "質問への回答", "自己申告（経験・資格）", "写真・アイコン", "はたらいた記録", "その他"];
+const PROFILE_REPORT_ISSUES = ["虚偽・誇大の疑い", "連絡先の直書き・外部誘導", "個人情報・肖像権", "差別的・不快な表現", "なりすましの疑い", "記録の食い違い", "その他"];
 
 // ボタン本体。押すと親が持つモーダルを開くだけ（送信は親の1箇所に集約＝発火点を散らさない）
 function ProfileReportButton({ onOpen }) {
@@ -435,6 +434,8 @@ function ProfileReportButton({ onOpen }) {
 
 function WorkerPreviewSheet() {
   const [st, setSt] = useState(null); // {worker_id, loading, profile, trust, viewer_id}
+  // 通報モーダル：{ source:"profile"|"work_record", field, issue, detail, sending, done }
+  const [rep, setRep] = useState(null);
   // ボックスは2枚（0=プロフィール／1=はたらいた記録）。横スワイプで行き来する（2026-08-05たきと指示）
   const [page, setPage] = useState(0);
   useEffect(() => {
@@ -491,11 +492,22 @@ function WorkerPreviewSheet() {
     return () => window.removeEventListener("cb:openWorkerPreview", f);
   }, []);
 
-  // 通報＝統合報告ハブ（ReportHub）へ。2枚のボタンは「誰について・どの面から」の文脈を渡して開くだけ
-  const closeSheet = () => setSt(null);
-  const openPersonReport = (source) => {
-    if (!st?.worker_id) return;
-    openReportHub({ genre: "person", worker: { workerId: st.worker_id, name: st.profile?.nickname || "", source } });
+  // 通報の送信（発火点はここ1箇所。2枚のボタンはモーダルを開くだけ）
+  const closeSheet = () => { setSt(null); setRep(null); };
+  const submitReport = async () => {
+    if (!rep || rep.sending || !rep.field || !rep.issue || !st?.worker_id || !st?.viewer_id) return;
+    setRep(r => ({ ...r, sending: true }));
+    const { error } = await supabase.from("profile_reports").insert({
+      target_worker_id: st.worker_id,
+      reporter_id: st.viewer_id,
+      source: rep.source,
+      target_field: rep.field,
+      issue_type: rep.issue,
+      detail: (rep.detail || "").trim() || null,
+    });
+    if (error) { setRep(r => ({ ...r, sending: false })); alert("報告の送信に失敗しました：" + error.message); return; }
+    setRep(r => ({ ...r, sending: false, done: true }));
+    setTimeout(() => setRep(null), 1800);
   };
 
   // ── 指追従ページャー（ボックス一覧・農家プロ作成中⇄公開中と同じ作法）──
@@ -566,13 +578,13 @@ function WorkerPreviewSheet() {
                   {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
                   <QaChat items={workerQaItems(st.profile)} />
                   <MyReviewsOfWorker workerId={st.worker_id} />
-                  {canReport && <ProfileReportButton onOpen={()=>openPersonReport("profile")} />}
+                  {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"profile", field:"", issue:"", detail:"", sending:false, done:false })} />}
                 </div>
                 {/* 2枚目：はたらいた記録（働き手ダッシュボードと同じ部品）。
                     並びは プロフィール→記録→評価（2026-08-07たきと指示で評価と入れ替え） */}
                 <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", padding:"0 5px" }}>
                   <WorkerWorkRecord workerId={st.worker_id} />
-                  {canReport && <ProfileReportButton onOpen={()=>openPersonReport("work_record")} />}
+                  {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
                 </div>
                 {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定）。
                     公開できる評価がまだ無い時は何も描かない（2026-08-08たきと指示で案内文を撤去） */}
@@ -596,7 +608,37 @@ function WorkerPreviewSheet() {
       {/* 評価が空のときの案内文は撤去（2026-08-08たきと指示「削除」）。
           中央固定のポータル層・スワイプ連動（msgSlideRef）も、この案内のためだけの仕掛けso一緒に削除した */}
 
-
+      {/* 通報モーダル：求人の通報（JobSearchMapView）と同じ視覚文法・語彙。2枚のボタンの共通の行き先 */}
+      {rep && (
+        <div onClick={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:9800, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+            {rep.done ? (
+              <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>報告を受け付けました。運営が確認します</p>
+            ) : (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:4 }}>この人を報告する</p>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 12px" }}>{rep.source === "work_record" ? "はたらいた記録の面から" : "プロフィールの面から"}</p>
+                <div style={{ display:"grid", gap:8, marginBottom:8 }}>
+                  <select value={rep.field} onChange={e=>setRep(r=>({ ...r, field:e.target.value }))} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" }}>
+                    <option value="">対象項目を選択</option>
+                    {PROFILE_REPORT_FIELDS.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select value={rep.issue} onChange={e=>setRep(r=>({ ...r, issue:e.target.value }))} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" }}>
+                    <option value="">問題の種類を選択</option>
+                    {PROFILE_REPORT_ISSUES.map(t=><option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <textarea value={rep.detail} onChange={e=>setRep(r=>({ ...r, detail:e.target.value }))} placeholder="詳細（任意）" rows={4} className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:16, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }} />
+                </div>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>報告は運営のみが確認します。相手にはあなたの情報は伝わりません</p>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button onClick={()=>setRep(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+                  <button onClick={submitReport} disabled={rep.sending || !rep.field || !rep.issue} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: (rep.field && rep.issue) ? "#E24B4A" : "#EBEBEB", color: (rep.field && rep.issue) ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{rep.sending ? "送信中..." : "送信する"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -948,8 +990,77 @@ const HELP_CONTENT = {
   },
 };
 
-// 💬この画面を報告：旧FeedbackModalは統合報告ハブ（components/ReportHub・2026-08-15）に吸収。
-// カテゴリ定数・フォーム・feedbackへのinsertはReportHub側に移設（保存経路は不変）
+// 💬この画面を報告（Part B）。feedbackテーブルのcategory CHECK制約と対応
+const FEEDBACK_CATEGORIES = [
+  { v:"confusing",   l:"分かりにくい" },
+  { v:"broken",      l:"動かない" },
+  { v:"typo",        l:"誤字・表示" },
+  { v:"suggestion",  l:"提案" },
+  { v:"other",       l:"その他" },
+];
+
+// この画面を報告（Part B）のモーダル本体。☰の開閉やヘルプの章開閉と無関係な階層（App直下）に
+// 1個だけ常駐させ、open/onCloseで外部から制御する。過去バージョンはトリガーボタンと同居させていたため、
+// ☰を閉じるとトリガーごとアンマウントされモーダルが開かないバグがあった（2026-07-14修正）
+function FeedbackModal({ open, onClose }) {
+  const [category, setCategory] = useState("");
+  const [body, setBody] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    if (open) { setCategory(""); setBody(""); setSent(false); }
+  }, [open]);
+  const submit = async () => {
+    if (!category || submitting) return;
+    setSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSubmitting(false); return; }
+      const { error } = await supabase.from('feedback').insert({
+        reporter_id: session.user.id,
+        page_hash: window.location.hash || '#/',
+        category, body: body.trim() || null,
+        viewport: window.innerWidth,
+      });
+      if (error) { alert('送信に失敗しました：' + error.message); setSubmitting(false); return; }
+      setSent(true);
+    } catch { alert('送信に失敗しました。'); }
+    setSubmitting(false);
+  };
+  if (!open) return null;
+  return (
+    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
+        {sent ? (
+          <>
+            <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>ありがとうございます。改善に使わせていただきます</p>
+            <button onClick={onClose} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
+          </>
+        ) : (
+          <>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>この画面を報告</p>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
+              {FEEDBACK_CATEGORIES.map(c => (
+                <button key={c.v} type="button" onClick={() => setCategory(c.v)} className="f-sans" style={{
+                  padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer", border:"2px solid",
+                  borderColor: category===c.v ? "#00A86B" : "#EBEBEB",
+                  background: category===c.v ? "#E6F7EF" : "#fff", color: category===c.v ? "#00A86B" : "#222",
+                }}>{c.l}</button>
+              ))}
+            </div>
+            <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="どの部分が、どうでしたか？" rows={4}
+              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>操作の記録としてページ名が運営に送られます</p>
+            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+              <button onClick={onClose} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+              <button onClick={submit} disabled={submitting || !category} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: category ? "#00A86B" : "#EBEBEB", color: category ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{submitting ? "送信中..." : "送信する"}</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // help-imagesバケットの公開URLから、削除に必要なストレージパスだけを取り出す
 function helpImagePathFromUrl(url) {
@@ -1159,7 +1270,7 @@ function HelpCenter({ me, onReportClick }) {
                     <button onClick={onReportClick} className="f-sans" style={{
                       justifySelf:"start", padding:"9px 18px", fontSize:13, fontWeight:600, color:"#00A86B",
                       background:"#E6F7EF", border:"none", borderRadius:20, cursor:"pointer",
-                    }}>⚑ 報告する</button>
+                    }}>💬 この画面を報告</button>
                   )}
                   {ch.items.map((it, i) => {
                     const slotKey = it.key;
@@ -1600,6 +1711,7 @@ export default function App(){
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // モバイル下部バー左端☰（PCのmenuOpenとは別系統）
   // この画面を報告：☰の開閉やヘルプの章開閉と無関係な階層で開閉させる（2026-07-14・アンマウントバグ修正）
+  const [showFeedback, setShowFeedback] = useState(false);
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
   const [showPrivacy,setShowPrivacy]=useState(false);
@@ -2456,12 +2568,12 @@ export default function App(){
                 📖 使い方
               </button>
               {me && (
-                <button onClick={() => { setMenuOpen(false); openReportHub({ genre: "screen" }); }}
+                <button onClick={() => { setMenuOpen(false); setShowFeedback(true); }}
                   className="f-sans"
                   style={{ display:"block", width:"100%", textAlign:"left", background:"none",
                            border:"none", cursor:"pointer", fontFamily:"inherit",
                            fontSize:14, color:"#222", padding:"10px 16px" }}>
-                  ⚑ 報告する
+                  💬 この画面を報告
                 </button>
               )}
               {isAdmin(me) && (
@@ -2503,7 +2615,7 @@ export default function App(){
             <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">🌱 求人を出す</button>
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item">📖 使い方</button>
             {me && (
-              <button onClick={()=>{ setMobileMenuOpen(false); openReportHub({ genre: "screen" }); }} className="f-sans app-header-mobile-menu-item">⚑ 報告する</button>
+              <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item">💬 この画面を報告</button>
             )}
             {MOBILE_MENU_ITEMS
               .filter(item => !item.adminOnly || isAdmin(me))
@@ -2755,7 +2867,7 @@ export default function App(){
             </div>
           </div>
         )}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => openReportHub({ genre: "screen" })} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="install"&&<InstallGuide me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="visit"&&<VisitEntrance me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="insurance"&&me&&<InsurancePrepPage me={me} />}
@@ -2861,7 +2973,7 @@ export default function App(){
       </footer>}
 
       {/* この画面を報告：☰やヘルプの章開閉と無関係な階層に常駐（2026-07-14アンマウントバグ修正） */}
-      <ReportHub />
+      <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
 
       {/* 掲載完了はページでなくアニメーション（2026-08-07たきと指示）。タブに依らずグローバルに出す＝
           掲載後に /profile/employer へ遷移した先で祝祭that重なり、60秒ノーアクションで さがす へ送る */}
