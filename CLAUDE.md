@@ -4576,3 +4576,19 @@ JobSearchMapViewの通報モーダル・WorkerPreviewSheetの通報モーダル�
 draftへ引き下げ・再掲載は運営確認制20260814093042）②アカウント停止（jobs_publicがis_account_moderated除外）
 ③third_party_publish_allowedキルスイッチ。通報→差し止めの流れは一気通貫で機能している
 ━━━ ここまで ━━━
+
+━━━ 2026-08-15 応募確認ボックス展開中の背後スクロール固定 ━━━
+【たきと指示】「応募確認ボックス展開中は画面のスクロール解除」
+・JobSearchMapViewの応募確認ボックス（応募ボタン→承認制の説明＋来られる日選択）のオーバーレイが
+  cb-box-overlay のみで cb-lock-scroll が無く、展開中に背後の求人詳細がスクロールできていた。
+  ★cb-box-overlay は全画面の被せ・FAB非表示だけで、html/body固定は cb-lock-scroll（appStyles 1081）の担当＝
+  別クラス。被せがあってもスクロールは止まらない
+・修理＝overlayを cb-box-overlay cb-lock-scroll の併用に（同ファイルの仮応募案内ボックス967行と同じ作法）。
+  副効果（正）：レーン横スワイプのガード（227行 closest(".cb-lock-scroll")）が効くようになり、
+  ボックス内のタッチ（日程チップ選択等）で背後のレーンが切り替わる事故も同時に塞がった
+・他の cb-box-overlay 単独箇所（likeDone・draftPrompt・お知らせ・recruitBox・契約詳細・台帳プレビュー）は
+  指示範囲外so触っていない。同じ症状の報告が来たら同じ1クラス追加で直る
+【検証】build成功・eslint 0 error（警告=既存のみ）・distに cb-box-overlay cb-lock-scroll の包含をgrep確認。
+実機目視の残り：応募確認ボックスを開いて背後がスクロールしないか／日程チップ選択でレーンが動かないか／
+閉じたら（戻る・外タップ）スクロールが戻るか
+━━━ ここまで ━━━
