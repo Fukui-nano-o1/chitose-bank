@@ -17,7 +17,7 @@ const DEST_INK = ["#2D5A1B","#1A3F6B","#7A3D10","#5C3080","#8B2518","#1A5E5E","#
 // 審査セクションのURLキー（#/admin/review/{key}）。ボックス格子の並びと一致させる唯一の正本。
 // 数字（#/admin/review/{job_number}）は求人審査プレビューへの深いリンク（従来どおり）。
 // 「jobs（求人審査）」「prs（自由記述審査）」は承認プロセスの削除（2026-08-14）で廃止＝掲載・保存は即公開に
-const REVIEW_SECTION_KEYS = ["accounts","reports","disputes","questions","withdrawals","contracts"];
+const REVIEW_SECTION_KEYS = ["accounts","disputes","questions","withdrawals","contracts"]; // reports は #/admin/reports（統合報告ページ）へ独立（2026-08-15）
 
 // 日付キー（YYYY-MM-DD）はローカル整形で統一する。toISOString().slice(0,10)は
 function destColor(name){ if(!name)return"#888"; let h=0; for(const c of name) h=(h*37+c.charCodeAt(0))>>>0; return DEST_INK[h%DEST_INK.length]; }
@@ -212,6 +212,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [reports, setReports] = useState(() => getCache("admin:console")?.reports || []); // 通報（job_reports）
   const [msgReports, setMsgReports] = useState(() => getCache("admin:console")?.msgReports || []); // チャットのコメント報告（message_reports・2026-07-19）
   const [profReports, setProfReports] = useState(() => getCache("admin:console")?.profReports || []); // 働き手プレビューからの報告（profile_reports・2026-08-06）
+  const [fbReports, setFbReports] = useState(() => getCache("admin:console")?.fbReports || []); // 画面の報告（feedback・2026-08-15）。表示は統合報告ページ＝ここではバッジの数のみ
   const [adminQuestions, setAdminQuestions] = useState(() => getCache("admin:console")?.adminQuestions || []); // 求人Q&A（job_questions・第10弾・非表示スイッチ）
   const [qHidingId, setQHidingId] = useState(null);
   const hideQuestion = async (id, hidden) => {
@@ -261,7 +262,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const load = useCallback(async () => {
     // 前回内容を表示中ならスピナーで隠さない（裏で差し替え）。初回だけ読み込み中を出す
     if (!getCache("admin:console")) setLoading(true);
-    const [fr, de, re, jr, av, la, mr, jq, wd, pr] = await Promise.all([
+    const [fr, de, re, jr, av, la, mr, jq, wd, pr, fb] = await Promise.all([
       supabase.from("farmers").select("*").order("created_at", { ascending: false }),
       supabase.from("dests").select("*").order("name"),
       supabase.from("records").select("*").order("year,month"),
@@ -272,6 +273,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       supabase.from("job_questions").select("*").order("created_at",{ascending:false}),
       supabase.from("withdrawal_requests").select("*").is("processed_at", null).order("requested_at",{ascending:true}),
       supabase.from("profile_reports").select("*").order("created_at",{ascending:false}),
+      supabase.from("feedback").select("id,status").order("created_at",{ascending:false}),
     ]);
     // 成功した分だけを反映し、同じものをviewCacheへ写す（次に開いた時・引き下げ更新後は即描画）
     const next = {};
@@ -285,6 +287,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (!jq.error) next.adminQuestions = jq.data || [];
     if (!wd.error) next.withdrawals = wd.data || [];
     if (!pr.error) next.profReports = pr.data || [];
+    if (!fb.error) next.fbReports = fb.data || [];
     if (next.farmers) setFarmers(next.farmers);
     if (next.dests) setDests(next.dests);
     if (next.records) setRecords(next.records);
@@ -295,6 +298,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (next.adminQuestions) setAdminQuestions(next.adminQuestions);
     if (next.withdrawals) setWithdrawals(next.withdrawals);
     if (next.profReports) setProfReports(next.profReports);
+    if (next.fbReports) setFbReports(next.fbReports);
     setCache("admin:console", { ...(getCache("admin:console") || {}), ...next });
     setLoading(false);
   }, []);
@@ -313,21 +317,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   // 現在の登録フローは farmers 行を作らない＝キューに新規that入らず、farmers.status を見る
   // ポリシー・関数もゼロ＝承認しても何も変わらない死んだ機能だった。アカウントの統制は
   // signup_open（入口・キルスイッチ）＋account_holders（本人確認）＋account_moderation（停止/追放）that担う
-  const resolveReport = async (r) => {
-    const { error } = await supabase.from("job_reports").update({ status: "resolved" }).eq("id", r.id);
-    if (error) { alert("更新に失敗しました：" + error.message); return; }
-    setReports(prev => prev.map(x => x.id === r.id ? { ...x, status: "resolved" } : x));
-  };
-  const resolveMsgReport = async (r) => {
-    const { error } = await supabase.from("message_reports").update({ status: "resolved" }).eq("id", r.id);
-    if (error) { alert("更新に失敗しました：" + error.message); return; }
-    setMsgReports(prev => prev.map(x => x.id === r.id ? { ...x, status: "resolved" } : x));
-  };
-  const resolveProfReport = async (r) => {
-    const { error } = await supabase.from("profile_reports").update({ status: "resolved" }).eq("id", r.id);
-    if (error) { alert("更新に失敗しました：" + error.message); return; }
-    setProfReports(prev => prev.map(x => x.id === r.id ? { ...x, status: "resolved" } : x));
-  };
+  // resolveReport/resolveMsgReport/resolveProfReport は統合報告ページ（AdminReportsRoom・2026-08-15）へ移設
 
   const publishJob = async (jobNumber) => {
     if (publishing) return;
@@ -420,7 +410,8 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const openReports = reports.filter(r => r.status !== "resolved");
   const openMsgReports = msgReports.filter(r => r.status !== "resolved");
   const openProfReports = profReports.filter(r => r.status !== "resolved");
-  const reviewTotal = openReports.length + openMsgReports.length + openProfReports.length + disputes.length;
+  const openFbReports = fbReports.filter(r => r.status !== "resolved"); // 画面の報告（2026-08-15・バッジ用）
+  const reviewTotal = openReports.length + openMsgReports.length + openProfReports.length + openFbReports.length + disputes.length;
   const TOP_TABS = [
     { k:"jobs",    l:"審査",       n: reviewTotal },
     { k:"account", l:"アカウント", n: null },
@@ -891,13 +882,13 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       {sub==="jobs" && !reviewSec && !loading && (
         <div className="fade-in" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
           {[
-            { k:"reports",  l:"通報",           n:openReports.length + openMsgReports.length + openProfReports.length },
+            { k:"reports",  l:"通報",           n:openReports.length + openMsgReports.length + openProfReports.length + openFbReports.length },
             { k:"disputes", l:"欠勤異議",       n:disputes.length },
             { k:"questions",l:"質問",           n:0 },
             { k:"withdrawals", l:"退会申請",    n:withdrawals.length },
             { k:"contracts",l:"契約記録",       n:0 },
           ].map(c => (
-            <button key={c.k} onClick={()=>goReview(c.k)} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <button key={c.k} onClick={()=>{ if (c.k === "reports") { window.location.hash = "/admin/reports"; return; } goReview(c.k); }} className="f-sans" style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               {c.n > 0 && (
                 <span style={{ position:"absolute", top:10, right:10, minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{c.n}</span>
               )}
@@ -910,72 +901,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
         <div className="fade-in" style={{ display:"grid", gap:16 }}>
         <button onClick={backToReviewGrid} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
 
-        {/* ④ 通報（job_reports。対応済みで一覧から消える） */}
-        {reviewSec==="reports" && (
-        <div>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 10px" }}>通報{openReports.length > 0 ? `（${openReports.length}）` : ""}</p>
-          <div style={{ display:"grid", gap:12 }}>
-            {openReports.length === 0 ? (
-              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>未対応の通報はありません</p>
-            ) : openReports.map(r => (
-              <div key={r.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>求人 #{r.job_number}　<span style={{ color:"#E24B4A" }}>{r.issue_type}</span></p>
-                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{r.created_at ? new Date(r.created_at).toLocaleString("ja-JP") : ""}</span>
-                </div>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>対象：{r.target_field}{r.detail ? `　${r.detail}` : ""}</p>
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={()=>setPreviewJobNumber(r.job_number)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>求人を見る</button>
-                  <button onClick={()=>resolveReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {/* チャットのコメント報告（message_reports・2026-07-19）：本文は報告時点の凍結コピー */}
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 10px" }}>チャットのコメント報告{openMsgReports.length > 0 ? `（${openMsgReports.length}）` : ""}</p>
-          <div style={{ display:"grid", gap:12 }}>
-            {openMsgReports.length === 0 ? (
-              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>未対応のコメント報告はありません</p>
-            ) : openMsgReports.map(r => (
-              <div key={r.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#E24B4A", margin:0 }}>{r.reason}</p>
-                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{r.created_at ? new Date(r.created_at).toLocaleString("ja-JP") : ""}</span>
-                </div>
-                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:"0 0 8px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#F7F7F7", borderRadius:8, padding:"8px 10px" }}>{r.body_snapshot}</p>
-                {r.detail && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px" }}>補足：{r.detail}</p>}
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 10px" }}>応募ID：{String(r.application_id || "").slice(0, 8)}…　発言者：{String(r.sender_id_snapshot || "").slice(0, 8)}…　報告者：{String(r.reporter_id || "").slice(0, 8)}…</p>
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={()=>resolveMsgReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {/* 働き手プレビューからの報告（profile_reports・2026-08-06）：どちらの面から出したかを source で見分ける */}
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 10px" }}>働き手プレビューの報告{openProfReports.length > 0 ? `（${openProfReports.length}）` : ""}</p>
-          <div style={{ display:"grid", gap:12 }}>
-            {openProfReports.length === 0 ? (
-              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>未対応の報告はありません</p>
-            ) : openProfReports.map(r => (
-              <div key={r.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:6 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#E24B4A", margin:0 }}>{r.issue_type}</p>
-                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{r.created_at ? new Date(r.created_at).toLocaleString("ja-JP") : ""}</span>
-                </div>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px" }}>面：{r.source === "work_record" ? "はたらいた記録" : "プロフィール"}　対象：{r.target_field}</p>
-                {r.detail && <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:"0 0 8px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", background:"#F7F7F7", borderRadius:8, padding:"8px 10px" }}>{r.detail}</p>}
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 10px" }}>相手：{String(r.target_worker_id || "").slice(0, 8)}…　報告者：{String(r.reporter_id || "").slice(0, 8)}…</p>
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={()=>openWorkerPreview(r.target_worker_id)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>働き手を見る</button>
-                  <button onClick={()=>resolveProfReport(r)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>対応済みにする</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        )}
-
-        {/* 求人への質問（job_questions・第10弾）：不適切なQ&Aを「非表示にする」で公開から外す */}
+        {/* 通報の一覧は統合報告ページ（#/admin/reports・AdminReportsRoom・2026-08-15）へ一本化。格子の「通報」カードから遷移 */}
         {reviewSec==="questions" && (
         <div>
           <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 6px" }}>求人への質問{adminQuestions.length > 0 ? `（${adminQuestions.length}）` : ""}</p>
