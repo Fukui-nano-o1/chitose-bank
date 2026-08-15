@@ -136,8 +136,8 @@ function PublishChoiceCard({ jobNumber, onClose }) {
         <button onClick={()=>{ onCloseRef.current?.(); window.location.hash = "/work/job/" + jobNumber; }} className="f-sans"
           style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", marginBottom:8 }}>掲載した求人を見る</button>
       )}
-      <button onClick={()=>onCloseRef.current?.()} className="f-sans"
-        style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:600, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>プロフィールに戻る</button>
+      <button onClick={()=>{ onCloseRef.current?.(); window.location.hash = "/profile/employer/active"; }} className="f-sans"
+        style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:600, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>一覧に戻る</button>
     </div>
   );
 }
