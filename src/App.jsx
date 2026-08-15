@@ -120,6 +120,28 @@ function ApplyDoneNote({ promoted = 0, already = false, pending = false, worker 
   );
 }
 
+// 掲載祝祭のあとの選択カード（2026-08-07たきと指示「アニメーション終了後、60秒間静止。
+// 掲載した求人を見る／プロフィールに戻る を表示」）。背景は暗くせず静止＝ページの上に浮かぶカード1枚。
+// 60秒たったら黙って消える（同時に走る60秒アイドル見張りthaがさがすへ送る・操作すればどちらも止まる）
+function PublishChoiceCard({ jobNumber, onClose }) {
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  useEffect(() => {
+    const t = setTimeout(() => onCloseRef.current?.(), 60 * 1000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="cb-sheet-up" style={{ position:"fixed", left:24, right:24, bottom:"calc(64px + 24px + env(safe-area-inset-bottom, 0px))", zIndex:11000, maxWidth:360, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.28)", padding:"18px 16px" }}>
+      <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 12px", textAlign:"center" }}>掲載が完了しました</p>
+      {jobNumber && (
+        <button onClick={()=>{ onCloseRef.current?.(); window.location.hash = "/work/job/" + jobNumber; }} className="f-sans"
+          style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", marginBottom:8 }}>掲載した求人を見る</button>
+      )}
+      <button onClick={()=>onCloseRef.current?.()} className="f-sans"
+        style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:600, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>プロフィールに戻る</button>
+    </div>
+  );
+}
+
 function PublishIdleRedirect({ seconds = 60, onEnd }) {
   const onEndRef = useRef(onEnd); onEndRef.current = onEnd;
   useEffect(() => {
@@ -1557,6 +1579,7 @@ export default function App(){
   // 祝祭が消えたあと、60秒ノーアクションなら さがす へ自動遷移（何かタップ/操作すれば取り消す）。
   const [pubCelebrate,setPubCelebrate]=useState(null); // { open:bool } | null（3秒の祝祭）
   const [pubIdle,setPubIdle]=useState(false);          // 60秒アイドル→/search の見張り
+  const [pubChoice,setPubChoice]=useState(null);       // 祝祭後の選択カード { open, jobNumber } | null（60秒で自動的に消える）
   // 応募完了も「ページ」でなくアニメーション化（2026-08-07たきと指示・①）。祝祭＋法的一言トースト＋
   // 応募状況に着地＋60秒ノーアクションで さがす。法的一文（まだ採用でない・当事者間契約）は消さずトーストで残す。
   const [applyNote,setApplyNote]=useState(false); // 着地先で1回だけ出す法的一言トースト
@@ -2975,8 +2998,9 @@ export default function App(){
 
       {/* 掲載完了はページでなくアニメーション（2026-08-07たきと指示）。タブに依らずグローバルに出す＝
           掲載後に /profile/employer へ遷移した先で祝祭that重なり、60秒ノーアクションで さがす へ送る */}
-      {pubCelebrate && <Celebration emoji={pubCelebrate.open ? "🎉" : "🌱"} title={pubCelebrate.open ? "公開しました！" : "求人ができました！"} onDone={()=>setPubCelebrate(null)} />}
-      {pubIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setPubIdle(false); if (fired) window.location.hash="/search"; }} />}
+      {pubCelebrate && <Celebration emoji={pubCelebrate.open ? "🎉" : "🌱"} title={pubCelebrate.open ? "公開しました！" : "求人ができました！"} onDone={()=>{ setPubChoice({ open: pubCelebrate.open, jobNumber: pubCelebrate.open ? pubCelebrate.jobNumber : null }); setPubCelebrate(null); }} />}
+      {pubChoice && <PublishChoiceCard jobNumber={pubChoice.jobNumber} onClose={()=>setPubChoice(null)} />}
+      {pubIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setPubIdle(false); if (fired) { setPubChoice(null); window.location.hash="/search"; } }} />}
 
       {/* 応募完了もアニメーション（2026-08-07・①）。祝祭（新規到着のみ）＋法的トースト＋60秒アイドル→さがす。
           着地先（応募状況）の上に重なる。promotedCount/applyAlready で見出しを出し分ける */}
@@ -3008,7 +3032,7 @@ export default function App(){
       {me&&showJobPost&&(
         <AppErrorBoundary><Suspense fallback={<FlowLoading />}><LandingFlow
           initialRole="farmer"
-          onPublished={(wasOpen)=>{ setShowJobPost(false); window.location.hash="/profile/employer"; setPubCelebrate({ open: !!wasOpen }); setPubIdle(true); }}
+          onPublished={(wasOpen, jobNumber)=>{ setShowJobPost(false); window.location.hash="/profile/employer"; setPubCelebrate({ open: !!wasOpen, jobNumber: jobNumber || null }); setPubIdle(true); }}
           onComplete={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}

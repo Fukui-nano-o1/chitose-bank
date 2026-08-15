@@ -2202,7 +2202,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 // App側で祝祭アニメ＋60秒アイドル→さがす を出す。onPublished 未指定時のみ従来の完了ページに倒す
                 // 掲載＝即公開の祝祭。修正のお願い中の再掲載（publishedNow=false）だけ
                 // 「公開の準備が整いしだい」側に分岐（2026-08-14）
-                if (typeof onPublished === "function") { onPublished(publishedNow); }
+                if (typeof onPublished === "function") { onPublished(publishedNow, _jn); }
                 else { setPublishedOpen(publishedNow); setStep(12); }
               } catch (e) {
                 alert("【管理者デバッグ】catch: " + (e?.message || e));
