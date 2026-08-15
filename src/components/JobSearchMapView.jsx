@@ -7,6 +7,7 @@ import { openLoginBox } from "../lib/previewBus";
 import { isAdmin, ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
+import { snapGet } from "../lib/snapshot";
 import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds } from "../lib/searchJobs";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
@@ -634,6 +635,16 @@ export function JobSearchMapView({ onRegister, me }) {
       if (data && data.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return; }
       if (data && data.ok) {
         try { if (data.already) sessionStorage.setItem("cb_applyAlready","1"); else sessionStorage.removeItem("cb_applyAlready"); } catch {}
+        // 応募祝祭のビジュアル素材（2026-08-07）：自分のアイコン＋応募した求人のカード。
+        // 表示専用の受け渡し（sessionStorage・着地側で1回消費）
+        try {
+          const wm = snapGet("wMini");
+          sessionStorage.setItem("cb_applyVisual", JSON.stringify({
+            avatar: wm?.avatar_url || "", name: wm?.nickname || "",
+            photo: photoThumb(selectedJob.photos?.[0]) || "",
+            crop: selectedJob.crop || "", task: selectedJob.task || "", city: selectedJob.city || "",
+          }));
+        } catch {}
         window.location.hash = "/apply/done";
       }
       else if (data && data.reason === "not_logged_in") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); }

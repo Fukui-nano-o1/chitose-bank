@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } f
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, farmHostQa, perkBadges, isUpcomingSoon, workerQaItems } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
-import { Celebration } from "./components/Celebration";
+import { Celebration, ApplyCelebrationVisual } from "./components/Celebration";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots, QaChat } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
@@ -1550,6 +1550,9 @@ export default function App(){
   // 応募完了の祝祭（2026-08-06・赤ちゃん前提の第0歩）：apply/doneに新規到着した時だけ1回。
   // 応募済み（already）の再訪では祝わない。演出のみ＝記録・フローには触れない
   const [applyBurst,setApplyBurst]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")!=="1");
+  // 応募祝祭のビジュアル（2026-08-07たきと指示「アイコン削除。求職者アイコン→求人カードに」）：
+  // 応募成功時にJobSearchMapViewが積んだ素材（自分のアイコン＋求人カード）。無ければ従来の📩に倒れる
+  const [applyVisual,setApplyVisual]=useState(()=>{ try { const v = sessionStorage.getItem("cb_applyVisual"); return v ? JSON.parse(v) : null; } catch { return null; } });
   // 求人の掲載完了は「ページ」でなくアニメーション（祝祭）に（2026-08-07たきと指示）。
   // 祝祭が消えたあと、60秒ノーアクションなら さがす へ自動遷移（何かタップ/操作すれば取り消す）。
   const [pubCelebrate,setPubCelebrate]=useState(null); // { open:bool } | null（3秒の祝祭）
@@ -1632,6 +1635,7 @@ export default function App(){
           setApplyBurst(!already); // 新しい応募の到着だけ祝う（2026-08-06）
         } catch {}
         try { setPromotedCount(Number(sessionStorage.getItem("cb_promoted") || 0)); sessionStorage.removeItem("cb_promoted"); } catch {}
+        try { const v = sessionStorage.getItem("cb_applyVisual"); setApplyVisual(v ? JSON.parse(v) : null); sessionStorage.removeItem("cb_applyVisual"); } catch { setApplyVisual(null); }
       }
       const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
       setChatAppId(_cm ? _cm[1] : null);
@@ -2976,7 +2980,9 @@ export default function App(){
 
       {/* 応募完了もアニメーション（2026-08-07・①）。祝祭（新規到着のみ）＋法的トースト＋60秒アイドル→さがす。
           着地先（応募状況）の上に重なる。promotedCount/applyAlready で見出しを出し分ける */}
-      {applyBurst && <Celebration emoji="📩" title={promotedCount > 0 ? `${promotedCount}件を届けました` : "応募できました"} onDone={()=>setApplyBurst(false)} />}
+      {applyBurst && <Celebration emoji="📩"
+        custom={promotedCount > 0 ? null : (applyVisual ? <ApplyCelebrationVisual {...applyVisual} /> : null)}
+        title={promotedCount > 0 ? `${promotedCount}件を届けました` : "応募できました"} onDone={()=>setApplyBurst(false)} />}
       {applyNote && <ApplyDoneNote promoted={promotedCount} already={applyAlready} onClose={()=>setApplyNote(false)} />}
       {/* 仮応募の新規到着もアニメーション（2026-08-07・②ハイブリッド）。祝祭＋案内トースト。
           再訪は従来どおり ApplyPending のチェックリストページ（残り項目の受け皿）を出す */}

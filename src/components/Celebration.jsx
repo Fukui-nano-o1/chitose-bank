@@ -10,6 +10,7 @@
 // ・keyframesは使用箇所に同居（委託入場・HireStagePanelと同じ作法）
 import { useEffect, useRef, useState } from "react";
 import { fbCelebrate } from "../lib/feedback";
+import { Avatar } from "./ui";
 
 // 追い花火の抽選（委託入場の makeConsignGrass と同じ思想＝毎回違う夜空）。
 // 1発＝閃光＋菊の光条（長短交互の光条＋先端の粒＝委託の炸裂SVGと同じ構造）
@@ -49,7 +50,33 @@ function BurstSVG({ rays, spin, color, stroke = 1 }) {
   );
 }
 
-export function Celebration({ emoji = "🎉", title = "", duration = 3000, onDone }) {
+// 応募の祝祭ビジュアル（2026-08-07たきと指示「応募できましたはアイコン削除。求職者アイコン→求人カードにする」）。
+// 絵文字の代わりに Celebration の custom に渡して押印させる。★Celebrationの中でだけ使う
+// （矢印の脈動 cbFb2Arrow のkeyframesは Celebration の<style>にある）。
+// avatar/name＝応募した働き手、photo/crop/task/city＝応募先の求人カード（写真なしは🌾の下地）
+export function ApplyCelebrationVisual({ avatar, name, photo, crop, task, city }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+      <div style={{ borderRadius:"50%", flexShrink:0, boxShadow:"0 0 0 3px #fff, 0 10px 30px rgba(0,0,0,.5)" }}>
+        <Avatar url={avatar || null} name={name || "？"} size={72} />
+      </div>
+      <span aria-hidden="true" style={{ fontSize:34, fontWeight:900, color:"#fff", textShadow:"0 2px 12px rgba(0,0,0,.6)",
+        animation:"cbFb2Arrow 0.9s ease-in-out .95s infinite" }}>→</span>
+      <div style={{ width:150, flexShrink:0, background:"#fff", borderRadius:14, overflow:"hidden", boxShadow:"0 10px 30px rgba(0,0,0,.5)" }}>
+        {photo
+          ? <img src={photo} alt="" style={{ width:"100%", height:88, objectFit:"cover", display:"block" }} />
+          : <div style={{ width:"100%", height:88, background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }} aria-hidden="true">🌾</div>}
+        <div style={{ padding:"8px 10px 10px" }}>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[crop, task].filter(Boolean).join(" ") || "求人"}</p>
+          {city && <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{city}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// custom＝押印スロットに絵文字の代わりに差し込むJSX（応募のアイコン→求人カード等）。無指定なら従来どおり絵文字
+export function Celebration({ emoji = "🎉", title = "", duration = 3000, custom = null, onDone }) {
   const onDoneRef = useRef(onDone); onDoneRef.current = onDone;
   const [shells] = useState(makeShells); // マウント時に1回だけ抽選（再レンダーで夜空が変わらない）
   useEffect(() => {
@@ -87,6 +114,9 @@ export function Celebration({ emoji = "🎉", title = "", duration = 3000, onDon
         @keyframes cbFb2Title { 0% { transform:translateY(18px) scale(.7); opacity:0; }
                                 60% { transform:translateY(0) scale(1.06); opacity:1; }
                                 100% { transform:translateY(0) scale(1); opacity:1; } }
+        /* 応募ビジュアルの矢印：働き手→求人カードへ流れる脈動（ApplyCelebrationVisualが使う） */
+        @keyframes cbFb2Arrow { 0%,100% { transform:translateX(-5px); opacity:.55; }
+                                50% { transform:translateX(5px); opacity:1; } }
       `}</style>
       {/* 暗幕（0.18sで落ちる→終わりで引く）。花火が見えるのはこの闇があるから */}
       <div style={{ position:"absolute", inset:0, background:"rgba(8,10,8,.82)",
@@ -120,8 +150,12 @@ export function Celebration({ emoji = "🎉", title = "", duration = 3000, onDon
         {/* 押印の絵文字＋題字（炸裂と同時に叩き込む・overlay内だけ揺れる） */}
         <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           animation:"cbFb2Shake .5s ease-out .45s both" }}>
-          <span style={{ fontSize:"min(38vw, 170px)", lineHeight:1, animation:"cbFb2Stamp .55s cubic-bezier(.2,1.5,.4,1) .45s both",
-            filter:"drop-shadow(0 10px 30px rgba(0,0,0,.5))" }}>{emoji}</span>
+          {custom ? (
+            <div style={{ animation:"cbFb2Stamp .55s cubic-bezier(.2,1.5,.4,1) .45s both" }}>{custom}</div>
+          ) : (
+            <span style={{ fontSize:"min(38vw, 170px)", lineHeight:1, animation:"cbFb2Stamp .55s cubic-bezier(.2,1.5,.4,1) .45s both",
+              filter:"drop-shadow(0 10px 30px rgba(0,0,0,.5))" }}>{emoji}</span>
+          )}
           {title && (
             <p className="f-sans" style={{ margin:"18px 0 0", fontSize:"min(7vw, 30px)", fontWeight:900, color:"#fff",
               letterSpacing:".04em", textShadow:"0 2px 18px rgba(0,0,0,.6)",

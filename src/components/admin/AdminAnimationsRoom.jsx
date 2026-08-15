@@ -7,13 +7,16 @@
 //   （洗い出しは grep "<Celebration" と grep "setCelebrate({"）。
 // 読み取り専用＝supabaseをimportしない。試し打ちの入力はその場の再生にだけ使い、どこにも保存しない。
 import { useState } from "react";
-import { Celebration } from "../Celebration";
+import { Celebration, ApplyCelebrationVisual } from "../Celebration";
 import { AdminNav } from "./AdminNav";
 
 // 本番で祝祭（Celebration）thaが出る全場面（2026-08-07時点・11場面）。
 // where＝どの画面のどの操作で出るか／src＝呼び出し元ファイル
 const CELEBRATIONS = [
-  { emoji:"📩", title:"応募できました",           where:"応募を送った直後（応募状況に着地して再生）", src:"App.jsx" },
+  // 応募できました＝絵文字でなく「求職者アイコン→求人カード」の押印（2026-08-07たきと指示）。
+  // 本番は応募した本人のアイコンと応募先の実カード。ここでは架空の見本（部品は本物）
+  { emoji:"", title:"応募できました",             where:"応募を送った直後（求職者アイコン→求人カードの押印）", src:"App.jsx",
+    visual:{ avatar:"", name:"はなこ", photo:"", crop:"ブロッコリー", task:"収穫", city:"吉野川市" } },
   { emoji:"📩", title:"2件を届けました",          where:"仮応募の昇格（プロフィール完成で届いた時。件数は実数）", src:"App.jsx", note:"件数は promotedCount の実数。ここでは2件で再生" },
   { emoji:"✅", title:"仮応募をお預かりしました", where:"プロフィール未完成のまま応募した直後", src:"App.jsx" },
   { emoji:"🎉", title:"公開しました！",           where:"求人の掲載（即公開）", src:"App.jsx" },
@@ -47,9 +50,9 @@ export function AdminAnimationsRoom() {
       </div>
 
       {CELEBRATIONS.map((c, i) => (
-        <button key={i} onClick={()=>setPlaying({ emoji:c.emoji, title:c.title })} className="f-sans"
+        <button key={i} onClick={()=>setPlaying({ emoji:c.emoji, title:c.title, visual:c.visual || null })} className="f-sans"
           style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", marginBottom:10, cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
-          <span style={{ fontSize:26, lineHeight:1, flexShrink:0 }} aria-hidden="true">{c.emoji}</span>
+          <span style={{ fontSize:26, lineHeight:1, flexShrink:0, minWidth:30, textAlign:"center" }} aria-hidden="true">{c.emoji || "→"}</span>
           <span style={{ minWidth:0, flex:1 }}>
             <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{c.title}</span>
             <span className="f-sans" style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{c.where}（{c.src}）{c.note ? `・${c.note}` : ""}</span>
@@ -84,7 +87,7 @@ export function AdminAnimationsRoom() {
       ))}
 
       {/* 再生（本物のCelebration・pointer-events:none・約3秒で自動終了） */}
-      {playing && <Celebration emoji={playing.emoji} title={playing.title} onDone={()=>setPlaying(null)} />}
+      {playing && <Celebration emoji={playing.emoji || "🎉"} custom={playing.visual ? <ApplyCelebrationVisual {...playing.visual} /> : null} title={playing.title} onDone={()=>setPlaying(null)} />}
     </div>
   );
 }
