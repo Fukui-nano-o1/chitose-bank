@@ -284,12 +284,24 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     const k = BOX_ORDER.find(b => !boxFilled(b));   // 先頭から最初の未入力（nextUnfilledBoxは「次」so先頭を飛ばす）
     if (k) setEditBox(k);
   }, [loading]);   // eslint-disable-line react-hooks/exhaustive-deps -- 読み込み完了の1回だけ走らせる（入力途中の再判定はしない）
+  // 保存失敗を運営が追えるように記録（app_errors・システムページに出る）。失敗しても保存フローは妨げない
+  const logSaveError = (msg) => {
+    try {
+      supabase.from("app_errors").insert({
+        level: "error", source: "client", component: "WorkerProfileEdit", action: "profile_save",
+        message: String(msg || "不明").slice(0, 500), page: (typeof window !== "undefined" ? window.location.hash : ""),
+        user_agent: (typeof navigator !== "undefined" ? navigator.userAgent : ""),
+      }).then(() => {}, () => {});
+    } catch {}
+  };
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setSaving(false); return; }
+      // ★保存を無言で終わらせない（2026-08-14たきと指示「保存したら即反映」＝失敗も必ず喋らせる）。
+      // 従来はセッション切れだと何も言わずreturn＝「保存しました」も「失敗」も出ない迷子だった
+      if (!session) { setSaving(false); alert("ログインが確認できませんでした。ページを開き直して、もう一度保存してください。"); return; }
       // 比べる土台を保存の直前に取り直す（2026-08-14たきと報告「応募するたびに自己紹介の申請がくる」）：
       // 画面を開いたまま運営that承認すると approvedRef が古いままになり、同じ内容をもう一度
       // 審査に出していた（承認直後は old.pending が null so 通知トリガーの変更なしスキップも
@@ -376,8 +388,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         }
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
       }
-      else alert("保存に失敗しました：" + error.message);
-    } catch { setSaving(false); alert("保存に失敗しました。"); }
+      else { logSaveError(error.message); alert("保存に失敗しました：" + error.message); }
+    } catch (e) { setSaving(false); logSaveError(e?.message || e); alert("保存に失敗しました。"); }
   };
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）
   if (loading) return <AutoSkeleton fallbackHeight={92} fallbackCount={5} />;

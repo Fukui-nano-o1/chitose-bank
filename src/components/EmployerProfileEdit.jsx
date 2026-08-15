@@ -367,12 +367,24 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     const k = BOX_ORDER.find(b => !boxFilled(b));   // 先頭から最初の未入力
     if (k) setEditBox(k);
   }, [loading]);   // eslint-disable-line react-hooks/exhaustive-deps -- 読み込み完了の1回だけ
+  // 保存失敗を運営が追えるように記録（app_errors・システムページに出る）。失敗しても保存フローは妨げない
+  const logSaveError = (msg) => {
+    try {
+      supabase.from("app_errors").insert({
+        level: "error", source: "client", component: "EmployerProfileEdit", action: "profile_save",
+        message: String(msg || "不明").slice(0, 500), page: (typeof window !== "undefined" ? window.location.hash : ""),
+        user_agent: (typeof navigator !== "undefined" ? navigator.userAgent : ""),
+      }).then(() => {}, () => {});
+    } catch {}
+  };
   const save = async (stay = false) => {
     if (saving) return;
     setSaving(true); setSaved(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setSaving(false); return; }
+      // ★保存を無言で終わらせない（2026-08-14たきと指示「保存したら即反映」＝失敗も必ず喋らせる）。
+      // 従来はセッション切れだと何も言わずreturn＝「保存しました」も「失敗」も出ない迷子だった
+      if (!session) { setSaving(false); alert("ログインが確認できませんでした。ページを開き直して、もう一度保存してください。"); return; }
       // 自由記述は直接公開しない（2026-07-16・憲法5条）：承認済み値と異なるキーだけをtexts_pendingに積み、運営承認で公開される
       const desiredTexts = {
         owner_comment: ownerComment || "", intro_path: introPath || "", intro_joy: introJoy || "",
@@ -448,8 +460,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         }
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
       }
-      else alert("保存に失敗しました：" + error.message);
-    } catch { setSaving(false); alert("保存に失敗しました。"); }
+      else { logSaveError(error.message); alert("保存に失敗しました：" + error.message); }
+    } catch (e) { setSaving(false); logSaveError(e?.message || e); alert("保存に失敗しました。"); }
   };
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
   if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
