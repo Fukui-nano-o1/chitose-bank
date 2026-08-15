@@ -4586,8 +4586,14 @@ draftへ引き下げ・再掲載は運営確認制20260814093042）②アカウ�
 ・修理＝overlayを cb-box-overlay cb-lock-scroll の併用に（同ファイルの仮応募案内ボックス967行と同じ作法）。
   副効果（正）：レーン横スワイプのガード（227行 closest(".cb-lock-scroll")）が効くようになり、
   ボックス内のタッチ（日程チップ選択等）で背後のレーンが切り替わる事故も同時に塞がった
-・他の cb-box-overlay 単独箇所（likeDone・draftPrompt・お知らせ・recruitBox・契約詳細・台帳プレビュー）は
-  指示範囲外so触っていない。同じ症状の報告が来たら同じ1クラス追加で直る
+・★同日たきと指示「他の6つも同様に」＝残りの cb-box-overlay 単独6箇所にも同じ1クラス追加を適用：
+  お知らせポップアップ（App.jsx）・いいね完了（JobSearchMapView）・下書き再開（MyCalendar）・
+  募集者情報入力（LandingFlow recruitBox）・契約スナップショット詳細（AdminTab）・
+  お知らせ台帳プレビュー（AdminBoxRegistryPage）。これで cb-box-overlay 単独=0件（grep実測）＝
+  ★規約：全画面被せのボックスは cb-box-overlay cb-lock-scroll の併用が標準形。新設時も必ず併用する
+・recruitBox の注意（調査済み・コメントにも記載）：このボックスは flowScrollRef（フロー自前スクロール領域
+  1346-2850行）の外側so cb-lock-scroll だけで足りる。553行の「2枚で塞ぐ」（flowScrollLock）が要るのは
+  スクロール領域の【内側】に開くモーダル（perksEdit等）の話＝取り違えない
 【検証】build成功・eslint 0 error（警告=既存のみ）・distに cb-box-overlay cb-lock-scroll の包含をgrep確認。
 実機目視の残り：応募確認ボックスを開いて背後がスクロールしないか／日程チップ選択でレーンが動かないか／
 閉じたら（戻る・外タップ）スクロールが戻るか
