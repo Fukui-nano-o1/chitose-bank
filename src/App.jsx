@@ -7,6 +7,8 @@ import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots, QaChat } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
+import ReportHub from "./components/ReportHub";
+import { openReportHub } from "./lib/previewBus";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
 // チャンク取りこぼしの自己修復（2026-07-26導入・2026-08-07改修）：
 // 新デプロイでチャンク名（ハッシュ）が変わるため、古いページを握ったままの端末は旧チャンクを
@@ -1011,77 +1013,8 @@ const HELP_CONTENT = {
   },
 };
 
-// 💬この画面を報告（Part B）。feedbackテーブルのcategory CHECK制約と対応
-const FEEDBACK_CATEGORIES = [
-  { v:"confusing",   l:"分かりにくい" },
-  { v:"broken",      l:"動かない" },
-  { v:"typo",        l:"誤字・表示" },
-  { v:"suggestion",  l:"提案" },
-  { v:"other",       l:"その他" },
-];
-
-// この画面を報告（Part B）のモーダル本体。☰の開閉やヘルプの章開閉と無関係な階層（App直下）に
-// 1個だけ常駐させ、open/onCloseで外部から制御する。過去バージョンはトリガーボタンと同居させていたため、
-// ☰を閉じるとトリガーごとアンマウントされモーダルが開かないバグがあった（2026-07-14修正）
-function FeedbackModal({ open, onClose }) {
-  const [category, setCategory] = useState("");
-  const [body, setBody] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent] = useState(false);
-  useEffect(() => {
-    if (open) { setCategory(""); setBody(""); setSent(false); }
-  }, [open]);
-  const submit = async () => {
-    if (!category || submitting) return;
-    setSubmitting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setSubmitting(false); return; }
-      const { error } = await supabase.from('feedback').insert({
-        reporter_id: session.user.id,
-        page_hash: window.location.hash || '#/',
-        category, body: body.trim() || null,
-        viewport: window.innerWidth,
-      });
-      if (error) { alert('送信に失敗しました：' + error.message); setSubmitting(false); return; }
-      setSent(true);
-    } catch { alert('送信に失敗しました。'); }
-    setSubmitting(false);
-  };
-  if (!open) return null;
-  return (
-    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%" }}>
-        {sent ? (
-          <>
-            <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>ありがとうございます。改善に使わせていただきます</p>
-            <button onClick={onClose} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
-          </>
-        ) : (
-          <>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>この画面を報告</p>
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
-              {FEEDBACK_CATEGORIES.map(c => (
-                <button key={c.v} type="button" onClick={() => setCategory(c.v)} className="f-sans" style={{
-                  padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer", border:"2px solid",
-                  borderColor: category===c.v ? "#00A86B" : "#EBEBEB",
-                  background: category===c.v ? "#E6F7EF" : "#fff", color: category===c.v ? "#00A86B" : "#222",
-                }}>{c.l}</button>
-              ))}
-            </div>
-            <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="どの部分が、どうでしたか？" rows={4}
-              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>操作の記録としてページ名が運営に送られます</p>
-            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-              <button onClick={onClose} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-              <button onClick={submit} disabled={submitting || !category} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: category ? "#00A86B" : "#EBEBEB", color: category ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{submitting ? "送信中..." : "送信する"}</button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+// 💬この画面を報告：旧FeedbackModalは統合報告ハブ（components/ReportHub・2026-08-15）に吸収。
+// カテゴリ定数・フォーム・feedbackへのinsertはReportHub側に移設（保存経路は不変）
 
 // help-imagesバケットの公開URLから、削除に必要なストレージパスだけを取り出す
 function helpImagePathFromUrl(url) {
@@ -1291,7 +1224,7 @@ function HelpCenter({ me, onReportClick }) {
                     <button onClick={onReportClick} className="f-sans" style={{
                       justifySelf:"start", padding:"9px 18px", fontSize:13, fontWeight:600, color:"#00A86B",
                       background:"#E6F7EF", border:"none", borderRadius:20, cursor:"pointer",
-                    }}>💬 この画面を報告</button>
+                    }}>⚑ 報告する</button>
                   )}
                   {ch.items.map((it, i) => {
                     const slotKey = it.key;
@@ -1732,7 +1665,6 @@ export default function App(){
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // モバイル下部バー左端☰（PCのmenuOpenとは別系統）
   // この画面を報告：☰の開閉やヘルプの章開閉と無関係な階層で開閉させる（2026-07-14・アンマウントバグ修正）
-  const [showFeedback, setShowFeedback] = useState(false);
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
   const [showPrivacy,setShowPrivacy]=useState(false);
@@ -2589,12 +2521,12 @@ export default function App(){
                 📖 使い方
               </button>
               {me && (
-                <button onClick={() => { setMenuOpen(false); setShowFeedback(true); }}
+                <button onClick={() => { setMenuOpen(false); openReportHub({ genre: "screen" }); }}
                   className="f-sans"
                   style={{ display:"block", width:"100%", textAlign:"left", background:"none",
                            border:"none", cursor:"pointer", fontFamily:"inherit",
                            fontSize:14, color:"#222", padding:"10px 16px" }}>
-                  💬 この画面を報告
+                  ⚑ 報告する
                 </button>
               )}
               {isAdmin(me) && (
@@ -2636,7 +2568,7 @@ export default function App(){
             <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">🌱 求人を出す</button>
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item">📖 使い方</button>
             {me && (
-              <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item">💬 この画面を報告</button>
+              <button onClick={()=>{ setMobileMenuOpen(false); openReportHub({ genre: "screen" }); }} className="f-sans app-header-mobile-menu-item">⚑ 報告する</button>
             )}
             {MOBILE_MENU_ITEMS
               .filter(item => !item.adminOnly || isAdmin(me))
@@ -2888,7 +2820,7 @@ export default function App(){
             </div>
           </div>
         )}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => openReportHub({ genre: "screen" })} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="install"&&<InstallGuide me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="visit"&&<VisitEntrance me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="insurance"&&me&&<InsurancePrepPage me={me} />}
@@ -2994,7 +2926,7 @@ export default function App(){
       </footer>}
 
       {/* この画面を報告：☰やヘルプの章開閉と無関係な階層に常駐（2026-07-14アンマウントバグ修正） */}
-      <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
+      <ReportHub />
 
       {/* 掲載完了はページでなくアニメーション（2026-08-07たきと指示）。タブに依らずグローバルに出す＝
           掲載後に /profile/employer へ遷移した先で祝祭that重なり、60秒ノーアクションで さがす へ送る */}

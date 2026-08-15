@@ -23,3 +23,9 @@ export function openPhaseInfo(phaseKey) {
 export function openLoginBox() {
   window.dispatchEvent(new CustomEvent("cb:openLoginBox"));
 }
+// 統合報告ハブ（2026-08-15）：どこからでも openReportHub({genre, job, worker}) で報告モーダルを開く。
+// genre: "job"|"person"|"comment"|"screen"。job={jobNumber,title}／worker={workerId,name,source}。
+// 受け手（ReportHub）はApp.jsxに1つだけマウント。保存経路は各台帳の従来のまま（ReportHub冒頭コメント参照）
+export function openReportHub(detail) {
+  window.dispatchEvent(new CustomEvent("cb:openReportHub", { detail: detail || {} }));
+}
