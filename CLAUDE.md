@@ -4549,10 +4549,10 @@ AdminJobPreview「公開する」で開いた瞬間にフラグ解消（trg_clea
   各作業日締め）の文言へ書き換えた。
 ・現在の姿：name「お支払いは当日の現金手渡しです」／本文3行（方式＝全求人共通・農家は当日現金の準備・
   働き手は当日その場で受領、金額は求人ページと労働条件の確認記録で確認）／audience=all・
-  trigger_on=startup・sort 12・【published=false のまま＝下書き】。
-・公開（全利用者に起動時1回ポップアップ）はたきと判断：published=true に1行UPDATEで即公開
-  （✕で既読・デプロイ不要）。execute_sqlによるDML（コンテンツ行）so migrationなし＝2026-07-21規則の
-  対象（スキーマ）外。
+  trigger_on=startup・sort 12。
+・同日たきと指示「公開しろ」により published=true に更新＝公開中（全利用者に起動時1回ポップアップ・
+  ✕で既読・期間指定なし）。止めるときは published=false に1行UPDATE（デプロイ不要）。
+  execute_sqlによるDML（コンテンツ行）so migrationなし＝2026-07-21規則の対象（スキーマ）外。
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-15 報告の入口を1つに統合（ReportHub・ジャンル切り替え式）━━━
