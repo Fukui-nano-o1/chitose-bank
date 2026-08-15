@@ -327,14 +327,17 @@ export function SavedJobsView({ me }) {
             const title = titleOf(r);
             // 終わった応募・求人は暗幕＋中央ラベル＋タップ無反応（応募者ページと同設計）。
             // 見送り(rejected)も失効と同じ構造にする（2026-07-27たきと指示）＝日程に関係なく暗幕。
-            // ラベルの優先順：完了 ＞ 見送り（農家の判断） ＞ 失効（判断なきまま日程を過ぎた）
+            // ラベルの優先順：完了 ＞ 掲載取り下げ（rejected_reason='unpublished'・2026-08-08たきと指示
+            // 「掲載取り下げにしよう」＝農家の選考でなく掲載の取り下げ＝働き手の不利益に読ませない）
+            // ＞ 見送り（農家の判断） ＞ 失効（判断なきまま日程を過ぎた）
             const jobEnd = r.date_end || r.date_start;
             const jobPast = !!jobEnd && jobEnd < ymdLocal(new Date());
             const isRejected = r.application_status === "rejected";
+            const isWithdrawn = isRejected && r.rejected_reason === "unpublished";
             const jobCompleted = r.application_status === "completed";
             const covered = jobPast || isRejected || jobCompleted;
-            const coverLabel = jobCompleted ? "完了" : isRejected ? "見送り" : "失効";
-            const coverColor = jobCompleted ? "#607D8B" : isRejected ? APP_PHASE_COLOR.rejected : "#111";
+            const coverLabel = jobCompleted ? "完了" : isWithdrawn ? "掲載取り下げ" : isRejected ? "見送り" : "失効";
+            const coverColor = jobCompleted ? "#607D8B" : isWithdrawn ? "#757575" : isRejected ? APP_PHASE_COLOR.rejected : "#111";
             const phase = phaseOf(r);
             // カレンダーで選んだ日に該当する求人は光らせる（応募者ページと同じ引き継ぎ）
             const calHit = !!calDay && calDay.jobs.includes(r.job_number);
