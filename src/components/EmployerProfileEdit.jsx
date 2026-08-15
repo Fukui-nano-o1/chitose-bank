@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
-import { INTERACTION_STYLE_OPTIONS, farmIntroTopics, perkBadges, splitTextsForReview } from "../lib/utils";
+import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots, LFPillSelect } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -137,6 +137,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [alwaysDo, setAlwaysDo] = useState("");
   const [breakStyle, setBreakStyle] = useState("");
   const [interactionStyle, setInteractionStyle] = useState("");
+  // 関わり方の追加3問（2026-08-14たきと指示・選択式）。値の正はHOST_STYLE_QUESTIONS
+  const [teachingStyle, setTeachingStyle] = useState("");
+  const [chatStyle, setChatStyle] = useState("");
+  const [questionStyle, setQuestionStyle] = useState("");
   const [introOpen, setIntroOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -213,6 +217,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setAlwaysDo(tp.always_do ?? data.always_do ?? "");
           setBreakStyle(tp.break_style ?? data.break_style ?? "");
           setInteractionStyle(data.interaction_style ?? "");
+          setTeachingStyle(data.teaching_style ?? ""); setChatStyle(data.chat_style ?? ""); setQuestionStyle(data.question_style ?? "");
           // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
           const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || data.unique_point || data.always_do || data.break_style || data.interaction_style);
           if (hasIntroContent) setIntroOpen(true);
@@ -339,6 +344,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
+  // 関わり方4問の回答済みラベル（格子サマリー用・2026-08-14）。ローカルstateから引く＝保存前でも即反映
+  const styleLocal = { interaction_style: interactionStyle, teaching_style: teachingStyle, chat_style: chatStyle, question_style: questionStyle };
+  const styleAnswered = HOST_STYLE_QUESTIONS.map(q => (q.options.find(o => o.value === styleLocal[q.k]) || {}).label).filter(Boolean);
 
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!composeRecruiterAddress()
@@ -419,6 +427,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         recruiter_zip: recruiterZip.trim(), recruiter_prefecture: recruiterPref.trim(),
         recruiter_city: recruiterCity.trim(), recruiter_address_detail: recruiterDetail.trim(),
         interaction_style: interactionStyle || null,
+        teaching_style: teachingStyle || null, chat_style: chatStyle || null, question_style: questionStyle || null,
         ...(reviewFlow ? {
           ...clearedTexts, // 空にした項目は即その場で消す（審査を通さない）
           texts_pending: textsPending,
@@ -490,7 +499,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"emergency", l:"緊急連絡先",     v: emgSummary },
           { k:"intro",    l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
-          { k:"style",    l:"関わり方",       v: (INTERACTION_STYLE_OPTIONS.find(o => o.value === interactionStyle) || {}).label || "" },
+          { k:"style",    l:"関わり方",       v: styleAnswered.join("・") },
         ].filter(b => !black || !["intro","ask","style"].includes(b.k)).map(b => (
           // 未入力ボックスは赤影アニメで促す（2026-07-16）。ロゴ・アイコンだけ1行まるごと（2026-08-14たきと指示）
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: black ? "1px solid #111111" : "1px solid #EBEBEB", borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
@@ -745,23 +754,36 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </>)}
 
       {editBox==="style" && (<>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>作業中の関わり方（任意）</label>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
-              {INTERACTION_STYLE_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setInteractionStyle(cur => cur === opt.value ? "" : opt.value)}
-                  className="f-sans"
-                  style={{
-                    padding:"8px 16px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
-                    border: interactionStyle === opt.value ? "1.5px solid " + AC : "1px solid #EBEBEB",
-                    background: interactionStyle === opt.value ? ACS : "#fff",
-                    color: interactionStyle === opt.value ? AC : "#222",
-                  }}
-                >{opt.label}</button>
-              ))}
-            </div>
+            {/* 関わり方の質問セット（2026-08-14たきと指示で4問に拡充）。1問=1択・もう一度タップで解除。
+                答えた質問だけthatプレビューのチップに出る（未回答は出ない＝ダミー禁止） */}
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
+              答えたい質問だけ選んでください（任意）。答えた内容はプロフィールにチップで表示されます。
+            </p>
+            {HOST_STYLE_QUESTIONS.map(q => {
+              const cur = styleLocal[q.k];
+              const set = { interaction_style: setInteractionStyle, teaching_style: setTeachingStyle, chat_style: setChatStyle, question_style: setQuestionStyle }[q.k];
+              return (
+                <div key={q.k} style={{ marginBottom:16 }}>
+                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>{q.label}（任意）</label>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                    {q.options.map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => set(c => c === opt.value ? "" : opt.value)}
+                        className="f-sans"
+                        style={{
+                          padding:"8px 16px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
+                          border: cur === opt.value ? "1.5px solid " + AC : "1px solid #EBEBEB",
+                          background: cur === opt.value ? ACS : "#fff",
+                          color: cur === opt.value ? AC : "#222",
+                        }}
+                      >{opt.label}</button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
       </>)}
 
       {/* モーダルフッター：保存する（全項目upsert）→格子に戻る。

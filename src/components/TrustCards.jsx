@@ -1,7 +1,7 @@
 // 信頼カード（分割・段階2後半・2026-07-24）：働き手/雇い手の与信情報カード。プレビュー・応募者カード・確認ページで共用。
 import { Fragment, useState } from "react";
 import { createPortal } from "react-dom";
-import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, interactionStyleLabel, tenureLabel, normalizeInsuranceItems } from "../lib/utils";
+import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, hostStyleChips, tenureLabel, normalizeInsuranceItems } from "../lib/utils";
 import { ExpandableText, Avatar, QaChat } from "./ui";
 
 // アイコンの大画面表示（2026-08-14たきと指示「アイコンタップで大画面表示にしよう」）。
@@ -152,7 +152,8 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
     : (profile.avatar_url ? { onClick: () => setAvatarZoom(true), role: "button", "aria-label": "アイコンを大きく表示" } : {});
   // black（委託）では 問いかけQ&A・関わり方チップを出さない（2026-07-31たきと指示・委託に該当ボックスが無いため）
   const qa = black ? [] : farmHostQa(profile);
-  const styleLabel = black ? "" : interactionStyleLabel(profile.interaction_style);
+  // 関わり方＝4問の回答チップ（HOST_STYLE_QUESTIONS・2026-08-14拡充）。black（委託）は従来どおり出さない
+  const styleChips = black ? [] : hostStyleChips(profile);
   const okTrust = !!(trust && trust.ok);
   return (
     <div>
@@ -251,13 +252,13 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
       {(() => {
         const insChips = normalizeInsuranceItems(profile.insurance_items).map(k => INSURANCE_ITEMS.find(x => x.k === k)).filter(Boolean);
         const perks = Array.isArray(extraBadges) ? extraBadges : [];
-        if (!styleLabel && insChips.length === 0 && perks.length === 0) return null;
+        if (styleChips.length === 0 && insChips.length === 0 && perks.length === 0) return null;
         // タグ群の整理整頓（2026-08-07たきと指示・働き手カードと同じ手当て）：
         // 3種（🤝関わり方＝灰／🛡保険＝緑／待遇＝灰）を1つの群れにまとめ、チップの形を統一。
         // 各チップが行の余りを均等に吸収（flexGrow）＝右端まで揃った段組み。長い順で行を詰め、
         // はみ出しは…で省略。色の区別は不変（保険=緑が自己申告の目印）
         const chips = [
-          ...(styleLabel ? [{ key:"style", label:(black ? "" : "🤝 ") + styleLabel, bg:"#F7F7F7", color:"#222", isStyle:true }] : []),
+          ...styleChips.map((lbl, i) => ({ key:"style-" + i, label:"🤝 " + lbl, bg:"#F7F7F7", color:"#222", isStyle:true })),
           ...insChips.map(it => ({ key:"ins-" + it.k, label:(black ? "" : "🛡 ") + it.chip, bg: black ? "#EEEEEE" : "#E6F7EF", color: black ? "#111111" : "#0B6B4F" })),
           ...perks.map(b => ({ key:"perk-" + b, label: black ? String(b).replace(/^\S+\s/, "") : b, bg:"#F7F7F7", color:"#222" })),
         ].sort((a,b) => String(b.label).length - String(a.label).length);

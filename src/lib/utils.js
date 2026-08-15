@@ -570,6 +570,35 @@ export const INTERACTION_STYLE_OPTIONS = [
 ];
 export const interactionStyleLabel = v => INTERACTION_STYLE_OPTIONS.find(o => o.value === v)?.label || "";
 
+// ── 関わり方の質問セット（2026-08-14たきと指示「もっと充実させて。他の質問を足すのも良し」）──
+// 編集ボックス（EmployerProfileEdit）と表示チップ（FarmerTrustCard）の唯一のソース。
+// すべて選択式＝事実の申告（自由記述のNG検査・公開フローに乗らない）。点数・評価は作らない。
+// 列は employer_profiles にそれぞれ text で保存（値=value・表示=label）。
+// ★質問・選択肢を足す時はここに1行足すだけ（DB列の追加と、employer_profiles_public／
+//   job_employer_profile への列追加も忘れずに＝2026-08-14 migration host_style_questions 参照）
+export const HOST_STYLE_QUESTIONS = [
+  { k:"interaction_style", label:"作業中の関わり方", options: INTERACTION_STYLE_OPTIONS },
+  { k:"teaching_style", label:"教え方", options:[
+    { value:"show_first", label:"やって見せてから任せる" },
+    { value:"verbal", label:"口頭でていねいに説明" },
+    { value:"learn_by_doing", label:"一緒にやりながら覚えてもらう" },
+  ]},
+  { k:"chat_style", label:"作業中の雰囲気", options:[
+    { value:"chatty", label:"おしゃべり歓迎" },
+    { value:"moderate", label:"ほどよく会話" },
+    { value:"quiet", label:"黙々と集中" },
+  ]},
+  { k:"question_style", label:"質問・相談のしかた", options:[
+    { value:"anytime", label:"いつでもその場で聞いてOK" },
+    { value:"at_breaks", label:"休憩のときにまとめて" },
+    { value:"try_first", label:"まず試してみてから相談" },
+  ]},
+];
+// 回答済みの質問だけラベルの配列で返す（表示チップ用）。未回答は出さない（ダミー禁止）
+export const hostStyleChips = (e) => HOST_STYLE_QUESTIONS
+  .map(q => (q.options.find(o => o.value === e?.[q.k]) || {}).label || null)
+  .filter(Boolean);
+
 // 「chitose-bank利用〇年〇ヶ月」用。開始日からの経過を年月で返す
 export function tenureLabel(dateStr) {
   const start = new Date(dateStr);
@@ -857,7 +886,8 @@ export function employerUnsetCount(e, { hasEmergency = false } = {}) {
     !!(e.has_transport || e.has_parking || e.has_commute_allowance || e.has_bonus || e.employer_pays_supplies || e.accessory_ok || e.smoking_policy),
     [e.intro_path, e.intro_joy, e.intro_crops, e.intro_atmosphere, e.intro_message, e.owner_comment].some(t => t && String(t).trim()),
     [e.unique_point, e.always_do, e.break_style].some(t => t && String(t).trim()),
-    !!e.interaction_style,
+    // 関わり方＝4問（HOST_STYLE_QUESTIONS）のどれかに回答があれば設定済み（2026-08-14拡充）
+    !!(e.interaction_style || e.teaching_style || e.chat_style || e.question_style),
     !!(e.recruiter_contact || "").trim(), // 募集者の連絡先（掲載時必須・2026-08-07）
     hasEmergency,                          // 🆘緊急連絡先（2026-08-07）
   ].filter(x => !x).length;
@@ -866,4 +896,4 @@ export function employerUnsetCount(e, { hasEmergency = false } = {}) {
 // 上の判定に必要な列だけ（今日ページはプロフィール全列を読まない＝転送量を増やさない）。
 // ★項目を足したら、上の関数と一緒にこの列リストも直すこと
 export const WORKER_UNSET_COLUMNS = "avatar_url,nickname,pr,pr_pending,residence_city,transport,farm_experience,physical_level,interests,languages,pr_qa,pr_qa_pending";
-export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_contact,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style";
+export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_contact,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style,teaching_style,chat_style,question_style";

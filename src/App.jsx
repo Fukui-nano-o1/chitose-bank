@@ -361,7 +361,7 @@ function EmployerPreviewSheet() {
       const cached = getCache("preview:e:" + farmerId);
       if (cached?.profile) setSt({ farmer_id: farmerId, loading: false, profile: cached.profile, trust: cached.trust || null });
       else setSt({ farmer_id: farmerId, loading: true, profile: null, trust: null });
-      Promise.resolve(supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,insurance_items,created_at").eq("auth_id", farmerId).maybeSingle())
+      Promise.resolve(supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url,owner_comment,pr,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,unique_point,always_do,break_style,interaction_style,teaching_style,chat_style,question_style,commitment,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,parking_capacity,commute_allowance_detail,transport_area,supplies_cap,insurance_items,created_at").eq("auth_id", farmerId).maybeSingle())
         .then(epRes => {
           // 通信失敗（res.error）では手元の表示（段階0のキャッシュ）を上書きしない＝2026-08-07規則
           if (epRes?.error) { setSt(prev => prev && prev.farmer_id === farmerId ? { ...prev, loading: false } : prev); return; }
