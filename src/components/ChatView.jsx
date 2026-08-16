@@ -783,7 +783,7 @@ export function ChatView({ applicationId, onBack }) {
         {/* 定型文（2026-07-22・第8弾）：＋で役割別テンプレシートを開く */}
         <button onClick={()=>{ setTmplTab("phrase"); setTmplOpen(true); }} aria-label="定型文・質問集" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
         <textarea ref={inputRef} value={text} rows={1} onChange={e=>setText(e.target.value)}
-          placeholder="メッセージを入力（改行できます）" className="field f-sans"
+          placeholder="メッセージを入力" className="field f-sans"
           style={{ flex:1, fontSize:14, resize:"none", lineHeight:1.6, maxHeight:132, overflowY:"auto" }} />
         <button onClick={send} disabled={sending} className="f-sans" style={{ flexShrink:0, padding:"14px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", lineHeight:1.4 }}>{sending?"...":"送信"}</button>
       </div>
