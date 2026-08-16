@@ -79,6 +79,26 @@ export function JobSearchMapView({ onRegister, me }) {
     return () => { cancelled = true; };
   }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- meはidだけを見る（識別子の変化で再取得しない）
   const canLike = (job) => !!job && !myJobNums.has(job.id); // 自分の求人はいいね対象外
+  // ── あなたの求人メニュー（2026-08-15たきと指示「本人の求人も同じ下部ヘッダー。応募ボタンを
+  //    あなたの求人に差し替え。タップでコピーと一時非公開と応募者一覧」）──
+  // 実体はお仕事タブの浮遊ピルと同じRPC・同じ確認文（窓口thatが増えても文言・挙動を食い違わせない）
+  const [ownMenuOpen, setOwnMenuOpen] = useState(false);
+  const ownCopyJob = async () => {
+    setOwnMenuOpen(false);
+    const { data, error } = await supabase.rpc("copy_job", { p_job_number: selectedJob.id });
+    if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
+    if (data.dates_cleared) alert("コピーしました。元の作業日程は終了しているため空にしています。確認ページの「日程」から新しい日を選んでください。");
+    window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
+  };
+  const ownUnpublishJob = async () => {
+    if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・再掲載するときは、もう一度審査を通ります\n・応募中・面接中の方は見送りになり、その旨のお知らせthatが届きます（採用が決まっている方はそのままです）")) return;
+    const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: selectedJob.id });
+    if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
+    setOwnMenuOpen(false);
+    // open→draftでさがすから消えるso、行き先はお仕事タブ（公開中に一時非公開の帯で残る）
+    window.location.hash = "/profile/employer";
+  };
 
   // 自分の求人か（2026-07-22）：自分の求人には応募フッター（日給・応募ボタン）を出さない。
   // 一覧（myJobNums・jobsのRLS owner selectで自分の行だけ返る）から同期的に決める＝求人ごとの往復なし。
@@ -480,6 +500,7 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!selectedJob) { setEmpEmployer(null); setEmpTrust(null); return; }
     // 前回の内容（求人ごとのviewCache）をまず出す→裏で最新に差し替える（SWR・2026-08-14たきと指摘
     // 「求人者と待遇の復元that10秒」＝コールドスパイクのRPC待ちthatそのまま画面の待ちだった）。
+    setOwnMenuOpen(false); // 求人を切り替えたらあなたの求人メニューは閉じる
     const cacheKey = "search:jobEmp:" + selectedJob.id;
     const cached = getCache(cacheKey);
     setEmpEmployer((cached && cached.emp) || null);
@@ -1492,6 +1513,20 @@ export function JobSearchMapView({ onRegister, me }) {
           >{hideApply ? closedLabel : applyBtnLabel}</button>
         </div>
       )}
+      {/* 本人の求人にも同じ下部バーを出す（2026-08-15たきと指示）：応募ボタンの位置に「あなたの求人」。
+          タップで下から操作シート（コピー／一時非公開／応募者一覧） */}
+      {selectedJob && showApplyBar && ownLoaded && isOwnJob && (
+        <div className="pc-apply-bar" style={{
+          position:"fixed", bottom:0, left:0, right:0, zIndex:500,
+          background:"#fff", borderTop:"1px solid #EBEBEB",
+          padding:"16px 24px", boxShadow:"0 -4px 16px rgba(0,0,0,0.08)",
+          alignItems:"center", justifyContent:"space-between", gap:24,
+        }}>
+          <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
+          <button onClick={()=>setOwnMenuOpen(true)} className="btn-primary f-sans"
+            style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}>あなたの求人</button>
+        </div>
+      )}
 
       {/* 求人詳細（スマホ専用）：常時表示の下部応募フッター。スクロール中は非表示(CSS)。自分の求人には出さない（2026-07-22）。
           募集終了（満員／期間終了）かつ未応募でも、構造は同じままボタンを「この募集は終了しました」の
@@ -1514,6 +1549,35 @@ export function JobSearchMapView({ onRegister, me }) {
           <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
             {hideApply ? "ほかの求人は「さがす」から見られます" : "応募しても即採用ではなく、面接後に決まります"}
           </p>
+        </div>
+      )}
+      {/* 本人の求人（スマホ）：同じ構造で応募ボタンの位置に「あなたの求人」（2026-08-15たきと指示） */}
+      {selectedJob && ownLoaded && isOwnJob && (
+        <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+            <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222", flexShrink:0, whiteSpace:"nowrap" }}>{payLabel(selectedJob)}</span>
+            <button onClick={()=>setOwnMenuOpen(true)} className="btn-primary f-sans"
+              style={{ flex:1, minWidth:0, padding:"12px 12px", fontSize:14, fontWeight:700, borderRadius:14, lineHeight:1.35, textAlign:"center" }}>あなたの求人</button>
+          </div>
+          <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+            あなたthatが出した求人です。タップで操作できます
+          </p>
+        </div>
+      )}
+      {/* あなたの求人の操作シート：コピー／一時非公開（公開中のみ）／応募者一覧。
+          cb-lock-scroll＝表示中は下部バー・☰thatが隠れる（既存規格） */}
+      {selectedJob && isOwnJob && ownMenuOpen && (
+        <div onClick={()=>setOwnMenuOpen(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px calc(20px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:560, boxSizing:"border-box" }}>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 12px" }}>あなたの求人 #{selectedJob.id}</p>
+            <div style={{ display:"grid", gap:8 }}>
+              <button onClick={ownCopyJob} className="f-sans" style={{ padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", borderRadius:12, cursor:"pointer" }}>コピーして新しい求人を作る</button>
+              {!selectedJob.closed && (
+                <button onClick={ownUnpublishJob} className="f-sans" style={{ padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#C77700", border:"1.5px solid #FFB020", borderRadius:12, cursor:"pointer" }}>一時非公開にする</button>
+              )}
+              <button onClick={()=>{ setOwnMenuOpen(false); window.location.hash = "/profile/employer/applicants"; }} className="f-sans" style={{ padding:"14px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>応募者一覧を見る</button>
+            </div>
+          </div>
         </div>
       )}
 
