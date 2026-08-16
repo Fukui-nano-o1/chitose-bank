@@ -1599,8 +1599,11 @@ export function JobSearchMapView({ onRegister, me }) {
           {/* ★高さは3面とも固定（2026-08-16たきと報告「次へをタップするとボックスが閉じてしまう」の根治）：
               面ごとに中身の高さが違うと、次へのタップでボックスthat縮んでボタンthat上へ移動し、続けてタップする
               指が「さっきボタンがあった場所」＝ボックスの外（黒い被せ）に落ちて閉じていた（2026-07-27の
-              日程チップ誤タップと同型）。中身だけ内側でスクロールし、次へ/戻るは下部に常設＝何も動かない */}
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ height:680, display:"flex", flexDirection:"column" }}>
+              日程チップ誤タップと同型）。中身だけ内側でスクロールし、次へ/戻るは下部に常設＝何も動かない。
+              高さの式＝1面目の画像（フルブリード幅×3/4）that余白なくちょうど収まる高さ（2026-08-16たきと指示
+              「画像を枠にきれいに収めて。空白は寂しいよ」）。240px=タイトル・区切り線・案内文・ドット・
+              ボタン・上下パディングの合計。3面とも同じ高さ＝固定の原則は不変 */}
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ height:"calc((min(100vw - 32px, 480px) - 6px) * 0.75 + 240px)", display:"flex", flexDirection:"column" }}>
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップ＋下部「戻る」で閉じられるso重複 */}
             {/* 3面切り替え（2026-08-16たきと指示）：1面目=承認の流れ図（タップで大画面）／2面目=説明（文字18に拡大）／
                 3面目=日程・応募。次へ/戻るで行き来し、1面目の戻るはボックスを閉じる */}
@@ -1608,18 +1611,19 @@ export function JobSearchMapView({ onRegister, me }) {
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0", flexShrink:0 }} />
             <div style={{ flex:"1 1 auto", minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             {applyConfirmStep === 0 && (
-              <>
+              /* 画像は枠いっぱい（フルブリード＝左右パディング24pxを負マージンで打ち消す）＋縦は中央寄せ
+                 ＝空白を作らない（2026-08-16たきと指示）。aspectRatioで場所の先確保は維持（2026-07-27） */
+              <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
                 {/* 承認の流れ（①プロフィール確認②判断③承認決定）のインフォグラフィック＝応募前に承認制であることを伝える */}
-                {/* ★aspectRatioで場所を先に確保する（2026-07-27・日程チップの誤タップ修理の名残）。
-                    3面化でチップとは別の面になったが、面の高さが読み込みで変わらない利点は残るso維持 */}
                 <img loading="lazy" src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
                   onClick={()=>setApplyImgZoom(true)}
-                  width={1000} height={750} style={{ display:"block", width:"100%", height:"auto", aspectRatio:"1000 / 750", borderRadius:12, background:"#F7F7F7", cursor:"zoom-in" }} />
+                  width={1000} height={750} style={{ display:"block", width:"calc(100% + 48px)", maxWidth:"none", margin:"0 -24px", height:"auto", aspectRatio:"1000 / 750", background:"#F7F7F7", cursor:"zoom-in" }} />
                 <p className="f-sans" style={{ fontSize:13, color:"#8A8A8A", textAlign:"center", margin:"10px 0 0" }}>画像はタップで大きく表示できます</p>
-              </>
+              </div>
             )}
             {applyConfirmStep === 1 && (
-              <>
+              /* 説明も縦中央寄せ＝1面目と同じ高さの枠で空白that上下に割れて意図した見た目になる */
+              <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
                 <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
                   応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
                 </p>
@@ -1627,7 +1631,7 @@ export function JobSearchMapView({ onRegister, me }) {
                 <p className="f-sans" style={{ fontSize:18, color:"#555", lineHeight:1.7, margin:"14px 0 0", background:"#F7F7F7", borderRadius:10, padding:"12px 14px" }}>
                   採用されると契約が成立し、お互いのお名前（本名）が農家に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。
                 </p>
-              </>
+              </div>
             )}
             {applyConfirmStep === 2 && (isPeriodJob ? (
               /* 期間求人：来られる日を宣言してから応募（いつでもOK=1タップで即応募／特定日=複数選択→下部の応募ボタン） */
@@ -1646,9 +1650,11 @@ export function JobSearchMapView({ onRegister, me }) {
                 </div>
               </div>
             ) : (
-              <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
-                「応募する」を押すと、農家に応募が届きます。
-              </p>
+              <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+                <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
+                  「応募する」を押すと、農家に応募が届きます。
+                </p>
+              </div>
             ))}
             </div>
             {/* 面インジケーター（3点）＋次へ/戻る（下部に常設・スクロールしなくても必ず見える） */}
