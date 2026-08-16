@@ -530,11 +530,28 @@ export const qaShort = (q) => {
   return QA_SHORT_LABELS[key] || QA_ASK_LABELS[key] || q;
 };
 
+// ── 働き手「はたらき方の希望」質問セット（2026-08-14たきと承認・雇い手のHOST_STYLE_QUESTIONSと対）──
+// すべて選択式・任意。値は physical_level と同じくラベル文字列で保存（旧値もそのまま表示＝書き換えない）。
+// ★「希望する作業の強さ」のラベルは必ずこの名称（「体力」等の身体属性を想起させる表現は禁止・2026-07-14規則）。
+// ★追加3問（作業中の雰囲気・教わり方の希望・希望する働き方）は公開許可リストへの追加＝2026-08-14たきと裁定。
+//   判断理由：いずれも労働条件の希望／業務上の意思疎通に必要な情報（身体属性・年代等の禁止項目に非該当）
+export const WORKER_STYLE_QUESTIONS = [
+  { k:"physical_level", label:"希望する作業の強さ", q:"希望する作業の強さは？", emoji:"💪",
+    options:["軽めの作業がうれしい","どちらでもOK","力仕事も歓迎"] },
+  { k:"work_mood", label:"作業中の雰囲気", q:"作業中の雰囲気は？",
+    options:["おしゃべり歓迎","ほどよく会話","黙々と集中"] },
+  { k:"learning_pref", label:"教わり方の希望", q:"教わり方の希望は？",
+    options:["やって見せてほしい","口頭での説明がいい","やりながら覚えたい"] },
+  { k:"work_pattern", label:"希望する働き方", q:"希望する働き方は？",
+    options:["単発で働きたい","気に入った農園に続けて通いたい","季節ごとに働きたい"] },
+];
+
 // 働き手プレビューのQ&A（コメント形式）に流す項目の唯一のソース（2026-08-07たきと指示）。
-// 選択式の「希望する作業の強さ」（💪バッジだったもの）も質問要素として先頭に合流させる。
-// ★ラベルは必ず「希望する作業の強さ」を使う（「体力」等の身体属性を想起させる表現は禁止・2026-07-14規則）
+// 選択式の「はたらき方の希望」4問を質問要素として先頭に合流させ、その後にpr_qa（自由記述Q&A）
 export const workerQaItems = (profile) => [
-  ...(profile?.physical_level ? [{ q: "希望する作業の強さは？", a: `💪 ${profile.physical_level}` }] : []),
+  ...WORKER_STYLE_QUESTIONS
+    .filter(q => ((profile?.[q.k] || "") + "").trim())
+    .map(q => ({ q: q.q, a: (q.emoji ? q.emoji + " " : "") + profile[q.k] })),
   ...(Array.isArray(profile?.pr_qa) ? profile.pr_qa : []),
 ];
 
@@ -858,7 +875,8 @@ export function workerUnsetCount(w) {
     !!(w.residence_city || "").trim(),
     !!w.transport,
     !!w.farm_experience,
-    !!w.physical_level,
+    // はたらき方の希望＝4問（WORKER_STYLE_QUESTIONS）のどれかに回答があれば設定済み（2026-08-14拡充）
+    !!(w.physical_level || w.work_mood || w.learning_pref || w.work_pattern),
     Array.isArray(w.interests) && w.interests.length > 0,
     Array.isArray(w.languages) && w.languages.length > 0,
     (Array.isArray(w.pr_qa_pending) ? w.pr_qa_pending.length : (Array.isArray(w.pr_qa) ? w.pr_qa.length : 0)) > 0,
@@ -895,5 +913,5 @@ export function employerUnsetCount(e, { hasEmergency = false } = {}) {
 }
 // 上の判定に必要な列だけ（今日ページはプロフィール全列を読まない＝転送量を増やさない）。
 // ★項目を足したら、上の関数と一緒にこの列リストも直すこと
-export const WORKER_UNSET_COLUMNS = "avatar_url,nickname,pr,pr_pending,residence_city,transport,farm_experience,physical_level,interests,languages,pr_qa,pr_qa_pending";
+export const WORKER_UNSET_COLUMNS = "avatar_url,nickname,pr,pr_pending,residence_city,transport,farm_experience,physical_level,work_mood,learning_pref,work_pattern,interests,languages,pr_qa,pr_qa_pending";
 export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_contact,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style,teaching_style,chat_style,question_style";
