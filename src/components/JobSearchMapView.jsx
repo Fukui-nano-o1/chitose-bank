@@ -1657,10 +1657,23 @@ export function JobSearchMapView({ onRegister, me }) {
       )}
 
       {/* 承認の流れ図の大画面表示（2026-08-16たきと指示「承認の画像はタップで大画面に」）。
-          TrustCards の AvatarLightbox と同じ作法＝どこをタップしても閉じる・✕は置かない */}
+          ★画面に収める表示（maxWidth/maxHeight）だと文字が小さく、読むにはピンチ拡大が要る。
+          このサイトのviewportはピンチでページ全体が拡大される＝閉じた後も倍率が残り「一部しか見えない」
+          事故になった（2026-08-16たきと報告）。so 最初から読める大きさ（幅min(200vw,1200px)）で描き、
+          指でずらして見るパン方式に変更＝ピンチ不要。✕と余白タップで閉じる（画像タップでは閉じない
+          ＝ずらす操作の途中で誤って閉じないため。✕なし規約の例外・理由はこれ） */}
       {applyImgZoom && (
-        <div onClick={()=>setApplyImgZoom(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", animation:"fadeIn .2s ease", padding:16 }}>
-          <img src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます" style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:12 }} />
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", animation:"fadeIn .2s ease" }}>
+          <div onClick={()=>setApplyImgZoom(false)}
+            ref={el => { if (el) { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; el.scrollTop = (el.scrollHeight - el.clientHeight) / 2; } }}
+            style={{ position:"absolute", inset:0, overflow:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", display:"flex" }}>
+            {/* margin:auto＝小さければ中央・はみ出せば端から全部見える（flex中央寄せだと左端が切れる）。
+                aspectRatio＝読み込み前から高さが確定し、中央スクロール初期化thatズレない */}
+            <img onClick={e=>e.stopPropagation()} src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
+              width={1000} height={750} style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1000 / 750", height:"auto", padding:"56px 0" }} />
+          </div>
+          <button onClick={()=>setApplyImgZoom(false)} aria-label="閉じる" style={{ position:"absolute", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, width:44, height:44, borderRadius:"50%", background:"#fff", border:"none", fontSize:20, fontWeight:600, color:"#222", cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,0.4)", zIndex:2 }}>✕</button>
+          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体が見られます</p>
         </div>
       )}
 
