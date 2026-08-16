@@ -1612,7 +1612,10 @@ export function JobSearchMapView({ onRegister, me }) {
                 3面目=日程・応募。次へ/戻るで行き来し、1面目の戻るはボックスを閉じる */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0, flexShrink:0 }}><NoticeJumpText text="応募の確認" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0", flexShrink:0 }} />
-            <div style={{ flex:"1 1 auto", minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            {/* ★スクロール領域は負マージンでボックスの余白(24px)まで広げ、同じ24pxを内側paddingで戻す。
+                こうしないと、フルブリード画像（負マージン）の左24pxthatスクロール領域の左端でクリップされて
+                見切れる（スクロール容器は左上へのはみ出しを表示できない・2026-08-16たきと報告の修理） */}
+            <div style={{ flex:"1 1 auto", minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", margin:"0 -24px", padding:"0 24px" }}>
             {applyConfirmStep === 0 && (
               /* 画像は枠いっぱい（フルブリード＝左右パディング24pxを負マージンで打ち消す）＋縦は中央寄せ
                  ＝空白を作らない（2026-08-16たきと指示）。aspectRatioで場所の先確保は維持（2026-07-27） */
