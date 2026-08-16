@@ -1439,26 +1439,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 </div>
               </div>
             )}
-            {/* ⎘＝作業場所の復元マーク（2026-07-16）：緑地×白マーク・見出し行の右端（カード内の「住所を検索」との重なり回避）。
-                プロフィール設定済み=タップで復元／未設定=タップで作業場所の入力ボックスを展開（保存で農家プロ＋この画面の両方へ反映） */}
-            <div style={{ position:"relative", paddingRight:44 }}>
-              <h2 className="f-sans" style={lfStyles.stepTitle}>集合場所を入力してください</h2>
-              <button onClick={() => {
-                if (prevAddress) {
-                  setFarmerZip(prevAddress.zip || "");
-                  setFarmerPref(prevAddress.prefecture || "");
-                  setFarmerCity(prevAddress.city || "");
-                  setFarmerTown(prevAddress.town || "");
-                  setFarmerAddr(prevAddress.address || "");
-                  setFarmerRegion((prevAddress.prefecture || "") + (prevAddress.city || "") + (prevAddress.town || ""));
-                  setZipError("");
-                } else {
-                  setPbZip(farmerZip); setPbPref(farmerPref); setPbCity(farmerCity); setPbTown(farmerTown); setPbAddr(farmerAddr);
-                  setPbErr("");
-                  setPlaceBoxOpen(true);
-                }
-              }} aria-label="作業場所を復元" className="f-sans" style={{ position:"absolute", top:0, right:0, zIndex:1, width:36, height:36, borderRadius:"50%", border:"none", background:"#00A86B", fontSize:16, fontWeight:700, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}>⎘</button>
-            </div>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>集合場所を入力してください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。</p>
             {/* 説明の一本化（2026-08-08たきと指示）：欄ごとに散らばっていた注記（自動入力・町域まで公開・
                 番地は会員のみ・プライバシー）をこの1箇所に集約。「はじめてOKとは？」と同じ〜とは？形式。
@@ -1476,7 +1457,28 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
             <LFWizCard>
               <div>
-                <label className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
+                {/* ⎘＝作業場所の復元マーク（2026-07-16・2026-08-09にカード枠内へ移動＝たきと指示）。
+                    プロフィール設定済み=タップで復元／未設定=タップで作業場所の入力ボックスを展開
+                    （保存で農家プロ＋この画面の両方へ反映）。位置は郵便番号ラベル行の右端＝
+                    「住所を検索」ボタンとは行が別なので重ならない */}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                  <label className="f-sans" style={{ ...lfStyles.inputLabel, marginBottom:0 }}>郵便番号</label>
+                  <button onClick={() => {
+                    if (prevAddress) {
+                      setFarmerZip(prevAddress.zip || "");
+                      setFarmerPref(prevAddress.prefecture || "");
+                      setFarmerCity(prevAddress.city || "");
+                      setFarmerTown(prevAddress.town || "");
+                      setFarmerAddr(prevAddress.address || "");
+                      setFarmerRegion((prevAddress.prefecture || "") + (prevAddress.city || "") + (prevAddress.town || ""));
+                      setZipError("");
+                    } else {
+                      setPbZip(farmerZip); setPbPref(farmerPref); setPbCity(farmerCity); setPbTown(farmerTown); setPbAddr(farmerAddr);
+                      setPbErr("");
+                      setPlaceBoxOpen(true);
+                    }
+                  }} aria-label="作業場所を復元" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", border:"none", background:"#00A86B", fontSize:14, fontWeight:700, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", flexShrink:0 }}>⎘</button>
+                </div>
                 <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:8 }}>
                   <input
                     ref={zipRef}
