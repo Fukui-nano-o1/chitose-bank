@@ -12,6 +12,33 @@ import { getCache, setCache } from "../../lib/viewCache";
 // あいうえお順の比較（アカウント面・2026-08-07）。毎描画で作らないためモジュールレベルに置く
 const JA_COLLATOR = new Intl.Collator("ja");
 
+// その他格子のカード（既定順の正本）。並びは端末ごとに変更できる（下の cb_adminOtherOrder_v1）。
+// カードを足す時はここに1行＋onClick分岐に1行。保存済みの並びに無い新カードは末尾に現れる（他を壊さない）
+const OTHER_CARDS = [
+  { k:"signup",  l:"新規登録画面" },
+  { k:"flow",    l:"求人フロー" },
+  { k:"system",  l:"システム" },
+  { k:"survey",  l:"きっかけ" },
+  { k:"working", l:"仕事中" },
+  { k:"upcoming", l:"まもなく開始" },
+  { k:"evaluation", l:"評価" },
+  { k:"farmerpages", l:"農家のアクションページ" },
+  { k:"animations", l:"アニメーション" },
+];
+// 並びの読み書き（localStorage＝この端末だけの表示設定。表示専用＝権限・データの正には使わない・2026-08-02規則）
+const OTHER_ORDER_KEY = "cb_adminOtherOrder_v1";
+function loadOtherOrder() {
+  try {
+    const v = JSON.parse(localStorage.getItem(OTHER_ORDER_KEY) || "null");
+    return Array.isArray(v) ? v.filter(k => OTHER_CARDS.some(c => c.k === k)) : null;
+  } catch { return null; }
+}
+function orderedOtherCards(order) {
+  if (!order || !order.length) return OTHER_CARDS;
+  return [...order.map(k => OTHER_CARDS.find(c => c.k === k)),
+          ...OTHER_CARDS.filter(c => !order.includes(c.k))];
+}
+
 // 審査セクションのURLキー（#/admin/review/{key}）。ボックス格子の並びと一致させる唯一の正本。
 // 数字（#/admin/review/{job_number}）は求人審査プレビューへの深いリンク（従来どおり）。
 // 「jobs（求人審査）」「prs（自由記述審査）」は承認プロセスの削除（2026-08-14）で廃止＝掲載・保存は即公開に
@@ -148,6 +175,15 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     .sort((a, b) => JA_COLLATOR.compare(
       String(acctDisplay(a).name).trim() || "\uffff",
       String(acctDisplay(b).name).trim() || "\uffff"));
+  // その他格子の並び替え（2026-08-07たきと指示「タップした順番に移動できるか」）：
+  // 「並び替え」→表示したい順にカードをタップ→タップ順thaがそのまま新しい並びになる（この端末に保存）
+  const [otherOrder, setOtherOrder] = useState(loadOtherOrder); // 保存済みの並び（null=既定順）
+  const [reorderPicks, setReorderPicks] = useState(null);       // null=通常 / 配列=並び替え中（タップ済みキー）
+  const saveOtherOrder = (picks) => {
+    const order = [...picks, ...orderedOtherCards(otherOrder).map(c => c.k).filter(k => !picks.includes(k))];
+    setOtherOrder(order); setReorderPicks(null);
+    try { localStorage.setItem(OTHER_ORDER_KEY, JSON.stringify(order)); } catch {}
+  };
   const [otherBox, setOtherBox] = useState(null); // その他タブのポップアップ: pages|flow|legacy|system|notices|null（boxlistは#/boxes専用ページへ昇格・2026-07-17）
   // ボックス一覧の台帳は専用ページ（#/boxes・AdminBoxRegistryPage）へ昇格（2026-07-17）
   // お知らせ一覧の台帳は専用ページ（#/boxes/notices・AdminBoxRegistryPageのタブ）へ移設（2026-07-17）
@@ -377,25 +413,41 @@ export function AdminTab({ onJump, onShowAccountForm }) {
              ②その場で画面を開く＝新規登録画面
              ③ポップアップ展開＝求人フロー・旧事業データ・きっかけ）。
            行き先は下のonClickの分岐1箇所に集約する（カードを足したらここに1行足す） ── */}
-      {sub==="other" && (
+      {sub==="other" && (<>
+        {/* 並び替え（タップ順＝新しい並び）。全部タップしなくてよい＝タップした分thaが先頭に来て残りは今の順のまま */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent: reorderPicks ? "space-between" : "flex-end", gap:8, marginBottom:10 }}>
+          {reorderPicks ? (<>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0 }}>表示したい順にタップ（{reorderPicks.length}/{OTHER_CARDS.length}）</p>
+            <span style={{ display:"flex", gap:8, flexShrink:0 }}>
+              <button onClick={()=>setReorderPicks(null)} className="f-sans" style={{ padding:"7px 14px", fontSize:12, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:16, cursor:"pointer" }}>やめる</button>
+              <button onClick={()=>saveOtherOrder(reorderPicks)} disabled={reorderPicks.length===0} className="f-sans" style={{ padding:"7px 14px", fontSize:12, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:16, cursor:"pointer", opacity: reorderPicks.length===0 ? 0.5 : 1 }}>この順にする</button>
+            </span>
+          </>) : (
+            <button onClick={()=>setReorderPicks([])} className="f-sans" style={{ padding:"7px 14px", fontSize:12, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:16, cursor:"pointer" }}>並び替え</button>
+          )}
+        </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12, marginBottom:24 }}>
-          {[
-            { k:"signup",  l:"新規登録画面" },
-            { k:"flow",    l:"求人フロー" },
-            { k:"system",  l:"システム" },
-            { k:"survey",  l:"きっかけ" },
-            { k:"working", l:"仕事中" },
-            { k:"upcoming", l:"まもなく開始" },
-            { k:"evaluation", l:"評価" },
-            { k:"farmerpages", l:"農家のアクションページ" },
-            { k:"animations", l:"アニメーション" },
-          ].map(c => (
-            <button key={c.k} onClick={()=>{ if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "evaluation") { window.location.hash = "/admin/evaluation"; } else if (c.k === "system") { window.location.hash = "/admin/system"; } else if (c.k === "farmerpages") { window.location.hash = "/admin/farmer-pages"; } else if (c.k === "animations") { window.location.hash = "/admin/animations"; } else if (c.k === "signup") { onShowAccountForm(); } else { setOtherBox(c.k); } }} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+          {orderedOtherCards(otherOrder).map(c => {
+            const pickIdx = reorderPicks ? reorderPicks.indexOf(c.k) : -1;
+            return (
+            <button key={c.k} onClick={()=>{
+              if (reorderPicks) {
+                // 並び替え中：タップで順番を採番。もう一度タップで取り消し。全部タップしたら自動確定
+                if (pickIdx >= 0) { setReorderPicks(reorderPicks.filter(k => k !== c.k)); return; }
+                const next = [...reorderPicks, c.k];
+                if (next.length === OTHER_CARDS.length) { saveOtherOrder(next); } else { setReorderPicks(next); }
+                return;
+              }
+              if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "evaluation") { window.location.hash = "/admin/evaluation"; } else if (c.k === "system") { window.location.hash = "/admin/system"; } else if (c.k === "farmerpages") { window.location.hash = "/admin/farmer-pages"; } else if (c.k === "animations") { window.location.hash = "/admin/animations"; } else if (c.k === "signup") { onShowAccountForm(); } else { setOtherBox(c.k); } }}
+              className="f-sans" style={{ position:"relative", background:"#fff", border: pickIdx >= 0 ? "2px solid #222" : "1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              {pickIdx >= 0 && (
+                <span className="f-sans" style={{ position:"absolute", top:8, left:8, minWidth:22, height:22, borderRadius:11, background:"#222", color:"#fff", fontSize:12, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{pickIdx + 1}</span>
+              )}
               <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{c.l}</span>
             </button>
-          ))}
+          );})}
         </div>
-      )}
+      </>)}
 
       {/* その他のポップアップ（ポップアップ0.8秒・下限=下部フッター+10px・✕/背景タップで閉じる） */}
       {sub==="other" && otherBox && (
