@@ -347,7 +347,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
   // 完了・評価モーダル（Part1）
   const [completeModalApp, setCompleteModalApp] = useState(null);
-  const [completeStep, setCompleteStep] = useState('attend'); // 'attend' | 'review'
   const [completeWantAgain, setCompleteWantAgain] = useState(null);
   const [completeEntrust, setCompleteEntrust] = useState(null);
   const [completePublicComment, setCompletePublicComment] = useState("");
@@ -356,9 +355,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [completeNotifyNext, setCompleteNotifyNext] = useState(true); // また呼びたい=はい時のみ表示。ON=repeat_rosterへupsert
   const [completeDone, setCompleteDone] = useState(null); // 評価登録完了モーダル {jobLabel,jobNumber,workerId,workerName,at,wantAgain,entrust,publicComment,privateMemo,favorited}
   const openCompleteModal = (a) => {
-    // 完了記録が済んでいる応募（status=completed）は「来ましたか？」を飛ばして評価から始める
-    // （2026-07-27たきと指示：完了のカードには評価ボタンを置く）
-    setCompleteModalApp(a); setCompleteStep(a.status === 'completed' ? 'review' : 'attend');
+    // 完了ボタン＝そのまま評価（2026-08-16たきと指示）。以前は「働き手は来ましたか？」の1枚を
+    // 挟んでいたthat、通常の道（来た→評価）が2タップになるため廃止＝最初から評価を出す。
+    // 送信＝完了の記録＋評価（submit_farmer_review・1トランザクション）。
+    // 来なかった場合（欠勤の記録・72時間の異議申立）は評価画面の下に控えめに残す＝例外の道は消さない
+    setCompleteModalApp(a);
     setCompleteWantAgain(null); setCompleteEntrust(null);
     setCompletePublicComment(""); setCompletePrivateMemo("");
     setCompleteNotifyNext(true);
@@ -1678,21 +1679,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           </div>
         );
       })()}
-      {completeModalApp && (
+      {/* 完了・評価モーダル：完了ボタン＝そのまま評価（2026-08-16たきと指示）。
+          「働き手は来ましたか？」の1枚は廃止＝送信＝完了の記録＋評価（submit_farmer_review・
+          1トランザクション）。来なかった場合の道は下の控えめなリンクで残す（欠勤の記録・
+          72時間の異議申立＝2026-07-30に足した「来なかった場合の措置」を消さない） */}
+      {completeModalApp && (() => {
+        const notDone = completeModalApp.status !== "completed"; // 完了の記録がまだ＝送信で一緒に記録される
+        return (
         <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
-            {completeStep === "attend" ? (
-              <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>働き手は来ましたか？</p>
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>来なかった</button>
-                  <button onClick={()=>setCompleteStep("review")} disabled={completeSubmitting} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>はい</button>
-                </div>
-                <button onClick={()=>setCompleteModalApp(null)} className="f-sans" style={{ display:"block", margin:"16px auto 0", background:"none", border:"none", color:"#717171", fontSize:12, cursor:"pointer" }}>キャンセル</button>
-              </>
-            ) : (
-              <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>作業の評価</p>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom: notDone ? 6 : 16 }}>{notDone ? "作業の完了と評価" : "作業の評価"}</p>
+                {notDone && (
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>送信すると、作業の完了が記録され、評価that働き手に届きます。</p>
+                )}
                 <YesNoPill label="また呼びたい" value={completeWantAgain} onChange={setCompleteWantAgain} />
                 <YesNoPill label="安心して任せられた" value={completeEntrust} onChange={setCompleteEntrust} />
                 <textarea value={completePublicComment} onChange={e=>setCompletePublicComment(e.target.value)} placeholder="働きぶりで良かった点を一言（働き手のプロフィールに表示されます）" rows={3}
@@ -1710,11 +1709,17 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   <button onClick={submitFarmerReview} disabled={completeSubmitting || completeWantAgain===null || completeEntrust===null}
                     className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{completeSubmitting ? "送信中..." : "送信する"}</button>
                 </div>
-              </>
-            )}
+                {/* 例外の道：来なかった場合（完了の記録that済むまでのあいだだけ出す） */}
+                {notDone && (
+                  <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans"
+                    style={{ display:"block", width:"100%", marginTop:16, paddingTop:14, borderTop:"1px solid #F0F0F0", background:"none", border:"none", fontSize:12, color:"#E24B4A", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
+                    働き手that来なかった場合は → 欠勤として記録する
+                  </button>
+                )}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* 求人カードタップ→確認ページと同型のボトムシート＝【閲覧専用】（2026-08-07〜08たきと指示）。
           再開・削除・コピー・非公開はすべて求人一覧ページの浮遊ピル（.cb-job-action-fabs）に集約。
