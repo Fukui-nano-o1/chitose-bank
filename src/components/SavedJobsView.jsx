@@ -263,6 +263,7 @@ export function SavedJobsView({ me }) {
   // いいね解除。応募のある求人はステータス確認のため一覧に残す（消えるのは「いいねだけ」の求人）。
   // 誤タップ救済に「元に戻す」を10秒出す（2026-07-27）
   const [undoJob, setUndoJob] = useState(null);
+  const [cancelingId, setCancelingId] = useState(null); // 応募の取り消し中（多重送信ガード）
   const handleUnsave = async (r) => {
     setRows(prev => (prev || []).flatMap(x => x.job_number !== r.job_number ? [x] : (x.application_id ? [{ ...x, liked: false }] : [])));
     setUndoJob(r);
@@ -280,6 +281,29 @@ export function SavedJobsView({ me }) {
                        : [{ ...r, liked: true }, ...(prev || [])];
       return next.sort((a, b) => b.job_number - a.job_number);
     });
+  };
+
+  // 応募の取り消し（2026-08-16たきと指示「応募を取り消すを追加しよう」）。
+  // このボックスは応募中の応募だと操作that1つも無かった（チャットは承認後so出ない）＝
+  // 応募状況ページ・求人詳細と同じ窓口（cancel_application）をここにも置く。
+  // ★取り消せるのは承認前（応募中）だけ＝DB側も status='applied' 限定（それ以外は already_decided）so、
+  //   ボタンも応募中のときだけ出す。取り消しは削除でなく記録＝カードは「取り消し」の暗幕に変わる
+  const cancelApplication = async (r) => {
+    if (cancelingId || !r.application_id) return;
+    if (!window.confirm("この応募を取り消しますか？農家にお知らせが届きます")) return;
+    setCancelingId(r.application_id);
+    try {
+      const { data, error } = await supabase.rpc("cancel_application", { p_application_id: r.application_id });
+      // ok（already=既に取り消し済みも含む）／not_found＝行that既に無い（旧実装の残り）＝どちらも取り消し済み扱い
+      if (!error && data && (data.ok || data.reason === "not_found")) {
+        setRows(prev => (prev || []).map(x => x.job_number === r.job_number
+          ? { ...x, application_status: "canceled" } : x));
+        setBoxJob(null);
+      } else {
+        alert("取り消しに失敗しました：" + (data?.reason || error?.message || "不明"));
+      }
+    } catch { alert("取り消しに失敗しました。"); }
+    setCancelingId(null);
   };
 
   // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる
@@ -538,6 +562,14 @@ export function SavedJobsView({ me }) {
                     <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>農家さんとのやり取り・面接はここで行います</span>
                   </button>
                 </div>
+                )}
+                {/* 応募を取り消す（2026-08-16たきと指示）：承認前（応募中）だけ。小さくグレーで最下部
+                    ＝応募状況ページの取消と同じ作法（主役は進み具合・チャット。取消は控えめに置く） */}
+                {r.application_status === "applied" && (
+                  <button onClick={()=>cancelApplication(r)} disabled={cancelingId === r.application_id} className="f-sans"
+                    style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:12, color:"#B0B0B0", textDecoration:"underline", textUnderlineOffset:3 }}>
+                    {cancelingId === r.application_id ? "取り消し中..." : "応募を取り消す"}
+                  </button>
                 )}
                 </div>{/* /面1メイン */}
                 </div>{/* /面の2枚構造 */}
