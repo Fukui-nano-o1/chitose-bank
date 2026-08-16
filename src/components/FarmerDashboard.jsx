@@ -875,6 +875,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       </div>
     );
   };
+  // 保留・対応済み（2026-08-16たきと裁定）：未回答の督促メール（12〜72時間）の4択のうち、
+  // 判断を保留する／サイトの外を含め対応を済ませた、を記録する。statusは変えず時刻だけ追記＝
+  // 帯・FlowBar・失効の仕組みには一切触れない（書き込みの窓口は set_application_followup 1本）
+  const setFollowup = async (a, kind) => {
+    const { data, error } = await supabase.rpc('set_application_followup', { p_application_id: a.id, p_kind: kind });
+    if (error || !data?.ok) { fbError(); alert('保存に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+    setDbApplicants(prev => prev.map(x => x.id === a.id ? { ...x, held_at: data.held_at, handled_at: data.handled_at } : x));
+    fbSuccess();
+  };
   const renderApplicantCard = (a) => {
     // 旧・独自のチップ配色(badgeColor)は廃止（2026-07-26）：現在地バナーが段階色APP_PHASE_COLORを使う
     const wp = workerProfiles[a.worker_id];
@@ -889,22 +898,47 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 const chatBtn = (
                   <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
                 );
-                if (phase === "applied") return (
-                  <div style={{ display:"flex", gap:8 }}>
-                    <button onClick={async ()=>{
-                      if (!confirm('この応募を見送りますか？')) return;
-                      const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
-                      if (error || !data?.ok) { fbError(); alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
-                    }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
-                    <button onClick={async ()=>{
-                      const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
-                      if (error || !data?.ok) { fbError(); alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
-                      setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
-                      fbSuccess(); setCelebrate({ emoji:"✅", title:"承認しました" });
-                    }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
+                if (phase === "applied") {
+                  // 4択（承認・見送り・保留・対応済み）＝督促メールの文面と同じ選択肢を画面にも置く。
+                  // 保留・対応済みは判断そのものではないので、下段に控えめに並べる
+                  const followup = a.handled_at ? "handled" : a.held_at ? "held" : null;
+                  const subBtn = (label, kind, on) => (
+                    <button onClick={()=>setFollowup(a, on ? "clear" : kind)} className="f-sans" style={{
+                      flex:1, padding:"9px", fontSize:12, fontWeight:600, cursor:"pointer", borderRadius:9,
+                      background: on ? "#F0F7F4" : "#fff", color: on ? "#00794D" : "#999",
+                      border: "1px solid " + (on ? "#00A86B" : "#EBEBEB"),
+                    }}>{on ? "✓ " + label : label}</button>
+                  );
+                  return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={async ()=>{
+                        if (!confirm('この応募を見送りますか？')) return;
+                        const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
+                        if (error || !data?.ok) { fbError(); alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                        setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
+                      }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
+                      <button onClick={async ()=>{
+                        const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
+                        if (error || !data?.ok) { fbError(); alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
+                        setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
+                        fbSuccess(); setCelebrate({ emoji:"✅", title:"承認しました" });
+                      }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
+                    </div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      {subBtn("保留", "hold", followup === "held")}
+                      {subBtn("対応済み", "handled", followup === "handled")}
+                    </div>
+                    {followup && (
+                      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:0, lineHeight:1.6 }}>
+                        {followup === "held" ? "保留にしました。" : "対応済みにしました。"}
+                        未回答のお知らせメールは止まります（もう一度押すと取り消せます）。
+                        承認・見送りの判断は、まだ済んでいません。
+                      </p>
+                    )}
                   </div>
-                );
+                  );
+                }
                 if (phase === "interview") return (
                   <div style={{ display:"flex", gap:8 }}>
                     <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>📋 質問を送る</button>
