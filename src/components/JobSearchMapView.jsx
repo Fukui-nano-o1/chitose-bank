@@ -1590,12 +1590,17 @@ export function JobSearchMapView({ onRegister, me }) {
           cb-lock-scroll＝展開中は背後ページのスクロールを固定（2026-08-15たきと指示）＋レーンの横スワイプにタッチを奪われない（仮応募案内ボックスと同じ作法） */}
       {applyConfirmOpen && selectedJob && (
         <div onClick={()=>setApplyConfirmOpen(false)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9000 }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
+          {/* ★高さは3面とも固定（2026-08-16たきと報告「次へをタップするとボックスが閉じてしまう」の根治）：
+              面ごとに中身の高さが違うと、次へのタップでボックスthat縮んでボタンthat上へ移動し、続けてタップする
+              指が「さっきボタンがあった場所」＝ボックスの外（黒い被せ）に落ちて閉じていた（2026-07-27の
+              日程チップ誤タップと同型）。中身だけ内側でスクロールし、次へ/戻るは下部に常設＝何も動かない */}
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ height:680, display:"flex", flexDirection:"column" }}>
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップ＋下部「戻る」で閉じられるso重複 */}
             {/* 3面切り替え（2026-08-16たきと指示）：1面目=承認の流れ図（タップで大画面）／2面目=説明（文字18に拡大）／
                 3面目=日程・応募。次へ/戻るで行き来し、1面目の戻るはボックスを閉じる */}
-            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="応募の確認" /></p>
-            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0, flexShrink:0 }}><NoticeJumpText text="応募の確認" /></p>
+            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0", flexShrink:0 }} />
+            <div style={{ flex:"1 1 auto", minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             {applyConfirmStep === 0 && (
               <>
                 {/* 承認の流れ（①プロフィール確認②判断③承認決定）のインフォグラフィック＝応募前に承認制であることを伝える */}
@@ -1639,11 +1644,12 @@ export function JobSearchMapView({ onRegister, me }) {
                 「応募する」を押すと、農家に応募が届きます。
               </p>
             ))}
-            {/* 面インジケーター（3点）＋次へ/戻る */}
-            <div style={{ display:"flex", justifyContent:"center", gap:6, margin:"18px 0 0" }}>
+            </div>
+            {/* 面インジケーター（3点）＋次へ/戻る（下部に常設・スクロールしなくても必ず見える） */}
+            <div style={{ display:"flex", justifyContent:"center", gap:6, margin:"14px 0 0", flexShrink:0 }}>
               {[0,1,2].map(i => <span key={i} style={{ width:7, height:7, borderRadius:"50%", background: i===applyConfirmStep ? "#00A86B" : "#DDD" }} />)}
             </div>
-            <div style={{ display:"flex", gap:8, marginTop:14 }}>
+            <div style={{ display:"flex", gap:8, marginTop:14, flexShrink:0 }}>
               <button onClick={()=>{ if (applyConfirmStep === 0) setApplyConfirmOpen(false); else setApplyConfirmStep(s=>s-1); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
               {applyConfirmStep < 2 ? (
                 <button onClick={()=>setApplyConfirmStep(s=>s+1)} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>次へ</button>
