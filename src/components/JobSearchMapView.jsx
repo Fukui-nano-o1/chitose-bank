@@ -93,7 +93,7 @@ export function JobSearchMapView({ onRegister, me }) {
     window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
   };
   const ownUnpublishJob = async () => {
-    if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・再掲載するときは、もう一度審査を通ります\n・応募中・面接中の方は見送りになり、その旨のお知らせthatが届きます（採用が決まっている方はそのままです）")) return;
+    if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・再掲載するときは、もう一度審査を通ります\n・応募中・面接中の方は見送りになり、その旨のお知らせが届きます（採用が決まっている方はそのままです）")) return;
     const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: selectedJob.id });
     if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
     setOwnMenuOpen(false);
@@ -1580,7 +1580,7 @@ export function JobSearchMapView({ onRegister, me }) {
               style={{ flex:1, minWidth:0, padding:"12px 12px", fontSize:14, fontWeight:700, borderRadius:14, lineHeight:1.35, textAlign:"center" }}>あなたの求人</button>
           </div>
           <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-            あなたthatが出した求人です。タップで操作できます
+            あなたが出した求人です。タップで操作できます
           </p>
         </div>
       )}

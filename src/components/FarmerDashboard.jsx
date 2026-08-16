@@ -1690,7 +1690,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom: notDone ? 6 : 16 }}>{notDone ? "作業の完了と評価" : "作業の評価"}</p>
                 {notDone && (
-                  <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>送信すると、作業の完了が記録され、評価that働き手に届きます。</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>送信すると、作業の完了が記録され、評価が働き手に届きます。</p>
                 )}
                 <YesNoPill label="また呼びたい" value={completeWantAgain} onChange={setCompleteWantAgain} />
                 <YesNoPill label="安心して任せられた" value={completeEntrust} onChange={setCompleteEntrust} />
@@ -1713,7 +1713,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 {notDone && (
                   <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans"
                     style={{ display:"block", width:"100%", marginTop:16, paddingTop:14, borderTop:"1px solid #F0F0F0", background:"none", border:"none", fontSize:12, color:"#E24B4A", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
-                    働き手that来なかった場合は → 欠勤として記録する
+                    働き手が来なかった場合は → 欠勤として記録する
                   </button>
                 )}
           </div>

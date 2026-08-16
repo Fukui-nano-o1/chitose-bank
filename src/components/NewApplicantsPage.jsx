@@ -79,7 +79,7 @@ function ApplicantCard({ app, job, profile, trust }) {
             日程はタップ先の求人詳細thatが持つ＝同じ事実を2画面に置かない。
             応募者の顔・名前は下の信頼カードthatが持つ（応募者シートと同じ＝出どころを二重に持たない） */}
         <div style={{ flex:1, minWidth:0, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center", gap:4 }}>
-          <span className="f-sans" style={{ fontSize:11, color:"#999" }}>応募thatが届いた日</span>
+          <span className="f-sans" style={{ fontSize:11, color:"#999" }}>応募が届いた日</span>
           <span className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222" }}>{fmtJstShort(app.created_at)}</span>
         </div>
       </div>
