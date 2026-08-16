@@ -801,13 +801,16 @@ export function JobSearchMapView({ onRegister, me }) {
   // 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照）
   // 応募確認ボックス（2026-07-18）：新規応募はボタン直送信でなく、内容確認のボックスを展開してから
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
-  // 3面切り替え（2026-08-16たきと指示「3つの切り替え。次へと戻るを設置」）：0=承認の流れ図／1=説明／2=日程・応募
+  // 3面切り替え（2026-08-16たきと指示「3つの切り替え。次へと戻るを設置」）：0=承認の流れ図／1=説明／2=日程・応募。
+  // 期間求人のみ4面目あり（2026-08-16たきと指示「いつでもOKと日程選択のどちらも最終確認をして」）：
+  // 2=日程の選択（ここでは応募しない）→3=最終確認（選んだ内容を見せて「応募する」）。単日は2that最終確認のまま
   const [applyConfirmStep, setApplyConfirmStep] = useState(0);
+  const [applyChoice, setApplyChoice] = useState(null); // 期間求人の選択："any"（いつでもOK）／"dates"（日程選択）／null
   const [applyImgZoom, setApplyImgZoom] = useState(false); // 承認の流れ図の大画面表示（タップで拡大・2026-08-16）
   // 応募時の来られる日宣言（2026-07-24）：期間求人（date_end有り・単日でない）だけ、応募シートで日程を選ぶ。
   // applyAvailRefに最終値（"any"／日付配列／null）を同期的に入れてからhandleApply＝ゲート往復でも保持できる
   const [applyDates, setApplyDates] = useState([]); // 選択中の特定日（"YYYY-MM-DD"）
-  useEffect(() => { setApplyConfirmOpen(false); setApplyConfirmStep(0); setApplyImgZoom(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);
+  useEffect(() => { setApplyConfirmOpen(false); setApplyConfirmStep(0); setApplyChoice(null); setApplyImgZoom(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);
   const isPeriodJob = !!(selectedJob && selectedJob.dateEndRaw && selectedJob.dateEndRaw !== selectedJob.dateStartRaw);
   // 期間内の日付を "YYYY-MM-DD" 配列で列挙（開始〜終了・両端含む）
   const periodDays = (() => {
@@ -849,7 +852,7 @@ export function JobSearchMapView({ onRegister, me }) {
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (!myAppStatus && myPending) ? (() => { window.location.hash = "/apply/pending"; })
-    : (() => { setApplyConfirmStep(0); setApplyConfirmOpen(true); });
+    : (() => { setApplyConfirmStep(0); setApplyChoice(null); setApplyConfirmOpen(true); });
   // 募集終了（2026-07-24）：設定した採用人数に達した（満員＝filled）／作業日程が過ぎた（expired）求人は
   // 応募導線（下部フッター・応募ボタン）を出さない＝新規の募集を締め切る。
   // ただし既に応募・承認・見送りの関係がある本人には、状況確認とチャット導線を残すため従来どおり表示する。
@@ -1635,10 +1638,12 @@ export function JobSearchMapView({ onRegister, me }) {
             )}
             {applyConfirmStep === 2 && (isPeriodJob ? (
               /* 期間求人：来られる日を宣言してから応募（いつでもOK=1タップで即応募／特定日=複数選択→下部の応募ボタン） */
+              /* ★この面では応募しない（2026-08-16たきと指示「どちらも最終確認をして」）：
+                 いつでもOKも日程選択も、選ぶだけで4面目（最終確認）へ進む。応募の実行は4面目の「応募する」のみ */
               <div>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>来られる日を選んでください</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>この求人は期間募集です。来られる日を農家に伝えてから応募します。</p>
-                <button onClick={()=>{ applyAvailRef.current = "any"; setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="f-sans" style={{ width:"100%", padding:"16px", fontSize:16, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:14, cursor:"pointer", marginBottom:16, opacity: applying ? 0.6 : 1 }}>⭕ 期間中いつでもOK</button>
+                <button onClick={()=>{ setApplyChoice("any"); setApplyConfirmStep(3); }} className="f-sans" style={{ width:"100%", padding:"16px", fontSize:16, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:14, cursor:"pointer", marginBottom:16 }}>⭕ 期間中いつでもOK</button>
                 <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"0 0 12px" }}>または、来られる日を選ぶ</p>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                   {periodDays.map(d => {
@@ -1656,17 +1661,33 @@ export function JobSearchMapView({ onRegister, me }) {
                 </p>
               </div>
             ))}
+            {applyConfirmStep === 3 && isPeriodJob && (
+              /* 4面目＝最終確認（期間求人のみ）：選んだ内容をそのまま見せてから応募する */
+              <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 10px" }}>応募の最終確認</p>
+                <div className="f-sans" style={{ fontSize:18, color:"#222", lineHeight:1.7, background:"#F7F7F7", borderRadius:10, padding:"12px 14px" }}>
+                  来られる日：{applyChoice === "any" ? "⭕ 期間中いつでもOK" : `${[...applyDates].sort().map(calFmtDate).join("・")}（${applyDates.length}日）`}
+                </div>
+                <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"14px 0 0" }}>
+                  「応募する」を押すと、この内容で農家に応募が届きます。
+                </p>
+              </div>
+            )}
             </div>
-            {/* 面インジケーター（3点）＋次へ/戻る（下部に常設・スクロールしなくても必ず見える） */}
+            {/* 面インジケーター（単日3点・期間4点）＋次へ/戻る（下部に常設・スクロールしなくても必ず見える） */}
             <div style={{ display:"flex", justifyContent:"center", gap:6, margin:"14px 0 0", flexShrink:0 }}>
-              {[0,1,2].map(i => <span key={i} style={{ width:7, height:7, borderRadius:"50%", background: i===applyConfirmStep ? "#00A86B" : "#DDD" }} />)}
+              {(isPeriodJob ? [0,1,2,3] : [0,1,2]).map(i => <span key={i} style={{ width:7, height:7, borderRadius:"50%", background: i===applyConfirmStep ? "#00A86B" : "#DDD" }} />)}
             </div>
             <div style={{ display:"flex", gap:8, marginTop:14, flexShrink:0 }}>
               <button onClick={()=>{ if (applyConfirmStep === 0) setApplyConfirmOpen(false); else setApplyConfirmStep(s=>s-1); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
               {applyConfirmStep < 2 ? (
                 <button onClick={()=>setApplyConfirmStep(s=>s+1)} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>次へ</button>
+              ) : isPeriodJob && applyConfirmStep === 2 ? (
+                /* 期間求人の2面目＝日程を選んで次へ（応募はまだしない）。いつでもOKは上の大ボタンから直接4面目へ */
+                <button onClick={()=>{ if (applyDates.length===0) return; setApplyChoice("dates"); setApplyConfirmStep(3); }} disabled={applyDates.length===0} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applyDates.length===0 ? 0.5 : 1, cursor: applyDates.length===0 ? "not-allowed" : "pointer" }}>{`この日程で次へ${applyDates.length>0 ? `（${applyDates.length}日）` : ""}`}</button>
               ) : isPeriodJob ? (
-                <button onClick={()=>{ if (applyDates.length===0) return; applyAvailRef.current = [...applyDates].sort(); setApplyConfirmOpen(false); handleApply(); }} disabled={applying || applyDates.length===0} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (applying || applyDates.length===0) ? 0.5 : 1, cursor: applyDates.length===0 ? "not-allowed" : "pointer" }}>{applying ? "送信中..." : `この日程で応募する${applyDates.length>0 ? `（${applyDates.length}日）` : ""}`}</button>
+                /* 期間求人の4面目＝最終確認からの応募実行（唯一の応募ボタン） */
+                <button onClick={()=>{ if (applyChoice !== "any" && applyDates.length===0) return; applyAvailRef.current = applyChoice === "any" ? "any" : [...applyDates].sort(); setApplyConfirmOpen(false); handleApply(); }} disabled={applying || (applyChoice !== "any" && applyDates.length===0)} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (applying || (applyChoice !== "any" && applyDates.length===0)) ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
               ) : (
                 <button onClick={()=>{ applyAvailRef.current = null; setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applying ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
               )}
