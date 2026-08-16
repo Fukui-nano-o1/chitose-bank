@@ -127,6 +127,18 @@ DB実装の詳細（2026-07-13追記）：
 10. やり取りできる言語 — プリセットから複数選択
    （判断理由：業務上の意思疎通に必要な情報として許可。ラベルは必ず「やり取りできる言語」を使うこと。国籍・出身・在留資格は本項目からは絶対に収集・表示しない〈下記絶対禁止参照〉）
 
+### 許可項目の追加（2026-08-14・たきと裁定＝AskUserQuestionで確認済み）
+以下3項目を許可リストに追加（すべて選択式・任意・雇い手側の関わり方4問と対になる設計）。
+あわせて項目8「希望する作業の強さ」の選択肢ラベルを柔らかめに差し替え
+（軽めの作業がうれしい／どちらでもOK／力仕事も歓迎。質問名は規則どおり不変・既存の保存値は書き換えない）。
+11. 作業中の雰囲気 — おしゃべり歓迎／ほどよく会話／黙々と集中
+   （判断理由：職場の相性＝業務上の意思疎通に必要な情報。身体属性・内心の評価に非該当）
+12. 教わり方の希望 — やって見せてほしい／口頭での説明がいい／やりながら覚えたい
+   （判断理由：業務上の指導方法の希望＝労働条件の希望として許可）
+13. 希望する働き方 — 単発で働きたい／気に入った農園に続けて通いたい／季節ごとに働きたい
+   （判断理由：労働条件の希望として許可。実装＝worker_profiles.work_mood/learning_pref/work_pattern・
+   migration worker_style_questions・表示はworkerQaItems（Q&Aコメント形式）と農家向け窓口RPCのみ）
+
 絶対禁止：
 - 第三者（農家）による主観的評価・採点・スコアリングの公開（同意があっても不可）
 - 稼働回数など、地域×作物との組み合わせで個人を特定しうる生の数値
@@ -4658,4 +4670,46 @@ aspectRatioで読み込み前から高さ確定）。margin:autoで中央寄せ�
 実機目視の残り：①3面の行き来（次へ/戻る・1面目の戻るで閉じる）②画像タップ→大画面that中央から
 読める大きさで出るか・指でずらせるか・✕/余白タップで閉じて元のページthatそのまま見えるか
 ③2面目の文字の大きさ ④期間求人の日程選択と応募・単日の応募 ⑤いつでもOKの即応募
+━━━ ここまで ━━━
+
+━━━ 2026-08-16 悪意あるユーザーのブロック：BANの壁を全書き込み経路へ拡張＋抜き取り面を封鎖 ━━━
+【たきと指示】「悪意を持ったユーザーのブロックを行う。データ関係で抜き取られる可能性のあるものを確認」
+【背景の穴】admin_moderate_account は auth.users.banned_until='infinity' でログインを止めるthat、
+発行済みトークンの有効期間（最大1時間）はDBを直接叩ける。BANゲート is_account_moderated は
+apply_to_job・messages・reviews・repeat_roster 等10箇所のみで、書き込みRPC約20本
+（approve_application・complete_work・set_agreed_dates・ask_job_question・submit_farmer_review 等）と
+RLS直書き経路（saved_jobs・jobs下書き・feedback・worker/employer_profiles・job_reports 等）that素通りだった。
+【修理（migration 20260816012226_block_moderated_users_wall・本番適用・repo写経済み・履歴表同期）】
+① 中央の壁 assert_actor_not_moderated()＝BEFORE INSERT/UPDATE トリガー trg_a_block_moderated を
+   16テーブルに設置（利用者のアクション表）。auth.uid() がNULL（cron・service_role）は通す
+   ＝システム処理は止めない。個別RPCに撒くと漏れが再発するため中央1本で全経路を受ける。
+   トリガー名先頭 'a'＝BEFOREはアルファベット順発火so既存トリガーより先に走り無駄処理の前に止まる。
+   対象外（意図的）：withdrawal_requests（退会の権利は奪わない）・app_errors（診断記録）・
+   chat_reads/push_subscriptions/notifications（無害・システム書き込みと交差）・
+   messages/reviews/repeat_roster（既にRLSでBANゲート済み）。DELETEは自分のデータ取り下げso止めない。
+② applications「app worker insert」ポリシー削除＝apply_to_jobの全検証（BAN・profile_incomplete・
+   dates_required・own_job・job_not_open）を迂回して applied 行を直接作れる純粋な攻撃面だった。
+   フロントに applications 直接INSERTはゼロ（grep実測）。
+③ dests_insert_auth 削除（2026-08-07いちゃもん1の既知未修理を解消）＝with_check=true で誰でも
+   偽のsubmitted_by付き行を注入できた。destsは分割3-AでUIを消した旧事業データ（書き込み不要）。
+【★抜き取り面（BAN農家の情報that連番求人No.で引けた）】jobs_public はBAN除外済みだったthat、
+④ employer_profiles_public（ビュー）＝BAN除外なし＝停止・追放中の農家の看板（名前・紹介文・待遇）that
+   ログインユーザーに出続けた。where not is_account_moderated(auth_id) を追加（SELECT専用grant再宣言）。
+⑤ job_employer_profile（RPC・求人No.連番で直叩き可）＝jobs_publicから消えてもBAN農家のプロフィール・
+   募集主3項目（氏名・住所・連絡先）that引けた。WHEREに not is_account_moderated(j.farmer_id) を追加。
+⑥ employer_trust_info＝「open求人があれば誰でも閲覧可」の入口thatBAN後も残っていた（jobs直読み）。
+   本人以外はBAN農家の信頼情報を返さない（auth.uid() is null を先に弾く＝フェイルオープン規則）。
+   job_employer_trust_info は本関数を内部で呼ぶので自動追従。employer_public_jobs（jobs_public経由）・
+   employer_public_job_counts/pending_job_previews（is_account_moderated 持ち）は既に除外済みを確認。
+【検証（ロールバック付き実弾・合成2アカウント・実データ不変・残置ゼロ）】
+T0 無JWT（cron相当）のシステム書き込みは通る／T1 banned の saved_jobs・下書き求人・feedback 全拒否／
+T2 active の同操作は通過（偽陽性なし）／T3 applications 直INSERT 拒否（42501・単独 insert...values で確認。
+※前回テストで insert...select が0行になり誤検知＝サブクエリthat authenticated ロールのjobs RLSで空になる型）／
+T4 dests 直INSERT 拒否／T5 cron経路UPDATE 通過／T6 BAN農家は employer_profiles_public から消える（1→0）／
+T7 job_employer_profile=0行／T8 employer_trust_info ok=false／T8b job_employer_trust_info ok=false／
+T9 BAN解除で復帰。audit.sql①〜⑤ 全OK（③b/③c/④/⑤=0件）。
+【運用】管理タブの利用者一覧→停止/追放（admin_moderate_account）は不変＝これまでどおり運営that操作。
+本人には理由＋申し立て先メールthat届き、応募・評価・契約の記録は削除されず保存される（説明の機会）。
+DELETEを止めていない＝停止中でも自分のデータの取り下げ（応募取消・下書き削除）は可能。
+【残（コード外）】新規登録の Confirm email/SMTP のダッシュボード実物確認は引き続きたきとのPC作業。
 ━━━ ここまで ━━━

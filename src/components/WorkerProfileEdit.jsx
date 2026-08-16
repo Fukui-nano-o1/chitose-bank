@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
-import { WORKER_DECLARATIONS, TASK_OPTIONS } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
+import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
 import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
@@ -63,7 +63,8 @@ const WORKER_QA_PLACEHOLDERS = {
 };
 
 // 15秒カード用プリセット（2026-07-14たきと判断でCLAUDE.md許可リストに追加。詳細はCLAUDE.md参照）
-const WORK_INTENSITY_OPTIONS = ["軽めの作業希望", "どちらでも", "力仕事もOK"];
+// はたらき方の希望4問の正は lib/utils の WORKER_STYLE_QUESTIONS（2026-08-14拡充）。
+// 旧ラベル（軽めの作業希望/どちらでも/力仕事もOK）で保存済みの値は書き換えない＝そのまま表示される
 const INTEREST_OPTIONS = ["釣り","料理","ランニング","筋トレ","読書","音楽","映画","ゲーム","旅行","キャンプ","園芸","DIY","動物","写真","スポーツ観戦","ショッピング","ドライブ","ネットサーフィン"];
 const LANGUAGE_OPTIONS = ["日本語","英語","中国語","ベトナム語","インドネシア語","タガログ語","ポルトガル語","その他"];
 
@@ -79,6 +80,10 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [transport, setTransport] = useState("");
   const [farmExperience, setFarmExperience] = useState("");
   const [physicalLevel, setPhysicalLevel] = useState("");
+  // はたらき方の希望・追加3問（2026-08-14たきと承認・選択式・ラベル文字列で保存）
+  const [workMood, setWorkMood] = useState("");
+  const [learningPref, setLearningPref] = useState("");
+  const [workPattern, setWorkPattern] = useState("");
   const [interests, setInterests] = useState([]);
   const [languages, setLanguages] = useState([]);
   const [selfDeclared, setSelfDeclared] = useState([]); // できること・資格（自己申告・key配列・2026-07-23）
@@ -118,6 +123,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           setTransport(data.transport || "");
           setFarmExperience(data.farm_experience || "");
           setPhysicalLevel(data.physical_level || "");
+          setWorkMood(data.work_mood || ""); setLearningPref(data.learning_pref || ""); setWorkPattern(data.work_pattern || "");
           setInterests(Array.isArray(data.interests) ? data.interests : []);
           setLanguages(Array.isArray(data.languages) ? data.languages : []);
           setSelfDeclared(Array.isArray(data.self_declared) ? data.self_declared : []);
@@ -258,7 +264,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const BOX_ORDER = ["avatar","nickname","pr","residence","transport","exp","intensity","interests","languages","declared","qa"]; // declaredはボックスへ復帰（2026-08-02たきと指示・保険申告と同じトグル構造のモーダル）
   const boxFilled = (k) => (
     k === "pr" ? !!pr.trim() : k === "nickname" ? !!nickname.trim() : k === "residence" ? !!residenceCity.trim()
-    : k === "transport" ? !!transport : k === "exp" ? !!farmExperience : k === "intensity" ? !!physicalLevel
+    : k === "transport" ? !!transport : k === "exp" ? !!farmExperience : k === "intensity" ? !!(physicalLevel || workMood || learningPref || workPattern)
     : k === "interests" ? interests.length > 0 : k === "languages" ? languages.length > 0
     : k === "declared" ? (selfDeclared.length > 0 || expEntries.some(e => (e.crop||"").trim())) : k === "avatar" ? !!avatarUrl : prQa.length > 0
   );
@@ -353,6 +359,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         ...clearedFields,
         ...reviewFields,
         residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
+        work_mood: workMood || null, learning_pref: learningPref || null, work_pattern: workPattern || null,
         interests, languages, self_declared: selfDeclared,
         experience_entries: expEntries.map(e => ({ crop:(e.crop||"").trim(), task:e.task||"", duration:e.duration||"" })).filter(e => e.crop).slice(0, 5),
         experienced_tasks: experiencedTasks,
@@ -441,7 +448,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"residence", l:"居住地",       v: residenceCity },
           { k:"transport", l:"移動手段",     v: transport },
           { k:"exp",       l:"農業経験",     v: farmExperience },
-          { k:"intensity", l:"作業の強さ",   v: physicalLevel },
+          { k:"intensity", l:"はたらき方の希望", v: [physicalLevel, workMood, learningPref, workPattern].filter(Boolean).join("・") },
           { k:"interests", l:"趣味",         v: interests.join("・") },
           { k:"languages", l:"言語",         v: languages.join("・") },
           { k:"declared",  l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
@@ -524,9 +531,18 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </>)}
 
       {editBox==="intensity" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>希望する作業の強さ</label>
-      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>力仕事もOKか、軽めがいいか、希望で選べます。</p>
-      <LFPillSelect options={WORK_INTENSITY_OPTIONS} value={physicalLevel} onSelect={setPhysicalLevel} />
+      {/* はたらき方の希望＝4問（2026-08-14拡充・雇い手の関わり方4問と対）。答えたい質問だけでOK */}
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"8px 0 10px", lineHeight:1.6 }}>答えたい質問だけ選んでください（任意）。答えた内容は応募先の農家に表示されます。</p>
+      {WORKER_STYLE_QUESTIONS.map(q => {
+        const cur = { physical_level: physicalLevel, work_mood: workMood, learning_pref: learningPref, work_pattern: workPattern }[q.k];
+        const set = { physical_level: setPhysicalLevel, work_mood: setWorkMood, learning_pref: setLearningPref, work_pattern: setWorkPattern }[q.k];
+        return (
+          <div key={q.k} style={{ marginBottom:14 }}>
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>{q.label}（任意）</label>
+            <LFPillSelect options={q.options} value={cur} onSelect={v => set(cur === v ? "" : v)} />
+          </div>
+        );
+      })}
       </>)}
 
       {editBox==="interests" && (<>
