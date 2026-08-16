@@ -1090,6 +1090,17 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   .qr-print-only { display: block !important; }
 }
 
+/* 契約の印刷（わたしの実績→契約の記録・2026-08-16）：印刷時は契約書(.cb-ctr-print)だけを紙に出す。
+   ボックスは固定オーバーレイ＋内側スクロールなので、印刷時は static に戻して複数ページに流す
+   （fixed のままだと1ページ目で切れる）。ComponentはContractRecords.jsx＝3クラスと対。 */
+@media print {
+  body * { visibility: hidden; }
+  .cb-ctr-print, .cb-ctr-print * { visibility: visible; }
+  html:has(.cb-ctr-print), body:has(.cb-ctr-print) { overflow: visible !important; height: auto !important; }
+  .cb-ctr-print-overlay { position: static !important; display: block !important; padding: 0 !important; background: #fff !important; }
+  .cb-ctr-print-sheet { position: static !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; max-width: none !important; border-radius: 0 !important; animation: none !important; }
+}
+
 /* 開催期間カレンダー📅の浮遊ボタン（.calendar-fab*）は削除（2026-07-24・誰も展開しないため） */
 
 /* ── 求人詳細：←戻る／♡いいねの浮遊固定（同じ高さ・スクロール追従・2026-07-16） ── */

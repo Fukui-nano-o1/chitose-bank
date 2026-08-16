@@ -10,6 +10,7 @@ import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
+import ContractRecords from "./ContractRecords";
 
 // 退会で削除される情報の一覧（2026-08-07たきと指示）＝process_withdrawal(migration 20260807133659)の
 // 削除対象を利用者の言葉に噛み砕いたもの。★DBの削除対象を増減したらここも合わせること（表示と実処理を揃える）。
@@ -361,6 +362,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                   {((wHub.completed || 0) > 0 || (wHub.wantAgain || 0) > 0 || (wHub.hours || 0) > 0)
                     ? <WorkerTrustCard profile={wMini || {}} trust={wTrust} hideSelfDeclare />
                     : <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", lineHeight:1.9, padding:"28px 8px" }}>最初の仕事を終えると、ここに実績が刻まれます</p>}
+                  {/* 契約の記録と印刷（2026-08-16たきと指示）：凍結terms_snapshotの表示・印刷。契約が無ければ何も出ない */}
+                  <ContractRecords me={me} />
                 </div>
               </div>
             )}
