@@ -660,7 +660,9 @@ export const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contrac
 // applied=応募直後から相手とチャットで繋がる（2026-07-19）。rejected=見送りの自動返信を読めるよう履歴として残す
 // expired=失効も一覧に残す（2026-07-27たきと指示）：判断のないまま開始日を迎えた応募も、何があったかを
 // 双方が後から確認できる状態に保つ（チャット履歴の保全と同じ思想）。チップは黒の「失効」で表示される
-export const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected", "expired"];
+// canceled=働き手の取り消しも一覧に残す（2026-08-16）：応募時の自動メッセージ〜取り消しの報告までを
+// 双方が後から確認できる状態に保つ（削除でなく記録＝行動記録の憲法・チャット履歴の保全）
+export const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "completed", "rejected", "expired", "canceled"];
 // リアルタイム帯（2026-07-25たきと指示・同日改定）：応募中→面接中→採用→作業中→完了 の5段＋終端（見送り/失効）。
 // すべて農家のアクションがトリガー（承認→面接中／採用タップ→採用／開始→作業中／完了記録→完了）。
 // 「打合せ」段階はトリガーを定義できないため削除（2026-07-25たきと判断）。
@@ -670,11 +672,11 @@ export const CHAT_LIST_STATUSES = ["applied", ...CHAT_ELIGIBLE_STATUSES, "comple
 //   同じ式のSQL版で、DB側の状態条件（二重予約壁・評価の壁等）はそちらを参照する。片方を変えたら必ず両方変えること
 export const appPhaseKey = (a) => {
   const st = a?.status;
-  if (["applied","rejected","expired","completed","working"].includes(st)) return st;
+  if (["applied","rejected","expired","completed","working","canceled"].includes(st)) return st;
   const hired = !!(a?.terms_confirmed_worker_at && a?.terms_confirmed_farmer_at);
   return hired ? "contracted" : "interview";
 };
-export const APP_PHASE_LABEL = { applied:"応募中", interview:"面接中", contracted:"採用", working:"作業中", completed:"完了", rejected:"見送り", expired:"失効" };
+export const APP_PHASE_LABEL = { applied:"応募中", interview:"面接中", contracted:"採用", working:"作業中", completed:"完了", rejected:"見送り", expired:"失効", canceled:"取り消し" };
 // expiredは黒＝失効カードの黒オーバーレイと同色（2026-07-25。失効は応募の段階でなく求人の締め切りとして表示する）
 // 段階の説明（2026-07-25たきと指示「ステータスタップで説明を展開」）：帯・チップ・凡例の説明の唯一のソース。
 // タップ→PhaseInfoSheet（components/ui）で表示。文面は両役割から読める中立の言い回しにする
@@ -686,8 +688,9 @@ export const APP_PHASE_DESC = {
   completed:  "作業が終わった応募。お互いを評価できます",
   rejected:   "見送りになった応募です",
   expired:    "承認・見送りの判断がないまま作業開始日を迎え、自動で取り消しになった応募です",
+  canceled:   "働き手が取り消した応募です",
 };
-export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#111111" };
+export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#111111", canceled:"#757575" };
 // 応募者ページのステータス絞り込みのキー（2026-08-07・帯5段＋終端と同順）。
 // 使う側＝FarmerDashboard（絞り込みの実体）と NewApplicantsPage（同じ並びのピル＝タップで応募者ページへ送る）。
 // 並び・ラベルの唯一のソース＝この配列＋APP_PHASE_LABEL（片方だけ変えない）

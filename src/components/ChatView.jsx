@@ -443,6 +443,7 @@ export function ChatView({ applicationId, onBack }) {
     expired:   "この求人の募集期間は終了しました",
     completed: "この仕事は完了しました",
     rejected:  "この応募は見送りになりました",
+    canceled:  "この応募は取り消されました",
   };
   const chatClosed = !!CHAT_CLOSED_NOTE[activeStatus];
   return (

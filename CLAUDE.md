@@ -4666,10 +4666,17 @@ aspectRatioで読み込み前から高さ確定）。margin:autoで中央寄せ�
 はみ出した左端が切れてスクロールで届かない既知の罠を回避）。✕ボタン＋余白タップで閉じる。
 画像タップでは閉じない＝ずらす操作の途中で誤って閉じないため（✕なし規約の例外・理由をコードに記載）。
 下部に「指でうごかすと全体が見られます」の案内。
+【同日追補2・「次へをタップするとボックスが閉じてしまう」の根治】原因＝面ごとに中身の高さthat違い、
+次へのタップでボックス（中央寄せ）that縮んでボタンthat上へ移動→続けてタップする指that
+「さっきボタンがあった場所」＝ボックスの外（黒い被せ）に落ちて閉じていた（2026-07-27の
+日程チップ誤タップと同型＝タップ対象は動かしてはいけない）。修理＝ボックスの高さを3面とも固定
+（height:680・cb-notice-sheetのmax-heightthatスマホでは画面内に収める）し、中身だけ内側スクロール・
+タイトルと次へ/戻る・面インジケーターは上下に常設（flex列・flexShrink:0）。
+副次の改善＝スクロールしなくてもボタンthat常に見える（1面目の画像that大きい端末でも）。
 【検証】build成功・eslint 0 error（警告4=変更前と同数）・distに新文言の包含をgrep確認。
-実機目視の残り：①3面の行き来（次へ/戻る・1面目の戻るで閉じる）②画像タップ→大画面that中央から
-読める大きさで出るか・指でずらせるか・✕/余白タップで閉じて元のページthatそのまま見えるか
-③2面目の文字の大きさ ④期間求人の日程選択と応募・単日の応募 ⑤いつでもOKの即応募
+実機目視の残り：①次へ連打で3面thatスムーズに進みボックスthat閉じないか ②1面目の戻るで閉じる
+③画像タップ→大画面（パン方式）→✕/余白タップで戻る ④期間求人の日程選択と応募・単日の応募
+⑤いつでもOKの即応募 ⑥小さい端末で3面ともボタンthat画面内に見えているか
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-16 悪意あるユーザーのブロック：BANの壁を全書き込み経路へ拡張＋抜き取り面を封鎖 ━━━
@@ -4712,4 +4719,36 @@ T9 BAN解除で復帰。audit.sql①〜⑤ 全OK（③b/③c/④/⑤=0件）。
 本人には理由＋申し立て先メールthat届き、応募・評価・契約の記録は削除されず保存される（説明の機会）。
 DELETEを止めていない＝停止中でも自分のデータの取り下げ（応募取消・下書き削除）は可能。
 【残（コード外）】新規登録の Confirm email/SMTP のダッシュボード実物確認は引き続きたきとのPC作業。
+━━━ ここまで ━━━
+
+━━━ 2026-08-16 悪意ブロックの他パターン：BAN農家の求人への応募・質問を塞ぐ＋cancel_applicationの既存バグ発見 ━━━
+【たきと指示】「他のパターンも」＝前回（RLS直書き経路）と別の切り口で悪意ユーザーの攻撃面を実弾で撃つ。
+合成のみ・全ロールバック・実データ不変。
+【★見つけて塞いだ穴（migration 20260816033926_block_apply_ask_to_moderated_farmer・本番適用・repo写経済み）】
+農家をBANすると求人は jobs_public から消える（前回20260816012226の除外）that、jobs テーブルでは
+status='open' のまま残る。apply_to_job / ask_job_question は求人者(farmer)のBANを見ず status='open' だけ
+見るため、求人No.（1000からの連番＝推測容易）直打ちで：
+  ・応募that成立（ゴースト応募＝働き手that消えた求人に応募して待たされる）
+  ・質問that投函され、BAN農家に通知＋メールthat飛ぶ（迷惑）
+that通ってしまった（実弾で両方 ok:true を再現）。
+→ 両RPCに求人者のBANチェックを追加＝BAN農家の求人は募集終了扱い（応募=job_not_open／質問=not_open）。
+  求人のstatusは触らない＝BAN解除で自然に再開する可逆な形（closedにすると解除で戻らない）。
+  これで読み取り面（jobs_public/job_employer_profile/employer_trust_info・前回除外）と書き込み面that
+  一貫してBAN農家の求人を遮断する。
+【検証（ロールバック付き実弾・全項目OK）】
+P1a 正常農家への応募 通過（偽陽性なし）／P1b BAN農家への応募 job_not_open／P1c BAN農家への質問 not_open／
+P2b BAN働き手のRLS直書き（saved_jobs）拒否（前回の中央トリガー trg_a_block_moderated の回帰）。
+audit.sql①〜⑤は前回同様OK（この変更は読み取り面の列・権限を変えないため42P13なし）。
+【★別テーマの既存バグ発見（未修理・悪意ブロックとは無関係・報告のみ）：cancel_application that常に失敗する】
+cancel_application は applied 応募を delete from applications で消すthat、messages.application_id の FK that
+ON DELETE CASCADE（confdeltype='c'）so、紐づく messages も消えようとして凍結トリガー
+（trg_messages_history_lock_del「messages are immutable history」）に弾かれ、応募取り消しthat例外で失敗する。
+apply_to_job は必ず自動メッセージ（「応募しました」）を1件入れる（exceptionで握りつぶすthat通常は成功）ため、
+【applied 段階でも messages that常に1件あり、cancel_application は事実上いつも失敗する】。
+※これは悪意ブロックの調査中に偶然見つかった副産物。BANとは無関係so今回は触っていない。
+修理案（要たきと判断）：cancel_application を「applications を delete」でなく「status を 'cancelled' 等に
+する（論理削除）」に変えて messages 凍結と両立させる／or messages の該当スレッドは残す設計にする。
+記録憲法「アクションは記録に残す・履歴は消せない」からすると、物理delete自体that憲法と緊張している
+（取り消しも記録として status で残すのthat筋）。フロントは WorkerApplications.jsx で cancel を呼んでいるので、
+実運用で「取り消せない」状態の可能性that高い＝次に確認・対処すべき候補。
 ━━━ ここまで ━━━

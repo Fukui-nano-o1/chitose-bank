@@ -525,7 +525,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
          （2026-08-01たきと指示「ボックスが前面・展開中は画面スクロール停止」・FarmerDashboardの各シートと同作法） */
       <div onClick={closeEditBox} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 16px", animation:"fadeIn .2s ease" }}>{/* 上下40pxの余白を残して中央（2026-08-01たきと指示・30px→40px）。maxHeight:100%＝余白を差し引いた高さが上限 */}
       <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-      <button onClick={closeEditBox} style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:18, cursor:"pointer", zIndex:1, ...(black ? { color:"#111111" } : {}) }}>✕</button>
+      {/* ✕は削除（2026-08-14たきと指示）＝閉じるはボックス外タップ（overlayのonClick=closeEditBox・内側はstopPropagation） */}
 
       {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>

@@ -246,8 +246,11 @@ export function WorkerApplications({ filter, me }) {
     setCancelingId(a.id);
     try {
       const { data, error } = await supabase.rpc('cancel_application', { p_application_id: a.id });
-      // not_found＝行が既に無い（前回の試行が遅れて成立した等）＝取り消し済みとして扱う（表示は記録から導出）
-      if (!error && data && (data.ok || data.reason === 'not_found')) setAllApps(prev => prev.filter(x => x.id !== a.id));
+      // 2026-08-16：取り消しは削除でなく記録（status='canceled'）。already=既に取り消し済みも成功扱い。
+      // ローカルもstatus更新＝カードは「過去の応募（取り消し）」へ移る（表示は記録から導出）
+      if (!error && data && data.ok) setAllApps(prev => prev.map(x => x.id === a.id ? { ...x, status: 'canceled', canceled_at: new Date().toISOString() } : x));
+      // not_found＝行が既に無い（旧DELETE時代の残り）＝取り消し済みとして扱う
+      else if (!error && data && data.reason === 'not_found') setAllApps(prev => prev.filter(x => x.id !== a.id));
       else alert('取り消しに失敗しました：' + (data?.reason || error?.message || '不明'));
     } catch { alert('取り消しに失敗しました。'); }
     setCancelingId(null);
@@ -261,7 +264,7 @@ export function WorkerApplications({ filter, me }) {
     // （採用してもstatusは'approved'のまま＝contractedはDBに書かれない表示用の値・CLAUDE.md）
     if (filter === "approved") return ["contracted","working","completed"].includes(a.status)
       || (!!a.terms_confirmed_worker_at && !!a.terms_confirmed_farmer_at && a.status !== "rejected" && a.status !== "expired");
-    return a.status !== "rejected";
+    return a.status !== "rejected" && a.status !== "canceled";
   });
   // リアルタイム帯（2026-07-25）：応募中→面接中→採用→作業中→完了（appPhaseKeyで導出）
   const label = (a) => a.status==="applied" ? "応募中" : (APP_PHASE_LABEL[appPhaseKey(a)] || a.status);
@@ -511,7 +514,7 @@ export function WorkerApplications({ filter, me }) {
                 <span className="f-sans" style={{ fontSize:13, color:"#717171", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</span>
                 {/* 掲載取り下げ（rejected_reason='unpublished'）は見送りと区別（2026-08-08たきと指示・
                     選考の結果ではないことを表示でも示す。ステータスページの暗幕と同じ語） */}
-                <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#999", background:"#F0F0F0", borderRadius:20, padding:"2px 10px", flexShrink:0 }}>{a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : "失効"}</span>
+                <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#999", background:"#F0F0F0", borderRadius:20, padding:"2px 10px", flexShrink:0 }}>{a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効"}</span>
               </div>
             );
           })}
