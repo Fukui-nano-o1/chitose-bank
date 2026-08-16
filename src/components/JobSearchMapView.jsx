@@ -541,7 +541,8 @@ export function JobSearchMapView({ onRegister, me }) {
       try {
         // 仮応募（第15弾）も一緒に見る。RLS「pending own」で自分の行しか返らない
         const [appRes, pendRes] = await Promise.all([
-          supabase.from('applications').select('id,job_number,status,started_at,time_corrected').eq('worker_id', me.id),
+          // canceled（取り消し済み・2026-08-16）は除く＝取り消した求人は「未応募」に戻り再応募できる
+          supabase.from('applications').select('id,job_number,status,started_at,time_corrected').eq('worker_id', me.id).neq('status', 'canceled'),
           Promise.resolve(supabase.from('pending_applications').select('job_number').eq('worker_id', me.id)).then(r => r, () => ({ data: null })),
         ]);
         if (cancelled) return;
@@ -601,8 +602,10 @@ export function JobSearchMapView({ onRegister, me }) {
     (async () => {
       try {
         const [appRes, pendRes] = await Promise.all([
+          // canceledを除く（2026-08-16）：取り消し→再応募で同じ求人に2行になり得るため、
+          // 除かないと maybeSingle が複数行エラーになる（現役の応募は部分ユニークで常に1行）
           supabase.from('applications').select('id,status,started_at,time_corrected')
-            .eq('job_number', selectedJob.id).eq('worker_id', me.id).maybeSingle(),
+            .eq('job_number', selectedJob.id).eq('worker_id', me.id).neq('status', 'canceled').maybeSingle(),
           Promise.resolve(supabase.from('pending_applications').select('id')
             .eq('job_number', selectedJob.id).eq('worker_id', me.id).maybeSingle()).then(r => r, () => ({ data: null, error: true })),
         ]);
@@ -734,7 +737,8 @@ export function JobSearchMapView({ onRegister, me }) {
     try {
       const { data, error } = await supabase.rpc("cancel_application", { p_application_id: myApplication.id });
       setApplying(false);
-      // not_found＝行が既に無い（前回の試行が遅れて成立した等）＝取り消し済みとして扱う（表示は記録から導出）
+      // ok（already=既に取り消し済み含む）／not_found＝行が既に無い（旧DELETE時代の残り）＝どちらも取り消し済み扱い。
+      // 2026-08-16からは削除でなく status='canceled' の記録＝マップから外せば「未応募」に戻り再応募できる
       if (!error && data && (data.ok || data.reason === "not_found")) { setMyApplication(null); patchMyApp(selectedJob.id, null); }
       else alert("取り消しに失敗しました：" + (data?.reason || error?.message || "不明"));
     } catch { setApplying(false); alert("取り消しに失敗しました。"); }

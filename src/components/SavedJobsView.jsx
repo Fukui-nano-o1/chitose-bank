@@ -295,7 +295,7 @@ export function SavedJobsView({ me }) {
   } : null;
   // 見送り・失効のアイコンは「その時の状態」で出す（2026-07-27たきと指示）。どちらも応募中から進まずに
   // 終わった応募なので、アイコンは応募中のまま。終わった事実はカード全体の暗幕＋ラベルが担う
-  const phaseOf = (r) => { const a = appOf(r); return a ? appPhaseKey((a.status === "expired" || a.status === "rejected") ? { ...a, status: "applied" } : a) : null; };
+  const phaseOf = (r) => { const a = appOf(r); return a ? appPhaseKey((a.status === "expired" || a.status === "rejected" || a.status === "canceled") ? { ...a, status: "applied" } : a) : null; };
   // openJobPage（求人ページへの遷移）は削除（2026-08-08たきと指示「ボックスの求人ページは不要」）
   // ＝ボックス内の確認は求人カードタップ→詳細面that担う。求人ページ自体は さがす から従来どおり開ける
 
@@ -334,10 +334,11 @@ export function SavedJobsView({ me }) {
             const jobPast = !!jobEnd && jobEnd < ymdLocal(new Date());
             const isRejected = r.application_status === "rejected";
             const isWithdrawn = isRejected && r.rejected_reason === "unpublished";
+            const isCanceled = r.application_status === "canceled";
             const jobCompleted = r.application_status === "completed";
-            const covered = jobPast || isRejected || jobCompleted;
-            const coverLabel = jobCompleted ? "完了" : isWithdrawn ? "掲載取り下げ" : isRejected ? "見送り" : "失効";
-            const coverColor = jobCompleted ? "#607D8B" : isWithdrawn ? "#757575" : isRejected ? APP_PHASE_COLOR.rejected : "#111";
+            const covered = jobPast || isRejected || isCanceled || jobCompleted;
+            const coverLabel = jobCompleted ? "完了" : isWithdrawn ? "掲載取り下げ" : isRejected ? "見送り" : isCanceled ? "取り消し" : "失効";
+            const coverColor = jobCompleted ? "#607D8B" : isWithdrawn ? "#757575" : isRejected ? APP_PHASE_COLOR.rejected : isCanceled ? APP_PHASE_COLOR.canceled : "#111";
             const phase = phaseOf(r);
             // カレンダーで選んだ日に該当する求人は光らせる（応募者ページと同じ引き継ぎ）
             const calHit = !!calDay && calDay.jobs.includes(r.job_number);
