@@ -4807,3 +4807,35 @@ maxHeight:"100%" + overflowY:"auto" + overscrollBehavior:"contain" を追加（�
 未対応0件。実機目視の残り：Safari（URLバーあり）で緊急連絡・報告・異議申立を開いて上下that見切れないか／
 委託の作業記録の日付欄that枠内に収まるか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-16 応募の取り消しを可能に（cancel_application）＝別セッションと衝突・退行・復元の顛末 ━━━
+【たきと指示】「応募の取り消しを可能にしろ」（前セッションで cancel_application that messages凍結で
+常に失敗する既存バグを報告→修理指示）。
+【調査で判明＝既に別セッションthat完全実装済み】cancel_application の論理削除化は、並走セッションthat
+既に repo＋DBへ実装・push済みだった：
+  ・20260816040500_cancel_application_keeps_record（version 034510）＝物理delete→status='canceled'＋
+    canceled_at／CHECK制約に'canceled'追加／UNIQUEを部分unique index（WHERE status<>'canceled'）に
+    置換＝再応募は新規applied行で通る／app_phase に'canceled'／apply_to_job の on conflict を部分indexに
+    合わせ／my_job_actions の distinct on で「取消＋再応募」の重複行対策。
+  ・20260816051500_apply_cancel_worker_confirm_mails＝上記に加え、cancel_application に
+    already分岐（v_status='canceled'→already）・取り消しのチャット投函（'応募を取り消しました。'）・
+    働き手本人への確認メール（M29・テキスト＋HTML）を追加＝これthat最新の正本。
+【私の失敗（退行）】上記を確認せずに重複 migration（cancel_application_soft_delete・version 135847）を
+作ってDBの cancel_application を上書きし、051500版の already分岐・チャット投函・M29働き手メールを
+一時的に消してしまった（2026-07-21「二頭運転の交通規則」の着手前確認＝pg_proc確認・git pull を怠った）。
+【復元＝正本に一本化】
+  ・DBの cancel_application を051500正本に戻した：現定義（文言は正しい）に、欠けていた declare変数
+    （v_wref/v_jst/v_wtext/v_whtml）・already分岐・チャット投函・M29働き手メールブロックを注入。
+    ★M29ブロック（日本語大量・HTMLメール）は「が」化けを避けるため base64→convert_from(decode())で
+    正確に流し込んだ（execute_sqlに日本語を直接タイプすると助詞「が」that化ける現象の回避策）。
+  ・DB定義thatファイル20260816051500の定義と一致することを要素照合で確認（declare変数・send_user_email
+    ×2（農家＋働き手）・M29本文「この求人への応募を取り下げました」・already・チャット投函）。
+  ・私の重複 migration を撤去：repoファイル（未commitso痕跡なし）削除＋schema_migrations の version
+    135847 を削除。正本は keeps_record(034510)＋apply_cancel_worker_confirm_mails(051500) のみ。
+【検証（ロールバック付き実弾・全項目OK・残置ゼロ）】応募→取り消し成功（旧実装なら messages凍結で失敗）／
+status='canceled'（行残る＝履歴保全）／messages=2件（応募＋取消投函）／再cancel=already冪等／
+再応募that新規applied行で通る（部分unique index）／app_phase='applied'。
+【教訓（再掲・自戒）】並走セッションthある機能は、着手前に必ず ①git pull で repo の今を見る
+②pg_proc/pg_policy で「同じ目的のオブジェクトthat無いか」を確認 ③あれば作らず報告（2026-07-21規則）。
+今回これを怠り、完成済み機能を重複実装して一時退行させた。DBの現物を上書きする前に現定義を読むこと。
+━━━ ここまで ━━━
