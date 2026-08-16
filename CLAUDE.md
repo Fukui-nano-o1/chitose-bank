@@ -4769,3 +4769,20 @@ apply_to_job は必ず自動メッセージ（「応募しました」）を1件
 （取り消しも記録として status で残すのthat筋）。フロントは WorkerApplications.jsx で cancel を呼んでいるので、
 実運用で「取り消せない」状態の可能性that高い＝次に確認・対処すべき候補。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-16 打刻の修正申請シート：時刻入力が枠外へはみ出す ━━━
+【たきと報告】スクショ（Safari）で、開始時刻・終了時刻の入力枠that白いボックスの右端から飛び出していた。
+【原因】TimeCorrectionSheet の時刻2つは display:grid の中にあり、グリッドの子（label）は既定that
+min-width:auto ＝ 中身の min-content より小さくなれない。iOSの input[type=time] は固有幅thatあり、
+モバイルで font-size:16px 強制（appStyles 1268・Safariの自動ズーム対策）＋ .field の左右パディング16px
+so min-content thatトラック幅を超え、縮まずに右へはみ出した。
+★grid の外にある textarea（理由）thaが収まっていたのthatこの型の証拠。
+【修理】label に minWidth:0、入力に maxWidth:100%・minWidth:0。あわせてシート本体に
+maxHeight:100% + 内側スクロール（画面の低い環境で上下に見切れない・中央ボックス規格の標準形）。
+★規約：display:grid / display:flex の中に入力欄（特に input[type=time] / select）を置く時は、
+子に minWidth:0 を付ける。付けないと縮まずに枠外へ出る。
+【他箇所の確認】同じ type="time" は LandingFlow の勤務時間（1681・1683）にもあるthat、
+そちらは grid でなく専用の timeStyle（height 48・padding 0 10px）for、はみ出しは起きていない＝今回は触らない。
+【検証】build成功・eslint 0 error・dist該当チャンクに反映を確認。実機目視の残り：
+Safari（URLバーあり）で打刻の修正申請を開き、①時刻入力that白枠に収まるか ②シートthat上下に見切れないか
+━━━ ここまで ━━━
