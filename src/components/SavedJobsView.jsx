@@ -11,7 +11,7 @@ import { ymdLocal, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC
 import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo } from "../lib/previewBus";
-import { Avatar, AutoSkeleton, useSkeletonProbe } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
@@ -511,29 +511,32 @@ export function SavedJobsView({ me }) {
                     'any'（期間中いつでも）・未選択は部品側で非表示（実データ／未設定／非表示の三択・憲法3条） */}
                 <AgreedDatesRow value={r.agreed_dates} />
                 <AvailDatesChips value={r.available_dates} />
+                {/* 応募の進み具合＝常時展開（2026-08-16たきと指示「この応募状況カードを削除し、
+                    カードの内容を展開したままにしよう」）。旧📋応募状況カード（→応募状況ページへの
+                    遷移）を廃止し、その中身＝お仕事の流れバー（FlowBar・応募状況ページと同じ共有部品）を
+                    ここに直接出す。my_job_actions は started_at 等を返さないthat、このシートを開けるのは
+                    終端前（応募中〜作業中）だけ＝statusとterms確認時刻だけで各段は正しく点灯する */}
+                {r.application_id && (
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"14px 16px 12px", marginTop:12, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                    <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:"#717171", margin:0 }}>📋 応募の進み具合</p>
+                    <FlowBar a={{ status: r.application_status,
+                      terms_confirmed_worker_at: r.terms_confirmed_worker_at,
+                      terms_confirmed_farmer_at: r.terms_confirmed_farmer_at }} />
+                  </div>
+                )}
                 {/* 操作ボックス＝横2列（2026-08-07たきと指示）。形は今日ページの「やること」箱と同型
                     （絵文字を上に・太字タイトル・中央寄せの2列格子）＝ボックス格子の作法を増やさない。
                     📄求人ページは削除（2026-08-08たきと指示「求人タップで詳細確認できるからボックスの
                     求人ページは不要」）＝内容の確認は求人カードタップ→詳細面が担う。
-                    応募していない求人はボックスが無い＝格子ごと出さない */}
-                {r.application_id && (
+                    📋応募状況カードは削除（2026-08-16たきと指示）＝上の常時展開that担う */}
+                {chatOk && (
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:10, marginTop:12 }}>
-                  {chatOk && (
-                    <button onClick={()=>{ setBoxJob(null); window.location.hash = "/chat/" + r.application_id; }} className="f-sans"
-                      style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-                      <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>💬</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>チャットを開く</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>農家さんとのやり取り・面接はここで行います</span>
-                    </button>
-                  )}
-                  {r.application_id && (
-                    <button onClick={()=>{ setBoxJob(null); window.location.hash = "/profile/worker/applying"; }} className="f-sans"
-                      style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-                      <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>📋</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>応募状況</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>応募の進み具合（承認→面接→採用）を確認できます</span>
-                    </button>
-                  )}
+                  <button onClick={()=>{ setBoxJob(null); window.location.hash = "/chat/" + r.application_id; }} className="f-sans"
+                    style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                    <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>💬</span>
+                    <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>チャットを開く</span>
+                    <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>農家さんとのやり取り・面接はここで行います</span>
+                  </button>
                 </div>
                 )}
                 </div>{/* /面1メイン */}

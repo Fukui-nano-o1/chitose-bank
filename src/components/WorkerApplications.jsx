@@ -7,7 +7,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow, photoThumb } from "../lib/utils";
 import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
 import { fetchWorkerReady } from "../lib/workerReady";
-import { YesNoPill, AutoSkeleton, useSkeletonProbe, DeclaredBadge, PunchGapNotice } from "./ui";
+import { YesNoPill, AutoSkeleton, useSkeletonProbe, DeclaredBadge, PunchGapNotice, FlowBar } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
@@ -523,38 +523,8 @@ export function WorkerApplications({ filter, me }) {
     </div>
   );
   // ─────────────────────────────────────────────────────────────────────────
-  // お仕事の流れ（2026-07-19／2026-07-22 完了報告を独立段に／2026-07-25 順序訂正・打合せ段は削除）：
-  // 応募→承認→面接→採用→仕事→完了報告→評価。面接は承認直後。「打合せ」はトリガーを定義できないため段として置かない。各カードで現在地を可視化
-  const FLOW_STEPS = ["応募", "承認", "面接", "採用", "仕事", "完了報告", "評価"];
-  const flowState = (a) => {
-    const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
-    const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at; // 仕事（開始打刻）
-    const reported = a.status === "completed"; // 完了報告（作業完了が記録された）
-    const reviewed = !!a.worker_confirmed_end_at || (a.status === "completed" && a.attended === false); // 評価
-    const done = [true, true, bothConfirmed, bothConfirmed, started, reported, reviewed];
-    return { done, active: done.findIndex(d => !d) };
-  };
-  const FlowBar = ({ a }) => {
-    const { done, active } = flowState(a);
-    return (
-      <div style={{ display:"flex", alignItems:"flex-start", marginTop:12 }}>
-        {FLOW_STEPS.map((s, i) => {
-          const isDone = done[i]; const isActive = i === active;
-          const reached = isDone || isActive;
-          return (
-            <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
-              {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#00A86B" : "#E5E5E5" }} />}
-              <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
-                background: isDone ? "#00A86B" : "#fff", border: isDone ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
-                {isDone ? "✓" : ""}
-              </div>
-              <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#00A86B" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // お仕事の流れ（FLOW_STEPS/flowState/FlowBar）は components/ui.jsx へ移設（2026-08-16）：
+  // ステータスページのボックスでも同じ進み具合を展開表示するため、見た目・段の定義を1箇所に。
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}

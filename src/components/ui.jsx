@@ -412,6 +412,44 @@ export function PhaseInfoSheet() {
   );
 }
 
+// お仕事の流れバー（応募→承認→面接→採用→仕事→完了報告→評価・2026-07-19／07-22／07-25）。
+// 2026-08-16にWorkerApplications内からここへ移設（ステータスページのボックスでも展開表示するため＝
+// 進み具合の見た目・段の定義はこの1箇所が唯一のソース。変えるときは両画面に効く）。
+// 「打合せ」はトリガーを定義できないため段として置かない（2026-07-25たきと判断）。
+// 承認段は「statusがappliedより先に進んだか」で判定（旧実装の常時✓は、承認済みしか並ばない
+// 一覧では同値。応募中も並ぶ画面で正しく未達に見えるよう一般化・終端status は承認扱いにしない）
+export const FLOW_STEPS = ["応募", "承認", "面接", "採用", "仕事", "完了報告", "評価"];
+export const flowState = (a) => {
+  const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
+  const approved = bothConfirmed || !["applied", "rejected", "expired", "canceled"].includes(a.status);
+  const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at; // 仕事（開始打刻）
+  const reported = a.status === "completed"; // 完了報告（作業完了が記録された）
+  const reviewed = !!a.worker_confirmed_end_at || (a.status === "completed" && a.attended === false); // 評価
+  const done = [true, approved, bothConfirmed, bothConfirmed, started, reported, reviewed];
+  return { done, active: done.findIndex(d => !d) };
+};
+export const FlowBar = ({ a }) => {
+  const { done, active } = flowState(a);
+  return (
+    <div style={{ display:"flex", alignItems:"flex-start", marginTop:12 }}>
+      {FLOW_STEPS.map((s, i) => {
+        const isDone = done[i]; const isActive = i === active;
+        const reached = isDone || isActive;
+        return (
+          <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
+            {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#00A86B" : "#E5E5E5" }} />}
+            <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
+              background: isDone ? "#00A86B" : "#fff", border: isDone ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
+              {isDone ? "✓" : ""}
+            </div>
+            <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#00A86B" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // 読み込み中の仮配置（2026-07-27たきと指示「先にボックスを置いて、読み込んでいることを表現する」
 // →同日改定「各ページの構造に自動依存させて」）。
 //
