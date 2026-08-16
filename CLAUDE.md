@@ -4786,3 +4786,24 @@ maxHeight:100% + 内側スクロール（画面の低い環境で上下に見切
 【検証】build成功・eslint 0 error・dist該当チャンクに反映を確認。実機目視の残り：
 Safari（URLバーあり）で打刻の修正申請を開き、①時刻入力that白枠に収まるか ②シートthat上下に見切れないか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-16 枠外に出るボックスの全数監査と一斉修理（横1件・縦6件）━━━
+【たきと指示】「枠外に出ているボックスがあるか確認」→「なおせ」
+【監査方法】全*.jsxを機械走査。①中央寄せオーバーレイの内側ボックスに maxHeight/内側スクロールthatあるか
+②固有幅を持つ入力（time/date/select）that grid/flex の中で minWidth:0 無しに置かれていないか。
+候補を出した後、中身thaが「伸びる要素（入力欄・可変リスト・展開）」を持つかで実害を判定
+（固定短文の確認ダイアログは除外）。
+【修理・横1件】ConsignmentRoom の作業記録「日付」＝ input[type=date]。
+gridTemplateColumns を "1fr 1fr" → "minmax(0, 1fr) minmax(0, 1fr)"（既定の 1fr は min-width:auto so
+固有幅that縮まない）＋入力に width/maxWidth/minWidth。★打刻シート（2026-08-16）と同型の最後の1件。
+【修理・縦6件】共通シグネチャ `maxWidth:400, width:"100%"` の中央ボックスに
+maxHeight:"100%" + overflowY:"auto" + overscrollBehavior:"contain" を追加（親オーバーレイの padding:16 that
+効くso画面端に触れない）：この人を報告する(App)／ご意見・ご要望(App)／この求人を報告する(JobSearchMapView)／
+緊急連絡(FarmerDashboard・WorkerApplications)／欠勤記録への異議申立(WorkerApplications)。
+【触っていないもの（安全と判定）】LandingFlow の勤務時間 time入力2つ＝親that flexWrap:wrap ＋ 幅指定なし
+（固有幅that小さく、収まらなければ折り返す）so枠外に出ない。報告モーダルの select 群＝最長の選択肢12文字
+（「連絡先の直書き・外部誘導」）で計算上収まる。固定短文の確認ダイアログ7件＝中身that伸びない。
+【検証】build成功・eslint 0 error（警告数は変更前と同じ）・git diffは7箇所のみ・監査スクリプト再実行で
+未対応0件。実機目視の残り：Safari（URLバーあり）で緊急連絡・報告・異議申立を開いて上下that見切れないか／
+委託の作業記録の日付欄that枠内に収まるか
+━━━ ここまで ━━━
