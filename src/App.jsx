@@ -37,22 +37,53 @@ function chunkReloadAllowed(now) {
 }
 // 再読込が「また古いビルド」を掴み直すのを防ぐ下ごしらえ（低速回線でNetworkFirstが3秒で諦めると
 // pages-cacheの古いindex.htmlに落ちるため、再読込だけでは治らないことがある）：
-// ①SWに更新チェックをさせる（新しいprecache台帳の取得を開始）②古いページキャッシュを捨てる
+// ①SWに更新チェックをさせる ②【新しいSWの有効化まで待つ】③古いページキャッシュを捨てる
+// ★②が本丸（2026-08-16）：旧実装はupdate()を3秒で見切って即reloadしていたため、新SWの
+// インストール（precache約1.85MB）が終わる前に再読込→また旧precacheのindex.htmlを掴み直し、
+// 自己修復が「直らない再読込」を繰り返していた（10:14 #/admin・10:16 #/work/edit/1239 の実録）。
+// skipWaiting+clientsClaim構成soインストール完了＝即有効化。activated（または更新なし）を
+// 確認してからreloadすれば1回で新ビルドに乗る。全体は15秒で必ず打ち切る（reloadは必ず走る）
 async function prepareFreshReload() {
   try {
     await Promise.race([
-      (async () => { const reg = await navigator.serviceWorker?.getRegistration(); await reg?.update(); })(),
-      new Promise(r => setTimeout(r, 3000)),
+      (async () => {
+        const reg = await navigator.serviceWorker?.getRegistration();
+        if (!reg) return;
+        try { await reg.update(); } catch {}
+        const sw = reg.installing || reg.waiting;
+        if (sw && sw.state !== "activated") {
+          await new Promise((resolve) => {
+            const onState = () => { if (sw.state === "activated" || sw.state === "redundant") resolve(); };
+            sw.addEventListener("statechange", onState);
+            onState(); // 登録前に遷移済みのケースを取りこぼさない
+          });
+        }
+        // installing/waitingが無い＝更新なし（一過性のネットワーク失敗等）→待たずに進む
+      })(),
+      new Promise(r => setTimeout(r, 15000)),
     ]);
   } catch {}
   try { await caches.delete("pages-cache"); } catch {}
+}
+// 自己修復（新SW待ち→reload）の間に出すつなぎの画面。エラーバウンダリの「表示できませんでした」を
+// 見せない（壊れたのではなく更新中なので、その通りの顔を出す）。reloadはprepareFreshReloadの
+// 15秒打ち切りにより必ず数秒〜15秒以内に走る＝この画面に closed 経路は不要
+function ChunkUpdating() {
+  return (
+    <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+      <div style={{ width: 28, height: 28, border: "3px solid #E8E8E8", borderTopColor: "#00A86B", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+      <p className="f-sans" style={{ fontSize: 14, color: "#717171", margin: 0 }}>新しいバージョンに更新しています…</p>
+    </div>
+  );
 }
 function lazyChunk(factory) {
   return lazy(() => factory().catch(async (err) => {
     try {
       if (chunkReloadAllowed(Date.now())) {
-        await prepareFreshReload();
-        window.location.reload();
+        // reloadは裏で進め、画面には「更新中」を出す（awaitで止めるとSuspenseのfallbackが
+        // 消えたまま白画面になる時間が生まれるため、先につなぎの部品を返す）
+        (async () => { try { await prepareFreshReload(); } catch {} window.location.reload(); })();
+        return { default: ChunkUpdating };
       }
     } catch {}
     throw err;

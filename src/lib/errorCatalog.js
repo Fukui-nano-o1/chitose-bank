@@ -13,7 +13,7 @@ export const KNOWN_ERRORS = [
   { match: m => m.includes("importing a module script failed") || m.includes("dynamically imported module") || m.includes("loading chunk"),
     title: "更新直後の旧ファイル読み込み失敗",
     cause: "新しいデプロイの直後、開いたままの古い画面が、入れ替えで消えた旧ビルドのファイルを読みに行った。",
-    action: "利用者が再読み込みすれば直る。デプロイ直後に集中しているなら実害小＝様子見でよい。" },
+    action: "2026-08-16に自己修復を強化済み（新SWの有効化を待ってから再読込＝1回で新ビルドに乗る。それまでは更新中の案内を表示）。最終発生がそれ以前なら対応不要。以後も同一端末で連発するなら再発so要調査。" },
   { match: m => m.includes("is_account_moderated") && m.includes(".catch is not"),
     title: "rpcの返り値に.catchを直接呼んだ（既知・修正済み）",
     cause: "supabaseのrpcが返すのはPromiseでなくthenableで、.catchを直接呼ぶと落ちる型。ログイン確認の1箇所にあった。",
