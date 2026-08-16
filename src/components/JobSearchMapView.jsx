@@ -794,10 +794,13 @@ export function JobSearchMapView({ onRegister, me }) {
   // 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照）
   // 応募確認ボックス（2026-07-18）：新規応募はボタン直送信でなく、内容確認のボックスを展開してから
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
+  // 3面切り替え（2026-08-16たきと指示「3つの切り替え。次へと戻るを設置」）：0=承認の流れ図／1=説明／2=日程・応募
+  const [applyConfirmStep, setApplyConfirmStep] = useState(0);
+  const [applyImgZoom, setApplyImgZoom] = useState(false); // 承認の流れ図の大画面表示（タップで拡大・2026-08-16）
   // 応募時の来られる日宣言（2026-07-24）：期間求人（date_end有り・単日でない）だけ、応募シートで日程を選ぶ。
   // applyAvailRefに最終値（"any"／日付配列／null）を同期的に入れてからhandleApply＝ゲート往復でも保持できる
   const [applyDates, setApplyDates] = useState([]); // 選択中の特定日（"YYYY-MM-DD"）
-  useEffect(() => { setApplyConfirmOpen(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);
+  useEffect(() => { setApplyConfirmOpen(false); setApplyConfirmStep(0); setApplyImgZoom(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);
   const isPeriodJob = !!(selectedJob && selectedJob.dateEndRaw && selectedJob.dateEndRaw !== selectedJob.dateStartRaw);
   // 期間内の日付を "YYYY-MM-DD" 配列で列挙（開始〜終了・両端含む）
   const periodDays = (() => {
@@ -839,7 +842,7 @@ export function JobSearchMapView({ onRegister, me }) {
     : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (!myAppStatus && myPending) ? (() => { window.location.hash = "/apply/pending"; })
-    : (() => setApplyConfirmOpen(true));
+    : (() => { setApplyConfirmStep(0); setApplyConfirmOpen(true); });
   // 募集終了（2026-07-24）：設定した採用人数に達した（満員＝filled）／作業日程が過ぎた（expired）求人は
   // 応募導線（下部フッター・応募ボタン）を出さない＝新規の募集を締め切る。
   // ただし既に応募・承認・見送りの関係がある本人には、状況確認とチャット導線を残すため従来どおり表示する。
@@ -1588,30 +1591,40 @@ export function JobSearchMapView({ onRegister, me }) {
         <div onClick={()=>setApplyConfirmOpen(false)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9000 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップ＋下部「戻る」で閉じられるso重複 */}
+            {/* 3面切り替え（2026-08-16たきと指示）：1面目=承認の流れ図（タップで大画面）／2面目=説明（文字18に拡大）／
+                3面目=日程・応募。次へ/戻るで行き来し、1面目の戻るはボックスを閉じる */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="応募の確認" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
-            {/* 承認の流れ（①プロフィール確認②判断③承認決定）のインフォグラフィック＝応募前に承認制であることを伝える */}
-            {/* ★aspectRatioで場所を先に確保する（2026-07-27・日程チップの誤タップ修理）。
-                高さ未指定だと画像の読み込み完了時に下の内容（来られる日のチップ）が一段ずり下がり、
-                狙った位置に別のチップが来る＝「押していない日が選ばれる」誤作動になっていた */}
-            <img loading="lazy" src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
-              width={1000} height={750} style={{ display:"block", width:"100%", height:"auto", aspectRatio:"1000 / 750", borderRadius:12, background:"#F7F7F7" }} />
-            <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"14px 0 0" }}>
-              応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
-            </p>
-            <p className="f-sans" style={{ fontSize:13, color:"#8A8A8A", lineHeight:1.7, margin:"12px 0 0", background:"#F7F7F7", borderRadius:10, padding:"10px 12px" }}>
-              採用されると契約が成立し、お互いのお名前（本名）が農家に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。
-            </p>
-            {isPeriodJob ? (
-              /* 期間求人：来られる日を宣言してから応募（いつでもOK=1タップ／特定日=複数選択） */
-              <div style={{ marginTop:18 }}>
-                <div style={{ height:1, background:"#E5E5E5", margin:"0 0 16px" }} />
+            {applyConfirmStep === 0 && (
+              <>
+                {/* 承認の流れ（①プロフィール確認②判断③承認決定）のインフォグラフィック＝応募前に承認制であることを伝える */}
+                {/* ★aspectRatioで場所を先に確保する（2026-07-27・日程チップの誤タップ修理の名残）。
+                    3面化でチップとは別の面になったが、面の高さが読み込みで変わらない利点は残るso維持 */}
+                <img loading="lazy" src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
+                  onClick={()=>setApplyImgZoom(true)}
+                  width={1000} height={750} style={{ display:"block", width:"100%", height:"auto", aspectRatio:"1000 / 750", borderRadius:12, background:"#F7F7F7", cursor:"zoom-in" }} />
+                <p className="f-sans" style={{ fontSize:13, color:"#8A8A8A", textAlign:"center", margin:"10px 0 0" }}>画像はタップで大きく表示できます</p>
+              </>
+            )}
+            {applyConfirmStep === 1 && (
+              <>
+                <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
+                  応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
+                </p>
+                {/* 文字18に拡大（2026-08-16たきと指示「2枚目のスクショの文字を大きく」・旧13/#8A8A8A） */}
+                <p className="f-sans" style={{ fontSize:18, color:"#555", lineHeight:1.7, margin:"14px 0 0", background:"#F7F7F7", borderRadius:10, padding:"12px 14px" }}>
+                  採用されると契約が成立し、お互いのお名前（本名）が農家に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。
+                </p>
+              </>
+            )}
+            {applyConfirmStep === 2 && (isPeriodJob ? (
+              /* 期間求人：来られる日を宣言してから応募（いつでもOK=1タップで即応募／特定日=複数選択→下部の応募ボタン） */
+              <div>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>来られる日を選んでください</p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>この求人は期間募集です。来られる日を農家に伝えてから応募します。</p>
-                {/* ⭕ 期間中いつでもOK＝1タップで即応募 */}
                 <button onClick={()=>{ applyAvailRef.current = "any"; setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="f-sans" style={{ width:"100%", padding:"16px", fontSize:16, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:14, cursor:"pointer", marginBottom:16, opacity: applying ? 0.6 : 1 }}>⭕ 期間中いつでもOK</button>
                 <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"0 0 12px" }}>または、来られる日を選ぶ</p>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                   {periodDays.map(d => {
                     const on = applyDates.includes(d);
                     return (
@@ -1619,18 +1632,35 @@ export function JobSearchMapView({ onRegister, me }) {
                     );
                   })}
                 </div>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={()=>setApplyConfirmOpen(false)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
-                  <button onClick={()=>{ if (applyDates.length===0) return; applyAvailRef.current = [...applyDates].sort(); setApplyConfirmOpen(false); handleApply(); }} disabled={applying || applyDates.length===0} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (applying || applyDates.length===0) ? 0.5 : 1, cursor: applyDates.length===0 ? "not-allowed" : "pointer" }}>{applying ? "送信中..." : `この日程で応募する${applyDates.length>0 ? `（${applyDates.length}日）` : ""}`}</button>
-                </div>
               </div>
             ) : (
-              <div style={{ display:"flex", gap:8, marginTop:18 }}>
-                <button onClick={()=>setApplyConfirmOpen(false)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
+              <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
+                「応募する」を押すと、農家に応募が届きます。
+              </p>
+            ))}
+            {/* 面インジケーター（3点）＋次へ/戻る */}
+            <div style={{ display:"flex", justifyContent:"center", gap:6, margin:"18px 0 0" }}>
+              {[0,1,2].map(i => <span key={i} style={{ width:7, height:7, borderRadius:"50%", background: i===applyConfirmStep ? "#00A86B" : "#DDD" }} />)}
+            </div>
+            <div style={{ display:"flex", gap:8, marginTop:14 }}>
+              <button onClick={()=>{ if (applyConfirmStep === 0) setApplyConfirmOpen(false); else setApplyConfirmStep(s=>s-1); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>戻る</button>
+              {applyConfirmStep < 2 ? (
+                <button onClick={()=>setApplyConfirmStep(s=>s+1)} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>次へ</button>
+              ) : isPeriodJob ? (
+                <button onClick={()=>{ if (applyDates.length===0) return; applyAvailRef.current = [...applyDates].sort(); setApplyConfirmOpen(false); handleApply(); }} disabled={applying || applyDates.length===0} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (applying || applyDates.length===0) ? 0.5 : 1, cursor: applyDates.length===0 ? "not-allowed" : "pointer" }}>{applying ? "送信中..." : `この日程で応募する${applyDates.length>0 ? `（${applyDates.length}日）` : ""}`}</button>
+              ) : (
                 <button onClick={()=>{ applyAvailRef.current = null; setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applying ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* 承認の流れ図の大画面表示（2026-08-16たきと指示「承認の画像はタップで大画面に」）。
+          TrustCards の AvatarLightbox と同じ作法＝どこをタップしても閉じる・✕は置かない */}
+      {applyImgZoom && (
+        <div onClick={()=>setApplyImgZoom(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", animation:"fadeIn .2s ease", padding:16 }}>
+          <img src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます" style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:12 }} />
         </div>
       )}
 
