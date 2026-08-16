@@ -3,6 +3,8 @@
 // 行き先の正はここ1箇所（ページを増減したら PAGES に足す/消すだけ・他を壊さない）。
 // 遷移は window.location.hash 書き込み＝App.jsx の hashchange ルーティングに乗る（既存レール）。
 // 絵文字は置かない（2026-08-03たきと指示「管理画面にアイコンは不要」）＝文字だけのチップ。
+// 委託 準備室・ボックス一覧・お知らせ一覧は非表示（2026-08-07たきと指示。委託＝準備済みso導線を畳む・
+// URL直打ちと雇い手プロフィール側の入口は残る／ボックス・お知らせ＝ハンバーガー☰にあるso重複導線を撤去）
 const PAGES = [
   { key: "admin",       hash: "/admin",             label: "管理" },
   { key: "working",     hash: "/admin/working",     label: "仕事中" },
@@ -13,9 +15,6 @@ const PAGES = [
   { key: "system",      hash: "/admin/system",      label: "システム" },
   { key: "farmer-pages", hash: "/admin/farmer-pages", label: "農家のページ" },
   { key: "animations",  hash: "/admin/animations",  label: "アニメーション" },
-  { key: "consignment", hash: "/admin/consignment", label: "委託 準備室" },
-  { key: "boxes",       hash: "/boxes",             label: "ボックス一覧" },
-  { key: "notices",     hash: "/boxes/notices",     label: "お知らせ一覧" },
 ];
 
 export function AdminNav({ current }) {
