@@ -663,7 +663,14 @@ export function JobSearchMapView({ onRegister, me }) {
         // 応募祝祭のビジュアル素材（2026-08-07）：自分のアイコン＋応募した求人のカード。
         // 表示専用の受け渡し（sessionStorage・着地側で1回消費）
         try {
-          const wm = snapGet("wMini");
+          let wm = snapGet("wMini");
+          // ★スナップショットが無い端末（プロフィール入口を開いたことがない・キャッシュ消去後）は
+          //   アイコンが「？」に倒れていた（2026-08-16たきと報告）→ 本物をDBから1行取り足す。
+          //   本人行のRLS・単一行so一瞬。失敗しても祝祭は従来のフォールバックで出る（止めない）
+          if (!wm?.avatar_url && !wm?.nickname) {
+            const res = await supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", me.id).maybeSingle();
+            if (!res.error && res.data) wm = res.data;
+          }
           sessionStorage.setItem("cb_applyVisual", JSON.stringify({
             avatar: wm?.avatar_url || "", name: wm?.nickname || "",
             photo: photoThumb(selectedJob.photos?.[0]) || "",

@@ -58,7 +58,9 @@ export function ApplyCelebrationVisual({ avatar, name, photo, crop, task, city }
   return (
     <div style={{ display:"flex", alignItems:"center", gap:14 }}>
       <div style={{ borderRadius:"50%", flexShrink:0, boxShadow:"0 0 0 3px #fff, 0 10px 30px rgba(0,0,0,.5)" }}>
-        <Avatar url={avatar || null} name={name || "？"} size={72} />
+        {/* 名前もアイコンも無い時の下地は🌱（「？」は欠落に見える・2026-08-16たきと報告）。
+            通常は応募側thatDBから取り足すのでここまで落ちない */}
+        <Avatar url={avatar || null} name={name || "🌱"} size={72} />
       </div>
       <span aria-hidden="true" style={{ fontSize:34, fontWeight:900, color:"#fff", textShadow:"0 2px 12px rgba(0,0,0,.6)",
         animation:"cbFb2Arrow 0.9s ease-in-out .95s infinite" }}>→</span>
