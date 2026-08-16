@@ -20,6 +20,17 @@ export function ChatView({ applicationId, onBack }) {
   const nearBottomRef = useRef(true); // 利用者が下端の近く(80px以内)にいるか。onScrollで更新・自動スクロールの条件（2026-08-07）
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  // 入力欄の自動伸縮（改行対応・2026-08-16たきと指示）：中身の行数に合わせて高さを変える。
+  // 上限132px（≒6行）を超えたら内側スクロール＝入力欄that画面を埋め尽くさない。
+  // 定型文の挿入・送信後のクリアでもtextthat変わるso、この1箇所で高さthat追従する
+  const inputRef = useRef(null);
+  const CHAT_INPUT_MAX_H = 132;
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto"; // 縮む方向にも効かせるため、測る前に一度リセットする
+    el.style.height = Math.min(el.scrollHeight, CHAT_INPUT_MAX_H) + "px";
+  }, [text]);
   const [myId, setMyId] = useState(null);
   // 段階表示の先出し（2026-08-07たきと指示「はじめは最低限の要素のみ表示。段階的に表示させていく」）：
   // 一覧キャッシュ（viewCache永続＝アプリ再起動後も残る骨・本文なし）に開いた応募の行があれば、
@@ -763,11 +774,18 @@ export function ChatView({ applicationId, onBack }) {
           </div>
         </div>
       ) : (
-      <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE", alignItems:"center" }}>
+      /* 入力欄（2026-08-16たきと指示「改行を可能にしてほしい。送信は送信ボタンのみ」）：
+         input→textareaに変更＝Enterはそのまま改行になり、送信はボタンだけになる
+         （onKeyDownのEnter送信は削除。誤送信も同時に無くなる）。
+         高さは中身に合わせて伸ばす＝1行から最大6行（それ以上は内側スクロール）。
+         alignItemsをflex-endにして、伸びた時に＋と送信that下端に揃う */
+      <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE", alignItems:"flex-end" }}>
         {/* 定型文（2026-07-22・第8弾）：＋で役割別テンプレシートを開く */}
         <button onClick={()=>{ setTmplTab("phrase"); setTmplOpen(true); }} aria-label="定型文・質問集" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
-        <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") send(); }} placeholder="メッセージを入力" className="field f-sans" style={{ flex:1, fontSize:14 }} />
-        <button onClick={send} disabled={sending} className="f-sans" style={{ padding:"10px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{sending?"...":"送信"}</button>
+        <textarea ref={inputRef} value={text} rows={1} onChange={e=>setText(e.target.value)}
+          placeholder="メッセージを入力（改行できます）" className="field f-sans"
+          style={{ flex:1, fontSize:14, resize:"none", lineHeight:1.6, maxHeight:132, overflowY:"auto" }} />
+        <button onClick={send} disabled={sending} className="f-sans" style={{ flexShrink:0, padding:"14px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", lineHeight:1.4 }}>{sending?"...":"送信"}</button>
       </div>
       )}
 
