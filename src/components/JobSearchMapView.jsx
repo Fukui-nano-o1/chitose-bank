@@ -787,7 +787,9 @@ export function JobSearchMapView({ onRegister, me }) {
     : myAppStatus === "applied" ? "応募済み — 取り消す"
     // 仮応募中（第15弾）：意思は預かり済み。次の一手はプロフィールの仕上げ
     : (!myAppStatus && myPending) ? "仮応募中 → プロフィールを仕上げる"
-    : "応募";
+    // 新規応募の基本ラベルは「日程の確認」（2026-08-16たきと指示「右下の応募ボタンは日程の確認に差し替え」）：
+    // タップの実体は応募の送信でなく確認ボックス（3面・最後thatが日程選択と応募）を開くことso、その通りの顔にする
+    : "日程の確認";
   const applyBtnStyle = myAppStatus === "rejected" ? { background:"#EBEBEB", color:"#717171" }
     : myAppStatus === "applied" ? { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }
     : (!myAppStatus && myPending) ? { background:"#C77700" }
