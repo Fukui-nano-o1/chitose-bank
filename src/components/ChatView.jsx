@@ -8,6 +8,7 @@ import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { chatCache, hydrateChatCache } from "../lib/chatCache";
 import { snapGet, snapSet } from "../lib/snapshot";
+import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
@@ -319,6 +320,42 @@ export function ChatView({ applicationId, onBack }) {
     } catch {}
     setConfirmingTerms(false);
   };
+  // 農家の採用実行（2026-08-16たきと指示「採用するボタンタップで最終確認。既存の最終確認でいい。
+  // OK押したら採用確定」＝チャットの採用ボタンを採用ページへのリンク（2026-08-07一本化）から、
+  // その場の最終確認→確定に戻す）。最終確認は既存の3点セット（lib/hire＝二重予約の下調べ・警告文・
+  // 本名開示の明示）を使う＝採用ページ・応募者シートと文言that食い違わない（2026-08-06規則）。
+  // 実行はDB confirm_terms（権限・人数上限・見送りの波及・二重予約の壁はDB側that担保）
+  const hireFromChat = async () => {
+    if (confirmingTerms || isWorkerSide) return;
+    setConfirmingTerms(true);
+    try {
+      const dup = (myId && partnerWorkerId && chatJobNumber != null)
+        ? await findDoubleBookingJob(myId, partnerWorkerId, chatJobNumber) : null;
+      const warn = doubleBookingWarning(dup);
+      const ok = window.confirm((warn ? warn + "\n\n" : "") +
+        "この方の採用を決定しますか？" + (workerConfirmed ? "\n（働き手は内容確認済み）" : "") +
+        "\n\n" + HIRE_NAME_DISCLOSURE_NOTE);
+      if (!ok) { setConfirmingTerms(false); return; }
+      let { data, error } = await supabase.rpc("confirm_terms", { p_application_id: activeAppId, p_accept_double_booking: !!dup });
+      // フロントの下調べthat取りこぼした重なりはDBthat検出して止める（2026-08-06の壁）。警告を出し直して再確認
+      if (!error && data && !data.ok && data.reason === "double_booked") {
+        const again = window.confirm(doubleBookingWarning(data.dup_job) + "\n\nこの内容を確認したうえで、採用を確定しますか？");
+        if (again) ({ data, error } = await supabase.rpc("confirm_terms", { p_application_id: activeAppId, p_accept_double_booking: true }));
+        else { setConfirmingTerms(false); return; }
+      }
+      if (!error && data && data.ok) {
+        setWorkerConfirmed(!!data.worker_confirmed);
+        setFarmerConfirmed(!!data.farmer_confirmed);
+        // 人数に達して他の応募that自動見送りになった時は、読み落とさないよう明示（DB側の波及の報告）
+        if (data.filled && (data.closed_ids || []).length > 0) {
+          alert("採用を確定しました。募集人数に達したため、ほかの応募 " + data.closed_ids.length + "件は自動で見送りになりました。");
+        }
+      } else {
+        alert("採用を確定できませんでした：" + (data?.reason || error?.message || "不明"));
+      }
+    } catch { alert("採用を確定できませんでした。"); }
+    setConfirmingTerms(false);
+  };
   // 求人No.帯は「開いた順」に左から並べる（2026-08-06たきと指示「開いた順に並べていって。
   // 使わないチャットは右にずれていくよ」）：開いた求人を先頭に記録し、その順で並べる。
   // 触っていない求人は新しく開いたものに押されて自然に右へ流れる（＝今いる求人が必ず左端）。
@@ -486,7 +523,7 @@ export function ChatView({ applicationId, onBack }) {
             farmerConfirmed ? (
               <span className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#E6F7EF", color:"#00A86B", fontSize:13, fontWeight:700, borderRadius:12, padding:"8px 16px", whiteSpace:"nowrap" }}>✓ 採用決定済み{!workerConfirmed ? "（確認待ち）" : ""}</span>
             ) : (
-              <button onClick={()=>{ window.location.hash = "/calendar/todo/hire"; }} className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap" }}>採用する →</button>
+              <button onClick={hireFromChat} disabled={confirmingTerms} className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", background:"#222", color:"#fff", fontSize:13, fontWeight:700, border:"none", borderRadius:12, padding:"8px 18px", cursor:"pointer", whiteSpace:"nowrap", opacity: confirmingTerms ? 0.6 : 1 }}>{confirmingTerms ? "..." : "採用する"}</button>
             )
           )}
         </div>
