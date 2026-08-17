@@ -1855,10 +1855,12 @@ export function JobSearchMapView({ onRegister, me }) {
                   カード内のQaChatはhideQaで出さない＝カードは身元・実績・タグに専念 */}
               {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
-                  {/* 募集者の住所・連絡先は訪問者に届かない＝行ごと出ない（従来どおり）。
-                      伏せ字は町域だけに絞る（2026-08-17たきと指示「町域だけモザイク処理」）ので
-                      maskedFields は渡さない。渡せばこのカードも伏せ字表示に切り替わる（部品側は対応済み） */}
-                  <FarmerTrustCard profile={empEmployer} trust={empTrust}
+                  {/* 募集者の住所・連絡先は訪問者に届かないが、行ごと消さず伏せ字で出す
+                      （2026-08-17たきと指示「求人者プロフィールの住所や連絡先はモザイク処理」）＝
+                      「連絡先を載せていない農家」と誤解させない。伏せ字はタップでログインの説明が出る。
+                      値が未設定の求人は masked_fields に載らないso従来どおり行ごと出ない
+                      （無い情報をあるように見せない）。会員には従来どおり本物が出る */}
+                  <FarmerTrustCard profile={empEmployer} trust={empTrust} maskedFields={selectedJob.maskedFields}
                     onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")} hideQa />
                 </div>
               )}

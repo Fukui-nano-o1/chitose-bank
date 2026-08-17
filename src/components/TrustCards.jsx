@@ -192,7 +192,8 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
               <span className="f-sans" style={{ flexShrink:0, width:56, fontSize:12, color:"#999", lineHeight:1.6 }}>{l}</span>
               {/* 行の判定はラベル文字でなくキーで（2026-08-14）：法人はラベルが「名称/所在地」に変わるため */}
               <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: k === "nickname" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>
-                {masked ? <MaskedText label={l} chars={l === "連絡先" ? 6 : 8} /> : v}
+                {/* 説明の主語は「募集者の住所／連絡先」＝タップで出る案内が何の項目か分かるようにする */}
+                {masked ? <MaskedText label={"募集者の" + l} chars={l === "連絡先" ? 6 : 8} /> : v}
               </span>
             </div>
             {/* 利用歴は氏名の直下（2026-08-07たきと指示）。✓連絡先確認済みは連絡先の直下へ移植
