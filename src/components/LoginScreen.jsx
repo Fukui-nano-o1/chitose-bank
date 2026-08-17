@@ -31,6 +31,17 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const [shk,     setShk]     = useState(false);
   const [showPw,  setShowPw]  = useState(false); // パスワードの表示切替（👁タップ）。画面が変わったらモザイクに戻す
   useEffect(() => { setShowPw(false); }, [view]);
+  // 運営お知らせ「ログイン方法が変わりました」のリンクから、再設定の入口へその場で切り替える（2026-08-17）。
+  // このお知らせは展開機会が login＝#/login でしか出ないため、link_hash="/login" では
+  // 「いま見ているページ」へ飛ぶだけの死んだリンクだった。お知らせ台帳の event: 方式
+  // （プロフィール入力のお願い＝cb:openConfProfile と同じ作法）に載せ替え、押した先を
+  // 実際の動き（view="otp"）にする。中身は「パスワードを忘れた方・未設定の方」ボタンと同一so
+  // 入口が増えても経路は1本のまま
+  useEffect(() => {
+    const f = () => { setView("otp"); setErr(""); setPw(""); setDirectSignup(false); };
+    window.addEventListener("cb:loginResetPw", f);
+    return () => window.removeEventListener("cb:loginResetPw", f);
+  }, []);
   // パスワード欄の右端に置く👁ボタン（表示中は🙈）。inputはpaddingRightで重なりを避ける
   const eyeBtn = (
     <button type="button" onClick={()=>setShowPw(v=>!v)} tabIndex={-1}
