@@ -878,10 +878,21 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 保留・対応済み（2026-08-16たきと裁定）：未回答の督促メール（12〜72時間）の4択のうち、
   // 判断を保留する／サイトの外を含め対応を済ませた、を記録する。statusは変えず時刻だけ追記＝
   // 帯・FlowBar・失効の仕組みには一切触れない（書き込みの窓口は set_application_followup 1本）
+  // 押した瞬間には記録しない（2026-08-16たきと指示「どちらも一度だけ押すと最終確認展開。
+  // OKで保留と対応済みは非表示」）＝ {id, kind} を持ってその応募の下に最終確認を開き、OKで初めて記録する。
+  // 記録できたら両方のボタンを畳む＝取り消し（clear）の道はこの画面から無くなる。
+  // ★2度押しでリセットされる／対応済みのあとに保留を押しても画面that変わらない（handled_at優先の表示）を
+  //   同時に解消：1件につき1回だけ・押した後は出さない、という形にする
+  const [followupConfirm, setFollowupConfirm] = useState(null); // { id, kind } | null
+  const [followupBusy, setFollowupBusy] = useState(false);
   const setFollowup = async (a, kind) => {
+    if (followupBusy) return;
+    setFollowupBusy(true);
     const { data, error } = await supabase.rpc('set_application_followup', { p_application_id: a.id, p_kind: kind });
+    setFollowupBusy(false);
     if (error || !data?.ok) { fbError(); alert('保存に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
     setDbApplicants(prev => prev.map(x => x.id === a.id ? { ...x, held_at: data.held_at, handled_at: data.handled_at } : x));
+    setFollowupConfirm(null);
     fbSuccess();
   };
   const renderApplicantCard = (a) => {
@@ -902,13 +913,18 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   // 4択（承認・見送り・保留・対応済み）＝督促メールの文面と同じ選択肢を画面にも置く。
                   // 保留・対応済みは判断そのものではないので、下段に控えめに並べる
                   const followup = a.handled_at ? "handled" : a.held_at ? "held" : null;
-                  const subBtn = (label, kind, on) => (
-                    <button onClick={()=>setFollowup(a, on ? "clear" : kind)} className="f-sans" style={{
-                      flex:1, padding:"9px", fontSize:12, fontWeight:600, cursor:"pointer", borderRadius:9,
-                      background: on ? "#F0F7F4" : "#fff", color: on ? "#00794D" : "#999",
-                      border: "1px solid " + (on ? "#00A86B" : "#EBEBEB"),
-                    }}>{on ? "✓ " + label : label}</button>
-                  );
+                  // 最終確認を開いている種類（この応募のぶんだけ）。押した時点では記録しない
+                  const askKind = (followupConfirm && followupConfirm.id === a.id) ? followupConfirm.kind : null;
+                  const subBtn = (label, kind) => {
+                    const on = askKind === kind; // 確認を開いている側を点灯（どちらを押したかthat分かる）
+                    return (
+                      <button onClick={()=>setFollowupConfirm({ id: a.id, kind })} className="f-sans" style={{
+                        flex:1, padding:"9px", fontSize:12, fontWeight:600, cursor:"pointer", borderRadius:9,
+                        background: on ? "#F0F7F4" : "#fff", color: on ? "#00794D" : "#999",
+                        border: "1px solid " + (on ? "#00A86B" : "#EBEBEB"),
+                      }}>{label}</button>
+                    );
+                  };
                   return (
                   <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                     <div style={{ display:"flex", gap:8 }}>
@@ -925,14 +941,33 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                         fbSuccess(); setCelebrate({ emoji:"✅", title:"承認しました" });
                       }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
                     </div>
-                    <div style={{ display:"flex", gap:8 }}>
-                      {subBtn("保留", "hold", followup === "held")}
-                      {subBtn("対応済み", "handled", followup === "handled")}
-                    </div>
+                    {/* 記録が済んだら両方とも出さない（2026-08-16たきと指示「OKで保留と対応済みは非表示」） */}
+                    {!followup && (
+                      <div style={{ display:"flex", gap:8 }}>
+                        {subBtn("保留", "hold")}
+                        {subBtn("対応済み", "handled")}
+                      </div>
+                    )}
+                    {/* 最終確認（押したボタンの下にその場で開く）。OKで初めて記録する */}
+                    {!followup && askKind && (
+                      <div className="fade-in" style={{ background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"12px 14px" }}>
+                        <p className="f-sans" style={{ fontSize:12, color:"#222", margin:"0 0 10px", lineHeight:1.8 }}>
+                          {askKind === "hold" ? "この応募を保留にします。" : "この応募を対応済みにします。"}<br />
+                          未回答のお知らせメールは止まります。承認・見送りの判断はまだ済んでいません（あとから決められます）。<br />
+                          <span style={{ color:"#717171" }}>この記録は、あとから取り消せません。</span>
+                        </p>
+                        <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                          <button onClick={()=>setFollowupConfirm(null)} disabled={followupBusy} className="f-sans"
+                            style={{ padding:"8px 16px", fontSize:12, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:9, cursor:"pointer" }}>キャンセル</button>
+                          <button onClick={()=>setFollowup(a, askKind)} disabled={followupBusy} className="f-sans"
+                            style={{ padding:"8px 20px", fontSize:12, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:9, cursor:"pointer", opacity: followupBusy ? 0.6 : 1 }}>{followupBusy ? "..." : "OK"}</button>
+                        </div>
+                      </div>
+                    )}
                     {followup && (
                       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:0, lineHeight:1.6 }}>
                         {followup === "held" ? "保留にしました。" : "対応済みにしました。"}
-                        未回答のお知らせメールは止まります（もう一度押すと取り消せます）。
+                        未回答のお知らせメールは止まります。
                         承認・見送りの判断は、まだ済んでいません。
                       </p>
                     )}
