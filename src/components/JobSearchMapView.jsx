@@ -93,7 +93,8 @@ export function JobSearchMapView({ onRegister, me }) {
     window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
   };
   const ownUnpublishJob = async () => {
-    if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・再掲載するときは、もう一度審査を通ります\n・応募中・面接中の方は見送りになり、その旨のお知らせが届きます（採用が決まっている方はそのままです）")) return;
+    // 再掲載＝そのまま公開（2026-08-14 承認プロセスの削除。旧「もう一度審査を通ります」は誤り）
+    if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・あとから再掲載できます（そのまま公開されます）\n・応募中・面接中の方は見送りになり、その旨のお知らせが届きます（採用が決まっている方はそのままです）")) return;
     const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: selectedJob.id });
     if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
     setOwnMenuOpen(false);
@@ -685,11 +686,9 @@ export function JobSearchMapView({ onRegister, me }) {
       else if (data && data.reason === "profile_incomplete") {
         setProfileGate({ mode:"hard", hasNickname: !!data.has_nickname, qaAnswered: data.qa_answered ?? 0, qaRequired: data.qa_required ?? 5 });
       }
-      else if (data && data.reason === "profile_under_review") {
-        alert(data.revision
-          ? "自己紹介に運営から修正のお願いが届いています。プロフィールを修正して保存すると、審査のうえ応募できるようになります。"
-          : "自己紹介が運営の審査待ちのため、いまは応募できません。公開までお待ちください（最大2日）。");
-      }
+      // profile_under_review（自己紹介の審査待ちで応募を止める）の分岐は削除した（2026-08-17）。
+      // 承認プロセスの削除（2026-08-14）で自由記述は保存＝即公開になり、apply_to_job はこの理由を返さない
+      // ＝到達不能なうえ「審査待ちです」は嘘になるため。万一返っても下の汎用メッセージで受ける
       else { alert("応募できませんでした。"); }
     } catch { setApplying(false); alert("応募に失敗しました。"); }
   };
