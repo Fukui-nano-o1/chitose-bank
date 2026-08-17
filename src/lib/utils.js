@@ -344,6 +344,9 @@ export function mapJobPublicRow(j) {
     pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
     town: j.town || "",
     region: [j.prefecture, j.city, j.town].filter(Boolean).join("") || "",
+    // 町域を外した住所（都道府県＋市区町村）。訪問者の地図はこれを中心にする（2026-08-17たきと指示）＝
+    // 町域の重心を中心にすると、円の中心そのものが町域を指してしまうため
+    cityArea: [j.prefecture, j.city].filter(Boolean).join("") || "",
     // 集合場所の番地・建物名（2026-08-03たきと指示：会員には番地まで表示）。
     // jobs_public.work_address は anon に NULL マスク済み（2026-07-31・訪問者開示レベル第1弾）＝
     // 未ログインには常に空で届く。開示の境界はDB側が正・フロントは届いた値を表示するだけ

@@ -1145,13 +1145,14 @@ export function JobSearchMapView({ onRegister, me }) {
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>
             {/* タイトルの場所＝集合場所（2026-08-03たきと指示）：ログイン済み利用者には番地まで含む正式な住所。
-                訪問者はDBマスクによりworkAddress/townが空で届く（市区町村まで）＋町域と番地の位置に
-                伏せ字のモザイク（2026-08-17たきと指示「文言を非表示にするな。モザイクにしろ」）。
+                訪問者はDBマスクによりworkAddress/townが空で届く（市区町村まで）。
+                伏せ字は【町域だけ】に絞る（2026-08-17たきと指示「町域だけモザイク処理」）＝
+                市区町村の後ろに1つだけ置く。番地の伏せ字は会員向けの表示のみに使う（訪問者には並べない）。
                 町域は masked_fields に載っている時だけ描く＝町域が未設定の求人に偽のモザイクを出さない */}
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
               {selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}
-              {selectedJob.region && selectedJob.maskedFields.includes("town") && <MaskedText label="町域" chars={4} />}
-              {selectedJob.region && <MaskedAddress value={selectedJob.workAddress} unlocked={!!me} exists={selectedJob.hasWorkAddress} />}
+              {selectedJob.region && selectedJob.maskedFields.includes("town") && <MaskedText label="町域から先の住所" chars={4} />}
+              {me && selectedJob.region && <MaskedAddress value={selectedJob.workAddress} unlocked={true} exists={selectedJob.hasWorkAddress} />}
             </h2>
             {/* 初心者大歓迎・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
             {/* 待遇は掲載時に確定保存されたjobs.perksのみを見る（2026-08-02・プロフィール現在値とのマージ廃止） */}
@@ -1178,11 +1179,9 @@ export function JobSearchMapView({ onRegister, me }) {
                     { label:"勤務時間", value: selectedJob.workTime },
                     { label:"休憩時間", value: selectedJob.breakTime },
                     { label:"採用人数", value: selectedJob.count },
-                    // 最寄り駅は訪問者にはDBがNULLで返す。駅名を消して移動時間だけ出すと「駅の設定が無い求人」に
-                    // 見えるので、駅名の位置に伏せ字を置く（2026-08-17たきと指示）。設定が無い求人は従来どおり時間だけ
-                    { label:"移動時間", value: selectedJob.maskedFields.includes("nearest_station")
-                        ? <><MaskedText label="最寄り駅" chars={3} />駅から{selectedJob.commuteTime}</>
-                        : stationLabel(selectedJob.nearestStation, selectedJob.commuteTime) },
+                    // 最寄り駅は訪問者にはDBがNULLで返る＝移動時間だけの表示になる。
+                    // 伏せ字は町域だけに絞る（2026-08-17たきと指示「町域だけモザイク処理」）ので、ここは伏せ字を置かない
+                    { label:"移動時間", value: stationLabel(selectedJob.nearestStation, selectedJob.commuteTime) },
                     { label:"報酬",     value: payLabel(selectedJob) },
                   // 値は文字列のほかReact要素（伏せ字を含む行）も入る＝要素は常に出す（2026-08-17）
                   ].filter(row => typeof row.value === "object" ? !!row.value : (row.value && String(row.value).trim())).map(row => (
@@ -1401,6 +1400,7 @@ export function JobSearchMapView({ onRegister, me }) {
               mapQuery={me && selectedJob.workAddress ? selectedJob.region + selectedJob.workAddress : selectedJob.region}
               addressShown={!!(me && selectedJob.workAddress)}
               visitor={!me}
+              cityArea={selectedJob.cityArea}
             />
           </div>
 
@@ -1843,10 +1843,10 @@ export function JobSearchMapView({ onRegister, me }) {
                   カード内のQaChatはhideQaで出さない＝カードは身元・実績・タグに専念 */}
               {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
-                  {/* maskedFields（2026-08-17）：訪問者には募集者の住所・連絡先が届かないが、行を消さず
-                      伏せ字で出す＝「連絡先を載せていない農家」と誤解させない。値が未設定の求人は
-                      masked_fields に載らないso従来どおり行ごと出ない */}
-                  <FarmerTrustCard profile={empEmployer} trust={empTrust} maskedFields={selectedJob.maskedFields}
+                  {/* 募集者の住所・連絡先は訪問者に届かない＝行ごと出ない（従来どおり）。
+                      伏せ字は町域だけに絞る（2026-08-17たきと指示「町域だけモザイク処理」）ので
+                      maskedFields は渡さない。渡せばこのカードも伏せ字表示に切り替わる（部品側は対応済み） */}
+                  <FarmerTrustCard profile={empEmployer} trust={empTrust}
                     onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")} hideQa />
                 </div>
               )}

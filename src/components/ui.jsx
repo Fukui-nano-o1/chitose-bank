@@ -1,6 +1,8 @@
 // 汎用UIアトム（分割・段階2後半・2026-07-24）：リボン帯・長文の省略表示。
 import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import { createPortal } from "react-dom";
 import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, punchDivergence, PUNCH_GAP_MIN, qaShort, ROLE_ORANGE } from "../lib/utils";
+import { openLoginBox } from "../lib/previewBus";
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 import { CropIcon } from "./CropIcon";
 
@@ -304,16 +306,52 @@ export function MaskedAddress({ value, unlocked, exists }) {
 //   「その項目に値が入っているか」だけを masked_fields で伝える。ここで描く●は伏せ字であって
 //   本物の文字を隠しているのではない（DOMを覗いても本物は存在しない）。
 //   それらしい偽の値を描かない＝憲法3条（表示にダミー禁止）。
-// label=項目名（読み上げ・ツールチップに使う）／chars=伏せ字の長さの目安
+// label=項目名（読み上げ・説明に使う）／chars=伏せ字の長さの目安
+// ★タップで説明を出す（2026-08-17たきと指示「モザイクタップでログイン後に表示される旨を説明」）＝
+//   伏せ字を見た人が「読めない字」ではなく「ログインすれば読める字」だと分かるようにする。
+//   説明ボックスからそのままログイン・新規登録へ進める（openLoginBox＝どの画面からでも開く共通の窓口）。
+//   createPortalでbody直下へ＝祖先のtransformに影響されず画面中央に出る（AdminJobPreviewと同じ手法）
 export function MaskedText({ label, chars = 4 }) {
+  const [open, setOpen] = useState(false);
   const note = `${label}は、ログインすると表示されます`;
   return (
-    <span title={note} style={{ whiteSpace:"nowrap" }}>
-      <span aria-hidden="true" style={{ filter:"blur(4px)", opacity:0.5, userSelect:"none", letterSpacing:1 }}>
-        {"●".repeat(Math.max(1, chars))}
-      </span>
-      <span style={{ position:"absolute", width:1, height:1, overflow:"hidden", clip:"rect(0 0 0 0)", whiteSpace:"nowrap" }}>{note}</span>
-    </span>
+    <>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen(true); }}
+        aria-label={note}
+        className="f-sans"
+        style={{ background:"none", border:"none", padding:0, margin:0, font:"inherit", color:"inherit", cursor:"pointer", whiteSpace:"nowrap", verticalAlign:"baseline" }}
+      >
+        <span aria-hidden="true" style={{ filter:"blur(4px)", opacity:0.5, userSelect:"none", letterSpacing:1 }}>
+          {"●".repeat(Math.max(1, chars))}
+        </span>
+      </button>
+      {open && createPortal(
+        <div onClick={()=>setOpen(false)} className="cb-box-overlay cb-lock-scroll"
+          style={{ position:"fixed", inset:0, zIndex:10400, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={(e)=>e.stopPropagation()} className="f-sans"
+            style={{ background:"#fff", borderRadius:18, padding:"22px 20px", maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", textAlign:"center", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
+            <p style={{ fontSize:26, margin:"0 0 10px" }} aria-hidden="true">🔒</p>
+            <p style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{label}は、ログインすると表示されます</p>
+            <p style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 0 18px" }}>
+              ここにはこの求人の{label}が入っています。ぼかしているのは表示だけの話ではなく、
+              ログインしていない間は{label}そのものが端末に届いていません。
+              会員登録・ログインをすると、この場所に{label}が表示されます。
+            </p>
+            <button onClick={()=>{ setOpen(false); openLoginBox(); }} className="btn-primary f-sans"
+              style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, borderRadius:12, marginBottom:8 }}>
+              ログイン・新規登録
+            </button>
+            <button onClick={()=>setOpen(false)} className="f-sans"
+              style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:600, background:"none", border:"none", color:"#717171", cursor:"pointer" }}>
+              閉じる
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
