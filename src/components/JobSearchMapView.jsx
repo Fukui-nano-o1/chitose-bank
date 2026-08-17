@@ -647,11 +647,27 @@ export function JobSearchMapView({ onRegister, me }) {
   const [applying, setApplying] = useState(false);
   // プロフィールゲートのモーダル状態。null=非表示 / {mode:"soft"}=クライアント側の空チェック（両方選べる）
   // / {mode:"hard", hasNickname, qaAnswered, qaRequired}=サーバー側の必須ゲート（プロフィールを書く、のみ）
-  const [profileGate, setProfileGate] = useState(null);
 
   const applyAvailRef = useRef(null);
 
   // apply_to_job本体（プロフィールゲート通過後、または「このまま応募する」選択後に呼ぶ）
+  // 仮応募として預かる（2026-08-17たきと指示「他は仮応募」）。応募ボタン（条件を満たさない時）と
+  // 本応募that profile_incomplete を返した時の両方から呼ぶ＝結末を1つに合流させる。
+  // ★ここからは doApply を呼ばない（doApply→goPending→doApply の往復を作らないため）。
+  //   預かれなかった時は false を返し、呼び出し側が次の手を決める。
+  const goPending = async () => {
+    // 来られる日（期間求人のみ）を仮応募でも渡す（2026-08-06）。渡さないと昇格時に来られる日が
+    // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募が成立してしまう
+    const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id, p_available_dates: applyAvailRef.current });
+    setApplying(false);
+    // 新規の仮応募＝ページでなくアニメーション（②・2026-08-07）。App側thatこのフラグを消費して
+    // 祝祭＋トースト＋応募状況への着地に切り替える。フラグ無しの /apply/pending は従来のチェックリスト
+    if (pend && pend.ok) { try { sessionStorage.setItem("cb_pendingNew", "1"); } catch {} window.location.hash = "/apply/pending"; return true; }
+    if (pend && pend.reason === "already_applied") { window.location.hash = "/apply/done"; return true; }
+    if (pend && pend.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return true; }
+    return false;
+  };
+
   const doApply = async () => {
     setApplying(true);
     try {
@@ -686,9 +702,13 @@ export function JobSearchMapView({ onRegister, me }) {
       // アカウント停止中（2026-08-17）：仮応募も昇格も止まる（DB側の壁）ので、理由をそのまま伝える。
       // 従来は「応募できませんでした。」に落ちて、なぜ通らないのか本人に分からなかった
       else if (data && data.reason === "account_suspended") { alert("アカウントが停止中のため、応募できません。運営（t5fki6643qty@gmail.com）までご連絡ください。"); }
-      else if (data && data.reason === "profile_incomplete") {
-        setProfileGate({ mode:"hard", hasNickname: !!data.has_nickname, qaAnswered: data.qa_answered ?? 0, qaRequired: data.qa_required ?? 5 });
-      }
+      // プロフィールの4項目that足りない＝止めずに仮応募として預かる（2026-08-17たきと指示「他は仮応募」）。
+      // 通常は応募ボタンthat先に is_worker_profile_ready を見て仮応募へ回すので、ここに来るのは
+      // 画面を開いている間に項目が空になった等の競合だけ。同じ結末（仮応募）に合流させる
+      else if (data && data.reason === "profile_incomplete") { await goPending(); }
+      // 本人情報（お名前・生年月日・規約同意）の登録that未了＝登録画面へ送る。
+      // 18歳確認と同意記録の唯一の場所so、ここは仮応募にせず登録を先に済ませてもらう
+      else if (data && data.reason === "not_registered") { setApplyReturn(selectedJob.id); window.location.hash = "/account"; }
       // profile_under_review（自己紹介の審査待ちで応募を止める）の分岐は削除した（2026-08-17）。
       // 承認プロセスの削除（2026-08-14）で自由記述は保存＝即公開になり、apply_to_job はこの理由を返さない
       // ＝到達不能なうえ「審査待ちです」は嘘になるため。万一返っても下の汎用メッセージで受ける
@@ -718,20 +738,12 @@ export function JobSearchMapView({ onRegister, me }) {
       }
       // 仮応募（第15弾・2026-07-30たきと指示）：必須項目がそろっていない人は、応募の意思だけ先に預かる。
       // 判定の基準は is_worker_profile_ready（DB）1本＝画面ごとに別の必須セットを作らない。
+      // 条件は4項目＝ニックネーム・緊急連絡先・居住地・自己紹介（2026-08-17たきと指示）。
       // 昇格の引き金は本人のプロフィール完成だけ（運営の自由記述審査は間に立たない）
       const ready = await fetchWorkerReady();
       if (!ready.ready) {
-        // 来られる日（期間求人のみ）を仮応募でも渡す（2026-08-06）。渡さないと昇格時に来られる日が
-        // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募が成立してしまう
-        const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id, p_available_dates: applyAvailRef.current });
-        setApplying(false);
-        // 新規の仮応募＝ページでなくアニメーション（②・2026-08-07）。App側がこのフラグを消費して
-        // 祝祭＋トースト＋応募状況への着地に切り替える。フラグ無しの /apply/pending は従来のチェックリスト
-        if (pend && pend.ok) { try { sessionStorage.setItem("cb_pendingNew", "1"); } catch {} window.location.hash = "/apply/pending"; return; }
-        if (pend && pend.reason === "already_applied") { window.location.hash = "/apply/done"; return; }
-        if (pend && pend.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return; }
-        // 預かりに失敗した時は、従来どおり本応募を試して理由をサーバーに言わせる
-        await doApply();
+        // 預かれなかった時（停止中・自分の求人・募集終了）は、本応募を試して理由をサーバーに言わせる
+        if (!(await goPending())) await doApply();
         return;
       }
       await doApply();
@@ -2003,54 +2015,6 @@ export function JobSearchMapView({ onRegister, me }) {
                     className="f-sans"
                     style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: (reportTargetField && reportIssueType) ? "#E24B4A" : "#EBEBEB", color: (reportTargetField && reportIssueType) ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}
                   >{reportSending ? "送信中..." : "送信する"}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* プロフィールゲート：softは応募を止めず誘導するだけ／hardはサーバー側の必須条件未達（プロフィールを書くのみ） */}
-      {profileGate && (
-        <div style={{
-          position:"fixed", inset:0, zIndex:10000,
-          background:"rgba(0,0,0,0.4)",
-          display:"flex", alignItems:"center", justifyContent:"center", padding:16,
-        }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:360, width:"100%", textAlign:"center" }}>
-            {profileGate.mode === "hard" ? (
-              <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>応募には自己紹介が必要です</p>
-                <div style={{ display:"flex", justifyContent:"center", gap:16, marginBottom:16 }}>
-                  <span className="f-sans" style={{ fontSize:15, fontWeight:600, color: profileGate.hasNickname ? "#00A86B" : "#E24B4A" }}>
-                    ニックネーム {profileGate.hasNickname ? "✓" : "✗"}
-                  </span>
-                  <span className="f-sans" style={{ fontSize:15, fontWeight:600, color: profileGate.qaAnswered >= profileGate.qaRequired ? "#00A86B" : "#717171" }}>
-                    質問への回答 {profileGate.qaAnswered}/{profileGate.qaRequired}
-                  </span>
-                </div>
-                <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.8, marginBottom:20 }}>あなたのことが伝わると、農家は安心して承認できます。</p>
-                <button
-                  onClick={() => { setApplyReturn(selectedJob.id); setProfileGate(null); window.location.hash = "/profile/worker/profile"; }}
-                  className="f-sans"
-                  style={{ width:"100%", padding:"12px", background:"#00A86B", color:"#fff", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer" }}
-                >プロフィールを書く</button>
-              </>
-            ) : (
-              <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:8 }}>プロフィールがまだ空です</p>
-                <p className="f-sans" style={{ fontSize:15, color:"#717171", lineHeight:1.8, marginBottom:20 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
-                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  <button
-                    onClick={() => { setApplyReturn(selectedJob.id); setProfileGate(null); window.location.hash = "/profile/worker/profile"; }}
-                    className="f-sans"
-                    style={{ padding:"12px", background:"#00A86B", color:"#fff", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer" }}
-                  >プロフィールを書く</button>
-                  <button
-                    onClick={() => { setProfileGate(null); doApply(); }}
-                    className="f-sans"
-                    style={{ padding:"12px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer" }}
-                  >このまま応募する</button>
                 </div>
               </>
             )}
