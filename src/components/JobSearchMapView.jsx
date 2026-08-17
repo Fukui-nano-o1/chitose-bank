@@ -19,6 +19,7 @@ import { SearchLaneTabs } from "./SearchLaneTabs";
 import { ConsignmentSearchList } from "./ConsignmentSearchList";
 import { canSeeConsignment } from "../lib/consignAccess";
 import { calcMaxPay, jobMonths } from "../features/jobs/search/model";
+import { readStoredSearch, writeStoredSearch } from "../features/jobs/search/filters/searchFilterStorage";
 import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, copyJob, unpublishJob,
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
   fetchSavedJobNumbers, deleteSavedJob, insertSavedJob, fetchMyApplications, fetchMyPendingApplications,
@@ -299,14 +300,11 @@ export function JobSearchMapView({ onRegister, me }) {
   const [searchSec, setSearchSec] = useState("what"); // 展開中セクション（1つだけ開くアコーディオン）
   // 絞り込みはlocalStorageに保存＝リロード・別ページ遷移でもリセットされない（2026-07-27たきと指示）。
   // 掛かりっぱなしでもピルの要約＋✕クリアで状態は常に見える
-  const readStoredSearch = (key) => {
-    try { const v = (JSON.parse(localStorage.getItem("cb_searchFilters") || "null") || {})[key]; return Array.isArray(v) ? v : []; } catch { return []; }
-  };
   const [selWhats, setSelWhats] = useState(() => readStoredSearch("w"));
   const [selRegions, setSelRegions] = useState(() => readStoredSearch("r"));
   const [selMonths, setSelMonths] = useState(() => readStoredSearch("m"));
   useEffect(() => {
-    try { localStorage.setItem("cb_searchFilters", JSON.stringify({ w: selWhats, r: selRegions, m: selMonths })); } catch { /* 保存不可でも絞り込み自体は動く */ }
+    writeStoredSearch(selWhats, selRegions, selMonths);
   }, [selWhats, selRegions, selMonths]);
   // リアルタイム反映（2026-07-27たきと指示）：チップを触った瞬間に一覧へ反映（検索ボタン待ちの下書き方式は廃止）。
   // パネルは半透明の暗幕ので、背後で一覧が絞られていくのが見える

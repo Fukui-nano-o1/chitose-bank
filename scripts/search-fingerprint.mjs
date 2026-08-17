@@ -28,6 +28,7 @@ const FILES = [
   "src/features/jobs/search/model.js",
   "src/features/jobs/search/map/JobSearchMap.jsx",
   "src/features/jobs/search/filters/SearchFilterPanel.jsx",
+  "src/features/jobs/search/filters/searchFilterStorage.js",
   "src/features/jobs/search/components/JobDetailPanel.jsx",
   "src/features/jobs/search/components/ApplyPanel.jsx",
   "src/features/jobs/search/searchJobs.js",
