@@ -6,7 +6,7 @@
 // 投函された報告文は、そのままAIや開発者に貼れる自己完結のテキスト（buildErrorReport）。
 //
 // ★利用者のスレッドには一切書かない（たきと指示「利用者に見える形は不信感を抱くから非表示」）。
-//   利用者の端末で起きたエラーも対象にするthat、投函先は【運営者自身のスレッド1本だけ】＝
+//   利用者の端末で起きたエラーも対象にするが、投函先は【運営者自身のスレッド1本だけ】＝
 //   利用者の画面にエラーの話は出ない。DB側も二重の壁：admin_messagesのINSERTポリシーは
 //   from_admin=true を app_admins に限る＝一般利用者の端末からは書き込めない。
 //
@@ -21,8 +21,8 @@ import { supabase } from "../lib/supabase";
 import { groupAppErrors, explainError, buildErrorReport, errorSigHash } from "../lib/errorCatalog";
 
 // 投函しない大分類（2026-08-16たきと指示「古いキャッシュを読み込むエラーは不要だ」）：
-// deploy＝更新直後に古い画面that消えた旧ファイルを読みに行く型。自己修復that効いて再読み込みで直り、
-// デプロイのたびに散発するのthat正常so、知らせる値打ちthaない。
+// deploy＝更新直後に古い画面が消えた旧ファイルを読みに行く型。自己修復が効いて再読み込みで直り、
+// デプロイのたびに散発するのが正常ので、知らせる値打ちthaない。
 // ★記録は消さない＝システムページには従来どおり出る（数える対象からも外さない）
 const SKIP_CATEGORIES = ["deploy"];
 const WINDOW_DAYS = 7;      // 拾う窓＝直近7日の未解決
@@ -42,7 +42,7 @@ export function AdminErrorChatReporter() {
         const uid = session.user.id;
         const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-        // ① 直近7日の未解決を取る（app_errorsのSELECTは管理者のみ＝RLSthat壁）
+        // ① 直近7日の未解決を取る（app_errorsのSELECTは管理者のみ＝RLSが壁）
         const res = await supabase.from("app_errors")
           .select("id,created_at,source,page,url,component,action,operation,error_code,message,status,user_id,user_agent")
           .eq("status", "open").gte("created_at", since)

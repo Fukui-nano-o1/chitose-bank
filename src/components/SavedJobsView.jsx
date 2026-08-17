@@ -284,7 +284,7 @@ export function SavedJobsView({ me }) {
   };
 
   // 応募の取り消し（2026-08-16たきと指示「応募を取り消すを追加しよう」）。
-  // このボックスは応募中の応募だと操作that1つも無かった（チャットは承認後ので出ない）＝
+  // このボックスは応募中の応募だと操作が1つも無かった（チャットは承認後ので出ない）＝
   // 応募状況ページ・求人詳細と同じ窓口（cancel_application）をここにも置く。
   // ★取り消せるのは承認前（応募中）だけ＝DB側も status='applied' 限定（それ以外は already_decided）ので、
   //   ボタンも応募中のときだけ出す。取り消しは削除でなく記録＝カードは「取り消し」の暗幕に変わる
@@ -294,7 +294,7 @@ export function SavedJobsView({ me }) {
     setCancelingId(r.application_id);
     try {
       const { data, error } = await supabase.rpc("cancel_application", { p_application_id: r.application_id });
-      // ok（already=既に取り消し済みも含む）／not_found＝行that既に無い（旧実装の残り）＝どちらも取り消し済み扱い
+      // ok（already=既に取り消し済みも含む）／not_found＝行が既に無い（旧実装の残り）＝どちらも取り消し済み扱い
       if (!error && data && (data.ok || data.reason === "not_found")) {
         setRows(prev => (prev || []).map(x => x.job_number === r.job_number
           ? { ...x, application_status: "canceled" } : x));
@@ -360,7 +360,7 @@ export function SavedJobsView({ me }) {
             const isWithdrawn = isRejected && r.rejected_reason === "unpublished";
             const isCanceled = r.application_status === "canceled";
             // ★失効そのものも暗幕の対象にする（2026-08-16）：失効は作業の【開始時刻】に自動で起きるため、
-            //   期間求人だと最終日までは jobPast that偽＝暗幕も「失効」ラベルも出ないまま応募中に見えていた
+            //   期間求人だと最終日までは jobPast が偽＝暗幕も「失効」ラベルも出ないまま応募中に見えていた
             const isExpired = r.application_status === "expired";
             const jobCompleted = r.application_status === "completed";
             const covered = jobPast || isRejected || isCanceled || isExpired || jobCompleted;
@@ -445,7 +445,7 @@ export function SavedJobsView({ me }) {
         const r = boxJob;
         // ★ボックスの現在地は「本当の段階」を出す（2026-08-16たきと報告「失効ラベルが外れている」）。
         //   phaseOf は一覧のアイコン用に 失効・見送り・取り消し を応募中へ寄せる変換（終わった事実は
-        //   カード全体の暗幕＋ラベルが担う＝2026-07-27の設計）that、ボックスの中には暗幕that無いので、
+        //   カード全体の暗幕＋ラベルが担う＝2026-07-27の設計）が、ボックスの中には暗幕が無いので、
         //   そのまま使うと失効した応募を開いても「応募中」と出てしまい、失効のラベルが消えていた
         const appRow = appOf(r);
         const phase = appRow ? appPhaseKey(appRow) : null;

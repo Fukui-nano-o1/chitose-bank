@@ -534,7 +534,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (kind === "unpublish") {
       // 一時非公開：open→draftへ（unpublish_job RPC・本人限定）。最終確認あり（たきと指定）。
       // 再掲載は作成中→再開→掲載＝そのまま公開（2026-08-14 承認プロセスの削除。旧「審査を通る」は誤り）。
-      // 例外＝運営から修正のお願いが届いている求人だけ、再掲載that運営確認に落ちる（migration 20260814093042）。
+      // 例外＝運営から修正のお願いが届いている求人だけ、再掲載が運営確認に落ちる（migration 20260814093042）。
       // その状態の農家には赤帯で別途知らせているので、この確認文には書かない（普通の一時非公開の話を短く伝える）
       // ★応募中・面接中は見送りになる（migration 20260808004900・採用済みは不変）＝確認文に明記
       if (!confirm("この求人を一時非公開にしますか？（さがすに表示されなくなります。応募中・面接中の方は見送りになります。あとから再掲載できます）")) return;
@@ -885,7 +885,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 押した瞬間には記録しない（2026-08-16たきと指示「どちらも一度だけ押すと最終確認展開。
   // OKで保留と対応済みは非表示」）＝ {id, kind} を持ってその応募の下に最終確認を開き、OKで初めて記録する。
   // 記録できたら両方のボタンを畳む＝取り消し（clear）の道はこの画面から無くなる。
-  // ★2度押しでリセットされる／対応済みのあとに保留を押しても画面that変わらない（handled_at優先の表示）を
+  // ★2度押しでリセットされる／対応済みのあとに保留を押しても画面が変わらない（handled_at優先の表示）を
   //   同時に解消：1件につき1回だけ・押した後は出さない、という形にする
   const [followupConfirm, setFollowupConfirm] = useState(null); // { id, kind } | null
   const [followupBusy, setFollowupBusy] = useState(false);
@@ -920,7 +920,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   // 最終確認を開いている種類（この応募のぶんだけ）。押した時点では記録しない
                   const askKind = (followupConfirm && followupConfirm.id === a.id) ? followupConfirm.kind : null;
                   const subBtn = (label, kind) => {
-                    const on = askKind === kind; // 確認を開いている側を点灯（どちらを押したかthat分かる）
+                    const on = askKind === kind; // 確認を開いている側を点灯（どちらを押したかが分かる）
                     return (
                       <button onClick={()=>setFollowupConfirm({ id: a.id, kind })} className="f-sans" style={{
                         flex:1, padding:"9px", fontSize:12, fontWeight:600, cursor:"pointer", borderRadius:9,
