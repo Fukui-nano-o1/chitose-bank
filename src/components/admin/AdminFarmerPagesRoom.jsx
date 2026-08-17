@@ -138,16 +138,16 @@ const SAMPLE_TRUST = { joined_at:"2026-05-01T00:00:00Z", verified_at:"2026-05-02
    body(api)=見本の中身。api.play(emoji,title)＝本物の祝祭アニメを再生 */
 const STEPS = [
   /* ═══ 準備（アカウント）═══ */
-  { ch:"準備", name:"玄関", url:"#/visit", act:"印刷物のQRを読んで、はじめてサイトに入る。規約とプラポリに同意して中を見る。",
+  /* 玄関は素通りになった（2026-08-17・同意画面の撤去）。QRの着地点として章には残すが、
+     見本は「何も出ずにそのまま求人一覧へ進む」という実際の見え方にする（偽の画面を描かない） */
+  { ch:"準備", name:"玄関", url:"#/visit", act:"印刷物のQRを読む。同意画面などは挟まらず、そのまま求人一覧に着く。",
     body: () => (
-      <div style={{ padding:"34px 18px", textAlign:"center" }}>
+      <div style={{ padding:"44px 18px", textAlign:"center" }}>
         <p className="f-sans" style={{ fontSize:26, fontWeight:800, color:INK, margin:"0 0 10px" }}>chitose-bank</p>
-        <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:1.8, margin:"0 0 16px" }}>農家と働き手が直接つながる、農作業の求人サイトです。</p>
-        <div style={{ background:SOFT, borderRadius:12, padding:"10px 12px", marginBottom:18 }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:SUB, margin:0 }}>いま募集中の仕事</p>
-        </div>
-        <span className="btn-primary f-sans" style={{ display:"block", maxWidth:320, margin:"0 auto", padding:16, fontSize:16, fontWeight:700, borderRadius:14 }}>同意して見てみる</span>
-        <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"12px auto 0", maxWidth:340, lineHeight:1.7 }}>「同意して見てみる」を押すと、利用規約とプライバシーポリシーに同意したものとします。求人の閲覧ができます（応募・登録は会員のみ）。</p>
+        <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.9, margin:0 }}>
+          画面は出ない。QRの着地点で、そのまま次の「さがす」へ進む。<br />
+          利用規約・プライバシーポリシーはフッターからいつでも読める。
+        </p>
       </div>
     ) },
   { ch:"準備", name:"さがす", url:"#/search", act:"訪問者として求人を見る。町域・番地・募集主は伏せられ、地図もおおまかな位置だけになる。",

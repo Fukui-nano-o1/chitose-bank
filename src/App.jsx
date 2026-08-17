@@ -1430,28 +1430,12 @@ export default function App(){
     if (m) resolveEmergencyLink(m[1]);
   }, []);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
-  // 訪問者の同意ゲート（2026-07-24）：未ログイン & cb_visitConsent 未記録のアクセスは、
-  // どの入口（QR・検索・直リンク）でも まず #/visit（同意の玄関）へ集約する。玄関は必ず一つ。
-  // 元の宛先は cb_visitReturn に退避し、同意後に VisitEntrance.agree が読んで元ページへ戻す。
-  // 例外＝玄関自身／法務ページ（規約・プラポリ・憲章）／認証系の機能リンク（login・account・emergency）。
-  //   これらは同意前でも到達できないと、玄関の導線（規約リンク）や会員の認証が壊れるため。
-  useEffect(() => {
-    const gate = async () => {
-      const raw = window.location.hash.replace(/^#\/?/, "");
-      const exempt = raw === "visit" || raw === "terms" || raw === "privacy" || raw === "charter"
-        || raw === "login" || raw === "account" || raw.startsWith("emergency/");
-      if (exempt) return;
-      let consent = false; try { consent = localStorage.getItem("cb_visitConsent") === "1"; } catch {}
-      if (consent) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) return; // ログイン済み会員はゲート対象外（同意は訪問者のみの概念）
-      try { if (raw) localStorage.setItem("cb_visitReturn", raw); } catch {}
-      window.location.hash = "/visit";
-    };
-    gate();
-    window.addEventListener("hashchange", gate);
-    return () => window.removeEventListener("hashchange", gate);
-  }, []);
+  // 訪問者の同意ゲート（2026-07-24〜2026-08-17）は撤去した（たきと指示「利用者になる最大の障壁so削除」）。
+  // 以後、訪問者はどの入口（QR・検索・直リンク）からでも、同意画面を挟まずそのままページに着く。
+  // ・恒久URL #/visit は従来どおり生きている（QRの焼き込み・CLAUDE.md 2026-07-24）。
+  //   玄関の意味＝「訪問者が求人を見に来る入口」も不変で、中身が素通り（#/search へ送る）になっただけ。
+  // ・規約・プラポリへの導線はフッター（常設3列）に残る。同意の記録が要るのは会員登録の時＝
+  //   AccountHolderForm が agreed_terms_version / agreed_privacy_version を保存する（従来どおり不変）。
   const [farmers,setFarmers]=useState([]);
   const [farmPend,setFarmPend]=useState([]);
   const [destOk,setDestOk]=useState([]);
@@ -2915,7 +2899,7 @@ export default function App(){
         )}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="install"&&<InstallGuide me={me} />}
-        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="visit"&&<VisitEntrance me={me} />}
+        {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="visit"&&<VisitEntrance />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="insurance"&&me&&<InsurancePrepPage me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="experience"&&me&&<WorkerExperiencePage />}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="qr"&&isAdmin(me)&&<VisitorQRPage />}

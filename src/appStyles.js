@@ -813,11 +813,6 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
   body:has(.cb-lock-scroll) .app-header-mobile-float,
   body:has(.cb-lock-scroll) .profile-employer-fab,
   body:has(.cb-box-overlay) .profile-employer-fab { display: none !important; }
-  /* 訪問者の玄関（#/visit）では浮遊☰も下部バーも出さない（2026-07-27たきと指示）。
-     ☰の中身は会員向けの操作＝同意前の訪問者には要らない。下部バーの「入れ方」も、
-     同意ゲート（未同意は玄関へ戻る）に弾かれて読めないため、案内は玄関の最下部に直接置いた */
-  body:has(.cb-visit-page) .app-header-mobile,
-  body:has(.cb-visit-page) .app-header-mobile-float { display: none !important; }
   /* 経験・資格ページ（#/experience）：下部バー・浮遊☰を出さない（2026-08-03たきと指示・入力に集中） */
   body:has(.cb-exp-page) .app-header-mobile,
   body:has(.cb-exp-page) .app-header-mobile-float { display: none !important; }
@@ -1382,18 +1377,12 @@ body.cb-scrolling .cb-like-heart { animation: cbHeartJelly .55s ease-in-out infi
 .cb-job-showcase { animation: cbJobShowcase 1s ease both; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .cb-job-showcase { animation: none; } }
 
-/* 訪問者の玄関（#/visit）：いま募集中の求人が横に流れる帯（2026-07-27たきと指示・ロゴの差し替え）。
-   同じ並びを2回描いて -50% まで流す＝継ぎ目なしで無限ループ。指を置いている間は停止。
-   高さはカード側の clamp が持つ（同意ボタンを画面外へ押し出さないための伸縮） */
-.cb-visit-marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
-/* gapではなくカード側のmargin-rightで間隔を作る＝1枚が必ず「幅＋間隔」so、-50%が1周とぴったり一致する
-   （gapだと末尾の1つ分だけ足りず、1周ごとに数pxずれて継ぎ目が見える） */
-.cb-visit-strip { display: flex; width: max-content; padding: 2px 0; animation: cbVisitMarquee 30s linear infinite; }
-.cb-visit-strip > * { margin-right: 10px; }
-/* 指を置いたら止める仕掛けは撤去（2026-07-27たきと報告）。スマホは1タップでhover状態が残り、
-   :activeも触るたび発火するsо、訪問者が何か操作するたびに帯が止まって見えていた。
-   カードはタップ不可＝止める理由が無いので、常に流し続ける */
-@keyframes cbVisitMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-@media (prefers-reduced-motion: reduce) { .cb-visit-strip { animation: none; } .cb-visit-marquee { overflow-x: auto; } }
-
+/* 管理者専用エラー帯（AdminErrorStrip・2026-08-07）：画面上部（main先頭）に常時配置。
+   重要度の色は個々のstyle属性で塗る（重大=赤/注意=橙/不明=灰）。点滅はopacityの緩い脈動＝
+   目は引くが読める明度を保つ。reduced-motion環境では点滅を止める（帯自体は出続ける） */
+.cb-err-strip { display: flex; align-items: center; gap: 8px; width: 100%; margin: 0 0 16px; padding: 11px 14px; border: 1.5px solid; border-radius: 12px; font-size: 13px; text-align: left; cursor: pointer; animation: cbErrBlink 1.6s ease-in-out infinite; }
+.cb-err-strip-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.cb-err-strip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+@keyframes cbErrBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .cb-err-strip { animation: none; } }
 `;

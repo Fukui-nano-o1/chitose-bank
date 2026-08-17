@@ -1,5 +1,5 @@
 // さがす一覧の取得・並び生成の共有ロジック（2026-08-02・玄関の先読み導入で共有化）。
-// 消費者は2箇所：①JobSearchMapView（さがす一覧本体）②VisitEntrance（訪問者の玄関の先読み）。
+// 消費者は2箇所：①JobSearchMapView（さがす一覧本体）②VisitEntrance（QRの着地点＝#/visit の先読み）。
 // 並びの規則（2026-07-24たきと指示）はここが唯一のソース：
 // 新着（掲載3日以内・この端末で初見）を上位に、他はランダム。既読はcb_seenNewJobsに記録。
 import { supabase } from "./supabase";
@@ -52,8 +52,8 @@ export function orderSearchJobs(mapped, prev) {
   return { list, freshNew };
 }
 
-// 玄関（/#/visit）の先読み：訪問者が同意文を読んでいる数秒の間に、さがす一覧を取得して
-// キャッシュに置いておく＝「同意して見てみる」タップ後のさがすが即描画になる（初訪問の体感対策）。
+// 玄関（/#/visit）の先読み：QRの着地点でさがす一覧の取得を始め、
+// キャッシュに置いておく＝送り先のさがすが即描画になる（初訪問の体感対策）。
 // キャッシュが既にあれば何もしない。並び・既読記録はさがす本体と同じ規則
 export async function prefetchSearchJobs() {
   if (getCache("search:jobs") !== undefined) return;

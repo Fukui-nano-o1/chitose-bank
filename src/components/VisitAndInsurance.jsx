@@ -2,9 +2,8 @@
 // /#/visit は印刷物に焼かれた恒久URL＝ルート文字列・遷移先の意味を変えない（CLAUDE.md絶対遵守）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { INSURANCE_ITEMS, insuranceToggle, photoThumb } from "../lib/utils";
+import { INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
 import { prefetchSearchJobs } from "../lib/searchJobs";
-import { isIOS } from "../lib/push";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { Dots } from "./ui";
 // 🛡 保険の準備（自己申告）専用ページ（#/insurance・2026-07-24）：農家プロフィール編集の箱から独立ページへ。
@@ -98,107 +97,26 @@ export function InsurancePrepPage({ me }) {
   );
 }
 
-// 訪問者の玄関（#/visit・恒久URL・2026-07-24）：一言＋いまの求人の自動スクロール＋規約/プラポリ＋「同意して見てみる」。
-// 同意はlocalStorageに記録し、再訪問・ログイン済みは玄関をスキップ。同意後は、全入口ゲートが退避した
-// 元の宛先（cb_visitReturn）へ戻す（無ければ#/searchへ）。
-// 2026-07-27たきと指示：ロゴを外し、いまの求人が流れる帯に差し替え（何のサイトかを言葉でなく現物で見せる）。
-// 帯はカード＝表示専用（タップ不可）。閲覧は同意の後＝玄関の意味を残す。
-// 「同意して見てみる」を画面外へ押し出さないため、帯の高さはビューポート比で伸縮させる（clamp）。
-// 入れ方の手順（#/install の InstallGuide と同じ文面）
-const INSTALL_IOS = { label:"iPhone（Safari）", steps:["Safariでこのページを開く","下の共有ボタン（□に↑）をタップ","「ホーム画面に追加」を選ぶ","右上の「追加」をタップ"] };
-const INSTALL_ANDROID = { label:"Android（Chrome）", steps:["Chromeでこのページを開く","右上のメニュー（⋮）をタップ","「アプリをインストール」または「ホーム画面に追加」を選ぶ","「インストール」をタップ"] };
-
-export function VisitEntrance({ me }) {
-  const [jobs, setJobs] = useState([]);
+// 訪問者の玄関（#/visit・恒久URL・2026-07-24／2026-08-17改）。
+// ★このルート文字列は印刷物のQRコードに焼き込み済み＝削除・改名を禁ずる（CLAUDE.md 2026-07-24）。
+//   玄関の意味「訪問者が求人を見に来る入口」も不変。
+// 2026-08-17たきと指示：同意画面（ロゴ＋求人の帯＋規約リンク＋「同意して見てみる」）は
+//   利用者になる最大の障壁so削除。玄関は素通りにし、着いたらそのまま #/search へ送る。
+//   規約・プラポリはフッターに常設。同意の記録は会員登録時（AccountHolderForm）に取る。
+//   アプリの入れ方は #/install（InstallGuide）に同じ文面が残っている＝案内は失われない。
+export function VisitEntrance() {
+  // 素通り：着いたその足で #/search へ送る（同意画面は撤去・2026-08-17）。
+  // 退避先（cb_visitReturn）は同意ゲート時代の遺産。まだ端末に残っている人がいるので読んで消す
+  // ＝古い保存値のまま迷子にしない。新規には二度と書かれない。
   useEffect(() => {
-    (async () => {
-      try {
-        // jobs_publicはanon許可so未ログインの訪問者でも読める。終了した求人も返すようになったため
-        // 玄関の帯は status='open' を明示する（2026-08-05）＝これから応募できるものだけを流す
-        const { data } = await supabase.from("jobs_public")
-          .select("job_number,crop,task,photos,pay_type,hourly_wage,daily_wage,city,town")
-          .eq("status", "open")
-          .order("job_number", { ascending: false }).limit(12);
-        setJobs(data || []);
-      } catch {}
-    })();
-    // 玄関の先読み（2026-08-02たきと指示）：訪問者が同意文を読んでいる数秒の間に、さがす一覧を
-    // 取得してキャッシュへ。「同意して見てみる」タップ後のさがすが即描画になる（初訪問の体感対策）。
-    // キャッシュが既にあれば何もしない（prefetchSearchJobs内で判定）
+    // さがす一覧の先読み（2026-08-02）：置き換わるまでの一瞬でも取得を始めておくと、
+    // 着いた先のさがすが即描画になる。キャッシュが既にあれば何もしない（関数内で判定）
     prefetchSearchJobs();
-  }, []);
-  // 玄関に着いた時点で既に同意済み/ログイン済みなら、退避先（あれば）へ、無ければ検索へ直行
-  const nextDest = () => {
     let dest = "/search";
     try { const r = localStorage.getItem("cb_visitReturn"); if (r) dest = "/" + r; localStorage.removeItem("cb_visitReturn"); } catch {}
-    return dest;
-  };
-  useEffect(() => {
-    let consent = false; try { consent = localStorage.getItem("cb_visitConsent") === "1"; } catch {}
-    if (me || consent) { window.location.hash = nextDest(); }
-  }, [me]);
-  const agree = () => { try { localStorage.setItem("cb_visitConsent", "1"); } catch {} window.location.hash = nextDest(); };
-  // 帯は前半と同じ並びをもう一度continueして繋げる＝-50%まで流して先頭へ戻ると継ぎ目が見えない
-  const strip = jobs.length ? [...jobs, ...jobs] : [];
-  return (
-    <div className="cb-visit-page" style={{ maxWidth:520, margin:"0 auto", padding:"24px 20px 40px", textAlign:"center" }}>
-      <h1 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", margin:"0 0 8px" }}>chitose-bank</h1>
-      <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:1.8, margin:"0 0 16px" }}>農家と働き手が直接つながる、農作業の求人サイトです。</p>
-      {jobs.length > 0 && (
-        <div style={{ marginBottom:18 }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 8px" }}>いま募集中の仕事</p>
-          {/* 画面幅いっぱいに流す（親のpadding20pxを負マージンで打ち消す）。カードは表示専用＝閲覧は同意の後 */}
-          <div className="cb-visit-marquee" style={{ marginLeft:-20, marginRight:-20 }}>
-            <div className="cb-visit-strip" style={{ animationDuration: Math.max(18, jobs.length * 5) + "s" }}>
-              {strip.map((j, i) => {
-                const p0 = j.photos && j.photos[0];
-                const photo = photoThumb(p0);
-                const title = [j.crop, j.task].filter(Boolean).join(" ") || "農作業";
-                const wage = j.pay_type === "日給" ? Number(j.daily_wage) || 0 : Number(j.hourly_wage) || 0;
-                const pay = wage ? (j.pay_type === "日給" ? "日給" : "時給") + wage.toLocaleString() + "円" : "";
-                const place = [j.city, j.town].filter(Boolean).join("") || "";
-                return (
-                  <div key={`${j.job_number}-${i}`} aria-hidden={i >= jobs.length ? "true" : undefined}
-                    style={{ flexShrink:0, width:"clamp(112px, 30vw, 150px)", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", textAlign:"left" }}>
-                    <div style={{ height:"clamp(72px, 15vh, 108px)", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, overflow:"hidden" }}>
-                      {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                    </div>
-                    <div style={{ padding:"6px 8px 8px" }}>
-                      <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</p>
-                      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[pay, place].filter(Boolean).join("・") || "　"}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-      <div style={{ display:"flex", justifyContent:"center", gap:20, marginBottom:20 }}>
-        <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans" style={{ background:"none", border:"none", color:"#00A86B", fontSize:14, fontWeight:600, textDecoration:"underline", cursor:"pointer", padding:0 }}>利用規約</button>
-        <button onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans" style={{ background:"none", border:"none", color:"#00A86B", fontSize:14, fontWeight:600, textDecoration:"underline", cursor:"pointer", padding:0 }}>プライバシーポリシー</button>
-      </div>
-      <button onClick={agree} className="btn-primary f-sans" style={{ width:"100%", maxWidth:320, padding:"16px", fontSize:16, fontWeight:700, borderRadius:14 }}>同意して見てみる</button>
-      <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"12px auto 0", maxWidth:340, lineHeight:1.7 }}>「同意して見てみる」を押すと、利用規約とプライバシーポリシーに同意したものとします。求人の閲覧ができます（応募・登録は会員のみ）。</p>
-      {/* アプリの入れ方（2026-07-27たきと指示）：訪問者に下部バーを出さないため、ここに直接書く。
-          #/install へのリンクにしない＝同意ゲート（未同意は玄関へ戻される）に弾かれ、案内が読めないため。
-          手順はInstallGuide（#/install）と同じ文面。使っている端末のOSを先に出す */}
-      <div style={{ marginTop:34, borderTop:"1px solid #EBEBEB", paddingTop:22, textAlign:"left" }}>
-        <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:"0 0 4px", textAlign:"center" }}>📲 アプリとして使う</p>
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 14px", textAlign:"center" }}>ホーム画面に追加すると、アプリのように開けて通知も受け取れます。</p>
-        <div style={{ display:"grid", gap:10 }}>
-          {(isIOS() ? [INSTALL_IOS, INSTALL_ANDROID] : [INSTALL_ANDROID, INSTALL_IOS]).map(g => (
-            <div key={g.label} style={{ background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{g.label}</p>
-              <ol className="f-sans" style={{ margin:0, paddingLeft:18, fontSize:12, color:"#555", lineHeight:1.9 }}>
-                {g.steps.map((s, i) => <li key={i}>{s}</li>)}
-              </ol>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+    window.location.replace(window.location.pathname + window.location.search + "#" + dest);
+  }, []);
+  return null;
 }
 
 // 管理者用QRコードページ（#/qr・2026-07-24）：焼き込み済みの静的QR(public/visit-qr.svg)を表示。実行時生成しない。
