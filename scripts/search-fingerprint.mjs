@@ -25,6 +25,11 @@ const FILES = [
   "src/lib/consignAccess.js",
   "src/lib/utils.js",            // mapJobPublicRow の派生フラグ（closed/filled/expired/isNew）だけを見る
   "src/features/jobs/search/JobSearchMapView.jsx",
+  "src/features/jobs/search/model.js",
+  "src/features/jobs/search/map/JobSearchMap.jsx",
+  "src/features/jobs/search/filters/SearchFilterPanel.jsx",
+  "src/features/jobs/search/components/JobDetailPanel.jsx",
+  "src/features/jobs/search/components/ApplyPanel.jsx",
   "src/features/jobs/search/searchJobs.js",
   "src/features/jobs/search/jobSearchApi.js",
 ];
