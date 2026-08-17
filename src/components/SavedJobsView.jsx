@@ -18,8 +18,11 @@ import { MyCalendar } from "./MyCalendar";
 
 // ── SavedJobsView（ステータス一覧・#/saved） ──
 export function SavedJobsView({ me }) {
-  // 前回の内容が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）
-  const [rows, setRows] = useState(() => getCache("saved:rows") ?? null);
+  // 前回の内容が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）。
+  // ★空配列のキャッシュは「0件」として信じない（2026-08-17）：この日の修理前は取得の失敗が [] として
+  //   永続キャッシュ（localStorage）に焼き付いたため、その残りを空状態として出さない＝取得で確かめてから
+  //   出す（未確定の間は仮の箱）。中身があるキャッシュは従来どおり即描画する
+  const [rows, setRows] = useState(() => { const c = getCache("saved:rows"); return (Array.isArray(c) && c.length > 0) ? c : null; });
   const [myProfile, setMyProfile] = useState(() => getCache("saved:me") ?? null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
   // ボックス内の求人カード用の全体像（2026-08-07たきと指示「その他の求人と同じ配置と要素」＝JobCard）。
@@ -244,21 +247,54 @@ export function SavedJobsView({ me }) {
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
     toggleCalTop();
   };
+  // ★取得の失敗を「0件」と断定しない（2026-08-17・たきと報告「アイコン→ボックス→求人タップ→閉じると
+  //   ステータスページが空になる」の根治）。
+  // 実際に起きていたこと（本番のログで裏取り済み）：ボックスを開くと求人の原寸写真が数枚流れる。その裏で
+  //   走っていた my_job_actions が15秒のタイムアウト（lib/supabase.js の AbortSignal）に当たり、サーバーに
+  //   届く前に落ちていた（該当時刻の my_job_actions／worker_profiles のリクエストがサーバー側に1本も無い）。
+  //   一覧はキャッシュから描けているので画面は正常に見え、旧実装の catch { setRows([]) } が「いいね0件」に
+  //   書き換える＝ボックスを閉じた瞬間に空の一覧が現れていた。取得は me.id 変化でしか走らないので、
+  //   一度空になるとリロードするまで戻らない。
+  // 規則（2026-08-07のフェイルオープン規則・2026-07-27 needsAccountHolder と同じ型）：
+  //   ①supabase-jsはHTTPエラーでもthrowしない＝必ず res.error を見る
+  //   ②失敗した時は手元の値（キャッシュ）を上書きしない・キャッシュにも書かない
+  //   ③3秒後に1回だけ静かに再試行。それでも駄目なら「読み込めませんでした」と正直に出す（♡の空状態にしない）
+  //   ④my_job_actions は auth.uid() が無いと【200で空配列】を返す（DB側のゲート）。空配列の時は
+  //     セッションの有無を確かめてからでないと「0件」と信じない（起動直後のトークン未確立で消さない）
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
+  const retryLoad = () => { setLoadFailed(false); setReloadTick(t => t + 1); };
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const load = async (retryLeft) => {
+      let actRes, wpRes;
       try {
-        const [actRes, wpRes] = await Promise.all([
+        [actRes, wpRes] = await Promise.all([
           supabase.rpc("my_job_actions"),
           supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", me.id).maybeSingle(),
         ]);
-        if (cancelled) return;
-        setRows(actRes.data || []); setCache("saved:rows", actRes.data || []);
-        setMyProfile(wpRes.data || null); setCache("saved:me", wpRes.data || null);
-      } catch { if (!cancelled) setRows([]); }
-    })();
+      } catch (e) { actRes = { data: null, error: e }; wpRes = { data: null, error: e }; }
+      if (cancelled) return;
+      let list = actRes?.error ? null : actRes?.data;
+      if (Array.isArray(list) && list.length === 0) { // ④0件の正体を確かめる
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (cancelled) return;
+          if (!session) list = null;
+        } catch { list = null; }
+      }
+      if (!Array.isArray(list)) {
+        if (retryLeft > 0) { setTimeout(() => { if (!cancelled) load(retryLeft - 1); }, 3000); return; }
+        setLoadFailed(true); // ②一覧は手元の内容のまま（キャッシュも消さない）
+        return;
+      }
+      setLoadFailed(false);
+      setRows(list); setCache("saved:rows", list);
+      if (!wpRes?.error) { setMyProfile(wpRes?.data || null); setCache("saved:me", wpRes?.data || null); }
+    };
+    load(1);
     return () => { cancelled = true; };
-  }, [me?.id]);
+  }, [me?.id, reloadTick]);
 
   // いいね解除。応募のある求人はステータス確認のため一覧に残す（消えるのは「いいねだけ」の求人）。
   // 誤タップ救済に「元に戻す」を10秒出す（2026-07-27）
@@ -306,8 +342,19 @@ export function SavedJobsView({ me }) {
     setCancelingId(null);
   };
 
-  // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる
-  if (rows === null) return <div style={{ paddingTop:4 }}><AutoSkeleton shapeKey="saved" /></div>;
+  // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる。
+  // ★読み込めなかった時は仮の箱を出し続けない（永久に読み込み中に見える）／♡の空状態も出さない
+  //   （「0件」と嘘をつかない・憲法3条）＝失敗を正直に出し、もう一度読み込む道を置く
+  if (rows === null) return loadFailed ? (
+    <div style={{ textAlign:"center", padding:"64px 24px" }}>
+      <div style={{ fontSize:34, marginBottom:14 }}>📡</div>
+      <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, margin:0 }}>
+        いまの状況を読み込めませんでした。<br />通信の状態を確かめて、もう一度お試しください。
+      </p>
+      <button onClick={retryLoad} className="f-sans"
+        style={{ marginTop:18, padding:"12px 26px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>もう一度読み込む</button>
+    </div>
+  ) : <div style={{ paddingTop:4 }}><AutoSkeleton shapeKey="saved" /></div>;
 
   const photoOf = (r) => photoThumb(r.photos?.[0]);
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
@@ -329,6 +376,14 @@ export function SavedJobsView({ me }) {
         <div className="fade-in" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 14px", marginBottom:12 }}>
           <span className="f-sans" style={{ fontSize:12, color:"#717171", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>いいねを外しました（#{undoJob.job_number}）</span>
           <button onClick={handleUndo} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>元に戻す</button>
+        </div>
+      )}
+      {/* 最新を取れなかった時（手元の内容は消さずに出したまま・上の取得の規則②）＝黙って古い内容を
+          出し続けない。押せば取り直す */}
+      {loadFailed && (
+        <div className="fade-in" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#FFF7E6", border:"1px solid #F0DFB8", borderRadius:12, padding:"10px 14px", marginBottom:12 }}>
+          <span className="f-sans" style={{ fontSize:12, color:"#8A6A1F", minWidth:0, lineHeight:1.6 }}>最新の状況を読み込めませんでした（表示は前回の内容です）</span>
+          <button onClick={retryLoad} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>再読み込み</button>
         </div>
       )}
       {/* 展開はヌルッと（2026-07-27たきと指示）：cb-cal-revealが高さ0→自動へ滑らかに開く */}
