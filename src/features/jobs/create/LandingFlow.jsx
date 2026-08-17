@@ -2,31 +2,31 @@
 // 専用ヘルパー（geocodeTown/compressImage/normalizePhotos/dangerHasSecond/LF系UI部品/最賃チェック）も同居。
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { useState, useEffect, useRef } from "react";
-import { fbCelebrate } from "../lib/feedback";
-import { zipLookup } from "../lib/zipLookup";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../lib/utils";
-import { getCache, setCache } from "../lib/viewCache";
-import { snapGet } from "../lib/snapshot";
-import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText, Dots } from "./ui";
-import { CalendarView } from "./CalendarView";
-import { JobLocationMap } from "./JobLocationMap";
-import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
-import { InsurancePanel } from "./InsurancePanel";
-import { FarmerTrustCard } from "./TrustCards";
-import { EmployerProfileEdit } from "./EmployerProfileEdit";
-import { JobSearchMapView } from "./JobSearchMapView";
-import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, validateMinWage } from "../features/jobs/create/model";
-import { geocodeTown } from "../features/jobs/create/jobCreateGeo";
+import { fbCelebrate } from "../../../lib/feedback";
+import { zipLookup } from "../../../lib/zipLookup";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../../../lib/utils";
+import { getCache, setCache } from "../../../lib/viewCache";
+import { snapGet } from "../../../lib/snapshot";
+import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText, Dots } from "../../../components/ui";
+import { CalendarView } from "../../../components/CalendarView";
+import { JobLocationMap } from "../../../components/JobLocationMap";
+import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "../../../components/JobQuestions";
+import { InsurancePanel } from "../../../components/InsurancePanel";
+import { FarmerTrustCard } from "../../../components/TrustCards";
+import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
+import { JobSearchMapView } from "../../../components/JobSearchMapView";
+import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, validateMinWage } from "./model";
+import { geocodeTown } from "./jobCreateGeo";
 import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
   fetchEmployerRecruiterInfo, upsertEmployerProfile, fetchEmployerTrustInfo, fetchAccountHolder,
   fetchJobByNumber, fetchJobStatus, updateJob, insertJob, publishMyJob, insertJobPublishCheck,
-  uploadPhoto } from "../features/jobs/create/jobCreateApi";
-import { LFPhotoReorderStrip, LFMultiPill, LFWageNote, LFWageCompare, LFFakeFilterRow } from "../features/jobs/create/components/LFParts";
-import { lfStyles } from "../features/jobs/create/lfStyles";
-import { StepPhotos } from "../features/jobs/create/components/StepPhotos";
-import { StepDescription } from "../features/jobs/create/components/StepDescription";
-import { StepDanger } from "../features/jobs/create/components/StepDanger";
-import { StepWishes } from "../features/jobs/create/components/StepWishes";
+  uploadPhoto } from "./jobCreateApi";
+import { LFPhotoReorderStrip, LFMultiPill, LFWageNote, LFWageCompare, LFFakeFilterRow } from "./components/LFParts";
+import { lfStyles } from "./lfStyles";
+import { StepPhotos } from "./components/StepPhotos";
+import { StepDescription } from "./components/StepDescription";
+import { StepDanger } from "./components/StepDanger";
+import { StepWishes } from "./components/StepWishes";
 
 // geocodeTown（町域重心の取得） → features/jobs/create/jobCreateGeo.js へ移設（2026-08-17）
 

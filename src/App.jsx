@@ -116,7 +116,7 @@ import { AccountHolderForm } from "./components/AccountHolderForm";
 import { ProfileModal } from "./components/ProfileModal";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { JobSearchMapView } from "./components/JobSearchMapView";
-const LandingFlow = lazyChunk(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
+const LandingFlow = lazyChunk(() => import("./features/jobs/create/LandingFlow").then(m => ({ default: m.LandingFlow })));
 const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
 const ConsignmentRoom = lazyChunk(() => import("./features/consignment/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
 const AdminBoxRegistryPage = lazyChunk(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));

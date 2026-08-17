@@ -29,7 +29,7 @@ const GREEN = "#00A86B", RED = "#E24B4A", AMBER = "#F5A623";
 const noop = () => {};
 
 /* LandingFlow の lfStyles を写経（本番の見出し・説明文の規格）。
-   ★実物（components/LandingFlow.jsx の lfStyles）を変えたら、ここも合わせること */
+   ★実物（features/jobs/create/lfStyles.js）を変えたら、ここも合わせること */
 const lfStyles = {
   stepTitle: {
     fontSize:"clamp(26px, 3.2vw, 36px)", fontWeight:850, lineHeight:1.25,
