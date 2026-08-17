@@ -27,7 +27,7 @@ begin
     select terms_confirmed_farmer_at is null into v_first_farmer
       from public.applications where id = p_application_id;
     -- ★二重予約の壁（2026-08-06）：初回確定・受諾なしの時だけ調べて拒否。
-    --   実働日集合（agreed_dates優先／無ければ範囲・holidays除外）の積that空でなければ重複。
+    --   実働日集合（agreed_dates優先／無ければ範囲・holidays除外）の積が空でなければ重複。
     --   進行中の判定は app_phase（DB側の段階ラベルの唯一のソース・2026-08-07）
     if v_first_farmer and not coalesce(p_accept_double_booking, false) then
       select a2.job_number into v_dup

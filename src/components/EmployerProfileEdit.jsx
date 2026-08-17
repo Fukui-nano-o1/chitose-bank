@@ -454,7 +454,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         // 名刺裏面・確認ページが読むキャッシュ（farm:empMini＝FarmerDashboard/LandingFlowの正本）へ
         // 保存内容を即時反映（2026-08-14たきと報告「問いかけも保存しても反映されない」の修理）。
         // 自由記述は保存＝即公開（trg_ep_z_publish_texts）so、公開後の姿＝desiredTexts で写す。
-        // キャッシュthat無い時は何もしない＝次の画面that新規に取得する（誤った部分行を正本にしない）
+        // キャッシュが無い時は何もしない＝次の画面が新規に取得する（誤った部分行を正本にしない）
         if (table === "employer_profiles") {
           try {
             const cur = getCache("farm:empMini");
@@ -760,7 +760,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 
       {editBox==="style" && (<>
             {/* 関わり方の質問セット（2026-08-14たきと指示で4問に拡充）。1問=1択・もう一度タップで解除。
-                答えた質問だけthatプレビューのチップに出る（未回答は出ない＝ダミー禁止） */}
+                答えた質問だけがプレビューのチップに出る（未回答は出ない＝ダミー禁止） */}
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
               答えたい質問だけ選んでください（任意）。答えた内容はプロフィールにチップで表示されます。
             </p>

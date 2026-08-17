@@ -115,14 +115,14 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
 
   // 右スワイプで公開（2026-08-07たきと指示「公開の役割は右スワイプ。指に連動。公開するボタン削除」）。
   // しきい値（画面幅35%・最大140px）を超えて離すと公開、未満なら弾んで戻る。
-  // スライドで下から公開の緑面thatが現れる（進み具合＝視覚の答え合わせ）。
+  // スライドで下から公開の緑面がが現れる（進み具合＝視覚の答え合わせ）。
   // カルーセル内で始まったタッチは奪わない。修正依頼モード中・公開処理中・読み込み中は発動しない。
   // ★2026-08-07修理（「機能していない」）：ReactのonTouchMoveはpassive＝preventDefault不可で、
-  //   iOSでは縦スクロール容器thatジェスチャを奪い横の追従that効かなかった。今日ページ・タブスワイプと
+  //   iOSでは縦スクロール容器がジェスチャを奪い横の追従が効かなかった。今日ページ・タブスワイプと
   //   同じ実証済みの作法（ネイティブリスナー{passive:false}・方向ロック8px・transform直書き）に統一
   const swipeRef = useRef(null);   // {x, y, dx, lock, w}
   const swipeRootRef = useRef(null); // リスナーを張る外枠（非スクロール）。★スクロール容器に張ると
-                                     // iOSの加速スクロールthatイベントを飲むことthatあるため外枠で受ける（2026-08-07再修理）
+                                     // iOSの加速スクロールがイベントを飲むことがあるため外枠で受ける（2026-08-07再修理）
   const dragBoxRef = useRef(null); // スライドさせるスクロール容器（transformの対象）
   const pubHintRef = useRef(null); // 下に敷いた公開の緑面（opacityを直書き）
   // リスナーはマウント時に1度だけ張るso、発動条件は ref 経由で最新を読む
@@ -162,8 +162,8 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       el.style.transition = "transform .25s ease";
       if (commit && g.onPublish && g.hasJob && !g.publishing) {
         el.style.transform = `translateX(${s2.w}px)`;
-        g.onPublish(); // 成功時は親thatプレビューを閉じる（既存挙動）
-        // 失敗（alert後も画面thatが残る）に備えて少し後に戻す
+        g.onPublish(); // 成功時は親がプレビューを閉じる（既存挙動）
+        // 失敗（alert後も画面がが残る）に備えて少し後に戻す
         setTimeout(() => {
           if (dragBoxRef.current) { dragBoxRef.current.style.transform = "translateX(0)"; }
           if (pubHintRef.current) pubHintRef.current.style.opacity = "0";
@@ -186,8 +186,8 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
   }, [ownerView]);
 
   // 本人シートを畳む（2026-08-08たきと指示「畳む条件はステータスページのアイコンタップボックスの規格と同じ」）。
-  // 規格＝DragSheet／SavedJobsViewのboxJob：中身thatが最上部（scrollTop<=0）のときだけ下向きドラッグthat
-  // シートを掴み、指に連動（transform直書き＝毎フレーム再レンダーしない）。引き下げたシートの上端thatが
+  // 規格＝DragSheet／SavedJobsViewのboxJob：中身がが最上部（scrollTop<=0）のときだけ下向きドラッグが
+  // シートを掴み、指に連動（transform直書き＝毎フレーム再レンダーしない）。引き下げたシートの上端がが
   // 画面の縦中央より下で指を離すと閉じる／上なら定位置へ戻す。閉じる道は背景タップとこの2つだけ（✕は置かない）
   const sheetRef = useRef(null);
   const ownerScrollRef = useRef(null);
@@ -491,7 +491,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
 
       {/* 下部の操作バー（審査のみ・2026-08-05たきと指示・下余白5px固定）。
           公開するボタンは廃止＝右スワイプに置換（2026-08-07たきと指示）。案内文も出さない
-          （同日たきと指示「管理者は僕だから説明は不要」）＝修正を依頼thatバーの幅を広く取る。
+          （同日たきと指示「管理者は僕だから説明は不要」）＝修正を依頼がバーの幅を広く取る。
           「修正を依頼」は2段構え：押すと指摘チップthaが現れるモードに入り、0件のままもう一度押すと
           やめる、1件以上で押すと送信。zIndex=公開の緑面より上（バーは常に見える） */}
       {!ownerView && (

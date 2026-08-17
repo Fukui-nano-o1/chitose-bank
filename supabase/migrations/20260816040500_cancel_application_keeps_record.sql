@@ -17,7 +17,7 @@ alter table public.applications add constraint applications_status_check
 
 -- 2) 取り消しの時刻（アクション＝タイムスタンプ）
 alter table public.applications add column if not exists canceled_at timestamptz;
-comment on column public.applications.canceled_at is '働き手that応募を取り消した時刻（status=canceled とセット）';
+comment on column public.applications.canceled_at is '働き手が応募を取り消した時刻（status=canceled とセット）';
 
 -- 3) UNIQUE(job_number, worker_id) → 取り消し済みを除く部分ユニーク
 --    （取り消し→再応募の流れを従来どおり可能に。rejected/expiredは従来どおり再応募を塞ぐ＝挙動不変）
@@ -46,11 +46,11 @@ begin
   select farmer_id, status, date_start, date_end into v_farmer_id, v_status, v_date_start, v_date_end from public.jobs where job_number = p_job_number;
   if v_farmer_id is null then return json_build_object('ok', false, 'reason', 'job_not_found'); end if;
   if v_status <> 'open' then return json_build_object('ok', false, 'reason', 'job_not_open'); end if;
-  -- 求人者(農家)that停止・追放中なら、その求人は募集終了として扱う（2026-08-16）
+  -- 求人者(農家)が停止・追放中なら、その求人は募集終了として扱う（2026-08-16）
   if public.is_account_moderated(v_farmer_id) then return json_build_object('ok', false, 'reason', 'job_not_open'); end if;
   if v_farmer_id = v_worker_id then return json_build_object('ok', false, 'reason', 'own_job'); end if;
 
-  -- 期間求人（date_end有り・単日でない）は「来られる日」の宣言that必須。単日求人は null で従来どおり
+  -- 期間求人（date_end有り・単日でない）は「来られる日」の宣言が必須。単日求人は null で従来どおり
   v_is_period := v_date_end is not null and v_date_end <> v_date_start;
   if v_is_period then
     if p_available_dates is null
@@ -64,11 +64,11 @@ begin
   end if;
 
   -- ★(a) 自由記述の審査待ち（pr_pending / pr_qa_pending）では応募を止めない。
-  --   未承認の本文は農家に見えない（worker_profile_for_farmer that under_review を返す）＝公開はしていない。
-  --   審査を「応募の関所」にすると、承認thatあるまで応募できず、待っている間の保存で審査thatやり直しになる。
+  --   未承認の本文は農家に見えない（worker_profile_for_farmer が under_review を返す）＝公開はしていない。
+  --   審査を「応募の関所」にすると、承認があるまで応募できず、待っている間の保存で審査がやり直しになる。
 
   if exists (select 1 from public.app_settings where key = 'apply_profile_gate' and value = 'true') then
-    -- ★(b) 答えの数は「承認済み(pr_qa)＋審査待ち(pr_qa_pending)」で数える＝本人that答えた事実を見る。
+    -- ★(b) 答えの数は「承認済み(pr_qa)＋審査待ち(pr_qa_pending)」で数える＝本人が答えた事実を見る。
     --   同じ質問に両方あっても二重に数えない（質問文で重複を除く）
     select wp.nickname,
            coalesce((select count(distinct e->>'q')
@@ -152,7 +152,7 @@ begin
   return json_build_object('ok', true);
 end; $function$;
 
--- 7) my_job_actions：同じ求人に「取り消し済み＋再応募」that並んだ時は最新の応募だけ返す
+-- 7) my_job_actions：同じ求人に「取り消し済み＋再応募」が並んだ時は最新の応募だけ返す
 --    （ステータスページは求人1件=カード1枚・React keyもjob_number＝重複行を作らない）
 drop function if exists public.my_job_actions();
 create function public.my_job_actions()

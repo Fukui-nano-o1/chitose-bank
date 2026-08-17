@@ -16,11 +16,11 @@ import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginRet
 //   ④50px以上で切替成立→slideKey更新で新しいタブがスライドイン（cbSlideInR/L・今日ページと共用のCSS）
 // 中の横スクロール要素（写真カルーセル・その他の求人等）内で始まったタッチは従来どおり奪わない。
 // オーバーレイ（.cb-lock-scroll）が【この中に開いた】時（下からのシート等）も奪わない（今日ページと同じ守り）。
-//   ★2026-08-08訂正：自分thatオーバーレイの【中にいる】場合（ボックスの詳細面で使う時）は奪ってよい。
-//     旧実装は祖先に.cb-lock-scrollがあるだけで降りていたため、シート内ではタブ切替that死んでいた。
+//   ★2026-08-08訂正：自分がオーバーレイの【中にいる】場合（ボックスの詳細面で使う時）は奪ってよい。
+//     旧実装は祖先に.cb-lock-scrollがあるだけで降りていたため、シート内ではタブ切替が死んでいた。
 // onEdgeSwipe（任意・2026-08-08）：端でさらにスワイプされた時の合図（"prev"/"next"）。
 //   ボックスの詳細面では "prev"（最初のタブでさらに右スワイプ）＝面を戻る、に使う
-//   ＝タブ切替と「戻る」that同じ横スワイプで両立する。
+//   ＝タブ切替と「戻る」が同じ横スワイプで両立する。
 export function ContentQSwipeArea({ value, onChange, showInsurance, children, onEdgeSwipe }) {
   const rootRef = useRef(null);
   const contentRef = useRef(null);
@@ -52,7 +52,7 @@ export function ContentQSwipeArea({ value, onChange, showInsurance, children, on
       return dx < 0 ? Math.min(ks.length - 1, idx + 1) : Math.max(0, idx - 1);
     };
     const onStart = (ev) => {
-      // オーバーレイthatこの中に開いている時だけ譲る（自分thatオーバーレイの中にいる時は奪ってよい・2026-08-08）
+      // オーバーレイがこの中に開いている時だけ譲る（自分がオーバーレイの中にいる時は奪ってよい・2026-08-08）
       const ov = ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll");
       if (ov && el.contains(ov)) { gestureRef.current = null; return; }
       if (inHScroll(ev.target)) { gestureRef.current = null; return; }
@@ -111,7 +111,7 @@ export function ContentQSwipeArea({ value, onChange, showInsurance, children, on
   }, []);
 
   return (
-    // cb-content-swipe＝親のシートthat「この中の横スワイプはタブ切替のもの」と判別する目印（2026-08-08）
+    // cb-content-swipe＝親のシートが「この中の横スワイプはタブ切替のもの」と判別する目印（2026-08-08）
     <div ref={rootRef} className="cb-content-swipe" style={{ touchAction:"pan-y" }}>
       <div key={slideKey} ref={contentRef} style={{ animation: slideDir ? `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` : undefined }}>
         {children}

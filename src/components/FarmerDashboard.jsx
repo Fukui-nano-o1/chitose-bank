@@ -358,7 +358,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [completeDone, setCompleteDone] = useState(null); // 評価登録完了モーダル {jobLabel,jobNumber,workerId,workerName,at,wantAgain,entrust,publicComment,privateMemo,favorited}
   const openCompleteModal = (a) => {
     // 完了ボタン＝そのまま評価（2026-08-16たきと指示）。以前は「働き手は来ましたか？」の1枚を
-    // 挟んでいたthat、通常の道（来た→評価）が2タップになるため廃止＝最初から評価を出す。
+    // 挟んでいたが、通常の道（来た→評価）が2タップになるため廃止＝最初から評価を出す。
     // 送信＝完了の記録＋評価（submit_farmer_review・1トランザクション）。
     // 来なかった場合（欠勤の記録・72時間の異議申立）は評価画面の下に控えめに残す＝例外の道は消さない
     setCompleteModalApp(a);
@@ -587,7 +587,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setArmedAction(null);
     runJobAction(kind, d.job_number);
   };
-  // ペイン切替（作成中⇄公開中）でモード解除：3つ目のピルthat削除⇄非公開に入れ替わるため持ち越さない
+  // ペイン切替（作成中⇄公開中）でモード解除：3つ目のピルが削除⇄非公開に入れ替わるため持ち越さない
   useEffect(() => { setArmedAction(null); }, [jobTab]);
   // 「公開間近」（＝掲載申請済み・公開の準備中）のカードをタップした時の説明ボックス（2026-08-07たきと指示）。
   // 詳細も求人者プロフィールも見せず、説明だけを展開する＝「審査されている」感を出さない
@@ -596,7 +596,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
   // シート内の求人カード→詳細面（2026-08-08たきと指示「ここも同じにしよう。アニメーションもコピー」＝
-  // ステータスページのボックスと同じ：求人タップで面全体that演出→詳細面へスライド・横スワイプで戻る）
+  // ステータスページのボックスと同じ：求人タップで面全体が演出→詳細面へスライド・横スワイプで戻る）
   const [sheetPane, setSheetPane] = useState("main");        // main | detail
   const [sheetShowcase, setSheetShowcase] = useState(false); // 面全体の演出（cbJobShowcase）
   const [sheetJobFull, setSheetJobFull] = useState({});      // job_number → jobs_publicのmapped行｜null(非公開)
@@ -1052,7 +1052,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               {/* 求人＝ステータスページのボックスと同じカード＋動き（2026-08-08たきと指示
                   「ここも同じにしよう。アニメーションもコピー」）：旧・下線リンク（タップで求人プレビュー）を
                   廃止し、wide JobCardに。タップ＝面全体の演出→シート内の詳細面へスライド（DragSheetのdetail）。
-                  jobs_publicの読み足し（sheetJobFull）that届くまで／非公開求人は手元の情報で仮の姿
+                  jobs_publicの読み足し（sheetJobFull）が届くまで／非公開求人は手元の情報で仮の姿
                   （報酬0円やダミーは出さない＝JobCard側でpay>0のみ表示） */}
               {(() => {
                 const info = jobInfoMap[a.job_number] || dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number) || {};
@@ -1775,7 +1775,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   <button onClick={submitFarmerReview} disabled={completeSubmitting || completeWantAgain===null || completeEntrust===null}
                     className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{completeSubmitting ? "送信中..." : "送信する"}</button>
                 </div>
-                {/* 例外の道：来なかった場合（完了の記録that済むまでのあいだだけ出す） */}
+                {/* 例外の道：来なかった場合（完了の記録が済むまでのあいだだけ出す） */}
                 {notDone && (
                   <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans"
                     style={{ display:"block", width:"100%", marginTop:16, paddingTop:14, borderTop:"1px solid #F0F0F0", background:"none", border:"none", fontSize:12, color:"#E24B4A", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
@@ -1815,7 +1815,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           {/* 再開は作成中のみ（2026-08-07たきと指示「公開中タブのときは再開は非表示」）。
               公開中の求人は再開＝編集の対象ではない（編集は一時非公開→作成中→再開の順）。
               ★消える時も枠は空けたまま（同日たきと指示「詰めるな」）＝visibility:hiddenの同じ寸法の
-              ダミーを残す。display:noneにすると後続のピルthat左へ動いてしまう。
+              ダミーを残す。display:noneにすると後続のピルが左へ動いてしまう。
               出入りは削除⇄非公開と同じ cbPillSwap */}
           {jobTab !== "active" ? (
             <button key="resume" onClick={()=>armJobAction("resume")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",

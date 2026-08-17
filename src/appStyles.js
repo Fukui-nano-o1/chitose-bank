@@ -616,7 +616,7 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
 body:has(.cb-lock-scroll) .cb-job-action-fabs,
 body:has(.cb-preview-overlay) .cb-job-action-fabs,
 body:has(.cb-box-overlay) .cb-job-action-fabs { display: none !important; }
-/* ペイン切替（作成中⇄公開中）で3つ目のピルthat削除⇄非公開に入れ替わる時のポップ（2026-08-07） */
+/* ペイン切替（作成中⇄公開中）で3つ目のピルが削除⇄非公開に入れ替わる時のポップ（2026-08-07） */
 @keyframes cbPillSwap { from { transform: translateY(14px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
 /* モード中の案内バブル＝画面中央（2026-08-07たきと指示。ピル行anchorだと右にはみ出す）。
    ピル行の真上の高さ（ピル高さ約46px＋隙間10px）。タップは透過＝下のカードを妨げない */
@@ -822,7 +822,7 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
   body:has(.cb-exp-page) .app-header-mobile,
   body:has(.cb-exp-page) .app-header-mobile-float { display: none !important; }
   /* 新着の応募ページ（#/new-applicants・2026-08-11たきと指示「下部ヘッダーフッター、ハンバーガーメニュー非表示」）：
-     決める作業に集中させる。抜ける道はページ内の導線（求人詳細・応募者ページ）that持つ */
+     決める作業に集中させる。抜ける道はページ内の導線（求人詳細・応募者ページ）が持つ */
   body:has(.cb-new-applicants-page) .app-header-mobile,
   body:has(.cb-new-applicants-page) .app-header-mobile-float { display: none !important; }
   /* 保険の準備ページ（#/insurance）：浮遊☰・下部バーを出さない（2026-08-03たきと指示。サイトフッターも既存ルールで非表示） */
@@ -1359,7 +1359,7 @@ select, option { color-scheme: light; background-color: #FFFFFF; color: #222222;
   100% { transform: scale(1, 1); }
 }
 body.cb-scrolling .cb-like-heart { animation: cbHeartJelly .55s ease-in-out infinite; }
-/* カード写真のタップポップ（2026-08-07たきと指示）：タップした時、写真that少し拡大して元に戻る。
+/* カード写真のタップポップ（2026-08-07たきと指示）：タップした時、写真が少し拡大して元に戻る。
    発火・解除はJobCard側（onClick→state・onAnimationEnd→解除） */
 @keyframes cbPhotoTapZoom {
   0%   { transform: scale(1); }

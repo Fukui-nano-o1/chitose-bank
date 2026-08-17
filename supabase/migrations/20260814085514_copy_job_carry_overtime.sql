@@ -1,11 +1,11 @@
 -- copy_job：時間外労働（overtime_policy / overtime_detail）を複製に引き継ぐ（2026-08-14 バグ修理）
 --
 -- 【発見の経緯】承認プロセス削除後のバグ狩り（実弾ブロックD・Q4）：コピー→publish_my_job で
---   「時間外労働の有無の入力が必要です」で公開that止まった。コピー元には値thatあるのに、
---   copy_job のINSERT列挙に overtime_policy / overtime_detail（2026-08-03新設）that入っておらず
+--   「時間外労働の有無の入力が必要です」で公開が止まった。コピー元には値があるのに、
+--   copy_job のINSERT列挙に overtime_policy / overtime_detail（2026-08-03新設）が入っておらず
 --   複製で静かに落ちていた＝農家は理由が分からないまま再入力を求められる。
 -- 【型】「列を足したら関連関数も直す」（2026-07-22ルールのcopy_job版）。
---   他の新列は掲載時にトリガーthat自動確定するもの（pay_method等・募集主・スナップショット）や
+--   他の新列は掲載時にトリガーが自動確定するもの（pay_method等・募集主・スナップショット）や
 --   複製すべきでないもの（opened_at・unlisted_reason）so、漏れはこの2列だけ（定義を全列照合済み）。
 -- 【方針】既存定義そのまま＋2列を追記。日程が過ぎた求人の日付クリア等の挙動は不変。
 
@@ -23,7 +23,7 @@ begin
   if v_src.job_number is null then return json_build_object('ok', false, 'reason', 'not_found'); end if;
   if v_src.farmer_id <> v_uid then return json_build_object('ok', false, 'reason', 'not_yours'); end if;
 
-  -- 日程that過ぎているか（終了日・無ければ開始日で判定）。日程未設定はfalse
+  -- 日程が過ぎているか（終了日・無ければ開始日で判定）。日程未設定はfalse
   v_past := coalesce(coalesce(v_src.date_end, v_src.date_start) < (now() at time zone 'Asia/Tokyo')::date, false);
 
   insert into public.jobs (

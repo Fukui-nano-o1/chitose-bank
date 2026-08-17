@@ -104,7 +104,7 @@ export function SavedJobsView({ me }) {
           // 横：詳細面のときだけ「戻る」ジェスチャとして面を掴む（メイン面の横スワイプは何もしない）
           if (boxPaneRef.current !== "detail") { tracking = false; return; }
           // 写真カルーセル＝写真送りに譲る／タブの中身（.cb-content-swipe）＝タブ切替に譲る（2026-08-08・
-          // 端でのスワイプはContentQSwipeAreaのonEdgeSwipe→onBackで面that戻る）
+          // 端でのスワイプはContentQSwipeAreaのonEdgeSwipe→onBackで面が戻る）
           if (e.target.closest && (e.target.closest(".carousel-scroll") || e.target.closest(".cb-content-swipe"))) { tracking = false; return; }
           const p = paneRef.current; if (!p) { tracking = false; return; }
           axis = "h"; paneW = el.clientWidth || 1;
@@ -321,7 +321,7 @@ export function SavedJobsView({ me }) {
   // 終わった応募なので、アイコンは応募中のまま。終わった事実はカード全体の暗幕＋ラベルが担う
   const phaseOf = (r) => { const a = appOf(r); return a ? appPhaseKey((a.status === "expired" || a.status === "rejected" || a.status === "canceled") ? { ...a, status: "applied" } : a) : null; };
   // openJobPage（求人ページへの遷移）は削除（2026-08-08たきと指示「ボックスの求人ページは不要」）
-  // ＝ボックス内の確認は求人カードタップ→詳細面that担う。求人ページ自体は さがす から従来どおり開ける
+  // ＝ボックス内の確認は求人カードタップ→詳細面が担う。求人ページ自体は さがす から従来どおり開ける
 
   return (
     <div>
@@ -462,8 +462,8 @@ export function SavedJobsView({ me }) {
               <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
                 {/* ═══ 面の2枚構造（2026-08-07たきと指示「求人タップでスライドしてね。そこで、求人詳細の確認しよう」）：
                      [詳細パネル｜メイン面] を横に並べ、コンテナのtransformで切り替える。
-                     カードの右スライドアウト（cbJobShowcase）が終わった合図で詳細面へ＝中身全体that右へずれて
-                     左から詳細that現れる（カードの動きと同じ右方向・連続した1つの動きに見える）。
+                     カードの右スライドアウト（cbJobShowcase）が終わった合図で詳細面へ＝中身全体が右へずれて
+                     左から詳細が現れる（カードの動きと同じ右方向・連続した1つの動きに見える）。
                      戻るは詳細面の「← 戻る」（cardShowも解除＝カードが定位置に戻る） ═══ */}
                 <div ref={paneRef} style={{ display:"flex", width:"200%", transform: boxPane === "detail" ? "translateX(0)" : "translateX(-50%)", transition:"transform .35s ease" }}>
                 {/* ── 面2：求人詳細の確認パネル（左側に置く＝右ずれの動きで現れる）。
@@ -546,7 +546,7 @@ export function SavedJobsView({ me }) {
                 {/* 応募の進み具合＝常時展開（2026-08-16たきと指示「この応募状況カードを削除し、
                     カードの内容を展開したままにしよう」）。旧📋応募状況カード（→応募状況ページへの
                     遷移）を廃止し、その中身＝お仕事の流れバー（FlowBar・応募状況ページと同じ共有部品）を
-                    ここに直接出す。my_job_actions は started_at 等を返さないthat、このシートを開けるのは
+                    ここに直接出す。my_job_actions は started_at 等を返さないが、このシートを開けるのは
                     終端前（応募中〜作業中）だけ＝statusとterms確認時刻だけで各段は正しく点灯する */}
                 {r.application_id && (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"14px 16px 12px", marginTop:12, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
@@ -560,7 +560,7 @@ export function SavedJobsView({ me }) {
                     （絵文字を上に・太字タイトル・中央寄せの2列格子）＝ボックス格子の作法を増やさない。
                     📄求人ページは削除（2026-08-08たきと指示「求人タップで詳細確認できるからボックスの
                     求人ページは不要」）＝内容の確認は求人カードタップ→詳細面が担う。
-                    📋応募状況カードは削除（2026-08-16たきと指示）＝上の常時展開that担う */}
+                    📋応募状況カードは削除（2026-08-16たきと指示）＝上の常時展開が担う */}
                 {chatOk && (
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:10, marginTop:12 }}>
                   <button onClick={()=>{ setBoxJob(null); window.location.hash = "/chat/" + r.application_id; }} className="f-sans"

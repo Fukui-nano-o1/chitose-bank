@@ -34,7 +34,7 @@ function ctx() {
   } catch { return null; }
 }
 
-// ★音の解錠：タップの同期文脈の中で 作成+resume+無音バッファ1発。App.jsxthatが毎タップ呼ぶ
+// ★音の解錠：タップの同期文脈の中で 作成+resume+無音バッファ1発。App.jsxがが毎タップ呼ぶ
 export function unlockAudio() {
   try {
     const c = ctx(); if (!c) return;

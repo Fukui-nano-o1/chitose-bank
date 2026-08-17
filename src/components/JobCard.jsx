@@ -12,7 +12,7 @@ import { CropIcon } from "./CropIcon";
 export function JobCard({ job, variant, saved, onToggleSave, onOpen }) {
   const isList = variant === "list";
   const isWide = variant === "wide";
-  // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真that少し拡大して元に戻る。
+  // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真が少し拡大して元に戻る。
   // 発火はonClick（スクロール開始のタッチでは鳴らない）。ハートはstopPropagationでカードに
   // 伝わらないため、ハート側からも同じトリガーを呼ぶ。アニメ終了でclass解除＝次のタップで再生
   const [photoPop, setPhotoPop] = useState(false);

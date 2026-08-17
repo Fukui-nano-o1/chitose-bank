@@ -91,7 +91,7 @@ function lazyChunk(factory) {
 }
 
 // 掲載完了アニメの後の「60秒ノーアクションで さがす へ」の見張り（2026-08-07たきと指示）。
-// マウント中に一度でも操作（タップ・キー・スクロール・タッチ）or 画面遷移thatあれば取り消す＝
+// マウント中に一度でも操作（タップ・キー・スクロール・タッチ）or 画面遷移があれば取り消す＝
 // 本当に何もせず滞在した時だけ /search へ送る。onEnd(fired)：firedならタイムアウト発火・falseなら取り消し。
 // ★モジュールレベル定義（フォーカス消失バグ回避の作法）。pointer-events等は一切奪わない（listenerのみ）。
 // 応募完了の法的一言トースト（2026-08-07・①）。完了ページを廃止したので、その画面にあった
@@ -1620,7 +1620,7 @@ export default function App(){
   const [workerFlowNote,setWorkerFlowNote]=useState(false);   // 案内トースト（構想段階の明示＝職安法配慮を消さない）
   // apply/done に来たら：完了ページを出さず、応募状況（/profile/worker/applying）へ着地させ、
   // 祝祭（applyBurst・既存）＋法的トースト＋アイドル見張りを起動する。promotedCount/applyAlready/applyBurst は
-  // hashハンドラthat先に設定済み（この効果はそれらの設定後に走る）。
+  // hashハンドラが先に設定済み（この効果はそれらの設定後に走る）。
   useEffect(() => {
     if (!showApplyDone) return;
     setApplyNote(true);
@@ -2791,7 +2791,7 @@ export default function App(){
         ) : showApplyPending ? (
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ApplyPending /></Suspense>
         ) : showApplyDone ? (
-          /* 完了ページは廃止（2026-08-07・①）＝アニメーションに置換。上のuseEffectthat応募状況へ着地させ、
+          /* 完了ページは廃止（2026-08-07・①）＝アニメーションに置換。上のuseEffectが応募状況へ着地させ、
              祝祭・法的トースト・60秒アイドルはグローバルに出す。ここは着地までの一瞬なので何も描かない */
           null
         ) : safeTab==="search" ? <JobSearchMapView onRegister={goLogin} me={me} /> : null}
@@ -3022,7 +3022,7 @@ export default function App(){
       <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
 
       {/* 掲載完了はページでなくアニメーション（2026-08-07たきと指示）。タブに依らずグローバルに出す＝
-          掲載後に /profile/employer へ遷移した先で祝祭that重なり、60秒ノーアクションで さがす へ送る */}
+          掲載後に /profile/employer へ遷移した先で祝祭が重なり、60秒ノーアクションで さがす へ送る */}
       {pubCelebrate && <Celebration emoji={pubCelebrate.open ? "🎉" : "🌱"} title={pubCelebrate.open ? "公開しました！" : "求人ができました！"} onDone={()=>{ setPubChoice({ open: pubCelebrate.open, jobNumber: pubCelebrate.open ? pubCelebrate.jobNumber : null }); setPubCelebrate(null); }} />}
       {pubChoice && <PublishChoiceCard jobNumber={pubChoice.jobNumber} onClose={()=>setPubChoice(null)} />}
       {pubIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setPubIdle(false); if (fired) { setPubChoice(null); window.location.hash="/search"; } }} />}
@@ -3043,8 +3043,8 @@ export default function App(){
       {applyIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setApplyIdle(false); if (fired) window.location.hash="/search"; }} />}
 
       {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるso、個別に包む
-          （2026-08-07 コピー→白画面の修理）：包まないと、チャンク読み込み失敗・描画エラーthat
-          ここで起きた時にReactthatツリー全体を落とし、復帰ボタンも無い白画面になる */}
+          （2026-08-07 コピー→白画面の修理）：包まないと、チャンク読み込み失敗・描画エラーが
+          ここで起きた時にReactがツリー全体を落とし、復帰ボタンも無い白画面になる */}
       {!me&&showLanding&&(
         <AppErrorBoundary><Suspense fallback={null}><LandingFlow
           onComplete={()=>setShowLanding(false)}

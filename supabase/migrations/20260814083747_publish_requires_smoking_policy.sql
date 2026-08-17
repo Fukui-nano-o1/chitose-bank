@@ -68,7 +68,7 @@ begin
       v_legal := case when v_minutes > 480 then 60 when v_minutes > 360 then 45 else 0 end;
       v_actual := v_minutes - greatest(v_break, v_legal);
       if v_actual <= 0 then
-        raise exception '実働時間that0以下になります（勤務%・休憩%分）。勤務時間か休憩を見直してください',
+        raise exception '実働時間が0以下になります（勤務%・休憩%分）。勤務時間か休憩を見直してください',
           coalesce(new.work_time,'未設定'), greatest(v_break, v_legal);
       end if;
       v_hourly_eq := btrim(new.daily_wage)::numeric * 60 / v_actual;
@@ -99,7 +99,7 @@ begin
       'supplies_cap', coalesce(v_ep.supplies_cap, ''),
       'accessory_ok', coalesce(v_ep.accessory_ok, false),
       -- 受動喫煙の状況（2026-08-03）：'' は未設定＝表示側で「ー」。
-      -- smoking_area は「喫煙場所あり」の時だけ意味を持つ（編集UI側that他の選択では空で保存する）
+      -- smoking_area は「喫煙場所あり」の時だけ意味を持つ（編集UI側が他の選択では空で保存する）
       'smoking_policy', coalesce(v_ep.smoking_policy, ''),
       'smoking_area', coalesce(v_ep.smoking_area, '')
     ) || coalesce(new.perks, '{}'::jsonb);
@@ -111,7 +111,7 @@ begin
     );
     new.profile_snapshot_at := now();
     -- 賃金支払条件の確定（2026-08-02）：現在は全求人固定ポリシー。
-    -- フロントから別値that送られても、この3値へ確定する（入力UIは封印中・固定ポリシーの宣言をデータ化）
+    -- フロントから別値が送られても、この3値へ確定する（入力UIは封印中・固定ポリシーの宣言をデータ化）
     new.pay_method := 'cash';
     new.pay_timing := 'same_day_after_work';
     new.wage_closing_rule := 'each_workday';

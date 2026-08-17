@@ -1,12 +1,12 @@
 -- 退会時に、退会農家の公開中/審査中の求人を掲載終了に（2026-08-07・退会後の余波X4への対処）
 --
 -- 【穴】process_withdrawal は jobs を消さない（過去求人＝証跡so消さない・trg_block_delete_past_job）。
--- 農家that退会してもopen求人that jobs_public に残り、応募を受け付け続けうる（雇い手は不在なのに）。
--- ★third_party_publish_allowed は既に'true'（届出完了・第三者公開解禁済み）＝一般農家thatopen求人を
+-- 農家が退会してもopen求人が jobs_public に残り、応募を受け付け続けうる（雇い手は不在なのに）。
+-- ★third_party_publish_allowed は既に'true'（届出完了・第三者公開解禁済み）＝一般農家がopen求人を
 --   持てる現在の状態so、これは将来リスクでなく今そこにある穴。
 -- 【対処】退会時に farmer_id=退会者 の status in ('open','pending') を 'closed' に更新（掲載終了）。
 --   行は消さない＝過去求人の証跡は残る。draftは公開されていないso対象外。closedは既にclosed。
--- 検証済み（ロールバック付き実弾）：closed化・トリガー例外なし・応募that job_not_open で拒否・行は残る。
+-- 検証済み（ロールバック付き実弾）：closed化・トリガー例外なし・応募が job_not_open で拒否・行は残る。
 -- 削除17テーブル・匿名化・冪等な(c)は 20260807144755 から不変（jobs closed化を(a)末尾に追加）。
 
 create or replace function public.process_withdrawal(p_auth_id uuid)
@@ -68,7 +68,7 @@ begin
   delete from auth.one_time_tokens where user_id = p_auth_id;
   delete from auth.mfa_factors     where user_id = p_auth_id;
 
-  -- (c) 退会処理の記録（冪等・2026-08-07 W4修正）：申請行thatあれば processed_at を刻む／無ければ1行作る。
+  -- (c) 退会処理の記録（冪等・2026-08-07 W4修正）：申請行があれば processed_at を刻む／無ければ1行作る。
   -- 二重実行しても行は増えない（旧版は update 0行→insert で増殖していた）
   if exists (select 1 from public.withdrawal_requests where auth_id = p_auth_id) then
     update public.withdrawal_requests set processed_at = coalesce(processed_at, now())

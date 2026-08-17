@@ -516,7 +516,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 掲載＝即公開（2026-08-14 承認プロセスの削除・届出受理済み）。運営者本人は直接 open で INSERT、
   // 一般農家は pending 保存→publish_my_job RPC で即 open（RLSは draft/pending のまま＝直接の open 書き込みは不可）。
   // 掲載＝即公開（2026-08-14 承認プロセスの削除）：管理者か一般農家かの体験の分岐（meCanOpen）は廃止。
-  // 実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open thatが最終担保）。
+  // 実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open がが最終担保）。
   const [publishedOpen, setPublishedOpen] = useState(false); // 直前の掲載が即公開だったか（完了画面の文言に使う）
   // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ。
   const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
@@ -837,8 +837,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 【従来の問題】stepの初期値が0（＝フローの入口）で、jobsを読み終えてから確認ページへ飛ぶ設計だった。
   // そのため通信が少しでも遅いと「はじめから」の画面が見え続けた（コピー直後に多発）。
   // 【対処】①stepの初期値を編集モードでは11（確認ページ）に変更＝入口をそもそも描かない
-  //        ②コピー直後は copy_job that返した行をsessionStorage経由で受け取り、通信を待たずに即復元
-  //        ③通常の読み込みは getSession の往復を待たない（jobsのRLS owner select that自分の行に絞るso
+  //        ②コピー直後は copy_job が返した行をsessionStorage経由で受け取り、通信を待たずに即復元
+  //        ③通常の読み込みは getSession の往復を待たない（jobsのRLS owner select が自分の行に絞るso
   //          farmer_idの明示条件は冗長だった）＝1往復ぶん速くなる
   useEffect(() => {
     if (!_editJobNumber) return;
@@ -1054,8 +1054,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   useEffect(() => { try { localStorage.removeItem('devJump'); } catch {} }, []);
 
   // 働き手フロー完了（step8）＝ページでなくアニメーション（2026-08-07たきと指示・③）。
-  // onWorkerDone があれば親（App）that祝祭＋案内トースト＋着地を出すので、ここでは1回通知するだけで何も描かない
-  // （フロー自体は親that閉じる＝フロー内に祝祭を置くとアンマウントで消えるため親側に置く・onPublishedと同じ作法）。
+  // onWorkerDone があれば親（App）が祝祭＋案内トースト＋着地を出すので、ここでは1回通知するだけで何も描かない
+  // （フロー自体は親が閉じる＝フロー内に祝祭を置くとアンマウントで消えるため親側に置く・onPublishedと同じ作法）。
   // 未指定の呼び出しは従来の完了画面にフォールバック（onPublished未指定→step12と同じ後方互換）
   const workerDoneFired = useRef(false);
   useEffect(() => {
@@ -2832,7 +2832,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             </LFWizCard>
           </>)}
 
-          {/* ③（2026-08-07）：onWorkerDone があれば親thatアニメーションに置換するのでこのページは出さない */}
+          {/* ③（2026-08-07）：onWorkerDone があれば親がアニメーションに置換するのでこのページは出さない */}
           {isWorker && step === 8 && typeof onWorkerDone !== "function" && (<>
             <div style={{ textAlign:"center", paddingTop:20 }}>
               <div style={{ fontSize:56, marginBottom:16 }}>✅</div>

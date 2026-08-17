@@ -75,9 +75,9 @@ function ApplicantCard({ app, job, profile, trust }) {
             <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{app.job_number}</span>
           </span>
         </button>
-        {/* 右＝「いつ応募thatが届いたか」だけ（2026-08-11たきと指示：応募中チップ・求人の日程/勤務時間は削除）。
-            日程はタップ先の求人詳細thatが持つ＝同じ事実を2画面に置かない。
-            応募者の顔・名前は下の信頼カードthatが持つ（応募者シートと同じ＝出どころを二重に持たない） */}
+        {/* 右＝「いつ応募がが届いたか」だけ（2026-08-11たきと指示：応募中チップ・求人の日程/勤務時間は削除）。
+            日程はタップ先の求人詳細がが持つ＝同じ事実を2画面に置かない。
+            応募者の顔・名前は下の信頼カードがが持つ（応募者シートと同じ＝出どころを二重に持たない） */}
         <div style={{ flex:1, minWidth:0, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center", gap:4 }}>
           <span className="f-sans" style={{ fontSize:11, color:"#999" }}>応募が届いた日</span>
           <span className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222" }}>{fmtJstShort(app.created_at)}</span>

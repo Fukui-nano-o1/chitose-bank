@@ -46,16 +46,16 @@ export function TimeCorrectionSheet({ app, baseYmd, onClose }) {
   return (
     <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       {/* maxHeight+内側スクロール＝画面の低い環境（SafariのURLバー・下部バーあり／小さい端末）で
-          シートthat上下に見切れないため（2026-08-16たきと報告「枠外に出ている」。PWAの広い画面では
-          収まっていたthatSafari約600ptでは中身約630ptthatはみ出していた）。中央ボックス規格の標準形 */}
+          シートが上下に見切れないため（2026-08-16たきと報告「枠外に出ている」。PWAの広い画面では
+          収まっていたがSafari約600ptでは中身約630ptがはみ出していた）。中央ボックス規格の標準形 */}
       <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
         <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:6 }}>🕐 打刻の修正を申請</p>
         <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.6, marginBottom:14 }}>
           実際の時刻を入れてください。どちらか片方だけでも申請できます。
         </p>
         {/* ★minWidth:0（グリッドの子）＋maxWidth:100%（入力）＝枠外へはみ出さない（2026-08-16たきと報告）。
-            グリッドの子は既定that min-width:auto so、iOSの input[type=time] の固有幅
-            （モバイルは font-size:16px 強制＋.field の左右パディング16px）thatトラック幅を超えると
+            グリッドの子は既定が min-width:auto so、iOSの input[type=time] の固有幅
+            （モバイルは font-size:16px 強制＋.field の左右パディング16px）がトラック幅を超えると
             縮まずに右へはみ出す。grid の外にある textarea thaが収まっていたのはこのため */}
         <div style={{ display:"grid", gap:10, marginBottom:14 }}>
           <label className="f-sans" style={{ fontSize:12, color:"#717171", minWidth:0 }}>開始時刻

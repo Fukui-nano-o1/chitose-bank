@@ -1,12 +1,12 @@
 // 下から生えるボックスの共有シート（2026-08-08たきと指示「ステータスページのボックスと同じ
 // 規格や枠、非表示条件にしよう」＝応募者ページのボックスを揃えるために切り出した）。
 // 規格の出どころ＝ステータスページの展開ボックス（SavedJobsView・boxJob）。
-// ★枠・非表示条件・面の動きを変えるときは SavedJobsView 側と揃えること（あちらは実装that先行・
+// ★枠・非表示条件・面の動きを変えるときは SavedJobsView 側と揃えること（あちらは実装が先行・
 //   inlineのまま＝この部品をまだ使えていないので手で同期する）。
 //
 // 【枠】暗幕（背景タップで閉じる）＋下から生える全画面シート（top:6vh・maxWidth:560・
 //   角丸は上だけ20px・✕なし・上部中央にグラバー40x4）＋中身のスクロール領域。
-// 【非表示条件】①背景タップ ②下スワイプ＝中身が最上部（scrollTop<=0）のとき下向きドラッグthatが
+// 【非表示条件】①背景タップ ②下スワイプ＝中身が最上部（scrollTop<=0）のとき下向きドラッグがが
 //   シートを掴み、指に連動（rAFで1フレーム1回・will-changeで自前レイヤー・基点の置き直し＝滑らか3点セット）。
 //   引き下げたシートの上端が画面の縦中央より下で指を離すと閉じる／上なら定位置へ戻す。
 // 【面の2枚構造（任意・detailを渡した時だけ）＝ステータスボックスと同じ動き（2026-08-08「アニメーションもコピー」）】
@@ -67,7 +67,7 @@ export function DragSheet({ onClose, children, detail, pane = "main", onPaneChan
           // 横：詳細面のときだけ「戻る」ジェスチャとして面を掴む。カルーセル内は写真スクロールに譲る
           if (!hasPanesRef.current || paneStateRef.current !== "detail") { tracking = false; return; }
           // 写真カルーセルの中＝写真送りに譲る／タブの中身（.cb-content-swipe）＝タブ切替に譲る
-          // （2026-08-08：詳細面に仕事の内容/保険/質問タブthat入った。端でのスワイプは
+          // （2026-08-08：詳細面に仕事の内容/保険/質問タブが入った。端でのスワイプは
           //  ContentQSwipeAreaのonEdgeSwipe→onBackで面が戻る＝戻る動作は失われない）
           if (e.target.closest && (e.target.closest(".carousel-scroll") || e.target.closest(".cb-content-swipe"))) { tracking = false; return; }
           const p = paneRef.current; if (!p) { tracking = false; return; }
@@ -146,8 +146,8 @@ export function DragSheet({ onClose, children, detail, pane = "main", onPaneChan
               <div style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
                 {pane === "detail" ? detail : null}
               </div>
-              {/* 面1：メイン。showcase中は面全体that縮む→一拍→右へスライドアウト（cbJobShowcase・fill both）。
-                  ★onAnimationEndはtarget一致で絞る（中の写真ポップ等thatバブルしてくるため） */}
+              {/* 面1：メイン。showcase中は面全体が縮む→一拍→右へスライドアウト（cbJobShowcase・fill both）。
+                  ★onAnimationEndはtarget一致で絞る（中の写真ポップ等がバブルしてくるため） */}
               <div className={showcase ? "cb-job-showcase" : undefined}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && showcase && onShowcaseEnd) onShowcaseEnd(); }}
                 style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>

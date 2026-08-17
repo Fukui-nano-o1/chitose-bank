@@ -289,9 +289,9 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
   // ── 審査タブ集約アクション（2026-07-14・DB側は app_admins 基準の審査ポリシーで担保） ──
   // アカウント承認（approveFarmerAccount）は2026-08-07廃止（たきと指示）：
-  // 現在の登録フローは farmers 行を作らない＝キューに新規that入らず、farmers.status を見る
+  // 現在の登録フローは farmers 行を作らない＝キューに新規が入らず、farmers.status を見る
   // ポリシー・関数もゼロ＝承認しても何も変わらない死んだ機能だった。アカウントの統制は
-  // signup_open（入口・キルスイッチ）＋account_holders（本人確認）＋account_moderation（停止/追放）that担う
+  // signup_open（入口・キルスイッチ）＋account_holders（本人確認）＋account_moderation（停止/追放）が担う
   // resolveReport/resolveMsgReport/resolveProfReport は統合報告ページ（AdminReportsRoom・2026-08-15）へ移設
 
   const publishJob = async (jobNumber) => {

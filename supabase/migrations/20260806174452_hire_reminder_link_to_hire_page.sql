@@ -73,7 +73,7 @@ begin
       exception when others then null; end;
     end if;
     -- ★2026-08-06追加：承認まで進んでいた応募の自動終了は、運営への通知対象に積む
-    --（働いた実態thatあった可能性の瞬間。#1054・#1056＝承認済みのまま失効し記録that消えた型）
+    --（働いた実態があった可能性の瞬間。#1054・#1056＝承認済みのまま失効し記録が消えた型）
     if r.app_status in ('approved','meeting','interview') then
       v_lost_n := v_lost_n + 1;
       v_lost := v_lost || '・求人 #' || r.job_number || '／応募ID ' || r.id
@@ -81,7 +81,7 @@ begin
     end if;
   end loop;
 
-  -- ★2026-08-06追加：承認済みの自動終了thatあれば運営へ1通（実行1回につき最大1通・個人名は載せない）
+  -- ★2026-08-06追加：承認済みの自動終了があれば運営へ1通（実行1回につき最大1通・個人名は載せない）
   if v_lost_n > 0 then
     begin
       perform public.send_admin_email(

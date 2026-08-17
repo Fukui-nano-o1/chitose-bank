@@ -1,16 +1,16 @@
 -- 素の current_date（＝DBのUTC日付）をJST日付に統一（2026-08-06 バグ狩り③で発見）。
 -- DBは UTC 稼働so current_date は UTC 日付。コードベースの日付規約は
 -- 「(now() at time zone 'Asia/Tokyo')::date」で統一されている（auto_start_work・complete_work・
--- expire_stale_applications 等that明示的にJST日付を使う）。3関数だけ素の current_date を使い、
--- JST 00:00〜08:59（UTC 15:00〜23:59）の約9時間、日付that1日ズレていた。
+-- expire_stale_applications 等が明示的にJST日付を使う）。3関数だけ素の current_date を使い、
+-- JST 00:00〜08:59（UTC 15:00〜23:59）の約9時間、日付が1日ズレていた。
 -- 実測：UTC 22:30 で current_date=8/6・JST日付=8/7。
 --
 -- ★本命バグ：my_nav_badges の calendar_today／job_revision
---   ＝JST早朝（働き手that農園へ向かう時間帯）に「今日の予定」バッジthatその日の求人を数えず、
+--   ＝JST早朝（働き手が農園へ向かう時間帯）に「今日の予定」バッジがその日の求人を数えず、
 --     前日扱いになる。他のカレンダー系（get_my_calendar_jobs 等）は現在JSTで正しいのにバッジだけズレていた。
 -- 併せて整合修理：
 --   ・enforce_min_age＝18歳判定。UTC基準だとJST早朝に「本日18歳」の人を約9時間だけ過剰拒否していた
---     （安全側だthatJSTthat正＝日本の年齢はJSTで数える）。実測：誕生日当日の人を旧=拒否／新=許可。
+--     （安全側だがJSTが正＝日本の年齢はJSTで数える）。実測：誕生日当日の人を旧=拒否／新=許可。
 --   ・get_minimum_wage＝最賃の発効日照合。掲載トリガー(trg_job_publish_snapshot)は既にJST日付で引くのに
 --     この関数だけUTC＝不整合（発効日切替の当日9時間だけ食い違う）。
 -- 検証済み（JST早朝を模擬した固定時刻で式を検算）：旧UTC式は今日の求人を数えず・18歳を過剰拒否／

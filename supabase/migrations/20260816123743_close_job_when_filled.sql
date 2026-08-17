@@ -2,19 +2,19 @@
 -- 採用人数に達した時点で終了だ」）。
 --
 -- 【これまで】満員（確定採用 >= 募集人数）になっても jobs.status は 'open' のままだった。
---   ・画面は filled の導出で「募集終了（満員）」の帯を出していた＝見た目だけthat終了
---   ・apply_to_job には満員の検査that無い（status='open' なら通る）＝裏から応募thatできる穴
---   ・満員の求人that「公開中」の数え（employer_trust_info の open_jobs 等）に残る
---   実測：#1047・#1232・#1245 の3件that満員のまま open だった（本migrationで是正済み）。
+--   ・画面は filled の導出で「募集終了（満員）」の帯を出していた＝見た目だけが終了
+--   ・apply_to_job には満員の検査が無い（status='open' なら通る）＝裏から応募ができる穴
+--   ・満員の求人が「公開中」の数え（employer_trust_info の open_jobs 等）に残る
+--   実測：#1047・#1232・#1245 の3件が満員のまま open だった（本migrationで是正済み）。
 --
 -- 【これから】満員になった瞬間に status='closed'。終了の記録は求人の行に残る（消さない）。
 --   ・jobs_public は「open ＋ 満員のclosed」を返すsoさがすには「掲載終了（満員）」で並び続ける
---   ・apply_to_job は job_not_open で拒否＝機構の壁that立つ（フロントの応募ボタン非表示と二重）
+--   ・apply_to_job は job_not_open で拒否＝機構の壁が立つ（フロントの応募ボタン非表示と二重）
 --   ・トリガーは無風：block_third_party_open / job_publish_snapshot / require_recruiter_info は
 --     いずれも 'open'・'pending' への遷移だけを見る。notify_job_published も 'open' への遷移のみ
 --
--- 【二重の壁】① confirm_terms（採用の窓口）that閉じる ② expire_stale_applications（毎時cron）that
---   取りこぼしを回収する。①だけだと、過去データや別経路で満員になった行thatopenのまま残る。
+-- 【二重の壁】① confirm_terms（採用の窓口）が閉じる ② expire_stale_applications（毎時cron）が
+--   取りこぼしを回収する。①だけだと、過去データや別経路で満員になった行がopenのまま残る。
 --
 -- ※本ファイルの2関数はDB現物と一致（pg_get_functiondefで照合）。従来版との差分は下記2点のみ：
 --   confirm_terms＝満員時の update jobs set status='closed' を追加
@@ -44,7 +44,7 @@ begin
     select terms_confirmed_farmer_at is null into v_first_farmer
       from public.applications where id = p_application_id;
     -- ★二重予約の壁（2026-08-06）：初回確定・受諾なしの時だけ調べて拒否。
-    --   実働日集合（agreed_dates優先／無ければ範囲・holidays除外）の積that空でなければ重複。
+    --   実働日集合（agreed_dates優先／無ければ範囲・holidays除外）の積が空でなければ重複。
     --   進行中の判定は app_phase（DB側の段階ラベルの唯一のソース・2026-08-07）
     if v_first_farmer and not coalesce(p_accept_double_booking, false) then
       select a2.job_number into v_dup
@@ -109,7 +109,7 @@ begin
     if v_headcount is not null and v_headcount > 0 and v_hired >= v_headcount then
       v_filled := true;
       -- ★満員＝募集の終了（2026-08-16たきと指示）。行は残す＝さがすには「掲載終了（満員）」で並び続け、
-      --   応募は apply_to_job that job_not_open で拒否する（見た目の帯だけでなく機構で閉じる）
+      --   応募は apply_to_job が job_not_open で拒否する（見た目の帯だけでなく機構で閉じる）
       update public.jobs set status = 'closed'
        where job_number = v_job and status = 'open';
       v_ref := public.job_ref(v_job, 'worker');
@@ -171,8 +171,8 @@ begin
   update public.jobs set status = 'closed'
    where status = 'open' and coalesce(date_end, date_start) < v_today;
 
-  -- 0b) 満員（確定採用that募集人数に達した）求人の自動クローズ（2026-08-16）。
-  --     本筋は confirm_terms thatその場で閉じること。ここは取りこぼしの回収（二重の壁）
+  -- 0b) 満員（確定採用が募集人数に達した）求人の自動クローズ（2026-08-16）。
+  --     本筋は confirm_terms がその場で閉じること。ここは取りこぼしの回収（二重の壁）
   update public.jobs j set status = 'closed'
    where j.status = 'open'
      and j.headcount is not null and j.headcount > 0
@@ -181,7 +181,7 @@ begin
              and a.terms_confirmed_worker_at is not null
              and a.terms_confirmed_farmer_at is not null) >= j.headcount;
 
-  -- 1) 失効／見送り：クローズ済み求人＋開始時刻を過ぎた単日求人の、判断that完結していない応募
+  -- 1) 失効／見送り：クローズ済み求人＋開始時刻を過ぎた単日求人の、判断が完結していない応募
   for r in
     select a.id, a.worker_id, a.job_number,
            (j.headcount is not null and j.headcount > 0
@@ -221,14 +221,14 @@ begin
       update public.applications set status = 'expired', decided_at = now() where id = r.id;
       insert into public.notifications (farmer_id, type, message)
       values (r.worker_id, 'application_expired',
-              '求人 #' || r.job_number || '：判断thatないまま作業の開始を迎えたため、応募は失効しました');
+              '求人 #' || r.job_number || '：判断がないまま作業の開始を迎えたため、応募は失効しました');
       begin
         perform public.send_user_email(r.worker_id,
           '[chitose-bank] 応募の失効について：求人 #' || r.job_number,
           '■ ' || public.job_ref(r.job_number,'worker') || E'\n\n' ||
-          '求人者の判断thatないまま作業の開始を迎えたため、応募は自動的に失効しました。' || E'\n' ||
+          '求人者の判断がないまま作業の開始を迎えたため、応募は自動的に失効しました。' || E'\n' ||
           'お待たせしたまま結果を出せず、申し訳ありません。' || E'\n\n' ||
-          'あなたの応募that放置されない仕組みづくりを続けます。' || E'\n' ||
+          'あなたの応募が放置されない仕組みづくりを続けます。' || E'\n' ||
           '他の求人を見る：https://chitose-bank.com/#/search');
       exception when others then null; end;
     end if;
@@ -245,7 +245,7 @@ begin
         perform public.send_user_email(r.farmer_id,
           '[chitose-bank] 応募への返答をお願いします：求人 #' || r.job_number || '（明日開始）',
           '■ ' || public.job_ref(r.job_number,'farmer') || E'\n\n' ||
-          'まだ返答していない応募thatあります。作業は明日です。' || E'\n' ||
+          'まだ返答していない応募があります。作業は明日です。' || E'\n' ||
           '承認または見送りの判断をお願いします。' || E'\n\n' ||
           'https://chitose-bank.com/#/profile/employer/applicants');
       exception when others then null; end;

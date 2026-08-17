@@ -1,10 +1,10 @@
--- 退会処理の取りこぼし修理・段①（2026-08-07・退会要素の洗い出しthat発見）
+-- 退会処理の取りこぼし修理・段①（2026-08-07・退会要素の洗い出しが発見）
 --
 -- 【漏れ】process_withdrawal が worker/employer_profiles・account_holders を削除するのに、
 -- consignment_profiles（委託者の届出情報＝KYC・同格）を削除していなかった。
 -- consignment_profiles は氏名・カナ・住所・電話・メール・【銀行口座番号・口座名義】まで持つ
 -- ＝employer_profiles と同じ「本人の届出情報」so退会で行ごと削除すべき（設計台帳v1の(a)の列挙漏れ）。
--- 現在0行so実害ゼロthat、委託that動く前に塞ぐ。
+-- 現在0行so実害ゼロが、委託が動く前に塞ぐ。
 -- 検証済み（ロールバック付き実弾）：合成の委託者（口座名義入り）→退会→consignment_profiles=0。
 --
 -- 変更は employer_profiles の直後に consignment_profiles の削除を1行追加しただけ（他は不変）。

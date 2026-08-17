@@ -26,7 +26,7 @@ export function JobDetailBody({ job, me, onBack }) {
   // 仕事の内容／保険／質問のタブ（2026-08-08たきと指示「保険と質問も横スワイプ機能付きで変更しろ」）＝
   // 求人詳細ページと同じ部品（ContentQTabs＋ContentQSwipeArea）。タップでも横スワイプでも切り替わる。
   // ★最初のタブでさらに右スワイプ＝onEdgeSwipe("prev")→onBack（面を戻る）＝
-  //   タブ切替と「横スワイプで戻る」that同じ指の動きで両立する
+  //   タブ切替と「横スワイプで戻る」が同じ指の動きで両立する
   const [tab, setTab] = useState("content");
   const rootRef = useRef(null);
   const [dangerLightbox, setDangerLightbox] = useState(null);
@@ -140,7 +140,7 @@ export function JobDetailBody({ job, me, onBack }) {
         onEdgeSwipe={(d)=>{ if (d === "prev" && onBack) onBack(); }}>
       <ContentQTabs value={tab} onChange={setTab} showInsurance={hasInsurance} />
       {tab === "questions" ? (
-        /* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側that従来どおり） */
+        /* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側が従来どおり） */
         <JobQuestions jobNumber={job.id} me={me} />
       ) : tab === "insurance" ? (
         /* 保険（求人ページの保険タブと同じ規則・2026-08-02）：掲載時に凍結された insuranceSnapshot だけを見る。
@@ -306,7 +306,7 @@ export function JobDetailBody({ job, me, onBack }) {
       </ContentQSwipeArea>
 
       {/* 右下の「トップ」浮遊ボックス（2026-08-08たきと指示）：sticky＝面のスクロールに合わせて
-          右下に留まる（position:fixedは親のtransform（面の横スライド）で基準thatずれるため使わない）。
+          右下に留まる（position:fixedは親のtransform（面の横スライド）で基準がずれるため使わない）。
           高さ0の帯にぶら下げる＝レイアウトの高さを増やさない */}
       <div style={{ position:"sticky", bottom:16, height:0, zIndex:5 }}>
         <button onClick={scrollToTop} aria-label="先頭に戻る" className="f-sans"

@@ -81,7 +81,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const canLike = (job) => !!job && !myJobNums.has(job.id); // 自分の求人はいいね対象外
   // ── あなたの求人メニュー（2026-08-15たきと指示「本人の求人も同じ下部ヘッダー。応募ボタンを
   //    あなたの求人に差し替え。タップでコピーと一時非公開と応募者一覧」）──
-  // 実体はお仕事タブの浮遊ピルと同じRPC・同じ確認文（窓口thatが増えても文言・挙動を食い違わせない）
+  // 実体はお仕事タブの浮遊ピルと同じRPC・同じ確認文（窓口がが増えても文言・挙動を食い違わせない）
   const [ownMenuOpen, setOwnMenuOpen] = useState(false);
   const ownCopyJob = async () => {
     setOwnMenuOpen(false);
@@ -218,7 +218,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // ── レーン切替（求人／委託）＝2026-08-03たきと指示 ──────────────────────────
   // 委託タブを出す条件は lib/consignAccess.js の canSeeConsignment ただ1箇所（管理者 かつ 特約同意）。
   // 後日その1行から管理者条件を外すだけで一般公開になる（＋DB側のRLSも同時に開ける・詳細はlibのコメント）。
-  // 特約の同意状況は consignment_profiles を読んで判定する。RLSthat管理者限定so、
+  // 特約の同意状況は consignment_profiles を読んで判定する。RLSが管理者限定so、
   // 一般ユーザーで無駄な往復をしないよう「見せる可能性がある人」だけ引く
   const [consignor, setConsignor] = useState(() => getCache("search:consignor") ?? null);
   useEffect(() => {
@@ -307,7 +307,7 @@ export function JobSearchMapView({ onRegister, me }) {
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-    // 詳細ページ⇄一覧でrootの実DOMthat差し替わるため、戻るたびに現在のrootへ張り直す
+    // 詳細ページ⇄一覧でrootの実DOMが差し替わるため、戻るたびに現在のrootへ張り直す
   }, [selectedJob]);
 
   // ── Airbnb風検索（2026-07-27たきと指示・骨格②の段階解禁を運営判断で前倒し）：
@@ -501,7 +501,7 @@ export function JobSearchMapView({ onRegister, me }) {
   useEffect(() => {
     if (!selectedJob) { setEmpEmployer(null); setEmpTrust(null); return; }
     // 前回の内容（求人ごとのviewCache）をまず出す→裏で最新に差し替える（SWR・2026-08-14たきと指摘
-    // 「求人者と待遇の復元that10秒」＝コールドスパイクのRPC待ちthatそのまま画面の待ちだった）。
+    // 「求人者と待遇の復元が10秒」＝コールドスパイクのRPC待ちがそのまま画面の待ちだった）。
     setOwnMenuOpen(false); // 求人を切り替えたらあなたの求人メニューは閉じる
     const cacheKey = "search:jobEmp:" + selectedJob.id;
     const cached = getCache(cacheKey);
@@ -722,7 +722,7 @@ export function JobSearchMapView({ onRegister, me }) {
         // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募が成立してしまう
         const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id, p_available_dates: applyAvailRef.current });
         setApplying(false);
-        // 新規の仮応募＝ページでなくアニメーション（②・2026-08-07）。App側thatこのフラグを消費して
+        // 新規の仮応募＝ページでなくアニメーション（②・2026-08-07）。App側がこのフラグを消費して
         // 祝祭＋トースト＋応募状況への着地に切り替える。フラグ無しの /apply/pending は従来のチェックリスト
         if (pend && pend.ok) { try { sessionStorage.setItem("cb_pendingNew", "1"); } catch {} window.location.hash = "/apply/pending"; return; }
         if (pend && pend.reason === "already_applied") { window.location.hash = "/apply/done"; return; }
@@ -798,7 +798,7 @@ export function JobSearchMapView({ onRegister, me }) {
     // 仮応募中（第15弾）：意思は預かり済み。次の一手はプロフィールの仕上げ
     : (!myAppStatus && myPending) ? "仮応募中 → プロフィールを仕上げる"
     // 新規応募の基本ラベルは「日程の確認」（2026-08-16たきと指示「右下の応募ボタンは日程の確認に差し替え」）：
-    // タップの実体は応募の送信でなく確認ボックス（3面・最後thatが日程選択と応募）を開くことso、その通りの顔にする
+    // タップの実体は応募の送信でなく確認ボックス（3面・最後がが日程選択と応募）を開くことso、その通りの顔にする
     : "日程の確認";
   const applyBtnStyle = myAppStatus === "rejected" ? { background:"#EBEBEB", color:"#717171" }
     : myAppStatus === "applied" ? { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }
@@ -809,7 +809,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
   // 3面切り替え（2026-08-16たきと指示「3つの切り替え。次へと戻るを設置」）：0=承認の流れ図／1=説明／2=日程・応募。
   // 期間求人のみ4面目あり（2026-08-16たきと指示「いつでもOKと日程選択のどちらも最終確認をして」）：
-  // 2=日程の選択（ここでは応募しない）→3=最終確認（選んだ内容を見せて「応募する」）。単日は2that最終確認のまま
+  // 2=日程の選択（ここでは応募しない）→3=最終確認（選んだ内容を見せて「応募する」）。単日は2が最終確認のまま
   const [applyConfirmStep, setApplyConfirmStep] = useState(0);
   const [applyChoice, setApplyChoice] = useState(null); // 期間求人の選択："any"（いつでもOK）／"dates"（日程選択）／null
   const [applyImgZoom, setApplyImgZoom] = useState(false); // 承認の流れ図の大画面表示（タップで拡大・2026-08-16）
@@ -920,7 +920,7 @@ export function JobSearchMapView({ onRegister, me }) {
         </div>
       </div>
       {/* ── まもなく公開（2026-08-12たきと指示）：掲載申請済みの求人を「タップできないカード」で並べる。
-           見せるのはトップ写真だけ（RPCthat2列しか返さない）。タップ＝求人詳細へ行かず説明ボックスだけ開く。
+           見せるのはトップ写真だけ（RPCが2列しか返さない）。タップ＝求人詳細へ行かず説明ボックスだけ開く。
            絞り込み（作物・地域・月）の対象にしない＝条件になる情報を持っていないため（条件を推測しない） ── */}
       {pendingPreviews.length > 0 && (
         <div style={{ marginTop:8 }}>
@@ -931,7 +931,7 @@ export function JobSearchMapView({ onRegister, me }) {
                 className="f-sans" style={{ display:"block", width:"100%", padding:0, border:"none", background:"transparent", cursor:"pointer", position:"relative" }}>
                 <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#F7F7F7" }}>
                   <img loading="lazy" src={p.photo} alt="" style={{ width:"100%", aspectRatio:"1 / 1", objectFit:"cover", display:"block" }} />
-                  {/* 白いすりガラスの帯：写真は見せるthat「まだ応募できない」ことを目で分からせる */}
+                  {/* 白いすりガラスの帯：写真は見せるが「まだ応募できない」ことを目で分からせる */}
                   <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.30)", backdropFilter:"blur(1.5px)", WebkitBackdropFilter:"blur(1.5px)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
                     <span className="f-sans" style={{ background:"rgba(14,138,107,0.92)", color:"#fff", fontSize:12, fontWeight:800, letterSpacing:".04em", padding:"6px 14px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.25)" }}>まもなく公開</span>
                   </div>
@@ -952,7 +952,7 @@ export function JobSearchMapView({ onRegister, me }) {
       </>)}
       </div>
       {/* 検索バー・検索パネル（position:fixed）はスワイプ容器のtransformの外に置く：
-          祖先にtransformthatあるとfixedの基準が画面でなくなる（2026-07-14既知の罠）ため。
+          祖先にtransformがあるとfixedの基準が画面でなくなる（2026-07-14既知の罠）ため。
           fixed同士なので描画位置は従来と同一 */}
       {lane === "jobs" && (<>
       {/* ── Airbnb風検索バー（2026-07-27）：下部バー直上の浮遊ピル（上は遠い・たきと指示）。
@@ -1070,7 +1070,7 @@ export function JobSearchMapView({ onRegister, me }) {
         <div className="appear job-detail-body-mobile">
           {/* 通報リンク（いいねの上=ページ先頭右）。自分の求人には出さない（2026-08-11たきと指示
               「戻る以外のボタンを設置するな」＝新着の応募ページから開く自分の求人。
-              自分の求人を自分で報告する意味thatも無いso、出どころに関係なく isOwnJob で伏せる） */}
+              自分の求人を自分で報告する意味がも無いso、出どころに関係なく isOwnJob で伏せる） */}
           {me && !isOwnJob && (
             <div className="job-detail-back-btn" style={{ textAlign:"right", marginBottom:8 }}>
               <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
@@ -1214,7 +1214,7 @@ export function JobSearchMapView({ onRegister, me }) {
               )}
 
               {/* 門番をRPC待ちから外す（2026-08-14）：名前・アイコンは一覧の行（jobs_public＝
-                  employerName/employerAvatar）thatが最初から持っている。待遇表も selectedJob.perks
+                  employerName/employerAvatar）がが最初から持っている。待遇表も selectedJob.perks
                   （掲載時凍結）だけで描ける＝RPCの到着を待たずカードを即描画する。
                   RPC（empEmployer）は農園紹介モーダルの中身と信頼情報の補強にだけ使う */}
               {(empEmployer?.nickname || selectedJob.employerName) && (() => {
@@ -1584,7 +1584,7 @@ export function JobSearchMapView({ onRegister, me }) {
         </div>
       )}
       {/* あなたの求人の操作シート：コピー／一時非公開（公開中のみ）／応募者一覧。
-          cb-lock-scroll＝表示中は下部バー・☰thatが隠れる（既存規格） */}
+          cb-lock-scroll＝表示中は下部バー・☰がが隠れる（既存規格） */}
       {selectedJob && isOwnJob && ownMenuOpen && (
         <div onClick={()=>setOwnMenuOpen(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px calc(20px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:560, boxSizing:"border-box" }}>
@@ -1606,10 +1606,10 @@ export function JobSearchMapView({ onRegister, me }) {
       {applyConfirmOpen && selectedJob && (
         <div onClick={()=>setApplyConfirmOpen(false)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9000 }}>
           {/* ★高さは3面とも固定（2026-08-16たきと報告「次へをタップするとボックスが閉じてしまう」の根治）：
-              面ごとに中身の高さが違うと、次へのタップでボックスthat縮んでボタンthat上へ移動し、続けてタップする
+              面ごとに中身の高さが違うと、次へのタップでボックスが縮んでボタンが上へ移動し、続けてタップする
               指が「さっきボタンがあった場所」＝ボックスの外（黒い被せ）に落ちて閉じていた（2026-07-27の
               日程チップ誤タップと同型）。中身だけ内側でスクロールし、次へ/戻るは下部に常設＝何も動かない。
-              高さの式＝1面目の画像（フルブリード幅×3/4）that余白なくちょうど収まる高さ（2026-08-16たきと指示
+              高さの式＝1面目の画像（フルブリード幅×3/4）が余白なくちょうど収まる高さ（2026-08-16たきと指示
               「画像を枠にきれいに収めて。空白は寂しいよ」）。240px=タイトル・区切り線・案内文・ドット・
               ボタン・上下パディングの合計。3面とも同じ高さ＝固定の原則は不変 */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ height:"calc((min(100vw - 32px, 480px) - 6px) * 0.75 + 240px)", display:"flex", flexDirection:"column" }}>
@@ -1619,7 +1619,7 @@ export function JobSearchMapView({ onRegister, me }) {
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0, flexShrink:0 }}><NoticeJumpText text="応募の確認" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0", flexShrink:0 }} />
             {/* ★スクロール領域は負マージンでボックスの余白(24px)まで広げ、同じ24pxを内側paddingで戻す。
-                こうしないと、フルブリード画像（負マージン）の左24pxthatスクロール領域の左端でクリップされて
+                こうしないと、フルブリード画像（負マージン）の左24pxがスクロール領域の左端でクリップされて
                 見切れる（スクロール容器は左上へのはみ出しを表示できない・2026-08-16たきと報告の修理） */}
             <div style={{ flex:"1 1 auto", minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", margin:"0 -24px", padding:"0 24px" }}>
             {applyConfirmStep === 0 && (
@@ -1634,7 +1634,7 @@ export function JobSearchMapView({ onRegister, me }) {
               </div>
             )}
             {applyConfirmStep === 1 && (
-              /* 説明も縦中央寄せ＝1面目と同じ高さの枠で空白that上下に割れて意図した見た目になる */
+              /* 説明も縦中央寄せ＝1面目と同じ高さの枠で空白が上下に割れて意図した見た目になる */
               <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
                 <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
                   応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
@@ -1717,7 +1717,7 @@ export function JobSearchMapView({ onRegister, me }) {
             ref={el => { if (el) { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; el.scrollTop = (el.scrollHeight - el.clientHeight) / 2; } }}
             style={{ position:"absolute", inset:0, overflow:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", display:"flex" }}>
             {/* margin:auto＝小さければ中央・はみ出せば端から全部見える（flex中央寄せだと左端が切れる）。
-                aspectRatio＝読み込み前から高さが確定し、中央スクロール初期化thatズレない */}
+                aspectRatio＝読み込み前から高さが確定し、中央スクロール初期化がズレない */}
             <img onClick={e=>e.stopPropagation()} src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
               width={1000} height={750} style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1000 / 750", height:"auto", padding:"56px 0" }} />
           </div>

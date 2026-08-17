@@ -1,10 +1,10 @@
 -- 二重予約判定の精度バグを修理（2026-08-06 バグ狩り③で再現確認）。
--- 旧：confirm_terms の double_booked 判定that、求人票の生の date_start..date_end 範囲重複だけを見て、
+-- 旧：confirm_terms の double_booked 判定が、求人票の生の date_start..date_end 範囲重複だけを見て、
 --   実際の稼働日（applications.agreed_dates）も holidays も参照していなかった。
 --   ＝同じ働き手を2つの期間求人（同範囲）に、重ならない実働日（A=+10 / B=+14）で合意させても
---     double_booked を誤って返し、正当な採用（別々の日に同じ人を雇う）に毎回警告that出ていた。
+--     double_booked を誤って返し、正当な採用（別々の日に同じ人を雇う）に毎回警告が出ていた。
 -- 新：応募の【実働日集合】の積で判定する。実働日集合＝
---   agreed_dates（非空配列）thatあればその日付／無ければ求人範囲 date_start..date_end／
+--   agreed_dates（非空配列）があればその日付／無ければ求人範囲 date_start..date_end／
 --   いずれからも holidays（jobs.holidays）を除く。
 -- フロント lib/hire.js findDoubleBookingJob も同じ式に揃えた（同日変更・nodeでparity検算済み）。
 -- 検証済み（ロールバック付き実弾）：非重複の実働日=通過（誤警告解消）／重複=double_booked（壁維持）／
@@ -61,7 +61,7 @@ begin
     select terms_confirmed_farmer_at is null into v_first_farmer
       from public.applications where id = p_application_id;
     -- ★二重予約の壁（2026-08-06）：初回確定・受諾なしの時だけ調べて拒否。
-    --   実働日集合（agreed_dates優先／無ければ範囲・holidays除外）の積that空でなければ重複。
+    --   実働日集合（agreed_dates優先／無ければ範囲・holidays除外）の積が空でなければ重複。
     if v_first_farmer and not coalesce(p_accept_double_booking, false) then
       select a2.job_number into v_dup
         from public.applications a2

@@ -21,8 +21,8 @@ export function ChatView({ applicationId, onBack }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   // 入力欄の自動伸縮（改行対応・2026-08-16たきと指示）：中身の行数に合わせて高さを変える。
-  // 上限132px（≒6行）を超えたら内側スクロール＝入力欄that画面を埋め尽くさない。
-  // 定型文の挿入・送信後のクリアでもtextthat変わるso、この1箇所で高さthat追従する
+  // 上限132px（≒6行）を超えたら内側スクロール＝入力欄が画面を埋め尽くさない。
+  // 定型文の挿入・送信後のクリアでもtextが変わるso、この1箇所で高さが追従する
   const inputRef = useRef(null);
   const CHAT_INPUT_MAX_H = 132;
   useEffect(() => {
@@ -305,7 +305,7 @@ export function ChatView({ applicationId, onBack }) {
     if (nearBottomRef.current || mine) el.scrollTop = el.scrollHeight;
   }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
   // 働き手の内容確認専用（農家の採用実行は採用するページ #/calendar/todo/hire に一本化・2026-08-06
-  // 「器と機能の役割は一つに絞れ」。二重予約の壁はDB側confirm_termsthat農家の初回確定時のみ見るso、
+  // 「器と機能の役割は一つに絞れ」。二重予約の壁はDB側confirm_termsが農家の初回確定時のみ見るso、
   // 働き手の確認呼び出しには掛からない＝受諾フラグ不要）
   const confirmTerms = async () => {
     if (confirmingTerms) return;
@@ -334,8 +334,8 @@ export function ChatView({ applicationId, onBack }) {
   // 農家の採用実行（2026-08-16たきと指示「採用するボタンタップで最終確認。既存の最終確認でいい。
   // OK押したら採用確定」＝チャットの採用ボタンを採用ページへのリンク（2026-08-07一本化）から、
   // その場の最終確認→確定に戻す）。最終確認は既存の3点セット（lib/hire＝二重予約の下調べ・警告文・
-  // 本名開示の明示）を使う＝採用ページ・応募者シートと文言that食い違わない（2026-08-06規則）。
-  // 実行はDB confirm_terms（権限・人数上限・見送りの波及・二重予約の壁はDB側that担保）
+  // 本名開示の明示）を使う＝採用ページ・応募者シートと文言が食い違わない（2026-08-06規則）。
+  // 実行はDB confirm_terms（権限・人数上限・見送りの波及・二重予約の壁はDB側が担保）
   const hireFromChat = async () => {
     if (confirmingTerms || isWorkerSide) return;
     setConfirmingTerms(true);
@@ -348,7 +348,7 @@ export function ChatView({ applicationId, onBack }) {
         "\n\n" + HIRE_NAME_DISCLOSURE_NOTE);
       if (!ok) { setConfirmingTerms(false); return; }
       let { data, error } = await supabase.rpc("confirm_terms", { p_application_id: activeAppId, p_accept_double_booking: !!dup });
-      // フロントの下調べthat取りこぼした重なりはDBthat検出して止める（2026-08-06の壁）。警告を出し直して再確認
+      // フロントの下調べが取りこぼした重なりはDBが検出して止める（2026-08-06の壁）。警告を出し直して再確認
       if (!error && data && !data.ok && data.reason === "double_booked") {
         const again = window.confirm(doubleBookingWarning(data.dup_job) + "\n\nこの内容を確認したうえで、採用を確定しますか？");
         if (again) ({ data, error } = await supabase.rpc("confirm_terms", { p_application_id: activeAppId, p_accept_double_booking: true }));
@@ -357,7 +357,7 @@ export function ChatView({ applicationId, onBack }) {
       if (!error && data && data.ok) {
         setWorkerConfirmed(!!data.worker_confirmed);
         setFarmerConfirmed(!!data.farmer_confirmed);
-        // 人数に達して他の応募that自動見送りになった時は、読み落とさないよう明示（DB側の波及の報告）
+        // 人数に達して他の応募が自動見送りになった時は、読み落とさないよう明示（DB側の波及の報告）
         if (data.filled && (data.closed_ids || []).length > 0) {
           alert("採用を確定しました。募集人数に達したため、ほかの応募 " + data.closed_ids.length + "件は自動で見送りになりました。");
         }
@@ -778,7 +778,7 @@ export function ChatView({ applicationId, onBack }) {
          input→textareaに変更＝Enterはそのまま改行になり、送信はボタンだけになる
          （onKeyDownのEnter送信は削除。誤送信も同時に無くなる）。
          高さは中身に合わせて伸ばす＝1行から最大6行（それ以上は内側スクロール）。
-         alignItemsをflex-endにして、伸びた時に＋と送信that下端に揃う */
+         alignItemsをflex-endにして、伸びた時に＋と送信が下端に揃う */
       <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE", alignItems:"flex-end" }}>
         {/* 定型文（2026-07-22・第8弾）：＋で役割別テンプレシートを開く */}
         <button onClick={()=>{ setTmplTab("phrase"); setTmplOpen(true); }} aria-label="定型文・質問集" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>

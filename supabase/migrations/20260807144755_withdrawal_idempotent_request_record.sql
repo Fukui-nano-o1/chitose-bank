@@ -1,10 +1,10 @@
--- 退会処理の冪等化（2026-08-07・悪意/境界5パターンのW4that発見）
+-- 退会処理の冪等化（2026-08-07・悪意/境界5パターンのW4が発見）
 --
--- 【バグ】(c) の申請記録that冪等でなかった：旧＝update ... where processed_at is null → 0行なら insert。
---   1回目：申請行無し→insert。2回目：update that0行（既にprocessed）→また insert＝二重実行で
---   withdrawal_requests that増殖（実害は小さいthat記録that汚れる）。
--- 【修正】(c) を「申請行thatあれば processed_at を coalesce で刻む／無ければ1行作る」に。
---   二重実行しても行は増えない（実測：1回目=1行・2回目=1行）。削除処理は元から冪等so全体that冪等。
+-- 【バグ】(c) の申請記録が冪等でなかった：旧＝update ... where processed_at is null → 0行なら insert。
+--   1回目：申請行無し→insert。2回目：update が0行（既にprocessed）→また insert＝二重実行で
+--   withdrawal_requests が増殖（実害は小さいが記録が汚れる）。
+-- 【修正】(c) を「申請行があれば processed_at を coalesce で刻む／無ければ1行作る」に。
+--   二重実行しても行は増えない（実測：1回目=1行・2回目=1行）。削除処理は元から冪等so全体が冪等。
 -- 削除17テーブル・メール匿名化は 20260807133659 から不変（(c)のみ差し替え）。
 
 create or replace function public.process_withdrawal(p_auth_id uuid)
@@ -61,7 +61,7 @@ begin
   delete from auth.one_time_tokens where user_id = p_auth_id;
   delete from auth.mfa_factors     where user_id = p_auth_id;
 
-  -- (c) 退会処理の記録（冪等・2026-08-07 W4修正）：申請行thatあれば processed_at を刻む／無ければ1行作る。
+  -- (c) 退会処理の記録（冪等・2026-08-07 W4修正）：申請行があれば processed_at を刻む／無ければ1行作る。
   -- 二重実行しても行は増えない（旧版は update 0行→insert で増殖していた）
   if exists (select 1 from public.withdrawal_requests where auth_id = p_auth_id) then
     update public.withdrawal_requests set processed_at = coalesce(processed_at, now())

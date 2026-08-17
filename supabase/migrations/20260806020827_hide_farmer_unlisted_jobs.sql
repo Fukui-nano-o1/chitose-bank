@@ -4,10 +4,10 @@
 --   さがすに「募集終了」として並べるようにした。その結果、農家が自分の操作で取り下げた求人まで
 --   公開面に出るようになっていた：
 --   ・一時停止（unpublish_job）は open → draft so 現状も公開されない（結果は正しい）が、
---     「取り下げた」という事実that記録に残っていなかった。
+--     「取り下げた」という事実が記録に残っていなかった。
 --   ・削除された4件（#1018・#1026・#1033・#1036）は 2026-08-05 の復元で status='closed' として
 --     戻したため、さがす一覧・雇い手プロフィールの「過去の求人」に現れていた。
---     これは農家that消した求人＝公開してよいものではない。
+--     これは農家が消した求人＝公開してよいものではない。
 --
 -- 【方針】記録から導出する（行動記録の憲法）。「どうして終わったか」を列に持ち、
 --   農家の取り下げによるものは公開面（jobs_public）から外す。求人の行自体は消さない
@@ -29,7 +29,7 @@ comment on column public.jobs.unlisted_at is
   '農家自身の操作で公開を取り下げた時刻。分からない場合はNULL（推測で入れない）';
 comment on column public.jobs.unlisted_reason is
   '取り下げの理由：unpublished=一時非公開／deleted=削除。NULL＝取り下げていない。'
-  'この列that非NULLの求人は jobs_public に出さない＝公開しない';
+  'この列が非NULLの求人は jobs_public に出さない＝公開しない';
 
 -- ② 一時非公開のときに取り下げを記録する（従来どおり open → draft も行う）
 create or replace function public.unpublish_job(p_job_number integer)
@@ -62,8 +62,8 @@ revoke all on function public.unpublish_job(integer) from public;
 revoke all on function public.unpublish_job(integer) from anon;
 grant execute on function public.unpublish_job(integer) to authenticated;
 
--- ③ 再掲載（→open）で取り下げは解除される。掲載中の求人that取り下げ扱いのまま残らないようにする
---    （opened_at を刻む既存トリガーに相乗り＝掲載の瞬間を見ている唯一の場所so、書き忘れthat起きない）
+-- ③ 再掲載（→open）で取り下げは解除される。掲載中の求人が取り下げ扱いのまま残らないようにする
+--    （opened_at を刻む既存トリガーに相乗り＝掲載の瞬間を見ている唯一の場所so、書き忘れが起きない）
 create or replace function public.set_job_opened_at()
 returns trigger language plpgsql as $$
 begin
@@ -156,7 +156,7 @@ create or replace view public.jobs_public as
    FROM jobs j
      LEFT JOIN employer_profiles ep ON ep.auth_id = j.farmer_id
   WHERE (j.status = ANY (ARRAY['open'::text, 'closed'::text]))
-    AND j.unlisted_reason IS NULL          -- ★農家that取り下げた求人は公開しない（status を問わず）
+    AND j.unlisted_reason IS NULL          -- ★農家が取り下げた求人は公開しない（status を問わず）
     AND NOT is_account_moderated(j.farmer_id);
 
 -- 権限は従来どおり SELECT のみ（2026-07-19ルール：ビューはSELECT専用）

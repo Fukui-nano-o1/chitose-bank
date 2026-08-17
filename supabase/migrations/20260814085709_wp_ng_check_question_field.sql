@@ -3,7 +3,7 @@
 -- 【穴】trg_wp_z_publish_texts のNG検査は回答（a/answer）だけを見ており、質問文（q/question）に
 --   電話番号・メール・URLを書くと素通りして公開された（実弾で「連絡は090-…へ」の公開を確認）。
 --   UIの質問は定型プリセットだが、API直叩きなら任意の文字列を q に入れられる
---   ＝「正規経路にはある検証that別経路に無い」型（レビュー捏造・仮応募の来られる日と同族）。
+--   ＝「正規経路にはある検証が別経路に無い」型（レビュー捏造・仮応募の来られる日と同族）。
 -- 【修理】質問欄も同じ profile_text_ng で検査。畳み・FYI・原子性（1つでもNGなら全体不成立）は不変。
 
 create or replace function public.wp_z_publish_texts()
@@ -38,7 +38,7 @@ begin
      or (tg_op = 'UPDATE' and new.pr_qa is distinct from old.pr_qa) then
     for v_e in select value from jsonb_array_elements(coalesce(new.pr_qa, '[]'::jsonb))
     loop
-      -- 質問欄も検査（2026-08-14修理）：定型プリセット外の文字列thatAPI直叩きで入るため
+      -- 質問欄も検査（2026-08-14修理）：定型プリセット外の文字列がAPI直叩きで入るため
       v_ng := public.profile_text_ng(coalesce(v_e->>'q', v_e->>'question'));
       if v_ng is not null then raise exception 'Q&Aの質問：%', v_ng; end if;
       v_ng := public.profile_text_ng(coalesce(v_e->>'a', v_e->>'answer'));

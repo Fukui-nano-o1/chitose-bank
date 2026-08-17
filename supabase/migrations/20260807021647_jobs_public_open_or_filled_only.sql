@@ -4,12 +4,12 @@
 -- 【経緯】2026-08-05「さがすに終了した求人を並べる」で closed を全件公開に広げたが、
 --   本指示により絞り直す。closed のうち公開するのは【満員＝採用が募集人数に達して
 --   終わった求人】だけ。期間終了しただけ（採用ゼロ・未充足）の closed は公開しない。
---   農家that取り下げた求人（unlisted_reason 非NULL＝一時停止・削除）の除外は前回
+--   農家が取り下げた求人（unlisted_reason 非NULL＝一時停止・削除）の除外は前回
 --   （20260806020827）のまま不変。
 --
 -- 【満員の定義】確定採用（terms_confirmed_worker_at・terms_confirmed_farmer_at 双方あり）
 --   の数 >= headcount。ビューの hired_count 列・フロントの満員バッジ（filled）と同じ数え方
---   ＝サイト内に「満員」の定義that2種類現れない。headcount が NULL/0 の行は満員になり得ない。
+--   ＝サイト内に「満員」の定義が2種類現れない。headcount が NULL/0 の行は満員になり得ない。
 --
 -- 【変えるのは WHERE だけ】列の構成は一切不変so、RETURNS SETOF jobs_public の
 --   admin_preview_job・employer_public_jobs は無改修で追従（2026-07-22ルール）。
@@ -100,7 +100,7 @@ create or replace view public.jobs_public as
                    AND a.terms_confirmed_farmer_at IS NOT NULL) >= j.headcount
         )
     )
-    AND j.unlisted_reason IS NULL          -- 農家that取り下げた求人は公開しない（20260806020827・不変）
+    AND j.unlisted_reason IS NULL          -- 農家が取り下げた求人は公開しない（20260806020827・不変）
     AND NOT is_account_moderated(j.farmer_id);
 
 -- 権限は従来どおり SELECT のみ（2026-07-19ルール：ビューはSELECT専用）

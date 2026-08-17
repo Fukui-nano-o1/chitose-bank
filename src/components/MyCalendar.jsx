@@ -279,10 +279,10 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                 // 名前チップが乗る日は塗りを薄くする（2026-07-29たきと指示）＝濃い地に濃いチップを重ねない。
                 // 濃淡の既存ルール（濃い=公開中）はチップの無い日でそのまま維持される
                 const chips = chipsOnDay(dt);
-                // まだ確定していない日（2026-08-11）＝この日に出ている予定that全部「承認済み・採用前」。
-                // 承認された時点で希望日はカレンダーに出すthat、採用までは働くと決まっていない＝
+                // まだ確定していない日（2026-08-11）＝この日に出ている予定が全部「承認済み・採用前」。
+                // 承認された時点で希望日はカレンダーに出すが、採用までは働くと決まっていない＝
                 // ベタ塗りにすると決まったように見えるので、斜線にして見た目で分ける。
-                // 採用（確定）that1件でもあればその日は確定扱い＝斜線にしない
+                // 採用（確定）が1件でもあればその日は確定扱い＝斜線にしない
                 const onlyWish = idxs.length > 0 && idxs.every(k => !isConfirmedEntry(entries[k]));
                 // 薄色＝同じ色の8%（+"14"）。文字は色に沿った濃い字にして読めるようにする
                 const solid = isOpen && chips.length === 0 && !onlyWish;
@@ -345,7 +345,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
               </span>
             ))}
           </div>
-          {/* 斜線＝承認済み・採用前（2026-08-11たきと指示）：希望日はカレンダーに出すthat、
+          {/* 斜線＝承認済み・採用前（2026-08-11たきと指示）：希望日はカレンダーに出すが、
               採用までは働くと決まっていない。採用するとその日はふつうの塗りに変わる */}
           <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:6 }}>
             <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}>

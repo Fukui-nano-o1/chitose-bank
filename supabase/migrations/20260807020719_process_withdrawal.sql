@@ -18,7 +18,7 @@
 -- ・ストレージ：storage.objects への SQL DELETE はプラットフォームで禁止so、アイコン（avatars/{uid}）の
 --   削除はストレージAPIから手動＝返り値 note で毎回案内。job-photos/{uid} は求人の証跡so消さない。
 -- ・ゲート：実行は運営（app_admins）のみ。対象が app_admins なら拒否（運営アカウントの誤爆防止）。
--- ・30日以内の期限管理は運営タスク（申請メール→本関数の実行）。processed_at that実行の記録。
+-- ・30日以内の期限管理は運営タスク（申請メール→本関数の実行）。processed_at が実行の記録。
 
 create or replace function public.process_withdrawal(p_auth_id uuid)
 returns json

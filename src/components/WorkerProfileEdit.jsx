@@ -102,9 +102,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   // 承認済みの自己紹介が審査待ちに逆戻りし、応募のたびに運営の許可が必要になっていた。
   // 本文が実際に変わった時だけ審査に出すため、承認済みの中身をここに控えて比べる
   const approvedRef = useRef({ pr: "", pr_qa: [] });
-  // いま審査に出ている内容の控え（2026-08-13たきと報告「応募するたびに自由記述that申請される」）：
-  // 承認済み(approvedRef)と比べるだけだと、初めて書いた自由記述は承認thatあるまで永久に「違う」ままso、
-  // 住所を直しただけの保存でも審査thatやり直し（申請時刻thatリセット＝48時間の自動公開も後ろにずれる）になっていた。
+  // いま審査に出ている内容の控え（2026-08-13たきと報告「応募するたびに自由記述が申請される」）：
+  // 承認済み(approvedRef)と比べるだけだと、初めて書いた自由記述は承認があるまで永久に「違う」ままso、
+  // 住所を直しただけの保存でも審査がやり直し（申請時刻がリセット＝48時間の自動公開も後ろにずれる）になっていた。
   // 審査中の内容と同じなら、申請時刻を据え置いて出し直さない＝運営の承認待ちの列に並び直さない
   const pendingRef = useRef({ pr: null, pr_qa: null, submitted_at: null });
   useEffect(() => {
@@ -311,9 +311,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       // 従来はセッション切れだと何も言わずreturn＝「保存しました」も「失敗」も出ない迷子だった
       if (!session) { setSaving(false); alert("ログインが確認できませんでした。ページを開き直して、もう一度保存してください。"); return; }
       // 比べる土台を保存の直前に取り直す（2026-08-14たきと報告「応募するたびに自己紹介の申請がくる」）：
-      // 画面を開いたまま運営that承認すると approvedRef が古いままになり、同じ内容をもう一度
+      // 画面を開いたまま運営が承認すると approvedRef が古いままになり、同じ内容をもう一度
       // 審査に出していた（承認直後は old.pending が null so 通知トリガーの変更なしスキップも
-      // 効かず、運営に申請メールthat毎回届く）。保存は稀な操作so 1往復の追加を許容。
+      // 効かず、運営に申請メールが毎回届く）。保存は稀な操作so 1往復の追加を許容。
       // 取得に失敗した時は手元の控えのまま進める（失敗時は上書きしない・2026-08-07規則）。
       // 同じ壁はDB側にもある（trg_wp_review_dedupe＝承認済みと同一内容は審査に入れない）＝二重の壁
       const freshRes = await supabase.from("worker_profiles")
@@ -343,8 +343,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       const clearedFields = {};
       if (prChanged && pr.trim() === "") clearedFields.pr = "";      // 自己紹介を消した＝即反映
       if (qaChanged && qaOnlyRemoved) clearedFields.pr_qa = prQa;    // Q&Aを消しただけ＝即反映
-      // 審査に出す中身thatいま審査中のものと同じなら、申請時刻を据え置く（2026-08-13）＝
-      // 待っている間に他の項目を直して保存しても、審査の列に並び直さない／48時間の自動公開thatずれない
+      // 審査に出す中身がいま審査中のものと同じなら、申請時刻を据え置く（2026-08-13）＝
+      // 待っている間に他の項目を直して保存しても、審査の列に並び直さない／48時間の自動公開がずれない
       const nextPrPending = prNeedsReview ? pr.trim() : null;
       const nextQaPending = qaNeedsReview ? prQa : null;
       const samePending = inReview

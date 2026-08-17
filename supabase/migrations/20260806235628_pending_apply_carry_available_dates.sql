@@ -1,8 +1,8 @@
--- 仮応募→昇格で「来られる日」that欠落するバグを修理（2026-08-06 バグ狩りで発見）。
+-- 仮応募→昇格で「来られる日」が欠落するバグを修理（2026-08-06 バグ狩りで発見）。
 -- 症状：apply_to_job は期間求人（複数日）に available_dates（来られる日）を必須にし
 --   applications.available_dates へ保存する。しかし create_pending_application は日付を受け取らず、
 --   promote_my_pending_applications も available_dates を持たずに applications へINSERTしていた。
---   ＝仮応募→昇格すると、正規経路なら dates_required で弾かれる「来られる日なしの期間求人応募」that成立。
+--   ＝仮応募→昇格すると、正規経路なら dates_required で弾かれる「来られる日なしの期間求人応募」が成立。
 --   実測：期間求人で apply_to_job(job,null)=dates_required に対し、create_pending→promote は
 --   available_dates=NULL の applied を1件作れた。
 -- 対処：来られる日を仮応募の時点で捕捉し、昇格で applications へ引き継ぐ。期間求人の必須を
@@ -13,8 +13,8 @@
 
 alter table public.pending_applications add column if not exists available_dates jsonb;
 
--- 旧1引数版はオーバーロード曖昧化（1引数呼び出しthat2関数に一致）を避けるためdrop。
--- 新版は2引数（p_available_dates default null）so、フロントthat1引数で呼んでも default で受かる。
+-- 旧1引数版はオーバーロード曖昧化（1引数呼び出しが2関数に一致）を避けるためdrop。
+-- 新版は2引数（p_available_dates default null）so、フロントが1引数で呼んでも default で受かる。
 drop function if exists public.create_pending_application(integer);
 
 create or replace function public.create_pending_application(p_job integer, p_available_dates jsonb default null)
@@ -32,7 +32,7 @@ begin
     return json_build_object('ok',false,'reason','already_applied');
   end if;
 
-  -- 期間求人は来られる日that必須（apply_to_job と同一の式・同一の不変条件）
+  -- 期間求人は来られる日が必須（apply_to_job と同一の式・同一の不変条件）
   v_is_period := v_de is not null and v_de <> v_ds;
   if v_is_period then
     if p_available_dates is null
@@ -61,7 +61,7 @@ begin
   if auth.uid() is null then return json_build_object('ok',false,'reason','not_logged_in'); end if;
   if not public.is_worker_profile_ready(auth.uid()) then
     return json_build_object('ok', false, 'reason','not_ready',
-      'message','プロフィールの必須項目thatまだ残っています');
+      'message','プロフィールの必須項目がまだ残っています');
   end if;
   for r in
     select p.id, p.job_number, p.available_dates,
@@ -72,8 +72,8 @@ begin
        and coalesce(j.date_end, j.date_start) >= (now() at time zone 'Asia/Tokyo')::date
   loop
     -- 期間求人で来られる日を持たない仮応募は昇格させない（不変条件を破る応募を作らない）。
-    -- 新しい仮応募は create_pending_application that日付を必須化so、これは万一の残骸への保険。
-    -- 削除もしない＝働き手thatもう一度日付を選んで応募し直せる状態を残す。
+    -- 新しい仮応募は create_pending_application が日付を必須化so、これは万一の残骸への保険。
+    -- 削除もしない＝働き手がもう一度日付を選んで応募し直せる状態を残す。
     if r.is_period and r.available_dates is null then
       continue;
     end if;

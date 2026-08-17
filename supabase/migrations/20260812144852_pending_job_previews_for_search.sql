@@ -10,10 +10,10 @@
 --
 -- 【キルスイッチ】app_settings.pending_preview_on_search を 'false' に1行UPDATEすれば即座に
 --   0件になる（デプロイ不要・signup_open / third_party_publish_allowed と同じ作法）。
---   未審査の写真that公開面に出る仕組みなので、問題thatあれば即止められる形にしておく。
+--   未審査の写真が公開面に出る仕組みなので、問題があれば即止められる形にしておく。
 --
 -- 【出さないもの】取り下げた求人（unlisted_reason 非NULL）／停止中アカウントの求人／写真の無い求人
---   （写真thatカードの中身の全部so、無ければ出しようthatない＝ダミーを置かない・憲法3条）。
+--   （写真がカードの中身の全部so、無ければ出しようがない＝ダミーを置かない・憲法3条）。
 
 insert into public.app_settings (key, value)
 values ('pending_preview_on_search', 'true')

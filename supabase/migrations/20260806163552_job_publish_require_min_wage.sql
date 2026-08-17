@@ -2,20 +2,20 @@
 --
 -- ※このファイルはDB直接適用済み（schema_migrations 20260806163552）の写経＝2026-07-21規則3。
 --
--- 【何that問題だったか】最賃チェックはフロント（LandingFlow validateMinWage）だけで、
+-- 【何が問題だったか】最賃チェックはフロント（LandingFlow validateMinWage）だけで、
 -- 掲載トリガーは募集主・就業場所・時間外は見るのに賃金を見ていなかった
--- ＝APIを直接叩けば最賃違反の求人that掲載できた。求人は運営の審査を通るthat、
+-- ＝APIを直接叩けば最賃違反の求人が掲載できた。求人は運営の審査を通るが、
 -- 人の目は数字の割り算を毎回はしない（トリガー＝二重の壁の思想・trg_block_third_party_openと同型）。
 --
 -- 【追加する検査（draft→pending/open と 直INSERT の時だけ＝既存の発火条件と同じ）】
---  1. 表記：hourly_wage / daily_wage は数字のみ（text列so「9,000円」等that入るのを塞ぐ）
+--  1. 表記：hourly_wage / daily_wage は数字のみ（text列so「9,000円」等が入るのを塞ぐ）
 --  2. どちらか必須（両方空では掲載できない）
 --  3. 最低賃金：minimum_wages から都道府県の現在有効な額を引く（無ければ掲載を止める＝安全側）
 --  4. 時給：最低賃金以上
 --  5. 日給：実働時間で時給換算して最低賃金以上。
 --     実働 = job_scheduled_minutes(work_time) − greatest(申告休憩, 法定最低休憩)
 --     法定最低休憩＝拘束6時間超45分・8時間超60分（労基法34条）。
---     ★フロントの旧式は法定最低しか見ておらず、申告休憩thatそれより長い場合（例：90分）に
+--     ★フロントの旧式は法定最低しか見ておらず、申告休憩がそれより長い場合（例：90分）に
 --       違反を見逃していた。DBとフロントを同じ式に揃える（フロントは同日改修）。
 --
 -- 【既存データ】掲載中5件・審査中1件を事前に実測＝全件通る（最低で時給換算1250円 ≥ 1046円）。
@@ -82,7 +82,7 @@ begin
       v_legal := case when v_minutes > 480 then 60 when v_minutes > 360 then 45 else 0 end;
       v_actual := v_minutes - greatest(v_break, v_legal);
       if v_actual <= 0 then
-        raise exception '実働時間that0以下になります（勤務%・休憩%分）。勤務時間か休憩を見直してください',
+        raise exception '実働時間が0以下になります（勤務%・休憩%分）。勤務時間か休憩を見直してください',
           coalesce(new.work_time,'未設定'), greatest(v_break, v_legal);
       end if;
       v_hourly_eq := btrim(new.daily_wage)::numeric * 60 / v_actual;
@@ -113,7 +113,7 @@ begin
       'supplies_cap', coalesce(v_ep.supplies_cap, ''),
       'accessory_ok', coalesce(v_ep.accessory_ok, false),
       -- 受動喫煙の状況（2026-08-03）：'' は未設定＝表示側で「ー」。
-      -- smoking_area は「喫煙場所あり」の時だけ意味を持つ（編集UI側that他の選択では空で保存する）
+      -- smoking_area は「喫煙場所あり」の時だけ意味を持つ（編集UI側が他の選択では空で保存する）
       'smoking_policy', coalesce(v_ep.smoking_policy, ''),
       'smoking_area', coalesce(v_ep.smoking_area, '')
     ) || coalesce(new.perks, '{}'::jsonb);
@@ -125,7 +125,7 @@ begin
     );
     new.profile_snapshot_at := now();
     -- 賃金支払条件の確定（2026-08-02）：現在は全求人固定ポリシー。
-    -- フロントから別値that送られても、この3値へ確定する（入力UIは封印中・固定ポリシーの宣言をデータ化）
+    -- フロントから別値が送られても、この3値へ確定する（入力UIは封印中・固定ポリシーの宣言をデータ化）
     new.pay_method := 'cash';
     new.pay_timing := 'same_day_after_work';
     new.wage_closing_rule := 'each_workday';
