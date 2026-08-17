@@ -769,6 +769,33 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setFollowupConfirm(null);
     fbSuccess();
   };
+  // 日程の調節（2026-08-16たきと指示「農家側that日程の調節できない。採用するまでに日程の調節thatできる
+  // ようにしよう。日程の調節カードを新設。タップした日にちを働き手にチャットで送信。しかしまだ、検討段階だ」）。
+  // ★これは【相談】であって決定ではない＝agreed_dates（働く日の確定・set_agreed_dates）には触れない。
+  //   確定は採用の前後に「働く日を決める」that担う。ここはチャットに候補を投げるだけ。
+  // ★タップ即送信にはしない：メッセージは削除できない（チャット履歴の保全・2026-07-19）ので、
+  //   誤タップthatそのまま消せない発言になる。選んでから1通にまとめて送る
+  const [dateSel, setDateSel] = useState({});      // { [application_id]: ["YYYY-MM-DD", ...] }
+  const [dateSending, setDateSending] = useState(null); // 送信中の application_id
+  const [dateSent, setDateSent] = useState({});    // { [application_id]: true } 送信直後の控えめな合図
+  const sendDateProposal = async (a, dates) => {
+    if (dateSending || dates.length === 0) return;
+    setDateSending(a.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setDateSending(null); alert("ログインが切れています。開き直してください。"); return; }
+      const body = "【日程の相談】この日はいかがですか？\n"
+        + dates.slice().sort().map(d => calFmtDate(d)).join("・")
+        + "\n※まだ決定ではありません。都合that合わなければ、この チャットで教えてください。";
+      const { error } = await supabase.from("messages").insert({ application_id: a.id, sender_id: session.user.id, body });
+      setDateSending(null);
+      if (error) { fbError(); alert("送信に失敗しました：" + error.message); return; }
+      setDateSel(prev => ({ ...prev, [a.id]: [] }));
+      setDateSent(prev => ({ ...prev, [a.id]: true }));
+      fbSuccess();
+    } catch { setDateSending(null); alert("送信に失敗しました。"); }
+  };
+
   const renderApplicantCard = (a) => {
     // 旧・独自のチップ配色(badgeColor)は廃止（2026-07-26）：現在地バナーが段階色APP_PHASE_COLORを使う
     const wp = workerProfiles[a.worker_id];
@@ -946,6 +973,47 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <AvailDatesChips value={a.available_dates} agreed={a.agreed_dates} />
               {/* 働く日（確定済み・2026-07-24 追記3） */}
               <AgreedDatesRow value={a.agreed_dates} />
+              {/* 日程の調節（2026-08-16たきと指示）＝採用するまでの相談。候補をタップして選び、
+                  チャットに1通で送る。決定ではないので agreed_dates（働く日の確定）には触れない。
+                  出すのは面接中（承認済み・採用前）だけ＝チャットthat開いていて、まだ決めていない段階 */}
+              {appPhaseKey(a) === "interview" && (() => {
+                const info = jobInfoMap[a.job_number] || {};
+                const av = a.available_dates;
+                // 候補＝働き手の来られる日。いつでもOK・未宣言なら求人の全期間。休日は除く（働く日を決めるモーダルと同じ式）
+                const hs = new Set(Array.isArray(info.holidays) ? info.holidays : []);
+                const candidates = (Array.isArray(av) && av.length > 0 ? av.slice().sort() : daysBetweenYmd(info.date_start, info.date_end)).filter(x => !hs.has(x));
+                if (candidates.length === 0) return null;
+                const sel = dateSel[a.id] || [];
+                const busy = dateSending === a.id;
+                return (
+                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", margin:"0 0 10px" }}>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 2px" }}>📅 日程の調節</p>
+                    <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"0 0 10px" }}>
+                      候補の日をタップして、働き手に送ります。<span style={{ color:"#C77700", fontWeight:700 }}>まだ決定ではありません</span>（チャットでの相談です）。
+                    </p>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:10 }}>
+                      {candidates.map(d => {
+                        const on = sel.includes(d);
+                        return (
+                          <button key={d} onClick={()=>setDateSel(prev => {
+                            const cur = prev[a.id] || [];
+                            return { ...prev, [a.id]: cur.includes(d) ? cur.filter(x=>x!==d) : [...cur, d] };
+                          })} className="f-sans" style={{ padding:"8px 12px", fontSize:12, fontWeight:700, borderRadius:20, cursor:"pointer",
+                            background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{calFmtDate(d)}</button>
+                        );
+                      })}
+                    </div>
+                    <button onClick={()=>sendDateProposal(a, sel)} disabled={busy || sel.length === 0} className="f-sans"
+                      style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, borderRadius:10, cursor: sel.length === 0 ? "not-allowed" : "pointer",
+                        background: sel.length === 0 ? "#F2F2F2" : "#00A86B", color: sel.length === 0 ? "#B0B0B0" : "#fff", border:"none", opacity: busy ? 0.6 : 1 }}>
+                      {busy ? "送信中..." : sel.length === 0 ? "日をタップして選んでください" : `この日程をチャットで送る（${sel.length}日）`}
+                    </button>
+                    {dateSent[a.id] && sel.length === 0 && (
+                      <p className="f-sans" style={{ fontSize:11, color:"#00794D", fontWeight:700, margin:"8px 0 0" }}>送りました。返事はチャットに届きます。</p>
+                    )}
+                  </div>
+                );
+              })()}
               {/* 状態メモ（進行の記録は小さく残す・操作は今日ページ） */}
               {a.status === "completed" && (
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
