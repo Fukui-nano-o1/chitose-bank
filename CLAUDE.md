@@ -4993,3 +4993,31 @@ job_publish_checks・interview_question_sends・pending_applications＝それぞ
 「本サービスの利用者から取得する個人情報」と性質thaが違うため今回は載せていない。
 掲載板を一般に開く時には整理thaが要る。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-17 メモ：委託レーンの個人情報をプラポリ台帳に載せるか（判断保留・たきと指示で記録）━━━
+【経緯】プラポリv3.9の総点検（同日）で唯一結論を出さなかった項目。「委託関係はメモに保存」の指示により記録。
+【現物（実測）】
+・到達経路：委託ページ（#/admin/consignment）＝管理者専用。一般の利用者は入口を持たない。
+・データ：consignment_profiles（auth_id・現在1行）に委託者のKYCが入る＝consignor_name / trade_name /
+  corp_no（法人番号）/ invoice_no（インボイス番号）/ rep_name / address / phone / email / emergency /
+  billing / zip / pref / city / addr / bank / bank_branch / account_type / account_no / account_name。
+  ほかに consignment_fields（圃場・auth_id・1行）／consignment_deals（案件台帳・auth_idを持たず
+  counterparty_name の手入力・1行）／consignment_progress。
+・RLS：4テーブルとも【運営者のみ ALL】。委託者本人でさえAPIからは読めない（管理者専用ページと整合）。
+・退会処理：consignment_profiles は削除対象に入っている（2026-08-07 段①）。
+  ★consignment_fields（圃場・auth_idを持つ）は対象外＝取りこぼしの候補。
+  consignment_deals は auth_id を持たないため対象外で正しい。
+・同意：委託には専用の同意が既に2本ある＝委託機能利用特約（CONSIGN_TERMS）と、登録情報の委託利用同意
+  （CONSIGNOR_CONSENT_VERSION = "consignment-data-v2-2026-08"・ConsignmentRoom.jsx）。
+【★判断の材料（これが本題）】委託機能利用特約の本文に
+  「登録した氏名・名称、所在地、連絡先、プロフィール、案件情報その他の必要な情報は、
+   【プライバシーポリシーに定める範囲で】、相手方またはサービス利用者へ表示・提供されます」
+  とあり、プラポリを参照している。しかし現在のプラポリ台帳に委託の行は無い＝参照先が空のまま。
+  この片道の参照が残る限り、委託を一般に開いた時点で第1条（表に無い取得・開示は行わない）と衝突する。
+【選択肢】
+ (A) 消費者向けプラポリの台帳に委託の行を足す（銀行口座・法人番号・インボイス番号まで明記する）
+ (B) 委託専用のプライバシー表記を別建てにし、特約の参照先をそちらへ向ける（B2Bと消費者を分ける）
+【着手の条件】委託の掲載板を一般に開く時、または運営者以外の委託者が1人でも登録される時。
+  それまでは運営者本人の1行だけなので実害はない（現在1行・全て管理者のみ可視）。
+【あわせて片付ける】consignment_fields を退会処理（process_withdrawal）の削除対象に足すか（上記★）。
+━━━ ここまで ━━━
