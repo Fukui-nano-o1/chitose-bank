@@ -17,7 +17,7 @@ import { InsurancePanel } from "./InsurancePanel";
 import { FarmerTrustCard } from "./TrustCards";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { JobSearchMapView } from "./JobSearchMapView";
-import { normalizePhotos, dangerHasSecond, ALLOWED_PREFECTURES, isAllowedPrefecture, validateMinWage } from "../features/jobs/create/model";
+import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, validateMinWage } from "../features/jobs/create/model";
 
 // 国土地理院 住所検索API（APIキー不要・無料）
 // 町域レベルの重心を返す。番地を渡してはならない。
