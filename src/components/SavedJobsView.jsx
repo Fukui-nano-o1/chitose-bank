@@ -587,7 +587,9 @@ export function SavedJobsView({ me }) {
                     };
                     // タップ＝面全体の演出を発火（cb-job-showcaseは面1のdivに付く・2026-08-08「全てスライド」）。
                     // はみ出しはスクロール容器のoverflowX:hiddenが切る
-                    return <JobCard job={job} variant="wide" onOpen={()=>{ if (!cardShow) setCardShow(true); }} />;
+                    // hideEndLabel＝終了帯を出さない（2026-08-17たきと指示「このボックスの求人にラベルは
+                    // 必要ない」）：段階は上の現在地バナー＋応募の進み具合が語る
+                    return <JobCard job={job} variant="wide" hideEndLabel onOpen={()=>{ if (!cardShow) setCardShow(true); }} />;
                   })()}
                   {r.application_id && (
                     <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"8px 4px 0" }}>応募日 {new Date(r.applied_at).toLocaleDateString("ja-JP")}</p>

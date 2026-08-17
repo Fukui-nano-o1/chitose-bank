@@ -9,7 +9,9 @@ import { CropIcon } from "./CropIcon";
 // variant="wide"（2026-08-07）：関連カードと同じ「写真に情報を重ねる」型を全幅で。
 //   ステータスページの展開ボックス等、シート内の求人要約用（要約の顔を独自に作らない＝このカードが唯一のソース）
 // onOpen（任意）：渡すと新しいタブでなくその場の遷移をonOpenに任せる（シート内から同一タブで開く用）
-export function JobCard({ job, variant, saved, onToggleSave, onOpen }) {
+// hideEndLabel（任意）：終了帯（募集終了/掲載終了/募集期間終了）を出さない。段階を別に語る場所（ステータス
+//   ページの展開ボックス）専用。既定は従来どおり表示ので、渡していない呼び出し元は無変更
+export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel }) {
   const isList = variant === "list";
   const isWide = variant === "wide";
   // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真が少し拡大して元に戻る。
@@ -59,8 +61,12 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen }) {
         </span>
       )}
       {/* 終了帯（2026-07-21）：採用人数を満たした＝募集終了／作業日程が過ぎた＝募集期間終了。
-          探すからは除外せず、写真に半透明の帯を掛けて知らせる（充足を優先表示） */}
-      {(job.filled || job.expired || job.closed) && (
+          探すからは除外せず、写真に半透明の帯を掛けて知らせる（充足を優先表示）。
+          ★hideEndLabel＝この帯を出さない（2026-08-17たきと指示「このボックスの求人にラベルは必要ない」）：
+            ステータスページの展開ボックスは、上の現在地バナー（採用・作業中等）と応募の進み具合が
+            自分の段階を語る場ので、求人側の「掲載終了（満員）」は要らない（自分が採用された求人に
+            掲載終了と出て読み違える）。一覧・さがす等では従来どおり出す＝既定は表示 */}
+      {!hideEndLabel && (job.filled || job.expired || job.closed) && (
         <div style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, borderRadius:photoRadius, background:"rgba(0,0,0,0.34)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1, pointerEvents:"none" }}>
           <span className="f-sans" style={{ background:"rgba(30,30,30,0.88)", color:"#fff", fontSize: isList?14:12, fontWeight:800, letterSpacing:".04em", padding:"7px 18px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>
             {/* 満員の2段階（2026-08-14たきと指示）：満員でまだ期間中＝募集終了（満員）／
