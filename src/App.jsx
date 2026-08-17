@@ -855,7 +855,7 @@ function PrivacyPolicy({ onClose }) {
       >
         <button onClick={onClose} aria-label="閉じる" style={{ position:"absolute", top:18, right:18, width:40, height:40, borderRadius:999, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:24, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.12)", cursor:"pointer", zIndex:10 }}>×</button>
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 4px", textAlign:"center" }}>プライバシーポリシー</h2>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 制定：2026年7月5日／全面改定：2026年7月21日／改定：2026年8月●日</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 制定：2026年7月5日／全面改訂：2026年7月21日／改訂：2026年8月●日</p>
         <div style={{ display:"grid", gap:20 }}>
           {sections.map((s, i) => (
             <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
@@ -1001,7 +1001,7 @@ const HELP_CONTENT = {
       { key:"mails-jobQuestion",       label: "M22　求人に質問が届きました", body: "いつ：働き手があなたの求人に質問した時／誰に：農家／内容：回答は求人ページの「質問」タブからできます。回答は他の閲覧者にも公開され、同じ質問を減らせます" },
       { key:"mails-jobQuestionAnswered", label: "M23　質問に回答がつきました", body: "いつ：あなたがした求人への質問に、農家が回答した時／誰に：質問した働き手／内容：回答は求人ページの「質問」タブで、その求人を見る全員に公開されます" },
       { key:"mails-emergencyContact",  label: "M30　緊急連絡先のご登録のお願い", body: "いつ：運営からのお願い（不定期）／誰に：緊急連絡先が未登録の方／内容：プロフィール編集ページの「🆘 緊急連絡先」への案内。登録した連絡先は、採用が決まった相手にだけ表示されます" },
-      { key:"mails-policyUpdate",      label: "M40・M41　規約・プライバシーポリシーの改定のお知らせ", body: "いつ：プライバシーポリシー（M40）や利用規約（M41）を改定した時／誰に：ご利用中の方全員／内容：何を変えたかの要点と、全文へのリンク。同じ版のお知らせが二度届くことはありません" },
+      { key:"mails-policyUpdate",      label: "M40・M41　規約・プライバシーポリシーの改訂のお知らせ", body: "いつ：プライバシーポリシー（M40）や利用規約（M41）を改訂した時／誰に：ご利用中の方全員／内容：何を変えたかの要点と、全文へのリンク。同じ版のお知らせが二度届くことはありません" },
     ],
   },
   info: {
@@ -2760,7 +2760,7 @@ export default function App(){
         {me&&isAdmin(me)&&<AdminErrorChatReporter/>}
         {me&&!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab!=="terms"&&safeTab!=="privacy"&&showLegalV2Banner&&(
           <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"0 0 16px", padding:"14px 18px", background:"#EAF7F0", border:"1px solid #00A86B", borderRadius:12, fontSize:13, color:"#1B5E3F", lineHeight:1.6 }}>
-            <span>利用規約とプライバシーポリシーを全面改定しました（7/21）</span>
+            <span>利用規約とプライバシーポリシーを全面改訂しました（7/21）</span>
             <div style={{ display:"flex", alignItems:"center", gap:14, flexShrink:0 }}>
               <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>→ 読む</button>
               <button onClick={()=>{ setLegalV2BannerDismissed(true); try{ localStorage.setItem("cb_legalv2_banner_dismissed","1"); }catch{} }} aria-label="閉じる" style={{ background:"none", border:"none", fontSize:16, color:"#1B5E3F", cursor:"pointer", padding:0 }}>×</button>
@@ -2845,7 +2845,7 @@ export default function App(){
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／改定：2026年7月24日</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／改訂：2026年7月24日</p>
 
             <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
               {[
@@ -2914,7 +2914,7 @@ export default function App(){
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改定：2026年7月21日／改定：2026年8月●日</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改訂：2026年7月21日／改訂：2026年8月●日</p>
 
             <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
               {PRIVACY_SECTIONS.map(s => (
@@ -2944,7 +2944,7 @@ export default function App(){
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>利用規約</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改定：2026年7月21日／一部改定：2026年8月●日</p>
+            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改訂：2026年7月21日／一部改訂：2026年8月●日</p>
 
             <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
               {TERMS_ARTICLES.map(a => (
