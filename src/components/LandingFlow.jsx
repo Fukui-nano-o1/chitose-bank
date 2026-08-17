@@ -500,7 +500,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
   const [beginnerOk,        setBeginnerOk]        = useState(d.beginnerOk ?? false); // 🌱はじめての人も歓迎 → jobs.beginner_ok
   const [instantApproveRepeat, setInstantApproveRepeat] = useState(d.instantApproveRepeat ?? false); // 🌟また呼びたい即決 → jobs.instant_approve_repeat（効果は自分の求人×自分が評価した相手のみ・労働局確認済み）
-  const [flagInfoOpen, setFlagInfoOpen] = useState(null); // 「はじめてOKとは？」「リピート即決とは？」の説明ボックス（2026-07-18）
+  const [flagInfoOpen, setFlagInfoOpen] = useState(null); // 「初心者大歓迎とは？」「リピート即決とは？」の説明ボックス（2026-07-18）
   const [jobPerks, setJobPerks] = useState(d.jobPerks ?? null); // この求人だけの待遇上書き → jobs.perks（NULL=プロフィールの待遇・2026-07-18）
   const [experiencedPreferred, setExperiencedPreferred] = useState(d.experiencedPreferred ?? false); // 💪経験者優遇 → jobs.experienced_preferred（2026-07-18・必要経験の選択式は撤回）
   const [jobSaving, setJobSaving] = useState(false);
@@ -1443,7 +1443,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             <h2 className="f-sans" style={lfStyles.stepTitle}>集合場所を入力してください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。</p>
             {/* 説明の一本化（2026-08-08たきと指示）：欄ごとに散らばっていた注記（自動入力・町域まで公開・
-                番地は会員のみ・プライバシー）をこの1箇所に集約。「はじめてOKとは？」と同じ〜とは？形式。
+                番地は会員のみ・プライバシー）をこの1箇所に集約。「初心者大歓迎とは？」と同じ〜とは？形式。
                 開示の実態はDBが正（jobs_public：町域・番地はanonマスク・2026-08-03） */}
             <button type="button" onClick={() => setPlaceInfoOpen(v => !v)} className="f-sans" style={{ background:"none", border:"none", padding:"0 0 8px", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>集合場所の公開範囲とは？</button>
             {placeInfoOpen && (
@@ -2032,13 +2032,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>注意事項（任意）</label>
                 <textarea value={jobCautions} onChange={e => setJobCautions(e.target.value)} placeholder="例：天候により作業時間が変わることがあります" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
               </div>
-              {/* 必要経験の選択式は撤回（2026-07-18）：はじめてOK・経験者優遇・リピート即決の3トグルに整理。jobExpは旧求人の表示用に温存 */}
+              {/* 必要経験の選択式は撤回（2026-07-18）：初心者大歓迎・経験者優遇・リピート即決の3トグルに整理。jobExpは旧求人の表示用に温存 */}
               <div style={{ marginBottom:10 }}>
                 <button type="button" onClick={()=>setBeginnerOk(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: beginnerOk ? "#00A86B" : "#EBEBEB", background: beginnerOk ? "#E6F7EF" : "#fff", cursor:"pointer" }}>
                   <span style={{ display:"block", fontSize:14, fontWeight:700, color: beginnerOk ? "#00A86B" : "#222" }}>🌱 はじめての人も歓迎{beginnerOk ? "　✓" : ""}</span>
-                  <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>求人カードに「🌱はじめてOK」バッジが表示されます</span>
+                  <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>求人カードに「🌱初心者大歓迎」バッジが表示されます</span>
                 </button>
-                <button type="button" onClick={()=>setFlagInfoOpen("beginner")} className="f-sans" style={{ background:"none", border:"none", padding:"4px 2px 0", fontSize:12, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>はじめてOKとは？</button>
+                <button type="button" onClick={()=>setFlagInfoOpen("beginner")} className="f-sans" style={{ background:"none", border:"none", padding:"4px 2px 0", fontSize:12, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>初心者大歓迎とは？</button>
               </div>
               <div style={{ marginBottom:10 }}>
                 <button type="button" onClick={()=>setExperiencedPreferred(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: experiencedPreferred ? "#1A56C5" : "#EBEBEB", background: experiencedPreferred ? "#E8F0FE" : "#fff", cursor:"pointer" }}>
@@ -2059,7 +2059,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             {/* 「〇〇とは？」説明ボックス（2026-07-18）：タップで展開・✕/背景で閉じる。フロー横スワイプに拾われないようタッチを遮断 */}
             {flagInfoOpen && (() => {
               const info = flagInfoOpen === "beginner"
-                ? { icon:"🌱", title:"はじめてOKとは？", body:"農業がはじめての人も歓迎する求人であることを示すマークです。ONにすると、求人カードと詳細ページに「🌱はじめてOK」バッジが表示され、経験のない方も応募しやすくなります。承認するかどうかの判断は、これまで通りあなたが行います。" }
+                ? { icon:"🌱", title:"初心者大歓迎とは？", body:"農業がはじめての人も歓迎する求人であることを示すマークです。ONにすると、求人カードと詳細ページに「🌱初心者大歓迎」バッジが表示され、経験のない方も応募しやすくなります。承認するかどうかの判断は、これまで通りあなたが行います。" }
                 : flagInfoOpen === "expert"
                 ? { icon:"💪", title:"経験者優遇とは？", body:"農作業の経験がある方を優先したいことを示すマークです。ONにすると、求人カードと詳細ページに「💪経験者優遇」バッジが表示され、経験のある方が応募しやすくなります。経験の浅い方の応募を妨げるものではなく、承認の判断はこれまで通りあなたが行います。" }
                 : { icon:"🌟", title:"リピート即決とは？", body:"一緒に働いたあと、あなたが「また呼びたい」と評価してお気に入り登録した方が、この求人に応募したときだけ、自動的に承認される仕組みです（承認は採用ではありません。採用は打ち合わせ・面接のあとに、あなたが「採用する」で決めます）。登録していない方の応募は、これまで通りあなたが判断します。効果はあなた自身の求人だけに働き、ほかの農家の求人には影響しません。" };
@@ -2301,7 +2301,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 {/* 集合場所は番地まで明記（2026-08-03たきと指示）。確認ページ＝掲載前プレビューので
                     自分の入力値（farmerAddr）をそのまま出す。訪問者向けのモザイクは求人詳細側が担う */}
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}${farmerAddr ? farmerAddr : ""}` : ""}</h2>
-                {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
+                {/* 初心者大歓迎・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
                 {(beginnerOk || experiencedPreferred || instantApproveRepeat || perkBadges(jobPerks ? { ...(confEmployer || {}), ...jobPerks } : confEmployer).length > 0) && (
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
                     <JobFlagBadges beginner={beginnerOk} expert={experiencedPreferred} repeat={instantApproveRepeat} />

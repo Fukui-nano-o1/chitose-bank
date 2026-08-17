@@ -104,7 +104,7 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen }) {
         </div>
         {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
           <div style={{ display:"flex", gap:4, marginTop: isList?4:6, flexWrap:"wrap" }}>
-            {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}>🌱 はじめてOK</span>}
+            {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}>🌱 初心者大歓迎</span>}
             {job.experiencedPreferred && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#1A56C5", background:"#E8F0FE", padding:"2px 8px", borderRadius:20 }}>💪 経験者優遇</span>}
             {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"2px 8px", borderRadius:20 }}>🌟 リピート即決</span>}
           </div>

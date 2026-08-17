@@ -1148,7 +1148,7 @@ export function JobSearchMapView({ onRegister, me }) {
               {selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}
               {selectedJob.region && <MaskedAddress value={selectedJob.workAddress} unlocked={!!me} exists={selectedJob.hasWorkAddress} />}
             </h2>
-            {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
+            {/* 初心者大歓迎・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
             {/* 待遇は掲載時に確定保存されたjobs.perksのみを見る（2026-08-02・プロフィール現在値とのマージ廃止） */}
             {(selectedJob.beginnerOk || selectedJob.experiencedPreferred || selectedJob.instantApproveRepeat || perkBadges(selectedJob.perks).length > 0) && (
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>

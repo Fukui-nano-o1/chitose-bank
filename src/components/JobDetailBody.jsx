@@ -8,7 +8,7 @@
 // 質問（JobQuestions＝求人Q&A・詳細/確認ページと同じ部品）。
 // ※掲載前の確認の記録は載せない：job_publish_checks のRLSが本人・運営のみで、働き手には常に0件
 //   ＝「記録なし」という嘘の表示になる。開示するならDB側の判断が先（勝手に開けない）。
-// 【同指示「求人にラベルは貼らなくていい」】ヘッダーのバッジ（はじめてOK等）は出さない
+// 【同指示「求人にラベルは貼らなくていい」】ヘッダーのバッジ（初心者大歓迎等）は出さない
 // ＝AdminJobPreviewとの意図的な差分。
 // job は mapJobPublicRow() で整形済みのオブジェクトを渡すこと。me は Q&A の投稿判定用（任意）。
 // ※本文の見た目を変えるときは AdminJobPreview 側と揃える（出どころが同じ・枝分かれさせない）
@@ -149,7 +149,7 @@ export function JobDetailBody({ job, me, onBack }) {
       ) : (<>
 
       {/* ヘッダー。番地の開示はDB側が正（jobs_publicのanonマスク）＝ログインしていれば届いた値が出る。
-          バッジ（はじめてOK・経験者優遇・リピート即決）は貼らない（2026-08-07たきと指示
+          バッジ（初心者大歓迎・経験者優遇・リピート即決）は貼らない（2026-08-07たきと指示
           「求人にラベルは貼らなくていい」＝AdminJobPreviewとの意図的な差分） */}
       <div style={{ position:"relative", marginBottom:20 }}>
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
