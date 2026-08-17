@@ -20,6 +20,11 @@ import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { groupAppErrors, explainError, buildErrorReport, errorSigHash } from "../lib/errorCatalog";
 
+// 投函しない大分類（2026-08-16たきと指示「古いキャッシュを読み込むエラーは不要だ」）：
+// deploy＝更新直後に古い画面that消えた旧ファイルを読みに行く型。自己修復that効いて再読み込みで直り、
+// デプロイのたびに散発するのthat正常so、知らせる値打ちthaない。
+// ★記録は消さない＝システムページには従来どおり出る（数える対象からも外さない）
+const SKIP_CATEGORIES = ["deploy"];
 const WINDOW_DAYS = 7;      // 拾う窓＝直近7日の未解決
 const MAX_PER_OPEN = 2;     // 1回の起動で投函する上限
 const SEV_RANK = { high: 0, medium: 1, unknown: 2 };
@@ -55,7 +60,10 @@ export function AdminErrorChatReporter() {
 
         // ③ 重大→注意→不明、同じ重要度は新しい順に並べ、まだ貼っていない種類を上から
         const flat = [];
-        for (const c of groupAppErrors(res.data)) for (const g of c.groups) flat.push({ c, g });
+        for (const c of groupAppErrors(res.data)) {
+          if (SKIP_CATEGORIES.includes(c.k)) continue;
+          for (const g of c.groups) flat.push({ c, g });
+        }
         flat.sort((a, b) =>
           (SEV_RANK[a.c.severity] - SEV_RANK[b.c.severity]) ||
           (new Date(b.g.latest.created_at) - new Date(a.g.latest.created_at)));
