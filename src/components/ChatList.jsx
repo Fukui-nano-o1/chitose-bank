@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
-import { pushStatus, enablePush } from "../lib/push";
+import { pushStatus, enablePush, isIOS } from "../lib/push";
 import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_FILTER_KEYS } from "../lib/utils";
 import { Avatar } from "./ui";
 import { AdminChatFab } from "./AdminChatFab";
@@ -54,7 +54,15 @@ export function ChatList() {
     if (r.ok) { setPushSt("granted"); }
     else if (r.reason === "need-standalone") { alert("iPhoneでは、まず「ホーム画面に追加」してから、追加したアイコンで開いて通知をオンにしてください。"); }
     else if (r.reason === "denied") { alert("通知がブロックされています。端末の設定からこのアプリの通知を許可してください。"); setPushSt("denied"); }
-    else { alert("通知をオンにできませんでした。時間をおいてお試しください。"); }
+    else {
+      // 理由をそのまま出す（2026-08-17たきと報告）：従来は「時間をおいて」だけで、
+      // 何that起きたのか本人にも運営にも分からなかった。iPhoneで多い「Internal error」は
+      // 端末側の登録の失敗so、直し方を添える（記録は lib/push that app_errors に残す）
+      const iosHint = isIOS()
+        ? "\n\niPhoneでの直し方：\n① 設定 → 通知 → chitose-bank で通知を「許可」にする\n② ホーム画面のアイコンを削除し、Safariで開き直して「ホーム画面に追加」からやり直す\n③ それでも直らない時は、この文面をそのまま運営にお知らせください"
+        : "";
+      alert("通知をオンにできませんでした。\n（原因：" + (r.reason || "不明") + "）" + iosHint);
+    }
   };
   useEffect(() => {
     (async () => {
