@@ -1,0 +1,202 @@
+# さがす（求人検索）の指紋
+
+## cache:key
+  search:consignDeals  x2
+  search:consignor  x2
+  search:jobs  x4
+  search:myApps  x4
+  search:myJobNums  x3
+  search:myPend  x3
+  search:pendingPreviews  x2
+
+## cache:snap
+  wMini  x1
+
+## data:filter
+  eq:auth_id  x2
+  eq:farmer_id  x1
+  eq:job_number  x3
+  eq:worker_id  x5
+  neq:status  x1
+
+## data:method
+  delete  x1
+  getSession  x2
+  insert  x3
+  maybeSingle  x4
+
+## data:order
+  order:job_number:asc=false  x1
+
+## data:rpc
+  rpc:apply_to_job  x1
+  rpc:cancel_application  x1
+  rpc:copy_job  x1
+  rpc:create_pending_application  x1
+  rpc:employer_public_job_counts  x1
+  rpc:employer_public_jobs  x1
+  rpc:job_employer_profile  x1
+  rpc:job_employer_trust_info  x1
+  rpc:pending_job_previews  x1
+  rpc:punch_start  x1
+  rpc:signup_open  x1
+  rpc:unpublish_job  x1
+
+## data:rpcArg
+  p_application_id  x2
+  p_available_dates  x2
+  p_job  x1
+  p_job_number  x7
+
+## data:select
+  select:*  x2
+  select:auth_id  x1
+  select:id  x1
+  select:id,job_number,status,started_at,time_corrected  x1
+  select:id,status,started_at,time_corrected  x1
+  select:job_number  x3
+  select:nickname,avatar_url  x1
+
+## data:table
+  from:account_holders  x1
+  from:applications  x2
+  from:consignment_profiles  x1
+  from:job_reports  x1
+  from:jobs  x1
+  from:jobs_public  x2
+  from:pending_applications  x2
+  from:saved_jobs  x3
+  from:user_onboarding_survey  x2
+  from:worker_profiles  x1
+
+## event:dom
+  add:hashchange  x1
+  add:popstate  x1
+  add:touchcancel  x1
+  add:touchend  x1
+  add:touchmove  x1
+  add:touchstart  x1
+  remove:hashchange  x1
+  remove:popstate  x1
+  remove:touchcancel  x1
+  remove:touchend  x1
+  remove:touchmove  x1
+  remove:touchstart  x1
+
+## event:passive
+  passive:false  x1
+  passive:true  x3
+
+## map:addTo
+  addTo(map)  x3
+
+## map:leaflet
+  L.circle  x1
+  L.divIcon  x1
+  L.latLng  x1
+  L.map  x1
+  L.marker  x1
+  L.tileLayer  x1
+
+## map:view
+  fitBounds  x1
+  setView  x1
+
+## role:derived
+  appPending = !!(me && !myAppLoaded)  x1
+  isOwnJob = !!(me && selectedJob && myJobNums.has(selectedJob.id))  x1
+  myAppLoaded = !me || myAppsLoaded  x1
+  ownLoaded = !me || myJobNumsLoaded  x1
+  showConsignLane = canSeeConsignment(me, consignor)  x1
+
+## role:isAdmin
+  isAdmin(me)  x3
+
+## role:visitor
+  visitor=!me  x1
+
+## rule:ended
+  !!(j.closed || j.filled || j.expired)  x1
+
+## rule:filterPredicate
+  const filteredList = !searchActive ? jobList : jobList.filter(j => {  x1
+  if (selMonths.length && !selMonths.some(m => jobMonths(j).includes(m))) return false;  x1
+  if (selRegions.length && !selRegions.includes(j.region || "")) return false;  x1
+  if (selWhats.length && !selWhats.some(w => j.crop === w || j.task === w)) return false;  x1
+  return true;  x1
+  });  x1
+
+## rule:jobFlag
+  closed: j.status === "closed"  x1
+  expired:  expired: (() => { const end = j.date_end || j.date_start; if (!end) return false; const today = ymdLocal(new Date()); if (end < today) return true; // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降＝終了） if (end === today &  x1
+  filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount)  x1
+  isNew: !!j.opened_at && (Date.now() - new Date(j.opened_at).getTime()) < 3 * 24 * 60 * 60 * 1000  x1
+
+## rule:saved
+  // ── いいね（お気に入り）：saved_jobs（本人のみRLS）。job_number(=job.id)をキーに管理 ──  x1
+  : await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: job.id });  x1
+  ? await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", job.id)  x1
+  const { data } = await supabase.from("saved_jobs").select("job_number").eq("worker_id", me.id);  x1
+  savedIds.has  x8
+
+## rule:sort
+  (a, b) => a - b  x1
+  (a, b) => a.stars - b.stars  x1
+  (a, b) => b.stars - a.stars  x1
+
+## rule:statusCompare
+  closed  x2
+  done  x1
+  working  x1
+
+## url:hash
+  #/search  x1
+  #/work/job/  x2
+  /account  x2
+  /admin/consignment/deal/  x1
+  /apply/done  x2
+  /apply/pending  x2
+  /chat/  x1
+  /profile/employer  x1
+  /profile/employer/applicants  x1
+  /saved  x1
+  /work/edit/  x1
+
+## url:local
+  cb_likeBoxShown  x2
+  cb_searchFilters  x2
+  cb_seenNewJobs  x2
+
+## url:regex
+  JOB_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance))?$/  x1
+
+## url:session
+  cb_applyAlready  x2
+  cb_applyVisual  x1
+  cb_editJobPrefill  x1
+  cb_jobBackTo  x3
+  cb_pendingNew  x1
+
+# ── 採取時点のDB実測（静的解析では出ない値）─────────────────────────
+# 2026-08-17・本番 aegwepgtmwcnwzybpgsh を読み取りのみで実測。--check の比較対象外。
+# 分割で数字が変わるはずがない項目＝Phase 4 の途中で疑わしくなったら採り直して照合する。
+#
+# jobs_public
+#   列数            52
+#   全件            8    ← fetchPublicJobs が返す行数
+#     status=open   2
+#     status=closed 6
+#   満員(hired_count>=headcount) 6
+#   期間終了(date_end<今日JST)   4
+#   番地あり(has_work_address)   8
+#   新着(created_at 3日以内)     1
+#
+# ★行数はロールで変わらない（anon もログインも 8 行）。
+#   訪問者との差は【列の中身】だけ＝ビュー内の case-when 16箇所・座標の丸め・半径3000。
+#   つまり「訪問者に見せない」はDB側のマスクが担っており、フロントの分割では動かせない。
+#   逆に、フロントで行を減らす／増やす変更が入れば、この行数の前提が壊れる。
+#
+# その他
+#   jobs.status='pending'                    0 件（＝まもなく公開カードは現在0件）
+#   app_settings.pending_preview_on_search   'true'（キルスイッチはON側）
+#   saved_jobs                               11 行
