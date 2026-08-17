@@ -844,12 +844,13 @@ export function perkBadges(ep) {
   ].filter(Boolean);
 }
 
-// 自由記述の審査要否の振り分け（2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。
-// 審査（運営ゲート・憲法5条）が守っているのは「新しく公開される文字」。空にする＝公開される文字が
-// 無くなるだけso、審査を通さずその場で公開列を空にしてよい。
-// 空欄を審査待ちに積むと実害があった：①本人が消した文章が承認まで公開されたまま残る
-// ②employer_profilesはtexts_pendingがあると求人を掲載できない（block_publish_when_profile_under_review）
-// 返り値 pending=審査に出すキー（文字がある変更だけ）／cleared=その場で空にするキー
+// 自由記述の書き分け（2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。
+// ★2026-08-14の承認プロセス削除以降、pending は「審査待ち」ではない：texts_pending に積んでも
+//   DBトリガー（trg_ep_z_publish_texts）が保存の瞬間に公開列へ畳む＝どちらの経路でも即公開になる。
+//   つまり pending と cleared は今や結果が同じ（どちらも保存＝即公開）。分岐と Review という名前は
+//   審査時代の名残で、残っていても害は無いので触っていない。書き分けをやめて公開列へ直接書く形に
+//   まとめることはできる（NG検査は公開列の差分で走るので効き続ける）＝やるなら3ファイル同時に。
+// 返り値 pending=文字が入る変更（pending列に積む→トリガーが畳む）／cleared=その場で空にするキー
 export function splitTextsForReview(desired, approved) {
   const pending = {}, cleared = {};
   Object.keys(desired || {}).forEach(k => {

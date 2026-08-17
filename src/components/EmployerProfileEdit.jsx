@@ -170,7 +170,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
           setAccessoryOk(data.accessory_ok ?? false);
           setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
-          // 自由記述は審査待ち（texts_pending）優先で編集欄へ＝自分が書いた最新が見える。承認済み値は差分判定用に控える（2026-07-16）
+          // 自由記述は texts_pending 優先で編集欄へ＝自分が書いた最新が見える（2026-07-16）。
+          // 承認プロセス削除後は保存の瞬間に畳まれるので実際は常に空だが、読み込み側は残しておく
+          // ＝万一トリガーを外した時（審査を戻す時）に、書きかけが編集欄から消えない
           const tp = data.texts_pending || {};
           approvedTextsRef.current = {
             owner_comment: data.owner_comment ?? "", intro_path: data.intro_path ?? "", intro_joy: data.intro_joy ?? "",
@@ -393,7 +395,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       // ★保存を無言で終わらせない（2026-08-14たきと指示「保存したら即反映」＝失敗も必ず喋らせる）。
       // 従来はセッション切れだと何も言わずreturn＝「保存しました」も「失敗」も出ない迷子だった
       if (!session) { setSaving(false); alert("ログインが確認できませんでした。ページを開き直して、もう一度保存してください。"); return; }
-      // 自由記述は直接公開しない（2026-07-16・憲法5条）：承認済み値と異なるキーだけをtexts_pendingに積み、運営承認で公開される
+      // 自由記述は、承認済み値と異なるキーだけを texts_pending に積む。
+      // 2026-08-14の承認プロセス削除以降は、DBトリガー（trg_ep_z_publish_texts）が保存の瞬間に
+      // 公開列へ畳む＝運営の承認を待たず即公開（NG検査＝電話・メール・URLはトリガー側で拒否）
       const desiredTexts = {
         owner_comment: ownerComment || "", intro_path: introPath || "", intro_joy: introJoy || "",
         intro_crops: introCrops || "", intro_atmosphere: introAtmosphere || "", intro_message: introMessage || "",
@@ -402,11 +406,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         commute_allowance_detail: hasCommuteAllowance ? (commuteAllowanceDetail || "") : "",
         supplies_cap: employerPaysSupplies ? (suppliesCap.trim() || "") : "",
       };
-      // 空にした項目は審査に出さず、その場で公開列を空にする（2026-08-03たきと指示
-      // 「入力項目を空にするなら審査は必要ない」）。審査に出すのは文字が入る変更だけ
+      // 空にした項目はその場で公開列を空にする（2026-08-03たきと指示「入力項目を空にするなら
+      // 審査は必要ない」の名残）。承認プロセス削除後はどちらの経路でも即公開＝結果は同じ
       const { pending: textsPending, cleared: clearedTexts } = splitTextsForReview(desiredTexts, approvedTextsRef.current);
-      // 審査フロー（texts_pending→運営承認）は employer_profiles 専用。別テーブル（委託＝管理者専用レーン）は
-      // 審査UIが無く pending が永久に滞留するため、自由記述を本欄へ直接保存する
+      // texts_pending 経由は employer_profiles 専用（このテーブルにだけ公開列へ畳むトリガーがある）。
+      // 別テーブル（委託＝管理者専用レーン）は畳む相手がおらず pending が永久に滞留するため、
+      // 自由記述を本欄へ直接保存する。※変数名の reviewFlow は審査時代の名残
       const reviewFlow = table === "employer_profiles";
       const payload = {
         auth_id: session.user.id,

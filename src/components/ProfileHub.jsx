@@ -204,9 +204,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   // 核（アイコン・ニックネーム・自己紹介）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（2026-07-16）
   // 数え方はlib/utilsのworkerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）
   const { req: wUnsetReq, total: wUnsetCount } = workerUnsetCount(wMini);
-  // 自己紹介の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中=赤帯（修正のためタップは可能）
-  const wHasPending = !!(wMini && (((wMini.pr_pending || "").trim()) || (Array.isArray(wMini.pr_qa_pending) && wMini.pr_qa_pending.length > 0)));
-  const wReview = wHasPending ? (wMini.pr_submitted_at ? "pending" : "revision") : null;
+  // 自己紹介の審査帯（2026-07-19）は削除した（2026-08-17）。承認プロセスの削除（2026-08-14）で
+  // 自由記述は保存＝即公開になり、trg_wp_z_publish_texts が pr_pending/pr_qa_pending/pr_submitted_at を
+  // 書かれた瞬間に畳む＝「審査中の働き手」という状態が構造的に存在しない（実データも0件で確認）。
   // 下余白は0にしてCSS側（body:has(.profile-employer-edge) main）で最下段の空きを15pxに一本化（2026-08-03）
   return (
     <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px 0"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
@@ -234,16 +234,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
             {/* トップボックスは反転式（2026-07-16）：表=アイコン＋ニックネーム／裏=アイコン・ニックネーム抜きのプレビュー。右上⇄で反転0.8秒 */}
             <div style={{ position:"relative" }}>
               <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }}
-                className={"f-sans" + (wTopAnim ? " " + wTopAnim : (wReview ? "" : wUnsetReq > 0 ? " cb-urgent-card" : wUnsetCount > 0 ? " cb-urgent-still" : ""))}
+                className={"f-sans" + (wTopAnim ? " " + wTopAnim : wUnsetReq > 0 ? " cb-urgent-card" : wUnsetCount > 0 ? " cb-urgent-still" : "")}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && wTopAnim === "pflip-in") setWTopAnim(""); }}
-                style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_ORANGE, borderRadius:24, padding: wReview ? "28px 20px 44px" : "28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
-                {/* 審査帯（2026-07-19／2026-08-03改定）：審査中もタップして修正できる＝出し直しの締切を作らない。
-                    保存すると pr_pending/pr_qa_pending が上書きされ、運営が見るのは常に最新の内容になる */}
-                {wReview && (
-                  <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"8px 12px", borderRadius:"0 0 24px 24px", background: wReview === "revision" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:13, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>
-                    {wReview === "revision" ? "⚠️ 修正のお願いがあります（タップして修正）" : "⏳ 審査中：タップで修正できます（最新の内容が審査されます）"}
-                  </span>
-                )}
+                style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_ORANGE, borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
                 {!wTopBack ? (
                   <>
                     {/* 未設定の項目数（編集ページの10ボックス基準）。全て設定済みなら非表示。右上は⇄マークなので左隣に */}

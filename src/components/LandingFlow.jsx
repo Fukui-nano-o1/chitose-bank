@@ -532,8 +532,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   const [confEmployer, setConfEmployer] = useState(() => getCache("farm:empMini") ?? snapGet("empMini") ?? null);
   const [confProfileOpen, setConfProfileOpen] = useState(false); // 農家プロ未入力時：カードタップで編集ボックス展開（2026-07-16）
   // 待遇の求人ごと変更（2026-07-18）：確認ページの待遇タップで編集ボックス。
-  // 「この求人のみ」＝jobPerksに保持→jobs.perksへ保存（求人審査で内容確認）／「保存」＝プロフィールにも反映
-  // （自由記述3項目=送迎範囲・通勤手当の内容・農家負担の上限はtexts_pending経由＝運営承認後に公開・憲法5条）
+  // 「この求人のみ」＝jobPerksに保持→jobs.perksへ保存／「保存」＝プロフィールにも反映
+  // （自由記述3項目=送迎範囲・通勤手当の内容・農家負担の上限はtexts_pending経由。承認プロセス削除後は
+  //   DBトリガーが保存の瞬間に公開列へ畳む＝即公開。NG検査＝電話・メール・URLはトリガー側で拒否）
   const [perksEditOpen, setPerksEditOpen] = useState(false);
   const [perkDraft, setPerkDraft] = useState(null);
   // 待遇変更ボックス展開中は下部ナビ（←戻る・保存・掲載する）を画面下へ潜らせる（2026-08-07たきと指示）。
@@ -616,7 +617,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       if (!session) { setPerkSaving(false); return; }
       const { data: cur } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
       // 自由記述はtexts_pending経由（変わったキーだけ積む・EmployerProfileEdit.saveと同じ作法）。
-      // 2026-08-14承認プロセス廃止後は、DBトリガー（trg_ep_z_publish_texts）that書いた瞬間に公開列へ畳む＝実質即公開
+      // 2026-08-14承認プロセス廃止後は、DBトリガー（trg_ep_z_publish_texts）が書いた瞬間に公開列へ畳む＝実質即公開
       const desired = {
         transport_area: perkDraft.has_transport ? (perkDraft.transport_area || "") : "",
         commute_allowance_detail: perkDraft.has_commute_allowance ? (perkDraft.commute_allowance_detail || "") : "",

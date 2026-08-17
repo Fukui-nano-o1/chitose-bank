@@ -4,7 +4,7 @@ import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, punchDivergence, PUNC
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 import { CropIcon } from "./CropIcon";
 
-// メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/審査中/公開中）
+// メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/公開間近/公開中）
 export function StatusRibbon({ label, color }) {
   return (
     <div style={{ position:"absolute", top:0, right:0, width:64, height:64, overflow:"hidden", pointerEvents:"none" }}>

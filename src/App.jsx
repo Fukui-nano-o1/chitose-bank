@@ -493,10 +493,12 @@ function WorkerPreviewSheet() {
           if (viewer?.id && viewer.id !== workerId && !isAdmin(viewer)) {
             Promise.resolve(supabase.rpc("count_worker_profile_view", { p_worker_id: workerId })).catch(() => {});
           }
-          // 段階1：プロフィール。審査中（審査待ち／修正依頼中）の働き手は本人と運営以外に見せない（2026-07-19）。
-          // 審査中になった人はキャッシュからも消す（次回の段階0で出さない）
-          // 未承認の自己紹介(pr_pending等)を農家に渡さないため、承認済み列だけ返すRPC経由（2026-08-07）。
-          // 審査中の非表示ゲートはRPC側で判定し under_review フラグだけ返す（本文は返さない）
+          // 段階1：プロフィール。未承認の自己紹介(pr_pending等)を農家に渡さないため、承認済み列だけ返す
+          // RPC経由（2026-08-07）。★このRPCが列を絞る役目は今も現役＝ここは消さない。
+          // ★under_review（審査中は本人と運営以外に見せない・2026-07-19）は【いま休眠中】：
+          //   承認プロセスの削除（2026-08-14）で pr_pending は保存の瞬間に畳まれ、RPCはこの旗を返さない。
+          //   受け皿（下の blocked）を残してあるのは、審査を戻す＝畳むトリガーを外した時に、
+          //   壁とその表示が同時に再武装するため。DB側の分岐と対で扱うこと（片方だけ消さない）
           Promise.resolve(supabase.rpc("worker_profile_for_farmer", { p_worker_id: workerId })).then(wpRes => {
             // 通信失敗（res.error）では手元の表示（段階0のキャッシュ）を上書きしない＝2026-08-07規則
             if (wpRes?.error) { setSt(prev => prev && prev.worker_id === workerId ? { ...prev, loading: false } : prev); return; }
@@ -627,6 +629,8 @@ function WorkerPreviewSheet() {
             </div>
           </>
         ) : st.blocked ? (
+          /* 休眠中の受け皿（審査を戻した時に再武装する。上の段階1のコメントと対）。
+             いまは worker_profile_for_farmer が under_review を返さないので描画されない */
           <div style={{ textAlign:"center", padding:"32px 0" }}>
             <div style={{ fontSize:36, marginBottom:10 }}>⏳</div>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 6px" }}>プロフィールは審査中です</p>

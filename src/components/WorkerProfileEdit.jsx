@@ -93,7 +93,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [savedInReview, setSavedInReview] = useState(false); // 直前の保存で自由記述を審査に出したか（完了メッセージの出し分け）
+  // 直前の保存で自由記述を書き換えたか（完了メッセージの出し分け）。名前の InReview は審査時代の名残で、
+  // 承認プロセス削除後は「保存＝即公開」so、出るのは「自己紹介も公開されました」（2026-08-14に文言は改定済み）
+  const [savedInReview, setSavedInReview] = useState(false);
   const [revTargets, setRevTargets] = useState([]); // 修正依頼の指摘対象（"自己紹介本文"/質問文・2026-07-19）
   // 公開済み（運営が承認した）自由記述の控え（2026-07-27たきと報告）：
   // 保存のたびに pr_pending を無条件で書いていたため、住所や移動手段など選択式を直しただけでも

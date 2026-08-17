@@ -258,9 +258,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 数え方はlib/utilsのemployerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）。
   // 2026-08-07追加：募集者の連絡先＋緊急連絡先（hasEmergency＝emergency_contactsの有無）も同関数で数える
   const { req: empUnsetReq, total: empUnsetCount } = employerUnsetCount(empMini, { hasEmergency });
-  // 自由記述の審査状態（2026-07-19）：審査待ち=帯＋タップ不能／修正依頼中（差し戻し済み）=赤帯（修正のためタップは可能）
-  const empHasPending = !!(empMini && empMini.texts_pending && Object.keys(empMini.texts_pending).length > 0);
-  const empReview = empHasPending ? "pending" : (empMini?.texts_revision_requested_at ? "revision" : null);
+  // 自由記述の審査帯（2026-07-19）は削除した（2026-08-17）。承認プロセスの削除（2026-08-14）で
+  // 自由記述は保存＝即公開になり、trg_ep_z_publish_texts が texts_pending / texts_submitted_at /
+  // texts_revision_requested_at を書かれた瞬間に畳む（＝クリアする）。この3列を立てる関数は
+  // DB全体で1本も無く、実データも0件＝「審査中の農家」という状態が構造的に存在しない。
   const [rosterRows, setRosterRows] = useState(() => getCache("farm:roster") ?? []); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
   // ── 読み込みは「その面を開いた時だけ」（2026-07-29たきと指示 D＝必要になったときに読む）──
   // 以前は入口(home)を開いただけで、求人・応募・応募者プロフィール・信頼情報まで全部読んでいた。
@@ -320,7 +321,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           // 一時非公開＝掲載歴ありのdraft／下書き＝掲載歴なし・日程も未過去のdraft。ここで独自に書かない
           const isPast = isJobEnded;
           const isUnpublished = isJobUnpublished;
-          // 作成中タブ＝作成中＋審査中／公開中タブ＝公開中＋一時非公開（2026-07-16たきと指定）
+          // 作成中タブ＝作成中＋公開間近(pending)／公開中タブ＝公開中＋一時非公開（2026-07-16たきと指定）。
+          // pending は掲載＝即公開になった今もう1つだけ残る状態＝修正のお願い中の求人の再掲載（20260814093042）
           setDbDrafts(allJobs.filter(j => (isJobDraft(j) || (j.status === "pending" && !isPast(j)))));
           setDbActive(allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j)));
           setDbExpired(allJobs.filter(isPast));
@@ -1091,16 +1093,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           {/* トップボックスは反転式（2026-07-16・働き手側と同構造）：表=アイコン＋農園名／裏=アイコン・名前抜きのプレビュー。右上⇄で反転0.8秒 */}
           <div style={{ position:"relative" }}>
             <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }}
-              className={"f-sans" + (empTopAnim ? " " + empTopAnim : (empReview ? "" : empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : ""))}
+              className={"f-sans" + (empTopAnim ? " " + empTopAnim : empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : "")}
               onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && empTopAnim === "pflip-in") setEmpTopAnim(""); }}
-              style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding: empReview ? "28px 20px 44px" : "28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
-              {/* 審査帯（2026-07-19／2026-08-03改定）：審査中もタップして修正できる＝出し直しの締切を作らない。
-                  保存すると texts_pending が丸ごと上書きされ、運営が見るのは常に最新の内容になる */}
-              {empReview && (
-                <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"8px 12px", borderRadius:"0 0 24px 24px", background: empReview === "revision" ? "#E24B4A" : "#C77700", color:"#fff", fontSize:13, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>
-                  {empReview === "revision" ? "⚠️ 修正のお願いがあります（タップして修正）" : "⏳ 審査中：タップで修正できます（最新の内容が審査されます）"}
-                </span>
-              )}
+              style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
               {!empTopBack ? (
                 <>
                   {/* 未設定の項目数（全て設定済みなら非表示）。右上は⇄マークなので左隣に */}
