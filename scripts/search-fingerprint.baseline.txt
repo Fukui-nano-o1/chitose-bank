@@ -154,6 +154,41 @@
 ## map:addTo
   addTo(map)  x3
 
+## map:cleanup
+  mapRef.current = map  x1
+  mapRef.current = null  x2
+  mapRef.current.remove()  x1
+  mapRef.current?.remove()  x1
+
+## map:effectDeps
+  [lat, lng, radius, visitor, cityGeo, cityGeoTried]  x1
+  [mapQuery, addressShown]  x1
+  [visitor, cityArea]  x1
+
+## map:geometry
+  10000  x1
+  L.latLng(center.lat, center.lng).toBounds(fitM), { padding: [12, 12], animate: false }  x1
+  Number.isFinite(radius) && radius > 0 ? radius : 800  x1
+  [center.lat, center.lng], 14, { animate: false }  x1
+  visitor ? (cityGeo || { lat, lng }) : { lat, lng }  x1
+  visitor ? VISITOR_CIRCLE_M * 2 : r * 2  x1
+
+## map:guard
+  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;  x1
+  if (lat == null || lng == null) {  x1
+  if (visitor && !cityGeo && !cityGeoTried) return;  x1
+
+## map:interactive
+  attributionControl:true  x1
+  boxZoom:false  x1
+  doubleClickZoom:false  x1
+  dragging:false  x1
+  interactive:false  x2
+  keyboard:false  x2
+  scrollWheelZoom:false  x1
+  touchZoom:false  x1
+  zoomControl:false  x1
+
 ## map:leaflet
   L.circle  x1
   L.divIcon  x1

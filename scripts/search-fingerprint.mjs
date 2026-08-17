@@ -142,6 +142,38 @@ function collect() {
     for (const m of src.matchAll(/\.addTo\(map\)/g)) add("map:addTo", "addTo(map)");
     for (const m of src.matchAll(/(fitBounds|setView)\(/g)) add("map:view", m[1]);
 
+    // ⑤b 地図の寿命と幾何（2026-08-18・4-A3で追加）
+    // 地図はDBと別種の危険がある：見た目が同じでも、effectの依存・破棄順・座標欠損の扱いが
+    // 変わると壊れる（2026-07-16の _leaflet_pos 真っ暗事故がその型）。
+    // ここは「何が描かれるか」ではなく【いつ作られ・いつ壊され・どこを中心に・どこまで描くか】を見る。
+    // ★アンカーが見つからなければ黙って素通りせず止める（4-A2の取りこぼしを繰り返さない）。
+    if (/JobLocationMap\.jsx$/.test(f)) {
+      const need = (re, key, label) => {
+        const m = src.match(re);
+        if (!m) { console.error(`★地図の不変条件が見つかりません（${label}）:`, f); process.exit(2); }
+        add(key, flat(m[1] !== undefined ? m[1] : m[0]).slice(0, 200));
+      };
+      // 生成・破棄のタイミング＝全 useEffect の依存配列（地図の再生成条件そのもの）
+      for (const m of src.matchAll(/\n\s*\}, (\[[^\]]*\])\);/g)) add("map:effectDeps", flat(m[1]));
+      // 破棄（remove）と、作り直す前の後始末。片方でも消えると地図が二重に生きる
+      for (const m of src.matchAll(/(mapRef\.current(?:\?)?\.remove\(\))/g)) add("map:cleanup", m[1]);
+      for (const m of src.matchAll(/mapRef\.current = (null|map)\b/g)) add("map:cleanup", `mapRef.current = ${m[1]}`);
+      // 座標が欠けている求人を地図化するか（＝ピンを立ててよいかの判定）
+      need(/if \(lat == null \|\| lng == null \|\| [^\n]*\) return;/, "map:guard", "座標欠損の門番");
+      need(/if \(lat == null \|\| lng == null\) \{/, "map:guard", "座標欠損時の代替表示");
+      need(/if \(visitor && !cityGeo && !cityGeoTried\) return;/, "map:guard", "訪問者の中心が取れるまで描かない");
+      // 円と中心の扱い（訪問者に見せる範囲＝マスクの一部。小さくすると場所が絞られる）
+      need(/const VISITOR_CIRCLE_M = (\d+);/, "map:geometry", "訪問者の円の半径");
+      need(/const center = ([^\n;]+);/, "map:geometry", "中心の決め方");
+      need(/const r = ([^\n;]+);/, "map:geometry", "半径の既定値");
+      need(/const fitM = ([^\n;]+);/, "map:geometry", "表示範囲の広さ");
+      need(/map\.setView\(([^\n;]+)\);/, "map:geometry", "setViewの引数");
+      need(/map\.fitBounds\(([^\n]+)\);/, "map:geometry", "fitBoundsの引数");
+      // 触れる図か否か（marker/circle を interactive にするとタップ経路が生まれる＝現在は無い）
+      for (const m of src.matchAll(/(interactive|keyboard|dragging|scrollWheelZoom|doubleClickZoom|touchZoom|boxZoom|zoomControl|attributionControl):\s*(\w+)/g))
+        add("map:interactive", `${m[1]}:${m[2]}`);
+    }
+
     // ⑥ イベント登録（Leaflet破棄事故・スワイプ判定の回帰を見る）
     for (const m of src.matchAll(/(add|remove)EventListener\(\s*["'`](\w+)["'`]/g)) add("event:dom", `${m[1]}:${m[2]}`);
     for (const m of src.matchAll(/passive:\s*(\w+)/g)) add("event:passive", `passive:${m[1]}`);
