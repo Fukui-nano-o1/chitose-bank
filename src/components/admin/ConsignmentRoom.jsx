@@ -21,6 +21,9 @@ import {
 } from "../../features/consignment/model";
 import { CONSIGN_TERMS_INTRO, CONSIGN_TERMS_SECTIONS, CONSIGN_TERMS_CHECK, CONSIGN_TERMS_HELP,
   ConsignTermsBody } from "../../features/consignment/terms";
+import { ConsignStepper } from "../../features/consignment/components/ConsignStepper";
+import { ConsignFieldsPane } from "../../features/consignment/components/ConsignFieldsPane";
+import { ConsignLendPane } from "../../features/consignment/components/ConsignLendPane";
 import { CONSIGN_SPRIGS, CONSIGN_CLUSTER_BASES, CONSIGN_GRASS_SCALE, makeConsignGrass,
   CONSIGN_VINES, CONSIGN_CORNER_VINE, makeConsignVines, computeSky } from "../../features/consignment/entranceArt";
 
@@ -28,27 +31,7 @@ import { CONSIGN_SPRIGS, CONSIGN_CLUSTER_BASES, CONSIGN_GRASS_SCALE, makeConsign
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。
 //    タブ2つ：仕様書（フォーム→保存→印刷ビュー）／台帳（consignment_deals一覧・行タップで編集・状態更新・メモ）
 // 委託の型（定数・純関数） → features/consignment/model.js へ移設（2026-08-17）
-// 進行ステッパー（FlowBarと同じ視覚文法。色だけブラック：黒の✓＝完了・黒リング＝現在地・グレー＝未着手）
-function ConsignStepper({ deal }) {
-  const { done, active } = consignStepState(deal);
-  return (
-    <div style={{ display:"flex", alignItems:"flex-start", margin:"4px 0 18px" }}>
-      {CONSIGN_STEPS.map((s, i) => {
-        const isDone = done[i]; const isActive = i === active; const reached = isDone || isActive;
-        return (
-          <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
-            {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#111111" : "#E5E5E5" }} />}
-            <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, boxSizing:"border-box",
-              background: isDone ? "#111111" : "#fff", border: isDone ? "none" : isActive ? "2px solid #111111" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#111111" : "#C8C8C8" }}>
-              {isDone ? "✓" : ""}
-            </div>
-            <span className="f-sans" style={{ fontSize:9.9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#111111" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+// ConsignStepper → features/consignment/components/ConsignStepper.jsx へ移設（2026-08-17）
 
 // 委託の型（定数・純関数） → features/consignment/model.js へ移設（2026-08-17）
 // 入場演出（草・蔓・空） → features/consignment/entranceArt.js へ移設（2026-08-17）
@@ -65,217 +48,8 @@ function ConsignStepper({ deal }) {
 // 登録情報の委託機能での利用同意（2026-08-02たきと指示）：曖昧な「引き継いでよいですか」ではなく、
 // 何の情報を・何の目的で・誰に・いつ見せるかまで示して同意を取る。同意文を変えたら版数を更新（再同意）
 // 委託の型（定数・純関数） → features/consignment/model.js へ移設（2026-08-17）
-//    新規委託ウィザードSTEP1で呼び出せる。ウィザードで入力した圃場も掲載時に自動登録（同名upsert）──
-function ConsignFieldsPane({ fields, onReload }) {
-  const [form, setForm] = useState(null); // null=一覧 / {}=新規 / {id,...}=編集
-  const [fSaving, setFSaving] = useState(false);
-  const [fZipBusy, setFZipBusy] = useState(false);
-  const [fZipError, setFZipError] = useState("");
-  const [fPhotoBusy, setFPhotoBusy] = useState(false);
-  const fset = (k, v) => setForm(p => ({ ...p, [k]: v }));
-  // 圃場の写真は1枚（2026-08-02たきと指示）。consignment-photos バケット流用・選び直しで差し替え
-  const fPhotoUpload = async (file) => {
-    if (!file || fPhotoBusy) return;
-    setFPhotoBusy(true);
-    try {
-      // 共通ヘルパーでHEIC変換＋1600px/0.8圧縮（原寸だと5MB上限超過・2026-08-03バグ修理）
-      const { url } = await uploadJobPhoto(supabase, file, { bucket: "consignment-photos", pathPrefix: "consign_field_", withThumb: false });
-      fset("photo", url);
-    } catch (e) { alert("写真のアップロードに失敗しました：" + (e?.message || "不明なエラー")); }
-    setFPhotoBusy(false);
-  };
-  // 圃場の住所は正式なもの（2026-08-02たきと指示）：郵便番号→住所を自動入力＋番地は手入力。
-  // 検索は2系統レース＋タイムアウト＋キャッシュ（lib/zipLookup・「検索に数十秒」対策）
-  const fZipSearch = async () => {
-    const z = (form?.zip || "").replace(/[^0-9]/g, "");
-    if (z.length !== 7) { setFZipError("郵便番号は7桁で入力してください"); return; }
-    setFZipBusy(true); setFZipError("");
-    const r = await zipLookup(z);
-    if (!r.ok) setFZipError(r.reason === "notfound" ? "住所が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください");
-    else setForm(f => ({ ...f, zip: z, addr_main: r.full }));
-    setFZipBusy(false);
-  };
-  const saveField = async () => {
-    if (fSaving || !form) return;
-    const name = (form.name || "").trim();
-    if (!name) { alert("圃場の呼び名を入力してください。"); return; }
-    setFSaving(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setFSaving(false); return; }
-      const row = {
-        auth_id: session.user.id, name,
-        // region＝正式住所（都道府県〜町域・郵便番号検索から）。番地はdata.addr_detailに分離
-        region: (form.addr_main || "").trim(), area_a: String(form.area_a || "").trim(),
-        data: { zip: (form.zip || "").replace(/[^0-9]/g, ""), addr_detail: (form.addr_detail || "").trim(), photo: form.photo || "" },
-        updated_at: new Date().toISOString(),
-      };
-      const { error } = form.id
-        ? await supabase.from("consignment_fields").update(row).eq("id", form.id)
-        : await supabase.from("consignment_fields").insert(row);
-      if (error) { alert("保存に失敗しました：" + (error.code === "23505" ? "同じ呼び名の圃場が既にあります" : error.message)); setFSaving(false); return; }
-      setForm(null); onReload();
-    } catch { alert("保存に失敗しました。"); }
-    setFSaving(false);
-  };
-  const delField = async (f) => {
-    if (!window.confirm("圃場「" + f.name + "」を削除しますか？（作成済みの委託の内容には影響しません）")) return;
-    const { error } = await supabase.from("consignment_fields").delete().eq("id", f.id);
-    if (error) { alert("削除に失敗しました：" + error.message); return; }
-    onReload();
-  };
-  // ── 入力フォーム（新規・編集共用）──
-  if (form) return (
-    <div>
-      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{form.id ? "圃場を編集" : "圃場を登録"}</h2>
-      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>登録した圃場は「新しく委託を出す」で呼び出せます。</p>
-      <div style={{ marginBottom:10 }}>
-        <label className="lbl f-sans">圃場の呼び名</label>
-        <input className="field f-sans" value={form.name || ""} onChange={e=>fset("name", e.target.value)} placeholder="例：川向こうの畑" style={{ fontSize:15.4, marginBottom:0 }} />
-      </div>
-      {/* 正式住所（2026-08-02たきと指示）：郵便番号から検索。新規登録と同じ3分割（郵便番号/住所/番地） */}
-      <div style={{ marginBottom:10 }}>
-        <label className="lbl f-sans">郵便番号</label>
-        <div style={{ display:"flex", gap:8 }}>
-          <input className="field f-sans" inputMode="numeric" value={form.zip || ""} onChange={e=>fset("zip", e.target.value.replace(/[^0-9]/g, ""))} placeholder="例：7700000" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
-          <button type="button" onClick={fZipSearch} disabled={fZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{fZipBusy ? <>検索中<Dots /></> : "住所を検索"}</button>
-        </div>
-        {fZipError && <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{fZipError}</p>}
-      </div>
-      <div style={{ marginBottom:10 }}>
-        <label className="lbl f-sans">住所</label>
-        <input className="field f-sans" value={form.addr_main || ""} onChange={e=>fset("addr_main", e.target.value)} placeholder="例：徳島県〇〇市〇〇町" style={{ fontSize:15.4, marginBottom:0 }} />
-      </div>
-      <div style={{ marginBottom:10 }}>
-        <label className="lbl f-sans">番地・字</label>
-        <input className="field f-sans" value={form.addr_detail || ""} onChange={e=>fset("addr_detail", e.target.value)} placeholder="例：123-4" style={{ fontSize:15.4, marginBottom:0 }} />
-      </div>
-      <div style={{ marginBottom:10 }}>
-        <label className="lbl f-sans">面積（a）</label>
-        <input className="field f-sans" inputMode="numeric" value={form.area_a || ""} onChange={e=>fset("area_a", e.target.value.replace(/[^0-9.]/g, ""))} placeholder="例：30" style={{ fontSize:15.4, marginBottom:0 }} />
-      </div>
-      <div style={{ marginBottom:10 }}>
-        <label className="lbl f-sans">圃場の写真（1枚）</label>
-        {form.photo ? (
-          <div style={{ position:"relative", display:"inline-block" }}>
-            <img loading="lazy" src={form.photo} alt="" style={{ width:140, height:140, objectFit:"cover", borderRadius:12, border:"1px solid #111111", display:"block" }} />
-            <button type="button" onClick={()=>fset("photo", "")} className="f-sans" aria-label="写真を削除" style={{ position:"absolute", top:-8, right:-8, width:26, height:26, borderRadius:"50%", border:"1px solid #111111", background:"#111111", color:"#fff", fontSize:13.2, fontWeight:700, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
-          </div>
-        ) : (
-          <label className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"center", width:"100%", height:96, border:"1px dashed #111111", borderRadius:12, fontSize:14.3, fontWeight:700, color:"#111111", cursor:"pointer", background:"#fff" }}>
-            {fPhotoBusy ? <>アップロード中<Dots /></> : "＋ 写真を追加"}
-            <input type="file" accept="image/*" style={{ display:"none" }} onChange={e=>{ fPhotoUpload(e.target.files && e.target.files[0]); e.target.value = ""; }} />
-          </label>
-        )}
-      </div>
-      <div style={{ display:"flex", gap:8, marginTop:16 }}>
-        <button onClick={()=>setForm(null)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
-        <button onClick={saveField} disabled={fSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: fSaving ? 0.6 : 1 }}>{fSaving ? <>保存中<Dots /></> : "保存する"}</button>
-      </div>
-    </div>
-  );
-  // ── 一覧 ──
-  return (
-    <div>
-      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>委託圃場</h2>
-      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>登録した圃場は「新しく委託を出す」で呼び出せます。掲載した委託の圃場も自動でここに登録されます。</p>
-      {fields.length === 0 && (
-        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 12px" }}>登録された圃場はまだありません。</p>
-      )}
-      {fields.map(f => (
-        <div key={f.id} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:10, display:"flex", gap:12, alignItems:"flex-start" }}>
-          {((f.data || {}).photo || "") && (
-            <img loading="lazy" src={f.data.photo} alt="" style={{ width:64, height:64, objectFit:"cover", borderRadius:10, border:"1px solid #E5E5E5", flexShrink:0 }} />
-          )}
-          <div style={{ flex:1, minWidth:0 }}>
-          <p className="f-sans" style={{ fontSize:15.4, fontWeight:800, color:"#111111", margin:0 }}>{f.name}</p>
-          <p className="f-sans" style={{ fontSize:13.2, color:"#111111", margin:"4px 0 0" }}>{[((f.data || {}).zip ? "〒" + f.data.zip + " " : "") + [f.region, (f.data || {}).addr_detail].filter(Boolean).join(" "), f.area_a ? f.area_a + "a" : ""].filter(x => (x || "").trim()).join("・") || "住所・面積 未入力"}</p>
-          <div style={{ display:"flex", gap:8, marginTop:10 }}>
-            <button onClick={()=>setForm({ id: f.id, name: f.name, addr_main: f.region, area_a: f.area_a, ...(f.data || {}) })} className="f-sans" style={{ padding:"8px 16px", fontSize:13.2, fontWeight:700, borderRadius:10, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>編集</button>
-            <button onClick={()=>delField(f)} className="f-sans" style={{ padding:"8px 16px", fontSize:13.2, fontWeight:700, borderRadius:10, background:"#fff", color:"#999999", border:"1px solid #D0D0D0", cursor:"pointer" }}>削除</button>
-          </div>
-          </div>
-        </div>
-      ))}
-      <button onClick={()=>setForm({})} className="f-sans" style={{ width:"100%", padding:"16px", fontSize:15.4, fontWeight:800, borderRadius:14, background:"#111111", color:"#fff", border:"none", cursor:"pointer", marginTop:6 }}>＋ 圃場を登録する</button>
-    </div>
-  );
-}
-
-// ── 貸与・提供できるもの（2026-08-02たきと指示・圃場の設備の貸与欄から移植／
-//    2026-08-03 消耗品を追加＝4区分から先に選ばせる）──
-// プロフィールのスワイプ3枚目。委託者単位の登録簿（正本= consignor_data.cmn_lend_items）。
-// 保存形は [{k:区分, n:名前}]。旧データ（文字列の配列）は読み込み時に {k:"", n:文字列} へ正規化。
-// 案件側は呼び出し（選択）＋掲載時に写し（spec.facility_lend）を凍結する
-// 委託の型（定数・純関数） → features/consignment/model.js へ移設（2026-08-17）
-function ConsignLendPane({ consignor, onSaved }) {
-  const items = normalizeLendItems(((consignor || {}).consignor_data || {}).cmn_lend_items);
-  const [kind, setKind] = useState("");
-  const [input, setInput] = useState("");
-  const [lBusy, setLBusy] = useState(false);
-  const persist = async (next) => {
-    if (lBusy) return;
-    setLBusy(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setLBusy(false); return; }
-      const merged = { ...((consignor && consignor.consignor_data) || {}), cmn_lend_items: next };
-      const { error } = await supabase.from("consignment_profiles").upsert({
-        auth_id: session.user.id, consignor_data: merged, updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
-      if (error) alert("保存に失敗しました：" + error.message);
-      else onSaved({ ...(consignor || {}), consignor_data: merged });
-    } catch { alert("保存に失敗しました。"); }
-    setLBusy(false);
-  };
-  const add = () => {
-    // 「・」は案件側の区切り文字ので名前には使わせない（スペースに置換）
-    const v = input.replace(/・/g, " ").trim();
-    if (!v || !kind) return;
-    if (items.some(x => x.n === v)) { setInput(""); return; }
-    persist([...items, { k: kind, n: v }]); setInput("");
-  };
-  const del = (i) => persist(items.filter((_, k) => k !== i));
-  // 区分ごとに並べる（未分類＝旧データは最後に「その他」で出す）
-  const groups = [...CONSIGN_LEND_KINDS.map(k => [k, items.map((it, i) => ({ ...it, i })).filter(x => x.k === k)]),
-    ["その他", items.map((it, i) => ({ ...it, i })).filter(x => !CONSIGN_LEND_KINDS.includes(x.k))]]
-    .filter(([, list]) => list.length);
-  return (
-    <div>
-      <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>貸与・提供できるもの</h2>
-      <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>道具・機械・設備・消耗品を登録します。ここで登録した内容が、委託の作成ページと仕様書に自動で反映されます。</p>
-      {/* まず区分を選ぶ（2026-08-03たきと指示）→選ぶまで名前は入力できない */}
-      <label className="lbl f-sans">区分を選んでください</label>
-      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
-        {CONSIGN_LEND_KINDS.map(k => {
-          const on = kind === k;
-          return (
-            <button key={k} type="button" onClick={()=>setKind(on ? "" : k)} className="f-sans" style={{ padding:"9px 18px", fontSize:15.4, fontWeight:700, borderRadius:10, cursor:"pointer", border: on ? "2px solid #111111" : "1px solid #D0D0D0", background: on ? "#111111" : "#fff", color: on ? "#fff" : "#111111" }}>{k}</button>
-          );
-        })}
-      </div>
-      <div style={{ display:"flex", gap:8, marginBottom:6 }}>
-        <input className="field f-sans" value={input} disabled={!kind} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") add(); }} placeholder={kind ? CONSIGN_LEND_PH[kind] : "先に区分を選んでください"} style={{ fontSize:15.4, marginBottom:0, flex:1, background: kind ? "#fff" : "#F7F7F7" }} />
-        <button type="button" onClick={add} disabled={lBusy || !kind || !input.trim()} className="f-sans" style={{ flexShrink:0, padding:"0 18px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (lBusy || !kind || !input.trim()) ? 0.4 : 1 }}>追加</button>
-      </div>
-      <p className="f-sans" style={{ fontSize:12.1, color:"#999999", margin:"0 0 16px" }}>{kind ? "「" + kind + "」として登録されます。続けて追加できます。" : "区分をタップすると入力できます。"}</p>
-      {items.length === 0 && (
-        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0 }}>登録されたものはまだありません。</p>
-      )}
-      {groups.map(([g, list]) => (
-        <div key={g} style={{ marginBottom:14 }}>
-          <p className="f-sans" style={{ fontSize:13.2, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{g}</p>
-          {list.map(it => (
-            <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#fff", border:"1px solid #111111", borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
-              <span className="f-sans" style={{ fontSize:14.3, fontWeight:700, color:"#111111", overflowWrap:"break-word", wordBreak:"break-word" }}>{it.n}</span>
-              <button type="button" onClick={()=>del(it.i)} disabled={lBusy} className="f-sans" style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", border:"1px solid #D0D0D0", background:"#fff", color:"#999999", fontSize:14.3, fontWeight:700, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
+// ConsignFieldsPane → features/consignment/components/ConsignFieldsPane.jsx へ移設（2026-08-17）
+// ConsignLendPane → features/consignment/components/ConsignLendPane.jsx へ移設（2026-08-17）
 
 // 委託者情報の設定フロー（ブラック・アイコンなし・1ページ1つの問い）
 function ConsignorInfoEdit() {
