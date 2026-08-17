@@ -791,7 +791,7 @@ export const THIS_YEAR = new Date().getFullYear();
 // 適用時期を明記／第7条3に「確認した内容は、記録として保存します。」を追記）。
 // ※指示は「v2.2」だったが、2026-08-14に別セッションがv2.3へ版上げ済みだったため逆行を避けv2.4とした
 export const TERMS_VERSION = "v2.4-2026-08";
-export const PRIVACY_VERSION = "v3.7-2026-08";
+export const PRIVACY_VERSION = "v3.8-2026-08";
 
 // 分割3-B（2026-07-25）：App.jsxから移動（LandingFlow・WorkerProfileEditで共用）
 // 作業リスト（アイコン無し・文字だけカード。増やすときはここに1行足すだけ）
