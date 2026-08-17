@@ -683,6 +683,9 @@ export function JobSearchMapView({ onRegister, me }) {
       else if (data && data.reason === "not_logged_in") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); }
       else if (data && data.reason === "own_job") { alert("自分の求人には応募できません。"); }
       else if (data && data.reason === "job_not_open") { alert("この求人は現在募集を受け付けていません。"); }
+      // アカウント停止中（2026-08-17）：仮応募も昇格も止まる（DB側の壁）ので、理由をそのまま伝える。
+      // 従来は「応募できませんでした。」に落ちて、なぜ通らないのか本人に分からなかった
+      else if (data && data.reason === "account_suspended") { alert("アカウントが停止中のため、応募できません。運営（t5fki6643qty@gmail.com）までご連絡ください。"); }
       else if (data && data.reason === "profile_incomplete") {
         setProfileGate({ mode:"hard", hasNickname: !!data.has_nickname, qaAnswered: data.qa_answered ?? 0, qaRequired: data.qa_required ?? 5 });
       }
