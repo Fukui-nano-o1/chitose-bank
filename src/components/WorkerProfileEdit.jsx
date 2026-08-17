@@ -236,13 +236,20 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   // 別テーブル（emergency_contacts・self-only）のでこのページの本体読み込みとは独立に読む。
   // 従来は v:"" 固定＝保存してもカードが永久に「未設定」＋赤影のままだった
   const [emgSummary, setEmgSummary] = useState("");
+  // ★登録済みかの判定は emgSummary（表示用＝関係＋お名前）ではなく hasEmg（お名前 or 電話）で持つ。
+  //   関係の既定は「本人」that先に入るので、emgSummary は空欄保存でも "本人" になり、
+  //   DB側の条件（name or phone・migration 20260817100444）とズレる（2026-08-17）
+  const [hasEmg, setHasEmg] = useState(false);
   useEffect(() => {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const { data } = await supabase.from("emergency_contacts").select("name,relation").eq("auth_id", session.user.id).maybeSingle();
-        if (data) setEmgSummary([data.relation, data.name].filter(x => (x || "").trim()).join("・"));
+        const { data } = await supabase.from("emergency_contacts").select("name,relation,phone").eq("auth_id", session.user.id).maybeSingle();
+        if (data) {
+          setEmgSummary([data.relation, data.name].filter(x => (x || "").trim()).join("・"));
+          setHasEmg(!!((data.name || "").trim() || (data.phone || "").trim()));
+        }
       } catch {}
     })();
   }, []);
@@ -413,18 +420,23 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
       </button>
 
-      {/* はじめの2つガイド（2026-07-25改・顔写真は義務化解除済みのため削除）：空の時だけ上部に。
-          ①名前②経験の質問1つ＝応募時のサーバーゲート（apply_to_job・apply_profile_gate=true）と同一条件 */}
+      {/* はじめのガイド：空の時だけ上部に。★ここに並べる項目は【応募に必要な4項目】＝
+          DBの is_worker_profile_ready（migration 20260817100444）と lib/workerReady.js の写し。
+          3つが食い違うと「埋めたのに応募が届かない」が起きるので、条件を変える時は必ず3つとも直す
+          （2026-08-17たきと指示「プロフィール設定条件は必要最低限。①ニックネーム②緊急連絡先③居住地④自己紹介のみ」）。
+          緊急連絡先は emgSummary（別テーブル emergency_contacts の読み込み結果）で判定する */}
       {(() => {
         const steps = [
-          { k:"nickname", l:"①お名前",        done: !!nickname.trim() },
-          { k:"qa",       l:"②経験の質問を1つ", done: prQa.length > 0 },
+          { k:"nickname",  l:"①ニックネーム", done: !!nickname.trim() },
+          { k:"emergency", l:"②緊急連絡先",   done: hasEmg },
+          { k:"residence", l:"③居住地",       done: !!residenceCity.trim() },
+          { k:"pr",        l:"④自己紹介",     done: !!pr.trim() },
         ];
         if (steps.every(s => s.done)) return null;
         return (
           <div className="f-sans" style={{ background:"#F0F7F4", border:"1px solid #00A86B33", borderRadius:16, padding:"16px", marginBottom:20 }}>
-            <p style={{ fontSize:14, fontWeight:800, color:"#00A86B", margin:"0 0 4px" }}>まずこの2つで応募できます</p>
-            <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この2つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
+            <p style={{ fontSize:14, fontWeight:800, color:"#00A86B", margin:"0 0 4px" }}>この4つで応募できます</p>
+            <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この4つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
             <div style={{ display:"grid", gap:8 }}>
               {steps.map(s => (
                 <button key={s.k} onClick={()=>setEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?"#00A86B":"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
@@ -641,7 +653,19 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {editBox==="emergency" && (<>
       {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
           （emergency_contacts テーブル・self-only）ので、下の共通「保存する」は押さなくてよい */}
-      <EmergencyContactBox accent="#00A86B" onSaved={({ name, relation }) => setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"))} />
+      {/* 緊急連絡先は応募に必要な4項目の1つ（2026-08-17たきと裁定②「義務にする」）＝required で明示する。
+          ★別テーブルsoこの部品の中で保存が完結する＝共通の save() を通らない。4項目の最後の1つが
+          緊急連絡先だった場合に仮応募が昇格しないままになるため、保存の直後にここで昇格を試す
+          （判定はDB側 promote_my_pending_applications が持つ・そろっていなければ何も起きない） */}
+      <EmergencyContactBox accent="#00A86B" required onSaved={async ({ name, relation, phone }) => {
+        setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"));
+        setHasEmg(!!((name || "").trim() || (phone || "").trim()));
+        const promoted = await promotePendingApplications();
+        if (promoted > 0) {
+          try { sessionStorage.setItem("cb_promoted", String(promoted)); } catch {}
+          window.location.hash = "/apply/done";
+        }
+      }} />
       <div style={{ marginBottom:8 }} />
       </>)}
 

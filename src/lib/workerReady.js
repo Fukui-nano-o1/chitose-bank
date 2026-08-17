@@ -3,25 +3,30 @@
 // is_worker_profile_ready(uid)。ここでは同じ条件を"どの項目が足りないか"の表示用に分解するだけで、
 // 可否の判定そのものはサーバー（promote_my_pending_applications）が持つ＝二重定義にしない。
 //
-// DB側の条件（写し・変更時は必ず両方直す）：
-//   worker_profiles: nickname / residence_city / transport が空でない
-//                    かつ farm_experience が空でない or experience_entries が1件以上
-//   account_holders: full_name が空でない
-// ※運営の自由記述（自己紹介）審査は条件に含まれない＝審査は応募をブロックしない（本弾の原則）
+// ★2026-08-17たきと指示「プロフィール設定条件は必要最低限。①ニックネーム②緊急連絡先③居住地
+//   ④自己紹介のみだ。」＝条件を4項目に整理した（移動手段・農作業の経験は条件から外した）。
+//
+// DB側の条件（写し・変更時は必ず両方直す＝migration 20260817100444）：
+//   worker_profiles:     nickname / residence_city が空でない、かつ pr または pr_pending が空でない
+//   emergency_contacts:  name または phone が空でない
+// ※運営の自由記述（自己紹介）審査は条件に含まれない＝審査は応募をブロックしない（本弾の原則）。
+//   pr_pending（審査待ち）でも条件は満たす。
+// ※本人情報の登録（account_holders）は【この4項目とは別】の前提として残る（2026-08-17たきと裁定①）。
+//   18歳未満の登録拒否と規約・プラポリの同意記録の唯一の場所so、未登録なら応募ボタンが #/account へ送り、
+//   DB側も promote_my_pending_applications が not_registered で昇格を止める。ここには並べない
+//   （プロフィールの項目ではなく、その手前の登録so、チェックリストに混ぜない）。
 import { supabase } from "./supabase";
 
 // 各項目の表示名と直し先。to() は遷移先ハッシュを返す（該当の入力欄を開いた状態で着地させる）
 export const WORKER_READY_ITEMS = [
-  { k: "full_name", label: "お名前（本人確認）", hint: "新規登録の情報です",
-    to: () => "/account" },
   { k: "nickname", label: "ニックネーム", hint: "農家に表示される名前です",
     to: () => { try { sessionStorage.setItem("cb_wkOpenBox", "nickname"); } catch {} return "/profile/worker/profile"; } },
+  { k: "emergency", label: "緊急連絡先", hint: "作業中の事故に備えます。既定はご本人です",
+    to: () => { try { sessionStorage.setItem("cb_wkOpenBox", "emergency"); } catch {} return "/profile/worker/profile"; } },
   { k: "residence_city", label: "お住まいの市町村", hint: "番地は公開されません",
     to: () => { try { sessionStorage.setItem("cb_wkOpenBox", "residence"); } catch {} return "/profile/worker/profile"; } },
-  { k: "transport", label: "移動手段", hint: "車・バイク・自転車・公共交通",
-    to: () => { try { sessionStorage.setItem("cb_wkOpenBox", "transport"); } catch {} return "/profile/worker/profile"; } },
-  { k: "experience", label: "農作業の経験", hint: "未経験でも「未経験」と書けます",
-    to: () => { try { sessionStorage.setItem("cb_wkOpenBox", "exp"); } catch {} return "/profile/worker/profile"; } },
+  { k: "pr", label: "自己紹介", hint: "ひとことで大丈夫です",
+    to: () => { try { sessionStorage.setItem("cb_wkOpenBox", "pr"); } catch {} return "/profile/worker/profile"; } },
 ];
 
 const filled = (v) => !!(v && String(v).trim());
@@ -32,19 +37,18 @@ export async function fetchWorkerReady() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return { ready: false, missing: WORKER_READY_ITEMS, loggedIn: false };
   const uid = session.user.id;
-  const [readyRes, wpRes, ahRes] = await Promise.all([
+  const [readyRes, wpRes, emgRes] = await Promise.all([
     supabase.rpc("is_worker_profile_ready", { p_uid: uid }).then(r => r, () => ({ data: null })),
-    supabase.from("worker_profiles").select("nickname,residence_city,transport,farm_experience,experience_entries").eq("auth_id", uid).maybeSingle().then(r => r, () => ({ data: null })),
-    supabase.from("account_holders").select("full_name").eq("auth_id", uid).maybeSingle().then(r => r, () => ({ data: null })),
+    supabase.from("worker_profiles").select("nickname,residence_city,pr,pr_pending").eq("auth_id", uid).maybeSingle().then(r => r, () => ({ data: null })),
+    supabase.from("emergency_contacts").select("name,phone").eq("auth_id", uid).maybeSingle().then(r => r, () => ({ data: null })),
   ]);
   const wp = wpRes.data || {};
-  const ah = ahRes.data || {};
+  const emg = emgRes.data || {};
   const has = {
-    full_name: filled(ah.full_name),
     nickname: filled(wp.nickname),
+    emergency: filled(emg.name) || filled(emg.phone),
     residence_city: filled(wp.residence_city),
-    transport: filled(wp.transport),
-    experience: filled(wp.farm_experience) || (Array.isArray(wp.experience_entries) && wp.experience_entries.length > 0),
+    pr: filled(wp.pr) || filled(wp.pr_pending),
   };
   const missing = WORKER_READY_ITEMS.filter(it => !has[it.k]);
   // RPCが取れなかった時だけ手元の判定に落とす（画面が真っ白にならないための保険）
