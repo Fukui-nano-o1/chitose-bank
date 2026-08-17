@@ -7,9 +7,9 @@ import { getCache, setCache } from "../../lib/viewCache";
 import { snapGet } from "../../lib/snapshot";
 import { uploadJobPhoto } from "../../lib/image";
 import { zipLookup } from "../../lib/zipLookup";
-import { Avatar, VineCorner, Dots } from "../ui";
-import { CalendarView } from "../CalendarView";
-import { AdminNav } from "./AdminNav";
+import { Avatar, VineCorner, Dots } from "../../components/ui";
+import { CalendarView } from "../../components/CalendarView";
+import { AdminNav } from "../../components/admin/AdminNav";
 import {
   CONSIGN_STEPS, consignStepState, CONSIGN_STATUS, consignRecruitState, parseYmd, deadlineLabel,
   CONSIGN_FIXED_CLAUSES, CONSIGN_CROP, CONSIGN_EMPTY, CONSIGN_BASIC_FIELDS, CONSIGN_TASKS,
@@ -18,15 +18,15 @@ import {
   CONSIGNOR_CONSENT_VERSION, CONSIGNOR_CONSENT_TEXT, CONSIGNOR_DISCLOSURE_STAGES, seedConsignorData,
   CONSIGNOR_IDENTITY_KEYS, stripConsignorIdentity, consignScrollTop, CONSIGN_LEND_KINDS,
   CONSIGN_LEND_PH, normalizeLendItems,
-} from "../../features/consignment/model";
+} from "./model";
 import { CONSIGN_TERMS_INTRO, CONSIGN_TERMS_SECTIONS, CONSIGN_TERMS_CHECK, CONSIGN_TERMS_HELP,
-  ConsignTermsBody } from "../../features/consignment/terms";
-import { ConsignStepper } from "../../features/consignment/components/ConsignStepper";
-import { ConsignFieldsPane } from "../../features/consignment/components/ConsignFieldsPane";
-import { ConsignLendPane } from "../../features/consignment/components/ConsignLendPane";
-import { ConsignorInfoEdit } from "../../features/consignment/editor/ConsignorInfoEdit";
+  ConsignTermsBody } from "./terms";
+import { ConsignStepper } from "./components/ConsignStepper";
+import { ConsignFieldsPane } from "./components/ConsignFieldsPane";
+import { ConsignLendPane } from "./components/ConsignLendPane";
+import { ConsignorInfoEdit } from "./editor/ConsignorInfoEdit";
 import { CONSIGN_SPRIGS, CONSIGN_CLUSTER_BASES, CONSIGN_GRASS_SCALE, makeConsignGrass,
-  CONSIGN_VINES, CONSIGN_CORNER_VINE, makeConsignVines, computeSky } from "../../features/consignment/entranceArt";
+  CONSIGN_VINES, CONSIGN_CORNER_VINE, makeConsignVines, computeSky } from "./entranceArt";
 
 // ── 委託 準備室（#/admin/consignment・管理者専用・2026-07-19）：B2B委託レーンの手動1件（この冬・運営者自身がモデル）用の内部道具。
 //    市場機能（掲載板・受託者画面・決済）は作らない——手動1件の後に判断（たきと指示）。

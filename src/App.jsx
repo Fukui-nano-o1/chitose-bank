@@ -118,7 +118,7 @@ import { OnboardingModal } from "./components/OnboardingModal";
 import { JobSearchMapView } from "./components/JobSearchMapView";
 const LandingFlow = lazyChunk(() => import("./components/LandingFlow").then(m => ({ default: m.LandingFlow })));
 const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
-const ConsignmentRoom = lazyChunk(() => import("./components/admin/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
+const ConsignmentRoom = lazyChunk(() => import("./features/consignment/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
 const AdminBoxRegistryPage = lazyChunk(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));
 const AdminWorkingRoom = lazyChunk(() => import("./components/admin/AdminWorkingRoom").then(m => ({ default: m.AdminWorkingRoom })));
 const AdminUpcomingRoom = lazyChunk(() => import("./components/admin/AdminUpcomingRoom").then(m => ({ default: m.AdminUpcomingRoom })));
