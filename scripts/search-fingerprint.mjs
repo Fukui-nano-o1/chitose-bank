@@ -181,8 +181,21 @@ function collect() {
     // ⑦ URL / hash
     for (const m of src.matchAll(/(?:location\.hash\s*=\s*|pushState\([^,]*,\s*""\s*,\s*)["'`]([^"'`]+)["'`]/g)) add("url:hash", m[1]);
     for (const m of src.matchAll(/(\w*HASH_RE)\s*=\s*(\/.*?\/);/g)) add("url:regex", `${m[1]} = ${m[2]}`);
-    for (const m of src.matchAll(/sessionStorage\.(getItem|setItem|removeItem)\(\s*["'`](\w+)["'`]/g)) add("url:session", `${m[2]}`);
-    for (const m of src.matchAll(/localStorage\.(getItem|setItem|removeItem)\(\s*["'`](\w+)["'`]/g)) add("url:local", `${m[2]}`);
+    // storage のキー。リテラル直書きだけでなく、定数に逃がした場合も追う（2026-08-18・4-A4）。
+    // ★理由：キーを const に括り出すのは正しい整理だが、リテラルしか見ない検出器では
+    //   「キーが消えた」ように見えてしまう（実際には値は同じ）。1段だけ定数を解決する。
+    //   解決できない式（変数の連結など）は "(不明)" として残し、黙って落とさない。
+    const constStr = new Map();
+    for (const m of src.matchAll(/^\s*(?:export\s+)?const (\w+)\s*=\s*["'`]([^"'`]+)["'`];/gm)) constStr.set(m[1], m[2]);
+    const keyOf = (raw) => {
+      const lit = raw.match(/^["'`]([^"'`]+)["'`]$/);
+      if (lit) return lit[1];
+      const id = raw.match(/^(\w+)$/);
+      if (id && constStr.has(id[1])) return constStr.get(id[1]);
+      return "(不明)";
+    };
+    for (const m of src.matchAll(/sessionStorage\.(?:getItem|setItem|removeItem)\(\s*([^,)]+?)\s*[,)]/g)) add("url:session", keyOf(m[1].trim()));
+    for (const m of src.matchAll(/localStorage\.(?:getItem|setItem|removeItem)\(\s*([^,)]+?)\s*[,)]/g)) add("url:local", keyOf(m[1].trim()));
 
     // ⑧ 役割別の見え方（訪問者 / ログイン / 管理者 / 自分の求人）
     for (const m of src.matchAll(/isAdmin\(\s*(\w+)\s*\)/g)) add("role:isAdmin", `isAdmin(${m[1]})`);
