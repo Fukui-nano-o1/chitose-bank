@@ -8,6 +8,7 @@ import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots, QaChat } from "./components/ui";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
+import { logAppError } from "./app/diagnostics/errorLog";
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
 // チャンク取りこぼしの自己修復（2026-07-26導入・2026-08-07改修）：
 // 新デプロイでチャンク名（ハッシュ）が変わるため、古いページを握ったままの端末は旧チャンクを
@@ -266,30 +267,7 @@ const SEED_DESTS = [];
 
 
 
-// ── エラー監視ユーティリティ ──────────────────────────────────
-function getSessionId() {
-  try {
-    let sid = localStorage.getItem("cb_session_id");
-    if (!sid) { sid = crypto.randomUUID(); localStorage.setItem("cb_session_id", sid); }
-    return sid;
-  } catch { return "no-storage-" + Math.random().toString(36).slice(2); }
-}
-
-function sanitizeMessage(msg = "") {
-  return String(msg).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]").replace(/\d{2,4}-\d{2,4}-\d{3,4}/g, "[phone]").slice(0, 1000);
-}
-
-async function logAppError({ level = "error", source = "client", page = "", component = "", action = "", operation = "", error, metadata = {}, userId = null }) {
-  try {
-    await supabase.from("app_errors").insert({
-      session_id: getSessionId(), user_id: userId, level, source, page, component, action, operation,
-      error_code: error?.code || error?.status || null,
-      message: sanitizeMessage(error?.message || String(error || "")),
-      stack: sanitizeMessage(error?.stack || ""),
-      url: window.location.href, user_agent: navigator.userAgent, metadata,
-    });
-  } catch (e) { console.warn("error logging failed", e); }
-}
+// ── エラー監視ユーティリティ → app/diagnostics/errorLog.js へ移設（2026-08-17）
 
 
 // 画面が真っ暗になるのを止める最後の壁（2026-07-31・委託ページで再発）。
