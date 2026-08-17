@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense, Component } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, farmIntroTopics, farmHostQa, perkBadges, isUpcomingSoon, workerQaItems } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
