@@ -643,7 +643,8 @@ export function TodayPage({ me, defaultRole }) {
         setCache("today:roles", { w, f });
         // プロフィールの未入力数（2026-08-03たきと指示）。埋まれば0＝ボックスが消え、
         // 後で空にすればまた1以上になって現れる＝状態を持たず毎回いまの行から数える
-        const unset = { w: workerUnsetCount(wp).total, f: employerUnsetCount(ep, { hasEmergency: !!emg }).total };
+        // 緊急連絡先（別テーブル）は働き手側の応募条件でもあるので両役割に渡す（2026-08-17）
+        const unset = { w: workerUnsetCount(wp, { hasEmergency: !!emg }).total, f: employerUnsetCount(ep, { hasEmergency: !!emg }).total };
         setProfileUnset(unset); setCache("today:unset", unset);
         const hired = (apps || [])
           .filter(a => a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at

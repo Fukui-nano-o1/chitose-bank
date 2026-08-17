@@ -270,9 +270,13 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16）
-  const BOX_ORDER = ["avatar","nickname","pr","residence","transport","exp","intensity","interests","languages","declared","qa"]; // declaredはボックスへ復帰（2026-08-02たきと指示・保険申告と同じトグル構造のモーダル）
+  // ★並びは【応募に必要な4項目が先】（ニックネーム→緊急連絡先→居住地→自己紹介／2026-08-17たきと指示）。
+  //   保存の連鎖と「最初の未入力を開く」導線が、まず応募できる状態まで連れて行く順になる。
+  //   emergency は別テーブル（emergency_contacts）soこの並びに入れて hasEmg で充足を見る。
+  const BOX_ORDER = ["nickname","emergency","residence","pr","avatar","transport","exp","intensity","interests","languages","declared","qa"]; // declaredはボックスへ復帰（2026-08-02たきと指示・保険申告と同じトグル構造のモーダル）
   const boxFilled = (k) => (
     k === "pr" ? !!pr.trim() : k === "nickname" ? !!nickname.trim() : k === "residence" ? !!residenceCity.trim()
+    : k === "emergency" ? hasEmg
     : k === "transport" ? !!transport : k === "exp" ? !!farmExperience : k === "intensity" ? !!(physicalLevel || workMood || learningPref || workPattern)
     : k === "interests" ? interests.length > 0 : k === "languages" ? languages.length > 0
     : k === "declared" ? (selfDeclared.length > 0 || expEntries.some(e => (e.crop||"").trim())) : k === "avatar" ? !!avatarUrl : prQa.length > 0
@@ -664,7 +668,12 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         if (promoted > 0) {
           try { sessionStorage.setItem("cb_promoted", String(promoted)); } catch {}
           window.location.hash = "/apply/done";
+          return;
         }
+        // 共通の save() を通らないので、保存→次の未入力へ進む連鎖もここで繋ぐ（2026-08-17）。
+        // hasEmg の反映は非同期so nextUnfilledBox が emergency 自身を返すことがある＝いま埋めた側so閉じる
+        const nxt = nextUnfilledBox("emergency");
+        if (nxt && nxt !== "emergency") setEditBox(nxt); else closeEditBox();
       }} />
       <div style={{ marginBottom:8 }} />
       </>)}
