@@ -505,7 +505,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
               background: (revMode && findings.length > 0) ? "#EA580C" : "#fff",
               color: (revMode && findings.length > 0) ? "#fff" : "#EA580C",
               border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>
-            {revSending ? "送信中..." : !revMode ? "修正を依頼" : findings.length > 0 ? `修正を依頼（${findings.length}）を送信` : "指摘をやめる"}
+            {revSending ? <>送信中<Dots /></> : !revMode ? "修正を依頼" : findings.length > 0 ? `修正を依頼（${findings.length}）を送信` : "指摘をやめる"}
           </button>
         </div>
       )}

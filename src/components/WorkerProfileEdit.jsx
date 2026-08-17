@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
-import { Avatar, LFPillSelect, AutoSkeleton } from "./ui";
+import { Avatar, LFPillSelect, AutoSkeleton, Dots } from "./ui";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
 import { EmergencyContactBox } from "./EmergencyContactBox";
@@ -514,7 +514,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
-            {uploading ? "処理中..." : avatarUrl ? "画像を変更" : "画像を選ぶ"}
+            {uploading ? <>処理中<Dots /></> : avatarUrl ? "画像を変更" : "画像を選ぶ"}
             <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading} style={{ display:"none" }} />
           </label>
           {avatarUrl && (
@@ -750,7 +750,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
           両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
       {editBox !== "emergency" && (
-        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       )}
       {(editBox === "pr" || editBox === "qa") && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>保存すると公開されます（電話番号・メールアドレス・URLは記載できません）</p>

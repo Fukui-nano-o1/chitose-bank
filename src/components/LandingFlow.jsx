@@ -9,7 +9,7 @@ import { uploadJobPhoto } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
-import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText } from "./ui";
+import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText, Dots } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
@@ -1318,7 +1318,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"8px 18px",
           fontSize:13, color:"#222", fontWeight:600, cursor:"pointer", zIndex:2,
           boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>{draftSaving ? "保存中..." : "終了"}</button>
+        }}>{draftSaving ? <>保存中<Dots /></> : "終了"}</button>
       )}
 
       {/* 終了3択モーダル */}
@@ -1424,7 +1424,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>郵便番号</label>
                     <div style={{ display:"flex", gap:8, marginBottom:8 }}>
                       <input value={pbZip} onChange={e=>{ setPbZip(e.target.value); setPbErr(""); }} placeholder="例：779-3401" className="field f-sans" style={{ flex:1, fontSize:14, marginBottom:0 }} />
-                      <button onClick={searchPbZip} disabled={pbBusy} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:12, fontWeight:600, cursor: pbBusy ? "default" : "pointer", whiteSpace:"nowrap" }}>{pbBusy ? "検索中..." : "住所を検索"}</button>
+                      <button onClick={searchPbZip} disabled={pbBusy} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:12, fontWeight:600, cursor: pbBusy ? "default" : "pointer", whiteSpace:"nowrap" }}>{pbBusy ? <>検索中<Dots /></> : "住所を検索"}</button>
                     </div>
                     {pbErr && <p className="f-sans" style={{ fontSize:12, color:"#E53935", marginBottom:8 }}>{pbErr}</p>}
                     <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>都道府県</label>
@@ -1435,7 +1435,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     <input value={pbTown} onChange={e=>setPbTown(e.target.value)} placeholder="例：山川町〇〇" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
                     <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>番地・建物名</label>
                     <input value={pbAddr} onChange={e=>setPbAddr(e.target.value)} placeholder="例：1-2-3 〇〇ハイツ101" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
-                    <button onClick={savePlaceBox} disabled={pbSaving || !pbCity.trim()} className="btn-primary f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, opacity: (pbSaving || !pbCity.trim()) ? 0.5 : 1 }}>{pbSaving ? "保存中..." : "保存する"}</button>
+                    <button onClick={savePlaceBox} disabled={pbSaving || !pbCity.trim()} className="btn-primary f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, opacity: (pbSaving || !pbCity.trim()) ? 0.5 : 1 }}>{pbSaving ? <>保存中<Dots /></> : "保存する"}</button>
                   </div>
                 </div>
               </div>
@@ -1501,7 +1501,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     padding:"0 16px", borderRadius:8, border:"1px solid #DADADA",
                     background:"#fff", color:"#222", fontSize:13, fontWeight:600,
                     cursor: zipSearching ? "default" : "pointer", whiteSpace:"nowrap",
-                  }}>{zipSearching ? "検索中..." : "住所を検索"}</button>
+                  }}>{zipSearching ? <>検索中<Dots /></> : "住所を検索"}</button>
                 </div>
                 {zipError && <p className="f-sans" style={{ fontSize:14, color:"#E53935", marginBottom:12 }}>{zipError}</p>}
                 <label className="f-sans" style={lfStyles.inputLabel}>都道府県</label>
@@ -1790,7 +1790,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   {/* アップロードボタン（multiple・残り枠まで直列処理） */}
                   <div style={{ marginBottom: jobPhotos.length > 0 ? 16 : 0 }}>
                     <label className="f-sans btn-primary" style={{ display:"inline-block", padding:"12px 24px", fontSize:14, fontWeight:700, cursor: photoUploading ? "wait" : "pointer", opacity: (photoUploading || jobPhotos.length >= 10) ? 0.5 : 1 }}>
-                      {photoUploading ? "アップロード中..." : "＋ 写真を追加"}
+                      {photoUploading ? <>アップロード中<Dots /></> : "＋ 写真を追加"}
                       <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} disabled={photoUploading || jobPhotos.length >= 10} onChange={async e => {
                         const files = Array.from(e.target.files || []);
                         if (files.length === 0) return;
@@ -2164,7 +2164,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   return;
                 }
                 if (error) {
-                  alert("掲載エラー: " + error.message);
+                  alert("掲載エラー：" + error.message);
                   return;
                 }
                 // 一般農家：保存（pending）→ 即公開（publish_my_job）。失敗時は pending のまま残る
@@ -2173,7 +2173,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 if (!canOpen && _jn) {
                   const pub = await supabase.rpc("publish_my_job", { p_job_number: _jn });
                   if (pub.error || !pub.data?.ok) {
-                    alert("掲載エラー: " + (pub.error?.message || pub.data?.reason || "不明") +
+                    alert("掲載エラー：" + (pub.error?.message || pub.data?.reason || "不明") +
                       "\n求人は保存されています。時間をおいて、もう一度「掲載する」をお試しください。");
                     return;
                   }
@@ -2460,7 +2460,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                           </p>
                         </div>
                         <div style={{ display:"flex", gap:8, padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
-                          <button onClick={savePerksToProfile} disabled={perkSaving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:12, cursor:"pointer", opacity: perkSaving ? 0.6 : 1 }}>{perkSaving ? "保存中..." : "保存"}</button>
+                          <button onClick={savePerksToProfile} disabled={perkSaving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:12, cursor:"pointer", opacity: perkSaving ? 0.6 : 1 }}>{perkSaving ? <>保存中<Dots /></> : "保存"}</button>
                           <button onClick={applyPerksToJobOnly} disabled={perkSaving} className="btn-primary f-sans" style={{ flex:1, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, opacity: perkSaving ? 0.6 : 1 }}>この求人のみ</button>
                         </div>
                       </div>
@@ -2665,7 +2665,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                         className="btn-primary"
                         style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, ...(!publishConfirmed ? { background:"#EBEBEB", color:"#717171" } : {}) }}
                       >
-                        {jobSaving ? "保存中..." : "同意して掲載する"}
+                        {jobSaving ? <>保存中<Dots /></> : "同意して掲載する"}
                       </button>
                       {!publishConfirmed && (
                         <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"8px 0 0" }}>「確認しました」にチェックすると掲載できます</p>
@@ -2917,7 +2917,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 } catch { alert("保存に失敗しました"); setRecruitBox(v => ({ ...v, saving: false })); }
               }}
               className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, borderRadius:12, marginTop:4 }}>
-              {recruitBox.saving ? "保存中..." : "保存して掲載を続ける"}
+              {recruitBox.saving ? <>保存中<Dots /></> : "保存して掲載を続ける"}
             </button>
           </div>
         </div>
@@ -2947,7 +2947,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           )}
           {isFarmer && step === 11 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? <>保存中<Dots /></> : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
             </div>
           )}
@@ -2977,7 +2977,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {/* 確認ページ(step11)：右下に「保存」＋「掲載する」の浮遊ペア */}
           {isFarmer && step === 11 && (
             <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10, ...sheetNavHide }}>
-              <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? "保存中..." : "保存"}</button>
+              <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? <>保存中<Dots /></> : "保存"}</button>
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
             </div>
           )}

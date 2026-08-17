@@ -608,7 +608,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                             {u.mod_reason && <span style={{ fontSize:12, color:"#717171" }}>理由：{u.mod_reason}</span>}
                           </div>
                           <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 10px" }}>ログイン・応募・掲載・チャット送信が止まり、公開求人とプロフィールは非表示になっています。チャット履歴は保全されています。</p>
-                          <button onClick={()=>runModerate(u.auth_id, "unban")} disabled={modBusy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{modBusy ? "処理中..." : "制限を解除する"}</button>
+                          <button onClick={()=>runModerate(u.auth_id, "unban")} disabled={modBusy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{modBusy ? <>処理中<Dots /></> : "制限を解除する"}</button>
                         </div>
                       ) : modOpen === u.auth_id ? (
                         <div className="fade-in">

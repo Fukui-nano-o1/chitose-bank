@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { setCache } from "../lib/viewCache";
+import { Dots } from "./ui";
 
 // 既定は「本人」（2026-08-03たきと指示）＝緊急時はまずご本人に連絡する。家族等へは本人が変更する
 const RELATIONS = ["本人", "家族", "配偶者", "親", "子", "兄弟姉妹", "親戚", "友人", "その他"];
@@ -100,7 +101,7 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved, required = fa
       <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>電話番号</label>
       <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="例：090-0000-0000" maxLength={30} inputMode="tel"
         className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:14 }} />
-      <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : "保存する"}</button>
+      <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       {saved && <p className="f-sans" style={{ fontSize:12, color:accent, textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
       <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 0", lineHeight:1.5 }}>
         {required

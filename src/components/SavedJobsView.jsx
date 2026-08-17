@@ -11,7 +11,7 @@ import { ymdLocal, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC
 import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo } from "../lib/previewBus";
-import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
@@ -481,7 +481,7 @@ export function SavedJobsView({ me }) {
                       <div>
                         {swipeHint}
                         <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
-                          {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : "読み込み中..."}
+                          {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : <>読み込み中<Dots /></>}
                         </p>
                       </div>
                     );
@@ -576,7 +576,7 @@ export function SavedJobsView({ me }) {
                 {r.application_status === "applied" && (
                   <button onClick={()=>cancelApplication(r)} disabled={cancelingId === r.application_id} className="f-sans"
                     style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:12, color:"#B0B0B0", textDecoration:"underline", textUnderlineOffset:3 }}>
-                    {cancelingId === r.application_id ? "取り消し中..." : "応募を取り消す"}
+                    {cancelingId === r.application_id ? <>取り消し中<Dots /></> : "応募を取り消す"}
                   </button>
                 )}
                 </div>{/* /面1メイン */}

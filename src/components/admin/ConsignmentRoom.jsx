@@ -7,7 +7,7 @@ import { getCache, setCache } from "../../lib/viewCache";
 import { snapGet } from "../../lib/snapshot";
 import { uploadJobPhoto } from "../../lib/image";
 import { zipLookup } from "../../lib/zipLookup";
-import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES } from "../ui";
+import { Avatar, VineCorner, VINE_CORNER_STEMS, VINE_CORNER_LEAVES, Dots } from "../ui";
 import { CalendarView } from "../CalendarView";
 import { AdminNav } from "./AdminNav";
 
@@ -597,7 +597,7 @@ function ConsignFieldsPane({ fields, onReload }) {
       </div>
       <div style={{ display:"flex", gap:8, marginTop:16 }}>
         <button onClick={()=>setForm(null)} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
-        <button onClick={saveField} disabled={fSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: fSaving ? 0.6 : 1 }}>{fSaving ? "保存中..." : "保存する"}</button>
+        <button onClick={saveField} disabled={fSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: fSaving ? 0.6 : 1 }}>{fSaving ? <>保存中<Dots /></> : "保存する"}</button>
       </div>
     </div>
   );
@@ -1072,7 +1072,7 @@ function ConsignorInfoEdit() {
         {regField("contact_email", "メールアドレス", { ph:"例：taro@example.com" })}
         <div style={{ display:"flex", gap:8, marginTop:16 }}>
           <button onClick={()=>{ setEditReg(false); consignScrollTop(); }} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>キャンセル</button>
-          <button onClick={saveRegEdit} disabled={regSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: regSaving ? 0.6 : 1 }}>{regSaving ? "保存中..." : "保存する"}</button>
+          <button onClick={saveRegEdit} disabled={regSaving} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: regSaving ? 0.6 : 1 }}>{regSaving ? <>保存中<Dots /></> : "保存する"}</button>
         </div>
       </div>
     );
@@ -1208,7 +1208,7 @@ function ConsignorInfoEdit() {
               </button>
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={openRegEdit} className="f-sans" style={{ flex:1, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#fff", color:"#111111", border:"1px solid #111111", cursor:"pointer" }}>登録情報を修正</button>
-                <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? "記録中..." : "委託掲載を始める"}</button>
+                <button onClick={agreeConsent} disabled={consentSaving || !consentChecked} className="f-sans" style={{ flex:1.4, padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: consentChecked ? "pointer" : "not-allowed", opacity: (consentSaving || !consentChecked) ? 0.4 : 1 }}>{consentSaving ? <>記録中<Dots /></> : "委託掲載を始める"}</button>
               </div>
             </>
           )}
@@ -1254,7 +1254,7 @@ function ConsignorInfoEdit() {
               <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13.2, fontWeight:800, border: confirmAgree ? "none" : "2px solid #C8C8C8", background: confirmAgree ? "#fff" : "transparent", color:"#111111" }}>{confirmAgree ? "✓" : ""}</span>
               この情報を委託者情報として使用します
             </button>
-            <button onClick={save} disabled={saving || !confirmAgree} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: confirmAgree ? "pointer" : "not-allowed", opacity: (saving || !confirmAgree) ? 0.4 : 1 }}>{saving ? "保存中..." : "保存する"}</button>
+            <button onClick={save} disabled={saving || !confirmAgree} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: confirmAgree ? "pointer" : "not-allowed", opacity: (saving || !confirmAgree) ? 0.4 : 1 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
           </>)}
           {saved && <p className="f-sans" style={{ fontSize:13.2, color:"#111111", textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
         </div>
@@ -2392,7 +2392,7 @@ export function ConsignmentRoom() {
             <span style={{ flexShrink:0, width:18, height:18, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13.2, fontWeight:800, border: termsChecked ? "none" : "2px solid #C8C8C8", background: termsChecked ? "#fff" : "transparent", color:"#111111" }}>{termsChecked ? "✓" : ""}</span>
             {CONSIGN_TERMS_CHECK}
           </button>
-          <button onClick={agreeTerms} disabled={termsSaving || !termsChecked} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: termsChecked ? "pointer" : "not-allowed", opacity: (termsSaving || !termsChecked) ? 0.4 : 1 }}>{termsSaving ? "記録中..." : "同意して進む"}</button>
+          <button onClick={agreeTerms} disabled={termsSaving || !termsChecked} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor: termsChecked ? "pointer" : "not-allowed", opacity: (termsSaving || !termsChecked) ? 0.4 : 1 }}>{termsSaving ? <>記録中<Dots /></> : "同意して進む"}</button>
         </div>
       )}
 
@@ -2559,7 +2559,7 @@ export function ConsignmentRoom() {
             {wizStep < 5 ? (
               <button onClick={()=>{ setWizStep(v => v + 1); consignScrollTop(); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
             ) : (
-              <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "掲載中..." : "掲載する（募集を開始）"}</button>
+              <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? <>掲載中<Dots /></> : "掲載する（募集を開始）"}</button>
             )}
           </div>
         </div>
@@ -2731,7 +2731,7 @@ export function ConsignmentRoom() {
             <textarea className="field f-sans" value={memo} onChange={e=>setMemo(e.target.value)} rows={2} style={{ fontSize:14.3, marginBottom:0, resize:"vertical" }} />
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={save} disabled={saving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "保存中..." : (editId ? "更新を保存" : "保存")}</button>
+            <button onClick={save} disabled={saving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? <>保存中<Dots /></> : (editId ? "更新を保存" : "保存")}</button>
             <button onClick={()=>setPrintOpen(true)} className="f-sans" style={{ flex:1, padding:"13px", fontSize:15.4, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #222", borderRadius:12, cursor:"pointer" }}>印刷ビュー</button>
           </div>
         </div>

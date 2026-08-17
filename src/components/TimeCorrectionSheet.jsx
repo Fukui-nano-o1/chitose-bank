@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal } from "../lib/utils";
+import { Dots } from "./ui";
 
 // app: applications の行（id・started_at・work_completed_at を使う）
 // baseYmd: "HH:MM" を実時刻に戻すときの日付。省略時は開始打刻の日→今日の順に決める
@@ -76,7 +77,7 @@ export function TimeCorrectionSheet({ app, baseYmd, onClose }) {
           <button onClick={onClose} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#F7F7F7", border:"none", borderRadius:8, cursor:"pointer" }}>やめる</button>
           <button onClick={submit} disabled={sending || (!start && !end)}
             className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", opacity:(sending || (!start && !end)) ? 0.5 : 1 }}>
-            {sending ? "送信中..." : "申請する"}
+            {sending ? <>送信中<Dots /></> : "申請する"}
           </button>
         </div>
       </div>

@@ -90,7 +90,7 @@ export function InsurancePrepPage({ me }) {
         {items.includes("considering") && (
           <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, color:"#00A86B", fontSize:13, fontWeight:700, textDecoration:"underline", cursor:"pointer", marginBottom:16 }}>→ 1日保険の入り方（ヘルプ）</button>
         )}
-        <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : "保存する"}</button>
+        <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
         {saved && <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:12 }}>保存しました ✓</p>}
       </>)}
     </div>

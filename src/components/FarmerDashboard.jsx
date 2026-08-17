@@ -1217,7 +1217,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                         )}
                         <div style={{ display:"flex", gap:8 }}>
                           <button onClick={()=>setQEditing(null)} className="f-sans" style={{ flex:"0 0 auto", padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-                          <button onClick={saveQuestionSet} disabled={qSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qSaving ? "保存中..." : "保存する"}</button>
+                          <button onClick={saveQuestionSet} disabled={qSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qSaving ? <>保存中<Dots /></> : "保存する"}</button>
                         </div>
                         {/* タイトルの変更・削除は質問集ページで（ここは質問の入力に絞る） */}
                         <button onClick={()=>{ qMgrScrollY.current = window.scrollY; setQMgrOpen(true); }} className="f-sans" style={{ width:"100%", marginTop:8, padding:"6px", fontSize:12, background:"none", border:"none", color:"#B0B0B0", cursor:"pointer" }}>タイトルの変更・削除はこちら →</button>
@@ -1281,7 +1281,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       )}
                       <div style={{ display:"flex", gap:8, marginTop:10 }}>
                         <button onClick={()=>setInsOpenKey(null)} className="f-sans" style={{ flex:"0 0 auto", padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-                        <button onClick={saveInsurance} disabled={insSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{insSaving ? "保存中..." : "保存する"}</button>
+                        <button onClick={saveInsurance} disabled={insSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{insSaving ? <>保存中<Dots /></> : "保存する"}</button>
                       </div>
                       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.6 }}>自己申告です。運営が確認するものではありません。</p>
                     </div>
@@ -1688,7 +1688,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             {full
               ? <JobDetailBody job={full} me={me} onBack={()=>{ setSheetPane("main"); setSheetShowcase(false); }} />
               : <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
-                  {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : "読み込み中..."}
+                  {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : <>読み込み中<Dots /></>}
                 </p>}
           </div>
         );
@@ -1739,7 +1739,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   if (error || !data?.ok) { alert("確定に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); return; }
                   setDbApplicants(prev => prev.map(x => x.id===agreeModal.id ? { ...x, agreed_dates: dates } : x));
                   setAgreeModal(null); setAgreeSel([]);
-                }} className="btn-primary" style={{ flex:2, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (agreeSaving || agreeSel.length===0) ? 0.5 : 1, cursor: agreeSel.length===0 ? "not-allowed" : "pointer" }}>{agreeSaving ? "確定中..." : `この日で確定する${agreeSel.length>0 ? `（${agreeSel.length}日）` : ""}`}</button>
+                }} className="btn-primary" style={{ flex:2, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (agreeSaving || agreeSel.length===0) ? 0.5 : 1, cursor: agreeSel.length===0 ? "not-allowed" : "pointer" }}>{agreeSaving ? <>確定中<Dots /></> : `この日で確定する${agreeSel.length>0 ? `（${agreeSel.length}日）` : ""}`}</button>
               </div>
             </div>
           </div>
@@ -1773,7 +1773,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>setCompleteModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
                   <button onClick={submitFarmerReview} disabled={completeSubmitting || completeWantAgain===null || completeEntrust===null}
-                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{completeSubmitting ? "送信中..." : "送信する"}</button>
+                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{completeSubmitting ? <>送信中<Dots /></> : "送信する"}</button>
                 </div>
                 {/* 例外の道：来なかった場合（完了の記録が済むまでのあいだだけ出す） */}
                 {notDone && (
@@ -2000,7 +2000,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>setEmergencyModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
                   <button onClick={submitEmergency} disabled={emergencySubmitting || !emergencyKind || !emergencyReason.trim()}
-                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? "送信中..." : "送信する"}</button>
+                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? <>送信中<Dots /></> : "送信する"}</button>
                 </div>
               </>
             )}
@@ -2069,7 +2069,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 )}
                 <div style={{ display:"flex", gap:8, marginTop:4 }}>
                   <button onClick={()=>setQEditing(null)} className="f-sans" style={{ flex:"0 0 auto", padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>戻る</button>
-                  <button onClick={saveQuestionSet} disabled={qSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qSaving ? "保存中..." : "保存する"}</button>
+                  <button onClick={saveQuestionSet} disabled={qSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qSaving ? <>保存中<Dots /></> : "保存する"}</button>
                 </div>
                 {qEditing.id && (
                   <button onClick={()=>deleteQuestionSet(qEditing.id)} className="f-sans" style={{ width:"100%", marginTop:10, padding:"9px", fontSize:13, background:"none", color:"#E24B4A", border:"none", cursor:"pointer" }}>この質問集を削除</button>
@@ -2100,7 +2100,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(Array.isArray(s.questions) ? s.questions : []).join(" / ") || "質問なし"}</span>
                   </button>
                 ))}
-                {sendingQ && <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"4px 0 0" }}>送信中...</p>}
+                {sendingQ && <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"4px 0 0" }}>送信中<Dots /></p>}
               </div>
             )}
           </div>

@@ -540,7 +540,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
-            {uploading ? "処理中..." : avatarUrl ? "画像を変更" : "画像を選ぶ"}
+            {uploading ? <>処理中<Dots /></> : avatarUrl ? "画像を変更" : "画像を選ぶ"}
             <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading} style={{ display:"none" }} />
           </label>
           {avatarUrl && (
@@ -597,7 +597,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           className="field f-sans" style={{ flex:1, minWidth:0, fontSize:16, marginBottom:0, boxSizing:"border-box" }} />
         {/* onClick={searchRecruiterZip} と書かないこと：Reactがイベントを第1引数で渡すため、
             それが郵便番号として解釈されてしまう（求人フローsearchZipと同じ注意） */}
-        <button onClick={() => searchRecruiterZip()} disabled={rZipSearching} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:13, fontWeight:600, cursor: rZipSearching ? "default" : "pointer", whiteSpace:"nowrap" }}>{rZipSearching ? "検索中..." : "住所を検索"}</button>
+        <button onClick={() => searchRecruiterZip()} disabled={rZipSearching} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:13, fontWeight:600, cursor: rZipSearching ? "default" : "pointer", whiteSpace:"nowrap" }}>{rZipSearching ? <>検索中<Dots /></> : "住所を検索"}</button>
       </div>
       {rZipError && <p className="f-sans" style={{ fontSize:12, color:"#E53935", margin:"0 0 10px" }}>{rZipError}</p>}
       <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>都道府県</label>
@@ -795,7 +795,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
           両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
       {editBox !== "emergency" && (
-        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
+        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       )}
       </div>
       </div>

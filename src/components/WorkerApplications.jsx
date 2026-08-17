@@ -7,7 +7,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow, photoThumb } from "../lib/utils";
 import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
 import { fetchWorkerReady } from "../lib/workerReady";
-import { YesNoPill, AutoSkeleton, useSkeletonProbe, DeclaredBadge, PunchGapNotice, FlowBar } from "./ui";
+import { YesNoPill, AutoSkeleton, useSkeletonProbe, DeclaredBadge, PunchGapNotice, FlowBar, Dots } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
@@ -368,7 +368,7 @@ export function WorkerApplications({ filter, me }) {
                 {/* 応募の取消（承認前のみ・テキストリンクで控えめに） */}
                 {a.status === "applied" && (
                   <button onClick={()=>cancelApplication(a)} disabled={cancelingId===a.id} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:8, background:"none", border:"none", cursor:"pointer", fontSize:12, color:"#717171", textDecoration:"underline" }}>
-                    {cancelingId===a.id ? "取り消し中..." : "応募を取り消す"}
+                    {cancelingId===a.id ? <>取り消し中<Dots /></> : "応募を取り消す"}
                   </button>
                 )}
       </div>
@@ -457,7 +457,7 @@ export function WorkerApplications({ filter, me }) {
         )}
         {/* 応募を取り消す（小さくグレーで最下部へ降格） */}
         <button onClick={()=>cancelApplication(a)} disabled={cancelingId===a.id} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:10, background:"none", border:"none", cursor:"pointer", fontSize:11, color:"#B0B0B0", textDecoration:"underline" }}>
-          {cancelingId===a.id ? "取り消し中..." : "応募を取り消す"}
+          {cancelingId===a.id ? <>取り消し中<Dots /></> : "応募を取り消す"}
         </button>
       </div>
     );
@@ -626,7 +626,7 @@ export function WorkerApplications({ filter, me }) {
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
               <button onClick={()=>setReviewModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
               <button onClick={submitWorkerReview} disabled={reviewSubmitting || reviewWantAgain===null || reviewAsDescribed===null || reviewSafetyCare===null}
-                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{reviewSubmitting ? "送信中..." : "送信する"}</button>
+                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{reviewSubmitting ? <>送信中<Dots /></> : "送信する"}</button>
             </div>
           </div>
         </div>
@@ -647,7 +647,7 @@ export function WorkerApplications({ filter, me }) {
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
               <button onClick={()=>setDisputeModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
               <button onClick={submitDispute} disabled={disputeSubmitting || !disputeReason.trim()}
-                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{disputeSubmitting ? "送信中..." : "送信する"}</button>
+                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{disputeSubmitting ? <>送信中<Dots /></> : "送信する"}</button>
             </div>
           </div>
         </div>
@@ -694,7 +694,7 @@ export function WorkerApplications({ filter, me }) {
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>setEmergencyModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
                   <button onClick={submitEmergency} disabled={emergencySubmitting || !emergencyKind || !emergencyReason.trim()}
-                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? "送信中..." : "送信する"}</button>
+                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? <>送信中<Dots /></> : "送信する"}</button>
                 </div>
               </>
             )}

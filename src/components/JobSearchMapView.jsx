@@ -806,7 +806,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const appPending = !!(me && !myAppLoaded);
   const applyBtnDisabled = myAppStatus === "rejected" || appPending;
   const applyBtnLabel = appPending ? "確認中…"
-    : applying ? (myAppStatus === "applied" ? "取り消し中..." : "送信中...")
+    : applying ? (myAppStatus === "applied" ? <>取り消し中<Dots /></> : <>送信中<Dots /></>)
     : myAppStatus === "approved" ? "承認されました — チャットを開く"
     : myAppStatus === "rejected" ? "今回は見送りとなりました"
     : myAppStatus === "applied" ? "応募済み — 取り消す"
@@ -1718,9 +1718,9 @@ export function JobSearchMapView({ onRegister, me }) {
                 <button onClick={()=>{ if (applyDates.length===0) return; setApplyChoice("dates"); setApplyConfirmStep(3); }} disabled={applyDates.length===0} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applyDates.length===0 ? 0.5 : 1, cursor: applyDates.length===0 ? "not-allowed" : "pointer" }}>{`この日程で次へ${applyDates.length>0 ? `（${applyDates.length}日）` : ""}`}</button>
               ) : isPeriodJob ? (
                 /* 期間求人の4面目＝最終確認からの応募実行（唯一の応募ボタン） */
-                <button onClick={()=>{ if (applyChoice !== "any" && applyDates.length===0) return; applyAvailRef.current = applyChoice === "any" ? "any" : [...applyDates].sort(); setApplyConfirmOpen(false); handleApply(); }} disabled={applying || (applyChoice !== "any" && applyDates.length===0)} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (applying || (applyChoice !== "any" && applyDates.length===0)) ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
+                <button onClick={()=>{ if (applyChoice !== "any" && applyDates.length===0) return; applyAvailRef.current = applyChoice === "any" ? "any" : [...applyDates].sort(); setApplyConfirmOpen(false); handleApply(); }} disabled={applying || (applyChoice !== "any" && applyDates.length===0)} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (applying || (applyChoice !== "any" && applyDates.length===0)) ? 0.6 : 1 }}>{applying ? <>送信中<Dots /></> : "応募する"}</button>
               ) : (
-                <button onClick={()=>{ applyAvailRef.current = null; setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applying ? 0.6 : 1 }}>{applying ? "送信中..." : "応募する"}</button>
+                <button onClick={()=>{ applyAvailRef.current = null; setApplyConfirmOpen(false); handleApply(); }} disabled={applying} className="btn-primary f-sans" style={{ flex:2, padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, opacity: applying ? 0.6 : 1 }}>{applying ? <>送信中<Dots /></> : "応募する"}</button>
               )}
             </div>
           </div>
@@ -1776,7 +1776,7 @@ export function JobSearchMapView({ onRegister, me }) {
               <input value={surveyReasonOther} onChange={e=>setSurveyReasonOther(e.target.value)} placeholder="よければ一言（任意）" className="field f-sans" style={{ fontSize:14, marginBottom:20 }} />
             )}
 
-            <button onClick={submitSurvey} disabled={surveySaving || !surveySource} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12, opacity:(surveySaving||!surveySource)?0.5:1 }}>{surveySaving ? "送信中..." : "送信していいねする"}</button>
+            <button onClick={submitSurvey} disabled={surveySaving || !surveySource} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12, opacity:(surveySaving||!surveySource)?0.5:1 }}>{surveySaving ? <>送信中<Dots /></> : "送信していいねする"}</button>
           </div>
         </div>
       )}
@@ -1874,7 +1874,7 @@ export function JobSearchMapView({ onRegister, me }) {
                       <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
                     ) : pastJobs.length === 0 ? (
                       <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>
-                        {(empTrust?.ok && empTrust.completed_hires > 0) ? "過去に受け入れた求人は、掲載を終了しています" : "初めての求人です"}
+                        {(empTrust?.ok && empTrust.completed_hires > 0) ? "これまでの求人は、掲載を終了しています" : "初めての求人です"}
                       </p>
                     ) : (() => {
                       // 求人を「終了（掲載日程が過ぎた）／公開中」で仕分けし、すべて/公開中/終了タブで絞る（2026-07-23）
@@ -2016,7 +2016,7 @@ export function JobSearchMapView({ onRegister, me }) {
                     disabled={reportSending || !reportTargetField || !reportIssueType}
                     className="f-sans"
                     style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: (reportTargetField && reportIssueType) ? "#E24B4A" : "#EBEBEB", color: (reportTargetField && reportIssueType) ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}
-                  >{reportSending ? "送信中..." : "送信する"}</button>
+                  >{reportSending ? <>送信中<Dots /></> : "送信する"}</button>
                 </div>
               </>
             )}

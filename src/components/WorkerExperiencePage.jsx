@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
-import { AutoSkeleton } from "./ui";
+import { AutoSkeleton, Dots } from "./ui";
 
 // 経験＋免許・資格・保険方針のタブ切替スワイプ（2026-08-03たきと指示）：
 // ページは2枚だけ＝[経験タブ（カードを縦積み＋追加ボタン）][資格タブ（免許・資格・保険方針）]。
@@ -197,7 +197,7 @@ export function WorkerExperiencePage() {
           </>
         )}
 
-        <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12 }}>{saving ? "保存中..." : "保存する"}</button>
+        <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
         {saved && <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:12 }}>保存しました ✓</p>}
       </>)}
     </div>

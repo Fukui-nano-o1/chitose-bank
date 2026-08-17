@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { C, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION } from "../lib/utils";
+import { Dots } from "./ui";
 
 // ── AccountHolderForm — 新規登録①（本人確認・口座名義人情報）────
 // 送信は届出完了までADMIN_EMAIL限定。一般ユーザーはボタン無効「準備中」表示（RLS側もadmin限定で二重ゲート）
@@ -207,7 +208,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
                   padding:"0 16px", borderRadius:8, border:"1px solid #DADADA",
                   background:"#fff", color:"#222", fontSize:13, fontWeight:600,
                   cursor: zipSearching ? "default" : "pointer", whiteSpace:"nowrap",
-                }}>{zipSearching ? "検索中..." : "住所を検索"}</button>
+                }}>{zipSearching ? <>検索中<Dots /></> : "住所を検索"}</button>
               </div>
               {zipError && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>{zipError}</p>}
               {!zipError && zipNotSevenDigits && <p className="f-sans" style={{ marginTop:6, fontSize:11, color:C.shu }}>郵便番号は7桁で入力してください</p>}

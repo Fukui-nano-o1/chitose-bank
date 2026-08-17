@@ -575,7 +575,7 @@ export function ChatView({ applicationId, onBack }) {
           // 働く日（農家が確定・2026-07-24 追記3）：期間求人で確定済みの時だけ確認対象に含める
           ...(Array.isArray(activeAgreed) && activeAgreed.length > 0 ? [{ label:"働く日", value: activeAgreed.slice().sort().map(d => calFmtDate(d)).join("・") }] : []),
           { label:"時間",     value: disp(confirmJob.workTime) },
-          { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : "取得中...",
+          { label:"集合場所", value: confirmMeetingPlace ? disp(confirmMeetingPlace.full_address) : <>取得中<Dots /></>,
             mapUrl: confirmMeetingPlace?.full_address ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(confirmMeetingPlace.full_address) : null },
           { label:"持ち物",   value: disp(confirmJob.items) },
           { label:"注意・備考", value: disp(confirmJob.cautions) },
@@ -720,7 +720,7 @@ export function ChatView({ applicationId, onBack }) {
                   ))}
                 </div>
                 <textarea value={reportDetail} onChange={e=>setReportDetail(e.target.value)} placeholder="補足があれば（任意）" rows={3} className="field f-sans" style={{ fontSize:13, marginBottom:12, resize:"vertical" }} />
-                <button onClick={submitReport} disabled={!reportReason || reportSending} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: (!reportReason || reportSending) ? 0.5 : 1 }}>{reportSending ? "送信中..." : "報告する"}</button>
+                <button onClick={submitReport} disabled={!reportReason || reportSending} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: (!reportReason || reportSending) ? 0.5 : 1 }}>{reportSending ? <>送信中<Dots /></> : "報告する"}</button>
               </>
             )}
           </div>
@@ -819,7 +819,7 @@ export function ChatView({ applicationId, onBack }) {
                     <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(Array.isArray(s.questions) ? s.questions : []).join(" / ") || "質問なし"}</span>
                   </button>
                 ))}
-                {qSending && <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"4px 0 0" }}>送信中...</p>}
+                {qSending && <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"4px 0 0" }}>送信中<Dots /></p>}
               </div>
             )}
           </>

@@ -38,7 +38,7 @@ export function ApplyPending() {
       ) : state.missing.length === 0 ? (
         <>
           <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, marginBottom:16 }}>必須項目はそろっています。</p>
-          <button onClick={recheck} disabled={checking} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12, marginBottom:12 }}>{checking ? "確認中..." : "応募を農家さんに届ける"}</button>
+          <button onClick={recheck} disabled={checking} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12, marginBottom:12 }}>{checking ? <>確認中<Dots /></> : "応募を農家さんに届ける"}</button>
         </>
       ) : (
         <div style={{ width:"100%", textAlign:"left", marginBottom:20 }}>

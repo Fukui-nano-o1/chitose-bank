@@ -123,7 +123,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
         : wait       ? `送信の間隔が短すぎます。${wait[1]}秒ほど待ってから、もう一度お試しください`
         : isRate     ? "ただいま送信が混み合っています。しばらく時間をおいてからお試しください"
         : isServerMail ? "ただいま認証コードのメールをお送りできません。お客さまの操作の問題ではなく、運営側の不具合です。復旧までしばらくお待ちください"
-        : `メールを送信できませんでした。時間をおいて再度お試しください（詳細: ${msg || "不明"}）`
+        : `メールを送信できませんでした。時間をおいて再度お試しください（詳細：${msg || "不明"}）`
       );
       if (isServerMail) logMailFailure(error);
       return;

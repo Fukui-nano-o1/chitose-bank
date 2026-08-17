@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { C, toKatakana } from "../lib/utils";
+import { Dots } from "./ui";
 
 export const PREFECTURES = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 
@@ -314,13 +315,13 @@ export function OnboardingModal({ me, setMe, onComplete, isEditing = false, onCl
         ))}
       </div>
       <div style={{ marginTop:12, display:"flex", flexWrap:"wrap", gap:6 }}>
-        <span className="f-sans" style={{ fontSize:11, color:"#717171", marginRight:4 }}>栽培作物:</span>
+        <span className="f-sans" style={{ fontSize:11, color:"#717171", marginRight:4 }}>栽培作物：</span>
         {obCrops.map(c => (
           <span key={c} style={{ padding:"4px 10px", background:"#E6F7EF", borderRadius:999, fontSize:12, color:"#00A86B", fontWeight:600 }}>{c}</span>
         ))}
       </div>
       <div style={{ marginTop:8, display:"flex", flexWrap:"wrap", gap:6 }}>
-        <span className="f-sans" style={{ fontSize:11, color:"#717171", marginRight:4 }}>販売先:</span>
+        <span className="f-sans" style={{ fontSize:11, color:"#717171", marginRight:4 }}>販売先：</span>
         {obChannels.map(s => {
           const ch = OB_SALES_CHANNELS.find(c => c.value === s);
           return (
@@ -442,7 +443,7 @@ export function OnboardingModal({ me, setMe, onComplete, isEditing = false, onCl
             transition:"opacity .2s",
           }}
         >
-          {saving ? "保存中..." : obStep === totalSteps ? "この内容で始める →" : "次へ →"}
+          {saving ? <>保存中<Dots /></> : obStep === totalSteps ? "この内容で始める →" : "次へ →"}
         </button>
       </div>
     </div>

@@ -668,7 +668,7 @@ function WorkerPreviewSheet() {
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>報告は運営のみが確認します。相手にはあなたの情報は伝わりません</p>
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>setRep(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-                  <button onClick={submitReport} disabled={rep.sending || !rep.field || !rep.issue} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: (rep.field && rep.issue) ? "#E24B4A" : "#EBEBEB", color: (rep.field && rep.issue) ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{rep.sending ? "送信中..." : "送信する"}</button>
+                  <button onClick={submitReport} disabled={rep.sending || !rep.field || !rep.issue} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: (rep.field && rep.issue) ? "#E24B4A" : "#EBEBEB", color: (rep.field && rep.issue) ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{rep.sending ? <>送信中<Dots /></> : "送信する"}</button>
                 </div>
               </>
             )}
@@ -949,7 +949,7 @@ const HELP_CONTENT = {
       { key:"farmer-publish",         label: "④ 公開後の確認", body: "公開後に運営が内容を確認します。法令や安全に関わる問題があれば、修正のお願いや非公開の対応をすることがあります。" },
       { key:"farmer-applyMail",       label: "⑤ 応募メールが届く", body: "働き手から応募があると、メールで知らされます。" },
       { key:"farmer-approve",         label: "⑥ 承認", body: "応募者のプロフィールを見て、承認するか決めます。" },
-      { key:"farmer-chatMeet",        label: "⑦ チャットと確認カードで打合せ", body: "承認後、チャットと確認カードで日程や集合場所などを打ち合わせます。" },
+      { key:"farmer-chatMeet",        label: "⑦ チャットと確認カードで打ち合わせ", body: "承認後、チャットと確認カードで日程や集合場所などを打ち合わせます。" },
       { key:"farmer-insurance",       label: "⑧ 保険の準備", body: "作業当日に備えて、働き手のケガに備える保険（1日傷害保険など）の準備をおすすめします。準備したら「☑保険を準備した」を押しましょう。働き手にお知らせが届きます。" },
       { key:"farmer-confirmStart",    label: "⑨ 当日「開始を確認」", body: "働き手が作業を開始したら、「開始を確認」を押します。" },
       { key:"farmer-completeReview",  label: "⑩ 作業後「完了して評価する」", body: "働き手が来たか確認し、2タップで評価します。" },
@@ -1103,7 +1103,7 @@ function FeedbackModal({ open, onClose }) {
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, marginBottom:16 }}>操作の記録としてページ名が運営に送られます</p>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
               <button onClick={onClose} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-              <button onClick={submit} disabled={submitting || !category} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: category ? "#00A86B" : "#EBEBEB", color: category ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{submitting ? "送信中..." : "送信する"}</button>
+              <button onClick={submit} disabled={submitting || !category} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background: category ? "#00A86B" : "#EBEBEB", color: category ? "#fff" : "#717171", border:"none", borderRadius:10, cursor:"pointer" }}>{submitting ? <>送信中<Dots /></> : "送信する"}</button>
             </div>
           </>
         )}
@@ -1165,7 +1165,7 @@ function InstallGuide({ me }) {
       {images[slotKey] && <img src={images[slotKey]} alt={label+"の手順"} loading="lazy" decoding="async" style={{ width:"100%", borderRadius:12, display:"block" }} />}
       {admin && (
         <label className="f-sans" style={{ display:"inline-block", marginTop:10, fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>
-          {uploadingSlot===slotKey ? "アップロード中..." : (images[slotKey] ? "画像を差し替え" : "＋ 画像をアップロード")}
+          {uploadingSlot===slotKey ? <>アップロード中<Dots /></> : (images[slotKey] ? "画像を差し替え" : "＋ 画像をアップロード")}
           <input type="file" accept="image/*" style={{ display:"none" }} onChange={e => upload(slotKey, e.target.files?.[0])} />
         </label>
       )}
@@ -1343,7 +1343,7 @@ function HelpCenter({ me, onReportClick }) {
                               <button onClick={() => deleteSlotImage(slotKey)} className="f-sans" style={{ fontSize:11, color:"#E24B4A", background:"none", border:"1px solid #E24B4A44", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>🗑 削除</button>
                             ) : (
                               <label className="f-sans" style={{ display:"inline-block", fontSize:11, color:"#717171", background:"#F7F7F7", border:"1px dashed #D0D0D0", borderRadius:8, padding:"4px 10px", cursor: uploadingSlot ? "default" : "pointer" }}>
-                                {uploadingSlot === slotKey ? "アップロード中..." : "＋ スクショを追加"}
+                                {uploadingSlot === slotKey ? <>アップロード中<Dots /></> : "＋ スクショを追加"}
                                 <input type="file" accept="image/*" disabled={!!uploadingSlot} onChange={e => { const f = e.target.files?.[0]; if (f) uploadSlotImage(slotKey, f); e.target.value = ""; }} style={{ display:"none" }} />
                               </label>
                             )}

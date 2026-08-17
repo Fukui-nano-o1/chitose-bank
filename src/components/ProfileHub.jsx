@@ -5,7 +5,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
-import { Avatar, QaChat } from "./ui";
+import { Avatar, QaChat, Dots } from "./ui";
 import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
@@ -75,7 +75,7 @@ function ProfileWithdrawSection({ onLogout }) {
             )}
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={()=>setOpen(false)} disabled={busy} className="f-sans" style={{ flex:1, padding:"11px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, fontSize:13, cursor:"pointer", color:"#222" }}>いいえ</button>
-              <button onClick={doWithdraw} disabled={busy} className="f-sans" style={{ flex:1, padding:"11px", background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", opacity: busy ? 0.6 : 1 }}>{busy ? "処理中..." : "はい、退会する"}</button>
+              <button onClick={doWithdraw} disabled={busy} className="f-sans" style={{ flex:1, padding:"11px", background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", opacity: busy ? 0.6 : 1 }}>{busy ? <>処理中<Dots /></> : "はい、退会する"}</button>
             </div>
           </div>
       }

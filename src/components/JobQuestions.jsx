@@ -259,7 +259,7 @@ export function JobQuestions({ jobNumber, me }) {
                       <div style={{ flex:1, minWidth:0 }}>
                         <textarea value={answerDraft[q.id] || ""} onChange={e=>setAnswerDraft(p=>({ ...p, [q.id]: e.target.value }))} placeholder="回答を入力（全員に公開されます）" rows={2} className="field f-sans" style={{ fontSize:13, resize:"vertical", marginBottom:6 }} />
                         {answerNg[q.id] && <p style={{ fontSize:11, color:"#E24B4A", margin:"0 0 6px" }}>{answerNg[q.id]}</p>}
-                        <button onClick={()=>submitAnswer(q.id)} disabled={answeringId===q.id || !(answerDraft[q.id]||"").trim()} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(answeringId===q.id||!(answerDraft[q.id]||"").trim())?0.5:1 }}>{answeringId===q.id?"送信中...":"回答する"}</button>
+                        <button onClick={()=>submitAnswer(q.id)} disabled={answeringId===q.id || !(answerDraft[q.id]||"").trim()} className="f-sans" style={{ padding:"8px 16px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity:(answeringId===q.id||!(answerDraft[q.id]||"").trim())?0.5:1 }}>{answeringId===q.id?<>送信中<Dots /></>:"回答する"}</button>
                       </div>
                     ) : (
                       <span style={{ background:"#F3F3F3", borderRadius:"14px 4px 14px 14px", padding:"8px 14px", fontSize:12, color:"#999" }}>回答待ち</span>
@@ -280,7 +280,7 @@ export function JobQuestions({ jobNumber, me }) {
               {ngMsg && <p style={{ fontSize:12, color:"#E24B4A", margin:"0 0 6px" }}>{ngMsg}</p>}
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
                 <p style={{ fontSize:11, color:"#B0B0B0", margin:0, flex:1, lineHeight:1.5 }}>質問と回答は、この求人を見る全員に公開されます</p>
-                <button onClick={submitAsk} disabled={sending || !text.trim()} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", flexShrink:0, opacity:(sending||!text.trim())?0.5:1 }}>{sending?"送信中...":"質問する"}</button>
+                <button onClick={submitAsk} disabled={sending || !text.trim()} className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", flexShrink:0, opacity:(sending||!text.trim())?0.5:1 }}>{sending?<>送信中<Dots /></>:"質問する"}</button>
               </div>
             </div>
           )}
