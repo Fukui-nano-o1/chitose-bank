@@ -2,10 +2,8 @@
 // 専用ヘルパー（geocodeTown/compressImage/normalizePhotos/dangerHasSecond/LF系UI部品/最賃チェック）も同居。
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../lib/supabase";
 import { fbCelebrate } from "../lib/feedback";
 import { zipLookup } from "../lib/zipLookup";
-import { uploadJobPhoto } from "../lib/image";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
@@ -19,6 +17,10 @@ import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { JobSearchMapView } from "./JobSearchMapView";
 import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, validateMinWage } from "../features/jobs/create/model";
 import { geocodeTown } from "../features/jobs/create/jobCreateGeo";
+import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
+  fetchEmployerRecruiterInfo, upsertEmployerProfile, fetchEmployerTrustInfo, fetchAccountHolder,
+  fetchJobByNumber, fetchJobStatus, updateJob, insertJob, publishMyJob, insertJobPublishCheck,
+  uploadPhoto } from "../features/jobs/create/jobCreateApi";
 
 // geocodeTown（町域重心の取得） → features/jobs/create/jobCreateGeo.js へ移設（2026-08-17）
 
@@ -279,7 +281,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     if (!farmerPref) { setMinWage(null); return; }
     (async () => {
       try {
-        const { data } = await supabase.rpc('get_minimum_wage', { p_prefecture: farmerPref });
+        const { data } = await fetchMinimumWage(farmerPref);
         if (!cancelled) setMinWage(typeof data === 'number' ? data : null);
       } catch { if (!cancelled) setMinWage(null); }
     })();
@@ -511,10 +513,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     if (changedSmoking) {
       setPerkSaving(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSession();
         if (session) {
           const payload = { auth_id: session.user.id, smoking_policy: smoking_policy || null, smoking_area: nextArea };
-          const { error } = await supabase.from("employer_profiles").upsert(payload, { onConflict: "auth_id" });
+          const { error } = await upsertEmployerProfile(payload);
           if (error) { alert("受動喫煙の保存に失敗しました：" + error.message); setPerkSaving(false); return; }
           const next = { ...(confEmployer || {}), ...payload };
           setConfEmployer(next); setCache("farm:empMini", next);
@@ -529,9 +531,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     if (perkSaving || !perkDraft) return;
     setPerkSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       if (!session) { setPerkSaving(false); return; }
-      const { data: cur } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+      const { data: cur } = await fetchEmployerProfile(session.user.id);
       // 自由記述はtexts_pending経由（変わったキーだけ積む・EmployerProfileEdit.saveと同じ作法）。
       // 2026-08-14承認プロセス廃止後は、DBトリガー（trg_ep_z_publish_texts）が書いた瞬間に公開列へ畳む＝実質即公開
       const desired = {
@@ -565,11 +567,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
         ...(Object.keys(pend).length ? { texts_revision_requested_at: null } : {}),
       };
-      const { error } = await supabase.from("employer_profiles").upsert(payload, { onConflict: "auth_id" });
+      const { error } = await upsertEmployerProfile(payload);
       if (error) { alert("保存に失敗しました：" + error.message); setPerkSaving(false); return; }
       setJobPerks(null); // プロフィールに保存＝この求人はプロフィールの待遇に従う
       try {
-        const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        const { data: ep } = await fetchEmployerProfile(session.user.id);
         if (ep) { setConfEmployer(ep); setCache("farm:empMini", ep); }
       } catch {}
       setPerksEditOpen(false);
@@ -645,11 +647,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     let cancelled = false;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSession();
         if (!session || cancelled) return;
-        const { data: ep } = await supabase.from("employer_profiles")
-          .select("place_zip,place_prefecture,place_city,place_town,place_address")
-          .eq("auth_id", session.user.id).maybeSingle();
+        const { data: ep } = await fetchEmployerPlaceAddress(session.user.id);
         if (cancelled || !ep) return;
         if ((ep.place_city || "").trim() || (ep.place_zip || "").trim() || (ep.place_address || "").trim()) {
           setPrevAddress({ zip: ep.place_zip, prefecture: ep.place_prefecture, city: ep.place_city, town: ep.place_town, address: ep.place_address });
@@ -685,14 +685,14 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     if (pbSaving) return;
     setPbSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       if (!session) { alert("ログインが必要です"); setPbSaving(false); return; }
-      const { error } = await supabase.from("employer_profiles").upsert({
+      const { error } = await upsertEmployerProfile({
         auth_id: session.user.id,
         place_zip: pbZip.trim(), place_prefecture: pbPref.trim(), place_city: pbCity.trim(),
         place_town: pbTown.trim(), place_address: pbAddr.trim(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
+      });
       if (error) { alert("保存に失敗しました：" + error.message); setPbSaving(false); return; }
       // 求人フロー側の集合場所にも反映
       setFarmerZip(pbZip.trim()); setFarmerPref(pbPref.trim()); setFarmerCity(pbCity.trim());
@@ -779,8 +779,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         // ③セッションと求人を並列で取る（従来はgetSession→jobsの直列で、JWT更新が走ると
         //   その待ちがまるまる上乗せされていた）。取れなければ何もしない（prefillの値を残す）
         const [sessRes, jobRes] = await Promise.all([
-          supabase.auth.getSession(),
-          supabase.from("jobs").select("*").eq("job_number", _editJobNumber).maybeSingle(),
+          getSession(),
+          fetchJobByNumber(_editJobNumber),
         ]);
         const uid = sessRes?.data?.session?.user?.id;
         const data = jobRes?.data;
@@ -802,8 +802,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     if (_editJobNumber || !_draftInit?.job_number) return;
     (async () => {
       try {
-        const { data, error } = await supabase.from("jobs").select("job_number,status")
-          .eq("job_number", _draftInit.job_number).maybeSingle();
+        const { data, error } = await fetchJobStatus(_draftInit.job_number);
         if (error) return;
         if (!data || data.status !== "draft") {
           try { localStorage.removeItem("landingFlowDraft_v1"); localStorage.removeItem("postLoginReturnTo"); } catch {}
@@ -920,15 +919,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
   const saveDraftToSupabase = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       if (!session) return { ok:false, reason:"no_session" };
       const payload = await buildJobPayload(session.user.id, "draft");
       if (draftJobNumber) {
-        const { error } = await supabase.from("jobs").update(payload).eq("job_number", draftJobNumber).eq("farmer_id", session.user.id);
+        const { error } = await updateJob(payload, draftJobNumber, session.user.id);
         if (error) return { ok:false, reason:error.message };
         return { ok:true, jobNumber:draftJobNumber };
       } else {
-        const { data, error } = await supabase.from("jobs").insert(payload).select("job_number").single();
+        const { data, error } = await insertJob(payload);
         if (error) return { ok:false, reason:error.message };
         setDraftJobNumber(data.job_number);
         try { const _d = JSON.parse(localStorage.getItem("landingFlowDraft_v1")||"{}"); _d.job_number = data.job_number; localStorage.setItem("landingFlowDraft_v1", JSON.stringify(_d)); } catch {}
@@ -998,13 +997,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   useEffect(() => {
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSession();
         if (!session) return;
         // 依存の無い2本は並列（2026-08-03・直列2往復→1往復ぶんの待ちに）。
         // 取得できたらお仕事タブと同じキャッシュへ書き戻す＝どちらの画面から入っても次回は即描画
         const [epRes, tRes] = await Promise.all([
-          supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
-          Promise.resolve(supabase.rpc("employer_trust_info", { p_farmer_id: session.user.id })).catch(() => ({ data: null })),
+          fetchEmployerProfile(session.user.id),
+          Promise.resolve(fetchEmployerTrustInfo(session.user.id)).catch(() => ({ data: null })),
         ]);
         if (epRes.data) { setConfEmployer(epRes.data); setCache("farm:empMini", epRes.data); }
         const t = tRes.data;
@@ -1021,9 +1020,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     let cancelled = false;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSession();
         if (!session) return;
-        const { data: ep } = await supabase.from("employer_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        const { data: ep } = await fetchEmployerProfile(session.user.id);
         if (cancelled) return;
         const filledText = (...vals) => vals.some(v => (v || "").trim() !== "");
         const hasUnfilled = !ep
@@ -1715,7 +1714,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                         setPhotoUploading(true);
                         // 全ファイルを並列アップロード（各ファイル内も原寸＋サムネを並列・デコード1回）
                         const results = await Promise.all(queue.map(file =>
-                          uploadJobPhoto(supabase, file).catch(err => { console.error('photo upload failed', file.name, err); return null; })
+                          uploadPhoto(file).catch(err => { console.error('photo upload failed', file.name, err); return null; })
                         ));
                         const uploaded = results.filter(r => r && r.url).map(r => ({ caption: "", ...r }));
                         if (uploaded.length > 0) setJobPhotos(prev => [...prev, ...uploaded]);
@@ -1742,7 +1741,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                         setPhotoUploading(true);
                         // 全ファイルを並列アップロード（各ファイル内も原寸＋サムネを並列・デコード1回）
                         const results = await Promise.all(queue.map(file =>
-                          uploadJobPhoto(supabase, file).catch(err => { console.error('photo upload failed', file.name, err); return null; })
+                          uploadPhoto(file).catch(err => { console.error('photo upload failed', file.name, err); return null; })
                         ));
                         const uploaded = results.filter(r => r && r.url).map(r => ({ caption: "", ...r }));
                         if (uploaded.length > 0) setJobPhotos(prev => [...prev, ...uploaded]);
@@ -1869,7 +1868,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                                   const room = 2 - (place.photos?.length || 0);
                                   const queue = files.slice(0, room);
                                   const results = await Promise.all(queue.map(file =>
-                                    uploadJobPhoto(supabase, file, { pathPrefix: 'danger_', withThumb: false }).catch(err => { console.error('danger photo upload failed', err); return null; })
+                                    uploadPhoto(file, { pathPrefix: 'danger_', withThumb: false }).catch(err => { console.error('danger photo upload failed', err); return null; })
                                   ));
                                   const uploaded = results.filter(r => r && r.url).map(r => ({ url: r.url }));
                                   if (uploaded.length > 0) setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: [...(p.photos||[]), ...uploaded] } : p));
@@ -1913,7 +1912,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                                   const room = 2 - (task.photos?.length || 0);
                                   const queue = files.slice(0, room);
                                   const results = await Promise.all(queue.map(file =>
-                                    uploadJobPhoto(supabase, file, { pathPrefix: 'danger_', withThumb: false }).catch(err => { console.error('danger photo upload failed', err); return null; })
+                                    uploadPhoto(file, { pathPrefix: 'danger_', withThumb: false }).catch(err => { console.error('danger photo upload failed', err); return null; })
                                   ));
                                   const uploaded = results.filter(r => r && r.url).map(r => ({ url: r.url }));
                                   if (uploaded.length > 0) setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: [...(t.photos||[]), ...uploaded] } : t));
@@ -2026,21 +2025,18 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               }
               setJobSaving(true);
               try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await getSession();
                 if (!session) { saveDraft(); onLogin(); return; }
                 // 募集者情報が揃っていなければ、その場でボックスを開いて入力してもらう（法令の明示事項）。
                 // 未入力の欄は新規登録①の内容を初期値に入れる
                 {
-                  const { data: ep0 } = await supabase.from("employer_profiles")
-                    .select("recruiter_name,recruiter_address,recruiter_contact").eq("auth_id", session.user.id).maybeSingle();
+                  const { data: ep0 } = await fetchEmployerRecruiterInfo(session.user.id);
                   let nm = (ep0?.recruiter_name || "").trim();
                   let ad = (ep0?.recruiter_address || "").trim();
                   let ct = (ep0?.recruiter_contact || "").trim();
                   if (!nm || !ad || !ct) {
                     try {
-                      const { data: ah } = await supabase.from("account_holders")
-                        .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
-                        .eq("auth_id", session.user.id).maybeSingle();
+                      const { data: ah } = await fetchAccountHolder(session.user.id);
                       if (ah) {
                         if (!nm) nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
                         if (!ad) ad = [(ah.postal_code || "").trim() ? "〒" + ah.postal_code.trim() : "", (ah.address || "").trim()].filter(Boolean).join(" ");
@@ -2066,10 +2062,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 const canOpen = isAdmin(session.user);
                 const payload = await buildJobPayload(session.user.id, canOpen ? "open" : "pending");
                 if (_jn) {
-                  const r = await supabase.from("jobs").update(payload).eq("job_number", _jn).eq("farmer_id", session.user.id);
+                  const r = await updateJob(payload, _jn, session.user.id);
                   error = r.error;
                 } else {
-                  const r = await supabase.from("jobs").insert(payload).select("job_number").single();
+                  const r = await insertJob(payload);
                   error = r.error;
                   if (!error && r.data) { _jn = r.data.job_number; setDraftJobNumber(r.data.job_number); }
                 }
@@ -2087,7 +2083,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 // ＝「公開間近」表示・運営が手動で開ける従来経路が救済として生きる
                 let publishedNow = true;
                 if (!canOpen && _jn) {
-                  const pub = await supabase.rpc("publish_my_job", { p_job_number: _jn });
+                  const pub = await publishMyJob(_jn);
                   if (pub.error || !pub.data?.ok) {
                     alert("掲載エラー：" + (pub.error?.message || pub.data?.reason || "不明") +
                       "\n求人は保存されています。時間をおいて、もう一度「掲載する」をお試しください。");
@@ -2102,7 +2098,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 // 記録に失敗しても掲載自体は止めない（掲載は成功済み）が、管理者には見えるようにする
                 if (_jn) {
                   try {
-                    const { error: ckErr } = await supabase.from("job_publish_checks").insert({
+                    const { error: ckErr } = await insertJobPublishCheck({
                       job_number: _jn,
                       farmer_id: session.user.id,
                       // 2026-08-07 UI変更：4つの個別チェック→内容の列挙＋「確認しました」1つに。
@@ -2816,15 +2812,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               onClick={async ()=>{
                 setRecruitBox(v => ({ ...v, saving: true }));
                 try {
-                  const { data: { session } } = await supabase.auth.getSession();
+                  const { data: { session } } = await getSession();
                   if (!session) { setRecruitBox(v => ({ ...v, saving: false })); return; }
-                  const { error } = await supabase.from("employer_profiles").upsert({
+                  const { error } = await upsertEmployerProfile({
                     auth_id: session.user.id,
                     recruiter_name: recruitBox.name.trim(),
                     recruiter_address: recruitBox.address.trim(),
                     recruiter_contact: recruitBox.contact.trim(),
                     updated_at: new Date().toISOString(),
-                  }, { onConflict: "auth_id" });
+                  });
                   if (error) { alert("保存に失敗しました：" + error.message); setRecruitBox(v => ({ ...v, saving: false })); return; }
                   setRecruitBox(null);
                   const resume = resumePublishRef.current;
