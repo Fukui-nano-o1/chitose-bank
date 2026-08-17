@@ -37,14 +37,32 @@ const FILES = [
 const read = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : null);
 const flat = (s) => s.replace(/\s+/g, " ");
 
-// 行をまたぐ呼び出しを1本につなぐ（括弧の釣り合いで判定）
+// 行をまたぐ呼び出しを1本につなぐ。
+// ★2026-08-18修正：以前は「括弧の釣り合い」で切っていたため、
+//     supabase.from("x")        ← ここで括弧が閉じる
+//       .select("...")          ← 拾えない
+//       .eq("auth_id", uid)     ← 拾えない
+//   という連鎖を1行目だけで打ち切り、select列と絞り込みを取りこぼしていた（検出器の穴）。
+//   文の終端（深さ0の ; または行末が , で深さ0）まで読むように直した。
 function joinCalls(src, needle) {
   const lines = src.split("\n");
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     if (!lines[i].includes(needle)) continue;
     let c = lines[i].trim(), j = i;
-    while ((c.split("(").length - c.split(")").length) > 0 && j + 1 < lines.length) c += " " + lines[++j].trim();
+    const depth = (t) => (t.split("(").length - t.split(")").length)
+                       + (t.split("[").length - t.split("]").length)
+                       + (t.split("{").length - t.split("}").length);
+    // 深さが残る／次行がメソッド連鎖（.xxx で始まる）なら続きを読む
+    while (j + 1 < lines.length) {
+      const nxt = lines[j + 1].trim();
+      const open = depth(c) > 0;
+      const chained = /^\./.test(nxt);
+      const unterminated = !/[;,]$/.test(c) && !open;
+      if (!open && !chained && !unterminated) break;
+      c += " " + nxt; j++;
+      if (depth(c) <= 0 && /;$/.test(c)) break;
+    }
     out.push(flat(c));
     i = j;
   }
@@ -99,7 +117,8 @@ function collect() {
     if (fl) for (const l of fl[0].split("\n").map((x) => x.trim()).filter(Boolean)) add("rule:filterPredicate", l);
 
     // ④ いいね（保存済み判定）
-    for (const c of joinCalls(src, "saved_jobs")) add("rule:saved", c.slice(0, 150));
+    // いいねは生テキストでなく操作の形で見る（me.id → workerId のような引数名の変更で鳴らせない。
+    // 表・メソッド・絞り込みは data:* が押さえているので、ここは画面側の判定だけを見る）
     for (const m of src.matchAll(/savedIds\.(has|add|delete)\(/g)) add("rule:saved", `savedIds.${m[1]}`);
 
     // ⑤ 地図（Leaflet）：生成する要素の種類と回数
@@ -134,7 +153,12 @@ function render(sec) {
   const out = ["# さがす（求人検索）の指紋", ""];
   for (const k of Object.keys(sec).sort()) {
     out.push(`## ${k}`);
-    for (const l of bag(sec[k])) out.push(`  ${l}`);
+    // data:* は【操作の形の集合】で見る（回数では見ない）。
+    // 理由：同じ問い合わせを窓口関数へ集約すると呼び出し回数は必ず減る＝構造移動のたびに鳴り、
+    // 検出器として役に立たなくなる。表・RPC・列・絞り込み・メソッドの【種類】が増減したときだけ鳴らす。
+    const uniq = k.startsWith("data:");
+    const lines = uniq ? [...new Set(sec[k])].sort() : bag(sec[k]);
+    for (const l of lines) out.push(`  ${l}`);
     out.push("");
   }
   return out.join("\n");

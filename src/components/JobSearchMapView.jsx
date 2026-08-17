@@ -1,6 +1,5 @@
 // 分割3-C（2026-07-25）：App.jsxから移動。「さがす」求人一覧＋求人詳細＋応募パネル。
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../lib/supabase";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
@@ -20,6 +19,12 @@ import { SearchLaneTabs } from "./SearchLaneTabs";
 import { ConsignmentSearchList } from "./ConsignmentSearchList";
 import { canSeeConsignment } from "../lib/consignAccess";
 import { calcMaxPay, jobMonths } from "../features/jobs/search/model";
+import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, copyJob, unpublishJob,
+  fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
+  fetchSavedJobNumbers, deleteSavedJob, insertSavedJob, fetchMyApplications, fetchMyPendingApplications,
+  fetchMyApplicationForJob, fetchMyPendingForJob, applyToJob, createPendingApplication, cancelApplication,
+  punchStart, fetchAccountHolderId, fetchMyWorkerNickname, insertJobReport, fetchSurveyAnswered, insertSurvey,
+  fetchConsignorConsent, fetchSignupOpen } from "../features/jobs/search/jobSearchApi";
 
 // ── JobSearchMapView ────────────────────────────────────────
 // 「募集中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
@@ -49,7 +54,7 @@ export function JobSearchMapView({ onRegister, me }) {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.from("jobs").select("job_number").eq("farmer_id", me.id);
+        const { data } = await fetchMyJobNumbers(me.id);
         if (!cancelled && data) { const nums = data.map(r => r.job_number); setMyJobNums(new Set(nums)); setCache("search:myJobNums", nums); }
       } catch {}
       if (!cancelled) setMyJobNumsLoaded(true);
@@ -63,7 +68,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const [ownMenuOpen, setOwnMenuOpen] = useState(false);
   const ownCopyJob = async () => {
     setOwnMenuOpen(false);
-    const { data, error } = await supabase.rpc("copy_job", { p_job_number: selectedJob.id });
+    const { data, error } = await copyJob(selectedJob.id);
     if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
     // コピーは期間のみリセット（2026-08-16たきと指示）：日程・休日は常に空＝新しく選び直す。他は全部引き継ぎ
@@ -73,7 +78,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const ownUnpublishJob = async () => {
     // 再掲載＝そのまま公開（2026-08-14 承認プロセスの削除。旧「もう一度審査を通ります」は誤り）
     if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・あとから再掲載できます（そのまま公開されます）\n・応募中・面接中の方は見送りになり、その旨のお知らせが届きます（採用が決まっている方はそのままです）")) return;
-    const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: selectedJob.id });
+    const { data, error } = await unpublishJob(selectedJob.id);
     if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
     setOwnMenuOpen(false);
     // open→draftでさがすから消えるので、行き先はお仕事タブ（公開中に一時非公開の帯で残る）
@@ -115,14 +120,14 @@ export function JobSearchMapView({ onRegister, me }) {
     setPastJobsOpen(true); setPastJobs(null); setPastJobsTab(typeof tab === "string" ? tab : "all");
     setPastJobsFocus(null); setPastJobsCounts({});
     try {
-      const { data } = await supabase.rpc("employer_public_jobs", { p_job_number: selectedJob.id });
+      const { data } = await fetchEmployerPublicJobs(selectedJob.id);
       // 今見ている求人も含めて全公開求人を出す（2026-07-16）。審査中(pending)・下書きは
       // 運営承認ゲート（憲法5条）前のため含めない——承認されれば自動でここに並ぶ
       setPastJobs(data || []);
     } catch { setPastJobs([]); }
     // 求人ごとの応募・承認・採用人数（展開概要用・失敗しても「ー」表示になるだけ）
     try {
-      const { data: cnts } = await supabase.rpc("employer_public_job_counts", { p_job_number: selectedJob.id });
+      const { data: cnts } = await fetchEmployerPublicJobCounts(selectedJob.id);
       if (cnts) setPastJobsCounts(cnts);
     } catch {}
   };
@@ -138,7 +143,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const submitReport = async () => {
     if (reportSending || !reportTargetField || !reportIssueType || !selectedJob || !me) return;
     setReportSending(true);
-    const { error } = await supabase.from('job_reports').insert({
+    const { error } = await insertJobReport({
       job_number: selectedJob.id,
       reporter_id: me.id,
       target_field: reportTargetField,
@@ -184,7 +189,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const [pendingInfo, setPendingInfo] = useState(false); // 説明ボックスの開閉
   useEffect(() => {
     (async () => {
-      const res = await supabase.rpc("pending_job_previews");
+      const res = await fetchPendingJobPreviews();
       // 失敗時は手元の値を残す（supabase-jsはHTTPエラーでthrowしない＝errorを見る・2026-08-07規則）
       if (res.error) return;
       const list = res.data || [];
@@ -203,11 +208,9 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!isAdmin(me)) { setConsignor(null); return; } // ★解禁時：この行も一緒に外す（読む相手を広げる）
     let cancelled = false;
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       if (!session || cancelled) return;
-      const { data } = await supabase.from("consignment_profiles")
-        .select("consignment_terms_consent,consignment_terms_consent_version")
-        .eq("auth_id", session.user.id).maybeSingle();
+      const { data } = await fetchConsignorConsent(session.user.id);
       if (cancelled) return;
       setConsignor(data || null);
       setCache("search:consignor", data || null);
@@ -337,7 +340,7 @@ export function JobSearchMapView({ onRegister, me }) {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.from("user_onboarding_survey").select("auth_id").eq("auth_id", me.id).maybeSingle();
+        const { data } = await fetchSurveyAnswered(me.id);
         if (!cancelled) setSurveyAnswered(!!data);
       } catch { if (!cancelled) setSurveyAnswered(true); } // 取得失敗時はゲートしない（コア動作＝いいねを止めない）
     })();
@@ -347,7 +350,7 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!me) { setSavedIds(new Set()); return; }
     (async () => {
       try {
-        const { data } = await supabase.from("saved_jobs").select("job_number").eq("worker_id", me.id);
+        const { data } = await fetchSavedJobNumbers(me.id);
         setSavedIds(new Set((data || []).map(r => r.job_number)));
       } catch {}
     })();
@@ -357,8 +360,8 @@ export function JobSearchMapView({ onRegister, me }) {
     const isSaved = savedIds.has(job.id);
     setSavedIds(prev => { const next = new Set(prev); isSaved ? next.delete(job.id) : next.add(job.id); return next; });
     const { error } = isSaved
-      ? await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", job.id)
-      : await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: job.id });
+      ? await deleteSavedJob(me.id, job.id)
+      : await insertSavedJob(me.id, job.id);
     if (error) { setSavedIds(prev => { const next = new Set(prev); isSaved ? next.add(job.id) : next.delete(job.id); return next; }); return; }
     // 各求人の初いいねだけボックス展開（求人ごとに1回・解除→再いいねでは出さない）
     if (!isSaved) {
@@ -377,7 +380,7 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!surveySource) { alert("Q1をひとつ選んでください"); return; }
     setSurveySaving(true);
     try {
-      const { error } = await supabase.from("user_onboarding_survey").insert({
+      const { error } = await insertSurvey({
         auth_id: me.id,
         source: surveySource,
         source_other: surveySource === "その他" ? (surveySourceOther.trim() || null) : null,
@@ -408,7 +411,7 @@ export function JobSearchMapView({ onRegister, me }) {
       let cancelled = false;
       (async () => {
         try {
-          const { data } = await supabase.from("jobs_public").select("*").eq("job_number", jn).maybeSingle();
+          const { data } = await fetchPublicJobByNumber(jn);
           if (!cancelled && data) { setSelectedJob(prev => prev || mapJobPublicRow(data)); setDetailTab(m[2] || "content"); clearApplyReturn(); }
         } catch {}
       })();
@@ -477,8 +480,8 @@ export function JobSearchMapView({ onRegister, me }) {
     (async () => {
       // 依存のない2本は並列で（2026-08-02・更新時間の短縮：直列2往復→1往復ぶんの待ちに）
       const [profRes, trustRes] = await Promise.all([
-        Promise.resolve(supabase.rpc('job_employer_profile', { p_job_number: selectedJob.id })).catch(() => ({ data: null })),
-        Promise.resolve(supabase.rpc('job_employer_trust_info', { p_job_number: selectedJob.id })).catch(() => ({ data: null })),
+        Promise.resolve(fetchJobEmployerProfile(selectedJob.id)).catch(() => ({ data: null })),
+        Promise.resolve(fetchJobEmployerTrustInfo(selectedJob.id)).catch(() => ({ data: null })),
       ]);
       if (cancelled) return;
       const emp = (profRes.data && profRes.data[0]) || null;
@@ -509,8 +512,8 @@ export function JobSearchMapView({ onRegister, me }) {
         // 仮応募（第15弾）も一緒に見る。RLS「pending own」で自分の行しか返らない
         const [appRes, pendRes] = await Promise.all([
           // canceled（取り消し済み・2026-08-16）は除く＝取り消した求人は「未応募」に戻り再応募できる
-          supabase.from('applications').select('id,job_number,status,started_at,time_corrected').eq('worker_id', me.id).neq('status', 'canceled'),
-          Promise.resolve(supabase.from('pending_applications').select('job_number').eq('worker_id', me.id)).then(r => r, () => ({ data: null })),
+          fetchMyApplications(me.id),
+          Promise.resolve(fetchMyPendingApplications(me.id)).then(r => r, () => ({ data: null })),
         ]);
         if (cancelled) return;
         // ★エラー時は上書きしない（2026-08-07）：503・タイムアウトはthrowされず {data:null, error} で
@@ -571,10 +574,8 @@ export function JobSearchMapView({ onRegister, me }) {
         const [appRes, pendRes] = await Promise.all([
           // canceledを除く（2026-08-16）：取り消し→再応募で同じ求人に2行になり得るため、
           // 除かないと maybeSingle が複数行エラーになる（現役の応募は部分ユニークで常に1行）
-          supabase.from('applications').select('id,status,started_at,time_corrected')
-            .eq('job_number', selectedJob.id).eq('worker_id', me.id).neq('status', 'canceled').maybeSingle(),
-          Promise.resolve(supabase.from('pending_applications').select('id')
-            .eq('job_number', selectedJob.id).eq('worker_id', me.id).maybeSingle()).then(r => r, () => ({ data: null, error: true })),
+          fetchMyApplicationForJob(selectedJob.id, me.id),
+          Promise.resolve(fetchMyPendingForJob(selectedJob.id, me.id)).then(r => r, () => ({ data: null, error: true })),
         ]);
         if (cancelled) return;
         // ★エラー時は上書きしない（2026-08-07・上の一括取得と同じ理由）：旧実装は appRes.data||null を
@@ -600,7 +601,7 @@ export function JobSearchMapView({ onRegister, me }) {
     if (punching || !myApplication) return;
     setPunching(true);
     try {
-      const { data, error } = await supabase.rpc('punch_start', { p_application_id: myApplication.id });
+      const { data, error } = await punchStart(myApplication.id);
       if (!error && data && data.ok) {
         const next = myApplication ? { ...myApplication, started_at: data.started_at, status: data.already ? myApplication.status : 'working' } : null;
         if (next) { setMyApplication(next); patchMyApp(selectedJob.id, next); }
@@ -624,7 +625,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const goPending = async () => {
     // 来られる日（期間求人のみ）を仮応募でも渡す（2026-08-06）。渡さないと昇格時に来られる日が
     // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募が成立してしまう
-    const { data: pend } = await supabase.rpc("create_pending_application", { p_job: selectedJob.id, p_available_dates: applyAvailRef.current });
+    const { data: pend } = await createPendingApplication(selectedJob.id, applyAvailRef.current);
     setApplying(false);
     // 新規の仮応募＝ページでなくアニメーション（②・2026-08-07）。App側thatこのフラグを消費して
     // 祝祭＋トースト＋応募状況への着地に切り替える。フラグ無しの /apply/pending は従来のチェックリスト
@@ -637,7 +638,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const doApply = async () => {
     setApplying(true);
     try {
-      const { data, error } = await supabase.rpc("apply_to_job", { p_job_number: selectedJob.id, p_available_dates: applyAvailRef.current });
+      const { data, error } = await applyToJob(selectedJob.id, applyAvailRef.current);
       setApplying(false);
       if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
       if (data && data.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return; }
@@ -651,7 +652,7 @@ export function JobSearchMapView({ onRegister, me }) {
           //   アイコンが「？」に倒れていた（2026-08-16たきと報告）→ 本物をDBから1行取り足す。
           //   本人行のRLS・単一行ので一瞬。失敗しても祝祭は従来のフォールバックで出る（止めない）
           if (!wm?.avatar_url && !wm?.nickname) {
-            const res = await supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", me.id).maybeSingle();
+            const res = await fetchMyWorkerNickname(me.id);
             if (!res.error && res.data) wm = res.data;
           }
           sessionStorage.setItem("cb_applyVisual", JSON.stringify({
@@ -686,7 +687,7 @@ export function JobSearchMapView({ onRegister, me }) {
     if (applying || !selectedJob) return;
     setApplying(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       if (!session) {
         setApplying(false);
         setApplyReturn(selectedJob.id);
@@ -694,8 +695,7 @@ export function JobSearchMapView({ onRegister, me }) {
         return;
       }
       // ①(account_holders)未登録なら重い登録へ。戻り先を退避。
-      const { data: ah } = await supabase.from('account_holders')
-        .select('id').eq('auth_id', session.user.id).maybeSingle();
+      const { data: ah } = await fetchAccountHolderId(session.user.id);
       if (!ah) {
         setApplying(false);
         setApplyReturn(selectedJob.id);
@@ -722,7 +722,7 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!window.confirm("この応募を取り消しますか？農家にお知らせが届きます")) return;
     setApplying(true);
     try {
-      const { data, error } = await supabase.rpc("cancel_application", { p_application_id: myApplication.id });
+      const { data, error } = await cancelApplication(myApplication.id);
       setApplying(false);
       // ok（already=既に取り消し済み含む）／not_found＝行が既に無い（旧DELETE時代の残り）＝どちらも取り消し済み扱い。
       // 2026-08-16からは削除でなく status='canceled' の記録＝マップから外せば「未応募」に戻り再応募できる
@@ -811,7 +811,7 @@ export function JobSearchMapView({ onRegister, me }) {
     return out;
   })();
   const [signupOpen, setSignupOpen] = useState(false); // 未ログイン画面の文言用（app_settings.signup_open・既定false=招待制）
-  useEffect(() => { supabase.rpc("signup_open").then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
+  useEffect(() => { fetchSignupOpen().then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
   // 訪問者（未ログイン）が応募・いいね・投稿等をタップした時の案内（2026-07-24・隠さず案内する）
   // 「閉じる」で普通に閉じる（2026-07-27たきと指示）：以前は閉じた直後に#/loginへ飛ばしていたため、
   // 案内を読んだだけで見ていた求人から引き剥がされていた。案内だけ出して画面はそのまま残す。
