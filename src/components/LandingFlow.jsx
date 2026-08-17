@@ -2856,7 +2856,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       {draftOverlay && (
         <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.92)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
           <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
-          <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>保存しています…</p>
+          <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700 }}>保存しています<Dots /></p>
           <style>{`@keyframes cbspin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}

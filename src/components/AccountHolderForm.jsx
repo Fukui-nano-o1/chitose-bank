@@ -120,7 +120,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
     onDone();
   };
 
-  if (sess === undefined) return <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:13,color:"#B0B0B0"}}>確認中…</p></div>;
+  if (sess === undefined) return <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:13,color:"#B0B0B0"}}>確認中<Dots /></p></div>;
 
   return (
     <div className="fade-in" style={{ minHeight:"80vh", padding:"28px 24px 64px" }}>
@@ -251,7 +251,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
 
           <div>
             <button className="btn-primary" style={{ width:"100%" }} disabled={!canSubmit || busy} onClick={submit}>
-              {isAllowed === null ? "確認中…" : !isAllowed ? "準備中" : busy ? "登録中…" : "登録する"}
+              {isAllowed === null ? <>確認中<Dots /></> : !isAllowed ? "準備中" : busy ? <>登録中<Dots /></> : "登録する"}
             </button>
             {isAllowed === false && (
               <p className="f-sans" style={{ fontSize:11, color:C.dim, textAlign:"center", marginTop:10 }}>

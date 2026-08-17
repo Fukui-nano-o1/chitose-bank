@@ -565,7 +565,7 @@ function ConsignFieldsPane({ fields, onReload }) {
         <label className="lbl f-sans">郵便番号</label>
         <div style={{ display:"flex", gap:8 }}>
           <input className="field f-sans" inputMode="numeric" value={form.zip || ""} onChange={e=>fset("zip", e.target.value.replace(/[^0-9]/g, ""))} placeholder="例：7700000" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
-          <button type="button" onClick={fZipSearch} disabled={fZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{fZipBusy ? "検索中…" : "住所を検索"}</button>
+          <button type="button" onClick={fZipSearch} disabled={fZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{fZipBusy ? <>検索中<Dots /></> : "住所を検索"}</button>
         </div>
         {fZipError && <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{fZipError}</p>}
       </div>
@@ -590,7 +590,7 @@ function ConsignFieldsPane({ fields, onReload }) {
           </div>
         ) : (
           <label className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"center", width:"100%", height:96, border:"1px dashed #111111", borderRadius:12, fontSize:14.3, fontWeight:700, color:"#111111", cursor:"pointer", background:"#fff" }}>
-            {fPhotoBusy ? "アップロード中…" : "＋ 写真を追加"}
+            {fPhotoBusy ? <>アップロード中<Dots /></> : "＋ 写真を追加"}
             <input type="file" accept="image/*" style={{ display:"none" }} onChange={e=>{ fPhotoUpload(e.target.files && e.target.files[0]); e.target.value = ""; }} />
           </label>
         )}
@@ -1011,7 +1011,7 @@ function ConsignorInfoEdit() {
           <div>
             <div style={{ display:"flex", gap:8 }}>
               <input className="field f-sans" inputMode="numeric" value={d[f.k] || ""} onChange={e=>setV(f.k, e.target.value.replace(/[^0-9]/g, ""))} placeholder={f.ph || ""} style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
-              <button type="button" onClick={()=>searchZipInto(f)} disabled={zipBusy === f.k} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{zipBusy === f.k ? "検索中…" : "住所を検索"}</button>
+              <button type="button" onClick={()=>searchZipInto(f)} disabled={zipBusy === f.k} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{zipBusy === f.k ? <>検索中<Dots /></> : "住所を検索"}</button>
             </div>
             {zipError && <p className="f-sans" style={{ fontSize:12.1, color:"#111111", fontWeight:700, margin:"6px 0 0" }}>{zipError}</p>}
           </div>
@@ -1029,7 +1029,7 @@ function ConsignorInfoEdit() {
   // 読み込み中は画面中央に配置（2026-07-31たきと指示）
   if (!d) return (
     <div style={{ minHeight:"55vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <p className="f-sans" style={{ fontSize:14.3, color:"#999999", margin:0 }}>読み込み中…</p>
+      <p className="f-sans" style={{ fontSize:14.3, color:"#999999", margin:0 }}>読み込み中<Dots /></p>
     </div>
   );
   // ── 登録情報の修正（委託ページ内で完結・2026-08-02たきと指示）。保存済みの値を復元して編集 ──
@@ -1061,7 +1061,7 @@ function ConsignorInfoEdit() {
           <label className="lbl f-sans">郵便番号</label>
           <div style={{ display:"flex", gap:8 }}>
             <input className="field f-sans" inputMode="numeric" value={regForm.postal_code} onChange={e=>setRegForm(f => ({ ...f, postal_code: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="例：7700000" style={{ fontSize:15.4, marginBottom:0, flex:1 }} />
-            <button type="button" onClick={regZipSearch} disabled={regZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{regZipBusy ? "検索中…" : "住所を検索"}</button>
+            <button type="button" onClick={regZipSearch} disabled={regZipBusy} className="f-sans" style={{ flexShrink:0, padding:"0 14px", fontSize:14.3, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #111111", borderRadius:10, cursor:"pointer" }}>{regZipBusy ? <>検索中<Dots /></> : "住所を検索"}</button>
           </div>
           {regZipError && <p className="f-sans" style={{ fontSize:12.1, fontWeight:700, color:"#111111", margin:"6px 0 0" }}>{regZipError}</p>}
         </div>
@@ -1990,7 +1990,7 @@ export function ConsignmentRoom() {
                 </div>
               ))}
               <label className="f-sans" style={{ width:96, height:96, borderRadius:10, border:"1px dashed #B0B0B0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: photoUploading ? "default" : "pointer", fontSize:13.2, color:"#111111", gap:2 }}>
-                {photoUploading ? "…" : (<><span style={{ fontSize:24.2, lineHeight:1 }}>＋</span>写真</>)}
+                {photoUploading ? <Dots /> : (<><span style={{ fontSize:24.2, lineHeight:1 }}>＋</span>写真</>)}
                 <input type="file" accept="image/*" multiple onChange={e=>{ handlePhotoFiles(e.target.files); e.target.value=""; }} style={{ display:"none" }} disabled={photoUploading} />
               </label>
             </div>

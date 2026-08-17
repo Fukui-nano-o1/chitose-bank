@@ -276,7 +276,7 @@ export function AdminSystemRoom() {
                   marginTop:10, padding:"7px 14px", border:"1px solid #00A86B44", borderRadius:8,
                   background:"transparent", color:"#00A86B", fontSize:11, fontWeight:600,
                   cursor: errBulkBusy ? "default" : "pointer",
-                }}>{errBulkBusy === g.sig ? "更新中…" : `この種類の${open}件をまとめて解決済みにする`}</button>
+                }}>{errBulkBusy === g.sig ? <>更新中<Dots /></> : `この種類の${open}件をまとめて解決済みにする`}</button>
               )}
             </div>
           );
@@ -311,7 +311,7 @@ export function AdminSystemRoom() {
             <button type="button" onClick={() => resolveFocus(focusPair.g)} disabled={!!errBulkBusy} className="f-sans"
               style={{ flex:1, padding:"13px 0", background:"#00A86B", color:"#fff", border:"none",
                 borderRadius:12, fontSize:14, fontWeight:700, cursor: errBulkBusy ? "default" : "pointer" }}>
-              {errBulkBusy ? "更新中…" : "✓ 解決した"}
+              {errBulkBusy ? <>更新中<Dots /></> : "✓ 解決した"}
             </button>
             <button type="button" onClick={() => setFocusSig(null)} className="f-sans"
               style={{ flex:1, padding:"13px 0", background:"#fff", color:"#555", border:"1px solid #DDD",
@@ -406,7 +406,7 @@ export function AdminSystemRoom() {
                 ].map(b => (
                   <div key={b.bucket} style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <button onClick={()=>runRecompress(b.bucket, b.maxSide, b.quality)} disabled={!!imgOptRunning} className="f-sans" style={{ padding:"9px 16px", fontSize:12, fontWeight:700, background: imgOptRunning===b.bucket ? "#EBEBEB" : "#00A86B", color: imgOptRunning===b.bucket ? "#717171" : "#fff", border:"none", borderRadius:10, cursor: imgOptRunning ? "default" : "pointer" }}>
-                      {imgOptRunning===b.bucket ? `軽量化中 ${imgOptProgress}…` : b.label}
+                      {imgOptRunning===b.bucket ? <>軽量化中 {imgOptProgress}<Dots /></> : b.label}
                     </button>
                     <span className="f-sans" style={{ fontSize:11, color:"#999" }}>
                       {imgOptResults[b.bucket]
@@ -419,7 +419,7 @@ export function AdminSystemRoom() {
                     thumbが無い既存写真（サムネ導入前のアップロード分）へ640pxサムネを生成する */}
                 <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                   <button onClick={runThumbGen} disabled={thumbGenRunning || !!imgOptRunning} className="f-sans" style={{ padding:"9px 16px", fontSize:12, fontWeight:700, background: thumbGenRunning ? "#EBEBEB" : "#00A86B", color: thumbGenRunning ? "#717171" : "#fff", border:"none", borderRadius:10, cursor: (thumbGenRunning || imgOptRunning) ? "default" : "pointer" }}>
-                    {thumbGenRunning ? `生成中 ${thumbGenProgress}…` : "カード用サムネ生成（job-photos）"}
+                    {thumbGenRunning ? <>生成中 {thumbGenProgress}<Dots /></> : "カード用サムネ生成（job-photos）"}
                   </button>
                   <span className="f-sans" style={{ fontSize:11, color:"#999" }}>
                     {thumbGenResult

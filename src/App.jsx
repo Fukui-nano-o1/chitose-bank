@@ -72,7 +72,7 @@ function ChunkUpdating() {
   return (
     <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
       <div style={{ width: 28, height: 28, border: "3px solid #E8E8E8", borderTopColor: "#00A86B", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-      <p className="f-sans" style={{ fontSize: 14, color: "#717171", margin: 0 }}>新しいバージョンに更新しています…</p>
+      <p className="f-sans" style={{ fontSize: 14, color: "#717171", margin: 0 }}>新しいバージョンに更新しています<Dots /></p>
     </div>
   );
 }
@@ -105,7 +105,7 @@ function lazyChunk(factory) {
 // 【対処】①背後を描かない（ProfileHubの描画条件に !showJobPost）②その1秒をこの画面で埋める。
 // 意匠は保存中オーバーレイ（LandingFlow）と同じ緑のスピナー＝アプリ内で待ち画面の見た目を1つに保つ。
 // ★モジュールレベル定義（フォーカス消失バグ回避の作法）
-function FlowLoading({ label = "求人フローを開いています…" }) {
+function FlowLoading({ label = <>求人フローを開いています<Dots /></> }) {
   return (
     <div style={{ position:"fixed", inset:0, zIndex:8500, background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
       <div style={{ width:44, height:44, border:"4px solid #E0E0E0", borderTopColor:"#00A86B", borderRadius:"50%", animation:"cbspin 0.8s linear infinite" }} />
@@ -1298,7 +1298,7 @@ function HelpCenter({ me, onReportClick }) {
       <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom: isAdmin(me) ? 12 : 36 }}>chitose-bankの使い方をまとめています</p>
       {isAdmin(me) && (
         <button onClick={recompressAll} disabled={!!recompressing} className="f-sans" style={{ marginBottom:24, padding:"8px 14px", fontSize:12, fontWeight:700, color:"#717171", background:"#F7F7F7", border:"1px dashed #D0D0D0", borderRadius:10, cursor: recompressing ? "default" : "pointer" }}>
-          {recompressing ? `🗜 軽量化中 ${recompressing}…` : "🗜 スクショを一括軽量化（管理）"}
+          {recompressing ? <>🗜 軽量化中 {recompressing}<Dots /></> : "🗜 スクショを一括軽量化（管理）"}
         </button>
       )}
       <div style={{ display:"grid", gap:16 }}>

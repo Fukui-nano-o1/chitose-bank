@@ -5,6 +5,7 @@
 // ★審査を感じさせない：作者側にはこの部品を出さない（自分の評価は MyReviewsOfWorker でそのまま見える）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { Dots } from "./ui";
 
 // 方向ごとの肯定バッジ定義（falseは公開しない＝第8条2）。順序＝表示順
 const BADGE_DEFS = {
@@ -53,7 +54,7 @@ export function ReceivedReviews({ userId, direction }) {
     <div>
       {/* 見出し「🌟 受け取った評価」は削除（2026-08-07たきと指示・タブ名「評価」が見出しを兼ねる） */}
       {data === null ? (
-        <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>読み込み中…</p>
+        <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>読み込み中<Dots /></p>
       ) : isEmpty ? null : (
         <>
           {shown.length > 0 && (

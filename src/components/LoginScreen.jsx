@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "../lib/utils";
+import { Dots } from "./ui";
 
 // ── LoginScreen — メールOTP認証 ───────────────────────────────
 export function LoginScreen({ farmers, onLogin, onGoRegister }) {
@@ -233,7 +234,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
               </div>
               <button className="btn-primary" style={{ width:"100%" }}
                 disabled={!email.trim()||!pw||sending} onClick={passwordLogin}>
-                {sending ? "確認中…" : "ログイン"}
+                {sending ? <>確認中<Dots /></> : "ログイン"}
               </button>
               <div style={{ textAlign:"center", marginTop:18, display:"flex", flexDirection:"column", gap:8 }}>
                 <button onClick={()=>{setView("otp");setErr("");setPw("");setDirectSignup(false);}} className="f-sans cb-hop"
@@ -268,7 +269,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
                 {sending
                   ? <span style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:8 }}>
                       <span style={{ width:12,height:12,borderRadius:"50%",border:`2px solid ${C.washi}`,borderTopColor:"transparent",display:"inline-block",animation:"spin .8s linear infinite" }}/>
-                      送信中…
+                      送信中<Dots />
                     </span>
                   : "認証コードを送信する →"}
               </button>
@@ -375,7 +376,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
               </div>
               <button className="btn-primary" style={{ width:"100%" }}
                 disabled={!pw||!pw2||sending} onClick={submitPassword}>
-                {sending ? "設定中…" : directSignup ? "登録してはじめる" : alreadyRegistered ? "パスワードを設定し直す" : "設定してはじめる"}
+                {sending ? <>設定中<Dots /></> : directSignup ? "登録してはじめる" : alreadyRegistered ? "パスワードを設定し直す" : "設定してはじめる"}
               </button>
               {directSignup && (
                 <div style={{ textAlign:"center", marginTop:16 }}>

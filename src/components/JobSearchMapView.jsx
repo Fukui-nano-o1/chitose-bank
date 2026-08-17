@@ -805,7 +805,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // 逆に締切なのに「応募」を押せてしまう窓も塞ぐ。ラベルは状態を偽らない「確認中…」
   const appPending = !!(me && !myAppLoaded);
   const applyBtnDisabled = myAppStatus === "rejected" || appPending;
-  const applyBtnLabel = appPending ? "確認中…"
+  const applyBtnLabel = appPending ? <>確認中<Dots /></>
     : applying ? (myAppStatus === "applied" ? <>取り消し中<Dots /></> : <>送信中<Dots /></>)
     : myAppStatus === "approved" ? "承認されました — チャットを開く"
     : myAppStatus === "rejected" ? "今回は見送りとなりました"

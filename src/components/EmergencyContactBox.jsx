@@ -64,7 +64,7 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved, required = fa
       if (typeof onSaved === "function") onSaved({ name: name.trim(), relation: relation.trim(), phone: phone.trim() });
     } catch { setSaving(false); alert("保存に失敗しました。"); }
   };
-  if (loading) return <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>読み込み中…</p>;
+  if (loading) return <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>読み込み中<Dots /></p>;
   return (
     <>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>
