@@ -1,5 +1,5 @@
 -- 素の current_date（＝DBのUTC日付）をJST日付に統一（2026-08-06 バグ狩り③で発見）。
--- DBは UTC 稼働so current_date は UTC 日付。コードベースの日付規約は
+-- DBは UTC 稼働ので current_date は UTC 日付。コードベースの日付規約は
 -- 「(now() at time zone 'Asia/Tokyo')::date」で統一されている（auto_start_work・complete_work・
 -- expire_stale_applications 等が明示的にJST日付を使う）。3関数だけ素の current_date を使い、
 -- JST 00:00〜08:59（UTC 15:00〜23:59）の約9時間、日付が1日ズレていた。

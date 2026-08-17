@@ -4,7 +4,7 @@
 --   1回目：申請行無し→insert。2回目：update が0行（既にprocessed）→また insert＝二重実行で
 --   withdrawal_requests が増殖（実害は小さいが記録が汚れる）。
 -- 【修正】(c) を「申請行があれば processed_at を coalesce で刻む／無ければ1行作る」に。
---   二重実行しても行は増えない（実測：1回目=1行・2回目=1行）。削除処理は元から冪等so全体が冪等。
+--   二重実行しても行は増えない（実測：1回目=1行・2回目=1行）。削除処理は元から冪等ので全体が冪等。
 -- 削除17テーブル・メール匿名化は 20260807133659 から不変（(c)のみ差し替え）。
 
 create or replace function public.process_withdrawal(p_auth_id uuid)

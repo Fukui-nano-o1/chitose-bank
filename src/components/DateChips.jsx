@@ -15,7 +15,7 @@ export function AgreedDatesRow({ value, fs = 12 }) {
 }
 // 来られる日チップ（応募者カード・返事待ちカード・チャット文脈カード共用・2026-07-24）。
 // value＝applications.available_dates：["YYYY-MM-DD",...]（特定日・列挙）のみ表示。
-// 'any'（期間中いつでもOK）は非表示（2026-07-24たきと指示：全期間working前提so表示不要）。null（単日）も非表示
+// 'any'（期間中いつでもOK）は非表示（2026-07-24たきと指示：全期間working前提ので表示不要）。null（単日）も非表示
 export function AvailDatesChips({ value, fs = 12 }) {
   const dates = Array.isArray(value) ? value : [];
   if (dates.length === 0) return null;

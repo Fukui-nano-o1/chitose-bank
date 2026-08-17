@@ -18,7 +18,7 @@ create or replace view public.employer_profiles_public as
     teaching_style, chat_style, question_style
    FROM employer_profiles;
 
--- 求人詳細の農園紹介RPC：返り値の列が増える＝return typeはREPLACE不可soDROPして作り直す。
+-- 求人詳細の農園紹介RPC：返り値の列が増える＝return typeはREPLACE不可のでDROPして作り直す。
 -- ★作り直すとPUBLIC自動EXECUTEが付くため、revoke from public→明示grantを必ず再宣言（2026-08-06教訓）。
 --   このRPCは訪問者にも見せる仕様（anon許可のホワイトリスト・2026-08-07 audit③）
 drop function if exists public.job_employer_profile(integer);

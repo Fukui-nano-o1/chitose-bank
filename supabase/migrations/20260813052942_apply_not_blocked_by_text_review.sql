@@ -13,14 +13,14 @@
 --   lib/workerReady.js に明記の原則：「運営の自由記述（自己紹介）審査は条件に含まれない
 --   ＝審査は応募をブロックしない」。apply_to_job がこの原則に反していたので合わせる。
 --   安全性：未承認の自由記述は農家に見えない（worker_profile_for_farmer が under_review を返して
---   本文を伏せる・2026-08-07）。so応募を通しても、審査前の文字が農家に届くことはない。
+--   本文を伏せる・2026-08-07）。ので応募を通しても、審査前の文字が農家に届くことはない。
 --   審査の意味（連絡先の記載・個人の特定・不適切な表現を【公開前に】止める）は一切弱まらない。
 --
 -- 【変更2点】
 --   (a) profile_under_review による応募の拒否をやめる
 --   (b) 応募ゲートの答えの数え方を「承認済み＋審査待ち」に。本人が答えた事実を数える
 --       （答えた瞬間に応募できる。農家に見えるのは承認後）
---   ※ create_pending_application（仮応募）は元から審査ゲートを持たないso変更なし
+--   ※ create_pending_application（仮応募）は元から審査ゲートを持たないので変更なし
 
 create or replace function public.apply_to_job(p_job_number integer, p_available_dates jsonb default null::jsonb)
 returns json

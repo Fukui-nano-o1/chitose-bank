@@ -3,7 +3,7 @@
 --   （reviews v1 の思想＝公開＝客観的事実／ランキング・スコア・レコメンドには使わない＝事実の陳列まで）。
 -- 職安法ガード：運営の主観（評価・印象・おすすめ度）は返さない。順位も点数も算出しない。
 -- プライバシー：自由記述（reviews.public_comment＝働きぶり／private_memo＝本人だけのメモ）は
---   意図的に返さない。private_memo は「あなた以外には表示されません」と本人に約束している列so、
+--   意図的に返さない。private_memo は「あなた以外には表示されません」と本人に約束している列ので、
 --   管理RPCで覗ける形にしない（SECURITY DEFINER はRLSを通り抜けるため、ここで明示的に外す）。
 -- 読み取り専用（書き込みは一切しない）。admin_working_jobs と同型：app_admins ゲート＋当事者名を返す。
 create or replace function public.admin_evaluation_records()

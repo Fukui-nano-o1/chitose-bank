@@ -11,7 +11,7 @@
 --   の数 >= headcount。ビューの hired_count 列・フロントの満員バッジ（filled）と同じ数え方
 --   ＝サイト内に「満員」の定義が2種類現れない。headcount が NULL/0 の行は満員になり得ない。
 --
--- 【変えるのは WHERE だけ】列の構成は一切不変so、RETURNS SETOF jobs_public の
+-- 【変えるのは WHERE だけ】列の構成は一切不変ので、RETURNS SETOF jobs_public の
 --   admin_preview_job・employer_public_jobs は無改修で追従（2026-07-22ルール）。
 --   雇い手プロフィールの「過去の求人」も同じ絞りに自動で揃う（employer_public_jobs は jp.*）。
 --   フロントも無改修：JobCard は filled を closed より先に判定するため、満員で終了した求人は

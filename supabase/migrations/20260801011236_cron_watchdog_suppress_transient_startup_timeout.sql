@@ -14,12 +14,12 @@
 --   ・鳴らさない条件（両方満たす時のみ）：
 --       (1) return_message が 'job startup timeout'（＝関数のSQLエラーではなくワーカー起動の失敗）
 --       (2) その直前の同一ジョブの実行が成功している（＝孤立した瞬間的な失敗）
---   ・逆に、直前も失敗していれば＝ワーカー枯渇が続いている恒久障害so鳴らす。
+--   ・逆に、直前も失敗していれば＝ワーカー枯渇が続いている恒久障害ので鳴らす。
 --   ・'job startup timeout' 以外（summarize_sessions の window-in-agg のような本物のSQLエラー等）は
 --     従来どおり即・鳴らす。
 --
 -- 二頭運転の整理（2026-07-21ルール）：cron_watchdog はこれまで repo migration に無く
--- DB直接適用のみだった。恒久物so本ファイルで版管理に写し、正本を repo 側に統一する。
+-- DB直接適用のみだった。恒久物ので本ファイルで版管理に写し、正本を repo 側に統一する。
 -- （現行定義をそのまま採録し、WHERE 句にだけ抑制条件を足した。文面・宛先・65分窓は不変）
 
 create or replace function public.cron_watchdog()
@@ -39,7 +39,7 @@ begin
     left join cron.job j on j.jobid = d.jobid
    where d.status = 'failed'
      and d.start_time > now() - interval '65 minutes'
-     -- 一過性かつ自己回復（直前の実行が成功）した「job startup timeout」は誤報so除外。
+     -- 一過性かつ自己回復（直前の実行が成功）した「job startup timeout」は誤報ので除外。
      -- 直前も失敗＝ワーカー枯渇が継続、または他のSQLエラーなら、従来どおり鳴らす。
      and not (
        d.return_message = 'job startup timeout'

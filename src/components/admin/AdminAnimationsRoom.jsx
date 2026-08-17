@@ -1,7 +1,7 @@
 // アニメーションページ（#/admin/animations・管理者専用・2026-08-07たきと指示
 // 「アニメーションカードを追加。そこで実機の確認と編集を行う。実物と同じものをもってこい」）。
 // 見本帳（AdminFarmerPagesRoom）と同じ方針＝似せて描かず【本物の部品をそのまま再生する】：
-// components/Celebration（祝祭v2・音と振動つき）を本番と同じpropsで呼ぶso、
+// components/Celebration（祝祭v2・音と振動つき）を本番と同じpropsで呼ぶので、
 // 本物を変えればこのページも自動で追従する（写し間違い・経年ズレthaが構造的に起きない）。
 // ★CELEBRATIONS の props は本番の呼び出しの写し。本番側の絵文字・文言を変えたらここも合わせること
 //   （洗い出しは grep "<Celebration" と grep "setCelebrate({"）。
@@ -32,7 +32,7 @@ const CELEBRATIONS = [
 ];
 
 // 部品の中に埋まっていて切り出せないアニメーション＝本物のいる場所へ飛んで確認する
-// （コピーを作ると本物と乖離するso、リンクだけ置く）
+// （コピーを作ると本物と乖離するので、リンクだけ置く）
 const EMBEDDED = [
   { l:"採用の押印（🤝・輪・紙吹雪）", hash:"/calendar/todo/hire",  where:"採用するページ。採用を実行した時" },
   { l:"委託ページの入場演出（幕・草・太陽・花火）", hash:"/admin/consignment", where:"委託 準備室を開いた時" },

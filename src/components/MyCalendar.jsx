@@ -93,7 +93,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   // 採用（両者の確認時刻が揃う＝契約成立）で確定する。
   // ★確定の分かれ目は段階であって、農家が「働く日を決める」を押したか（agreed_dates の有無）ではない。
   //   働く日を決めるのは日を絞る操作で、契約の成立とは別（採用前に決めても確定にはならない）。
-  // 求人期間の行（own＝自分の出した求人／liked＝いいね）は人との約束ではないso従来どおりの塗り。
+  // 求人期間の行（own＝自分の出した求人／liked＝いいね）は人との約束ではないので従来どおりの塗り。
   const isConfirmedEntry = (e) => e.relation !== "application" || HIRED_PHASES.includes(phaseOfEntry(e));
 
   const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
@@ -203,7 +203,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       {draftPrompt && (
         <div onClick={()=>setDraftPrompt(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられるso重複 */}
+            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられるので重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="📝 下書きを進めませんか？" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             <div>

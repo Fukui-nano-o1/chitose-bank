@@ -4,7 +4,7 @@
 --   pg_net は非同期なので、送信した瞬間には結果that分からない。返ってくるIDを控えておけば、
 --   後から net._http_response と突き合わせて、受理の時刻と応答コードを記録できる。
 --
--- 【互換性】呼び出し元31本はすべて perform（返り値を使わない）so影響なし。
+-- 【互換性】呼び出し元31本はすべて perform（返り値を使わない）ので影響なし。
 --   返り値の型を変えるため create or replace ではなく drop→create する。
 --   ★drop→create すると default privileges で anon/authenticated に EXECUTE that戻るため、
 --     作成後に必ず revoke し直す（2026-08-06の教訓：revoke は from public と from anon の両方that要る）。

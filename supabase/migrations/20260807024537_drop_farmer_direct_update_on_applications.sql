@@ -12,7 +12,7 @@
 -- （approve_application・confirm_terms・complete_work・confirm_start・auto_start_work・
 --  set_agreed_dates・decide_time_correction・punch_start 等）＝定義者権限で動きRLSを迂回するので、
 -- このポリシーに依存しない。フロントも applications を直接UPDATEしていない（grep 0件）。
--- ＝このポリシーは正規機能が1つも使わない純粋な攻撃面so、削除で穴だけ閉じる。
+-- ＝このポリシーは正規機能が1つも使わない純粋な攻撃面ので、削除で穴だけ閉じる。
 --
 -- 検証済み（ロールバック付き実弾）：削除後、農家の直接completed偽装=0行／
 -- 正規フロー（承認→採用→保険→自動開始→開始確認→完了→評価）7段すべて通過。

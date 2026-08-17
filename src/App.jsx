@@ -41,7 +41,7 @@ function chunkReloadAllowed(now) {
 // ★②が本丸（2026-08-16）：旧実装はupdate()を3秒で見切って即reloadしていたため、新SWの
 // インストール（precache約1.85MB）が終わる前に再読込→また旧precacheのindex.htmlを掴み直し、
 // 自己修復が「直らない再読込」を繰り返していた（10:14 #/admin・10:16 #/work/edit/1239 の実録）。
-// skipWaiting+clientsClaim構成soインストール完了＝即有効化。activated（または更新なし）を
+// skipWaiting+clientsClaim構成のでインストール完了＝即有効化。activated（または更新なし）を
 // 確認してからreloadすれば1回で新ビルドに乗る。全体は15秒で必ず打ち切る（reloadは必ず走る）
 async function prepareFreshReload() {
   try {
@@ -177,9 +177,9 @@ function PublishIdleRedirect({ seconds = 60, onEnd }) {
 }
 
 const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
-// 仮応募の成功ページ（第15弾・2026-07-30）。応募した人だけが通る画面so遅延読み込み
+// 仮応募の成功ページ（第15弾・2026-07-30）。応募した人だけが通る画面ので遅延読み込み
 const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m => ({ default: m.ApplyPending })));
-// 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面so遅延読み込み
+// 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面ので遅延読み込み
 const NewApplicantsPage = lazyChunk(() => import("./components/NewApplicantsPage").then(m => ({ default: m.NewApplicantsPage })));
 import { ChatList } from "./components/ChatList";
 import { AdminErrorChatReporter } from "./components/AdminErrorChatReporter";
@@ -204,7 +204,7 @@ const AdminReportsRoom = lazyChunk(() => import("./components/admin/AdminReports
 const AdminFarmerPagesRoom = lazyChunk(() => import("./components/admin/AdminFarmerPagesRoom").then(m => ({ default: m.AdminFarmerPagesRoom })));
 const AdminAnimationsRoom = lazyChunk(() => import("./components/admin/AdminAnimationsRoom").then(m => ({ default: m.AdminAnimationsRoom })));
 // プロフィールタブ（2026-07-27たきと指示「リロードを必要最低限に」）：農家ハブ・応募状況・
-// プロフィール編集・カレンダーがぶら下がる大きな塊so、開いた時に初めて読む＝起動のJSを軽くする
+// プロフィール編集・カレンダーがぶら下がる大きな塊ので、開いた時に初めて読む＝起動のJSを軽くする
 const ProfileHub = lazyChunk(() => import("./components/ProfileHub").then(m => ({ default: m.ProfileHub })));
 import { CSS } from "./appStyles";
 import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/VisitAndInsurance";
@@ -293,7 +293,7 @@ async function logAppError({ level = "error", source = "client", page = "", comp
 
 
 // 画面が真っ暗になるのを止める最後の壁（2026-07-31・委託ページで再発）。
-// lazyChunk の自己修復は「間隔つきの自動再読込」so、間隔内に再失敗すると
+// lazyChunk の自己修復は「間隔つきの自動再読込」ので、間隔内に再失敗すると
 // 例外がそのまま上まで抜け、React がツリーごと外して何も描かれない＝真っ暗になる。
 // ここで受け止めて、原因と次の一手（再読み込み）を必ず画面に出す。エラーは app_errors にも残す。
 class AppErrorBoundary extends Component {
@@ -320,7 +320,7 @@ class AppErrorBoundary extends Component {
         <button onClick={async ()=>{
           // 自己修復（2026-08-03）：描画エラーの原因が永続キャッシュ（viewCache）の壊れた・古い形の
           // データだった場合、リロードだけでは同じデータで落ち続ける。再読み込み時は表示キャッシュを
-          // 全部捨ててから読み直す（キャッシュは表示専用so捨てても最新を取り直すだけ・実害なし）
+          // 全部捨ててから読み直す（キャッシュは表示専用ので捨てても最新を取り直すだけ・実害なし）
           try { clearCache(); } catch {}
           try { sessionStorage.removeItem("cb_chunkReload"); } catch {}
           // 手動の再読み込みも新ビルドを確実に取りに行く（2026-08-07・古いindex.htmlの掴み直し防止）
@@ -642,7 +642,7 @@ function WorkerPreviewSheet() {
       </div>
 
       {/* 評価が空のときの案内文は撤去（2026-08-08たきと指示「削除」）。
-          中央固定のポータル層・スワイプ連動（msgSlideRef）も、この案内のためだけの仕掛けso一緒に削除した */}
+          中央固定のポータル層・スワイプ連動（msgSlideRef）も、この案内のためだけの仕掛けので一緒に削除した */}
 
       {/* 通報モーダル：求人の通報（JobSearchMapView）と同じ視覚文法・語彙。2枚のボタンの共通の行き先 */}
       {rep && (
@@ -1134,7 +1134,7 @@ function InstallGuide({ me }) {
     if (!file || uploadingSlot) return;
     setUploadingSlot(slotKey);
     try {
-      // スクショは原寸1〜3MB級so長辺1280px・品質0.75に圧縮してから上げる（表示幅760pxの約1.7倍=Retina十分・2026-07-26）
+      // スクショは原寸1〜3MB級ので長辺1280px・品質0.75に圧縮してから上げる（表示幅760pxの約1.7倍=Retina十分・2026-07-26）
       const upFile = await compressImage(file, 1280, 0.75);
       const ext = (upFile.name.split(".").pop() || "jpg").toLowerCase();
       const path = slotKey + "." + ext;
@@ -1225,7 +1225,7 @@ function HelpCenter({ me, onReportClick }) {
     if (uploadingSlot) return;
     setUploadingSlot(slotKey);
     try {
-      // スクショは原寸1〜3MB級so長辺1280px・品質0.75に圧縮してから上げる（表示幅760pxの約1.7倍=Retina十分・2026-07-26）
+      // スクショは原寸1〜3MB級ので長辺1280px・品質0.75に圧縮してから上げる（表示幅760pxの約1.7倍=Retina十分・2026-07-26）
       const upFile = await compressImage(file, 1280, 0.75);
       const ext = (upFile.name.split(".").pop() || "jpg").toLowerCase();
       const path = slotKey + "." + ext;
@@ -1377,7 +1377,7 @@ export default function App(){
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // 利用規約・プライバシーポリシーを開いたら必ず先頭から（2026-07-30たきと指示）。
   // どちらもフッター等ページの下の方から開くため、スクロール位置が残ると本文の途中に着地する。
-  // 章リンク（#見出しへのscrollIntoView）は別動作so、ここではページを開いた瞬間だけ先頭に戻す
+  // 章リンク（#見出しへのscrollIntoView）は別動作ので、ここではページを開いた瞬間だけ先頭に戻す
   useEffect(() => {
     if (tab !== "terms" && tab !== "privacy") return;
     try { window.scrollTo({ top: 0, behavior: "auto" }); } catch { window.scrollTo(0, 0); }
@@ -1430,7 +1430,7 @@ export default function App(){
     if (m) resolveEmergencyLink(m[1]);
   }, []);
   // URL → tab：戻る/進むボタン・URL直打ちでタブを切り替える
-  // 訪問者の同意ゲート（2026-07-24〜2026-08-17）は撤去した（たきと指示「利用者になる最大の障壁so削除」）。
+  // 訪問者の同意ゲート（2026-07-24〜2026-08-17）は撤去した（たきと指示「利用者になる最大の障壁ので削除」）。
   // 以後、訪問者はどの入口（QR・検索・直リンク）からでも、同意画面を挟まずそのままページに着く。
   // ・恒久URL #/visit は従来どおり生きている（QRの焼き込み・CLAUDE.md 2026-07-24）。
   //   玄関の意味＝「訪問者が求人を見に来る入口」も不変で、中身が素通り（#/search へ送る）になっただけ。
@@ -1860,7 +1860,7 @@ export default function App(){
     let heartTimer = null;
     const onScroll = () => {
       // いいねハートのぷるんぷるん（2026-08-07たきと指示）：縦スクロール中だけ body.cb-scrolling を
-      // 立て、CSS（appStyles .cb-like-heart）が震わせる。止まって220ms後に外す（振幅は小so途中で
+      // 立て、CSS（appStyles .cb-like-heart）が震わせる。止まって220ms後に外す（振幅は小ので途中で
       // 切れてもスナップが目立たない）。既存のスクロール監視に相乗り＝リスナーを増やさない
       document.body.classList.add('cb-scrolling');
       if (heartTimer) clearTimeout(heartTimer);
@@ -1930,7 +1930,7 @@ export default function App(){
     // 画面（骨格）を先に出す。セッション復元は裏で続き、完了した時点でme等が後から埋まる
     const loadedFailsafe = setTimeout(() => setLoaded(true), 4000);
     // 起動で読むのは「今のページに要るもの」だけにする（2026-07-27たきと指示）。
-    // dests×2・records（旧事業データ）は管理タブ・プロフィールモーダルでしか使わないso起動から外し、
+    // dests×2・records（旧事業データ）は管理タブ・プロフィールモーダルでしか使わないので起動から外し、
     // 開いた時にloadLegacyData()で読む＝全員のリロードが3往復→2往復に軽くなる
     const [sessRes] = await Promise.all([
       supabase.auth.getSession().catch(e => ({ data: { session: null }, error: e })),
@@ -1987,7 +1987,7 @@ export default function App(){
   })();},[]);
 
   // 旧事業データ（出荷先・記録）の遅延読込（2026-07-27たきと指示「該当するページのみリロード」）：
-  // 管理タブ／プロフィールモーダルを開いた時に1回だけ読む。閉じても保持so再取得はしない
+  // 管理タブ／プロフィールモーダルを開いた時に1回だけ読む。閉じても保持ので再取得はしない
   // ★safeTabはこの下（2000行台）で定義されるため参照禁止（初期化前アクセスで真っ黒画面になる）。
   //   生のtabで判定する（adminタブは資格ガードを通った後だけ描画されるので実害なし）
   const legacyLoadedRef = useRef(false);
@@ -2142,7 +2142,7 @@ export default function App(){
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [me?.id]);
   // 段階お祝いボックス（2026-07-19）：②承認・⑤仕事・⑥評価を、働き手/農家の両側に1回だけ展開。
-  // ①応募=apply/done・④採用=hiredBox は別で担当so除外。applications変化をRealtime購読＋起動時チェック
+  // ①応募=apply/done・④採用=hiredBox は別で担当ので除外。applications変化をRealtime購読＋起動時チェック
   const [stageBox, setStageBox] = useState(null); // {emoji,head,body,link,hash}
   useEffect(() => {
     if (!me?.id) return;
@@ -2525,7 +2525,7 @@ export default function App(){
       {!consignRoom && activeNotices && !welcomeApproved && (
         <div onClick={dismissNotices} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10900 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられる（＝既読化も同じdismissNotices）so重複 */}
+            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられる（＝既読化も同じdismissNotices）ので重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={activeNotices[0].name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
@@ -2789,7 +2789,7 @@ export default function App(){
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {/* 新着の応募ページ（#/new-applicants・2026-08-05たきと指示）：応募を受けた雇い手専用。
             未対応の応募があればサイトを開いた時にここへ着地する（起動時の着地判定・topLandingChecked）。読み取り専用＝
-            承認・見送りの実行は応募者シートが唯一の窓口so、ここからはそこへ送るだけ */}
+            承認・見送りの実行は応募者シートが唯一の窓口ので、ここからはそこへ送るだけ */}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="new-applicants"&&me&&
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><NewApplicantsPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!chatAppId&&!applyPage&&safeTab==="chats"&&(me
@@ -3026,7 +3026,7 @@ export default function App(){
       {workerFlowNote && <ApplyDoneNote worker onClose={()=>setWorkerFlowNote(false)} />}
       {applyIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setApplyIdle(false); if (fired) window.location.hash="/search"; }} />}
 
-      {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるso、個別に包む
+      {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるので、個別に包む
           （2026-08-07 コピー→白画面の修理）：包まないと、チャンク読み込み失敗・描画エラーが
           ここで起きた時にReactがツリー全体を落とし、復帰ボタンも無い白画面になる */}
       {!me&&showLanding&&(

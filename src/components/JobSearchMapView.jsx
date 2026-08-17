@@ -59,11 +59,11 @@ export function JobSearchMapView({ onRegister, me }) {
   const [backTo, setBackTo] = useState(null);
   // 自分が出した求人の番号（2026-07-29たきと指示「自分の求人にはいいねを付けられないように」）。
   // 一覧のカードは jobs_public 経由で farmer_id を持たないため、自分の求人番号をまとめて引いて突き合わせる。
-  // jobsのRLS（owner select）で返るのは自分の行だけso、他人の求人番号は取得できない
+  // jobsのRLS（owner select）で返るのは自分の行だけので、他人の求人番号は取得できない
   // キャッシュから即座に持つ（2026-08-03たきと指摘「満員判定が数十秒かかる」）：
   // この一覧は求人詳細の「自分の求人か」の判定も兼ねる（下記 isOwnJob）。以前は求人を開くたびに
   // jobs を1件引いて確定を待っていたため、セッション復元＋その往復ぶん（回線が悪いと数十秒）
-  // フッターも満員表示も出なかった。番号の集合は本人スコープの表示専用データsoキャッシュ可
+  // フッターも満員表示も出なかった。番号の集合は本人スコープの表示専用データのでキャッシュ可
   const [myJobNums, setMyJobNums] = useState(() => { const c = getCache("search:myJobNums"); return new Set(Array.isArray(c) ? c : []); });
   const [myJobNumsLoaded, setMyJobNumsLoaded] = useState(() => Array.isArray(getCache("search:myJobNums")));
   useEffect(() => {
@@ -98,7 +98,7 @@ export function JobSearchMapView({ onRegister, me }) {
     const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: selectedJob.id });
     if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
     setOwnMenuOpen(false);
-    // open→draftでさがすから消えるso、行き先はお仕事タブ（公開中に一時非公開の帯で残る）
+    // open→draftでさがすから消えるので、行き先はお仕事タブ（公開中に一時非公開の帯で残る）
     window.location.hash = "/profile/employer";
   };
 
@@ -173,7 +173,7 @@ export function JobSearchMapView({ onRegister, me }) {
     setTimeout(() => { setReportDone(false); closeReportModal(); }, 1500);
   };
   useEffect(() => {
-    // 訪問者モード（2026-07-24）：jobs_publicはanon許可so未ログインでも公開面を読める。
+    // 訪問者モード（2026-07-24）：jobs_publicはanon許可ので未ログインでも公開面を読める。
     // 取得・並び規則（新着上位＋ランダム・既読記録）は lib/searchJobs に一本化（玄関の先読みと共有・2026-08-02）
     (async () => {
       try {
@@ -218,7 +218,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // ── レーン切替（求人／委託）＝2026-08-03たきと指示 ──────────────────────────
   // 委託タブを出す条件は lib/consignAccess.js の canSeeConsignment ただ1箇所（管理者 かつ 特約同意）。
   // 後日その1行から管理者条件を外すだけで一般公開になる（＋DB側のRLSも同時に開ける・詳細はlibのコメント）。
-  // 特約の同意状況は consignment_profiles を読んで判定する。RLSが管理者限定so、
+  // 特約の同意状況は consignment_profiles を読んで判定する。RLSが管理者限定ので、
   // 一般ユーザーで無駄な往復をしないよう「見せる可能性がある人」だけ引く
   const [consignor, setConsignor] = useState(() => getCache("search:consignor") ?? null);
   useEffect(() => {
@@ -328,7 +328,7 @@ export function JobSearchMapView({ onRegister, me }) {
     try { localStorage.setItem("cb_searchFilters", JSON.stringify({ w: selWhats, r: selRegions, m: selMonths })); } catch { /* 保存不可でも絞り込み自体は動く */ }
   }, [selWhats, selRegions, selMonths]);
   // リアルタイム反映（2026-07-27たきと指示）：チップを触った瞬間に一覧へ反映（検索ボタン待ちの下書き方式は廃止）。
-  // パネルは半透明の暗幕so、背後で一覧が絞られていくのが見える
+  // パネルは半透明の暗幕ので、背後で一覧が絞られていくのが見える
   const searchActive = selWhats.length > 0 || selRegions.length > 0 || selMonths.length > 0;
   const jobMonths = (j) => { // 求人の日程が跨る月（1〜12）の一覧
     // ★dateStart/dateEndはDateオブジェクト（mapJobPublicRow）。文字列連結するとInvalid Dateになるため
@@ -667,7 +667,7 @@ export function JobSearchMapView({ onRegister, me }) {
           let wm = snapGet("wMini");
           // ★スナップショットが無い端末（プロフィール入口を開いたことがない・キャッシュ消去後）は
           //   アイコンが「？」に倒れていた（2026-08-16たきと報告）→ 本物をDBから1行取り足す。
-          //   本人行のRLS・単一行so一瞬。失敗しても祝祭は従来のフォールバックで出る（止めない）
+          //   本人行のRLS・単一行ので一瞬。失敗しても祝祭は従来のフォールバックで出る（止めない）
           if (!wm?.avatar_url && !wm?.nickname) {
             const res = await supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", me.id).maybeSingle();
             if (!res.error && res.data) wm = res.data;
@@ -798,7 +798,7 @@ export function JobSearchMapView({ onRegister, me }) {
     // 仮応募中（第15弾）：意思は預かり済み。次の一手はプロフィールの仕上げ
     : (!myAppStatus && myPending) ? "仮応募中 → プロフィールを仕上げる"
     // 新規応募の基本ラベルは「日程の確認」（2026-08-16たきと指示「右下の応募ボタンは日程の確認に差し替え」）：
-    // タップの実体は応募の送信でなく確認ボックス（3面・最後がが日程選択と応募）を開くことso、その通りの顔にする
+    // タップの実体は応募の送信でなく確認ボックス（3面・最後がが日程選択と応募）を開くことので、その通りの顔にする
     : "日程の確認";
   const applyBtnStyle = myAppStatus === "rejected" ? { background:"#EBEBEB", color:"#717171" }
     : myAppStatus === "applied" ? { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }
@@ -834,7 +834,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // 訪問者（未ログイン）が応募・いいね・投稿等をタップした時の案内（2026-07-24・隠さず案内する）
   // 「閉じる」で普通に閉じる（2026-07-27たきと指示）：以前は閉じた直後に#/loginへ飛ばしていたため、
   // 案内を読んだだけで見ていた求人から引き剥がされていた。案内だけ出して画面はそのまま残す。
-  // 文面も「登録画面へ進みます」を撤回（進まないso）。応募・いいね両方の入口から呼ばれるsо共通の言い回しにする
+  // 文面も「登録画面へ進みます」を撤回（進まないので）。応募・いいね両方の入口から呼ばれるsо共通の言い回しにする
   const visitorGuide = () => {
     // ログインのボックスをその場に展開（2026-07-27たきと指示）。alertは画面を止めるだけで先に進めず、
     // 見ていた求人からログイン画面へ飛ばすと文脈が切れるため、同じ画面の上に重ねる
@@ -864,13 +864,13 @@ export function JobSearchMapView({ onRegister, me }) {
   // ただし既に応募・承認・見送りの関係がある本人には、状況確認とチャット導線を残すため従来どおり表示する。
   const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired || selectedJob.closed));
   // ★自分の応募が分かるまでは締切扱いにしない（2026-07-27たきと報告「一瞬だけ満員が映る」）。
-  //   未取得の間はmyAppStatusがundefinedso、応募済みの人にも一度「満員」を出してから戻っていた
+  //   未取得の間はmyAppStatusがundefinedので、応募済みの人にも一度「満員」を出してから戻っていた
   const hideApply = recruitClosed && myAppLoaded && !myAppStatus;
   // 満員の2段階（2026-08-14たきと指示・JobCardの帯と同じ区別）：満員のみ＝募集終了／満員かつ終了済み＝掲載終了
   const closedLabel = selectedJob?.filled
     ? ((selectedJob.closed || selectedJob.expired) ? "この求人は掲載を終了しました（満員）" : "この募集は終了しました（満員）")
     : selectedJob?.closed ? "この募集は終了しました" : "この募集は終了しました（期間終了）";
-  // 下部フッターは幅が狭いso短い言葉に差し替える（2026-07-27たきと指示）。
+  // 下部フッターは幅が狭いので短い言葉に差し替える（2026-07-27たきと指示）。
   // 「応募する」の位置＝そのままボタンの場所に「満員」（期間終了なら「募集終了」）を出す
   const closedLabelShort = selectedJob?.filled ? "満員" : "募集終了";  // closed も期間終了も同じ短縮語
 
@@ -880,7 +880,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* 見出し「近くの仕事を探す」は削除（2026-07-27たきと指示）。現在地は下部ナビの点灯が示すため冗長。
           支払いの注記は求人一覧の一番下へ移植（下記） */}
 
-      {/* ── レーンタブ（求人／委託・2026-08-03たきと指示）：契約の性質が違う別レーンso絞り込みでなくタブで並べる。
+      {/* ── レーンタブ（求人／委託・2026-08-03たきと指示）：契約の性質が違う別レーンので絞り込みでなくタブで並べる。
            委託タブは canSeeConsignment（管理者 かつ 特約同意）を満たす人にだけ現れる。
            条件を満たさない人にはタブ自体が出ない＝従来どおり求人一覧のまま（1レーンなら非表示） ── */}
       {/* ── スワイプ容器（2026-08-07たきと指示・指連動でレーン切替）。タブは容器内・アニメの外＝動かない。
@@ -891,7 +891,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* ドラッグ追従はlaneContentRefへのtransform直書き（再レンダーなし）。切替成立時はkey更新でスライドイン再生 */}
       <div key={laneSlideKey} ref={laneContentRef} style={laneSlideDir ? { animation: `${laneSlideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` } : undefined}>
 
-      {/* 委託レーン：一覧だけを出す（絞り込みバー・支払いの注記は求人の話so出さない） */}
+      {/* 委託レーン：一覧だけを出す（絞り込みバー・支払いの注記は求人の話ので出さない） */}
       {lane === "consign" && <ConsignmentSearchList />}
 
       {lane === "jobs" && (<>
@@ -1038,7 +1038,7 @@ export function JobSearchMapView({ onRegister, me }) {
         {/* .appear(transform保持)の外に置く＝fixedの基準を画面に保つ（2026-07-16スクロール追従修理） */}
           {/* ←戻る／♡いいね：同じ高さの浮遊固定ボックス（スクロール追従・2026-07-16） */}
         {/* カレンダー（今日ページ）から来た時は戻るボックスを出さない（2026-07-27たきと指示）：
-            下部ナビのカレンダータブが戻り道so浮遊ボックスは重複。他の出どころ（チャット・応募状況・一覧）では従来どおり出す */}
+            下部ナビのカレンダータブが戻り道ので浮遊ボックスは重複。他の出どころ（チャット・応募状況・一覧）では従来どおり出す */}
         {backTo !== "/calendar" && (
         <button onClick={() => {
           // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
@@ -1070,7 +1070,7 @@ export function JobSearchMapView({ onRegister, me }) {
         <div className="appear job-detail-body-mobile">
           {/* 通報リンク（いいねの上=ページ先頭右）。自分の求人には出さない（2026-08-11たきと指示
               「戻る以外のボタンを設置するな」＝新着の応募ページから開く自分の求人。
-              自分の求人を自分で報告する意味がも無いso、出どころに関係なく isOwnJob で伏せる） */}
+              自分の求人を自分で報告する意味がも無いので、出どころに関係なく isOwnJob で伏せる） */}
           {me && !isOwnJob && (
             <div className="job-detail-back-btn" style={{ textAlign:"right", marginBottom:8 }}>
               <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
@@ -1613,7 +1613,7 @@ export function JobSearchMapView({ onRegister, me }) {
               「画像を枠にきれいに収めて。空白は寂しいよ」）。240px=タイトル・区切り線・案内文・ドット・
               ボタン・上下パディングの合計。3面とも同じ高さ＝固定の原則は不変 */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet" style={{ height:"calc((min(100vw - 32px, 480px) - 6px) * 0.75 + 240px)", display:"flex", flexDirection:"column" }}>
-            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップ＋下部「戻る」で閉じられるso重複 */}
+            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップ＋下部「戻る」で閉じられるので重複 */}
             {/* 3面切り替え（2026-08-16たきと指示）：1面目=承認の流れ図（タップで大画面）／2面目=説明（文字18に拡大）／
                 3面目=日程・応募。次へ/戻るで行き来し、1面目の戻るはボックスを閉じる */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0, flexShrink:0 }}><NoticeJumpText text="応募の確認" /></p>
@@ -1708,7 +1708,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* 承認の流れ図の大画面表示（2026-08-16たきと指示「承認の画像はタップで大画面に」）。
           ★画面に収める表示（maxWidth/maxHeight）だと文字が小さく、読むにはピンチ拡大が要る。
           このサイトのviewportはピンチでページ全体が拡大される＝閉じた後も倍率が残り「一部しか見えない」
-          事故になった（2026-08-16たきと報告）。so 最初から読める大きさ（幅min(200vw,1200px)）で描き、
+          事故になった（2026-08-16たきと報告）。ので 最初から読める大きさ（幅min(200vw,1200px)）で描き、
           指でずらして見るパン方式に変更＝ピンチ不要。✕と余白タップで閉じる（画像タップでは閉じない
           ＝ずらす操作の途中で誤って閉じないため。✕なし規約の例外・理由はこれ） */}
       {applyImgZoom && (
@@ -1764,7 +1764,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {likeDone && (
         <div onClick={()=>setLikeDone(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9000 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられるso重複 */}
+            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられるので重複 */}
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="いいねしました！" /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             {/* いいねした求人のカード：右上に❤️が付く動作（一覧カードの♡ボタンと同じ位置） */}

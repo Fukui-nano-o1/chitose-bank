@@ -22,7 +22,7 @@ export function ChatView({ applicationId, onBack }) {
   const [sending, setSending] = useState(false);
   // 入力欄の自動伸縮（改行対応・2026-08-16たきと指示）：中身の行数に合わせて高さを変える。
   // 上限132px（≒6行）を超えたら内側スクロール＝入力欄が画面を埋め尽くさない。
-  // 定型文の挿入・送信後のクリアでもtextが変わるso、この1箇所で高さが追従する
+  // 定型文の挿入・送信後のクリアでもtextが変わるので、この1箇所で高さが追従する
   const inputRef = useRef(null);
   const CHAT_INPUT_MAX_H = 132;
   useEffect(() => {
@@ -39,7 +39,7 @@ export function ChatView({ applicationId, onBack }) {
   //   スレッド切替時は既存のlocalRow/applyActiveのレールが同じ役目を担う
   const _cr = hydrateChatCache()?.rows?.find(x => x.id === applicationId) || null;
   // { nickname, avatar_url }。一覧から来た時はchatCacheの相手名で即描画し、本物の取得で上書き
-  // （2026-08-07たきと指示「アイコンの写真は後でいい。すぐに復元しろ」＝名前を待たせない。画像は<img>so届き次第出る）
+  // （2026-08-07たきと指示「アイコンの写真は後でいい。すぐに復元しろ」＝名前を待たせない。画像は<img>ので届き次第出る）
   const [partner, setPartner] = useState(() =>
     (_cr && _cr.partnerName) ? { nickname: _cr.partnerName, avatar_url: _cr.partnerAvatar || "" } : null);
   const [partnerInitials, setPartnerInitials] = useState(""); // ニックネーム未設定時のアイコン用・メール頭文字2文字（2026-07-22）
@@ -141,7 +141,7 @@ export function ChatView({ applicationId, onBack }) {
       // ★内容が同じなら前の配列を保つ（2026-08-07たきと報告「3〜5秒静止で最下部に自動遷移する」の根治）：
       //   5秒間隔の保険ポーリングが毎回新しい配列でsetMsgsし、下の自動スクロール（[msgs]依存）が
       //   毎回発火して、履歴を読んでいる最中でも数秒ごとに最下部へ引き戻していた。
-      //   本文・送信者・時刻は改変不可（履歴保全トリガー）so、件数と末尾idが同じ＝同一と判定してよい
+      //   本文・送信者・時刻は改変不可（履歴保全トリガー）ので、件数と末尾idが同じ＝同一と判定してよい
       if (data) setMsgs(prev =>
         (prev.length === data.length && (data.length === 0 || prev[prev.length-1].id === data[data.length-1].id)) ? prev : data);
       setMsgsLoading(false); // 取得できた時点で仮配置を畳む（0件なら「まだメッセージはありません」に切り替わる）
@@ -192,7 +192,7 @@ export function ChatView({ applicationId, onBack }) {
   useEffect(() => {
     // 求人No.ボックスでの切替を一瞬に（2026-07-27たきと指示）：
     // ①前のスレッドのメッセージを即クリア（残像を消す）
-    // ②同じ相手の別応募＝threadAppsに行がある＝相手情報・一覧は取得済みso、
+    // ②同じ相手の別応募＝threadAppsに行がある＝相手情報・一覧は取得済みので、
     //   セッション/相手プロフィール/イニシャル/全応募の再取得（4往復）を丸ごと省き、
     //   手元の行でapplyActive→messagesの読込だけ行う（体感が一気に縮む）
     setMsgs([]); setMsgsLoading(true); // 切替＝前の残像を消し、仮配置に戻す
@@ -208,7 +208,7 @@ export function ChatView({ applicationId, onBack }) {
       try {
         const { data:{ session } } = await supabase.auth.getSession(); // ローカル読み＝往復なし
         // ★本文の復元を最優先（2026-08-07たきと報告「チャットの復元が遅い」）：
-        //   メッセージは applicationId だけで取れる（RLSが当事者に絞る）so、応募行→相手情報の
+        //   メッセージは applicationId だけで取れる（RLSが当事者に絞る）ので、応募行→相手情報の
         //   取得を待たずに最初の往復で取りに行く。従来は直列3往復目（応募行→相手情報の並列取得→本文）で、
         //   DBのコールドスパイク（数秒/往復）が3回重なると復元が数秒×3になっていた。
         //   相手の名前・アイコン・求人No.帯・文脈カードは後から埋まる（先に会話を出す）
@@ -225,7 +225,7 @@ export function ChatView({ applicationId, onBack }) {
           setPartnerWorkerId(iAmWorker ? null : app.worker_id); // 相手が働き手の時だけアイコンタップでプレビュー（2026-07-19）
           setPartnerFarmerId(iAmWorker ? app.farmer_id : null);
           setIsWorkerSide(iAmWorker);
-          // 相手プロフィール・イニシャル・全応募は互いに独立so並列取得（2026-07-27：直列3往復を1往復ぶんに）
+          // 相手プロフィール・イニシャル・全応募は互いに独立ので並列取得（2026-07-27：直列3往復を1往復ぶんに）
           const [pRes, initRes, relRes] = await Promise.all([
             supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle(),
             supabase.rpc("my_chat_partner_initials"),
@@ -278,7 +278,7 @@ export function ChatView({ applicationId, onBack }) {
   // 復帰時の再読込＋保険ポーリング（2026-07-27たきと指示：チャットのリアルタイム化）：
   // iOS PWAはバックグラウンドでWebSocketが凍結・切断され、復帰後にRealtimeイベントが届かないことがある。
   // 画面復帰（visibilitychange/focus）で即再読込し、開いている間は5秒ごとの保険ポーリング。
-  // loadは冪等で既読化・バッジ再計算も担うso多重に呼ばれても安全
+  // loadは冪等で既読化・バッジ再計算も担うので多重に呼ばれても安全
   useEffect(() => {
     if (!appIds || appIds.length === 0) return;
     const refresh = () => { if (document.visibilityState === "visible") load(appIds); };
@@ -305,7 +305,7 @@ export function ChatView({ applicationId, onBack }) {
     if (nearBottomRef.current || mine) el.scrollTop = el.scrollHeight;
   }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
   // 働き手の内容確認専用（農家の採用実行は採用するページ #/calendar/todo/hire に一本化・2026-08-06
-  // 「器と機能の役割は一つに絞れ」。二重予約の壁はDB側confirm_termsが農家の初回確定時のみ見るso、
+  // 「器と機能の役割は一つに絞れ」。二重予約の壁はDB側confirm_termsが農家の初回確定時のみ見るので、
   // 働き手の確認呼び出しには掛からない＝受諾フラグ不要）
   const confirmTerms = async () => {
     if (confirmingTerms) return;
@@ -394,7 +394,7 @@ export function ChatView({ applicationId, onBack }) {
   useEffect(() => { const el = jobStripRef.current; if (el) el.scrollLeft = 0; }, [activeAppId]);
   // ── 横スワイプで求人No.を切り替える（2026-07-30たきと指示「指に連動させてほしい」）──
   // ★スワイプは帯の並び（orderedApps）ではなく threadApps＝応募日順の【動かない並び】を辿る。
-  //   帯は開いた順so、開くたびに並びが変わる＝スワイプをこれに乗せると「今の1件」と「直前の1件」を
+  //   帯は開いた順ので、開くたびに並びが変わる＝スワイプをこれに乗せると「今の1件」と「直前の1件」を
   //   往復するだけになり、3件目より奥の求人へ永久に辿り着けなくなるため（左へ引く＝次／右へ引く＝前）。
   //   帯はタップで選ぶ・スワイプは全件を順に送る、と役割を分けている。
   // 端では引きしろを1/4に落として「これ以上は無い」を手で伝える（ゴムの手応え）。

@@ -9,7 +9,7 @@
 --    働き手メールを指示の型に（件名「〇〇の求人を取り下げました」・説明文・
 --    HTML本文で「他の求人をさがす」を下線リンクに）＋農家にも取り下げ確認メール1通
 -- 3) my_job_actions に rejected_reason を末尾追加（ステータスページの暗幕「掲載取り下げ」用）。
---    RETURNS TABLEの列変更so DROP→再作成→権限を張り直す
+--    RETURNS TABLEの列変更ので DROP→再作成→権限を張り直す
 
 alter table public.applications add column if not exists rejected_reason text;
 comment on column public.applications.rejected_reason is
@@ -117,7 +117,7 @@ begin
 end;
 $function$;
 
--- my_job_actions：rejected_reason を末尾に追加（RETURNS TABLEの列変更so DROP→再作成）
+-- my_job_actions：rejected_reason を末尾に追加（RETURNS TABLEの列変更ので DROP→再作成）
 drop function if exists public.my_job_actions();
 create function public.my_job_actions()
 returns table(

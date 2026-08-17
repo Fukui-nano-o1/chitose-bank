@@ -86,7 +86,7 @@ input:focus { outline: none; }
    ① 〈○○年○○月〉の帯が中央から左右へ伸びる（scaleX 0→1・0.34秒）。この間、盤面は畳まれているので
       画面には月の見出しの箱だけが横に開いて見える。
    ② 伸び切った後（0.34秒後）に、その月のカレンダーが下へ伸びる（grid-template-rows 0fr→1fr）。
-   高さは中身の実寸を測らずにautoへ animate できる技法。効かない環境でもフェードは効くso「出ない」事故はなし ── */
+   高さは中身の実寸を測らずにautoへ animate できる技法。効かない環境でもフェードは効くので「出ない」事故はなし ── */
 @keyframes cbCalSweep { from { transform: scaleX(.08); opacity: 0; } 60% { opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
 /* fillは backwards（2026-07-27修理・both禁止）：bothだと終わった後もtransformが残り、
    この要素が「画面固定(fixed)の基準」になってしまう。すると中で開くボックス
@@ -122,7 +122,7 @@ input:focus { outline: none; }
 /* ── ボックス規格（2026-07-21 全ボックス統一）：画面中央にボックスの中央を合わせる。
    親オーバーレイ(.cb-box-overlay)がflexで上下左右中央寄せ、ボックス(.cb-notice-sheet)は
    意匠（緑太縁3px・角丸・影・左詰め）と最大サイズ・スクロールを担う。
-   高さ上限＝実表示高さ(100dvh)からセーフエリア＋余白32pxを引いた値so、長文でも画面内に収まり中央を保つ */
+   高さ上限＝実表示高さ(100dvh)からセーフエリア＋余白32pxを引いた値ので、長文でも画面内に収まり中央を保つ */
 .cb-box-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,0.5); animation: fadeIn .2s ease; }
 .cb-notice-sheet {
   width: 100%; max-width: 480px;
@@ -222,7 +222,7 @@ input:focus { outline: none; }
 .pflip-in  { animation: pflipIn .4s ease-out; }
 .pulse-slow  { animation: pulse 2s ease infinite; }
 /* いま これだけ（今日ページの最優先カード・2026-08-06）：呼吸のような脈動＝
-   動くものだけが見える、の原則。opacity点滅(pulse)は情報が消えて見えるso使わない */
+   動くものだけが見える、の原則。opacity点滅(pulse)は情報が消えて見えるので使わない */
 @keyframes cbNowPulse {
   0%,100% { transform: scale(1);     box-shadow: 0 2px 10px rgba(0,0,0,.08); }
   50%     { transform: scale(1.015); box-shadow: 0 8px 24px rgba(0,0,0,.16); }
@@ -469,7 +469,7 @@ input:focus { outline: none; }
     display: flex; gap: 6px; align-items: center;
     /* 高さは検索バー(.cb-search-fab)と同値にする（2026-07-27たきと指示）。
        検索バー＝上下padding11px＋2行(14px+2+11px)＋枠1px×2 ≒ 56px。
-       絞り込みは1行so自然高さが低い＝min-heightで合わせる。下端(bottom)は変えないため上へ伸びる */
+       絞り込みは1行ので自然高さが低い＝min-heightで合わせる。下端(bottom)は変えないため上へ伸びる */
     min-height: 56px;
     padding: 6px 10px;
     background: #fff;
@@ -484,7 +484,7 @@ input:focus { outline: none; }
   /* 管理画面の共通ナビ（AdminNav）：チップ列のスクロールバーは隠す（横スワイプは生きる） */
   .admin-nav { scrollbar-width: none; }
   .admin-nav::-webkit-scrollbar { display: none; }
-  /* モバイルは浮遊バーだけを見せる（本文中の並びは重複so隠す） */
+  /* モバイルは浮遊バーだけを見せる（本文中の並びは重複ので隠す） */
   .cb-applicant-filter-inline { display: none !important; }
   body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   body.cb-typing .cb-applicant-filter-bar { display: none !important; }
@@ -523,7 +523,7 @@ input:focus { outline: none; }
   transition: transform .25s ease;
 }
 body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
-/* モバイルは左下の☰（left:12px・幅44px）と同じ高さso、☰の右隣から始めて重複を避ける（2026-07-27） */
+/* モバイルは左下の☰（left:12px・幅44px）と同じ高さので、☰の右隣から始めて重複を避ける（2026-07-27） */
 @media (max-width: 768px) {
   .cb-search-fab { left: calc(12px + 44px + 10px); right: 12px; margin: 0; max-width: none; }
 }
@@ -827,7 +827,7 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
      で隠すのは【サイトフッターだけ】（2026-08-05たきと指示・下記のメディアクエリ外に1行）。
      下部バー（.app-header-mobile）と浮遊☰（.app-header-mobile-float）は出す＝管理画面から出る道を残す。
      目印 .cb-admin-page は各管理ページのルートに付ける＝ページを増やしたらクラスを1つ足すだけ。
-     委託ページ（.cb-consign-page）は別世界観so従来どおり下部バー・☰・フッターを全部隠す（下記） */
+     委託ページ（.cb-consign-page）は別世界観ので従来どおり下部バー・☰・フッターを全部隠す（下記） */
   /* 委託ページ（#/admin/consignment）は別世界観（2026-07-31たきと指示）：
      下部バー・浮遊☰を出さない。B2B委託レーンは運営の内部道具であって、
      さがす/しごと/プロフィールの3タブ世界とは別物＝その案内を持ち込まない */
@@ -924,7 +924,7 @@ body:has(.cb-consign-page) main { padding-top: 0 !important; }
 .consign-sky-orb { position: absolute; width: 60px; height: 60px; border-radius: 50%; transform: translate(-50%, -50%);
   transition: left 2s linear, top 2s linear; /* 毎分の再計算を滑らかに繋ぐ＝時間経過で動いて見える */ }
 /* 夜の月（2026-07-31たきと指示「月を煌びやかに」）：多層の光輪＋ゆっくり脈動。transformは位置決めに
-   使用中sofilterで輝度を揺らす */
+   使用中のでfilterで輝度を揺らす */
 .consign-sky-orb--moon { animation: consignMoonGlow 2.8s ease-in-out infinite; }
 @keyframes consignMoonGlow { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
 /* 夜空の星：小さな白点が瞬く（配置・周期はJSXで抽選） */
@@ -986,7 +986,7 @@ body:has(.cb-box-overlay) .consign-role-fab { display: none !important; }
 /* 退場演出（2026-07-31たきと指示・新しく委託を出す→ウィザードへ）：
    蔓(0〜0.5s)→太陽と空(0.4〜0.9s)→名刺・ボックス・文言(0.8〜1.2s)の順に画面外へ。
    蔓は各svgでなく容器ごと持ち上げる（svg個々のsway用インラインduration/delayに勝てないため。
-   容器は高さ0soパーセントでなくvhで動かす）。四隅は額縁soその場でフェード */
+   容器は高さ0のでパーセントでなくvhで動かす）。四隅は額縁のでその場でフェード */
 .consign-leaving .consign-vines { animation: consignVinesExit .5s ease-in forwards; }
 @keyframes consignVinesExit { to { transform: translateY(-110vh); } }
 .consign-leaving .consign-corners { opacity: 0; transition: opacity .45s ease-in; }
@@ -1046,7 +1046,7 @@ body:has(.cb-exp-page) .site-footer-fixed { display: none !important; }
 body:has(.cb-new-applicants-page) .site-footer-fixed { display: none !important; }
 /* 管理画面で操作するページはサイトフッター（サポート等）を出さない（2026-08-05たきと指示）。
    メディアクエリの外に置く＝画面幅に関係なく効く（PCでも管理画面にはフッターを出さない）。
-   下部バー・浮遊☰は出したままso、管理画面から他のページへ抜ける道は残る */
+   下部バー・浮遊☰は出したままので、管理画面から他のページへ抜ける道は残る */
 body:has(.cb-admin-page) .site-footer-fixed { display: none !important; }
 /* ── 農家のアクションページ（#/admin/farmer-pages・2026-08-11たきと指示「下部ヘッダーは戻ると次へに差し替え」）──
    この画面だけ、下部バー（.app-header-mobile）と浮遊☰を出さず、代わりに .cb-walk-bar（戻る／次へ）を置く。
@@ -1126,7 +1126,7 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
   /* 応募者ページの上空白を15px丁度に（2026-07-26たきと指示）：main側の上余白10pxを打ち消し、
      コンテナ自身の padding-top:15px だけを残す（求人詳細と同じ body:has() 方式）。
      下も同様：「帯（ステータス）の意味」の下〜フッターの間を20pxに一本化する
-     （コンテナ側の下80pxは0にしてあるso、ここのpadding-bottomがそのまま間隔になる） */
+     （コンテナ側の下80pxは0にしてあるので、ここのpadding-bottomがそのまま間隔になる） */
   body:has(.emp-applicants-page) main { padding-top: 0 !important; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; }
   body:has(.emp-applicants-page) .site-footer-fixed { margin-top: 0; }
   /* main の上余白を0にした分、コンテナ自身の15pxに safe-area を足す（black-translucent対応・2026-07-31） */
@@ -1281,7 +1281,7 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 
 /* OSダークモード（画面をブラックに切替）でも、native の選択肢を明色に固定する（2026-08-07たきと報告）。
    html の color-scheme:light が主：これが無いとダークモードで <option> の背景が暗く描かれ、
-   継承文字色も白へ反転して「選択肢の文字が全く見えない」。アプリ全体が明色ハードコードso native も明色に揃える。
+   継承文字色も白へ反転して「選択肢の文字が全く見えない」。アプリ全体が明色ハードコードので native も明色に揃える。
    select/option へも明示（Android・デスクトップのドロップダウンlist向けの二重の保険）。 */
 select, option { color-scheme: light; background-color: #FFFFFF; color: #222222; }
 

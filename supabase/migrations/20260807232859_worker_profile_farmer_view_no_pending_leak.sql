@@ -56,5 +56,5 @@ revoke all on function public.worker_cards_for_farmer(uuid[]) from public, anon;
 grant execute on function public.worker_cards_for_farmer(uuid[]) to authenticated;
 
 -- ③ 生行RLSを廃止（農家は worker_profiles の行を直接読めなくなる＝未承認列の漏れが機構的に消える）。
---    owner（本人）・admin の SELECT は残す。worker_trust_info 等の SECURITY DEFINER はRLS非依存so無影響。
+--    owner（本人）・admin の SELECT は残す。worker_trust_info 等の SECURITY DEFINER はRLS非依存ので無影響。
 drop policy if exists "wp farmer select via application" on public.worker_profiles;

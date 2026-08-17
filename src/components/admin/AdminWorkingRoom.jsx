@@ -97,7 +97,7 @@ function WorkCard({ item, today }) {
 }
 
 // 失効カード（読み取り専用）：誰の応募が・どの求人で・いつ失効したか。
-// 「承認済みのまま失効」は実際に働いていた可能性がより高いso赤帯で目立たせる（#1054型）
+// 「承認済みのまま失効」は実際に働いていた可能性がより高いので赤帯で目立たせる（#1054型）
 function ExpiredCard({ item }) {
   return (
     <div className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid " + (item.was_approved ? "#E24B4A" : "#C8C8C8") }}>

@@ -83,7 +83,7 @@ export function AdminErrorChatReporter() {
             + "\n\n" + "https://www.chitose-bank.com/#/admin/system"
             + "\n" + MARK + mark;
           const ins = await supabase.from("admin_messages").insert({ user_id: uid, from_admin: true, body });
-          if (ins.error) return;    // 権限・通信で失敗したら以降も同じso止める
+          if (ins.error) return;    // 権限・通信で失敗したら以降も同じので止める
           seen.add(mark);
           sent++;
         }

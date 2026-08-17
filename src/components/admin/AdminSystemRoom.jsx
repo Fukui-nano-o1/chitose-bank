@@ -16,7 +16,7 @@ import { AdminNav } from "./AdminNav";
 // 何分も画面に張り付かなくてはならない」・AdminTabから移設）：進捗・結果を【モジュールレベル】に
 // 置く＝ボタンを押したらすぐ画面を離れてよい。他のタブ・ページへ移動しても処理は裏で続き、
 // このページに戻れば進捗や完了結果がここに残っている。
-// ※アプリ自体（PWA/ブラウザのタブ）を閉じると中断されるが、両ツールとも冪等so
+// ※アプリ自体（PWA/ブラウザのタブ）を閉じると中断されるが、両ツールとも冪等ので
 //   もう一度押せば「残りだけ」処理される（途中まで進んだ分は無駄にならない）
 const imgTaskStore = {
   running: "",        // 実行中の軽量化バケット名（"" = なし）
@@ -140,7 +140,7 @@ export function AdminSystemRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appErrors]);
   // 状況をコピー（各種類カードの📋）。スタック未取得なら1件だけ取ってから報告文を作る
-  // ※awaitを挟んでもiOSのユーザー操作猶予（約5秒）内so clipboard は通る。失敗時はalertで案内
+  // ※awaitを挟んでもiOSのユーザー操作猶予（約5秒）内ので clipboard は通る。失敗時はalertで案内
   const [copiedSig, setCopiedSig] = useState(null);
   const copyGroup = async (g, catLabel, ex) => {
     let stack = stackBySig[g.sig];

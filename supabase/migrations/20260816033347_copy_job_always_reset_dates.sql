@@ -2,7 +2,7 @@
 -- 従来：元の作業日程が過去の場合のみ日程を空にしていた（v_past判定・dates_cleared）。
 -- 変更：コピーでは常に期間（date_label / date_start / date_end）と休日（holidays）を空にする。
 --       期間以外（作物・作業・場所・報酬・勤務時間・写真・危険箇所・持ち物・待遇・時間外等）は従来どおり引き継ぐ。
---       ※休日も空にする理由：休日は期間の中の日付so、期間を捨てれば意味を失う（残すと新しい期間に古い休日が混ざる）。
+--       ※休日も空にする理由：休日は期間の中の日付ので、期間を捨てれば意味を失う（残すと新しい期間に古い休日が混ざる）。
 -- 返り値の dates_cleared は互換のため残す（常にtrue）。旧ビルドのクライアントは旧文言のalertを出すが実害なし。
 create or replace function public.copy_job(p_job_number integer)
  returns json
@@ -35,7 +35,7 @@ begin
     v_src.job_exp, v_src.notes, v_src.belongings, v_src.cautions, v_src.danger_places, v_src.danger_tasks, v_src.photos,
     v_src.lat, v_src.lng, v_src.geocoded_from, v_src.geo_radius_m,
     v_src.full_pay_guarantee, v_src.beginner_ok, v_src.instant_approve_repeat, v_src.experienced_preferred, v_src.perks,
-    '[]'::jsonb,  -- 休日も期間と一心同体soリセット
+    '[]'::jsonb,  -- 休日も期間と一心同体のでリセット
     v_src.overtime_policy, v_src.overtime_detail
   ) returning * into v_new;
 

@@ -3,7 +3,7 @@
 -- 【背景】2026-08-05に jobs_public を status='open' → ('open','closed') に広げ、終了した求人も
 --   さがすに「募集終了」として並べるようにした。その結果、農家が自分の操作で取り下げた求人まで
 --   公開面に出るようになっていた：
---   ・一時停止（unpublish_job）は open → draft so 現状も公開されない（結果は正しい）が、
+--   ・一時停止（unpublish_job）は open → draft ので 現状も公開されない（結果は正しい）が、
 --     「取り下げた」という事実が記録に残っていなかった。
 --   ・削除された4件（#1018・#1026・#1033・#1036）は 2026-08-05 の復元で status='closed' として
 --     戻したため、さがす一覧・雇い手プロフィールの「過去の求人」に現れていた。
@@ -63,7 +63,7 @@ revoke all on function public.unpublish_job(integer) from anon;
 grant execute on function public.unpublish_job(integer) to authenticated;
 
 -- ③ 再掲載（→open）で取り下げは解除される。掲載中の求人が取り下げ扱いのまま残らないようにする
---    （opened_at を刻む既存トリガーに相乗り＝掲載の瞬間を見ている唯一の場所so、書き忘れが起きない）
+--    （opened_at を刻む既存トリガーに相乗り＝掲載の瞬間を見ている唯一の場所ので、書き忘れが起きない）
 create or replace function public.set_job_opened_at()
 returns trigger language plpgsql as $$
 begin

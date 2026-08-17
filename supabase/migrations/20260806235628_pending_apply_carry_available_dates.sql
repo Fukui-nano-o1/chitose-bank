@@ -7,14 +7,14 @@
 --   available_dates=NULL の applied を1件作れた。
 -- 対処：来られる日を仮応募の時点で捕捉し、昇格で applications へ引き継ぐ。期間求人の必須を
 --   pending 側でも apply_to_job と同じ式で強制する（単一の不変条件にする）。
--- 既存の pending_applications は0件so移行リスクなし。
+-- 既存の pending_applications は0件ので移行リスクなし。
 -- 検証済み（ロールバック付き実弾）：期間・日付なし仮応募=dates_required／期間・日付あり=昇格で引き継ぎ／
 --   単日=従来どおりnull／1引数呼び出しもdefaultで通過。フロント（JobSearchMapView）も同値を渡すよう更新。
 
 alter table public.pending_applications add column if not exists available_dates jsonb;
 
 -- 旧1引数版はオーバーロード曖昧化（1引数呼び出しが2関数に一致）を避けるためdrop。
--- 新版は2引数（p_available_dates default null）so、フロントが1引数で呼んでも default で受かる。
+-- 新版は2引数（p_available_dates default null）ので、フロントが1引数で呼んでも default で受かる。
 drop function if exists public.create_pending_application(integer);
 
 create or replace function public.create_pending_application(p_job integer, p_available_dates jsonb default null)
@@ -72,7 +72,7 @@ begin
        and coalesce(j.date_end, j.date_start) >= (now() at time zone 'Asia/Tokyo')::date
   loop
     -- 期間求人で来られる日を持たない仮応募は昇格させない（不変条件を破る応募を作らない）。
-    -- 新しい仮応募は create_pending_application が日付を必須化so、これは万一の残骸への保険。
+    -- 新しい仮応募は create_pending_application が日付を必須化ので、これは万一の残骸への保険。
     -- 削除もしない＝働き手がもう一度日付を選んで応募し直せる状態を残す。
     if r.is_period and r.available_dates is null then
       continue;

@@ -430,7 +430,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
   // 応募者タブの状態フィルタ（2026-07-22）。選んだタブはsessionStorageに残す（2026-07-27たきと報告）＝
   // 画面上端での引き下げ（pull-to-refresh）などでリロードが走っても「すべて」に戻らない。
-  // タブを閉じれば消えるso、次に開き直した時は既定（すべて）から始まる
+  // タブを閉じれば消えるので、次に開き直した時は既定（すべて）から始まる
   const [appFilter, setAppFilter] = useState(() => {
     try { const f = sessionStorage.getItem("cb_appFilterCur"); if (f && APP_FILTER_KEYS.includes(f)) return f; } catch {}
     return "all";
@@ -535,7 +535,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       // 一時非公開：open→draftへ（unpublish_job RPC・本人限定）。最終確認あり（たきと指定）。
       // 再掲載は作成中→再開→掲載＝そのまま公開（2026-08-14 承認プロセスの削除。旧「審査を通る」は誤り）。
       // 例外＝運営から修正のお願いが届いている求人だけ、再掲載that運営確認に落ちる（migration 20260814093042）。
-      // その状態の農家には赤帯で別途知らせているso、この確認文には書かない（普通の一時非公開の話を短く伝える）
+      // その状態の農家には赤帯で別途知らせているので、この確認文には書かない（普通の一時非公開の話を短く伝える）
       // ★応募中・面接中は見送りになる（migration 20260808004900・採用済みは不変）＝確認文に明記
       if (!confirm("この求人を一時非公開にしますか？（さがすに表示されなくなります。応募中・面接中の方は見送りになります。あとから再掲載できます）")) return;
       const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: num });
@@ -764,7 +764,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         if (error || !bundle) { setAppsLoading(false); return; }
         const appData = bundle.apps || [];
         // 未対応（＝こちらの番）の応募＝やること・バッジと同じ単一ソース my_todo_items 由来（2026-07-26たきと指示）。
-        // hireは除外：承認後ずっと出続ける段so、質問送信後の「働き手の回答待ち」でも跳ね続けてしまう。
+        // hireは除外：承認後ずっと出続ける段ので、質問送信後の「働き手の回答待ち」でも跳ね続けてしまう。
         // 除外すると流れが正しく出る＝承認直後はinterview(質問を送る)で跳ね、送ったら静止（働き手の番）、
         // 働き手が答えるとchat(未読)で再び跳ねる。やることリスト側のhireはそのまま（表示だけの調整）
         setTodoAppIds(new Set((bundle.todo || []).filter(t => t.stage !== "hire").map(t => t.application_id)));
@@ -806,7 +806,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         } catch {}
         // 応募者シートの着地（2026-08-05）：新着の応募ページ（#/new-applicants）の
         // 「内容を見て決める（承認・見送り）」から cb_openApplicantId 経由で該当応募のシートを自動展開。
-        // 承認・見送りの実行はこのシートが唯一の窓口so、送り出す側は「どの応募か」だけを渡す
+        // 承認・見送りの実行はこのシートが唯一の窓口ので、送り出す側は「どの応募か」だけを渡す
         try {
           const pendO = sessionStorage.getItem("cb_openApplicantId");
           if (pendO) {
@@ -857,7 +857,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const done = [true, approved, hired, hired, started, reported, reviewed];
     return { done, active: done.findIndex(d => !d) };
   };
-  // ※コンポーネントではなく関数として呼ぶ（親の再描画で作り直されても状態を持たないso影響なし）
+  // ※コンポーネントではなく関数として呼ぶ（親の再描画で作り直されても状態を持たないので影響なし）
   const renderEmpFlowBar = (a) => {
     const { done, active } = empFlowState(a);
     return (
@@ -999,7 +999,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   </div>
                 );
                 // 完了（出勤あり）でまだ評価していない応募＝評価ボタンを出す（2026-07-27たきと指示）。
-                // 欠勤記録済み（attended===false）は評価の代わりso出さない。評価後はチャットだけに戻る
+                // 欠勤記録済み（attended===false）は評価の代わりので出さない。評価後はチャットだけに戻る
                 if (phase === "completed" && a.attended !== false && !reviewedAppIds.has(a.id)) return (
                   <div style={{ display:"flex", gap:8 }}>
                     {chatBtn}
@@ -1012,7 +1012,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
               {/* 現在地バナー（2026-07-26たきと指示）：ステータスと説明を1つの帯にまとめる。
                   色は段階色（APP_PHASE_COLOR）を左バーと見出しに、背景はその薄色（+"14"＝約8%不透明）。
-                  文面はAPP_PHASE_DESC＝帯・凡例・タップ説明と同じ唯一のソースso言い回しが枝分かれしない */}
+                  文面はAPP_PHASE_DESC＝帯・凡例・タップ説明と同じ唯一のソースので言い回しが枝分かれしない */}
               {(() => {
                 const pk = appPhaseKey(a);
                 const c = APP_PHASE_COLOR[pk] || "#717171";
@@ -1027,7 +1027,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               })()}
               {/* バナー直下の操作ボタン（末尾と同じもの・2箇所） */}
               <div style={{ marginBottom:12 }}>{actionButtons}</div>
-              {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるso出さない（バナーが理由を説明する） */}
+              {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるので出さない（バナーが理由を説明する） */}
               {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
               {/* 打刻の事実の質（第13弾・追補）：申告打刻の印と、双方の署名時刻の乖離。
                   申告打刻に承認は課さない代わりに、農家が見て気づける形で必ず出す */}
@@ -1083,7 +1083,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   return (
     // 入口(home)は余白を持たない＝働き手入口と開始位置・下端が完全一致（外側のプロフィールwrapperが32px/4pxを提供）
     // サブページの上空白は15px固定（2026-07-25応募者→2026-07-26求人タブも・たきと指示で全サブページ統一）
-    // 応募者ページは下余白もCSS側(20px)へ一本化するso、コンテナ自身の下80pxは持たせない（2026-07-26たきと指示）
+    // 応募者ページは下余白もCSS側(20px)へ一本化するので、コンテナ自身の下80pxは持たせない（2026-07-26たきと指示）
     <div className={jobTab === "applicants" ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : jobTab === "applicants" ? "15px 0 0" : "15px 0 80px" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
       {jobTab === "home" ? (
@@ -1523,7 +1523,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               </div>
             );
             // カレンダーで日を選んだのに、その日の求人が今の絞り込みに出ていない時だけ知らせる
-            // （「予定がない」はカレンダー側が出すso、ここでは重複させない・2026-07-27）
+            // （「予定がない」はカレンダー側が出すので、ここでは重複させない・2026-07-27）
             const calNote = (calDay && calDay.jobs.length > 0 && !calDay.jobs.some(n => order.includes(n))) ? (
               <p key="cal-note" className="f-sans" style={{ gridColumn:"1/-1", fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"2px 0 6px" }}>
                 この日の求人は、いまの絞り込みには表示されていません。
@@ -1575,7 +1575,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                         style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
                         {/* 写真が1枚も無い求人は、絵文字でなく求人者のアイコンを出す（2026-08-06たきと指示・
                             求人詳細のJobPhotoFallbackと同じ考え方＝ダミー写真で水増ししない・憲法3条）。
-                            この面の求人はすべて自分が出したものso求人者＝自分＝empMini。
+                            この面の求人はすべて自分が出したものので求人者＝自分＝empMini。
                             アイコン未設定なら Avatar が農園名の頭文字の丸（雇い手の緑）を出す＝これも実データ */}
                         {photo
                           ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} />
@@ -1595,7 +1595,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                             人数が少なくスクロールの余地が無い時は、カードの上でも普通にスワイプできる */}
                         <div onTouchStart={e=>{ const el = e.currentTarget; if (el.scrollWidth > el.clientWidth + 1) e.stopPropagation(); }}
                           onTouchEnd={e=>{ const el = e.currentTarget; if (el.scrollWidth > el.clientWidth + 1) e.stopPropagation(); }}
-                          /* overflowX:autoは縦も切り取る（CSSの規則：片軸がautoならvisibleはautoになる）so、
+                          /* overflowX:autoは縦も切り取る（CSSの規則：片軸がautoならvisibleはautoになる）ので、
                              ジャンプ(-5px)が上で欠ける。paddingTopで跳ねる分の逃げを確保（2026-07-26たきと報告） */
                           style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
                           <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>

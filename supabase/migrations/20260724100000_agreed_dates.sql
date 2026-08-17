@@ -1,7 +1,7 @@
 -- 働く日の確定（2026-07-24 追記3）＝二頭運転の同期写経。
 --   applications.agreed_dates（jsonb・農家が確定した働く日）と set_agreed_dates RPC は別端末が本番先行適用済み。
 --   ここで repo に写経して同期する。get_my_calendar_jobs への agreed_dates 追加と my_nav_badges の
---   当日判定更新は本セッションで適用（下記）。冪等形so再適用も安全。
+--   当日判定更新は本セッションで適用（下記）。冪等形ので再適用も安全。
 
 -- 1) 列（先行適用済み・冪等）
 alter table public.applications add column if not exists agreed_dates jsonb;

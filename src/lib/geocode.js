@@ -33,7 +33,7 @@ export async function geocodeAddressPrecise(fullAddress) {
     const features = await res.json();
     if (!Array.isArray(features) || features.length === 0) return null;
     // 問い合わせた住所と同じ（またはそれ以上に詳しい）結果だけを採る。
-    // 例：「…山川町宮島37-2」で引いて「…山川町宮島」しか返らなければ＝番地未対応so不採用
+    // 例：「…山川町宮島37-2」で引いて「…山川町宮島」しか返らなければ＝番地未対応ので不採用
     const hit = features.find((f) => {
       const t = normalizeAddr(f?.properties?.title);
       return t && t.startsWith(nq);

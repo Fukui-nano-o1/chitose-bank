@@ -38,7 +38,7 @@ export function measureShape(el) {
     const c = el.children[i];
     let ccs;
     try { ccs = window.getComputedStyle(c); } catch { continue; }
-    if (ccs.position === "fixed" || ccs.display === "none") continue; // 浮遊バー等は流れの外so骨にしない
+    if (ccs.position === "fixed" || ccs.display === "none") continue; // 浮遊バー等は流れの外ので骨にしない
     const r = c.getBoundingClientRect();
     const h = Math.round(r.height);
     if (h > 8 && h < 600) { // 極端な値は骨にしない

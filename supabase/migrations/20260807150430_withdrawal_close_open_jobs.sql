@@ -1,11 +1,11 @@
 -- 退会時に、退会農家の公開中/審査中の求人を掲載終了に（2026-08-07・退会後の余波X4への対処）
 --
--- 【穴】process_withdrawal は jobs を消さない（過去求人＝証跡so消さない・trg_block_delete_past_job）。
+-- 【穴】process_withdrawal は jobs を消さない（過去求人＝証跡ので消さない・trg_block_delete_past_job）。
 -- 農家が退会してもopen求人が jobs_public に残り、応募を受け付け続けうる（雇い手は不在なのに）。
 -- ★third_party_publish_allowed は既に'true'（届出完了・第三者公開解禁済み）＝一般農家がopen求人を
---   持てる現在の状態so、これは将来リスクでなく今そこにある穴。
+--   持てる現在の状態ので、これは将来リスクでなく今そこにある穴。
 -- 【対処】退会時に farmer_id=退会者 の status in ('open','pending') を 'closed' に更新（掲載終了）。
---   行は消さない＝過去求人の証跡は残る。draftは公開されていないso対象外。closedは既にclosed。
+--   行は消さない＝過去求人の証跡は残る。draftは公開されていないので対象外。closedは既にclosed。
 -- 検証済み（ロールバック付き実弾）：closed化・トリガー例外なし・応募が job_not_open で拒否・行は残る。
 -- 削除17テーブル・匿名化・冪等な(c)は 20260807144755 から不変（jobs closed化を(a)末尾に追加）。
 
@@ -47,7 +47,7 @@ begin
   delete from public.feedback             where reporter_id = p_auth_id; get diagnostics n = row_count; d := d || jsonb_build_object('feedback', n);
 
   -- 退会農家の公開中/審査中の求人を掲載終了に（2026-08-07 X4）：行は消さず応募受付だけ止める。
-  -- draftは公開されていないso対象外。過去求人の証跡（応募・はたらいた記録）は残す。
+  -- draftは公開されていないので対象外。過去求人の証跡（応募・はたらいた記録）は残す。
   update public.jobs set status = 'closed' where farmer_id = p_auth_id and status in ('open','pending');
   get diagnostics n = row_count; d := d || jsonb_build_object('jobs_closed', n);
 

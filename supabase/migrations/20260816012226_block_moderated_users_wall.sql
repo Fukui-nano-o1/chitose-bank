@@ -29,10 +29,10 @@ end; $$;
 revoke all on function public.assert_actor_not_moderated() from public, anon, authenticated;
 
 -- 対象＝利用者のアクションを表す表（INSERT/UPDATEのみ。DELETEは自分のデータの
--- 取り下げso止めない）。意図的な対象外：withdrawal_requests（退会の権利は奪わない）・
+-- 取り下げので止めない）。意図的な対象外：withdrawal_requests（退会の権利は奪わない）・
 -- app_errors（診断の記録）・chat_reads/push_subscriptions/notifications（無害・
 -- システム書き込みと交差）・messages/reviews/repeat_roster（既にRLSでBANゲート済み）。
--- トリガー名 trg_a_block_moderated＝BEFOREはアルファベット順発火so既存トリガー
+-- トリガー名 trg_a_block_moderated＝BEFOREはアルファベット順発火ので既存トリガー
 -- （enforce_min_age・trg_wp_*等）より先に走り、無駄な処理の前に止まる。
 do $$
 declare t text;
@@ -81,7 +81,7 @@ revoke all on public.employer_profiles_public from anon, authenticated;
 grant select on public.employer_profiles_public to authenticated;
 
 -- ⑤ job_employer_profile：BAN農家の除外を追加。
---    求人No.は1000からの連番＝推測容易so、jobs_publicから消えても本RPCの直叩きで
+--    求人No.は1000からの連番＝推測容易ので、jobs_publicから消えても本RPCの直叩きで
 --    BAN農家のプロフィール・募集主3項目（氏名・住所・連絡先）が引けた。
 --    変更はWHEREに1条件追加のみ（今の本番定義を土台に・返り値の列は不変）。
 create or replace function public.job_employer_profile(p_job_number integer)

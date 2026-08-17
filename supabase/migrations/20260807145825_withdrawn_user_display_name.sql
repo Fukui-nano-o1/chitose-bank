@@ -1,10 +1,10 @@
 -- 退会者の名前解決を「退会した利用者」に（2026-08-07・退会後の余波5パターンのX2が発見）
 --
 -- 【穴】退会でプロフィール（worker/employer_profiles）が消え、emailが withdrawn+uuid@withdrawn.invalid に
--- 匿名化されるが、名前解決の最終フォールバックが「emailの先頭2文字」so、退会者が "wi" と表示されていた
+-- 匿名化されるが、名前解決の最終フォールバックが「emailの先頭2文字」ので、退会者が "wi" と表示されていた
 -- （チャット相手名・カレンダー相手名・通知・チャットのアイコン頭文字）。本名漏洩ではないが無意味で不親切。
 -- 【修正】emailが withdrawn+%@withdrawn.invalid のとき、名前は「退会した利用者」・頭文字は「－」を返す。
--- email先頭2文字を使う3関数を揃えて直す（wp_default_nicknameは新規登録用so対象外）。
+-- email先頭2文字を使う3関数を揃えて直す（wp_default_nicknameは新規登録用ので対象外）。
 -- 検証済み（ロールバック付き実弾）：退会前=従来の名前／退会後=「退会した利用者」・カレンダー相手名も同じ・頭文字「－」。
 
 create or replace function public.resolve_actor_name(p_auth_id uuid)

@@ -244,7 +244,7 @@ end $$;
 revoke all on function public.admin_preview_job_time_notices(uuid, uuid) from public, anon, authenticated;
 
 -- ── 5) メール番号（send_user_email が件名から自動で付ける） ────────────────
--- M10（まもなく作業開始）は既存so触らない。M31〜M33を追加。
+-- M10（まもなく作業開始）は既存ので触らない。M31〜M33を追加。
 -- 件名パターンは互いに含まれない文字列にすること（like '%pattern%' の取り違え防止）
 insert into public.mail_registry (code, subject_pattern, priority, label) values
   ('M31', 'まもなく開始（15分前）', 100, 'まもなく開始（15分前）'),

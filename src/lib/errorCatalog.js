@@ -138,7 +138,7 @@ export function errorSignature(e) {
     .replace(/\d{4,}/g, "{n}");
   return [e.component || "", e.source || "", m].join("|");
 }
-// 取得は新しい順soグループ内rows[0]が最新・末尾が初回
+// 取得は新しい順のでグループ内rows[0]が最新・末尾が初回
 export function groupAppErrors(rows) {
   const bySig = new Map();
   for (const e of rows || []) {

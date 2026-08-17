@@ -12,10 +12,10 @@
 --    両役持ちの農家が働き手ニックネームで出る取り違えを避ける）。退会者は resolve_actor_name が
 --    「退会した利用者」を返す既定にそのまま乗る
 --  ・★件名が名前のみになったため、send_user_email の mail_registry 件名マッチ（M20）が効かない。
---    M20の脚注はこのトリガーが自前で付ける（send_user_email 側は件名不一致so二重には付かない）。
+--    M20の脚注はこのトリガーが自前で付ける（send_user_email 側は件名不一致ので二重には付かない）。
 --    send_user_email の脚注の書式を変えたらここも合わせること
 --  ・メッセージ全文はHTML側で public.h() エスケープ＋white-space:pre-wrap（従来と同じ作法・全文になっただけ）
---  ・アプリ内通知（notifications）は従来どおり冒頭20字（一覧の1行表示so全文にしない）
+--  ・アプリ内通知（notifications）は従来どおり冒頭20字（一覧の1行表示ので全文にしない）
 
 create or replace function public.trg_notify_message()
 returns trigger

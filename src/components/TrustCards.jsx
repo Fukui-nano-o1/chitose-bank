@@ -89,7 +89,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
       )}
       {/* 📋 自己申告（経験・経験のある作業・移動手段・免許・資格・保険方針。ご本人の申告・運営未確認）。
           枠（ボックス＋見出し）は撤回し、趣味タグ等と同じチップの群れに揃える（2026-08-05たきと指示）。
-          区別は色だけ＝青系。★実績（🌟＝このサイトの台帳）とは別物so、実績枠には絶対に入れない（2026-07-23） */}
+          区別は色だけ＝青系。★実績（🌟＝このサイトの台帳）とは別物ので、実績枠には絶対に入れない（2026-07-23） */}
       {!hideSelfDeclare && declItems.length > 0 && (
         <div style={{ marginBottom:10 }}>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
@@ -121,7 +121,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
       {/* 🌟実績ブロック（完了回数・作業時間・また働きたい）は削除（2026-08-07たきと指示
           「記録に入ってるからプロフィールからは除外」）＝件数・時間は記録面（WorkerWorkRecord）、
           また呼びたいは評価面（ReceivedReviews）が持つ。二重表示させない。
-          trust は ✓本人確認済み（verified_at）の表示で引き続き使用so propは残す */}
+          trust は ✓本人確認済み（verified_at）の表示で引き続き使用ので propは残す */}
       {/* 旧・📋自己申告ブロック（白枠＋見出し）は撤回（2026-08-05たきと指示）＝上のタグ群へ統合済み。
           本人のわたしの実績モーダルでは hideSelfDeclare で非表示・農家の応募者カードでは表示、の扱いは不変 */}
     </div>
@@ -234,7 +234,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>承認までの時間：平均{trust.avg_approval_hours}時間</p>
       )}
       {/* 問いかけQ&A（うちの畑のユニークなところ等）もチャット形式（2026-08-07たきと指示・
-          「就農するまで等の文言」と同じ扱い）。回答＝農家の言葉so緑（blackテーマは黒）。
+          「就農するまで等の文言」と同じ扱い）。回答＝農家の言葉ので緑（blackテーマは黒）。
           編集モードは従来どおり領域タップで編集ボックス（tap("ask")のラッパーを維持） */}
       {/* 質問形式の要素は1つの群れに（2026-08-14たきと指示）：問いかけQ&A＋extraQa（紹介文のお題）を
           同じQaChatに合流＝視覚的なグループ分け。編集モードはextraQaが来ない（tap("ask")の役割は不変） */}

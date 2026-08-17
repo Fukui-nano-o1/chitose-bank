@@ -321,7 +321,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // ホームの「🛡 保険の準備」から来た時は、その場で保険ボックスを開く（移植・2026-07-23）
   const [editBox, setEditBox] = useState(null);
   // 🆘緊急連絡先のカード表示用サマリー（2026-08-14たきと報告「保存しても空のまま」の修理）：
-  // 別テーブル（emergency_contacts・self-only）soこのページの本体読み込みとは独立に読む。
+  // 別テーブル（emergency_contacts・self-only）のでこのページの本体読み込みとは独立に読む。
   // 従来は v:"" 固定＝保存してもカードが永久に「未設定」＋赤影のままだった
   const [emgSummary, setEmgSummary] = useState("");
   useEffect(() => {
@@ -453,7 +453,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         Object.keys(clearedTexts).forEach(k => { approvedTextsRef.current[k] = ""; });
         // 名刺裏面・確認ページが読むキャッシュ（farm:empMini＝FarmerDashboard/LandingFlowの正本）へ
         // 保存内容を即時反映（2026-08-14たきと報告「問いかけも保存しても反映されない」の修理）。
-        // 自由記述は保存＝即公開（trg_ep_z_publish_texts）so、公開後の姿＝desiredTexts で写す。
+        // 自由記述は保存＝即公開（trg_ep_z_publish_texts）ので、公開後の姿＝desiredTexts で写す。
         // キャッシュが無い時は何もしない＝次の画面が新規に取得する（誤った部分行を正本にしない）
         if (table === "employer_profiles") {
           try {
@@ -674,7 +674,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 
       {editBox==="emergency" && (<>
       {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
-          （emergency_contacts テーブル・self-only）so、下の共通「保存する」は押さなくてよい */}
+          （emergency_contacts テーブル・self-only）ので、下の共通「保存する」は押さなくてよい */}
       <EmergencyContactBox accent={AC} onSaved={({ name, relation }) => setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"))} />
       <div style={{ marginBottom:8 }} />
       </>)}
@@ -793,7 +793,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 
       {/* モーダルフッター：保存する（全項目upsert）→格子に戻る。
           緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
-          両方出すと同じ文言のボタンが2つ並ぶso、ここでは出さない（2026-08-05たきと指示） */}
+          両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
       {editBox !== "emergency" && (
         <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
       )}

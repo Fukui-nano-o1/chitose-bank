@@ -1,6 +1,6 @@
 -- 失効・完了の求人は「もうない求人」＝カウントしない（2026-07-25たきと指示）。
 -- ①my_todo_items：未読チャット段(chat)が失効・完了の応募でも発火していた→ unread かつ 非(失効/完了) に限定。
---   評価（review/w_review・完了後3日以内）は完了フローの正規最終段so残す。
+--   評価（review/w_review・完了後3日以内）は完了フローの正規最終段ので残す。
 --   ※本関数はdrop_w_waiting（w_waiting削除・他端末）との相互上書きが発生したため、
 --     本版=「w_waiting削除＋面接質問は送信履歴基準＋chat除外」の統合版（DB適用・検収済み）
 -- ②my_nav_badges：chat_threads（下部ナビのチャットバッジ）から completed を除外（expiredは元から対象外）

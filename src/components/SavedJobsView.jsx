@@ -23,7 +23,7 @@ export function SavedJobsView({ me }) {
   const [myProfile, setMyProfile] = useState(() => getCache("saved:me") ?? null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
   // ボックス内の求人カード用の全体像（2026-08-07たきと指示「その他の求人と同じ配置と要素」＝JobCard）。
-  // my_job_actions はカードの最小限（報酬・地域・3トグルを含まない）so、開いた求人だけ jobs_public から
+  // my_job_actions はカードの最小限（報酬・地域・3トグルを含まない）ので、開いた求人だけ jobs_public から
   // 1行読み足す。job_number→mapped行｜null(非公開=draft/pending等でビューに無い)。開いたものだけ・1回だけ
   const [boxFull, setBoxFull] = useState({});
   // ボックス内の求人カードのタップ（2026-08-07たきと指示「求人タップでスライドしてね。
@@ -43,7 +43,7 @@ export function SavedJobsView({ me }) {
   const sheetRef = useRef(null);
   const boxScrollRef = useRef(null);
   const paneRef = useRef(null);      // 面の2枚コンテナ（横スワイプの追従対象）
-  const boxPaneRef = useRef("main"); // リスナーは[boxJob]で1回張るso、最新の面はrefで読む
+  const boxPaneRef = useRef("main"); // リスナーは[boxJob]で1回張るので、最新の面はrefで読む
   useEffect(() => { boxPaneRef.current = boxPane; }, [boxPane]);
   // 面の切り替えとスクロール位置（2026-08-08たきと指示「スライドしたならトップから始めろ。
   // ステータスページも同じにしろ」＝DragSheetと同じ規則）：詳細面に入る時はトップから。
@@ -284,9 +284,9 @@ export function SavedJobsView({ me }) {
   };
 
   // 応募の取り消し（2026-08-16たきと指示「応募を取り消すを追加しよう」）。
-  // このボックスは応募中の応募だと操作that1つも無かった（チャットは承認後so出ない）＝
+  // このボックスは応募中の応募だと操作that1つも無かった（チャットは承認後ので出ない）＝
   // 応募状況ページ・求人詳細と同じ窓口（cancel_application）をここにも置く。
-  // ★取り消せるのは承認前（応募中）だけ＝DB側も status='applied' 限定（それ以外は already_decided）so、
+  // ★取り消せるのは承認前（応募中）だけ＝DB側も status='applied' 限定（それ以外は already_decided）ので、
   //   ボタンも応募中のときだけ出す。取り消しは削除でなく記録＝カードは「取り消し」の暗幕に変わる
   const cancelApplication = async (r) => {
     if (cancelingId || !r.application_id) return;
@@ -521,7 +521,7 @@ export function SavedJobsView({ me }) {
                 {/* 求人の要約＝その他の求人と同じカード（2026-08-07たきと指示・スクショ＝関連求人カード）：
                     JobCard variant="wide"＝写真に タイトル・地域・#No.・報酬・日程・3トグル を重ねる型を全幅で。
                     要約の顔を独自に作らない＝JobCardが唯一のソース。my_job_actions は報酬・地域・3トグルを
-                    持たないso、開いた求人だけ jobs_public から読み足す（boxFull）。届くまで／非公開求人は
+                    持たないので、開いた求人だけ jobs_public から読み足す（boxFull）。届くまで／非公開求人は
                     手元の行から作った仮の姿（写真・タイトル・#No.・日程・町域）＝報酬0円やダミーは出さない */}
                 <div style={{ marginBottom:12 }}>
                   {(() => {

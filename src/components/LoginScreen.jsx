@@ -35,7 +35,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   // このお知らせは展開機会が login＝#/login でしか出ないため、link_hash="/login" では
   // 「いま見ているページ」へ飛ぶだけの死んだリンクだった。お知らせ台帳の event: 方式
   // （プロフィール入力のお願い＝cb:openConfProfile と同じ作法）に載せ替え、押した先を
-  // 実際の動き（view="otp"）にする。中身は「パスワードを忘れた方・未設定の方」ボタンと同一so
+  // 実際の動き（view="otp"）にする。中身は「パスワードを忘れた方・未設定の方」ボタンと同一ので
   // 入口が増えても経路は1本のまま
   useEffect(() => {
     const f = () => { setView("otp"); setErr(""); setPw(""); setDirectSignup(false); };
@@ -53,7 +53,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
 
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
 
-  // 送信できなかったことは利用者の画面で消えて終わるso、運営が気づけるよう記録に残す。
+  // 送信できなかったことは利用者の画面で消えて終わるので、運営が気づけるよう記録に残す。
   // メールアドレスは残さない（誰が試したかは auth のログ側にある）。
   const logMailFailure = (error) => {
     try {
@@ -114,7 +114,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
       const isInviteOnly = /signup/i.test(msg);
       const isRate = /rate limit|too many|only request this after/i.test(msg);
       // サーバー側がメールを出せない状態（SMTPの鍵が無効・送信サービスの障害など）。
-      // 利用者が何度やり直しても直らない種類so「時間をおいて再度」と促さず、運営側の問題だと伝える。
+      // 利用者が何度やり直しても直らない種類ので「時間をおいて再度」と促さず、運営側の問題だと伝える。
       // 実例：2026-08-04 gomail 550 "API key is invalid"（Supabase Auth のカスタムSMTP）→
       //       画面には英語のまま「詳細: Error sending magic link email」が出ていた。
       const isServerMail = error.status === 500 || /error sending|failed to send|smtp|gomail/i.test(msg);

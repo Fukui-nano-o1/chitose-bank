@@ -10,7 +10,7 @@
 --   「jobs_public に無い＝終了」で代用していたが、終了も返すようになるとその代用が使えない。
 --
 -- 【連動（2026-07-22・2026-07-31のルール）】RETURNS SETOF jobs_public の関数は列を同数・同順に
---   合わせる。employer_public_jobs は select jp.* so自動追従。admin_preview_job だけは列を
+--   合わせる。employer_public_jobs は select jp.* ので自動追従。admin_preview_job だけは列を
 --   列挙しているので、ここで status を末尾に足す（合わせ忘れると呼び出し時に 42P13 で全滅する）。
 --
 -- 【呼び出し側の注意】「jobs_public にあれば募集中」という前提だった箇所は、

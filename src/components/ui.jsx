@@ -190,7 +190,7 @@ export function JobFlagBadges({ beginner, expert, repeat }) {
 export const NOTICE_JUMP_WAVE = 0.9;
 // お知らせ規定（2026-07-17追加）：タイトルとリンクは頭文字から順に1文字ずつ上へジャンプし、
 // 尻の文字まで届いたら約2秒おいて先頭からループする。
-// 尻までの到達時間は文字数によらず固定0.9s＝タイトルとリンクで同じ（周期も共通so波とループが同期する）
+// 尻までの到達時間は文字数によらず固定0.9s＝タイトルとリンクで同じ（周期も共通ので波とループが同期する）
 export function NoticeJumpText({ text }) {
   const chars = Array.from(String(text || ""));
   const dur = NOTICE_JUMP_WAVE + 2.5; // 走破0.9s＋ジャンプ＋約2秒の休止
@@ -286,7 +286,7 @@ export function LFSummaryRow({ label, value }) {
 
 // 集合場所の番地（2026-08-03たきと指示「詳細と求人プレビューにも番地を明記。訪問者にはモザイクを徹底」）。
 // ★モザイクは見た目の飾りではない。本体の遮断はDB側で完了している：
-//   jobs_public.work_address は anon に NULL マスクso、未ログイン端末には番地の文字が1文字も届かない。
+//   jobs_public.work_address は anon に NULL マスクので、未ログイン端末には番地の文字が1文字も届かない。
 //   ここで描くのは伏せ字（●）＝CSSのblurを外そうがDOMを覗こうが本物は存在しない。
 //   伏せ字にしているのは憲法3条（表示にダミー禁止）のため＝それらしい偽の番地を描かない。
 // ★描くのは「番地が設定されている求人」のときだけ（has_work_address）。未設定の求人に
@@ -486,7 +486,7 @@ export function AutoSkeleton({ shapeKey, fallbackHeight = 96, fallbackCount = 4 
   return (
     <div style={style} aria-busy="true" aria-label="読み込み中">
       {heights.map((h, i) => (
-        /* 横いっぱいだった行は仮配置でも横いっぱいに（応募者ページのカードは1行1件so、
+        /* 横いっぱいだった行は仮配置でも横いっぱいに（応募者ページのカードは1行1件ので、
            列に詰めるとモザイク状になっていた・2026-07-29修理） */
         <div key={i} className="ghost-line"
           style={{ height: h, borderRadius: 14, gridColumn: shape && shape.spans && shape.spans[i] ? "1 / -1" : undefined }} />

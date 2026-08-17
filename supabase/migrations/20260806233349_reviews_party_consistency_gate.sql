@@ -7,9 +7,9 @@
 -- 機構的に強制する（UI/RLSに依存しない二重の壁。trg_block_third_party_open 等と同じ思想）。
 --   direction='farmer_to_worker' ⟹ reviewer=応募の農家 ∧ reviewee=応募の働き手
 --   direction='worker_to_farmer' ⟹ reviewer=応募の働き手 ∧ reviewee=応募の農家
--- 正規の2経路（submit_farmer_review／WorkerApplicationsの直INSERT）は既にこの整合形so無傷。
--- ★status='completed' 要求は入れない：働き手経路は confirm_end 直後（completed遷移前の瞬間があり得る）so、
---   状態要求で正当な評価を弾く危険がある。捏造は「reviewee のすり替え」が本体so、
+-- 正規の2経路（submit_farmer_review／WorkerApplicationsの直INSERT）は既にこの整合形ので無傷。
+-- ★status='completed' 要求は入れない：働き手経路は confirm_end 直後（completed遷移前の瞬間があり得る）ので、
+--   状態要求で正当な評価を弾く危険がある。捏造は「reviewee のすり替え」が本体ので、
 --   当事者・向きの一致だけで穴は完全に塞がる。
 -- 検証済み（ロールバック付き実弾）：捏造（reviewee=無関係）拒否／向きすり替え拒否／
 --   正規 farmer_to_worker 通過／正規 worker_to_farmer 通過／被害者への汚染ゼロ。

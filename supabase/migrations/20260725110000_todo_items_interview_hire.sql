@@ -53,7 +53,7 @@ as $function$
            else coalesce(date_start, today) end sort_key
     from fa
   ),
-  finterview as ( -- 面接の質問を送る（チャットからの移設・独立段so他の用事と同時に出る）
+  finterview as ( -- 面接の質問を送る（チャットからの移設・独立段ので他の用事と同時に出る）
     select 'farmer'::text my_role, 'interview'::text stage,
       job_number, id application_id, crop, task, partner_name, partner_avatar, partner_id, date_start, date_end, work_time, agreed_dates,
       coalesce(date_start, today) sort_key

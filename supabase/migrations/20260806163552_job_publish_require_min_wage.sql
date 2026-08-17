@@ -8,7 +8,7 @@
 -- 人の目は数字の割り算を毎回はしない（トリガー＝二重の壁の思想・trg_block_third_party_openと同型）。
 --
 -- 【追加する検査（draft→pending/open と 直INSERT の時だけ＝既存の発火条件と同じ）】
---  1. 表記：hourly_wage / daily_wage は数字のみ（text列so「9,000円」等が入るのを塞ぐ）
+--  1. 表記：hourly_wage / daily_wage は数字のみ（text列ので「9,000円」等が入るのを塞ぐ）
 --  2. どちらか必須（両方空では掲載できない）
 --  3. 最低賃金：minimum_wages から都道府県の現在有効な額を引く（無ければ掲載を止める＝安全側）
 --  4. 時給：最低賃金以上

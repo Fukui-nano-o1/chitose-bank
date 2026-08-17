@@ -35,7 +35,7 @@ as $function$
         end
     ),
     'todo', (select count(*) from t),
-    -- 応募者バッジ＝未対応の応募（跳ねるアイコンと同数）。hireは承認後ずっと出続ける段so除外
+    -- 応募者バッジ＝未対応の応募（跳ねるアイコンと同数）。hireは承認後ずっと出続ける段ので除外
     'applicants_pending', (
       select count(distinct application_id) from t
        where my_role = 'farmer' and application_id is not null and stage <> 'hire'

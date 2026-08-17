@@ -94,7 +94,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   // 直前の保存で自由記述を書き換えたか（完了メッセージの出し分け）。名前の InReview は審査時代の名残で、
-  // 承認プロセス削除後は「保存＝即公開」so、出るのは「自己紹介も公開されました」（2026-08-14に文言は改定済み）
+  // 承認プロセス削除後は「保存＝即公開」ので、出るのは「自己紹介も公開されました」（2026-08-14に文言は改定済み）
   const [savedInReview, setSavedInReview] = useState(false);
   const [revTargets, setRevTargets] = useState([]); // 修正依頼の指摘対象（"自己紹介本文"/質問文・2026-07-19）
   // 公開済み（運営が承認した）自由記述の控え（2026-07-27たきと報告）：
@@ -103,7 +103,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   // 本文が実際に変わった時だけ審査に出すため、承認済みの中身をここに控えて比べる
   const approvedRef = useRef({ pr: "", pr_qa: [] });
   // いま審査に出ている内容の控え（2026-08-13たきと報告「応募するたびに自由記述が申請される」）：
-  // 承認済み(approvedRef)と比べるだけだと、初めて書いた自由記述は承認があるまで永久に「違う」ままso、
+  // 承認済み(approvedRef)と比べるだけだと、初めて書いた自由記述は承認があるまで永久に「違う」ままので、
   // 住所を直しただけの保存でも審査がやり直し（申請時刻がリセット＝48時間の自動公開も後ろにずれる）になっていた。
   // 審査中の内容と同じなら、申請時刻を据え置いて出し直さない＝運営の承認待ちの列に並び直さない
   const pendingRef = useRef({ pr: null, pr_qa: null, submitted_at: null });
@@ -233,7 +233,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   };
   // ハブの「📋 経験・できること」カードから来た時は、その場でそのボックスを開く（2026-07-23）
   // 🆘緊急連絡先のカード表示用サマリー（2026-08-14たきと報告「保存しても空のまま」の修理）：
-  // 別テーブル（emergency_contacts・self-only）soこのページの本体読み込みとは独立に読む。
+  // 別テーブル（emergency_contacts・self-only）のでこのページの本体読み込みとは独立に読む。
   // 従来は v:"" 固定＝保存してもカードが永久に「未設定」＋赤影のままだった
   const [emgSummary, setEmgSummary] = useState("");
   useEffect(() => {
@@ -289,7 +289,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     try { want = sessionStorage.getItem("cb_fillProfile") === "1"; if (want) sessionStorage.removeItem("cb_fillProfile"); } catch {}
     if (!want) return;
     fillGuideRef.current = true;
-    const k = BOX_ORDER.find(b => !boxFilled(b));   // 先頭から最初の未入力（nextUnfilledBoxは「次」so先頭を飛ばす）
+    const k = BOX_ORDER.find(b => !boxFilled(b));   // 先頭から最初の未入力（nextUnfilledBoxは「次」ので先頭を飛ばす）
     if (k) setEditBox(k);
   }, [loading]);   // eslint-disable-line react-hooks/exhaustive-deps -- 読み込み完了の1回だけ走らせる（入力途中の再判定はしない）
   // 保存失敗を運営が追えるように記録（app_errors・システムページに出る）。失敗しても保存フローは妨げない
@@ -312,8 +312,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       if (!session) { setSaving(false); alert("ログインが確認できませんでした。ページを開き直して、もう一度保存してください。"); return; }
       // 比べる土台を保存の直前に取り直す（2026-08-14たきと報告「応募するたびに自己紹介の申請がくる」）：
       // 画面を開いたまま運営が承認すると approvedRef が古いままになり、同じ内容をもう一度
-      // 審査に出していた（承認直後は old.pending が null so 通知トリガーの変更なしスキップも
-      // 効かず、運営に申請メールが毎回届く）。保存は稀な操作so 1往復の追加を許容。
+      // 審査に出していた（承認直後は old.pending が null ので 通知トリガーの変更なしスキップも
+      // 効かず、運営に申請メールが毎回届く）。保存は稀な操作ので 1往復の追加を許容。
       // 取得に失敗した時は手元の控えのまま進める（失敗時は上書きしない・2026-08-07規則）。
       // 同じ壁はDB側にもある（trg_wp_review_dedupe＝承認済みと同一内容は審査に入れない）＝二重の壁
       const freshRes = await supabase.from("worker_profiles")
@@ -333,7 +333,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       const prChanged = pr.trim() !== (approvedRef.current.pr || "").trim();
       const qaChanged = qaKey(prQa) !== qaKey(approvedRef.current.pr_qa);
       // 空にする（消す）だけの変更は審査に出さず、その場で公開版を消す（2026-08-03たきと指示
-      // 「入力項目を空にするなら審査は必要ない」）。審査が守るのは新しく公開される文字so、
+      // 「入力項目を空にするなら審査は必要ない」）。審査が守るのは新しく公開される文字ので、
       // 消すだけなら見るものが無い。従来は消しても承認まで公開版が残り続けていた
       const approvedQa = new Set((Array.isArray(approvedRef.current.pr_qa) ? approvedRef.current.pr_qa : []).map(oneQa));
       const qaOnlyRemoved = qaChanged && prQa.every(x => approvedQa.has(oneQa(x))); // 承認済みの部分集合＝削除のみ
@@ -455,7 +455,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"languages", l:"言語",         v: languages.join("・") },
           { k:"declared",  l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
           { k:"qa",        l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
-          // 緊急連絡先（2026-08-03）：別テーブル保存so格子の値表示は持たない（開いた先で読み書きする）
+          // 緊急連絡先（2026-08-03）：別テーブル保存ので格子の値表示は持たない（開いた先で読み書きする）
           { k:"emergency", l:"緊急連絡先",   v: emgSummary }, // サマリーは emgSummary（2026-08-14修理）
         ].map(b => {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
@@ -640,7 +640,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {editBox==="emergency" && (<>
       {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
-          （emergency_contacts テーブル・self-only）so、下の共通「保存する」は押さなくてよい */}
+          （emergency_contacts テーブル・self-only）ので、下の共通「保存する」は押さなくてよい */}
       <EmergencyContactBox accent="#00A86B" onSaved={({ name, relation }) => setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"))} />
       <div style={{ marginBottom:8 }} />
       </>)}
@@ -715,7 +715,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {/* モーダルフッター：保存する（全項目upsert）＋自由記述の注記。
           緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
-          両方出すと同じ文言のボタンが2つ並ぶso、ここでは出さない（2026-08-05たきと指示） */}
+          両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
       {editBox !== "emergency" && (
         <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? "保存中..." : "保存する"}</button>
       )}

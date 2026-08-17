@@ -12,7 +12,7 @@ import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginRet
 //   ①追従はsetStateせずDOMのtransformを直接書く（毎フレーム再レンダーを排除）
 //   ②ジェスチャ開始8pxで縦/横を1回だけ判定する方向ロック（縦スクロールと誤認識しない）
 //   ③容器にtouch-action:pan-y＋横ロック中はpreventDefault（ReactのonTouchMoveはpassiveで
-//     preventDefault不可so、ネイティブリスナーを{passive:false}で張る）
+//     preventDefault不可ので、ネイティブリスナーを{passive:false}で張る）
 //   ④50px以上で切替成立→slideKey更新で新しいタブがスライドイン（cbSlideInR/L・今日ページと共用のCSS）
 // 中の横スクロール要素（写真カルーセル・その他の求人等）内で始まったタッチは従来どおり奪わない。
 // オーバーレイ（.cb-lock-scroll）が【この中に開いた】時（下からのシート等）も奪わない（今日ページと同じ守り）。

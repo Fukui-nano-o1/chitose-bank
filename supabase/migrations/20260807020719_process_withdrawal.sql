@@ -15,8 +15,8 @@
 -- ・残すもの（証跡・台帳で3年保存を約束）＝ applications / messages / reviews / jobs / time_corrections /
 --   job_questions / event_audit / feedback / account_moderation。
 --   匿名化は「表示名の参照先（プロフィール）が消える」ことで達成される（台帳①の約束どおり）。
--- ・ストレージ：storage.objects への SQL DELETE はプラットフォームで禁止so、アイコン（avatars/{uid}）の
---   削除はストレージAPIから手動＝返り値 note で毎回案内。job-photos/{uid} は求人の証跡so消さない。
+-- ・ストレージ：storage.objects への SQL DELETE はプラットフォームで禁止ので、アイコン（avatars/{uid}）の
+--   削除はストレージAPIから手動＝返り値 note で毎回案内。job-photos/{uid} は求人の証跡ので消さない。
 -- ・ゲート：実行は運営（app_admins）のみ。対象が app_admins なら拒否（運営アカウントの誤爆防止）。
 -- ・30日以内の期限管理は運営タスク（申請メール→本関数の実行）。processed_at が実行の記録。
 

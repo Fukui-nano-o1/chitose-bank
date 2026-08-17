@@ -22,7 +22,7 @@ begin
        or coalesce(btrim(v_ep.recruiter_contact),'') = '' then
       raise exception '募集主の氏名（名称）・住所・連絡先の入力が必要です（求人広告の法定表示事項）';
     end if;
-    -- 受動喫煙の状況（2026-08-07追加）：時間外労働と同じ明示事項so掲載時必須（空のまま公開させない）
+    -- 受動喫煙の状況（2026-08-07追加）：時間外労働と同じ明示事項ので掲載時必須（空のまま公開させない）
     if coalesce(btrim(v_ep.smoking_policy),'') = '' then
       raise exception '受動喫煙の状況の入力が必要です（雇い手プロフィールの「待遇」ボックスで設定できます）';
     end if;

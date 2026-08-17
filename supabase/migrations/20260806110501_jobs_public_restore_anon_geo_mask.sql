@@ -12,9 +12,9 @@
 -- ＝町域を伏せていても、地図に載せれば就業場所がほぼ特定できる状態だった。
 -- モザイクの原則（2026-08-03）：ある項目を隠したら、同じ情報を導ける別の項目も同時に塞ぐ。
 --
--- 【この修正】列数・列順・型は不変（51列）so、RETURNS SETOF jobs_public の
+-- 【この修正】列数・列順・型は不変（51列）ので、RETURNS SETOF jobs_public の
 -- admin_preview_job（列を列挙する唯一の関数）は無改修で追随する（2026-07-22ルール）。
--- employer_public_jobs は select jp.* so自動追従。
+-- employer_public_jobs は select jp.* ので自動追従。
 -- status in ('open','closed')・unlisted_reason is null・is_account_moderated の除外は不変。
 --
 -- 【教訓】ビューを create or replace で作り直すときは、必ず「今の本番の定義」を土台にする。
@@ -37,7 +37,7 @@ create or replace view public.jobs_public as
     j.daily_wage,
     j.work_time,
     j.break_time,
-    -- 最寄り駅は町域と同等の位置特定情報so訪問者には伏せる（2026-08-03）
+    -- 最寄り駅は町域と同等の位置特定情報ので訪問者には伏せる（2026-08-03）
         case when coalesce(auth.role(), 'anon'::text) = 'anon'::text then null::text
              else j.nearest_station end as nearest_station,
     j.commute_time,

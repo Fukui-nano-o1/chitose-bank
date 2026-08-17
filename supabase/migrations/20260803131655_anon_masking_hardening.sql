@@ -31,7 +31,7 @@ create or replace view public.jobs_public as
     j.daily_wage,
     j.work_time,
     j.break_time,
-    -- 最寄り駅は町域と同等の位置特定情報so訪問者には伏せる（2026-08-03）
+    -- 最寄り駅は町域と同等の位置特定情報ので訪問者には伏せる（2026-08-03）
         CASE
             WHEN COALESCE(auth.role(), 'anon'::text) = 'anon'::text THEN NULL::text
             ELSE j.nearest_station

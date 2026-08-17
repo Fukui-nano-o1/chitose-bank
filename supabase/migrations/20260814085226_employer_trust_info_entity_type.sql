@@ -2,7 +2,7 @@
 -- 「個人で登録された方は氏名と住所として表示。法人として登録された方は名称と所在地として表示」）。
 --
 -- 供給：employer_trust_info の返りJSONに entity_type（account_holders.entity_type＝
--- individual/corporate・登録時の区分）を1キー追加。job_employer_trust_info は本関数へ委譲so自動追従
+-- individual/corporate・登録時の区分）を1キー追加。job_employer_trust_info は本関数へ委譲ので自動追従
 -- ＝求人詳細の農園紹介（訪問者含む）・確認ページ・働き手側プレビューの全部に1箇所で届く。
 -- 開示の重さ：区分そのものはラベル（氏名/名称）として画面に出る前提の情報＝新たな個人情報の開示ではない。
 -- 本文（氏名・住所の値）の開示範囲は従来どおり不変（anonへのマスクは recruiter_* 側で担保済み）。

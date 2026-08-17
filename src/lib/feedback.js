@@ -74,7 +74,7 @@ function vibrate(pattern) { try { navigator.vibrate?.(pattern); } catch {} }
 // 成功＝上昇音（ピロン↑ E5→A5）＋トントン
 export function fbSuccess() { vibrate([15, 40, 15]); tone([659.25, 880]); }
 
-// 失敗＝柔らかい下降音（「あれ？」A3→F3。ブザーは恐怖で凍らせるso使わない）＋ブブ
+// 失敗＝柔らかい下降音（「あれ？」A3→F3。ブザーは恐怖で凍らせるので使わない）＋ブブ
 export function fbError() { vibrate(60); tone([220, 174.61], { type: "sine", gain: VOL * 0.7, dur: 0.2, gap: 0.13 }); }
 
 // 祝祭＝花火のファンファーレ（上昇アルペジオC5-E5-G5-C6＋てっぺんで和音）＋リズム振動。

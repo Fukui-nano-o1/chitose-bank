@@ -1,7 +1,7 @@
 // 評価コメントの審査（#/admin/review-comments・管理者専用・2026-08-07たきと承認）。
 // 目的：公開コメント（良心的なもの）を承認して初めて公開に乗せる。運営だけが見る＝作者は審査を感じない。
 // admin_pending_review_comments が本文だけを返す（当事者名は返さない＝運営の主観・関与を最小化）。
-// 選択項目のバッジは審査不要で即公開so、ここではコメントだけを扱う。
+// 選択項目のバッジは審査不要で即公開ので、ここではコメントだけを扱う。
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { Dots } from "../ui";

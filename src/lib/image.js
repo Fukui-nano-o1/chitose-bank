@@ -94,7 +94,7 @@ export async function listBucketFiles(supabase, bucket, prefix = "") {
 
 // 同時実行プール（2026-08-03たきと指示「一括軽量化は一瞬で終了させろ」）：
 // 一括処理が1枚ずつの完全直列で何分もかかっていたため、最大limit件を並走させる。
-// ダウンロード・アップロードはI/O待ちが大半so並走で数倍速くなる。エラーはworker側で握る前提
+// ダウンロード・アップロードはI/O待ちが大半ので並走で数倍速くなる。エラーはworker側で握る前提
 async function runPool(items, limit, worker) {
   let next = 0;
   const lanes = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -148,7 +148,7 @@ export async function recompressBucket(supabase, bucket, { maxSide = 1600, quali
 // ・危険箇所写真（danger_）はカード表示が無いので対象外
 // 2026-08-03たきと指示「一瞬で終了させろ」：
 // ・thumbが既にある写真はダウンロードせずスキップ（以前は毎回全枚数を再生成＝再実行も何分もかかった。
-//   新規アップロードはuploadJobPhotoがサムネを同時生成するso、このツールの仕事は「thumb無しの後埋め」だけでよい）
+//   新規アップロードはuploadJobPhotoがサムネを同時生成するので、このツールの仕事は「thumb無しの後埋め」だけでよい）
 // ・残った対象は6並列で処理。★旧320px世代を作り直したい時は force:true（全再生成・通常は不要）
 export async function generateJobPhotoThumbs(supabase, { maxSide = 640, quality = 0.65, bucket = "job-photos", onProgress, force = false } = {}) {
   const { data: rows, error } = await supabase.from("jobs").select("id, photos");

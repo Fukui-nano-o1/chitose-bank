@@ -6,7 +6,7 @@
 --   複製で静かに落ちていた＝農家は理由が分からないまま再入力を求められる。
 -- 【型】「列を足したら関連関数も直す」（2026-07-22ルールのcopy_job版）。
 --   他の新列は掲載時にトリガーが自動確定するもの（pay_method等・募集主・スナップショット）や
---   複製すべきでないもの（opened_at・unlisted_reason）so、漏れはこの2列だけ（定義を全列照合済み）。
+--   複製すべきでないもの（opened_at・unlisted_reason）ので、漏れはこの2列だけ（定義を全列照合済み）。
 -- 【方針】既存定義そのまま＋2列を追記。日程が過ぎた求人の日付クリア等の挙動は不変。
 
 create or replace function public.copy_job(p_job_number integer)

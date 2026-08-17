@@ -5,9 +5,9 @@
 //   1件でもあれば App.jsx のトップページ着地がここへ送る（まもなく開始ページ #/admin/upcoming と同じ作法）。
 //   決めてしまえば（承認・見送り）該当がゼロになり、着地は自然に止む＝記録から導出（表示用の別状態を持たない）。
 // ■【読み取り専用】：承認・見送り・採用の実行は応募者シート（FarmerDashboard の renderApplicantCard）が
-//   唯一の窓口so、このページは「見せる」と「そこへ送る」だけに徹する。書き込みの入口を増やさない
+//   唯一の窓口ので、このページは「見せる」と「そこへ送る」だけに徹する。書き込みの入口を増やさない
 //   （＝ゲート・記録・二重予約警告などの担保を1箇所に保つ）。
-// ■本名・連絡先は出さない：契約成立前so ContractPartyName / ContractEmergencyContact は置かない
+// ■本名・連絡先は出さない：契約成立前ので ContractPartyName / ContractEmergencyContact は置かない
 //   （2026-07-30裁定(B)・2026-08-03緊急連絡先＝どちらも採用成立後の当事者間のみ）。
 // ■データ：既存RPC2本（my_farm_applicants・my_farm_jobs／どちらもSECURITY INVOKER＝RLSそのまま）を
 //   並列で1往復。新しいDBオブジェクトは作らない。
@@ -85,7 +85,7 @@ function ApplicantCard({ app, job, profile, trust }) {
       </div>
       <div style={{ padding:"12px 14px 14px", borderTop:"1px solid #F5F5F5" }}>
         {/* 応募者の情報＝応募者ページのシートと同じ部品（公開してよい項目だけを出す唯一のソース）。
-            本名・連絡先は契約成立後の当事者間のみso、ここには出さない（2026-07-30裁定(B)・2026-08-03） */}
+            本名・連絡先は契約成立後の当事者間のみので、ここには出さない（2026-07-30裁定(B)・2026-08-03） */}
         <WorkerTrustCard profile={profile || {}} trust={trust} />
         {/* 来られる日（期間求人・すり合わせの起点）。'any'・未宣言は部品側で非表示 */}
         <div style={{ marginTop:10 }}><AvailDatesChips value={app.available_dates} /></div>
@@ -137,7 +137,7 @@ export function NewApplicantsPage() {
 
   return (
     // 左右を広く取る（2026-08-11たきと指示）＝最大幅を広げ、左右の余白を6pxまで詰める。
-    // 下部バー・☰・サイトフッターは出さない（cb-new-applicants-page＝appStyles）so下の余白も詰める
+    // 下部バー・☰・サイトフッターは出さない（cb-new-applicants-page＝appStyles）ので下の余白も詰める
     <div className="appear cb-new-applicants-page" style={{ maxWidth:900, margin:"0 auto", padding:"20px 6px 28px" }}>
       {state === null && (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>

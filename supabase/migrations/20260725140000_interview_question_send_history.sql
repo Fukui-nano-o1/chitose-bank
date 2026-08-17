@@ -21,7 +21,7 @@ create policy "iqs farmer select" on public.interview_question_sends
 revoke all on public.interview_question_sends from anon, authenticated;
 grant select on public.interview_question_sends to authenticated;
 
--- ④ バックフィル：農家が送った【面接の質問】メッセージを履歴化（set_idは不明soNULL）
+-- ④ バックフィル：農家が送った【面接の質問】メッセージを履歴化（set_idは不明のでNULL）
 insert into public.interview_question_sends (application_id, farmer_id, set_title, sent_at)
 select m.application_id, m.sender_id, null, m.created_at
 from public.messages m

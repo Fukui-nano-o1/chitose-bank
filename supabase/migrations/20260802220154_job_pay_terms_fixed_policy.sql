@@ -114,7 +114,7 @@ alter table public.jobs add constraint jobs_publish_snapshot_check check (
   )
 );
 
--- ⑤ jobs_public へ3列を末尾追加（公開求人条件so anonマスクなし＝従来のマスク対象
+-- ⑤ jobs_public へ3列を末尾追加（公開求人条件ので anonマスクなし＝従来のマスク対象
 --    town/recruiter_*/work_address は不変）。admin_preview_job も同数・同順で更新（2026-07-22ルール）。
 --    employer_public_jobs は select jp.* のため自動追従（変更不要・確認済み）
 create or replace view public.jobs_public as

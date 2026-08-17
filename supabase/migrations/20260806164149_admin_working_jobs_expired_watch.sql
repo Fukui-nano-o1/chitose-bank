@@ -11,7 +11,7 @@
 -- 記録し直しは #1054/#1056 と同じくDB作業＝運営判断で行う）。
 -- was_approved＝失効の瞬間の event_audit（柱1・行動記録）で old=approved だったもの
 -- ＝一度は承認まで進んでいた失効（実働の可能性がより高い・カードに赤帯）。
--- ※terms_confirmed_worker_at では判定できない（応募時にトリガー自動刻印so常にtrue）。
+-- ※terms_confirmed_worker_at では判定できない（応募時にトリガー自動刻印ので常にtrue）。
 --
 -- 【互換】working / upcoming は不変。既存フロントは expired_watch を読まないだけ＝壊れない。
 -- 【検証（実データ）】管理者=3バケット（working 0 / upcoming 4 / expired_watch 1・

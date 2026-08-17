@@ -101,7 +101,7 @@ update public.jobs j
    and j.profile_snapshot_at is null;
 
 -- ④ jobs_public へ2列を末尾追加（既存定義そのまま＋末尾2列。anonマスクは従来どおり
---    town/recruiter_*/work_address のみ。保険は従来から訪問者にも表示している情報so非マスク）
+--    town/recruiter_*/work_address のみ。保険は従来から訪問者にも表示している情報ので非マスク）
 create or replace view public.jobs_public as
  SELECT j.job_number,
     j.crop,

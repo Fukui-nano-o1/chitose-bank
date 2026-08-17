@@ -16,7 +16,7 @@ import ContractRecords from "./ContractRecords";
 // 削除対象を利用者の言葉に噛み砕いたもの。★DBの削除対象を増減したらここも合わせること（表示と実処理を揃える）。
 // 「削除される情報のみ」＝残る証跡（応募・チャット・評価等）はここに載せない。表示専用（編集不可）。
 // DBの17テーブルとの対応：farmers（農家の基本情報）は「農園・雇い手プロフィール」に含意／
-// records（旧・経営記録）は現行UIで作成できない遺物so利用者向けには省略（持たない情報を列挙しない）。
+// records（旧・経営記録）は現行UIで作成できない遺物ので利用者向けには省略（持たない情報を列挙しない）。
 const WITHDRAW_DELETED_ITEMS = [
   "メールアドレス・ログイン情報",
   "本人確認情報（氏名・ふりがな・住所・生年月日・電話番号）",
@@ -161,7 +161,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
         const [{ data: wp }, { data: apps }, openRes, { data: ts }] = await Promise.all([
           supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("applications").select("status,attended,worker_confirmed_end_at,job_number").eq("worker_id", session.user.id),
-          // さがす箱＝きょう応募できる求人件数。jobs_public は終了した求人も返すようになったso
+          // さがす箱＝きょう応募できる求人件数。jobs_public は終了した求人も返すようになったので
           // status='open' を明示する（2026-08-05・さがすに終了求人を並べた際の連動）
           supabase.from("jobs_public").select("job_number", { count: "exact", head: true }).eq("status", "open").then(r => r, () => ({ count: 0 })),
           supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
@@ -254,7 +254,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                   <div className="f-sans" style={{ width:"100%", textAlign:"left" }}>
                     {/* プレビューの統一（2026-07-26たきと指示）：裏面も本物のプレビュー
                         （WorkerPreviewSheet＝農家が見る構造：WorkerTrustCard＋Q&A）と同一にする。
-                        trustは本人限定RPC(my_worker_trust_stats)＝worker_trust_infoと同形so そのまま渡せる */}
+                        trustは本人限定RPC(my_worker_trust_stats)＝worker_trust_infoと同形ので そのまま渡せる */}
                     {wMini ? (
                       <>
                         <WorkerTrustCard profile={wMini} trust={wTrust} />
@@ -394,7 +394,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
       )}
       </div>
       {/* 退会（2026-08-07たきと指示）：プロフィール入口の最下部。編集・サブページでは出さない。
-          働き手ホーム・雇い手ホームのどちらでも1箇所に出る（退会はアカウント単位so役割不問） */}
+          働き手ホーム・雇い手ホームのどちらでも1箇所に出る（退会はアカウント単位ので役割不問） */}
       {(pTab === "employer" ? eHome : wTab === "home") && <ProfileWithdrawSection onLogout={onLogout} />}
     </div>
   );

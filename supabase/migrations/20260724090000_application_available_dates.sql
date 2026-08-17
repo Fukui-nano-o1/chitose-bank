@@ -1,6 +1,6 @@
 -- 応募時の来られる日宣言（2026-07-24）＝二頭運転の同期写経。
 --   applications.available_dates（jsonb）と M02通知トリガー trg_notify_application の available_dates 表示は
---   別端末が本番へ先行適用済み。ここで repo に写経して同期する（冪等形so再適用も安全）。
+--   別端末が本番へ先行適用済み。ここで repo に写経して同期する（冪等形ので再適用も安全）。
 --   apply_to_job への p_available_dates 追加は本セッションで適用（下記）。
 -- 値の形：期間求人＝ "any"（期間中いつでもOK）または ["YYYY-MM-DD", ...]（特定日・複数可）／単日求人＝null。
 

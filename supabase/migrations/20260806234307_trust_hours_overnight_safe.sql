@@ -2,7 +2,7 @@
 -- 症状：worker_trust_info / worker_trust_info_bulk / my_worker_trust_stats の total_hours が、
 --   インラインで end::time - start::time を計算しており、日またぎ勤務（例 22:00〜06:00）で
 --   負の時間（-16）を加算していた。実測：22:00〜06:00 の完了実績1件で total_hours=-16。
---   時給の日またぎ求人は最賃チェック（時給額のみ）を通過so掲載可能＝実在しうる入力。
+--   時給の日またぎ求人は最賃チェック（時給額のみ）を通過ので掲載可能＝実在しうる入力。
 -- 不整合：worker_work_record は job_scheduled_minutes ヘルパー（日またぎ→null 安全）を使い、
 --   同じ求人を unknown_time_count に計上して total_minutes には足さない。3関数だけ生計算で食い違っていた。
 -- 対処：3関数の時間集計を job_scheduled_minutes ヘルパーに統一（単一ソース化）。

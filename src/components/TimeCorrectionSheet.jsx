@@ -1,5 +1,5 @@
 // 🕐 打刻の修正申請シート（第13弾(2)・共通部品・2026-07-30たきと指示「申請権の非対称を解消」）
-// 働き手・雇い手のどちらからも同じシートで申請する。申請＝相手の承認で成立so、
+// 働き手・雇い手のどちらからも同じシートで申請する。申請＝相手の承認で成立ので、
 // どちらから出しても双方署名の構造は崩れない（片方が勝手に記録を書き換えられるわけではない）。
 // 申請と結果は attendance_corrections に残る＝記録の憲法（アクションは必ず記録に残す）。
 import { useState } from "react";
@@ -54,7 +54,7 @@ export function TimeCorrectionSheet({ app, baseYmd, onClose }) {
           実際の時刻を入れてください。どちらか片方だけでも申請できます。
         </p>
         {/* ★minWidth:0（グリッドの子）＋maxWidth:100%（入力）＝枠外へはみ出さない（2026-08-16たきと報告）。
-            グリッドの子は既定が min-width:auto so、iOSの input[type=time] の固有幅
+            グリッドの子は既定が min-width:auto ので、iOSの input[type=time] の固有幅
             （モバイルは font-size:16px 強制＋.field の左右パディング16px）がトラック幅を超えると
             縮まずに右へはみ出す。grid の外にある textarea thaが収まっていたのはこのため */}
         <div style={{ display:"grid", gap:10, marginBottom:14 }}>

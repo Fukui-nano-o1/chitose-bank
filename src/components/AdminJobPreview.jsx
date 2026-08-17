@@ -125,7 +125,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
                                      // iOSの加速スクロールがイベントを飲むことがあるため外枠で受ける（2026-08-07再修理）
   const dragBoxRef = useRef(null); // スライドさせるスクロール容器（transformの対象）
   const pubHintRef = useRef(null); // 下に敷いた公開の緑面（opacityを直書き）
-  // リスナーはマウント時に1度だけ張るso、発動条件は ref 経由で最新を読む
+  // リスナーはマウント時に1度だけ張るので、発動条件は ref 経由で最新を読む
   const swipeGateRef = useRef({});
   swipeGateRef.current = { revMode, publishing, hasJob: !!job, editing: !!editTarget, onPublish };
   useEffect(() => {
@@ -245,7 +245,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     <div onClick={ownerView ? onClose : undefined} className="cb-lock-scroll" style={ownerView
       ? { position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }
       : { position:"fixed", inset:0, zIndex:9000, background:"#fff" }}>
-    {/* 下部バーを隠すso画面下端まで伸ばす（角丸は上だけ・セーフエリアは内側の下パディングで確保）。
+    {/* 下部バーを隠すので画面下端まで伸ばす（角丸は上だけ・セーフエリアは内側の下パディングで確保）。
         審査（!ownerView）も同じ flex column 構造＝上:説明バー／中:スクロール／下:操作ボタン固定バー
         （2026-08-05たきと指示「閉じる・修正を依頼・公開は下部に。上はタップしずらい」） */}
     <div ref={ownerView ? sheetRef : swipeRootRef} onClick={ownerView ? (e)=>e.stopPropagation() : undefined} className={ownerView ? "cb-sheet-up" : undefined} style={ownerView
@@ -359,7 +359,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           <div style={{ position:"relative", marginBottom:20, borderRadius:12, padding: ownerView ? 0 : 4, ...revOutline("求人タイトル・募集タグ") }}>
             {revChip("求人タイトル・募集タグ")}
             {/* 集合場所は番地まで明記（2026-08-03たきと指示）。この画面は管理者の審査・農家本人の
-                プレビューso常にログイン済み＝unlocked。訪問者向けのモザイクは求人詳細側が担う */}
+                プレビューので常にログイン済み＝unlocked。訪問者向けのモザイクは求人詳細側が担う */}
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
               {job.crop} {job.task}{job.region ? `｜${job.region}` : ""}
               {job.region && <MaskedAddress value={job.workAddress} unlocked={true} exists={job.hasWorkAddress} />}
@@ -468,7 +468,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           {/* 地図（集合場所のおおよその範囲・円のみ） */}
           <div style={{ position:"relative", width:"100%", marginBottom:20, borderRadius:12, ...revOutline("場所・地図") }}>
             {revChip("場所・地図")}
-            {/* 番地まで明記する画面so、Googleマップ導線にも番地を渡す（2026-08-03）。
+            {/* 番地まで明記する画面ので、Googleマップ導線にも番地を渡す（2026-08-03）。
                 ピン自体は従来どおり町域重心＝addressShownで注記の文言を実態に合わせる */}
             <JobLocationMap lat={job.lat} lng={job.lng} radius={job.radius} label={job.region}
               mapQuery={job.workAddress ? job.region + job.workAddress : job.region}

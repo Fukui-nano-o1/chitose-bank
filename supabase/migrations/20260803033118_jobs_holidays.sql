@@ -77,7 +77,7 @@ create or replace view public.jobs_public as
   WHERE j.status = 'open'::text AND NOT is_account_moderated(j.farmer_id);
 
 -- 2026-07-22ルール：jobs_public に列を足したら RETURNS SETOF jobs_public の関数も同数・同順に合わせる。
--- admin_preview_job は明示列挙so末尾に j.holidays を追加。employer_public_jobs は jp.* so自動追従（変更不要）
+-- admin_preview_job は明示列挙ので末尾に j.holidays を追加。employer_public_jobs は jp.* ので自動追従（変更不要）
 create or replace function public.admin_preview_job(p_job_number integer)
  returns setof jobs_public
  language plpgsql

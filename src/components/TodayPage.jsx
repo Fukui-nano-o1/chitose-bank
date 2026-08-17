@@ -388,7 +388,7 @@ function HireStagePanel({ items, meId, onHired }) {
           const photo = photoOf(t);
           return (
             /* 横幅を3分割（2026-08-06たきと指示）：写真／アイコン／🤝採用 を各1/3。
-               3列とも同じ幅so、どのカードでも採用ボタンの位置が縦に揃う（迷わず押せる） */
+               3列とも同じ幅ので、どのカードでも採用ボタンの位置が縦に揃う（迷わず押せる） */
             <div key={t.application_id} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
               {/* ①求人のトップ写真＋タイトル・#No.（応募者ページのカードと同じ作法・枠は3:4固定） */}
               <button onClick={()=>setBoxItem(t)} aria-label="この応募を開く" className="f-sans"
@@ -797,7 +797,7 @@ export function TodayPage({ me, defaultRole }) {
   const TODO_META = {
     // プロフィールの未入力（2026-08-03たきと指示）：未入力がある間だけ、やることの先頭に現れる。
     // 埋まれば消える／後で空にすればまた現れる（状態を持たず、毎回いまのプロフィール行から数える）。
-    // 行き先は編集ページ＝専用ページを挟まない（用件の一覧ではなく自分の入力そのものが行き先so・boxNav）。
+    // 行き先は編集ページ＝専用ページを挟まない（用件の一覧ではなく自分の入力そのものが行き先ので・boxNav）。
     // バッジ＝未入力の項目数＝プロフィール入口の名刺バッジと同じ数（数え方はlib/utilsが唯一のソース）
     profile:     { icon:"👤", title:"プロフィールの未入力", btn:"入力する →",
                    desc:"農家はあなたのプロフィールを見て、応募を承認するか決めます。埋まっているほど選ばれやすくなります。",
@@ -863,7 +863,7 @@ export function TodayPage({ me, defaultRole }) {
                    desc:"働き手が現場に来て作業が始まったことを確認します。来なかった場合の記録もここからできます。",
                    alt: { label:"来なかった", flag:"cb_completeAppId", to:"/profile/employer/applicants",
                           // 旧「active（進行中）」はステータス絞り込み統一（2026-08-07）で廃止。該当応募は
-                          // 採用/作業中のどちらもありうるso「すべて」で開く（対象シートはcb_completeAppIdが自動展開）
+                          // 採用/作業中のどちらもありうるので「すべて」で開く（対象シートはcb_completeAppIdが自動展開）
                           before: () => { try { sessionStorage.setItem("cb_appFilter", "all"); } catch {} } } },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
@@ -878,14 +878,14 @@ export function TodayPage({ me, defaultRole }) {
     // 応募INSERT時にterms_confirmed_worker_atをDBトリガーが自動記録。日程の申請（チャットの候補日）は残す
     // 求職の修正（2026-07-27たきと指示・枠のみ先行）：農家側 revision の働き手版。
     // 求職カード（求職一覧＝Phase2b）の実装後に、運営からの修正依頼をmy_todo_itemsが返す想定。
-    // 中身（遷移先・実行内容）は未定so nav/rpc は持たせない＝現状は常に「該当なし」の薄い箱として並ぶ
+    // 中身（遷移先・実行内容）は未定ので nav/rpc は持たせない＝現状は常に「該当なし」の薄い箱として並ぶ
     w_revision:  { icon:"📝", title:"求職に修正のお願い", btn:"修正する →",
                    desc:"運営から求職内容の修正のお願いが届いたとき、ここから直します。" },
     w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する",
                    desc:"農家から届いた面接の質問に、その場で返事します。返信はチャットにも残ります。" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
     // w_start（作業を開始する）は廃止（2026-07-27たきと指示）：開始時刻が来たらDB側のcron
     // auto_start_work() が自動で開始を記録するため、働き手に押させる箱を置かない
-    // 採用済みなら終了の箱も開ける（2026-07-27たきと指示）。行き先は件数に依らず同じso直行(direct)
+    // 採用済みなら終了の箱も開ける（2026-07-27たきと指示）。行き先は件数に依らず同じので直行(direct)
     w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
                    desc:"仕事の終了を確認して、農家を評価します。評価は承認済みの応募一覧から行います。" },
   };
@@ -1101,7 +1101,7 @@ export function TodayPage({ me, defaultRole }) {
           [["t_card", tCard], ["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chatは削除・2026-07-25）
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
           // 「終了を確認して評価」は採用済みなら常に開ける（2026-07-27たきと指示）。
-          // my_todo_itemsのw_reviewは農家の完了記録の後にしか出ないso、それを待たずに灯す。
+          // my_todo_itemsのw_reviewは農家の完了記録の後にしか出ないので、それを待たずに灯す。
           // 開始は自動（auto_start_work）になったため、開始済みがあればそれを優先して件数に出す
           const reviewItems = startedMine.length ? startedMine : hiredMine;
           if (role === "worker" && !byStage.has("w_review") && reviewItems.length) {

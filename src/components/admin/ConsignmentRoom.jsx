@@ -165,7 +165,7 @@ const CONSIGN_CLUSTER_BASES = [
   { panel: "bottom", anchor: "right", bottomMin: 85, bottomMax: 100, delay: 1.15 }, // ④右・上段（草・2026-08-05追加）
 ];
 // 草の大きさの倍率（2026-08-05たきと指示「全体的に0.8倍の大きさに」）。
-// ★草だけに掛ける＝太陽と花火は対象外（同指示「太陽と花火に変更はない」）so
+// ★草だけに掛ける＝太陽と花火は対象外（同指示「太陽と花火に変更はない」）ので
 //   sunSize・花火のsize等には触れない。大きさを直すときはこの1箇所を変える
 const CONSIGN_GRASS_SCALE = 0.8;
 // 入場のたびに草の配置を抽選する（2026-07-31たきと指示「毎回違うパターン」＝ここは意図的に乱数。
@@ -272,7 +272,7 @@ const makeConsignVines = () => {
 // ── 委託者情報 v2（2026-07-31たきと指示・種別分岐）──
 // 最初に「個人事業者／法人」を選び、入力ページを完全に分岐する。個人名と法人名を同じ列に
 // 混ぜない（consignor_type ＋ consignor_data jsonb・ind_*/corp_*/staff_*/cmn_* のキー空間で分離）。
-// ページ順：委託者の種類 → 個人事業者情報 or 法人情報 → 連絡担当者（法人のみ・個人は本人が兼ねるso省略）
+// ページ順：委託者の種類 → 個人事業者情報 or 法人情報 → 連絡担当者（法人のみ・個人は本人が兼ねるので省略）
 // → 標準取引条件（共通）→ 登録内容確認。契約書の当事者欄は種別で印字を出し分ける
 const CORP_KINDS = ["株式会社", "合同会社", "農事組合法人", "その他"];
 
@@ -460,7 +460,7 @@ const seedConsignorData = (n, t, row) => {
     if (!(n.ind_has_invoice || "").trim() && (n.ind_invoice || "").trim()) n.ind_has_invoice = "登録あり";
   } else {
     put("corp_invoice", row.consignor_invoice_no);
-    put("corp_rep_name", row.consignor_rep_name); // 登録者≠代表者のことがあるso登録者名では埋めない
+    put("corp_rep_name", row.consignor_rep_name); // 登録者≠代表者のことがあるので登録者名では埋めない
     if (!(n.staff_use_registrant || "").trim()) n.staff_use_registrant = "登録者を使用";
     if (!(n.corp_has_invoice || "").trim() && (n.corp_invoice || "").trim()) n.corp_has_invoice = "登録あり";
   }
@@ -661,7 +661,7 @@ function ConsignLendPane({ consignor, onSaved }) {
     setLBusy(false);
   };
   const add = () => {
-    // 「・」は案件側の区切り文字so名前には使わせない（スペースに置換）
+    // 「・」は案件側の区切り文字ので名前には使わせない（スペースに置換）
     const v = input.replace(/・/g, " ").trim();
     if (!v || !kind) return;
     if (items.some(x => x.n === v)) { setInput(""); return; }
@@ -928,7 +928,7 @@ function ConsignorInfoEdit() {
       }, { onConflict: "auth_id" });
       if (error) alert("保存に失敗しました：" + error.message);
       else {
-        try { localStorage.removeItem("cb_consignorDraft_v1"); } catch {} // 保存成功＝DBが真実の座so下書きは消す
+        try { localStorage.removeItem("cb_consignorDraft_v1"); } catch {} // 保存成功＝DBが真実の座ので下書きは消す
         // 保存したら委託のトップ（一覧）へ戻る（2026-07-31たきと指示）。✓を一瞬見せてから
         setSaved(true);
         setTimeout(() => { window.location.hash = "/admin/consignment"; }, 600);
@@ -1301,7 +1301,7 @@ export function ConsignmentRoom() {
     if (m) return { view: "deal", id: m[1] };
     if (h === "admin/consignment/new") return { view: "new" };
     if (h === "admin/consignment/profile") return { view: "profile" };
-    // 受託面（2026-08-05たきと指示）：委託＝出す側／受託＝受ける側の2面。求人求職のトグルと同じ構造so
+    // 受託面（2026-08-05たきと指示）：委託＝出す側／受託＝受ける側の2面。求人求職のトグルと同じ構造ので
     // 面ごとにURLを持たせる（#/profile/worker ⇄ #/profile/employer と同じ作法）＝戻る・スワイプ・直打ちが効く
     if (h === "admin/consignment/contractor") return { view: "contractor" };
     return { view: "list" };
@@ -1332,7 +1332,7 @@ export function ConsignmentRoom() {
   // 入力中に背景がずれない固定（2026-07-31たきと報告「入力するとき背景が上にずれて太陽が見えない」）：
   // iOSはキーボードが開くと画面ごと上にパンし、fixedの背景（空・蔓）も一緒に押し上げられる。
   // visualViewport の offsetTop分だけ背景を下へ平行移動し、見えている画面に貼り付け直す＝背景は変わらない。
-  // 四隅の蔓は容器をtransformするとfixedな子の基準が壊れるため対象外（額縁so実害なし）
+  // 四隅の蔓は容器をtransformするとfixedな子の基準が壊れるため対象外（額縁ので実害なし）
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -1443,7 +1443,7 @@ export function ConsignmentRoom() {
   // トップの大プロフィールカード用（農家プロフィール入口と同じ構造・2026-07-31たきと指示）。
   // 名刺の中身は employer_profiles の自分の行から（このページはprops無しなので自分で引く）
   // 名刺はviewCache→（アプリ再起動後は）FarmerDashboardが保存したsnapshot(empMini)→nullの順で即表示。
-  // ここからsnapshotへは書かない（このページのempMiniは2列だけの縮小形so、全列形の正本を上書きしない）
+  // ここからsnapshotへは書かない（このページのempMiniは2列だけの縮小形ので、全列形の正本を上書きしない）
   const [empMini, setEmpMini] = useState(() => getCache("consign:empMini") ?? snapGet("empMini") ?? null);
   // 委託者情報（設定ページの保存値・確認STEP5と印刷仕様書へ自動反映）。設定ページから戻るたびに再読込。
   // 身元（氏名・法人名・住所）は account_holders＝唯一の正から並行取得（2026-08-02たきと確定指示）
@@ -1463,7 +1463,7 @@ export function ConsignmentRoom() {
   // 既存写真の自動軽量化（2026-08-03たきと指示「自動で圧縮処理」・手動操作ゼロ）：
   // 圧縮修理(c4b49b1)より前に原寸で上がった写真を、委託ページを開いたとき裏で1回だけ圧縮し直す。
   // HEADでサイズ確認→700KB超だけ対象。新URLへ差し替え成功後に旧ファイルを削除（孤児を残さない）。
-  // 1セッション1回（sessionStorageフラグ）。以後のアップロードは常に自動圧縮so新たな対象は増えない
+  // 1セッション1回（sessionStorageフラグ）。以後のアップロードは常に自動圧縮ので新たな対象は増えない
   const healConsignPhotos = async () => {
     try {
       if (sessionStorage.getItem("cb_consignPhotoHeal_v1")) return;
@@ -1498,7 +1498,7 @@ export function ConsignmentRoom() {
         const { error } = await supabase.from("consignment_fields").update({ data: { ...(f.data || {}), photo: nu }, updated_at: new Date().toISOString() }).eq("id", f.id);
         if (!error) { dropOld(cur); touched = true; }
       }
-      // 案件写真（spec.photos。合意後の比較対象は基本/テキスト項目のみso写真URL差し替えは無害）
+      // 案件写真（spec.photos。合意後の比較対象は基本/テキスト項目のみので写真URL差し替えは無害）
       const { data: drows } = await supabase.from("consignment_deals").select("id,spec");
       for (const d of (drows || [])) {
         const ph = ((d.spec || {}).photos || []);
@@ -1524,7 +1524,7 @@ export function ConsignmentRoom() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       // 既存の圃場＝正式住所（region/zip/番地・圃場ペインで登録）を保持し、面積・設備だけ更新する。
-      // ウィザードの地域欄は掲載用の粗い表記so、正式住所を上書きしない（2026-08-02たきと指示）
+      // ウィザードの地域欄は掲載用の粗い表記ので、正式住所を上書きしない（2026-08-02たきと指示）
       const existing = fields.find(x => x.name === name);
       const exd = (existing && existing.data) || {};
       await supabase.from("consignment_fields").upsert({
@@ -1789,7 +1789,7 @@ export function ConsignmentRoom() {
       }
       else if (c.view === "new") { newDealState(); }
       else if (c.view === "profile") { setProfilePane("info"); setCTab("profile"); }
-      // 受託面（2026-08-05）：委託面と同じ「一覧の世界」so帰還演出（ウィザード・プロフィールからの逆再生）は挟まない
+      // 受託面（2026-08-05）：委託面と同じ「一覧の世界」ので帰還演出（ウィザード・プロフィールからの逆再生）は挟まない
       else if (c.view === "contractor") { setCTab("contractor"); }
       else { const d = dealsRef.current.find(x => x.id === c.id); if (d) openDealState(d); }
     };
@@ -1803,7 +1803,7 @@ export function ConsignmentRoom() {
   const snapAtLabel = curDeal?.snapshot_at ? new Date(curDeal.snapshot_at).toLocaleString("ja-JP") : "";
   const hasDeposit = !!(spec.advance && String(spec.advance).trim());
   // 風→蔓の靡き（2026-07-31たきと指示）：向き=東西成分で左右に傾け、強さ=風速で揺れ幅と速さを増す。
-  // dir は「吹いてくる向き」so東向きの押し＝-sin(dir)（西風→右へ／東風→左へ）。未取得は0＝従来のゆるやか
+  // dir は「吹いてくる向き」ので東向きの押し＝-sin(dir)（西風→右へ／東風→左へ）。未取得は0＝従来のゆるやか
   const windSpeed = wind ? wind.speed : 0;                 // km/h
   const windEast = wind ? -Math.sin(wind.dir * Math.PI / 180) : 0; // +右 / -左
   const swayAmp = Math.min(16, 2.5 + windSpeed * 0.35);   // 揺れ幅（度）
@@ -2445,7 +2445,7 @@ export function ConsignmentRoom() {
           {/* STEP3 報酬：いくら払うのか */}
           {wizStep === 3 && (<>
             {["unit_price_10a","advance","pay_method"].map(k => renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === k)))}
-            {/* 報酬イメージ（単価×面積の自動計算・派生表示so保存しない） */}
+            {/* 報酬イメージ（単価×面積の自動計算・派生表示ので保存しない） */}
             {(() => { const u = Number(spec.unit_price_10a), a = Number(spec.area_a);
               return (u > 0 && a > 0) ? (
                 <div style={{ background:"#111111", borderRadius:12, padding:"14px 16px", marginTop:4 }}>
@@ -2533,7 +2533,7 @@ export function ConsignmentRoom() {
                 </div>
               ))}
             </div>
-            {/* 委託者情報（設定ページから自動反映・2026-07-31たきと指示。緊急連絡先・振込情報は内部用so出さない） */}
+            {/* 委託者情報（設定ページから自動反映・2026-07-31たきと指示。緊急連絡先・振込情報は内部用ので出さない） */}
             {consignorPartyRows(consignor, consignAh).length > 0 && (
               <div style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:12 }}>
                 <p className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>委託者（設定ページから自動反映・種別で印字を出し分け）</p>
@@ -2671,7 +2671,7 @@ export function ConsignmentRoom() {
               )}
               {curDeal.status === "working" && (
                 <div style={{ background:"#F9FAFB", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
-                  {/* minmax(0,1fr)＝グリッドの子がトラック幅より小さくなれる（既定の 1fr は min-width:auto so
+                  {/* minmax(0,1fr)＝グリッドの子がトラック幅より小さくなれる（既定の 1fr は min-width:auto ので
                       input[type=date] の固有幅がトラックを超えると縮まず枠外へ出る・2026-08-16 打刻シートと同型） */}
                   <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr) minmax(0, 1fr)", gap:8, marginBottom:8 }}>
                     <div style={{ minWidth:0 }}><label className="lbl f-sans" style={{ fontSize:12.1 }}>日付</label><input type="date" className="field f-sans" value={pForm.work_date} onChange={e=>setPForm(p=>({...p, work_date:e.target.value}))} style={{ fontSize:14.3, marginBottom:0, width:"100%", maxWidth:"100%", minWidth:0 }} /></div>
@@ -2744,7 +2744,7 @@ export function ConsignmentRoom() {
           ) : (
           // さがす一覧と同じ構造（2026-08-03たきと指示）：枠なしカード・大きな角丸写真・
           // 写真の下にタイトル/地域/金額の3秒判断レイアウト（JobCardの型・カラーはブラック）。
-          // 進行ステッパー・履行集計は管理情報soカードから外し、タップ先の案件ページが担う
+          // 進行ステッパー・履行集計は管理情報のでカードから外し、タップ先の案件ページが担う
           // 列はminmax(0,1fr)固定（2026-08-03横はみ出し修理）：gridの既定min-width:autoだと
           // 1行省略のタイトルが列を押し広げ、画面幅を飛び出す
           <div style={{ display:"grid", gap:22, gridTemplateColumns:"minmax(0, 1fr)" }}>

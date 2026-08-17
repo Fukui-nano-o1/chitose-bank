@@ -190,7 +190,7 @@ FarmerDashboard/ChatView）・応募確認（働き手・JobSearchMapView）・�
 自動開始・打刻なしの回は遅刻判定しない＝「記録なし」に倒す（憶測で遅刻にしない）。
 【DB】worker_work_record(worker_id)＝SECURITY DEFINER・上記の関係ゲート（auth.uid() is null を
 必ず先に弾く＝2026-07-29のフェイルオープンと同じ穴を作らない）。働き手の一覧は
-admin_worker_list()＝求職者の名簿so運営のみ。migration 20260805101446。
+admin_worker_list()＝求職者の名簿ので運営のみ。migration 20260805101446。
 【フロント】components/WorkerWorkRecord.jsx が唯一の表示部品。農家の入口＝働き手プレビュー
 （ボックス展開）の横スワイプ2枚目。運営の入口＝#/admin/evaluation。
 【残・別途】プライバシーポリシーのデータ台帳に、この開示（応募を受けた農家に、はたらいた記録を
@@ -211,7 +211,7 @@ admin_worker_list()＝求職者の名簿so運営のみ。migration 2026080510144
 合わないため完了に戻さない（2026-07-25の一括取り消しは、この行については妥当だった）。
 【教訓・未対処】(1) 採用を押し忘れると、実際に働いても記録が失効する。作業当日を過ぎた採用済み
 未処理を運営が拾う導線は #/admin/working にあるが、採用そのものの押し忘れは拾えていない。
-(2) worker_work_record は jobs と内部結合so、求人の行が消えると働き手の記録も画面から消える
+(2) worker_work_record は jobs と内部結合ので、求人の行が消えると働き手の記録も画面から消える
 （#1036 が該当）。記録は残すべきなので外部結合にするか要判断。
 ━━━ ここまで ━━━
 
@@ -245,8 +245,8 @@ draft かつ !opened_at のときだけ出す（FarmerDashboard・UIとDBの二�
 （migration 20260806013953）。draft/pending は従来どおり出さない（法務境界は不変）。
 anonマスク（町域・募集主・番地・座標）も不変＝anonで実測し漏れゼロを確認。
 ★2026-07-22ルールの連動：admin_preview_job の列挙に j.status を末尾追加（合わせ忘れると42P13）。
-employer_public_jobs は select jp.* so自動追従＝雇い手プロフィールの「過去の求人」に
-終了した求人も並ぶようになった（名前どおりの挙動so許容）。
+employer_public_jobs は select jp.* ので自動追従＝雇い手プロフィールの「過去の求人」に
+終了した求人も並ぶようになった（名前どおりの挙動ので許容）。
 【フロント】mapJobPublicRow に closed を追加。JobCard・求人詳細の既存の終了帯（満員/期間終了）に
 「募集終了」を合流。並びの規則は lib/searchJobs の orderSearchJobs に集約（さがす本体と玄関の
 先読みで共用）＝募集中が先・終了は末尾。応募はDB側の apply_to_job が job_not_open で拒否（二重の壁）。
@@ -454,7 +454,7 @@ step0：全体の入口説明（既存・流用）
   - step4：作業日程(カレンダー展開デフォルト)＋募集人数。作物作業のreadOnly表示は削除。募集人数をカレンダーの上に配置。「開催日」→「作業日程」に統一(入力・確認画面・fieldNames)。見出し「募集人数と作業日程を入力してください」(～ください口調で統一)
   - step5：報酬(時給/日給/最賃チェック/支払いタイミング/支払方法)。最賃チェックのfarmerCanNextも[5]に追従
   - step6：空ページ(準備中)→次回グループ2の説明ページにする
-- 【設計判断の変遷】当初「グループ1を1問1ページ」→実機で「日程だけ/数字1個だけは味気ない」と判明→「日程+募集人数を1ページ、報酬は中身豊富so単独」に。報酬をstep4に戻しかけたが実機で「step5にあれば十分」と気づき、git checkoutで巻き戻し(コミット前なら破棄できるgitの安全網を活用)
+- 【設計判断の変遷】当初「グループ1を1問1ページ」→実機で「日程だけ/数字1個だけは味気ない」と判明→「日程+募集人数を1ページ、報酬は中身豊富ので単独」に。報酬をstep4に戻しかけたが実機で「step5にあれば十分」と気づき、git checkoutで巻き戻し(コミット前なら破棄できるgitの安全網を活用)
 
 ### 現在のstep構成（farmer求人フロー）
 - step0：グループ1説明
@@ -486,7 +486,7 @@ step0：全体の入口説明（既存・流用）
 
 ### 追加完了（全push済み・最新51af123）
 - step5(報酬)に必須条件：時給or日給どちらか未入力なら次へ不可（farmerCanNext[5]）。最賃違反チェックと両立
-- 農家step5の最賃お願いボックス(LFWageNote呼び出し)を削除。最賃違反は赤文字＋次へ不可で担保するのでお願い文は不要に。※LFWageNote関数定義(4520-4526)は働き手側(5631)でまだ使用中so残置。農家側の呼び出しのみ削除
+- 農家step5の最賃お願いボックス(LFWageNote呼び出し)を削除。最賃違反は赤文字＋次へ不可で担保するのでお願い文は不要に。※LFWageNote関数定義(4520-4526)は働き手側(5631)でまだ使用中ので残置。農家側の呼び出しのみ削除
 - これでグループ1(作物/作業/場所/日程&人数/報酬)の全ステップに必須バリデーションが揃い、完成
 
 ### 次回TODO（最優先＝表示の不整合修正。機能には影響なし）
@@ -506,7 +506,7 @@ step0：全体の入口説明（既存・流用）
 
 ### 完了（push済み・最新408915f）
 - 報酬の説明文を見出し下のsubtitleに集約：「時給または日給を入力します。金額に迷ったら、表示される地域の相場を参考にできます。働き手に選ばれやすい条件を、無理のない範囲で設定しましょう。」。報酬小見出し下の重複説明は削除
-- カレンダーの「決定」ボタンを削除（常時展開so閉じる操作が不要）。「終了日を選ばない場合は1日募集」の注記は残置
+- カレンダーの「決定」ボタンを削除（常時展開ので閉じる操作が不要）。「終了日を選ばない場合は1日募集」の注記は残置
 
 ### ★重要な発見＝Vercelデプロイ問題（次回、根本対処が必要）
 - 症状：農家step5の⚠最賃お願いボックスを削除済み(コード上grep/distで確認済み)なのに、本番(chitose-bank.com)に10時間出続けた
@@ -540,7 +540,7 @@ step0：全体の入口説明（既存・流用）
 ### ★Vercelデプロイ問題の真相（決着）
 - 「⚠が10時間消えない」の真犯人＝ブラウザキャッシュだった。本番もコードもずっと正しかった
 - 重要な教訓：JSビルドハッシュはビルド環境(ローカルvsVercel)で変わるので、新旧判定に使えない。判定は「JSの中身に特定文字列があるか」で行う(curl -sL でJS取得→grep)。今回それで本番が最新と確認できた
-- ★未解決の本物の課題：Vercelにchitose-bank系プロジェクトが4つある(chitose-bank-app / chitose-bank-g9g5 / chitose-bank / chitose-bank-7vth)。本番ドメインchitose-bank.comを持つのは「chitose-bank」プロジェクト。4つは混乱の温床so、いずれ1つに整理すべき
+- ★未解決の本物の課題：Vercelにchitose-bank系プロジェクトが4つある(chitose-bank-app / chitose-bank-g9g5 / chitose-bank / chitose-bank-7vth)。本番ドメインchitose-bank.comを持つのは「chitose-bank」プロジェクト。4つは混乱の温床ので、いずれ1つに整理すべき
 
 ### グループ2の設計（確定）
 構成：
@@ -664,7 +664,7 @@ step0：全体の入口説明（既存・流用）
   - RLS:管理者(ADMIN_EMAIL)のみALL。読み取りも今は本人だけに閉じる(働き手公開は後)
 - job-photosバケットを本番作成(求人写真・危険箇所写真)
   - public / file_size_limit=5MB(5242880) / allowed_mime_types=jpeg,png,webp
-  - RLS:authenticatedのみinsert/update/delete(閲覧はpublicバケットso自動公開)
+  - RLS:authenticatedのみinsert/update/delete(閲覧はpublicバケットので自動公開)
 - ★本番作業の作法:apply_migration前にexecute_sqlで既存確認→当てる→execute_sqlで再確認(success鵜呑みにせず目視)。既存バケットavatars/assets発見、jobs既存(たきとが先に手動投入済)も判明し衝突回避
 
 ### ★法的安全:他人を求人フローから締め出し(cf66cab)
@@ -676,7 +676,7 @@ step0：全体の入口説明（既存・流用）
 ### ★写真アップロード成功(検証完了)
 - 変数jobPhotos(URL配列)・photoUploading追加(b6ff524)
 - step7に写真UI:＋写真を追加ボタン/アップロード中表示/最大10枚/プレビュー(100px角サムネ)/×削除/N…10枚表示
-- 実装はavatarsのhandleFile(7184-7197)に倣う。ただしLandingFlow内ではme不可so、pathはDate.now()でユニーク化(job_[時刻].ext)。supabaseクライアントはモジュールレベル定義(2行目)を流用
+- 実装はavatarsのhandleFile(7184-7197)に倣う。ただしLandingFlow内ではme不可ので、pathはDate.now()でユニーク化(job_[時刻].ext)。supabaseクライアントはモジュールレベル定義(2行目)を流用
 - supabase.storage.from('job-photos').upload→getPublicUrl→jobPhotosに追加
 - 実機検証:10枚アップロード成功、本番Storageに保存・プレビュー表示・削除すべて動作確認済み
 
@@ -740,7 +740,7 @@ git status→該当行のみgrep/編集→grep確認→build→commit→ハッ�
 ・headcount は integer。ここだけ Number()。
 ・danger_places / danger_tasks / photos は jsonb（default []）。
 ・status はデフォルト 'open' だが、本設計では 'pending' で投入する（下記レビュー設計）。
-・id / created_at は自動so送らない。
+・id / created_at は自動ので送らない。
 ・jobs全24列・RLSは「admin write」1本（t5fki6643qty@gmail.com のみINSERT可）。INSERTは認証済みの状態でのみ撃つ。未認証で撃つと黙って弾かれる。
 
 【AI検閲ゲート（保存ボタン内に組み込む）】
@@ -752,7 +752,7 @@ git status→該当行のみgrep/編集→grep確認→build→commit→ハッ�
 
 【photos永続化】
 ・写真UI(step7)はアップロード・表示済みだが、jobs.photos列への保存は未実装。
-・データ構造：将来「写真ごとの個別説明(キャプション)」を入れる場合、photos は ["url"] から [{url, caption}] に変わる。保存設計と直結so保存機能と同時に設計する。
+・データ構造：将来「写真ごとの個別説明(キャプション)」を入れる場合、photos は ["url"] から [{url, caption}] に変わる。保存設計と直結ので保存機能と同時に設計する。
 
 【実装順序の論点（未決・次回判断）】
 ・たきと案：全求人項目のUIを完成させてから、最後に保存を一点集約（コード複雑化を回避）。
@@ -815,7 +815,7 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 【次の優先順】
 1. 第3段-b：最寄り駅・移動時間をstep3へ移植（上記差し込み位置）
 2. 第3段-c：退避所の掃除
-3. ステップバー(farmerStepLabels)は本番で削除予定so修正不要と決定。step5タイトル調整は完了。
+3. ステップバー(farmerStepLabels)は本番で削除予定ので修正不要と決定。step5タイトル調整は完了。
 4. 最高額の計算を関数化（1計算1変数）＋step5で入力時に自動計算表示（休憩選び忘れ対策）。働き手側calcMaxPayともいずれ統一。
 5. 監査残：①住所4分割(zip/pref/city/addr)thが確認ページに未配線 ②payTiming/payMethodのjobs列要否 ③farmerPurpose残骸 ④プロフィール系はfarmer_id参照 ⑤写真系の配線
 6. 本丸：保存機能(INSERT)＝確認ページ(step11)の「実証に参加して保存する」ボタンの中身。
@@ -923,7 +923,7 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 ・未ログイン訪問者：さがす一覧は閲覧可（市区町村まで・憲法通り）。応募/保存/ヘッダーの新規登録ログインボタン→ログイン画面（メールOTP・役割不問）
 ・ログイン完了後：プロフィール有り→そのまま中へ（両方持ちは前回のモード）／プロフィール無し（初回）→役割選択画面
 ・役割選択は2択のみ：「農家として始める」→農家登録→farmers行／「働き手として始める」→働き手登録（最小：名前・地域・経験）→workers行
-・第三の選択肢「まだ決めない」は置かない。見るだけなら未ログインでできる。ログインした人は取引の意思thがある人so役割を選ばせて前へ進める
+・第三の選択肢「まだ決めない」は置かない。見るだけなら未ログインでできる。ログインした人は取引の意思thがある人ので役割を選ばせて前へ進める
 ■現状の仮配線（内臓タスク）：ヘッダー「新規登録・ログイン」はsetTab("input")への検証中仮配線（8095行コメント「本来はsetShowLanding(true)。完成後に戻す」）。働き手フロー完了画面(step8)の「実証に参加する→」もonLogin=setTab("input")系。骨格⑥の流れへの配線し直しthが必要。workersテーブルは未作成（DB確認済み）
 
 【3タブ骨格 v2（2026-07-02確定）】
@@ -980,7 +980,7 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 ・各枠は独立：photos[k] を immutable 差し替え（[...slice(0,k), {url}, ...slice(k+1)]）、削除は filter。枠0/枠1・場所/作業thが混ざらないことをDBで確認済み。
 ・確認ページ(step11)の危険箇所カード：絵文字⚠️ボックス(#FEF3E2)を削除し、photosを最大2枚横並び表示。写真thが無ければ写真エリア非表示（label/descのみ）（第3段）。
 ・buildJobPayload の danger_places/danger_tasks はjsonbなので [{...,photos}] もそのまま格納。DB検証済み：各危険箇所に写真2枚thが独立して {url} 形式で保存されることを確認。
-・注意：働き手側モーダル(4122-4145付近)の selectedJob.dangerPlaces/dangerTasks.icon は別物（ダミーデータ用）。農家フローの jobDangerPlaces/jobDangerTasks とは無関係so触らない。
+・注意：働き手側モーダル(4122-4145付近)の selectedJob.dangerPlaces/dangerTasks.icon は別物（ダミーデータ用）。農家フローの jobDangerPlaces/jobDangerTasks とは無関係ので触らない。
 
 【写真キャプション・自動フォーカス（step8のUX改善）】
 ・step8のサムネイル選択時、下のキャプションtextareaに自動フォーカスthが入る（captionTextareaRef を新設、onClick={() => { setSelectedPhotoIndex(i); captionTextareaRef.current?.focus(); }}）。
@@ -990,14 +990,14 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 ・今日、Vercelthaが GitHub push を取りこぼす事象thが2回発生（webhookラグではなく完全な取りこぼし）。対処＝空コミット（git commit --allow-empty）で再push→再デプロイtrigger。
 ・「反映されない」時の切り分け：①まず Vercel MCP or ダッシュボードで最新デプロイのcommit SHAを確認（本番aliasthが指すデプロイthた最新コミットか）→ ②Vercelに乗っているのに古い表示なら＝ブラウザキャッシュ→ スーパーリロード(Ctrl+Shift+R)で解決。③Vercelに未達なら＝取りこぼし→空コミットで再trigger。憶測で判断せず必ずVercelの現物を見る。
 
-【残タスク更新（前回(続3)のリストから、危険箇所写真は完了so除外。優先順）】
+【残タスク更新（前回(続3)のリストから、危険箇所写真は完了ので除外。優先順）】
 1. 求人タイトル「上（求職者ニーズ情報）」の中身決め（未経験可/募集人数等・棚上げ中）。
 2. Airbnb風の写真グリッドレイアウト（左大＋右2×2。現在は横スクロールカルーセル）。
 3. Phase2：保存したjobsを読み出して求人一覧・詳細に表示（farmer_id参照で氏名=farmers.name・就農歴=farmers.joined_year）。危険箇所の写真も詳細ページで全枚数表示thが候補。
 4. レビューテーブル新設（現在DBに存在せず・詳細ページのレビューは全ダミー）。
 5. saveDraftにjobPhotosthが含まれていない既知の欠落（未ログイン保存で写真thが消える）。危険箇所のphotosもsaveDraftに含まれるか要確認。
 6. payTiming/payMethodのjobs列要否（現在列thが無く保存されていない）。
-7. 確認ページ保存ボタンのバリデーション（作物・作業空でも保存可。個別遷移可能なのは管理者のみso優先度低・放置可とたきと判断済み）。
+7. 確認ページ保存ボタンのバリデーション（作物・作業空でも保存可。個別遷移可能なのは管理者のみので優先度低・放置可とたきと判断済み）。
 
 ━━━ ここまで ━━━
 
@@ -1005,7 +1005,7 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 
 【⚠️最重要・翌日の申し送り】
 ・「注意事項(jobCautions)」機能はコード完成・mainにpush済み(48fda6a)だが、本番未反映。理由＝Vercel無料枠(Hobby)の1日100デプロイ上限に到達したため(code: api-deployments-free-per-day)。今日大量の小刻みpushで上限超過。
-・上限はローリング24時間方式(暦日リセットではない)。一番古いデプロイが24時間経過するごとに1枠ずつ復活。今日の朝イチのデプロイが日本時間の翌朝9〜10時頃に24時間経過so、翌日午前中から枠thが戻る。
+・上限はローリング24時間方式(暦日リセットではない)。一番古いデプロイが24時間経過するごとに1枠ずつ復活。今日の朝イチのデプロイが日本時間の翌朝9〜10時頃に24時間経過ので、翌日午前中から枠thが戻る。
 ・復旧方法：枠thが戻ったら git commit --allow-empty で1回pushすれば最新main(注意事項含む)thが本番に乗る。or Vercel Proにアップグレードすれば即解消。
 ・本番反映後に確認すべきこと：step10で「持ち物」「注意事項」thが別textareaで出る／確認ページで持ち物=📌チップ・注意事項=別セクション表示／保存でbelongings列とcautions列に分かれて入る。
 
@@ -1044,11 +1044,11 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 
 【★翌朝まずやること（最優先・これだけ）】
 1. デプロイ枠復活後（日本時間の翌午前中以降）、git commit --allow-empty -m "deploy: 注意事項を本番反映" && git push origin main を1回実行。
-2. Vercelで本物chitose-bankにデプロイthが走りREADYになるのを確認（重複削除済so1回のみ消費）。
+2. Vercelで本物chitose-bankにデプロイthが走りREADYになるのを確認（重複削除済ので1回のみ消費）。
 3. 本番でstep10を開き「持ち物」「注意事項」thが別々のtextareaで出るか確認。両方入力→確認ページで持ち物=📌チップ・注意事項=別セクション表示を確認。保存してDBのbelongings列・cautions列に分かれて入るか確認。
 
 【なぜ本番未反映か（明日混乱しないため）】
-・注意事項(jobCautions)機能はコード完成・main にpush済み(48fda6a)だthが、2026-07-01時点で本番未反映。理由＝当日Vercel無料枠の1日100デプロイ上限に到達。上限はローリング24時間方式so翌午前から枠復活。
+・注意事項(jobCautions)機能はコード完成・main にpush済み(48fda6a)だthが、2026-07-01時点で本番未反映。理由＝当日Vercel無料枠の1日100デプロイ上限に到達。上限はローリング24時間方式ので翌午前から枠復活。
 ・当日「反映されない」thが多発した真因＝同一リポジトリを監視する重複Vercelプロジェクト(chitose-bank-7vth/-app/-g9g5)thが存在し、1 pushで4プロジェクトthが同時デプロイ→枠を4倍消費していた。2026-07-01に重複3つを削除、本物chitose-bank(www.chitose-bank.com付き)のみ残した。以後は1 push=1デプロイ。Pro課金は不要と判断。
 
 【DBスキーマ変更（実施済み・Supabase）】
@@ -1102,7 +1102,7 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 
 【リンク第1段 完了（2026-07-03）】
 ・URL(#/タブ名)⇄tabの双方向同期を導入(cc2fb04)。TAB_URL_KEYS=["labor","jobs","board","input","plan","admin"]（旧5タブの部屋番号・第2段で/search /work /profile /loginに置換予定）。
-・リロード時のboard強制送還を修正(931eb88)。主犯=マウント時useEffectのセッション復元thが無条件setTab("board")していた。修正=if(!readHashTab())の条件付き。handleLogout・completeOnboarding内の送還は正当so無変更。
+・リロード時のboard強制送還を修正(931eb88)。主犯=マウント時useEffectのセッション復元thが無条件setTab("board")していた。修正=if(!readHashTab())の条件付き。handleLogout・completeOnboarding内の送還は正当ので無変更。
 ・血肉確認済:URL直打ち○／タブとアドレスバー連動○／ログイン済みF5でタブ維持○。
 ・既知の軽微バグ（放置・第2段で解消）:ログアウト後の着地thがboardでなくlaborになる。原因はreload後の未ログイン初期化thがboardを弾くフォールバックと推定。第2段でログアウト→#/loginへ設計し直すため今は直さない。
 ・原則:URL＝場所、ログイン状態＝その場所で何thが見えるか。未ログインとログイン済みでURLは分けない。ログイン画面thが#/input間借りなのは前身アプリの遺物＝第2段で#/loginとして独立。
@@ -1119,7 +1119,7 @@ step9(勤務時間・休憩・移動)を物理削除し、以降を1つ繰り上
 
 【設計判断の記録】
 ・タブ名はwork（dashboardにしない）:dashboardは農家面の家具名。workは両役割の部屋名。URL=ユーザーthが読む文章。
-・InputTabのonGoBoard(申請後に公開ボードへ)は機能遷移so残す。旧世界を畳む日に一緒に死ぬ。
+・InputTabのonGoBoard(申請後に公開ボードへ)は機能遷移ので残す。旧世界を畳む日に一緒に死ぬ。
 ・FarmerDashboardという家具名とwork部屋名の不一致は既知・後日整理。
 ・ログアウトのhandleLogout内board→search変更済み。completeOnboardingはwork着地。
 
@@ -1441,7 +1441,7 @@ employer_public_jobs / admin_preview_job が37列のまま残り 42P13（return 
 前提充足：2026-07-21 規約v2/プラポリv2本番実装（以後signup_openの操作は運営判断・CLAUDE.md既定）。
 【実装＝1点ゲート】am_i_account_allowed() を「signup_open() OR 招待リスト照合」に変更
 （migration: 20260724150000_signup_open_general_release）。RLS(account_holders own_insert)と
-フロントのisAllowed判定は両方この関数を見るso、サーバー・画面が同時に切り替わる。
+フロントのisAllowed判定は両方この関数を見るので、サーバー・画面が同時に切り替わる。
 ・開放：app_settings.signup_open='true'（2026-07-24 execute_sqlで実施済み・現在ON）
 ・キルスイッチ：signup_open='false' に1行UPDATEで即・招待制へ復帰（デプロイ不要）
 【維持されている別ゲート】third_party_publish_allowed='false' のまま＝第三者（他の農家）の
@@ -1482,10 +1482,10 @@ employer_public_jobs / admin_preview_job が37列のまま残り 42P13（return 
   （box方式＝ESM再代入不可対応・一覧⇄スレッドの未読キャッシュ共有維持）／INTERVIEW_TEMPLATES+
   ensureDefaultQuestionSets→lib/questionSets.js。App.jsx→約16800行（累計▲約3800行）
 【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
-  相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認手順＝①部品の依存をgrepで洗う
+  相互依存が深いので頭が冴えた日に。分割前に必ず git pull と所有権の確認手順＝①部品の依存をgrepで洗う
   ②新ファイルへ移動+export ③App.jsxにimport ④build(lintゲート) ⑤commit。1部品=1コミット厳守
 【段階3・未着手】巨大ページ（LandingFlow/JobSearchMapView/FarmerDashboard/ProfileHub）。
-  相互依存が深いso頭が冴えた日に。分割前に必ず git pull と所有権の確認
+  相互依存が深いので頭が冴えた日に。分割前に必ず git pull と所有権の確認
 ━━━ ここまで ━━━
 
 ━━━ 2026-07-24 分割3-A：旧遺物の削除（たきと方針＝削除・リスク上昇時は撤回）━━━
@@ -1765,7 +1765,7 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
 ・失敗＝2026-07-31 15:05 UTC（＝08/01 00:05 JST）の1回。job_pid=null＝pg_cronが背景ワーカーを
   起動できなかった一過性の失敗（関数のSQLエラーではない）。前後の毎時実行(14:05/16:05)も次の01:05も
   成功。auto_start_workは冪等（started_at=nullの採用済みを毎時走査し開始時刻超過分を開始・
-  started_atはv_dueにバックデート）so、1回飛んでも次の毎時実行が必ず取りこぼしを回収＝データ被害ゼロ。
+  started_atはv_dueにバックデート）ので、1回飛んでも次の毎時実行が必ず取りこぼしを回収＝データ被害ゼロ。
 ・同種"job startup timeout"は14日で2件のみ・別ジョブにも発生（session-summary 07/28）＝Supabase infra起因。
 【調査中の確認】session-summaryのwindow-in-agg 909連続失敗は07/27に既修理(20260727122329)・現在成功。
 【修理＝watchdogの誤報抑制】migration 20260801011236_cron_watchdog_suppress_transient_startup_timeout。
@@ -1773,7 +1773,7 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
   自己回復ケースのみ通知しない。連続失敗（ワーカー枯渇の継続）や本物のSQLエラーは従来どおり必ず通知。
 ・実データで検証：08/01 00:05の該当失敗→抑制／session-summaryのSQLエラー909件→全てALARM維持。
 ・cron_watchdogはこれまでrepo migrationに無くDB直接適用のみ（DB側に20260724124814_cron_watchdogの
-  履歴のみ存在）だった。恒久物so今回のmigrationで版管理へ写経し正本をrepo側に統一（2026-07-21ルール）。
+  履歴のみ存在）だった。恒久物ので今回のmigrationで版管理へ写経し正本をrepo側に統一（2026-07-21ルール）。
 ・schema_migrations（20260801011236）とrepoファイル名を一致させて同期済み。mainへpush済み。
 ━━━ ここまで ━━━
 
@@ -1792,7 +1792,7 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
   （委託準備室 consignRoom と同じ4点セット）／AdminTab描画を !consignRoom&&!workingRoom でガード。
   入口：管理タブ「その他」格子に 🛠 仕事中 カードを追加（→ #/admin/working）。
 【検証】build+lint(0 error・新規コードの警告なし)+dist chunk生成+RPC内側クエリの実データ確認（upcoming 4件）まで。
-  現状 working=0件（status=working のマッチが無い）so空状態表示。実機目視は未実施。
+  現状 working=0件（status=working のマッチが無い）ので空状態表示。実機目視は未実施。
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-01(続) 仕事中ページ：本日開始の昇格・当日優先（#/admin/working）━━━
@@ -1800,9 +1800,9 @@ functions:false は意図的（lazyChunk 等が関数宣言の巻き上げに依
 ・「仕事が始まる日」の採用済みマッチ（本日が作業日）を、まもなく開始でなく【仕事中】側にトップ展開。
   当日は仕事中が正＝まもなく開始からは当日分を除外（isTodayWorkで二重展開を防止）。
   判定 isTodayWork：agreed_dates があればその範囲、無ければ求人 date_start〜date_end（既存 isWorkDayToday 流用）。
-・本日開始カードは「本日開始」バッジ＋採用→保険→開始待ちの並び（started_at 等は未打刻so未表示）。
+・本日開始カードは「本日開始」バッジ＋採用→保険→開始待ちの並び（started_at 等は未打刻ので未表示）。
   DBは不変（クライアント側の再バケットのみ・表示は記録から導出の原則どおり）。
-・現データ（今日=08/01）は upcoming 4件とも後日so仕事中=0・まもなく開始=4で従来表示。昇格は実際の作業日に発火。
+・現データ（今日=08/01）は upcoming 4件とも後日ので仕事中=0・まもなく開始=4で従来表示。昇格は実際の作業日に発火。
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-01(続2) まもなく開始ページ新設（#/admin/upcoming・管理者専用・トップページ着地）━━━
@@ -1983,7 +1983,7 @@ snapshotへは書かない＝全列形の正本を上書きしない）。案件
   insurance_snapshot・profile_snapshot_at を確定保存。pending→open（運営承認）では再取得しない＝申請時の値を維持
 ・既存 pending 1件＋open 6件をバックフィル。closed/draft は不変（推測補完なし）。既存 terms_snapshot 不変
 ・jobs_public に2列を末尾追加。admin_preview_job も同数・同順更新（2026-07-22ルール）。
-  employer_public_jobs は select jp.* so自動追従
+  employer_public_jobs は select jp.* ので自動追従
 ・CHECK制約 jobs_publish_snapshot_check：pending/open は perks・insurance_snapshot・募集者3項目必須
   （closed/draft のNULLは許容する部分条件）
 【フロント】mapJobPublicRow に insuranceSnapshot/profileSnapshotAt 追加。JobSearchMapView：
@@ -2005,7 +2005,7 @@ INSERT直pending転写/再申請再固定）＝全合格・テスト行は残置
 写真は対処済み（サムネ70/70生成済み・当日DBで確認・loading=lazy）でデータ待ちだけが残っていた。
 【対処（3点・JobSearchMapView）】
 1. search:jobs を localStorage snapshot(searchJobs)にも保存：起動直後から前回一覧を即描画→裏で最新化。
-   jobs_publicは公開データ（anon可）so snapshot規則①「本人の自分用データのみ」より弱い扱いで保存可
+   jobs_publicは公開データ（anon可）ので snapshot規則①「本人の自分用データのみ」より弱い扱いで保存可
    と判断（コメントに明記）。cb_snap_プレフィックス＝ログアウトのclearSnapshotsで一緒に消える
 2. 差し替え時の並び保持マージ：前回内容を表示中なら並びを保って中身だけ更新（毎回のシャッフルで
    目の前のカードが数秒後に飛び替わる問題の根治）。消えた求人は落ち、新規はシャッフルして先頭へ。
@@ -2013,7 +2013,7 @@ INSERT直pending転写/再申請再固定）＝全合格・テスト行は残置
 3. 一覧取得の依存を[me]→[me?.id]：セッション復元のsetMeでオブジェクト識別子が毎回変わり、
    1起動につきjobs_public全件取得が2回走っていた（半減）
 【残る限界（大企業並みとの差・正直な記録）】本当の初回訪問（端末に何も無い）はデータ到着待ちが残る。
-SupabaseがnanoインスタンスsoコールドスパイクでRPCが時々2〜6秒かかる（憲法どおり実測済み・
+SupabaseがnanoインスタンスのでコールドスパイクでRPCが時々2〜6秒かかる（憲法どおり実測済み・
 インスタンス昇格は課金判断）。それ以外の起動体感は数百ms級になったはず。
 【検証】build+lint 0 error（31警告=既存のみ）。実機：アプリを完全終了→開き直して一覧が即出るか・
 並びが数秒後に飛び替わらないか・ログアウト→別アカウントで前の一覧が見えないか（公開データなので実害無いが確認）
@@ -2049,7 +2049,7 @@ pending→open不変・INSERT直pending転写・プロフィール無しは従�
 【実装】lib/viewCache.js を sessionStorage→localStorage（キー cb_viewCache_v2_<uid先頭8桁>／未ログインanon）。
 アプリ完全終了後の起動でも、viewCacheを使う全ページ（さがす/お仕事タブ求人面・応募者/今日/応募状況/
 プロフィール入口/いいね/委託/管理見守り）が前回内容で即描画→裏で最新化。旧v1(sessionStorage)は
-一度きり自動移行。JobSearchMapViewのsearchJobs snapshot二重保存は廃止（viewCache本体が永続so不要）。
+一度きり自動移行。JobSearchMapViewのsearchJobs snapshot二重保存は廃止（viewCache本体が永続ので不要）。
 【安全設計（規則として維持・新機能でも遵守）】
 1. キャッシュ・snapshotは【表示専用】。権限判定・DBへの書き込み値・クエリの絞り込み条件の「正」に
    使わない。実権限は常にサーバー（RLS/app_admins/SECURITY DEFINERゲート）＝端末内で改ざんされても
@@ -2073,7 +2073,7 @@ clearCache全消去・破損JSON/不正シェイプ拒否。build+lint 0 error�
 ・lib/searchJobs.js 新設＝取得・並び規則（新着上位＋ランダム・cb_seenNewJobs既読記録）の唯一のソース。
   さがす本体（JobSearchMapView）と玄関の先読み（VisitEntrance・prefetchSearchJobs）で共有
 ・prefetchSearchJobsはキャッシュ既存なら何もしない（冪等）。失敗しても玄関表示に影響なし
-・玄関の帯（12件マーキー）の取得は従来どおり別（先読みと並列・数KBso統合しない判断）
+・玄関の帯（12件マーキー）の取得は従来どおり別（先読みと並列・数KBので統合しない判断）
 【残る限界（記録済み・対応しない判断）】玄関を通らない直接訪問の初回JSダウンロードは縮まない
 （SSR化＝Next.js移行が必要な大工事・費用対効果が合わないため見送り・2026-08-02たきと了承）
 【検証】build+lint 0 error・配線grep・旧ロジック残骸ゼロ確認。実機：シークレットウィンドウ等の
@@ -2193,7 +2193,7 @@ JSON保存→復元すると文字列になり、CalendarViewのstart.getFullYea
 ①search:jobsの復元時にdateStart/dateEndをDateへ再生（JobSearchMapView・根本）
 ②CalendarViewはstart/endをDate/文字列どちらでも受ける（toDateCVで正規化・不正値は当月表示）
 ③エラーバウンダリの「再読み込み」がclearCache()してから再読込＝壊れた永続キャッシュに
-  閉じ込められない自己修復（キャッシュは表示専用so捨てても取り直すだけ）
+  閉じ込められない自己修復（キャッシュは表示専用ので捨てても取り直すだけ）
 【規則追記】viewCache/snapshotに入れる値は【JSON安全な型のみ】（Date・Set・Map・関数を入れない。
 入れるなら文字列化し、読み出し側で再生する）。キャッシュにDateを含んでいたのはsearch:jobsのみと
 監査済み（TodayPage/ChatViewのmapJobPublicRow利用はキャッシュ非経由で無事）。
@@ -2241,15 +2241,15 @@ JWTを立てれば authenticated も再現できる：
    拒否に入らない。2026-07-29に worker_trust_info で直したのと同じ型の穴が残っていた。
    → `auth.uid() is null` を先に弾く＋anonからrevoke。★同型の関数を書くときは必ずNULLを先に弾く。
 3. 内部専用RPCがクライアントから直接叩けた：resolve_actor_name（任意UUIDでニックネーム／メール頭2文字が
-   引けた・実測で実名が返った）、unread_count_for（他人の未読件数）。どちらもフロント未使用so
-   public/anon/authenticated からrevoke（SECURITY DEFINERの内部呼び出しは定義者権限so機能は壊れない）。
+   引けた・実測で実名が返った）、unread_count_for（他人の未読件数）。どちらもフロント未使用ので
+   public/anon/authenticated からrevoke（SECURITY DEFINERの内部呼び出しは定義者権限ので機能は壊れない）。
 4. dests（旧事業データ）が anon 読み取り可＋submitted_by に運営者の実名。SELECTだけ qual=true の
    全開放ポリシーだった → 管理者限定に差し替え（読み手は管理タブのみ・実測 anon=0行／管理者=1行）。
 【問題なしを確認したもの】job_meeting_place・worker_trust_info（2026-07-29の修理が有効）・
 admin_list_accounts/contracts（not_adminで拒否）・ask_job_question/apply_to_job（not_logged_in）・
 worker_profiles/employer_profiles/account_holders/reviews/job_questions（anon 0行）・
 market_stats/minimum_wages/help_images/admin_notice_registry（公開データ）。
-employer_nickname/avatar_url・待遇・保険snapshot・支払条件は訪問者にも見せる仕様（求人の顔・条件）so維持。
+employer_nickname/avatar_url・待遇・保険snapshot・支払条件は訪問者にも見せる仕様（求人の顔・条件）ので維持。
 【フロント】変更なし（DBがNULLを返すのみ）。駅名NULL時は stationLabel が移動時間だけ返す＝表示は壊れない。
 ━━━ ここまで ━━━
 
@@ -2281,7 +2281,7 @@ employer_nickname/avatar_url・待遇・保険snapshot・支払条件は訪問�
 ・薄表示(0.45)は「いま用事が無い」の目印としてのみ残す（押せなさの表現ではない）。
 ・唯一の読み手だった jobCount state を廃止（今日:roles キャッシュの jc も書かなくなった。
   農家かどうかの判定に使う jc の取得自体は不変）。
-・残る disabled は全て一時的な多重送信ガード（送信中・処理中）＝タップ不能の話とは別物so維持。
+・残る disabled は全て一時的な多重送信ガード（送信中・処理中）＝タップ不能の話とは別物ので維持。
 【検証】build成功・lint 0 error（警告2件=既存exhaustive-deps）。実機：予定ゼロの状態で
 📅カレンダー箱をタップしてカレンダー面に行けるか
 ━━━ ここまで ━━━
@@ -2295,7 +2295,7 @@ employer_nickname/avatar_url・待遇・保険snapshot・支払条件は訪問�
   空のカレンダー面へ飛ばさず専用ページ（説明つき）へ送る。予定があるときだけカレンダー面へ直行
   ＝「タップ可能だが行き先が空っぽで理由が分からない」を無くす。
 ・ボックス自体のタップ不能は前コミット(d522c45)で全廃済み。残る disabled は送信中・処理中の
-  多重送信ガードのみ（別物so維持）。
+  多重送信ガードのみ（別物ので維持）。
 【検証】build成功・lint 0 error（警告2件=既存exhaustive-deps）・distに新文言をgrep確認。
 実機：①予定ゼロで📅カレンダー箱→説明ページに着地するか ②各用件の空ページで説明文が大きく出るか
 ③予定がある状態では従来どおりカレンダー面へ直行するか
@@ -2387,11 +2387,11 @@ ContractPartyName と同じ3箇所＝応募者シート・チャット・今日�
   auth.users の実測：2026-07-22以降に作られた行は email_confirmed_at が created_at の0.1秒後、
   confirmation_sent_at も recovery_sent_at も null＝メールを1通も送らずに作成・確認済みにされている。
   この設定では、未登録アドレスへの signInWithOtp をサーバーが「新規作成＋セッション発行」で処理するが、
-  supabase-js はメール経路の応答を必ず user/session=null で捨てる実装so、そのセッションは手元に残らない。
+  supabase-js はメール経路の応答を必ず user/session=null で捨てる実装ので、そのセッションは手元に残らない。
   結果＝コードは来ない・ログインもしていない＝6桁コードの画面で必ず詰まる。
   → Authentication → Providers → Email の「Confirm email」をONにする（①と両方直して初めて設計どおり動く）。
 【被害＝止まっているアカウント2件】fujinglongren7@gmail.com（07-27）・sf.kanata321@icloud.com（07-29）。
-  auth.users にはあるが account_holders も各プロフィールも無い。パスワードは GoTrue が付けたランダム値so
+  auth.users にはあるが account_holders も各プロフィールも無い。パスワードは GoTrue が付けたランダム値ので
   本人は知らない＝①が直ってコードが届くまで、本人の操作では入れない。①復旧後に再登録を案内すること。
   （同型の古い残り：taniki46@gmail.com・umesankonnitiwa@yahoo.co.jp）
 【コード側で手当てしたこと（本セッション・mainへpush）】
@@ -2399,7 +2399,7 @@ ContractPartyName と同じ3箇所＝応募者シート・チャット・今日�
      status 500 / error sending / smtp / gomail を判別。失敗は app_errors にも記録（運営が気づけるように）。
   2. コード画面に「コードが届かない場合はこちら」を常時設置＝パスワードを決めて signUp で登録する救済経路。
      セッションが返ればそのままログイン／既存アドレスなら新しく作られない旨を表示／確認が有効な設定では
-     「確認メールを送りました」に落ちる＝①②を直した後も壊れない。誰にでも同じ導線so登録の有無は漏れない。
+     「確認メールを送りました」に落ちる＝①②を直した後も壊れない。誰にでも同じ導線ので登録の有無は漏れない。
 【検証】build＋lint 0 error＋distの文言grepまで。実機目視は未実施。
   ①②を直したら、未招待アドレスで新規登録を一巡して確認すること。
 ━━━ ここまで ━━━
@@ -2413,10 +2413,10 @@ ContractPartyName と同じ3箇所＝応募者シート・チャット・今日�
 ・中身＝status='applied'（まだ決めていない応募）のカード。左に求人トップ写真＋タイトル/#No.、
   右に段階チップ「応募中」・届いた時刻・日程／下に応募者の信頼カード（WorkerTrustCard＝応募者シートと
   同じ部品＝公開してよい項目の唯一のソース）・来られる日・導線2つ。件数0なら説明文つきの空状態。
-・★【読み取り専用】承認・見送り・採用の実行は応募者シート（FarmerDashboard）が唯一の窓口so、
+・★【読み取り専用】承認・見送り・採用の実行は応募者シート（FarmerDashboard）が唯一の窓口ので、
   このページは「見せる」と「そこへ送る」だけ。書き込みの入口を増やさない＝記録・ゲート・
   二重予約警告の担保を1箇所に保つ（保存・入力の管理者ゲート論点には非該当）。
-・本名・緊急連絡先は置かない（契約成立前so。2026-07-30裁定(B)・2026-08-03の窓口作法どおり）。
+・本名・緊急連絡先は置かない（契約成立前ので。2026-07-30裁定(B)・2026-08-03の窓口作法どおり）。
 【着地】App.jsx のトップページ着地を1つのeffect（topLandingChecked）に統合し優先順を明示：
   ① 新着の応募（my_nav_badges の applicants_pending > 0）→ #/new-applicants
   ② まもなく開始（管理者・従来どおり isUpcomingSoon）→ #/admin/upcoming
@@ -2445,7 +2445,7 @@ ContractPartyName と同じ3箇所＝応募者シート・チャット・今日�
 ・切替は浮遊トグル（.consign-role-fab）：両面の入口だけに出す／連打ガード／pflip-out(0.4s)→hash書換→
   pflip-in、そして切替【先】をラベルと見た目で予告する＝ProfileHubの振る舞いをそのまま踏襲。
   面の中身は key={cTab} で包む（切替のたび再マウント→アニメ再生）。
-・★色相は持ち込まない：委託・受託はブラックの世界（求人の緑／求職の橙とは分ける・2026-07-31）so、
+・★色相は持ち込まない：委託・受託はブラックの世界（求人の緑／求職の橙とは分ける・2026-07-31）ので、
   切替先の予告は色相でなく濃淡の階段で行う＝委託主は黒ベタ／受託者は白地に黒枠（役割ピルも同じ濃淡）。
 ・CSSは .profile-employer-fab と別クラス（pflipの@keyframesだけ共用）。理由＝委託ページは下部バーを
   隠すため、バー64px前提の浮遊位置を流用すると宙に浮く。位置は画面下から20px、モバイル限定にしない。
@@ -2454,7 +2454,7 @@ ContractPartyName と同じ3箇所＝応募者シート・チャット・今日�
 ・名刺＝受託者（employer_profilesのnickname/avatarを表示・役割ピル「受託者」）。受託者情報の登録ページは
   まだ無いのでタップ先を持たせずdivの表示カードにした＝行き先の無いボタンを作らない。
 ・「委託をさがす」＝委託面の「新しく委託を出す」と対になるワイドカード。掲載板は手動1件目のあとに判断
-  （2026-07-19記載）soタップで反転して理由を明記するプレースホルダー（ProfileHubの「新しく求職を出す」
+  （2026-07-19記載）のでタップで反転して理由を明記するプレースホルダー（ProfileHubの「新しく求職を出す」
   ＝届出待ちカードと同じ作法）。機能・入力・保存なし。
 ・「受託した委託」＝空状態＋理由（consignment_dealsに受託者の列が無く、受託側の案件は0件）。
   ダミーは置かない（憲法3条）。
@@ -2462,7 +2462,7 @@ ContractPartyName と同じ3箇所＝応募者シート・チャット・今日�
 受託者情報の登録／掲載板／受託案件の記録は、CLAUDE.md「保存・入力機能の取り扱い」に従い
 たきとの確認（管理者ゲート・RLS・判定の1元化）を取ってから別途実装する。
 【App.jsx】変更なし。readHashTab・_subTabOfAdmin・consignRoom はいずれも "admin/consignment" の
-前方一致so、新URLは既存レールにそのまま乗った。
+前方一致ので、新URLは既存レールにそのまま乗った。
 【検証】build成功・lint 0 error（警告29は既存のみ・新規ゼロ）・distに新文言と新クラスの包含をgrep確認。
 実機目視は未実施→確認項目：①委託面の右下トグル→受託面に反転で切り替わるか ②受託面のトグルで委託面に
 戻るか ③ブラウザ戻る・スワイプで面が戻るか ④#/admin/consignment/contractor の直打ち・リロード
@@ -2500,7 +2500,7 @@ unrelated histories）だった。origin/mainを正として checkout -B main or
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-06 採用するページ（#/calendar/todo/hire）の刷新・採用の窓口が2つに ━━━
-【たきと指示】①「応募者ページと同じ構造に。ただし応募者ページは求人単位so、応募者単位にする」
+【たきと指示】①「応募者ページと同じ構造に。ただし応募者ページは求人単位ので、応募者単位にする」
 ②「写真 アイコン 🤝(採用) で横幅を3分割」③「ここで採用を押す。最終確認。OKタップで採用。
 ページ遷移しない」④「採用アニメーション追加」
 【カード】components/TodayPage.jsx の HireStagePanel（モジュールレベル定義）。応募者ページ
@@ -2536,7 +2536,7 @@ confirm_terms の権限と返り値（ok/filled/closed_ids・not_partyゲート�
 【戻した範囲】components/admin/AdminAttentionBox.jsx を削除。App.jsx（import/state/effect/描画）と
 appStyles.js（.app-header-mobile-float の縦並び化・.cb-notice-fab-btn/.cb-notice-badge/.cb-notice-panel）を
 撤回前と【バイト一致】まで戻した（git diff efceed6~1 -- src/App.jsx src/appStyles.js が空であることを確認）。
-※ appStyles の .cb-notice-sheet は【別物・既存】（お知らせのシート）so消していない。cb-notice の一括削除は禁止。
+※ appStyles の .cb-notice-sheet は【別物・既存】（お知らせのシート）ので消していない。cb-notice の一括削除は禁止。
 【残置】admin_attention()（migration 20260806120000・読み取り専用・app_adminsゲート）は残す。
 呼び出し元ゼロだが意図的な残置＝次の「見える化」で使う。実データで検証済み
 （app_errors open 296件が部品×文言で8種に束なる／滞留：未判断の応募1件7日・審査待ち求人1件5日・
@@ -2577,7 +2577,7 @@ appStyles.js（.app-header-mobile-float の縦並び化・.cb-notice-fab-btn/.cb
 【通した順路】下書き→掲載申請（掲載時スナップショットの凍結：募集主3項目・待遇12キー・保険・支払3値）→
 一般農家の掲載はRLSが拒否→第三者の掲載はトリガーが拒否→運営承認で掲載→訪問者/ログインの見え方→
 応募（期間求人の来られる日必須・自分の求人への応募は拒否）→承認→面接の質問集→採用（confirm_terms＝
-契約凍結・満員so他の応募を自動見送り）→保険の報告→自動開始cron→開始の確認→完了と評価→
+契約凍結・満員ので他の応募を自動見送り）→保険の報告→自動開始cron→開始の確認→完了と評価→
 働き手の終了確認と評価→はたらいた記録→掲載終了→過去の求人の削除は拒否。
 【否定テストも通過】契約凍結の改変拒否／メッセージの改変・削除の拒否／本名と緊急連絡先は採用前は
 not_contracted・第三者は not_party／worker_work_record は一般の農家に求人No.を返さない・無関係は not_entitled。
@@ -2587,7 +2587,7 @@ not_contracted・第三者は not_party／worker_work_record は一般の農家�
 create or replace したため外れていた。実測（anonロール）で 座標6桁・半径500m・駅名12/12件が素通り
 ＝町域を伏せても地図で就業場所がほぼ特定できる状態。町域・募集主・番地のマスクは残っていたため気づきにくかった。
 → 復旧済み。実測：訪問者=2桁/3000m/駅・町域・番地すべて伏せ、ログイン=6桁/500m/全部見える。
-  列数・列順は不変so admin_preview_job（42P13）も無事を確認。
+  列数・列順は不変ので admin_preview_job（42P13）も無事を確認。
   ★教訓：ビューを作り直す時は必ず「今の本番の定義」を土台にする。過去のマイグレーションからコピーすると、
   後から入ったマスクが静かに消える。
 【★実害2：評価しても「完了して評価する」が消えない（migration 20260806110625）】
@@ -2609,10 +2609,10 @@ iOSの挙動。ここは引き続き実機の目視が要る。
    ④フェイルオープン候補 ⑤ビューの書き込み権限 ⑥入口（確認メール無し確認済みの再発）。
    流すタイミング＝ビュー・RPC・RLSを触った日の作業終了前／月1回。結果はraise exceptionで出る（仕様）。
 2.【裏方revoke】migration 20260806121519＝send_user_email等11本をクライアントから閉じた。
-   ★教訓：関数は作成時にPUBLICへEXECUTE自動付与so、revokeは【from public】でないと効かない
+   ★教訓：関数は作成時にPUBLICへEXECUTE自動付与ので、revokeは【from public】でないと効かない
    （from anon,authenticated では PUBLIC経由が残る＝当日ノーオペを実測して交換）。
    安全性実測：内部呼び出し（confirm_insurance→send_user_email）ok／cron実体実行OK／anon直叩き拒否。
-   send_interview_questions のみフロント呼び出しthaあるso残した。
+   send_interview_questions のみフロント呼び出しthaあるので残した。
 3.【最賃の壁】migration 20260806163552＝掲載トリガー trg_job_publish_snapshot に賃金検査：
    数字のみ・どちらか必須・時給は最賃以上・日給は実働換算（勤務−greatest(申告休憩,法定最低休憩)）で
    最賃以上。minimum_wages 参照（徳島県1046円・2026-01-01発効）。取得できない時は掲載を止める（安全側）。
@@ -2622,7 +2622,7 @@ iOSの挙動。ここは引き続き実機の目視が要る。
 4.【失効の見張り】migration 20260806164149＝admin_working_jobs に expired_watch（直近14日の失効）。
    仕事中ページ（#/admin/working）に読み取り専用セクション（0件なら非表示）。#1054型（採用押し忘れ→
    実働の記録喪失）を運営が当事者確認する入口。was_approved は event_audit の失効時diff（old=approved）で
-   判定（terms_confirmed_worker_at は応募時自動刻印so判定に使えない）。実データで1件検出済み
+   判定（terms_confirmed_worker_at は応募時自動刻印ので判定に使えない）。実データで1件検出済み
    ＝★次回運営タスク：この1件（承認済みのまま失効）を当事者に確認する。
 【点検の通し結果（実装後）】①〜⑤すべてOK。⑥のみNG＝直近7日の登録6件中5件が
 「確認メール無しで確認済み」＝Confirm email OFF の型がまだ再発している。
@@ -2651,7 +2651,7 @@ DB履歴にあってrepoに無い2本：20260806174500_consignment_photos_authen
 →写経同期が必要（未実施・実装禁止指示のため）。
 【★新発見3・is_worker_profile_ready が anon から任意UUIDで叩ける】
 引数p_uidに縛りなし＝UUIDを知っていれば「登録済み働き手でプロフィール完成か」の真偽が引ける。
-UUIDは推測不能so低リスクだが、開けておく理由もない。auth.uid()縛り or anon revoke候補。
+UUIDは推測不能ので低リスクだが、開けておく理由もない。auth.uid()縛り or anon revoke候補。
 【★新発見4・プラポリ台帳の未記載（残1件）】
 氏名開示の行は記載済みを確認（第3条・本人確認情報の行）。はたらいた記録の開示
 （応募を受けた農家に、他農家分も含む導出記録を表示＝2026-08-05裁定）は台帳に未記載のまま。
@@ -2662,7 +2662,7 @@ UUIDは推測不能so低リスクだが、開けておく理由もない。auth.
 【壁が効いていると実測できたもの】
 ・最賃の壁（20260806163552）＝実弾5ケース全部設計どおり：時給500拒否／「1,000円」表記拒否／
 　両方空拒否／時給1100通過／日給は実働換算で正しく判定（実働1hの求人で日給4000は換算4000円/時=
-　合法so通過・日給1000は拒否）／勤務時間が読めない時は安全側で掲載停止。
+　合法ので通過・日給1000は拒否）／勤務時間が読めない時は安全側で掲載停止。
 ・法務トリガー実在・有効（tgnameは接頭辞なし）：block_third_party_open／block_delete_past_job／
 　protect_terms_snapshot／messages_history_lock×2／job_publish_snapshot。
 ・third_party_publish_allowed=false 維持。app_settings＝RLS有効・ポリシー0＝アプリ経由では読めも
@@ -2743,7 +2743,7 @@ not_party）→掲載済み求人の削除拒否。migration 20260806163552 のr
 設定が直った可能性あり。ダッシュボード実物確認（PC）は引き続き必要。
 【検証スクリプトの学び（次回の一周で同じ穴を踏まない）】
 1. 結果ログの連結は concat() を使う（|| はNULLが混ざると全文が消える）
-2. my_todo_items は集合返却so string_agg で束ねてから数える（selectでINTOすると先頭行だけ）
+2. my_todo_items は集合返却ので string_agg で束ねてから数える（selectでINTOすると先頭行だけ）
 3. 求人の date_start は (now() at time zone 'Asia/Tokyo')::date で作る（auto_start_workはJST日付判定。
    UTC深夜に current_date で作ると日付がズレて自動開始しない＝今回のNG誤検知の原因）
 4. 期待失敗テストの後は対象行が消えている（サブトランザクション巻き戻し）＝後続テストの前提を再確認する
@@ -2751,7 +2751,7 @@ not_party）→掲載済み求人の削除拒否。migration 20260806163552 のr
 「履歴表のversion」名（20260806165301/165333）で写経した直後、並走セッションが原本
 （20260806174500/175000＝履歴表のname側）をpushしており重複した。原本を残し私の2本は削除。
 ★教訓：写経の前に git pull で「repoの今」を見る＋ファイル名は原本作成者の名を優先
-（DB履歴のversionはMCP適用時刻so、repoの既存慣行はname側）。
+（DB履歴のversionはMCP適用時刻ので、repoの既存慣行はname側）。
 repo写経の内容はDB現物とposition()照合済み（work_timeの正規表現・E'\n'のエスケープも一致）。
 【押し忘れ対策（メール・今日ページ演出強化・独立ページ）は検討のみ・未実装。たきとの採否待ち。
 ただしメールの骨格は20260806175000で既に本番稼働中（前日督促＋失効時の運営通知）
@@ -2765,11 +2765,11 @@ repo写経の内容はDB現物とposition()照合済み（work_timeの正規表�
 　管理ツールが既存ルート直下ファイルへupsertするため）。読み取り・公開URLは不変。
 ・★既存ファイルは移動していない：凍結terms_snapshot・photos jsonbのURLを壊さないため。ルート直下の
 　既存写真は非管理者から不可侵＝記録保全はむしろ強化。job-photosへのstorage.remove呼び出しはフロントに
-　ゼロ（削除は配列から外すだけ・孤児残置の設計）soUIは壊れない。
+　ゼロ（削除は配列から外すだけ・孤児残置の設計）のでUIは壊れない。
 ・フロント：lib/image.js uploadJobPhotoが新規アップロードを{auth.uid()}/配下へ（未ログインはフォルダ無し
 　＝従来どおりRLSが弾く）。consignment-photos等の他バケット呼び出しにも同じフォルダがつくが無害。
 ・実弾検証：他人領域INSERT拒否／本人フォルダINSERT通過／一般→既存ルートUPDATE 0行／管理者→可／anon拒否。
-　※storage.objectsへの直接SQL DELETEはプラットフォームトリガー(protect_delete)で全面禁止so、
+　※storage.objectsへの直接SQL DELETEはプラットフォームトリガー(protect_delete)で全面禁止ので、
 　DELETEポリシーは同形のUPDATE可視性で代替検証した。
 【②履歴表とrepoの写経同期＝並走セッションが先に完了】push時に判明：同日並走の実機一周③セッションが
 同じ2本（20260806174500／20260806175000）を既にrepoへ写経・pushしていた。本セッションの重複写経は
@@ -2795,7 +2795,7 @@ Authentication→Sign In / Up（Providers）→Email→「Confirm email」をON�
 　is_account_moderated=RLSポリシー内で評価/is_measured=訪問者計測/push_vapid_public=公開鍵）。
 ・実測：適用後のanon実行可RPC＝10本ちょうど・authenticatedの喪失0本。
 【★権限の教訓・追補（audit.sqlにも将来反映候補）】Supabaseはdefault privilegesで関数作成時に
-anon/authenticatedへ【明示的に】EXECUTEを付与する。so revokeは「from public」だけでは効かず、
+anon/authenticatedへ【明示的に】EXECUTEを付与する。ので revokeは「from public」だけでは効かず、
 「from public」と「from anon」の両方が必要（④で実測：from publicのみではanon実行可がtrueのまま残った）。
 【終了時点検】audit.sql再実行：①〜⑤すべてOK・③=10本（上記の残し分ちょうど）・⑥のみNG（上記③のPC作業待ち）。
 【実機目視の残り】①新規アップロードの写真が本人フォルダに入りカード・詳細で表示されるか（URL形がが
@@ -2820,7 +2820,7 @@ request.jwt.claims で被る：anon（訪問者）／authenticated（一般農�
 ・STEP D 既知の未確認：①二重予約＝この一周の時点では confirm_terms(accept=false) で同日重複の2件目が
   通った（＝当時は警告のみ）。★但し並走セッションが同日に二重予約のDB壁（migration 20260806172443・
   上ブロック④）を入れた＝現在は confirm_terms(accept=false) が double_booked を返して止まる。私のSTEP Dは
-  その適用【前】の観測so、この所見は現行では古い（＝二重予約は今はDB壁あり・設計判断待ちではなくなった）。
+  その適用【前】の観測ので、この所見は現行では古い（＝二重予約は今はDB壁あり・設計判断待ちではなくなった）。
   ②is_worker_profile_ready＝anonから permission denied ＝並走セッションが既にrevoke済み（未確認が解消）。
 【★実害の発見と、並走との重複の整理（job-photos写真アップロード）】
 一周の中で「一般農家の求人写真アップロードがRLSで全拒否」を実測発見した（非管理者のフラットパスINSERT=拒否／
@@ -2830,14 +2830,14 @@ uidフォルダ=通過）。原因＝job-photosの書き込みが所有者スコ
 ・フロント lib/image.js の <auth.uid()>/ フォルダ化＝向こうの版（ownerFolder）を採用（rebaseで一本化）。
   私の同等版（uidFolder）は破棄＝二重実装の解消。
 ・DBポリシーの写経＝向こうの migration 20260806171724_job_photos_owner_scope.sql が原本。
-  私がDBへ適用した 20260806181500 は【同一定義の重複】so、repoファイルは削除した（原本に一本化）。
-  ※181500 は drop if exists→同一再作成の冪等適用so本番の最終状態は原本と一致（無害）。schema_migrations には
+  私がDBへ適用した 20260806181500 は【同一定義の重複】ので、repoファイルは削除した（原本に一本化）。
+  ※181500 は drop if exists→同一再作成の冪等適用ので本番の最終状態は原本と一致（無害）。schema_migrations には
   181500 の行がが残るが、効果は171724と同一（実害なし）。
 ・教訓の再確認（2026-07-21 二頭運転の交通規則）：着手前に「同じ目的のオブジェクトが無いか」を pg_policy で
   確認してから作る。今回は並走の適用と行き違い、重複migrationを1本作ってしまった＝削除で解消。
 【★たきと確認待ち（コードでは直らない）】audit.sql ⑥入口＝08-04に確認メール無し確認済み5件（Confirm email
 OFFの型が継続）。Supabaseダッシュボードで Authentication → Email「Confirm email」の実物確認。
-【運用メモ】このセッションもローカルmainが07-31で止まった無関係履歴のミラーso origin/main へ乗せ替えて着手。
+【運用メモ】このセッションもローカルmainが07-31で止まった無関係履歴のミラーので origin/main へ乗せ替えて着手。
 schema_migrations 302系 vs repo の差は歴史的な直接適用分。
 
 
@@ -2860,7 +2860,7 @@ schema_migrations 302系 vs repo の差は歴史的な直接適用分。
 【実機目視の残り】①音がが実際に鳴るか（iOSはタップ起点でしか鳴らない仕様への適合を確認）
 ②祝祭の見た目と消え方 ③「いま これだけ」の脈動と行き先 ④音ががうるさくないか（音量gain 0.05-0.07）
 【次（未実装・指示待ち）】③🔊読み上げボタン（Web Speech API）／⑤パスキー検討／⑥チャット音声化。
-音のON/OFF設定は未実装＝不評なら道具箱にスイッチを足す（feedback.jsに集約済みso1箇所で全停止可能）
+音のON/OFF設定は未実装＝不評なら道具箱にスイッチを足す（feedback.jsに集約済みので1箇所で全停止可能）
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-07 ①④実装＋実機一周（初利用者の立場・全ロールバック）━━━
@@ -2882,7 +2882,7 @@ H6 働き手の内容確認＝1引数呼びok（④の回帰）／H7 二重予�
 H10 残置ゼロ実測（jobs28・apps19・test行0）＝全合格。
 【仮説の誤りから確定した仕様（記録）】二重予約壁（20260806172443）は approved も重なり対象
 ＝同日2求人に応募し両方承認済みだと【1件目の採用でも】double_booked が返る。フロントも同じ式で
-先に警告→受諾を渡すso体験は一貫（仕様どおり・修正不要）。重なり無しの採用は accept=false で通る（補強実測）。
+先に警告→受諾を渡すので体験は一貫（仕様どおり・修正不要）。重なり無しの採用は accept=false で通る（補強実測）。
 【未消化（たきと側・コードでは進められない）】①Confirm email/SMTPのダッシュボード実物確認（audit⑥NG継続）
 ②④のボタン遷移・チャット採用ボックス・step5最賃表示・仕事中ページ失効セクションの実機目視
 ③expired_watch 1件（承認済みのまま失効）の当事者確認。
@@ -3037,13 +3037,13 @@ jobs 28件不変・total_reviews=0（本番にまだ実レビュー無し＝下�
   UNIQUE(application_id,direction)は別応募を使えば回避。→ 被害者の worker_trust_info の
   レビュー計上が増える（実測：poison前0→poison後1）＝一度も働いていない相手を貶められる。
   逆に want_again=true で自己・仲間の評判を水増しも可能。
-・影響：signup_open=true so誰でも登録して任意の働き手／農家の評判を捏造できる。売り物＝安心
+・影響：signup_open=true ので誰でも登録して任意の働き手／農家の評判を捏造できる。売り物＝安心
   （憲法1条）の土台を崩す。個情法・職安法（運営の主観混入の禁止に近い改竄）にも触れうる。
 ・幸い total_reviews=0＝まだ実害ゼロ。実レビューが積む前に塞ぐべき。
 ・修理案（未実装・報告のみ）：reviews に BEFORE INSERT トリガー（二重の壁）で
   「direction='farmer_to_worker' ⟹ reviewer=app.farmer_id ∧ reviewee=app.worker_id」
   「direction='worker_to_farmer' ⟹ reviewer=app.worker_id ∧ reviewee=app.farmer_id」を強制。
-  併せて status='completed' 要求も検討（submit_farmer_reviewは既にcomplete_work経由so整合）。
+  併せて status='completed' 要求も検討（submit_farmer_reviewは既にcomplete_work経由ので整合）。
   正規経路 submit_farmer_review は SECURITY DEFINER で正しく入れているのでこの修理と両立する。
 
 【壁が効いていたもの（実測・全て拒否／正当は通過）】
@@ -3075,11 +3075,11 @@ reviews のトリガー1本で塞げる（実装は指示待ち）。
 【★いちゃもん1（低・未修理）：dests テーブルが一般ユーザーの無条件INSERTを許す】
 ・dests_insert_auth ポリシーの with_check が `true`（authenticated 全員）。実弾で確認：一般ユーザーが
   偽の submitted_by 付きで dests に自由INSERTできた（注入前1→注入後2・ロールバック済み）。
-・SELECT は admin 限定（一般ユーザーには0行）so他人には漏れないが、管理タブ legacyView が dests を読む
+・SELECT は admin 限定（一般ユーザーには0行）ので他人には漏れないが、管理タブ legacyView が dests を読む
   ＝ゴミ行・なりすまし submitted_by が運営画面に出せる。「記録は当事者が偽造できない」原則に逆行。
 ・兄弟の records は INSERT の with_check が `auth.uid()=farmer_id` で正しくスコープ済み＝dests だけの
   設定漏れ（不揃い）。dests は分割3-Aで UI を消した死んだ legacy テーブル。
-・修理案（未実装）：dests_insert_auth を drop（死んだ表so書き込み不要）or admin 限定に。1行のmigration。
+・修理案（未実装）：dests_insert_auth を drop（死んだ表ので書き込み不要）or admin 限定に。1行のmigration。
 
 【★いちゃもん2（中・未修理・load-bearing）：二重予約判定が agreed_dates と holidays を無視】
 ・confirm_terms の double_booked 判定は、求人票の date_start..date_end の【生の範囲重複】だけを見る
@@ -3087,12 +3087,12 @@ reviews のトリガー1本で塞げる（実装は指示待ち）。
   も holidays も参照していない。
 ・実弾で証明：同じ期間（jst〜jst+5）の2つの期間求人に、実働日を A=jst / B=jst+4（重ならない）で
   合意させても、両方が double_booked を返した（初回の A すら弾かれた）。
-・フロント lib/hire.js の findDoubleBookingJob も「同式」（CLAUDE.md 2026-08-06記載）so、画面でも同じ
+・フロント lib/hire.js の findDoubleBookingJob も「同式」（CLAUDE.md 2026-08-06記載）ので、画面でも同じ
   誤警告が出る＝正当な採用（同じ働き手を別々の日に雇う）に毎回「二重予約」警告が出て、農家が
   受諾フラグで押し切る運用になる＝壁の意味が薄れる。セキュリティ穴ではない（受諾で進めるし、
   誤りは「止めすぎ」side）が、壁の精度の欠陥。
 ・修理は DB（confirm_terms の重複クエリを agreed_dates ∩ holidays 考慮に）＋フロント lib/hire.js の
-  両方＋parity の load-bearing 変更so、たきと判断待ち（勝手にやらない）。agreed_dates 未設定時は
+  両方＋parity の load-bearing 変更ので、たきと判断待ち（勝手にやらない）。agreed_dates 未設定時は
   求人日程へフォールバックする設計が要る。
 【この日の本命は並走セッションの reviews 捏造（直前ブロック）】評判の完全性の穴が最重大。
 私の dests は同種（偽造）のより軽い版＝どちらも「書き込みの当事者性を検証していない」型。
@@ -3106,7 +3106,7 @@ reviews のトリガー1本で塞げる（実装は指示待ち）。
     direction='farmer_to_worker' ⟹ reviewer=応募の農家 ∧ reviewee=応募の働き手
     direction='worker_to_farmer' ⟹ reviewer=応募の働き手 ∧ reviewee=応募の農家
 ・これで「当事者である自分の応募に、被評価者を無関係の第三者にすり替えて評価を捏造する」攻撃が
-  機構的に不可能になった（reviewee のすり替えが本体so、当事者・向きの一致で穴は完全に塞がる）。
+  機構的に不可能になった（reviewee のすり替えが本体ので、当事者・向きの一致で穴は完全に塞がる）。
 ・正規の2経路は無傷（実測）：submit_farmer_review（農家→働き手・SECURITY DEFINER）／
   WorkerApplications.jsx の直INSERT（働き手→農家・reviewer=me/reviewee=farmer_id）。
 ・★status='completed' 要求は入れなかった：働き手経路は confirm_end 直後に直INSERTするため、
@@ -3154,7 +3154,7 @@ reviews のトリガー1本で塞げる（実装は指示待ち）。
   my_worker_trust_stats の total_hours が、勤務時間を end::time - start::time のインライン生計算で
   出しており、日またぎ勤務（例 22:00〜06:00）で【負の時間】を加算していた。
   実測：22:00〜06:00 の完了実績1件で total_hours = -16。
-・実在しうる入力：時給の日またぎ求人は最賃チェック（時給額のみ）を通過so掲載可能。UIのinput type=time
+・実在しうる入力：時給の日またぎ求人は最賃チェック（時給額のみ）を通過ので掲載可能。UIのinput type=time
   は end<start を止めない＝夜間収穫等で普通に作れる。農家に見える信頼カードに負の労働時間が出る。
 ・不整合の証拠：worker_work_record は job_scheduled_minutes ヘルパー（end<=start→null 安全）を使い、
   同じ求人を unknown_time_count に計上して total_minutes には足さない。3関数だけ生計算で食い違っていた
@@ -3192,7 +3192,7 @@ reviews のトリガー1本で塞げる（実装は指示待ち）。
 
 ━━━ 2026-08-07 最短遷移の計算と実機一周（掲載→評価完了）━━━
 【問い】求人を掲載してから評価完了（双方のreviews行）まで最短いくつ遷移するか。
-遷移＝記録が変わる当事者の操作（掲載は起点so数えない・応募時の内容確認は自動記録so応募と同一遷移）。
+遷移＝記録が変わる当事者の操作（掲載は起点ので数えない・応募時の内容確認は自動記録ので応募と同一遷移）。
 【答え（壁の現物＋実弾で証明・全ロールバック）】
 ・壁が強制する最短＝【5遷移】：①応募→②承認→③完了→④農家の評価→⑤働き手の評価。
   complete_work は approved から通る（採用・保険・開始・開始確認・終了確認は壁の前提でない）。
@@ -3202,7 +3202,7 @@ reviews のトリガー1本で塞げる（実装は指示待ち）。
 ・★発見＝機構の裸の最短は【3遷移】：応募→農家の評価→働き手の評価。評価に状態の壁が無い
   （RLS=当事者性のみ／トリガーreviews_party_consistency=当事者整合のみ／unique=方向ごと1件のみ）。
   応募中（承認・完了なし）のまま評価2件が書けることを実測（[検出]・ロールバック済み）。
-【発見の影響】reviews は worker_trust_info の評価件数・また呼びたい件数の材料so、働いた事実なしに
+【発見の影響】reviews は worker_trust_info の評価件数・また呼びたい件数の材料ので、働いた事実なしに
 信頼の数字を作れる（共謀・誤操作の型）。修理案＝reviews INSERT時に application が completed
 （または attended=true）であることをトリガーで要求（二重の壁の思想）。未実装・たきと採否待ち。
 【apps 19→20 の増分は運営本人の実機応募（worker=app_admins・#1052・8/7朝JST）＝検証の残置ではない
@@ -3218,7 +3218,7 @@ src/Terms.jsx の TERMS_ARTICLES を読み、条文のうち機構で担保す�
 
 【守られている約束（実測で確認）】
 ・第4条2／第9条十六 18歳未満は登録不可：enforce_min_age トリガー（birth_date > current_date-18y で拒否）。
-  実弾＝2010生（未成年）拒否／2000生（成人）可。★軽微：しきい値が current_date=UTC基準so、JST早朝の
+  実弾＝2010生（未成年）拒否／2000生（成人）可。★軽微：しきい値が current_date=UTC基準ので、JST早朝の
   誕生日当日に最大約9時間だけ「まだ18歳未満」と過剰拒否しうる（安全側・未成年を通すことはない）。
 ・第2条2三／第3条三 承認は当事者・運営は採用不関与：trg_instant_approve は
   「その農家が以前この働き手に want_again=true を付けた」＋「求人が instant_approve_repeat オプトイン」の
@@ -3238,14 +3238,14 @@ src/Terms.jsx の TERMS_ARTICLES を読み、条文のうち機構で担保す�
   - reviews のRLS SELECT は reviewer_id=auth.uid()＝【自分が書いた評価しか読めない】。受け取った評価
     （reviewee_id=自分）の本文は当事者からも読めない。
   ＝規約が約束する「公開コメントの表示」と「3日での相互開示」は、DB上に実装が無い。
-  現在 total_reviews=0so実害ゼロだが、実データが積む前に (a) 表示機能を実装する か
+  現在 total_reviews=0ので実害ゼロだが、実データが積む前に (a) 表示機能を実装する か
   (b) 規約の表現を実装に合わせる かの判断が要る。★これは「約束の未達」であって「禁止事項の違反」ではない
   （本文が表示されないので、否定表示・早期表示は起きない＝利用者を害する向きではない）。
 
-【禁止事項（第9条）の機構担保の再掲＝並走の悪意一周と重複so要点のみ】
+【禁止事項（第9条）の機構担保の再掲＝並走の悪意一周と重複ので要点のみ】
 ・十六 18歳未満就労＝上記ゲート／二 なりすまし・複数アカウント＝本人確認情報のself-only RLS／
   三 出欠の虚偽記録＝decide_time_correction の当事者ゲート・打刻の一方的改竄不可（前回確認）／
-  六 最賃割れ＝掲載トリガー／十 連絡先の直接記載勧誘＝jq_ng_check（電話/メール/URL拒否・難読化は既知の限界so
+  六 最賃割れ＝掲載トリガー／十 連絡先の直接記載勧誘＝jq_ng_check（電話/メール/URL拒否・難読化は既知の限界ので
   運用の壁）。九「虚偽の評価の投稿」＝並走セッションが reviews INSERT の当事者性未検証の穴を報告済み（未修理）。
 【結論】規約が「禁止」する行為の機構担保は概ね立っている。唯一の乖離は第8条の評価【公開・開示】機能が
 DB未実装＝約束の未達（実害ゼロ・要判断）。加えて年齢しきい値のUTC基準は安全側の軽微なズレ。
@@ -3259,7 +3259,7 @@ DB未実装＝約束の未達（実害ゼロ・要判断）。加えて年齢し
 ・本人確認情報：account_holders self-only＋contract_party_name（契約後のみ・第三者not_party）＝
   「本人確認済みと確認年月だけ／契約相手にのみ氏名」と一致。
 ・プロフィール選択項目：worker_profiles select＝owner＋farmer-via-application＋admin。台帳の
-  「応募先の求人者に表示」と一致（"求人を閲覧する求職者"への開示は求職一覧が未稼働so現状は約束より狭い）。
+  「応募先の求人者に表示」と一致（"求人を閲覧する求職者"への開示は求職一覧が未稼働ので現状は約束より狭い）。
 ・自由記述：pr_pending/pr_qa_pending＝非公開の確認待ち→auto_publish_profile_texts（cron 30分）で公開＝
   「運営確認後に表示」と一致。
 ・集合場所番地：jobs_publicのanonマスク（前回実機一周で実測）＝「公開表示から除外・承認者にのみ」と一致。
@@ -3281,7 +3281,7 @@ summarize_sessions は summarized=true にするだけで消さない＝page_eve
   導入検証：cron登録OK・anon/auth実行不可・今日1回実行で削除0件（total 8215不変・30日超残0）＝無害に導入、
   以後は約束どおり自動で効く。旧非管理者行も30日を過ぎ次第この掃除で消える。
 【意図的に触っていない（別途・約束の期間が長く未到来）】チャット3年・契約3年・通報3年の削除は
-2026-07-19の方針どおり未実装のまま（サービス開始が2026-07so期限は2029年・現時点で違反ではない）。
+2026-07-19の方針どおり未実装のまま（サービス開始が2026-07ので期限は2029年・現時点で違反ではない）。
 【残（コード外）】audit⑥入口（Confirm email）のダッシュボード実物確認は前回同様PC作業として持ち越し。
 ━━━ ここまで ━━━
 ━━━ 2026-08-06 バグ狩り②：仮応募→昇格で「来られる日」が欠落するバグを修理 ━━━
@@ -3297,10 +3297,10 @@ summarize_sessions は summarized=true にするだけで消さない＝page_eve
 ・フロントも共犯：JobSearchMapView の仮応募は applyAvailRef（選択済みの来られる日）を
   create_pending_application に渡していなかった＝期間求人でも日付を捨てていた。
 【修理】
-・pending_applications に available_dates(jsonb) 列を追加（既存0件so移行リスクなし）。
+・pending_applications に available_dates(jsonb) 列を追加（既存0件ので移行リスクなし）。
 ・create_pending_application(p_job, p_available_dates default null)：期間求人は apply_to_job と
   同一の式で来られる日を必須化（dates_required）し、pending に保存。旧1引数版はオーバーロード
-  曖昧化を避けてdrop（新版は default 付きso1引数呼び出しも受かる）。anon revoke＋authenticated grant。
+  曖昧化を避けてdrop（新版は default 付きので1引数呼び出しも受かる）。anon revoke＋authenticated grant。
 ・promote_my_pending_applications：pending.available_dates を applications へ引き継ぐ。期間求人で
   日付を持たない残骸は昇格させずスキップ（不変条件を破る応募を作らない・削除もしない）。
 ・JobSearchMapView：仮応募でも applyAvailRef.current を渡し、dates_required を正規経路と同じ文言で案内。
@@ -3351,7 +3351,7 @@ summarize_sessions は summarized=true にするだけで消さない＝page_eve
    summarized条件を付けると永久残留して約束を破る。付けないのが正しい）
 ④ 集合場所の詳細（番地）＝台帳「求人の掲載が終わるまで」★乖離あり・たきと判断待ち
    現実：closed後も jobs.address に残る（実測7件）。過去の求人は消さない方針（2026-08-05たきと指示）と、
-   terms_snapshot（契約の写し・3年保存）にも番地が入る設計so、行ごと削除はありえない。
+   terms_snapshot（契約の写し・3年保存）にも番地が入る設計ので、行ごと削除はありえない。
    選択肢A（推奨）：台帳の文言を実態に合わせ改訂＝「求人の終了後も、契約の証跡と紛争対応のため保存します」
    選択肢B：closed遷移時に jobs.address をNULL化＝記録憲法と衝突・terms_snapshotとの整合も崩れる（非推奨）
    ※改訂するまでの間、この行だけ約束より長く保存している状態＝早めに判断する
@@ -3369,7 +3369,7 @@ summarize_sessions は summarized=true にするだけで消さない＝page_eve
 残置ゼロ実測）。ブラウザ目視は検証の分担規則どおり行わない。
 【★P4で本物の穴を発見→即修理（migration 20260807015529・適用済み・repo写経済み）】
 末尾の全角空白「はなこ　」が重複チェックを通り抜けた。原因＝wp_nickname_norm の処理順：
-btrim（半角空白しか削れない）が先・NFKCが後so、U+3000がbtrimを生き延び→NFKCで半角空白化→
+btrim（半角空白しか削れない）が先・NFKCが後ので、U+3000がbtrimを生き延び→NFKCで半角空白化→
 「はなこ 」≠「はなこ」の別名扱い。修理＝lower(btrim(normalize(x, NFKC)))＝正規化を先・btrimを後。
 ★教訓：正規化パイプラインは「文字を変える処理→削る処理」の順で組む（削ってから変えると、
 変換後に現れた削るべき文字が残る）。
@@ -3380,12 +3380,12 @@ btrim（半角空白しか削れない）が先・NFKCが後so、U+3000がbtrim�
 （ハナコ vs はなこ）／本人の表記変え（Hanako→HANAKO＝変更なし扱い）／絵文字つき（はなこ🌾）
 【メモ】ひらがな⇄カタカナは別名として通す仕様（NFKCは仮名の種類を畳まない）。取り違え防止を
 さらに強くするなら仮名折り畳み（toHiragana比較）を将来検討——ただし「はなこ」と「ハナコ」を
-同一人物と誤認するリスクと、別人が正当に使い分ける自由のトレードオフso、たきと判断待ち。
+同一人物と誤認するリスクと、別人が正当に使い分ける自由のトレードオフので、たきと判断待ち。
 フロント入力はJSのtrim()が全角空白も削るため通常操作ではP4に到達しないが、API直叩きを
 DBの壁が正しく塞ぐようになった（二重の壁の内側が本物になった）。
 ━━━ ここまで ━━━
 ━━━ 2026-08-06 バグ狩り③：素のcurrent_date（UTC）でバッジがJST早朝に1日ズレる ━━━
-【★バグ（修理済み・migration 20260807015500）】DBはUTC稼働so素の current_date はUTC日付。
+【★バグ（修理済み・migration 20260807015500）】DBはUTC稼働ので素の current_date はUTC日付。
   コードベースの日付規約は (now() at time zone 'Asia/Tokyo')::date で統一されているのに、3関数だけ
   素の current_date を使い、JST 00:00〜08:59（UTC15:00〜23:59）の約9時間、日付が1日ズレていた。
   実測：UTC22:30 で current_date=8/6・JST日付=8/7。
@@ -3409,7 +3409,7 @@ DBの壁が正しく塞ぐようになった（二重の壁の内側が本物に
 ・影響：正当な採用（同じ働き手を別々の日に雇う）に毎回「二重予約」警告が出て、農家が受諾フラグで
   押し切る運用になる＝壁の精度の欠陥（セキュリティ穴ではない・受諾で進める）。
 ・修理案：effective work-days（agreed_dates優先／無ければ範囲・holidays除外）の集合積で判定する。
-  DB(confirm_terms)＋フロント(lib/hire.js findDoubleBookingJob)の両方を揃える load-bearing 変更so、
+  DB(confirm_terms)＋フロント(lib/hire.js findDoubleBookingJob)の両方を揃える load-bearing 変更ので、
   勝手に実装せずたきと判断を待つ（2026-08-06 並走セッションの記載を踏襲・私も再現を確認した）。
 ━━━ ここまで ━━━
 
@@ -3459,7 +3459,7 @@ Q9：全角空白のみ→既定名が付与され見えない名前を阻止
 【テストの教訓】chr()の算術で文字を作るときは値を検算する（初回のQ1は chr(12441+2)=独立濁点゛を撃って
 いて結合濁点U+3099のテストになっていなかった＝誤NG。正しくはchr(12441)）。
 【残る既知の限界（機構では塞がない・記録のみ）】漢字・キリル等のホモグリフ（カ vs 力）／
-ひらがな⇄カタカナは別名扱い（仮名折り畳みはトレードオフありso、たきと判断待ちのまま）
+ひらがな⇄カタカナは別名扱い（仮名折り畳みはトレードオフありので、たきと判断待ちのまま）
 ━━━ ここまで ━━━
 ━━━ 2026-08-07 二重予約判定を実働日ベースに（精度バグの修理・DB＋フロント）━━━
 【指示】たきと「着手」＝2026-08-06に再現確認した二重予約の精度バグ（実働日を見ず生の求人範囲で
@@ -3496,10 +3496,10 @@ process_withdrawal(p_auth_id)＝運営専用（app_adminsゲート・対象が�
   sessions/one_time_tokens/mfa_factors削除＋banned_until=infinity。uuidの行は残す＝全FK・全証跡が無傷。
 ・残すもの（3年保存の証跡）：applications/messages/reviews/jobs/time_corrections/job_questions/
   event_audit/feedback/account_moderation。匿名化は「表示名の参照先（プロフィール）が消える」で達成。
-  ★働き手の本名の在り処は account_holders のみso、この削除で contract_party_name は以後 not開示
+  ★働き手の本名の在り処は account_holders のみので、この削除で contract_party_name は以後 not開示
   ＝台帳①「個人を特定できない形」と整合（契約の写し3年は募集主側のみ）。
-・ストレージ：storage.objectsのSQL DELETEはプラットフォーム禁止so、アイコン(avatars/{uid})の削除は
-  ストレージAPIから手動＝返り値noteで毎回案内。job-photos/{uid}は求人の証跡so消さない（④と同じ理屈）。
+・ストレージ：storage.objectsのSQL DELETEはプラットフォーム禁止ので、アイコン(avatars/{uid})の削除は
+  ストレージAPIから手動＝返り値noteで毎回案内。job-photos/{uid}は求人の証跡ので消さない（④と同じ理屈）。
 ・実弾検証10項目全OK（ロールバック付き・残置ゼロ実測 jobs28不変・withdrawal_requests0）：
   一般=not_admin／運営対象=target_is_admin／本実行で14テーブル削除・証跡5/5残存・email匿名化と
   identities0とBAN・退会記録1行・冪等（2回目ok）・anon実行不可・相手方の求人無傷。
@@ -3512,23 +3512,23 @@ process_withdrawal(p_auth_id)＝運営専用（app_adminsゲート・対象が�
 労働条件の確認記録の一部として、紛争への対応と法令上の必要のため保存します」。同じ行の開示列は既に
 「契約成立時は確認記録の一部として保存」と書いており、保存期間列だけが矛盾していた＝内部整合の修正。
 ・PRIVACY_VERSION を v3.1-2026-08 → v3.2-2026-08（lib/utils.js）。現在v3.1同意は1件（運営本人）のみ・
-  9件はv1so、版上げの追加影響は運営1件の再同意だけ。build+lint 0 error・dist反映grep確認。
+  9件はv1ので、版上げの追加影響は運営1件の再同意だけ。build+lint 0 error・dist反映grep確認。
 ・改定日ヘッダーの「2026年8月●日」は据え置き（たきとが公開時に確定する運用placeholder）。
 
 【⑤変更の記録（event_audit）＝設計台帳に保存期間を追記（DBはまだ触らない・本文改訂とセットで判断）】
 event_audit（第6条2「変更の記録」の実体）はdiffに個人情報の変更前後値を含みうるのに保存期間の定義が無い。
 台帳⑤に「保存期間の設定が必要」と記録済み。実装（purge機構＋プラポリ第3条への行追加）は、
 notifications/push_subscriptionsの保存期間と合わせてプラポリ本文改訂とワンセットにするため次段階
-（たきと承認済みso設計を詰めて実装する）。退会処理では event_audit は消さない（証跡側）。
+（たきと承認済みので設計を詰めて実装する）。退会処理では event_audit は消さない（証跡側）。
 
 【設計台帳v1の原則4（設計→確認→実装）を今回は遵守：①④は指示を受けてから実装、⑤は設計のみで止めた】
 
 ━━━ 2026-08-07 ニックネームの仮名折り畳み実装（たきと裁定「必要」）━━━
 【裁定】ひらがな⇄カタカナだけ違う名前（はなこ vs ハナコ vs ﾊﾅｺ）は同名として拒否する。
-前回まで「別名として通す仕様・トレードオフありso判断待ち」だったものを「必要」の一言で確定。
+前回まで「別名として通す仕様・トレードオフありので判断待ち」だったものを「必要」の一言で確定。
 【実装（migration 20260807021407・適用済み・repo写経済み・履歴表同期確認済み）】
 wp_nickname_norm にカタカナ→ひらがなの translate を追加（U+30A1..U+30F6の86文字を
-コード-96でひらがなへ平行移動。濁点付き・小書き・ゔゕゖ含む。長音ーは両仮名共通soそのまま）。
+コード-96でひらがなへ平行移動。濁点付き・小書き・ゔゕゖ含む。長音ーは両仮名共通のでそのまま）。
 半角カナはNFKCが先に全角カタカナへ畳むので ﾊﾅｺ→ハナコ→はなこ が1本で繋がる。
 処理順：NFKC→不可視文字全削除→仮名折り畳み→両端\s削除→lower。
 対応表は機械検算済み（86文字全部が期待のひらがなに写ることをgenerate_seriesで照合・ズレ0）。
@@ -3541,9 +3541,9 @@ wp_nickname_norm にカタカナ→ひらがなの translate を追加（U+30A1.
 通る仕様どおり）。別人同士で撃ち直して拒否を確認済み。
 【既存データ】事前実測で仮名折り畳みによる新たな衝突ゼロ（既知の「たき」×2のみ）。
 【残る限界（機構では塞がない・最終形）】漢字・キリル等のホモグリフ（カ vs 力）のみ。
-これはUnicode上の別文字so機構判定は不能＝運営の目視（名簿・審査）が最後の壁。
+これはUnicode上の別文字ので機構判定は不能＝運営の目視（名簿・審査）が最後の壁。
 ━━━ 2026-08-07 保存機能実装後の実機一周＝穴1件（app_work_datesのanon露出）を発見・修理 ━━━
-【立場】退会処理（process_withdrawal）を入れた直後の穴探し。削除機構は間違えると証跡を巻き添えにするso
+【立場】退会処理（process_withdrawal）を入れた直後の穴探し。削除機構は間違えると証跡を巻き添えにするので
 そこを重点に、audit①〜⑥＋退会の否定テストを本番の各ロールで実弾（合成のみ・全ロールバック・残置ゼロ実測
 jobs28/apps20不変）。
 【audit再走査】①訪問者マスク[OK]／③b裏方anon露出0[OK]／④フェイルオープン0[OK]／⑤ビュー書込0[OK]／
@@ -3551,7 +3551,7 @@ jobs28/apps20不変）。
 【★発見＝app_work_dates(uuid) が anon/auth に開いていた（修理済み）】
 二重予約判定の実働日集合を返す confirm_terms の内部ヘルパー（並走セッションが2026-08-06に新設）が、
 作成時のPUBLIC自動EXECUTE付与のまま残り、任意の応募uuidを知る者がその応募の稼働日を直接引けた
-（anonロールで実応募の稼働日7件取得を実証）。フロントは直接呼ばない（lib/hire.jsが自前再実装）so
+（anonロールで実応募の稼働日7件取得を実証）。フロントは直接呼ばない（lib/hire.jsが自前再実装）ので
 開ける理由ゼロ。audit③bのパターン（send_/notify_/expire_/summarize_/purge_/process_）に名前が合わず
 擦り抜けた型。
 → migration ..._revoke_app_work_dates_from_public：from public,anon,authenticated で全面revoke。
@@ -3572,7 +3572,7 @@ jobs28/apps20不変）。
   ★ラベルを農家への表示・並び替え・優先提示に使うのは推薦・選別の禁止に抵触しうる＝処理の内部語彙に留める。
 【評価の壁（20260807020949・最短3遷移の穴の修理）】trg_reviews_phase_gate（BEFORE INSERT）：
 farmer_to_worker=completedのみ／worker_to_farmer=working以上（働き手評価UIは開始後に出る仕様に整合・
-農家の完了記録より先の働き手評価は正当so通す）。正規経路2本（submit_farmer_review・
+農家の完了記録より先の働き手評価は正当ので通す）。正規経路2本（submit_farmer_review・
 confirm_end→直INSERT）は無傷を実弾確認。偽造3種（応募中×2方向・面接中）は拒否を実弾確認。
 【ラベル参照化の第1弾（20260807021037）】confirm_terms の二重予約判定の status リスト→
 app_phase in ('interview','contracted','working')。同値性は実データ全行（不一致0）で機械確認。
@@ -3603,7 +3603,7 @@ jsonb条件も NULL を coalesce で先に潰す」
   ①大分類6種＝更新の読み込み失敗（デプロイ直後の型・実害小）／画面の表示エラー／DB・権限／
     通信エラー／ログイン・メール／その他。判定順が大事＝通信・DB・メールを先に拾い、最後に
     発生源（error_boundary等）ベースの表示エラーで受ける（Failed to fetchはunhandledrejection
-    経由so、srcだけで判定すると表示エラーに飲まれる）
+    経由ので、srcだけで判定すると表示エラーに飲まれる）
   ②種類＝部品×発生源×文言の署名（errorSignature）。UUIDと4桁以上の数字列だけ{id}/{n}に伏せて
     同型を束ねる。短い数字は残す＝React error #310 と #31 を混ぜない（細分化の粒度）
   ③個々の発生＝種類カードをタップで展開：初回時刻・発生ページ一覧（新しい順・最大10件）・
@@ -3626,14 +3626,14 @@ origin/main で乗せ替えてから着手（既定の手順どおり）
 「SECURITY DEFINER・id引数を取る・本体にauth.uid()/app_admins判定が無い・anon/authにEXECUTE可」を全列挙。
 合成のみ・全ロールバック・残置ゼロ実測（jobs28/apps20不変・test_users0）。
 【網に9本→7本は仕様・1本は低リスク・1本thが本物の穴】
-・訪問者に見せる仕様7本（employer_public_*／job_employer_*／job_exists／is_account_moderated／is_measured）＝求人詳細の公開情報so問題なし。
+・訪問者に見せる仕様7本（employer_public_*／job_employer_*／job_exists／is_account_moderated／is_measured）＝求人詳細の公開情報ので問題なし。
 ・is_worker_profile_ready(uuid)＝boolean・uuid推測不能・フロントが本人uidで呼ぶ＝低リスク（anonは既にrevoke済み）。据え置き＋WHITELIST。
 【★本物の穴＝job_ref(integer,text)（修理済み・migration 20260807023121）】
 通知・メールの「求人の参照名」を作る内部ヘルパー。23本の内部トリガー/RPCが呼ぶが、フロントは直接呼ばない。
-にもかかわらずPUBLIC自動EXECUTEで anon/auth から直叩き可能so、【求人番号が1000からの連番＝推測容易】を
+にもかかわらずPUBLIC自動EXECUTEで anon/auth から直叩き可能ので、【求人番号が1000からの連番＝推測容易】を
 悪用され、任意のログインユーザーが連番を舐めるだけで【未公開のdraft/pending求人の農園名＋作物＋作業】を
 引けた（無関係ユーザーが draft #1029 の農園名「せんと」取得を実証）。jobs_publicはopen/closedしか出さないのに
-job_refはjobsを直読みso、未公開の下書きの中身が漏れていた＝プラポリ第1条「表に無い開示は行いません」の趣旨に反する。
+job_refはjobsを直読みので、未公開の下書きの中身が漏れていた＝プラポリ第1条「表に無い開示は行いません」の趣旨に反する。
 → from public,anon,authenticated で全面revoke。内部呼び出しはDefinerの所有者権限で走るため23本は無傷
 （apply_to_job→通知経路が通り続けることを実測）。anon/auth直叩きは拒否を実測。
 【audit③c新設（前回「次回audit改訂で機械化する」の宿題を実行）】audit.sqlに構造ベースの検査を追加：
@@ -3665,7 +3665,7 @@ anon/authに広い（DELETE/UPDATE/TRUNCATE）がRLSが効いて全て0行/拒�
 【③ 自己募集は提出＝即公開（待ち自体を無くす）】
 ・handleSaveJob：status を canOpen ? 'open' : 'pending' に。canOpen = isAdmin(session.user)
   ＝ADMIN_EMAIL一致＝DBの jobs admin write ポリシー（email一致）と厳密に同一。
-  ★app_admins ではなく email 一致にする理由：jobs admin write は email 判定so、+worker等を app_admins で
+  ★app_admins ではなく email 一致にする理由：jobs admin write は email 判定ので、+worker等を app_admins で
    通すと open 挿入が RLS に弾かれる。email一致だけが確実に open を通せる。
 ・一般農家は法律（職安法・届出）＋RLS(owner insert draft は draft/pending 限定)＋trg_block_third_party_open
   により open にできない＝pending のまま＝「公開間近」。フロントで open を撃っても DB が弾く（二重の壁）。
@@ -3684,7 +3684,7 @@ anon/authに広い（DELETE/UPDATE/TRUNCATE）がRLSが効いて全て0行/拒�
 ・records列追加SQL（variety/is_brand）→ 列は追加済み・records自体が旧事業データ（2行残置）
 　ページ内コメント自身も「旧事業データ時代の資料」と明記していた
 【削除】NOTIF_SQL/VARIETY_SQL定数と面1のJSXを削除（他ファイルからの参照ゼロをgrep確認）。
-PANESから"sql"を除去し【エラー／画像軽量化】の2面構成に。スワイプ・タブはPANES駆動so自動追従。
+PANESから"sql"を除去し【エラー／画像軽量化】の2面構成に。スワイプ・タブはPANES駆動ので自動追従。
 【検証】build成功・eslint 0 error・distから「SQLをコピー」等の消失をgrep確認
 【実機目視の残り】システムページが2面（エラー/画像軽量化）でスワイプ・タブとも正常か
 ━━━ ここまで ━━━
@@ -3705,7 +3705,7 @@ using=auth.uid()=farmer_id のみ・with_checkなし・列制限なし＝農家�
 （承認→採用→保険→自動開始→開始確認→完了→評価）7段すべて通過。
 ★教訓：導出ラベル（app_phase）の壁は、導出元の列が当事者に直接書けると無効になる。
 壁を列の導出に置くなら、その列の直接書き込み経路（RLS UPDATE）も同時に塞ぐ＝二重の壁の完成。
-【他4パターンは元から[OK]】P2 terms直書きしてもapp_phaseはstatus='applied'を優先so偽装不発（ただし
+【他4パターンは元から[OK]】P2 terms直書きしてもapp_phaseはstatus='applied'を優先ので偽装不発（ただし
 statusも書ければ偽装可＝上の穴に含まれる）／P3 働き手が自分の応募statusを直接書換=0行（farmer専用
 ポリシーのみ）／P4 評価のUPDATE/DELETE=0行（reviewsに変更系ポリシー無し・不変）／
 P5 第三者が他人の応募を書換=0行。
@@ -3745,7 +3745,7 @@ build 0エラー・残置ゼロ（reviews=0）。実機目視は未（スワイ�
 【実装（AdminSystemRoom.jsx・DB変更なし・書き込みは従来と同じ2つのみ）】
 ・既知エラー辞書 KNOWN_ERRORS（14種）＝本番で実際に起きた型を開発記録に基づき
   「何が起きたか・原因・どうするか」の日本語で説明。修理済みの型は修理日を明記し
-  「最終発生がそれ以前なら対応不要／以後も出るなら再発so要調査」の判断基準を添えた
+  「最終発生がそれ以前なら対応不要／以後も出るなら再発ので要調査」の判断基準を添えた
   （rpc .catch型=07-26修正／getFullYear=08-03修理32e6df6／confirm取り違え=07-29修正／
   TDZ／React #310・#31／RLS拒否／statement timeout／SMTP鍵／Leaflet 等）
 ・辞書に無いものも translateError が型から日本語へ翻訳し、識別子を埋め込んで具体化
@@ -3797,7 +3797,7 @@ serviceWorker?.getRegistrationの包含をgrep確認・ガード判定5ケース
   最近の発生5件／既知の説明（原因・どうする）／スタック先頭（最新1件・15行）
 ・個人情報は入れない設計＝user_idは人数に集計するのみ（uuid・メールは報告文に載らない。機械検算済み）
 ・スタック未取得ならコピー時に1件だけ取得してから生成。awaitを挟んでもiOSのユーザー操作猶予
-  （transient activation 約5秒）内so clipboard は通る。失敗時はalertで再タップ案内
+  （transient activation 約5秒）内ので clipboard は通る。失敗時はalertで再タップ案内
 ・事実集計は groupFacts に一本化（展開表示とコピーが同じ数字を出す＝二重実装しない）
 ・カードヘッダーはbutton→div+onClickへ（📋入れ子のため。button入れ子は不正HTML）
 【検証】報告文生成をnode機械検算10項目全OK（件数・影響・端末・ページ・PII不包含・辞書なし分岐）・
@@ -3811,7 +3811,7 @@ build成功・eslint 0 error（警告29=既存のみ）・distに「状況をコ
 ノーアクションならさがすに遷移。」
 【実装（フロントのみ・DB不変）】
 ・LandingFlow：掲載成功時に完了ページ(step12)へ行かず、新prop onPublished(canOpen) でAppに通知。
-  onPublished 未指定時のみ従来の step12 に倒す（worker完了 step8 は別物so無干渉）。
+  onPublished 未指定時のみ従来の step12 に倒す（worker完了 step8 は別物ので無干渉）。
 ・App.jsx：onPublished で ①求人フローを閉じ /profile/employer へ遷移（＝自分の求人が「公開間近／公開中」で
   見える所に着地）②祝祭アニメ Celebration（既存部品・pointer-events:none・3秒で自動終了。
   即公開🎉「公開しました！」／公開間近🌱「求人ができました！」）③60秒アイドル見張りを起動。
@@ -3821,7 +3821,7 @@ build成功・eslint 0 error（警告29=既存のみ）・distに「状況をコ
   誤って取り消さないため。タブ移動などの操作は pointerdown で拾える）。相互参照は関数宣言（巻き上げ・
   no-use-before-define の functions:false で許容）で解消。
 ・祝祭・見張りはタブ非依存のグローバル位置に描画（着地先 /profile/employer で重なる）。
-【残したもの】掲載前チェックリストのボトムシート（＝掲載前の確認の記録・法的な同意記録so不変）。
+【残したもの】掲載前チェックリストのボトムシート（＝掲載前の確認の記録・法的な同意記録ので不変）。
   「アニメーションに切り替え」は、そのボトムシートの【結果】を完了ページでなくアニメにする意味で実装。
   チェックリスト自体を消すと同意記録が失われるため残した（必要なら別途相談）。
 【検証】build成功・lint 0 error（警告は既存のみ）。実機目視は未実施→確認：掲載する→祝祭が出る→
@@ -3853,7 +3853,7 @@ build成功・eslint 0 error（警告29=既存のみ）・distに「状況をコ
 ・タップ→#/admin/system＋sessionStorage(cb_sysErrorFocus)に種類の署名→AdminSystemRoom側が
   読み込み後に該当種類を自動展開＋スタック取得（1回で消費）
 ・ゲート＝App.jsx描画条件 isAdmin(me)（一般ユーザーは取得も描画も走らない）＋app_errorsのRLS
-  （SELECT=管理者のみ）の二重。システムページ表示中(systemRoom)は自分を指すだけso非表示
+  （SELECT=管理者のみ）の二重。システムページ表示中(systemRoom)は自分を指すだけので非表示
 【検証】build成功・eslint 0 error（警告8=既存exhaustive-depsのみ）・distにcb-err-strip/cbErrBlink/
 cb_sysErrorFocus/辞書文言の包含をgrep確認・グループ化と並びと翻訳をnode機械検算5項目全OK
 （重大が先→同重要度は新しい順→翻訳タイトル→辞書タイトル+件数）・lib以外への関数残存ゼロをgrep確認
@@ -3866,15 +3866,15 @@ cb_sysErrorFocus/辞書文言の包含をgrep確認・グループ化と並び�
 突き合わせ、KYC相当の届出情報が1つ漏れているのを発見。段階的に実装（各段ロールバック付き実弾検証・push）。
 【段①（migration 20260807133000）】consignment_profiles を削除対象に追加。employer_profiles等を消すのに
 委託者プロフィール（氏名・カナ・住所・電話・メール・★銀行口座番号・口座名義まで）を消していなかった非対称。
-employer_profiles と同格の「本人の届出情報」so行ごと削除。設計台帳v1(a)の列挙漏れ。現在0行so実害ゼロ。
+employer_profiles と同格の「本人の届出情報」ので行ごと削除。設計台帳v1(a)の列挙漏れ。現在0行ので実害ゼロ。
 【段②（migration 20260807133659）】user_onboarding_survey（きっかけアンケート・auth_id）＝本人の行動データ・
 相手方なし＝行ごと削除。
-【段③（同migration）】feedback（自由記述・reporter_id）＝reporter_id が NOT NULL so匿名化(null化)は
-スキーマ変更なしには不可＝行ごと削除に決定（本人の記述は本人のものso退会で消す）。
+【段③（同migration）】feedback（自由記述・reporter_id）＝reporter_id が NOT NULL ので匿名化(null化)は
+スキーマ変更なしには不可＝行ごと削除に決定（本人の記述は本人のものので退会で消す）。
 ※匿名化して残す案もあったが、NOT NULL制約＋「個人の自由記述を本人紐づきで残す方が重い」で削除を選択。
 【残す証跡（不変）】applications・messages・reviews・event_audit・job_questions・attendance_*・
 consignment_deals（相手方=運営のある取引記録）・各種reports・account_moderation。auth匿名化で名前解決が
-切れるため氏名は残らない。terms_snapshotに埋まる農家KYC（recruiter_*）は契約3年保存の法定記録so残す（台帳④と整合）。
+切れるため氏名は残らない。terms_snapshotに埋まる農家KYC（recruiter_*）は契約3年保存の法定記録ので残す（台帳④と整合）。
 【検証】DB定義とrepo写経のDELETE対象17件が並び順まで一致（md5差はpg_get_functiondefの整形由来・意味差なし）。
 【未変更で残る運用】退会申請UIはまだ無い＝運営が auth_id を指定して手で process_withdrawal を叩く。
 アイコン画像(avatars/{uid}/)はストレージAPIから手動削除（SQL削除はプラットフォーム禁止・関数のnoteに明記）。
@@ -3898,14 +3898,14 @@ consignment_deals（相手方=運営のある取引記録）・各種reports・a
 【実装（App.jsxのみ・DB不変・②/apply/pending と 働き手フロー step8 は今回は触らない）】
 ・従来：/apply/done は 70vh の完了ページ（📩見出し＋「まだ採用ではありません」＋当事者間契約の明示）。
 ・新：showApplyDone=true になったら useEffect が ①法的トースト（applyNote）②60秒アイドル見張り（applyIdle）を
-  起動し、応募状況（#/profile/worker/applying）へ着地。/apply/done の描画分岐は null（着地までの一瞬so無描画）。
+  起動し、応募状況（#/profile/worker/applying）へ着地。/apply/done の描画分岐は null（着地までの一瞬ので無描画）。
 ・祝祭＝既存の applyBurst（Celebration 📩・pointer-events:none・自動終了）を着地先の上にグローバル表示。
   見出しは promotedCount>0 なら「N件を届けました」・それ以外「応募できました」。
 ・法的トースト＝新設 ApplyDoneNote（モジュールレベル・下から出る帯・8秒で自動消え＋タップで閉じる）。
   ★完了ページにあった法的明示を消さずここに移設：「これはまだ採用ではありません。農家が内容を確認し、
   承認するとお知らせします。」＋「雇用の契約は当事者間で行われます」（法務の一線を保持）。
 ・60秒アイドル＝既存 PublishIdleRedirect を流用（何か操作すれば取消・無操作60秒で #/search へ）。
-【安全確認】掲載完了アニメ化と完全に同じ骨（祝祭＋トースト＋アイドル）so新しい失敗経路を作らない。
+【安全確認】掲載完了アニメ化と完全に同じ骨（祝祭＋トースト＋アイドル）ので新しい失敗経路を作らない。
 法的明示は消していない（トーストで残置）。②③は未着手＝段階的の指示どおり。build成功・lint 0 error
 （警告8=既存exhaustive-depsのみ・新規ゼロ）。実機目視の残り：応募→📩祝祭→応募状況に着地→トースト表示→
 放置60秒で さがす／その前にタップすれば飛ばない。
@@ -3921,7 +3921,7 @@ consignment_deals（相手方=運営のある取引記録）・各種reports・a
   祝祭（✅仮応募をお預かりしました）＋案内トースト＋応募状況（/profile/worker/applying）へ着地＋
   60秒アイドル→さがす（applyIdle を①と共用）。なし（再訪）＝従来どおり ApplyPending を表示。
 ・再訪の入口2つは無変更：応募状況⏳ブロック「プロフィールを仕上げる→」／求人詳細の応募ボタン
-  （仮応募あり時）。着地先の応募状況には⏳仮応募ブロック（あと◯項目・仕上げるボタン）が既にあるso、
+  （仮応募あり時）。着地先の応募状況には⏳仮応募ブロック（あと◯項目・仕上げるボタン）が既にあるので、
   次にやることは画面から消えない。
 ・案内トースト＝ApplyDoneNote に pending prop を追加（⏳見出し）。★正直さの明示を旧ページから移設：
   「プロフィールがそろうと、農家さんに応募が届きます」＋「自己紹介文の確認は運営が行いますが、
@@ -3945,7 +3945,7 @@ setRole("worker")はコードに存在せず、到達手段は管理タブdevJum
   ★職安法配慮の明示を旧ページから消さず移設：「この機能は現在構想段階です。実装前に労働局・関係機関へ
   確認した上で、段階的に追加予定です」＋「ログインすると実証に参加できます」。
 ・旧3ボタンの置き換え＝主役「実証に参加する」→ログイン画面へ自動着地／「公開データを見る」→
-  60秒アイドル（applyIdle共用）のさがす行き／「意見を送る（準備中）」→元から無機能so落とした。
+  60秒アイドル（applyIdle共用）のさがす行き／「意見を送る（準備中）」→元から無機能ので落とした。
 ・devJumpインスタンス（管理者の確認用）は閉じて祝祭＋トーストのみ（ログインへは送らない）。
 【検証】build成功・lint 0 error・警告数HEADと同一（新規ゼロ）・distに新文言の包含をgrep確認。
 【これでページ→アニメ3部作（①応募完了・②仮応募・③働き手フロー完了）が完了。残りの候補は無し
@@ -3967,7 +3967,7 @@ sessionStorage(cb_sysErrorFocus) に種類の署名を渡す。従来の着地�
 ・カード描画は renderGroupCard に一本化（一覧とフォーカスの二重実装をしない。以後カードを
   変えるときはこの1関数だけ）
 ・直近500件の窓に該当署名が無い時はフォーカスせず従来どおり一覧に着地（安全側）
-・帯は記録からの導出so「解決した」で自然に消える。「閉じる」では帯は残る（未解決のまま＝設計どおり）
+・帯は記録からの導出ので「解決した」で自然に消える。「閉じる」では帯は残る（未解決のまま＝設計どおり）
 【検証】build成功・eslint 0 error（警告=既存のみ）・distに新文言（いま発生中のエラー／✓ 解決した）
 包含をgrep確認・renderGroupCard定義1・呼び出し2をgrep確認
 【実機目視の残り】①帯タップ→フォーカス表示（該当1枚だけ・展開済み）②解決した→一覧に進み
@@ -3993,14 +3993,14 @@ url=window.location.href は必ず記録されていた（実測：#/help・#/ch
 W5 BAN中の利用者を退会してもaccount_moderationのBAN記録が残る（退会で消さない設計）＋auth.users.banned_until=infinity
 ＝退会でBAN逃れできない。証跡（applications）も残る。
 【★W4修理（migration 20260807144755）】二重実行でwithdrawal_requestsが増殖するバグ。旧(c)は
-update(processed_at is null)→0行ならinsertso、2回目は既にprocessed→update0行→また insert＝増殖。
-coalesce(processed_at,now())で刻む冪等版に修正。実測：二重実行で申請行=1のまま。削除処理は元から冪等so全体が冪等に。
+update(processed_at is null)→0行ならinsertので、2回目は既にprocessed→update0行→また insert＝増殖。
+coalesce(processed_at,now())で刻む冪等版に修正。実測：二重実行で申請行=1のまま。削除処理は元から冪等ので全体が冪等に。
 【★W3b＝穴ではなく設計どおり・ただし要記録】退会後も契約相手が contract_party_name で退会者の本名を見られる。
 原因＝terms_snapshot.party_names.worker に本名が凍結保存されている（confirm_terms が契約時に焼く・2026-08-02）。
 account_holdersは退会で正しく削除（1→0）されるが、terms_snapshot（契約の凍結記録・3年保存）に本名の複製が残る。
 判断：これは労働条件確認記録＝契約3年保存の対象（プラポリ台帳②・退会UIの「取引の記録は法令と紛争対応のため残る」と整合）。
 契約相手のみ・contract_party_name経由でのみ見える（第三者には出ない）。農家KYC(recruiter_name)が同じくsnapshotに残るのと対称
-＝雇用の法定記録として双方の氏名を契約時点で凍結。勝手に消すと労働者名簿・労働条件通知の法定記録を壊すso変更せず。
+＝雇用の法定記録として双方の氏名を契約時点で凍結。勝手に消すと労働者名簿・労働条件通知の法定記録を壊すので変更せず。
 ★2026-07-30裁定(B)「account_holders/worker_profilesへの本名コピー禁止」との緊張：terms_snapshotへのparty_names焼き込みは
 その後(2026-08-02)に別途入った仕組み。契約の凍結記録としては正当がが、退会後の氏名保持がプラポリ第3条データ台帳
 （本人確認情報=退会30日以内削除）と字面で緊張する。台帳に「ただし契約が成立した分の氏名は契約記録の一部として
@@ -4013,10 +4013,10 @@ account_holdersは退会で正しく削除（1→0）されるが、terms_snapsh
 【★X2修理（migration 20260807145825）】退会者の名前解決が「wi」（email先頭2文字）になっていた。
 email先頭を使う3関数（resolve_actor_name・my_chat_partner_initials・get_my_calendar_jobs）を揃えて、
 退会者は名前「退会した利用者」・頭文字「－」に。検証：退会前=従来名／退会後=退会した利用者・頭文字－。
-※email先頭を使う4つ目 wp_default_nickname は新規登録の既定名生成so退会と無関係＝対象外。
+※email先頭を使う4つ目 wp_default_nickname は新規登録の既定名生成ので退会と無関係＝対象外。
 【X3=無事】working中に退会しても complete_work が通る（進行中取引は落ちない）。
 【X5=無事】退会者の worker_work_record が応募を受けた農家から引ける（記録壊れない）。
-【X1=確認済み】退会で banned_until='infinity'＝GoTrueがログイン拒否（再ログイン不可）。auth側so実弾は不可。
+【X1=確認済み】退会で banned_until='infinity'＝GoTrueがログイン拒否（再ログイン不可）。auth側ので実弾は不可。
 【X3b=誤検知】auto_start_work が authenticated から permission denied＝cron専用（anon/auth revoke済み）で正しい。
 私のテストのロール誤り（cronはpostgres/service_roleで走る）。
 【★X4=将来リスク・未対処（要判断）】process_withdrawal は jobs を消さない（過去求人は消さない・証跡）。
@@ -4028,11 +4028,11 @@ admin（自己募集）のみでadminは退会不可（target_is_admin）＝現�
 
 ━━━ 2026-08-07 退会X4対処：退会農家のopen/pending求人を掲載終了に（migration 20260807150430）━━━
 【前回X4を「将来リスク」と書いたが訂正】third_party_publish_allowed は既に'true'（届出完了・第三者公開
-解禁済み・同日の法務記録）＝一般農家がopen求人を持てる現在の状態so、これは将来でなく【今そこにある穴】だった。
+解禁済み・同日の法務記録）＝一般農家がopen求人を持てる現在の状態ので、これは将来でなく【今そこにある穴】だった。
 process_withdrawal は jobs を消さない（過去求人=証跡）ため、農家が退会してもopen求人が jobs_public に
 残り応募を受け付け続けうる。
 【対処】process_withdrawal に「farmer_id=退会者 の status in ('open','pending') を 'closed' に更新」を追加
-（(a)削除群の末尾）。行は消さない＝過去求人の証跡（応募・はたらいた記録）は残る。draftは公開されていないso
+（(a)削除群の末尾）。行は消さない＝過去求人の証跡（応募・はたらいた記録）は残る。draftは公開されていないので
 対象外。expire_stale の最終日クローズと同じ扱い。
 【検証（ロールバック付き実弾・third_party一時解禁で一般農家のopen求人を再現）】closed化1件・トリガー例外なし
 （job_publish_snapshot/block_third_party_open/require_recruiter_info等はclosed遷移で誤発火せず）・
@@ -4045,16 +4045,16 @@ status=closed・応募が job_not_open で拒否・求人の行は残る（削�
 合成のみ・全ロールバック・残置ゼロ実測（cx-*ユーザー0・apps20/jobs30不変）。
 【シナリオ】退会者v_Lを両面フル装備：農家Aの求人に働き手として応募・採用・working（はたらいた記録源）／
 自分の求人で別働き手v_Bを採用・working（雇い主）／別農家Cthav_Lをお気に入り登録／v_L自身thav_Bをお気に入り。
-third_party_publish_allowed=true so一般農家v_Lの求人も運営承認でopenにできる状態で実施。
+third_party_publish_allowed=true ので一般農家v_Lの求人も運営承認でopenにできる状態で実施。
 【結果＝全て[OK]】
-・C1 退会者の農家分求人jL が掲載終了(closed・X4対処が効く)／働き手分応募aL（jAへ）は証跡so残る。
+・C1 退会者の農家分求人jL が掲載終了(closed・X4対処が効く)／働き手分応募aL（jAへ）は証跡ので残る。
 ・C2 退会者に雇われた別働き手v_Bの進行中取引aB(working)が求人closedの巻き添えを受けず残る／
-  v_B本人が自分のはたらいた記録を保てる（worker_work_record thajobsと外部結合so求人closed後も落ちない・
+  v_B本人が自分のはたらいた記録を保てる（worker_work_record thajobsと外部結合ので求人closed後も落ちない・
   2026-08-06の内部→外部結合修正が効いている）。
 ・C3 農家Aが退会者(働き手)のはたらいた記録を引ける（相手の画面が壊れない）。
 ・C4 退会者絡みのrepeat_roster両方向（別農家のお気に入り=worker=v_L／退会者のお気に入り=farmer=v_L）が両方消える
   （process_withdrawalの farmer_id=p or worker_id=p が両向きを拾う）。
-・C5 consignment_deals は auth_id列なし＝counterparty_name（手入力の取引先名）だけの運営台帳so個人と紐づかない
+・C5 consignment_deals は auth_id列なし＝counterparty_name（手入力の取引先名）だけの運営台帳ので個人と紐づかない
   ＝退会対象外で正しい（委託者のKYCは consignment_profiles 側＝削除済み）。
 ・退会者の名前解決＝全経路「退会した利用者」。
 【結論】両面・巻き添え・双方向rosterの複雑系でも、削除/closed化/証跡保持/名前解決が整合。修理なし。
@@ -4067,7 +4067,7 @@ third_party_publish_allowed=true so一般農家v_Lの求人も運営承認でope
 ・台帳Row4「自己紹介・質問への回答（自由記述）」＝「非公開の確認待ちとして保存／運営者が内容を確認してから
 　（最大2日）応募先などに表示／確認するのは連絡先の記載・個人の特定・不適切な表現の有無だけ」。
 ・実態：worker_profiles のRLS「wp farmer select via application」が行単位で全列を農家に開く＋フロントの
-　読み出しが select("*")（FarmerDashboard:673・WorkerPreviewSheet）so、未承認の pr_pending・pr_qa_pending
+　読み出しが select("*")（FarmerDashboard:673・WorkerPreviewSheet）ので、未承認の pr_pending・pr_qa_pending
 　（＋pr_hidden_original・pr_revision_targets）が農家のブラウザに届く。実弾で農家が
 　「未承認テキスト：私の電話は090-…（審査前）」「LINE ID abc123」を取得できた。
 ・影響：画面には承認済み pr しか描かないが、生データが転送される＝devtoolsで読める。審査ゲート（連絡先・
@@ -4079,7 +4079,7 @@ third_party_publish_allowed=true so一般農家v_Lの求人も運営承認でope
 【修理案（未実装）】(1) worker_profile_for_farmer(worker_id) を SECURITY DEFINER で新設し、承認済み/台帳安全列
 　（nickname/avatar/residence_city/transport/experience_entries/self_declared/pr[承認済のみ]/pr_qa[承認済のみ]等）
 　だけ返す。pr_pending系は絶対に返さない。(2) RLS「wp farmer select via application」をDROP（農家は生行を
-　読めなくする）。owner(auth.uid()=auth_id)・admin は編集/審査に必要so全列アクセス維持。(3) フロント
+　読めなくする）。owner(auth.uid()=auth_id)・admin は編集/審査に必要ので全列アクセス維持。(3) フロント
 　FarmerDashboard・WorkerPreviewSheet の select("*") を新RPCへ差し替え。employer_profiles_public と同型に揃う。
 【他の台帳行＝全て遵守（実測）】Row1メール（anon不可・他利用者非表示・管理画面マスク）／Row2登録情報
 　（account_holders self-only）／Row6集合場所番地（anonマスク・20260806110501）／Row7チャット（当事者のみ・
@@ -4087,7 +4087,7 @@ third_party_publish_allowed=true so一般農家v_Lの求人も運営承認でope
 　（terms_snapshot凍結）／Row10評価（reviews_public_badges＝肯定のみ・3日ゲート・コメント審査を本日実装）／
 　Row11閲覧履歴（page_events admin限定・30日削除cron purge-page-events稼働）／Row12通報（admin＋通報者のみ）。
 ・farmer-via-applicationの生行SELECTを持つ表は attendance_events(打刻＝正当)・messages(当事者＝正当)・
-　worker_profiles(＝本違反)の3つ。前2つはpending/未承認の自由記述を持たないso問題なし。
+　worker_profiles(＝本違反)の3つ。前2つはpending/未承認の自由記述を持たないので問題なし。
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-07 W3b裁定：契約締結時の情報は少なくとも3年保持（プラポリ台帳を実装に整合）━━━
@@ -4102,16 +4102,16 @@ third_party_publish_allowed=true so一般農家v_Lの求人も運営承認でope
 2. 「登録情報（氏名）」の保存期間＝旧「退会30日以内に削除」のみ→「ただし雇用契約が成立した相手方との間では
    氏名が労働条件の確認記録の一部として作業完了から3年保存」の例外を追記（退会30日削除の例外を明示）。
 【DB変更なし】terms_snapshotは既に双方氏名を3年保持・immutable（protect_terms_snapshot）。文面の明文化のみ。
-【PRIVACY_VERSION】v3.3-2026-08 → v3.4-2026-08（本文の実質改訂so版上げ）。改定日ヘッダーの「2026年8月●日」は
+【PRIVACY_VERSION】v3.3-2026-08 → v3.4-2026-08（本文の実質改訂ので版上げ）。改定日ヘッダーの「2026年8月●日」は
 公開時にたきとが確定するplaceholderのまま。退会UI（ProfileHub）の「作業や取引の記録は法令と紛争対応のため
-必要な範囲で残ります」はこの範囲so整合＝不変。build+lint 0 error・distに新文言と版を確認。
+必要な範囲で残ります」はこの範囲ので整合＝不変。build+lint 0 error・distに新文言と版を確認。
 【これでW3bはクローズ】退会まわりの残論点は「退会申請UI→実削除のボタン一発化（現在は運営が手動でprocess_withdrawal）」のみ。
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-07 プラポリ違反の修理：未承認の自己紹介が農家に届く穴を塞ぐ（worker_profiles）━━━
 【指示】同日プラポリ一周で発見した違反にたきと「やれ」。
 【穴】worker_profiles のRLS「wp farmer select via application」が行単位で全列を農家に開く＋フロントが
-select("*")so、未承認の pr_pending/pr_qa_pending（＋pr_hidden_original/pr_revision_targets）が農家の
+select("*")ので、未承認の pr_pending/pr_qa_pending（＋pr_hidden_original/pr_revision_targets）が農家の
 クライアントに届いていた（画面には出ないがdevtoolsで読める＝連絡先交換の禁止の審査ゲートもデータ層で迂回）。
 【修理（migration 20260807232859・本番適用・repo写経済み）】雇い手 employer_profiles_public（承認済み列だけの
 ビュー）と同型に揃えた：
@@ -4121,7 +4121,7 @@ select("*")so、未承認の pr_pending/pr_qa_pending（＋pr_hidden_original/pr
   審査中でも承認済み内容を見られる。
 ・worker_cards_for_farmer(worker_ids[])＝一覧用。nickname/avatar だけ・資格のある働き手ぶんだけ返す。
 ・RLS「wp farmer select via application」を DROP。owner（本人）・admin の SELECT は残す＝編集/審査は不変。
-  worker_trust_info 等の SECURITY DEFINER はRLS非依存so無影響。
+  worker_trust_info 等の SECURITY DEFINER はRLS非依存ので無影響。
 【フロント4経路を差し替え】FarmerDashboard（ロスター詳細→フルRPC・ロスター一覧→カードRPC）／
 App.jsx WorkerPreviewSheet（プレビュー→フルRPC・under_reviewでblocked表示）／ChatList（チャット相手→カードRPC）。
 本人/運営の直読み（ProfileHub・WorkerProfileEdit・AdminTab審査・TodayПage等）は owner/admin RLSで不変。
@@ -4182,7 +4182,7 @@ P8 通報「通報者が誰かは相手に伝わらない」＝通報された�
 【実装】
 ・TODO_META に profile（👤 プロフィールの未入力）を新設。未入力がある間だけ、やることの格子の
   先頭に差し込む（stageOrder.unshift）。TODO_STAGE_CATALOGには入れない＝埋まれば箱ごと消える
-  （薄表示でも残さない）。状態を持たず毎回いまのプロフィール行から数えるso、後で項目を空にすれば
+  （薄表示でも残さない）。状態を持たず毎回いまのプロフィール行から数えるので、後で項目を空にすれば
   また現れる。バッジ＝未入力の項目数。
 ・行き先は編集ページへ直行（boxNav・専用ページを挟まない）。役割で分岐＝
   農家 /profile/employer/profile ／働き手 /profile/worker/profile。
@@ -4301,20 +4301,20 @@ interview/insurance/confirm_start/complete/hire/t_emergency は TODO_META に実
 1. get_my_calendar_jobs が available_dates（＝応募時に申請する「来られる日」）を【返していなかった】。
    返すのは agreed_dates（農家が確定した働く日）だけ＝カレンダーは希望日を知る手段が無かった。
 2. agreed_dates は承認では入らない。農家が応募者ページの「働く日を決める」（set_agreed_dates）を
-   押して初めて入る別工程so、承認直後は必ず null。本番の承認済み8件すべて agreed_dates=null を実測。
+   押して初めて入る別工程ので、承認直後は必ず null。本番の承認済み8件すべて agreed_dates=null を実測。
    → 承認した瞬間、カレンダーは【求人期間まるごと】を塗っていた（希望日2日でも7日全部が埋まる）。
    実データ #1052：働き手は 2027-01-20・21 の2日だけ申請しているのに、期間は 01-20〜01-26。
 3. 同じ部品の中で判定が枝分かれしていた：名前チップ(comesOnDay)は agreed_dates を見るのに、
    塗りと日付タップ(entriesOnDay)は求人期間だけを見ており、働く日を確定した後ですら期間全部が塗られた。
 【実装】
 ・DB（migration 20260811104504）：get_my_calendar_jobs に available_dates と holidays を追加。
-  ★返り値の列が増える＝CREATE OR REPLACE では変えられない（cannot change return type）soDROPして作り直す。
+  ★返り値の列が増える＝CREATE OR REPLACE では変えられない（cannot change return type）のでDROPして作り直す。
   作り直すと default privileges が anon にも EXECUTE を付けるため、revoke を from public と from anon の
   両方に撃ってから authenticated/service_role へ grant（2026-08-06の教訓）。権限は作り直し前と同一を実測確認。
 ・lib/utils に entryWorkDays(entry) を新設＝【カレンダーに出す日の唯一のソース】。
   優先順：agreed_dates ＞ available_dates ＞ 求人期間。いずれも holidays を除く。返り値は "YYYY-MM-DD" の Set。
   available_dates は配列のほか "any"（期間中いつでも）と null（単日求人）を取り、どちらも期間へ倒す（＝日を絞っていない）。
-  ★lib/hire.js の effectiveWorkDates とは別物so混同しない。あちらは二重予約の壁の判定で、
+  ★lib/hire.js の effectiveWorkDates とは別物ので混同しない。あちらは二重予約の壁の判定で、
    DBの app_work_dates と1対1で揃える約束がある＝未確定の希望日を混ぜない（採用を止める壁の意味を変えない）。
 ・MyCalendar：塗り・日付タップ・名前チップの3つを entryWorkDays に一本化（上記3の食い違いも同時に解消）。
   日の集合は予定1件につき1回だけ作る（3か月×42マスを走査するため useMemo で持つ）。
@@ -4329,7 +4329,7 @@ interview/insurance/confirm_start/complete/hire/t_emergency は TODO_META に実
 ・確定したか＝段階（appPhaseKey）で見る＝MyCalendar の isConfirmedEntry
   （relation!=='application' なら従来どおり／application は contracted・working のみ確定）
 ★確定の分かれ目は【採用】であって、農家が「働く日を決める」を押したか（agreed_dates の有無）ではない。
-  働く日を決めるのは日を絞る操作で、契約の成立とは別so、採用前に決めても確定にしない
+  働く日を決めるのは日を絞る操作で、契約の成立とは別ので、採用前に決めても確定にしない
   （実測：agreed_dates ありでも採用前は未確定＝斜線）。
 【見た目】未確定の日は斜線（repeating-linear-gradient）＝ベタ塗り（決まった日）と分ける。
 採用すると同じ日がふつうの塗りに変わる。凡例「斜線＝まだ確定していない（採用で確定）」。
@@ -4354,7 +4354,7 @@ DBはロールバック付きで実測：新2列が届くこと、配列＋休�
 ・使っている本物：LFCropGrid／LFWizCard／LFPillSelect／Avatar／StatusRibbon（components/ui）、
   JobCard、WorkerTrustCard（TrustCards）、Celebration（祝祭アニメ本体）、
   CROP_OPTIONS／TASK_OPTIONS／APP_PHASE_LABEL・COLOR／ROLE_GREEN・ROLE_ORANGE（lib/utils）。
-  ★作物50種・作業9種の並びとアイコン、選択時の緑枠は本番と必ず一致する（同じ配列・同じ部品so）。
+  ★作物50種・作業9種の並びとアイコン、選択時の緑枠は本番と必ず一致する（同じ配列・同じ部品ので）。
 ・本物の部品が無い画面は、本番のJSXから文言と規格を写経：玄関（同意して見てみる＋注記全文）／
   ログイン（認証コード（6桁）・有効期限：10分）／新規登録（新規登録：本人情報の入力・区分・
   18歳未満は登録できません）／求人フロー各ページの見出しと説明文（lfStyles の stepTitle/subtitle を
@@ -4375,7 +4375,7 @@ LandingFlowチャンクの両方に入っていることをgrepで確認（＝�
 【たきと報告】「応募するたびに自己紹介の申請がくる。内容に変更はないが何度も許可している」
 【真因（event_auditで実測）】プロフィール編集画面を開いたまま（またはキャッシュが古いまま）保存すると、
 画面側の「承認済みの控え」（approvedRef）が古く、承認済みと同一の内容を pr_qa_pending に再セットしていた。
-承認直後は old.pending=null so trg_notify_worker_profile の「変更なしスキップ」をすり抜け、申請メールが毎回届く。
+承認直後は old.pending=null ので trg_notify_worker_profile の「変更なしスキップ」をすり抜け、申請メールが毎回届く。
 応募フローはプロフィールゲート経由でこの保存を踏ませるため「応募するたび」に見えた。キリトの行で
 07-27・08-13 の再申請と 08-14 06:16 の承認（pr_qa old=null→array＝同一内容の初承認）を裏取り。
 あわせて承認処理（publishPendingPr）が pr_submitted_at を消し忘れる取りこぼしも実測（キリトの行に残存）。
@@ -4417,7 +4417,7 @@ C 農家の自由記述：保存＝即公開。trg_ep_z_publish_texts が texts_
   trg_block_publish_profile_review（審査中は掲載不能）もDROP。
 【新しい壁＝自動NG検査】profile_text_ng(text)＝電話・メール・URLをjq_ng_checkと同じパターンで検出。
   worker（pr・pr_qa回答）/employer（12キー＋pr）の【変わった値だけ】を保存時に検査し日本語例外で拒否
-  ＝既存の公開済み文面は編集されるまで対象外so既存ユーザーの保存を止めない。連絡先交換禁止は機構で維持。
+  ＝既存の公開済み文面は編集されるまで対象外ので既存ユーザーの保存を止めない。連絡先交換禁止は機構で維持。
 【見張り（的確表示義務への構え）】審査依頼メール→「[公開・事後確認]」FYIメールに差し替え
   （trg_notify_job_open_fyi＝openへの遷移時・app_admins本人は除く・目視項目のreview_boxは審査メールから継承。
   自由記述の公開もFYIメール）。#/admin/review/{job_number} の深いリンクは従来どおりAdminJobPreviewへ。
@@ -4443,17 +4443,17 @@ C 農家の自由記述：保存＝即公開。trg_ep_z_publish_texts が texts_
 【原因】20260807021647_jobs_public_open_or_filled_only が位置マスク（20260806110501）導入前の定義を
 土台に jobs_public を作り直したため、位置系3点だけが静かに外れていた（〜1週間露出）。
 【修理】今の本番定義を土台に、位置系4式（lat/lng小数2桁・半径3000m・nearest_station非表示）だけを
-マスク版へ戻した。列の数・順は不変so admin_preview_job 連動不要（実測：42P13なし・1行取得）。
+マスク版へ戻した。列の数・順は不変ので admin_preview_job 連動不要（実測：42P13なし・1行取得）。
 実測：anon=2桁/3000m/駅0/町域0 ／ ログイン=6桁/500m/駅・町域可視。SELECT専用のrevoke/grantも再宣言。
 【点検の他の結果】②42P13なし ③anon実行可RPC=11本（+pending_job_previews＝2026-08-12の意図的な
-キルスイッチ付き機能・写真とNo.のみso問題なし。audit.sqlのWHITELIST追記は次回検討）
+キルスイッチ付き機能・写真とNo.のみので問題なし。audit.sqlのWHITELIST追記は次回検討）
 ③b/③c/④/⑤=0件 ⑥入口=直近7日の幽霊0件（8/4分は7日窓から抜けた＝Confirm emailのダッシュボード実物確認は
 引き続きたきとのPC作業）。
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-14 プラポリ改訂（v3.6）：データ台帳に「実在するのに行が無い」4項目を追記（たきと指示「プラポリの改訂を」）━━━
 【趣旨】第1条「表に無い取得・表に無い開示は行いません」と実態の突き合わせ。承認プロセス削除に伴う
-文言（自由記述行・v3.5）は前回改訂で解消済みso、今回の本体は台帳の網羅性＝取得しているのに
+文言（自由記述行・v3.5）は前回改訂で解消済みので、今回の本体は台帳の網羅性＝取得しているのに
 第3条の表に行が無かったデータの解消（保存・削除の設計台帳⑤の承認済み宿題を含む）。
 【追記した4行（機構との照合済み・約束＞実装のズレなし）】
 1. 緊急連絡先（emergency_contacts・2026-08-03実装）＝第三者（家族）の氏名・続柄・電話番号を預かる
@@ -4468,7 +4468,7 @@ C 農家の自由記述：保存＝即公開。trg_ep_z_publish_texts が texts_
    先行して作らない）
 4. ご意見・登録時のアンケート（feedback・user_onboarding_survey）＝退会30日削除（2026-08-07 段②③で機構済み）
 【第7条1も整合】「登録情報とプロフィールを削除」→「第3条の表で退会時削除と定める項目を削除」に拡張。
-【版】v3.5→v3.6。v3.5への同意は0件のまま（本番でまだ誰も再同意していない時点での続き改訂）so
+【版】v3.5→v3.6。v3.5への同意は0件のまま（本番でまだ誰も再同意していない時点での続き改訂）ので
 利用者から見える版差は実質1段＝再同意バナーは1回だけ。
 【保存・削除の設計台帳v1への反映】⑤（notifications/push_subscriptions/event_auditの台帳未記載）＝本改訂で解消。
 event_auditの3年削除は台帳②のスコープに追加された（実装は2028年内設計・通行証方式の既定路線）。
@@ -4491,7 +4491,7 @@ index.htmlのpreconnect/stylesheetを差し替え。SWのruntimeCachingも googl
 ・募集主の情報（氏名・住所・連絡先）＝職安法の的確表示として求人票で【ログイン利用者全員】に表示される
   開示が台帳に無かった（訪問者にはマスク＝2026-08-03実測どおり）。登録情報行にも相互参照を追記
 ・求人Q&A＝ログイン利用者に表示・質問者名は非表示・NG自動拒否・運営が非表示可（RLS実測と一致）
-【版】v3.6→v3.7。v3.5/v3.6への同意は0件のまま（実測：v1×9・v3.1×1・v3.2×1のみ）so再同意バナーは実質1回。
+【版】v3.6→v3.7。v3.5/v3.6への同意は0件のまま（実測：v1×9・v3.1×1・v3.2×1のみ）ので再同意バナーは実質1回。
 【残（変わらず）】改定日「2026年8月●日」の確定＝公開時にたきと／3年削除機構＝台帳②（2028年内設計）／
 特定募集情報等提供事業者としての表示事項（届出番号等）＝次に労働局と話す機会に確認（規約でなくサイト表記の話）。
 ━━━ ここまで ━━━
@@ -4564,7 +4564,7 @@ AdminJobPreview「公開する」で開いた瞬間にフラグ解消（trg_clea
   trigger_on=startup・sort 12。
 ・同日たきと指示「公開しろ」により published=true に更新＝公開中（全利用者に起動時1回ポップアップ・
   ✕で既読・期間指定なし）。止めるときは published=false に1行UPDATE（デプロイ不要）。
-  execute_sqlによるDML（コンテンツ行）so migrationなし＝2026-07-21規則の対象（スキーマ）外。
+  execute_sqlによるDML（コンテンツ行）ので migrationなし＝2026-07-21規則の対象（スキーマ）外。
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-15 報告の入口を1つに統合（ReportHub・ジャンル切り替え式）━━━
@@ -4604,7 +4604,7 @@ draftへ引き下げ・再掲載は運営確認制20260814093042）②アカウ�
   お知らせ台帳プレビュー（AdminBoxRegistryPage）。これで cb-box-overlay 単独=0件（grep実測）＝
   ★規約：全画面被せのボックスは cb-box-overlay cb-lock-scroll の併用が標準形。新設時も必ず併用する
 ・recruitBox の注意（調査済み・コメントにも記載）：このボックスは flowScrollRef（フロー自前スクロール領域
-  1346-2850行）の外側so cb-lock-scroll だけで足りる。553行の「2枚で塞ぐ」（flowScrollLock）が要るのは
+  1346-2850行）の外側ので cb-lock-scroll だけで足りる。553行の「2枚で塞ぐ」（flowScrollLock）が要るのは
   スクロール領域の【内側】に開くモーダル（perksEdit等）の話＝取り違えない
 【検証】build成功・eslint 0 error（警告=既存のみ）・distに cb-box-overlay cb-lock-scroll の包含をgrep確認。
 実機目視の残り：応募確認ボックスを開いて背後がスクロールしないか／日程チップ選択でレーンが動かないか／
@@ -4615,7 +4615,7 @@ draftへ引き下げ・再掲載は運営確認制20260814093042）②アカウ�
 【たきと指示】「入力を一本化するのはやめよう。集計する方を一本化しよう」
 【撤回】ReportHub関連4コミット（5e44ccd/66c5ea8/91b807a/4ce1797）をrevert（bfcfe1f）＝
 FeedbackModal・求人通報モーダル（JobSearchMapView）・人の通報モーダル（WorkerPreviewSheet）・
-☰の「💬この画面を報告」を復元。台帳・保存経路はもともと不変so利用者への影響なし。
+☰の「💬この画面を報告」を復元。台帳・保存経路はもともと不変ので利用者への影響なし。
 【集計の一本化＝統合報告ページ新設】components/admin/AdminReportsRoom.jsx（#/admin/reports・
 管理者専用・lazyChunk・配線はcommentRoomと同じ4点セット＋AdminNav「報告」チップ）。
 ・4台帳（求人=job_reports／コメント=message_reports／人=profile_reports／画面=feedback）を
@@ -4655,7 +4655,7 @@ reviewTotal（審査タブのバッジ）にも合算。
 ・★応募の実行ロジックは不変：applyAvailRef（"any"/日付配列/null）→handleApply の形・
   disabled条件・文言とも従来のまま。面の状態は開くたび・求人切替でリセット（useEffectに追加）
 ・2026-07-27のaspectRatio先確保（画像読み込みで日程チップがずり下がる誤タップ修理）は維持
-  （3面化でチップと画像は別の面になったが、面の高さ安定の利点は残るso残置）
+  （3面化でチップと画像は別の面になったが、面の高さ安定の利点は残るので残置）
 【同日追補・大画面をパン方式に（たきと報告「大画面画像をアップして見ると一部のページ画面しか
 見られなくなる」）】原因＝画面に収める表示（maxWidth/maxHeight）だと文字が小さく、読むには
 ピンチ拡大が要る。このサイトのviewport（user-scalable制限なし）ではピンチは【ページ全体】を
@@ -4683,13 +4683,13 @@ height = (min(100vw-32px, 480px) - 6px) × 0.75 + 240px（フルブリード画�
 margin:"0 -24px"＋padding:"0 24px"（領域を余白まで広げて同じ幅を内側で戻す）＝クリップ線が外へ移動。
 ★規約：スクロール領域の中でフルブリード（負マージン）を使う時は、必ずこの「広げて戻す」を親に入れる。
 2面目の説明・3面目（単日）の一文は縦中央寄せ＝残る余白は上下に割れて意図した見た目に。
-3面目（期間求人）は日付リストso上詰めのまま（従来どおり）。
+3面目（期間求人）は日付リストので上詰めのまま（従来どおり）。
 【同日追補4・期間求人に最終確認面（たきと指示「期間いつでもOKと希望する日程を選択して応募の
 どちらも最終確認をして」）】3面目は「選ぶだけ」に変更（⭕いつでもOK＝choice記録して4面目へ／
 日程選択＝「この日程で次へ（N日）」で4面目へ）。4面目＝最終確認：選んだ内容（いつでもOK or
 日付の列挙）をグレー箱で見せ、「応募する」で初めて応募が実行される＝応募の実行ボタンは4面目の
 1つだけ（applyChoice state："any"/"dates"/null・最終面で applyAvailRef に変換）。
-単日求人は3面目が既に最終確認so不変（3点のまま）。面インジケーターは期間求人のみ4点。
+単日求人は3面目が既に最終確認ので不変（3点のまま）。面インジケーターは期間求人のみ4点。
 【検証】build成功・eslint 0 error（警告4=変更前と同数）・distに新文言の包含をgrep確認。
 実機目視の残り：①次へ連打で3面がスムーズに進みボックスが閉じないか ②1面目の戻るで閉じる
 ③画像タップ→大画面（パン方式）→✕/余白タップで戻る ④期間求人の日程選択と応募・単日の応募
@@ -4707,10 +4707,10 @@ RLS直書き経路（saved_jobs・jobs下書き・feedback・worker/employer_pro
 ① 中央の壁 assert_actor_not_moderated()＝BEFORE INSERT/UPDATE トリガー trg_a_block_moderated を
    16テーブルに設置（利用者のアクション表）。auth.uid() がNULL（cron・service_role）は通す
    ＝システム処理は止めない。個別RPCに撒くと漏れが再発するため中央1本で全経路を受ける。
-   トリガー名先頭 'a'＝BEFOREはアルファベット順発火so既存トリガーより先に走り無駄処理の前に止まる。
+   トリガー名先頭 'a'＝BEFOREはアルファベット順発火ので既存トリガーより先に走り無駄処理の前に止まる。
    対象外（意図的）：withdrawal_requests（退会の権利は奪わない）・app_errors（診断記録）・
    chat_reads/push_subscriptions/notifications（無害・システム書き込みと交差）・
-   messages/reviews/repeat_roster（既にRLSでBANゲート済み）。DELETEは自分のデータ取り下げso止めない。
+   messages/reviews/repeat_roster（既にRLSでBANゲート済み）。DELETEは自分のデータ取り下げので止めない。
 ② applications「app worker insert」ポリシー削除＝apply_to_jobの全検証（BAN・profile_incomplete・
    dates_required・own_job・job_not_open）を迂回して applied 行を直接作れる純粋な攻撃面だった。
    フロントに applications 直接INSERTはゼロ（grep実測）。
@@ -4758,11 +4758,11 @@ P2b BAN働き手のRLS直書き（saved_jobs）拒否（前回の中央トリガ
 audit.sql①〜⑤は前回同様OK（この変更は読み取り面の列・権限を変えないため42P13なし）。
 【★別テーマの既存バグ発見（未修理・悪意ブロックとは無関係・報告のみ）：cancel_application が常に失敗する】
 cancel_application は applied 応募を delete from applications で消すが、messages.application_id の FK が
-ON DELETE CASCADE（confdeltype='c'）so、紐づく messages も消えようとして凍結トリガー
+ON DELETE CASCADE（confdeltype='c'）ので、紐づく messages も消えようとして凍結トリガー
 （trg_messages_history_lock_del「messages are immutable history」）に弾かれ、応募取り消しが例外で失敗する。
 apply_to_job は必ず自動メッセージ（「応募しました」）を1件入れる（exceptionで握りつぶすが通常は成功）ため、
 【applied 段階でも messages が常に1件あり、cancel_application は事実上いつも失敗する】。
-※これは悪意ブロックの調査中に偶然見つかった副産物。BANとは無関係so今回は触っていない。
+※これは悪意ブロックの調査中に偶然見つかった副産物。BANとは無関係ので今回は触っていない。
 修理案（要たきと判断）：cancel_application を「applications を delete」でなく「status を 'cancelled' 等に
 する（論理削除）」に変えて messages 凍結と両立させる／or messages の該当スレッドは残す設計にする。
 記録憲法「アクションは記録に残す・履歴は消せない」からすると、物理delete自体が憲法と緊張している
@@ -4798,10 +4798,10 @@ gridTemplateColumns を "1fr 1fr" → "minmax(0, 1fr) minmax(0, 1fr)"（既定�
 固有幅が縮まない）＋入力に width/maxWidth/minWidth。★打刻シート（2026-08-16）と同型の最後の1件。
 【修理・縦6件】共通シグネチャ `maxWidth:400, width:"100%"` の中央ボックスに
 maxHeight:"100%" + overflowY:"auto" + overscrollBehavior:"contain" を追加（親オーバーレイの padding:16 が
-効くso画面端に触れない）：この人を報告する(App)／ご意見・ご要望(App)／この求人を報告する(JobSearchMapView)／
+効くので画面端に触れない）：この人を報告する(App)／ご意見・ご要望(App)／この求人を報告する(JobSearchMapView)／
 緊急連絡(FarmerDashboard・WorkerApplications)／欠勤記録への異議申立(WorkerApplications)。
 【触っていないもの（安全と判定）】LandingFlow の勤務時間 time入力2つ＝親が flexWrap:wrap ＋ 幅指定なし
-（固有幅が小さく、収まらなければ折り返す）so枠外に出ない。報告モーダルの select 群＝最長の選択肢12文字
+（固有幅が小さく、収まらなければ折り返す）ので枠外に出ない。報告モーダルの select 群＝最長の選択肢12文字
 （「連絡先の直書き・外部誘導」）で計算上収まる。固定短文の確認ダイアログ7件＝中身が伸びない。
 【検証】build成功・eslint 0 error（警告数は変更前と同じ）・git diffは7箇所のみ・監査スクリプト再実行で
 未対応0件。実機目視の残り：Safari（URLバーあり）で緊急連絡・報告・異議申立を開いて上下が見切れないか／
@@ -4830,7 +4830,7 @@ maxHeight:"100%" + overflowY:"auto" + overscrollBehavior:"contain" を追加（�
     正確に流し込んだ（execute_sqlに日本語を直接タイプすると助詞「が」が化ける現象の回避策）。
   ・DB定義がファイル20260816051500の定義と一致することを要素照合で確認（declare変数・send_user_email
     ×2（農家＋働き手）・M29本文「この求人への応募を取り下げました」・already・チャット投函）。
-  ・私の重複 migration を撤去：repoファイル（未commitso痕跡なし）削除＋schema_migrations の version
+  ・私の重複 migration を撤去：repoファイル（未commitので痕跡なし）削除＋schema_migrations の version
     135847 を削除。正本は keeps_record(034510)＋apply_cancel_worker_confirm_mails(051500) のみ。
 【検証（ロールバック付き実弾・全項目OK・残置ゼロ）】応募→取り消し成功（旧実装なら messages凍結で失敗）／
 status='canceled'（行残る＝履歴保全）／messages=2件（応募＋取消投函）／再cancel=already冪等／
@@ -4840,7 +4840,7 @@ status='canceled'（行残る＝履歴保全）／messages=2件（応募＋取�
 今回これを怠り、完成済み機能を重複実装して一時退行させた。DBの現物を上書きする前に現定義を読むこと。
 ━━━ ここまで ━━━
 
-━━━ 2026-08-17 ログイン方法変更のお知らせを非公開に／表示文言の誤字「so」削除 ━━━
+━━━ 2026-08-17 ログイン方法変更のお知らせを非公開に／表示文言の誤字「ので」削除 ━━━
 【たきと指示】「ログイン方法の変更ボックスは非表示。もう展開しない。」
 ・admin_notice_registry の【重要】ログイン方法が変わりました（id 0746edfa…・trigger_on='login'）を
   published=false に1行UPDATE（execute_sql・コンテンツ行のDMLsomigrationなし＝2026-07-21規則の対象外）。
@@ -4848,28 +4848,28 @@ status='canceled'（行残る＝履歴保全）／messages=2件（応募＋取�
 ・実測：anonロール0行／authenticatedロール0行（RLS "notices public read active" がpublishedを見るため
   サーバー側で落ちる＝古い端末のキャッシュからも復活しない）。公開中の他4行は不変。
 【誤字の調査結果（記録）】たきと報告「ログイン方法変更ボックスが誤字。iPhoneでは確認できない」。
-・本文はDB側so、全文字のコードポイントを出して照合＝誤字・化け・英単語の混入はゼロだった。
+・本文はDB側ので、全文字のコードポイントを出して照合＝誤字・化け・英単語の混入はゼロだった。
 ・iPhoneで出なかった理由は2つ：①trigger_on='login'＝ログイン画面(#/login)を開いた瞬間だけ展開。
   ログイン済みだと下部バーに「ログイン」が無く（訪問者専用）、直打ちしても「ログイン済みです」の1行だけ。
   ②一度✕で閉じるとidが端末のlocalStorage(cb_readNotices)に既読として残り、その端末には二度と出ない
   （show_every_time=false・repeat_chance=0）。掲載期間(〜8/31)は生きていたので期間切れではない。
 ・★お知らせの現物をiPhoneで見る方法＝#/boxes/notices を直打ち（AdminNavからは隠してある）→タップで
   プレビュー＝本番そのままの見え方。
-【あわせて直した誤字】2026-08-16の「が→that」削除（256fa4b）と同じ混入の別型「＝→so」が、
-システムページ(#/admin/system)の既知エラー辞書の説明文に4箇所残っていた＝「再発so要調査」→「再発＝要調査」
+【あわせて直した誤字】2026-08-16の「が→that」削除（256fa4b）と同じ混入の別型「＝→ので」が、
+システムページ(#/admin/system)の既知エラー辞書の説明文に4箇所残っていた＝「再発ので要調査」→「再発＝要調査」
 （src/lib/errorCatalog.js・commit e7c5235）。表示文字列（コメントを除去して抽出）を機械走査し、
 日本語に挟まれた英単語の残りは技術用語のみ（URL・PNG・WebP・QR・ON・OK等）であることを確認。
 ★コード内コメントには同種の混入が100箇所以上残るが画面には出ない（従来どおり触らない）。
 【同日・追って修正】このお知らせのリンク「パスワードを忘れた方・未設定の方 →」の行き先が /login だが、
 ボックス自体が /login でしか出ないため「いま見ているページに飛ぶだけ」の死んだリンクだった。
 → お知らせ台帳の event: 方式（前例＝プロフィール入力のお願い＝event:cb:openConfProfile）に載せ替え：
-  ・link_hash を '/login' → 'event:cb:loginResetPw' に1行UPDATE（コンテンツ行so migration なし）
+  ・link_hash を '/login' → 'event:cb:loginResetPw' に1行UPDATE（コンテンツ行ので migration なし）
   ・LoginScreen が cb:loginResetPw を購読し、押すと再設定の入口（view="otp"）へその場で切り替わる。
     中身は「パスワードを忘れた方・未設定の方」ボタンと同一＝入口が増えても認証の経路は1本のまま
   ・App側の発火は既存の共通処理（link_hash が event: で始まれば slice(6) した名前を dispatch）＝
     新しい分岐を足していない
 ★注意：LoginScreen が描かれていない時（ログイン済みで #/login を開くと「ログイン済みです」の1行だけ）は
-  購読者that居ないためリンクは無反応。このお知らせは未ログイン向けso実害はないthat、
+  購読者that居ないためリンクは無反応。このお知らせは未ログイン向けので実害はないthat、
   再公開するならログイン済みには出さない（audience/展開機会の見直し）ことも併せて判断する。
 【現状】published=false のまま＝表示はしていない。再開は published=true の1行UPDATEで可能（デプロイ不要）。
 ━━━ ここまで ━━━

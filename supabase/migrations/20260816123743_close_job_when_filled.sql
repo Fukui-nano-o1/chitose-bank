@@ -8,7 +8,7 @@
 --   実測：#1047・#1232・#1245 の3件が満員のまま open だった（本migrationで是正済み）。
 --
 -- 【これから】満員になった瞬間に status='closed'。終了の記録は求人の行に残る（消さない）。
---   ・jobs_public は「open ＋ 満員のclosed」を返すsoさがすには「掲載終了（満員）」で並び続ける
+--   ・jobs_public は「open ＋ 満員のclosed」を返すのでさがすには「掲載終了（満員）」で並び続ける
 --   ・apply_to_job は job_not_open で拒否＝機構の壁が立つ（フロントの応募ボタン非表示と二重）
 --   ・トリガーは無風：block_third_party_open / job_publish_snapshot / require_recruiter_info は
 --     いずれも 'open'・'pending' への遷移だけを見る。notify_job_published も 'open' への遷移のみ

@@ -100,8 +100,8 @@ function dangerHasSecond(arr) {
 //   (1) 長押し後に指を動かすとブラウザがスクロール判定して pointercancel を飛ばし、
 //       それでドラッグを終了していた（pointercancelでは終了しない設計に変更）
 //   (2) touchmoveをpreventDefaultすると pointermove の配送が止まる実装がある
-//   (3) touch-action は指を置いた時点の値で決まるso、長押し成立後に none にしても遅い
-//   長押しは350ms静止が条件＝成立時点でスクロールは未開始so、その後のtouchmoveは
+//   (3) touch-action は指を置いた時点の値で決まるので、長押し成立後に none にしても遅い
+//   長押しは350ms静止が条件＝成立時点でスクロールは未開始ので、その後のtouchmoveは
 //   cancelable＝preventDefaultでスクロールを止められる（TodayPage横スワイプと同じ技法）
 // ・端に近づいたらストリップを自動スクロール（はみ出した写真へも運べる）
 function LFPhotoReorderStrip({ photos, setPhotos }) {
@@ -148,7 +148,7 @@ function LFPhotoReorderStrip({ photos, setPhotos }) {
       const t = e.touches[0];
       if (!t) return;
       if (dragIdxRef.current == null) {
-        // 長押し成立前に動いた＝スクロール意図so長押しを取消（pointermoveが来ない端末の保険）
+        // 長押し成立前に動いた＝スクロール意図ので長押しを取消（pointermoveが来ない端末の保険）
         if (pressTimer.current && (Math.abs(t.clientX - startPos.current.x) > 10 || Math.abs(t.clientY - startPos.current.y) > 10)) cancelPress();
         return;
       }
@@ -518,7 +518,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 掲載＝即公開（2026-08-14 承認プロセスの削除）：管理者か一般農家かの体験の分岐（meCanOpen）は廃止。
   // 実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open がが最終担保）。
   const [publishedOpen, setPublishedOpen] = useState(false); // 直前の掲載が即公開だったか（完了画面の文言に使う）
-  // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項so求人ごとに持つ。
+  // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項ので求人ごとに持つ。
   const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
   const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
   const [overtimeInfoOpen,  setOvertimeInfoOpen]  = useState(false); // タイトル横「？」の説明展開（UI一時state・保存しない）
@@ -838,7 +838,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // そのため通信が少しでも遅いと「はじめから」の画面が見え続けた（コピー直後に多発）。
   // 【対処】①stepの初期値を編集モードでは11（確認ページ）に変更＝入口をそもそも描かない
   //        ②コピー直後は copy_job が返した行をsessionStorage経由で受け取り、通信を待たずに即復元
-  //        ③通常の読み込みは getSession の往復を待たない（jobsのRLS owner select が自分の行に絞るso
+  //        ③通常の読み込みは getSession の往復を待たない（jobsのRLS owner select が自分の行に絞るので
   //          farmer_idの明示条件は冗長だった）＝1往復ぶん速くなる
   useEffect(() => {
     if (!_editJobNumber) return;
@@ -869,7 +869,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         const uid = sessRes?.data?.session?.user?.id;
         const data = jobRes?.data;
         if (jobRes?.error || !data) return;
-        // 所有者チェックは維持（管理者はRLS上ずべての求人を読めるso、他人の求人を編集フローで開かせない）
+        // 所有者チェックは維持（管理者はRLS上ずべての求人を読めるので、他人の求人を編集フローで開かせない）
         if (!uid || data.farmer_id !== uid) return;
         applyJobRow(data);
       } catch {}
@@ -1269,7 +1269,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     // プロフィール由来の掲載必須（2026-08-07たきと承認＝「掲載を押して初めて要求される」の予防）。
     // confEmployer（farm:empMiniキャッシュ＝step11で最新化）が読めている時だけ判定＝
     // 読めていない時は誤って空扱いにせず、従来どおり掲載時のDBゲート・recruitBoxに任せる。
-    // step=null＝行き先がフロー内に無い（プロフィール編集の項目）so goToMissingField は案内だけ
+    // step=null＝行き先がフロー内に無い（プロフィール編集の項目）ので goToMissingField は案内だけ
     if (confEmployer) {
       checks.push(["受動喫煙の状況（プロフィールの「待遇」で設定）", !!(confEmployer.smoking_policy || "").trim(), null]);
       checks.push(["募集者の氏名・名称", !!(confEmployer.recruiter_name || "").trim(), null]);
@@ -1688,7 +1688,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 );
               })()}
               {/* 時間外労働（2026-08-03たきと指示「必須。勤務時間設定の下に」）：
-                  所定の勤務時間を超える労働の有無は労働条件の明示事項so必須（farmerCanNext[5]でも判定）。
+                  所定の勤務時間を超える労働の有無は労働条件の明示事項ので必須（farmerCanNext[5]でも判定）。
                   「あり」のときは目安の時間も必須＝有無だけでなく「どれくらいか」まで明記させる。
                   説明はタイトル横の？をタップで展開（2026-08-07たきと指示・常時表示をやめ画面を軽く） */}
               <div style={{ marginBottom:14 }}>
@@ -2242,7 +2242,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                         {jobPhotos.length > 0
                           ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => {
                               // 軽いサムネを先に敷いてから原寸を重ねる（2026-08-03たきと指示「確認ページの写真の復元が遅い」）。
-                              // 原寸は平均400KB・最大10枚so、リロード直後は白いままだった。サムネ(640px・約1/6)は
+                              // 原寸は平均400KB・最大10枚ので、リロード直後は白いままだった。サムネ(640px・約1/6)は
                               // 一覧やカードで既に読み込み済みのことが多く、ほぼ即座に絵が出る→原寸が届いたら上に重なる
                               // ＝画質は原寸のまま（詳細ページのカルーセルをthumbにしない方針を守る）
                               const th = photoThumb(p);
@@ -2291,14 +2291,14 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} showInsurance={Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0} /></div>
               {confTab === "questions" ? (
                 /* LandingFlow内に me は存在しない（未定義参照＝ReferenceErrorで画面真っ白の原因だった・2026-07-24修正）。
-                   meはisAdmin判定（運営の非表示スイッチ）専用so未指定でよい。農家本人の回答UIはJobQuestions内のsession判定(isOwner)が担う */
+                   meはisAdmin判定（運営の非表示スイッチ）専用ので未指定でよい。農家本人の回答UIはJobQuestions内のsession判定(isOwner)が担う */
                 <div style={{ maxWidth:870, margin:"0 auto" }}><JobQuestions jobNumber={draftJobNumber} /></div>
               ) : (confTab === "insurance" && Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0) ? (
                 <div style={{ maxWidth:870, margin:"0 auto" }}><InsurancePanel employer={confEmployer} /></div>
               ) : (<>
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
-                {/* 集合場所は番地まで明記（2026-08-03たきと指示）。確認ページ＝掲載前プレビューso
+                {/* 集合場所は番地まで明記（2026-08-03たきと指示）。確認ページ＝掲載前プレビューので
                     自分の入力値（farmerAddr）をそのまま出す。訪問者向けのモザイクは求人詳細側が担う */}
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}${farmerAddr ? farmerAddr : ""}` : ""}</h2>
                 {/* はじめてOK・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
@@ -2362,7 +2362,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
                       { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
                       // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
-                      // 確認ページは掲載前のプレビューso、プロフィールの現在値（confEmployer）を出す。
+                      // 確認ページは掲載前のプレビューので、プロフィールの現在値（confEmployer）を出す。
                       // 掲載すると掲載時トリガーがこの値をperksへ凍結し、以後は詳細ページにも同じ形で出る
                       { label:"受動喫煙", on: !!pk.smoking_policy,
                         value: pk.smoking_policy
@@ -2438,7 +2438,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                                 {row.l}{perkDraft[row.k] ? "　✓" : ""}
                               </button>
                               {row.tk && perkDraft[row.k] && (
-                                // 台数(parking_capacity)はinteger列so数字のみ入力させる（「3台」等を弾く・2026-07-19）
+                                // 台数(parking_capacity)はinteger列ので数字のみ入力させる（「3台」等を弾く・2026-07-19）
                                 <input value={perkDraft[row.tk]} inputMode={row.tk === "parking_capacity" ? "numeric" : "text"}
                                   onChange={e=>{ const v = row.tk === "parking_capacity" ? e.target.value.replace(/[^0-9]/g, "") : e.target.value; setPerkDraft(p=>({ ...p, [row.tk]: v })); }}
                                   placeholder={row.tp} className="field f-sans" style={{ fontSize:13, marginTop:8, marginBottom:0 }} />
@@ -2504,7 +2504,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       { label:"持ち物",     value: jobNotes, chips:true, pin:true },
                       { label:"備考・注意", value: jobCautions },
                       // 時間外労働（2026-08-03たきと指示・表示は持ち物／備考の下のまま）。
-                      // 入力は勤務条件(step5)へ移したso、このブロックの「編集」(step10)ではなく
+                      // 入力は勤務条件(step5)へ移したので、このブロックの「編集」(step10)ではなく
                       // 行に専用の編集リンクを添える＝ここから直せない項目にならないようにする
                       { label:"時間外労働", value: overtimeLine(overtimePolicy, overtimeDetail), editStep: 5 },
                     ].map(row => {
@@ -2568,7 +2568,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               {/* ═══ 地図（集合場所のおおよその範囲・円のみ。求人詳細ページのJobLocationMapと同一構造。
                    旧Googleマップ風ダミーは廃止(2026-07-14)。座標は住所からgeocodeTownで取得(保存時と同じ手順) ═══ */}
               <div style={{ maxWidth:870, margin:"0 auto 5px" }}>
-                {/* 番地まで明記する画面so、Googleマップ導線にも番地を渡す（2026-08-03）。
+                {/* 番地まで明記する画面ので、Googleマップ導線にも番地を渡す（2026-08-03）。
                     ピン自体は従来どおり町域重心＝addressShownで注記の文言を実態に合わせる。
                     mapQueryは郵便番号とスペース区切りを廃止（2026-08-03）：人が手で入力する形
                     （都道府県+市区町村+町域+番地・区切りなし）と同じ文字列にする。
@@ -2688,7 +2688,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                               : (<>公開の準備が整いしだい、働き手に届きます。<br/>公開されると「さがす」に並び、応募が届きます。</>)}
               </p>
               <div style={{ display:"grid", gap:10, width:"100%" }}>
-                {/* 遷移先は農家プロフィール（App.jsxのonComplete＝/profile/employer）so、ラベルもそれに合わせる。
+                {/* 遷移先は農家プロフィール（App.jsxのonComplete＝/profile/employer）ので、ラベルもそれに合わせる。
                     旧「あなたの求人を見る」は実際の行き先と食い違っていた（2026-07-26たきと指示） */}
                 <button onClick={onComplete} className="btn-primary" style={{ width:"100%", padding:"15px", fontSize:14, borderRadius:12 }}>プロフィールに戻る</button>
                 <button onClick={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} if(typeof onComplete==="function") onComplete(); setTimeout(()=>{ window.location.hash="/work/new"; }, 50); }} style={{ width:"100%", padding:"13px", fontSize:13, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, color:"#222", cursor:"pointer", fontFamily:"inherit" }}>新しい求人を出す</button>
@@ -2875,7 +2875,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       {/* 下部ナビのバーは削除（2026-07-16）：戻る／次へは浮遊固定ボックス（スクロール追従）に。
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
       {/* 募集者情報の入力ボックス（2026-07-27たきと指示）：掲載申請が止まった時、ページを変えずにここで入力する。
-          cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15）。このボックスは flowScrollRef の外側soこれだけで足りる
+          cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15）。このボックスは flowScrollRef の外側のでこれだけで足りる
           （553行の「2枚で塞ぐ」が要るのはスクロール領域の内側に開くモーダルの話） */}
       {recruitBox && (
         <div onClick={()=>{ if (!recruitBox.saving) setRecruitBox(null); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10500 }}>

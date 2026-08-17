@@ -3,7 +3,7 @@
 -- 【何が変わったか】admin_worker_dashboard（app_admins のみ）を2つに分ける：
 --   ① worker_work_record(worker_id) … 1人ぶんの記録。関係ゲート＝本人・その働き手から応募を
 --      受けた農家・運営だけ。worker_trust_info と同じ判定を使う（同じ相手に同じ範囲で開く）。
---   ② admin_worker_list()          … 働き手の一覧。運営のみ（求職者の名簿so農家には開かない）。
+--   ② admin_worker_list()          … 働き手の一覧。運営のみ（求職者の名簿ので農家には開かない）。
 --
 -- 【たきと裁定の記録】CLAUDE.md「求職者公開項目の制約」は提示してよい項目を10個に限定し、
 --   稼働回数などの生の数値を絶対禁止に挙げている。本件はその例外として、
@@ -128,7 +128,7 @@ end; $function$;
 revoke all on function public.worker_work_record(uuid) from public, anon;
 grant execute on function public.worker_work_record(uuid) to authenticated;
 
--- ② 働き手の一覧＝求職者の名簿so運営のみ（農家には開かない）。
+-- ② 働き手の一覧＝求職者の名簿ので運営のみ（農家には開かない）。
 create or replace function public.admin_worker_list()
 returns json
 language plpgsql
