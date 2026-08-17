@@ -19,6 +19,8 @@ import {
   CONSIGNOR_IDENTITY_KEYS, stripConsignorIdentity, consignScrollTop, CONSIGN_LEND_KINDS,
   CONSIGN_LEND_PH, normalizeLendItems,
 } from "../../features/consignment/model";
+import { CONSIGN_TERMS_INTRO, CONSIGN_TERMS_SECTIONS, CONSIGN_TERMS_CHECK, CONSIGN_TERMS_HELP,
+  ConsignTermsBody } from "../../features/consignment/terms";
 import { CONSIGN_SPRIGS, CONSIGN_CLUSTER_BASES, CONSIGN_GRASS_SCALE, makeConsignGrass,
   CONSIGN_VINES, CONSIGN_CORNER_VINE, makeConsignVines, computeSky } from "../../features/consignment/entranceArt";
 
@@ -58,57 +60,7 @@ function ConsignStepper({ deal }) {
 // → 標準取引条件（共通）→ 登録内容確認。契約書の当事者欄は種別で印字を出し分ける
 // 委託の型（定数・純関数） → features/consignment/model.js へ移設（2026-08-17）
 //   2箇所で持つと、本文を直したとき片方だけ上げる事故が起きる
-const CONSIGN_TERMS_INTRO = [
-  "このページは、農作業その他の業務を発注・受託するための業務委託ページです。",
-  "雇用契約を募集する求人ページとは、契約の性質や当事者の責任が異なります。",
-];
-const CONSIGN_TERMS_SECTIONS = [
-  { t:"1．契約の当事者", ps:[
-    "個別の業務委託契約は、発注者と受託者との間で成立します。",
-    "運営者は、原則として個別契約の当事者となりません。また、契約相手の選定、契約成立、業務の完成または報酬の支払いを保証するものではありません。",
-  ]},
-  { t:"2．雇用との区別", ps:[
-    "契約に「業務委託」と記載しただけで、法律上の業務委託になるとは限りません。",
-    "実際の業務における指揮命令、業務を断る自由、勤務時間・場所の拘束、報酬の性質その他の事情によっては、雇用契約または労働者に該当する場合があります。",
-    "本特約への同意によって、労働法令上の権利や義務が排除されるものではありません。",
-  ]},
-  { t:"3．取引条件の確認", ps:[
-    "発注者は、業務内容、報酬、支払期日、業務を行う日・場所その他の必要な取引条件を、正確かつ具体的に提示します。",
-    "受託者は、提示された取引条件を確認したうえで、自らの判断により受託の可否を決定します。",
-    "個別の契約は、案件ごとの取引条件を双方が確認した時点で成立します。",
-  ]},
-  { t:"4．電子的方法による明示と保存", ps:[
-    "取引条件、変更履歴、当事者間の確認および運営からの通知は、本サービス上の画面、チャット、電子メールその他の電磁的方法により提供される場合があります。",
-    "本サービスは、契約内容の確認および紛争防止のため、取引条件と双方の確認記録を保存します。",
-  ]},
-  { t:"5．情報の表示と共有", ps:[
-    "登録した氏名・名称、所在地、連絡先、プロフィール、案件情報その他の必要な情報は、プライバシーポリシーに定める範囲で、相手方またはサービス利用者へ表示・提供されます。",
-    "詳細な住所や連絡先など、公開範囲を限定する情報は、画面に示された条件を満たした相手方にのみ共有されます。",
-  ]},
-];
-const CONSIGN_TERMS_CHECK = "私は、委託機能利用特約、利用規約およびプライバシーポリシーを確認し、その内容に同意します。";
-// ？タップで展開する説明文（2026-08-03たきと指示）。法律用語を日常の言葉で補足する
-const CONSIGN_TERMS_HELP = "特約とは、利用規約に追加して適用される、委託機能だけの特別な取り決めです。業務委託は雇用（求人ページ）と契約の性質が異なるため、その違いと責任の所在をあらかじめ確認していただくものです。利用規約と重なる部分は、この特約が優先します。";
-
-// 特約本文（前文＋5条・黒枠1ボックス）。「新しく委託を出す」タップ時の初回ゲートと、
-// 同意後の右上浮遊ボックス（モーダル再読）で共用（2026-08-02たきと指示）
-function ConsignTermsBody() {
-  return (<>
-    {CONSIGN_TERMS_INTRO.map(p => (
-      <p key={p} className="f-sans" style={{ fontSize:14.3, color:"#111111", lineHeight:1.8, margin:"0 0 10px" }}>{p}</p>
-    ))}
-    <div style={{ border:"1px solid #111111", borderRadius:14, padding:"14px 16px", margin:"4px 0 14px" }}>
-      {CONSIGN_TERMS_SECTIONS.map((sec, i) => (
-        <div key={sec.t} style={ i === 0 ? {} : { borderTop:"1px solid #EBEBEB", marginTop:12, paddingTop:12 }}>
-          <p className="f-sans" style={{ fontSize:14.3, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{sec.t}</p>
-          {sec.ps.map(p => (
-            <p key={p} className="f-sans" style={{ fontSize:13.2, color:"#111111", lineHeight:1.8, margin:"0 0 6px" }}>{p}</p>
-          ))}
-        </div>
-      ))}
-    </div>
-  </>);
-}
+// 委託機能利用特約の本文 → features/consignment/terms.jsx へ移設（2026-08-17）
 
 // 登録情報の委託機能での利用同意（2026-08-02たきと指示）：曖昧な「引き継いでよいですか」ではなく、
 // 何の情報を・何の目的で・誰に・いつ見せるかまで示して同意を取る。同意文を変えたら版数を更新（再同意）
