@@ -99,6 +99,22 @@ function collect() {
       for (const m of c.matchAll(/\.order\(\s*["'`](\w+)["'`][^)]*ascending:\s*(\w+)/g)) add("data:order", `order:${m[1]}:asc=${m[2]}`);
       for (const m of c.matchAll(/\.(insert|update|upsert|delete|maybeSingle|single|getSession)\(/g)) add("data:method", `${m[1]}`);
       for (const m of c.matchAll(/p_(\w+)\s*:/g)) add("data:rpcArg", `p_${m[1]}`);
+
+      // 問い合わせ1本ごとの【組合せ】（2026-08-18・4-A2.1で追加）。
+      // data:* は「どの操作が存在するか」しか見ないため、条件を別の問い合わせに付け間違えても
+      // 全体集合が同じなら見逃せてしまう。ここは1本の中の 表・列・絞り込み・メソッド を
+      // 束ねて1つの形として持つ＝付け替えを検出する。窓口へ集約しても形は変わらないので壊れない。
+      const parts = [];
+      for (const m of c.matchAll(/\.from\(\s*["'`]([\w.]+)["'`]\s*\)/g)) parts.push(`from:${m[1]}`);
+      for (const m of c.matchAll(/\.rpc\(\s*["'`](\w+)["'`]/g)) parts.push(`rpc:${m[1]}`);
+      const sub = [];
+      for (const m of c.matchAll(/\.select\(\s*["'`]([^"'`]*)["'`]/g)) sub.push(`select:${m[1]}`);
+      for (const m of c.matchAll(/\.(eq|neq|in|gt|gte|lt|lte|is|not)\(\s*["'`](\w+)["'`]/g)) sub.push(`${m[1]}:${m[2]}`);
+      for (const m of c.matchAll(/\.order\(\s*["'`](\w+)["'`][^)]*ascending:\s*(\w+)/g)) sub.push(`order:${m[1]}:asc=${m[2]}`);
+      for (const m of c.matchAll(/\.(insert|update|upsert|delete|maybeSingle|single)\(/g)) sub.push(m[1]);
+      for (const m of c.matchAll(/p_(\w+)\s*:/g)) sub.push(`p_${m[1]}`);
+      // 並べ替えは意味を変えない（.eq の順序は結果に影響しない）ので整列して比較する
+      if (parts.length) add("data:queryShape", [...parts, ...sub.sort()].join(" | "));
     }
 
     // ② 除外・終了判定・並び
@@ -145,6 +161,28 @@ function collect() {
     // ⑨ キャッシュのキー（表示専用・冷間復元の経路）
     for (const m of src.matchAll(/(?:getCache|setCache)\(\s*["'`]([^"'`]+)["'`]/g)) add("cache:key", m[1]);
     for (const m of src.matchAll(/snapGet\(\s*["'`](\w+)["'`]/g)) add("cache:snap", m[1]);
+  }
+
+  // ── api:call（2026-08-18・4-A2.1で追加）────────────────────────
+  // 窓口（jobSearchApi.js／lib/searchJobs.js）の各関数を、画面側が何回呼ぶか。
+  // data:* を「形の集合」にしたことで失った回数の検出力を、構造分割に耐える位置で取り戻す：
+  // 同じ問い合わせを誤って2回発火させる／呼ぶのをやめる、が差分に出る。
+  const apiNames = new Set();
+  for (const f of FILES) {
+    if (!/Api\.js$|searchJobs\.js$/.test(f)) continue;
+    const src = read(f);
+    if (src == null) continue;
+    for (const m of src.matchAll(/^export (?:async )?(?:function|const) (\w+)/gm)) apiNames.add(m[1]);
+  }
+  for (const f of FILES) {
+    if (/Api\.js$|searchJobs\.js$/.test(f)) continue; // 窓口の定義自体は数えない
+    let src = read(f);
+    if (src == null) continue;
+    src = src.replace(/^import[\s\S]*?from\s+["'][^"']+["'];\s*$/gm, ""); // import行は呼び出しではない
+    for (const name of apiNames) {
+      const n = (src.match(new RegExp(`\\b${name}\\(`, "g")) || []).length;
+      for (let i = 0; i < n; i++) add("api:call", name);
+    }
   }
   return sec;
 }

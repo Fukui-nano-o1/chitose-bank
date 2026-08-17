@@ -1,5 +1,38 @@
 # さがす（求人検索）の指紋
 
+## api:call
+  applyToJob  x1
+  cancelApplication  x1
+  copyJob  x1
+  createPendingApplication  x1
+  deleteSavedJob  x1
+  fetchAccountHolderId  x1
+  fetchConsignorConsent  x1
+  fetchEmployerPublicJobCounts  x1
+  fetchEmployerPublicJobs  x1
+  fetchJobEmployerProfile  x1
+  fetchJobEmployerTrustInfo  x1
+  fetchMyApplicationForJob  x1
+  fetchMyApplications  x1
+  fetchMyJobNumbers  x1
+  fetchMyPendingApplications  x1
+  fetchMyPendingForJob  x1
+  fetchMyWorkerNickname  x1
+  fetchPendingJobPreviews  x1
+  fetchPublicJobByNumber  x1
+  fetchPublicJobs  x1
+  fetchSavedJobNumbers  x1
+  fetchSignupOpen  x1
+  fetchSurveyAnswered  x1
+  getSession  x2
+  insertJobReport  x1
+  insertSavedJob  x1
+  insertSurvey  x1
+  orderSearchJobs  x1
+  punchStart  x1
+  recordSeenNewIds  x1
+  unpublishJob  x1
+
 ## cache:key
   search:consignDeals  x2
   search:consignor  x2
@@ -27,6 +60,36 @@
 
 ## data:order
   order:job_number:asc=false
+
+## data:queryShape
+  from:account_holders | eq:auth_id | maybeSingle | select:id
+  from:applications | eq:job_number | eq:worker_id | maybeSingle | neq:status | select:id,status,started_at,time_corrected
+  from:applications | eq:worker_id | neq:status | select:id,job_number,status,started_at,time_corrected
+  from:consignment_profiles | eq:auth_id | maybeSingle | select:consignment_terms_consent,consignment_terms_consent_version
+  from:job_reports | insert
+  from:jobs | eq:farmer_id | select:job_number
+  from:jobs_public | eq:job_number | maybeSingle | select:*
+  from:jobs_public | order:job_number:asc=false | select:*
+  from:pending_applications | eq:job_number | eq:worker_id | maybeSingle | select:id
+  from:pending_applications | eq:worker_id | select:job_number
+  from:saved_jobs | delete | eq:job_number | eq:worker_id
+  from:saved_jobs | eq:worker_id | select:job_number
+  from:saved_jobs | insert
+  from:user_onboarding_survey | eq:auth_id | maybeSingle | select:auth_id
+  from:user_onboarding_survey | insert
+  from:worker_profiles | eq:auth_id | maybeSingle | select:nickname,avatar_url
+  rpc:apply_to_job | p_available_dates | p_job_number
+  rpc:cancel_application | p_application_id
+  rpc:copy_job | p_job_number
+  rpc:create_pending_application | p_available_dates | p_job
+  rpc:employer_public_job_counts | p_job_number
+  rpc:employer_public_jobs | p_job_number
+  rpc:job_employer_profile | p_job_number
+  rpc:job_employer_trust_info | p_job_number
+  rpc:pending_job_previews
+  rpc:punch_start | p_application_id
+  rpc:signup_open
+  rpc:unpublish_job | p_job_number
 
 ## data:rpc
   rpc:apply_to_job
