@@ -1,5 +1,5 @@
 // エラーの辞書・分類・グループ化（2026-08-07切り出し）：
-// AdminSystemRoom（システムページのエラー面）と AdminErrorStrip（画面上部の管理者専用帯）の
+// AdminSystemRoom（システムページのエラー面）と AdminErrorChatReporter（運営チャットへの投函）の
 // 両方が使う唯一のソース。ここに置くのは React/DOM/supabase 非依存の純関数のみ（lib層の規則）。
 // ★既知バグを修理したら KNOWN_ERRORS に1行足す＋「修正済み」記載は修理の実日付と必ず一致させること
 //   （誤った安心を表示しない・2026-08-07保守ルール）
@@ -154,4 +154,47 @@ export function groupAppErrors(rows) {
     groups: groups.filter(g => g.cat === c.k)
       .sort((a, b) => (b.openIds.length - a.openIds.length) || (new Date(b.latest.created_at) - new Date(a.latest.created_at))),
   })).filter(c => c.groups.length > 0);
+}
+
+// 種類の具体的な事実（展開表示とコピー報告文の両方が使う唯一のソース）
+export function groupFacts(g) {
+  const userN = new Set(g.rows.filter(r => r.user_id).map(r => r.user_id)).size;
+  const anonN = g.rows.filter(r => !r.user_id).length;
+  const tally = (fn) => {
+    const t = {};
+    g.rows.forEach(r => { const k = fn(r); t[k] = (t[k] || 0) + 1; });
+    return Object.entries(t).sort((a, b) => b[1] - a[1]);
+  };
+  return { userN, anonN, devs: tally(r => deviceLabel(r.user_agent)), pages: tally(r => errorPage(r)) };
+}
+// 状況の報告文（2026-08-07たきと指示「コピーボタンを各エラーに設置。君にどんな状況か説明できる状態にする」）：
+// AIや開発者にそのまま貼れる自己完結のテキスト。個人情報は入れない（user_idは人数のみ・メール等なし）
+export function buildErrorReport(g, catLabel, ex, stackText) {
+  const f = groupFacts(g);
+  const jp = (d) => new Date(d).toLocaleString("ja-JP");
+  const L = g.latest;
+  return [
+    "【エラー状況の報告】chitose-bank 管理・システムページから生成",
+    `■ 種類: ${ex ? ex.title : "（辞書に該当なし）"}`,
+    `■ 大分類: ${catLabel}`,
+    `■ 状態: 未解決${g.openIds.length}件／記録${g.rows.length}件（直近500件の集計）`,
+    `■ 生メッセージ: ${L.message || "(なし)"}`,
+    `■ 発生場所: 部品=${L.component || "-"}／発生源=${L.source || "-"}／操作=${L.operation || "-"}／エラーコード=${L.error_code || "-"}`,
+    `■ 期間: ${jp(g.first.created_at)} 〜 ${jp(L.created_at)}`,
+    `■ 影響: ログイン利用者${f.userN}人・未ログインの発生${f.anonN}件`,
+    `■ 端末: ${f.devs.map(([k, n]) => `${k} ${n}件`).join("・")}`,
+    `■ ページ: ${f.pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}${f.pages.length > 5 ? " ほか" : ""}`,
+    "■ 最近の発生（最大5件）:",
+    ...g.rows.slice(0, 5).map(e => `- ${jp(e.created_at)}　${errorPage(e)}　${deviceLabel(e.user_agent)}${e.status === "fixed" ? "　✓解決済み" : ""}`),
+    ex ? `■ 既知の説明: 原因=${ex.cause}／どうする=${ex.action}` : "■ 既知の説明: なし（辞書未登録の型）",
+    "■ スタック（最新1件・先頭）:",
+    stackText || "（取得できませんでした）",
+  ].join("\n");
+}
+
+// 種類の署名から短い符牒を作る（運営チャットへの投函が同じ種類を二度貼らないための目印・2026-08-16）
+export function errorSigHash(sig) {
+  let h = 5381;
+  for (let i = 0; i < sig.length; i++) h = ((h * 33) ^ sig.charCodeAt(i)) >>> 0;
+  return h.toString(36).padStart(7, "0").slice(0, 7);
 }
