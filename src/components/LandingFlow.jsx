@@ -18,57 +18,9 @@ import { FarmerTrustCard } from "./TrustCards";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { JobSearchMapView } from "./JobSearchMapView";
 import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, validateMinWage } from "../features/jobs/create/model";
+import { geocodeTown } from "../features/jobs/create/jobCreateGeo";
 
-// 国土地理院 住所検索API（APIキー不要・無料）
-// 町域レベルの重心を返す。番地を渡してはならない。
-async function geocodeTown(prefecture, city, town) {
-  const q = `${prefecture || ""}${city || ""}${town || ""}`.trim();
-  if (!q) return null;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 4000);
-  try {
-    const res = await fetch(
-      "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q),
-      { signal: ctrl.signal }
-    );
-    if (!res.ok) return null;
-    const features = await res.json();
-    if (!Array.isArray(features) || features.length === 0) return null;
-
-    // 検索語で始まる結果のみを採用する（無関係な一致を排除）
-    const hits = features.filter(f => (f?.properties?.title || "").startsWith(q));
-    const use = hits.length > 0 ? hits : features;
-
-    // 全点の重心を取る（先頭1件を採用しない）
-    const pts = use
-      .map(f => f?.geometry?.coordinates)
-      .filter(c => Array.isArray(c) && c.length === 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]));
-    if (pts.length === 0) return null;
-
-    const lng = pts.reduce((s, c) => s + c[0], 0) / pts.length;
-    const lat = pts.reduce((s, c) => s + c[1], 0) / pts.length;
-
-    // 重心から最も遠い点までの距離を半径にする（町域の広がりを円が覆う）
-    // 緯度1度≒111km、経度1度≒111km×cos(緯度)
-    const mPerLat = 111000;
-    const mPerLng = 111000 * Math.cos((lat * Math.PI) / 180);
-    let maxDist = 0;
-    for (const c of pts) {
-      const dx = (c[0] - lng) * mPerLng;
-      const dy = (c[1] - lat) * mPerLat;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d > maxDist) maxDist = d;
-    }
-    // 最小500m・最大3000mに収める（1点しか返らない場合の下限を確保）
-    const radius = Math.round(Math.min(Math.max(maxDist, 500), 3000));
-
-    return { lat, lng, radius, from: q };
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
+// geocodeTown（町域重心の取得） → features/jobs/create/jobCreateGeo.js へ移設（2026-08-17）
 
 // compressImage（アップロード前のクライアント圧縮）は lib/image.js へ移動（2026-07-26・ヘルプのスクショと共用化）
 
