@@ -353,6 +353,10 @@ export function mapJobPublicRow(j) {
     // 番地の「有無」だけは訪問者にも届く（jobs_public.has_work_address・2026-08-03）＝
     // 番地が設定された求人にだけモザイクを出すための判定。番地本文は届かない
     hasWorkAddress: j.has_work_address != null ? !!j.has_work_address : !!((j.work_address || j.address || "").trim()),
+    // 訪問者に伏せた項目のうち「値が入っているもの」の名前（jobs_public.masked_fields・2026-08-17）。
+    // 値は届かないが、モザイクを描いてよいかの判定に使う＝伏せた項目を画面から消さない。
+    // ログイン後・管理者プレビューは空配列＝マスクなし。番地だけは従来どおり hasWorkAddress が担当
+    maskedFields: Array.isArray(j.masked_fields) ? j.masked_fields : [],
     experience: j.job_exp || "", // 必要経験の選択式は撤回（2026-07-18）。旧求人の保存値のみ表示・未入力はdispで「ー」
     icon: "🌾",
     lat:    j.lat != null ? Number(j.lat) : null,

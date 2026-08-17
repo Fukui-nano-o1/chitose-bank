@@ -295,10 +295,24 @@ export function LFSummaryRow({ label, value }) {
 export function MaskedAddress({ value, unlocked, exists }) {
   if (unlocked && value) return <>{value}</>;
   if (!exists) return null;
+  return <MaskedText label="番地・建物名" chars={5} />;
+}
+
+// 伏せ字の共通部品（2026-08-17たきと指示「文言を非表示にするな。モザイク処理にしろ」）。
+// 訪問者に伏せる項目は、行ごと消すのではなく「ここに情報がある・ログインすると読める」と分かる形で出す。
+// ★MaskedAddress と同じく、遮断の本体はDB側：jobs_public は anon に値をNULLで返し、
+//   「その項目に値が入っているか」だけを masked_fields で伝える。ここで描く●は伏せ字であって
+//   本物の文字を隠しているのではない（DOMを覗いても本物は存在しない）。
+//   それらしい偽の値を描かない＝憲法3条（表示にダミー禁止）。
+// label=項目名（読み上げ・ツールチップに使う）／chars=伏せ字の長さの目安
+export function MaskedText({ label, chars = 4 }) {
+  const note = `${label}は、ログインすると表示されます`;
   return (
-    <span title="番地・建物名は、ログインすると表示されます" style={{ whiteSpace:"nowrap" }}>
-      <span aria-hidden="true" style={{ filter:"blur(4px)", opacity:0.5, userSelect:"none", letterSpacing:1 }}>●●●–●</span>
-      <span style={{ position:"absolute", width:1, height:1, overflow:"hidden", clip:"rect(0 0 0 0)", whiteSpace:"nowrap" }}>番地はログインすると表示されます</span>
+    <span title={note} style={{ whiteSpace:"nowrap" }}>
+      <span aria-hidden="true" style={{ filter:"blur(4px)", opacity:0.5, userSelect:"none", letterSpacing:1 }}>
+        {"●".repeat(Math.max(1, chars))}
+      </span>
+      <span style={{ position:"absolute", width:1, height:1, overflow:"hidden", clip:"rect(0 0 0 0)", whiteSpace:"nowrap" }}>{note}</span>
     </span>
   );
 }

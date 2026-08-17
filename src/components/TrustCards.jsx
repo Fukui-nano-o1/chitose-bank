@@ -2,7 +2,7 @@
 import { Fragment, useState } from "react";
 import { createPortal } from "react-dom";
 import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, hostStyleChips, tenureLabel, normalizeInsuranceItems } from "../lib/utils";
-import { ExpandableText, Avatar, QaChat } from "./ui";
+import { ExpandableText, Avatar, QaChat, MaskedText } from "./ui";
 
 // アイコンの大画面表示（2026-08-14たきと指示「アイコンタップで大画面表示にしよう」）。
 // createPortalでbody直下へ＝モーダル内（transform祖先）からでもfixedの基準がが画面に保たれる
@@ -141,7 +141,11 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
 // hideQa（任意・2026-08-14たきと指示「質問形式は代表よりの下に移植」）：カード内のQaChatを出さない。
 // 農園紹介モーダル等が、質問形式の群れを代表よりの下（カードの外）に自前で描くときに使う。
 // 編集モード（onEditItem）はhideQaを渡さない＝tap("ask")の編集入口は不変
-export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa, hideQa = false }) {
+// maskedFields（任意・2026-08-17たきと指示「文言を非表示にするな。モザイク処理にしろ」）：
+// 訪問者に伏せた項目のうち【値が入っているもの】の名前（jobs_public.masked_fields）。
+// 渡された項目は、値が空でも行を消さず伏せ字（MaskedText）で描く＝「情報が無い農家」と誤解させない。
+// 渡さない画面（会員・編集・委託）は従来どおり＝値が空なら行ごと出ない。
+export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa, hideQa = false, maskedFields }) {
   const [avatarZoom, setAvatarZoom] = useState(false); // フックは早期returnより前（rules-of-hooks）
   if (!profile) return null;
   const AC = black ? "#111111" : "#00A86B";
@@ -170,27 +174,36 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         {/* ラベルは登録区分で出し分け（2026-08-14たきと指示）：個人＝氏名・住所／法人＝名称・所在地。
             区分は trust.entity_type（employer_trust_info が account_holders から返す）。
             届いていない間（キャッシュ更新前・trustなしの画面）は従来どおり個人表記に倒す */}
+        {/* 4つ目＝マスク名（2026-08-17）。値が空でも maskedFields に載っていれば行を出して伏せ字を描く。
+            氏名は訪問者にも表示名（nickname）が出るsoマスク対象にしない＝伏せ字と名前を二重に見せない */}
         {(() => { const corp = trust?.entity_type === "corporate"; return (
         [[corp ? "名称" : "氏名", (() => {
             const n = profile.recruiter_name || profile.nickname || "";
             const k = (profile.recruiter_name_kana || "").trim();
             return n ? (k ? `${n}（${k}）` : n) : "";
-          })(), "nickname"],
-          [corp ? "所在地" : "住所", profile.recruiter_address, "recruiter"],
-          ["連絡先", profile.recruiter_contact, "recruiter"]]); })().map(([l, v, k]) => (v && String(v).trim()) ? (
+          })(), "nickname", null],
+          [corp ? "所在地" : "住所", profile.recruiter_address, "recruiter", "recruiter_address"],
+          ["連絡先", profile.recruiter_contact, "recruiter", "recruiter_contact"]]); })().map(([l, v, k, mk]) => {
+          const hasValue = !!(v && String(v).trim());
+          const masked = !hasValue && !!mk && Array.isArray(maskedFields) && maskedFields.includes(mk);
+          return (hasValue || masked) ? (
           <Fragment key={l}>
-            <div {...tap(k)} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:4, ...cur }}>
+            <div {...(masked ? {} : tap(k))} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:4, ...(masked ? {} : cur) }}>
               <span className="f-sans" style={{ flexShrink:0, width:56, fontSize:12, color:"#999", lineHeight:1.6 }}>{l}</span>
               {/* 行の判定はラベル文字でなくキーで（2026-08-14）：法人はラベルが「名称/所在地」に変わるため */}
-              <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: k === "nickname" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>{v}</span>
+              <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight: k === "nickname" ? 700 : 400, lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", minWidth:0 }}>
+                {masked ? <MaskedText label={l} chars={l === "連絡先" ? 6 : 8} /> : v}
+              </span>
             </div>
             {/* 利用歴は氏名の直下（2026-08-07たきと指示）。✓連絡先確認済みは連絡先の直下へ移植
-                （2026-08-14たきと指示）。訪問者には連絡先がマスクされ行ごと出ないため、その場合だけ
-                従来どおり氏名の直下に出す（信頼の目印を訪問者から消さない）。値の列（ラベル56px+gap10）に揃える */}
+                （2026-08-14たきと指示）。連絡先の行が出ない画面（未設定の農家）だけ、従来どおり
+                氏名の直下に出す（信頼の目印を消さない）。訪問者は伏せ字で連絡先の行が出るso連絡先の下。
+                値の列（ラベル56px+gap10）に揃える */}
             {(() => {
-              const hasContact = !!(profile.recruiter_contact && String(profile.recruiter_contact).trim());
+              const contactRowShown = !!(profile.recruiter_contact && String(profile.recruiter_contact).trim())
+                || (Array.isArray(maskedFields) && maskedFields.includes("recruiter_contact"));
               const showMember = k === "nickname" && trust?.member_since;
-              const showChecked = trust?.id_checked && (hasContact ? l === "連絡先" : k === "nickname");
+              const showChecked = trust?.id_checked && (contactRowShown ? l === "連絡先" : k === "nickname");
               if (!okTrust || (!showMember && !showChecked)) return null;
               return (
                 <div style={{ display:"flex", flexWrap:"wrap", gap:10, margin:"0 0 4px", paddingLeft:66 }}>
@@ -204,7 +217,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
               );
             })()}
           </Fragment>
-        ) : null)}
+        ) : null; })}
       </div>
       {okTrust && trust.want_again_workers > 0 && (
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>{black ? "" : "🌟"}また働きたい×{trust.want_again_workers}</p>
