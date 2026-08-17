@@ -359,8 +359,11 @@ export function SavedJobsView({ me }) {
             const isRejected = r.application_status === "rejected";
             const isWithdrawn = isRejected && r.rejected_reason === "unpublished";
             const isCanceled = r.application_status === "canceled";
+            // ★失効そのものも暗幕の対象にする（2026-08-16）：失効は作業の【開始時刻】に自動で起きるため、
+            //   期間求人だと最終日までは jobPast that偽＝暗幕も「失効」ラベルも出ないまま応募中に見えていた
+            const isExpired = r.application_status === "expired";
             const jobCompleted = r.application_status === "completed";
-            const covered = jobPast || isRejected || isCanceled || jobCompleted;
+            const covered = jobPast || isRejected || isCanceled || isExpired || jobCompleted;
             const coverLabel = jobCompleted ? "完了" : isWithdrawn ? "掲載取り下げ" : isRejected ? "見送り" : isCanceled ? "取り消し" : "失効";
             const coverColor = jobCompleted ? "#607D8B" : isWithdrawn ? "#757575" : isRejected ? APP_PHASE_COLOR.rejected : isCanceled ? APP_PHASE_COLOR.canceled : "#111";
             const phase = phaseOf(r);
@@ -440,7 +443,12 @@ export function SavedJobsView({ me }) {
            cb-lock-scroll＝展開中は背後のページを固定し、スクロールをシート内だけにする */}
       {boxJob && (() => {
         const r = boxJob;
-        const phase = phaseOf(r);
+        // ★ボックスの現在地は「本当の段階」を出す（2026-08-16たきと報告「失効ラベルが外れている」）。
+        //   phaseOf は一覧のアイコン用に 失効・見送り・取り消し を応募中へ寄せる変換（終わった事実は
+        //   カード全体の暗幕＋ラベルが担う＝2026-07-27の設計）that、ボックスの中には暗幕that無いので、
+        //   そのまま使うと失効した応募を開いても「応募中」と出てしまい、失効のラベルが消えていた
+        const appRow = appOf(r);
+        const phase = appRow ? appPhaseKey(appRow) : null;
         const c = APP_PHASE_COLOR[phase] || "#717171";
         const chatOk = !!(r.application_id && CHAT_ELIGIBLE_STATUSES.includes(r.application_status));
         return (
