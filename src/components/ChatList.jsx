@@ -5,7 +5,7 @@ import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache"
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush, isIOS } from "../lib/push";
-import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_FILTER_KEYS } from "../lib/utils";
+import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
 import { Avatar } from "./ui";
 import { AdminChatFab } from "./AdminChatFab";
 
@@ -207,20 +207,34 @@ export function ChatList() {
   // ＝「相手の返信が上に来ない」の原因だった。rowLastAt＝メッセージ（双方向）と応募の記録の最新時刻
   const sortedRows = [...rows].sort((x, y) => rowLastAt(y) - rowLastAt(x));
 
-  // ステータス絞り込み（2026-08-07たきと指示「（応募者ページの絞り込みを）チャットページにコピー」）：
-  // 応募者ページの浮遊バーと同じ見た目・同じ並び（APP_FILTER_KEYS）・同じ段階判定（appPhaseKey）で、
-  // チャット一覧のスレッドを段階で絞る。表示だけの絞り込み＝並び・未読・データ取得は不変
-  const [chatFilter, setChatFilter] = useState(() => {
-    try { const f = sessionStorage.getItem("cb_chatFilter"); if (f && APP_FILTER_KEYS.includes(f)) return f; } catch {}
-    return "all";
+  // 非表示の選択（2026-08-18たきと指示「見送りと失効は非表示する方針。要素はすべてと見送りと失効のみ。
+  // 複数選択可能。選択で非表示にする」＝2026-08-07の8択の段階絞り込みを置き換え）。
+  // ★ピルは「見るもの」ではなく【隠すもの】の選択＝選ぶとその段階のチャットが一覧から消える。
+  //   見送り・失効は同時に選べる（複数選択）。「すべて」＝何も隠さない（選択を全部外す）。
+  //   既定は方針どおり見送り・失効の両方を選んだ状態＝終わった取引that日常の一覧を埋めない。
+  // 隠すのは表示だけ＝記録・並び・未読・データ取得は不変（行動記録の憲法：記録は消さない）
+  const CHAT_HIDABLE = ["rejected", "expired"];
+  const [chatHidden, setChatHidden] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem("cb_chatHidden");
+      if (raw !== null) { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter(k => CHAT_HIDABLE.includes(k)); }
+    } catch {}
+    return [...CHAT_HIDABLE]; // 既定＝両方とも非表示
   });
-  useEffect(() => { try { sessionStorage.setItem("cb_chatFilter", chatFilter); } catch {} }, [chatFilter]);
-  const shownRows = chatFilter === "all" ? sortedRows : sortedRows.filter(a => appPhaseKey(a) === chatFilter);
-  const filterButtons = APP_FILTER_KEYS.map(k => (
-    <button key={k} onClick={()=>setChatFilter(k)} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: chatFilter===k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: chatFilter===k?800:600, color: chatFilter===k?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
+  useEffect(() => { try { sessionStorage.setItem("cb_chatHidden", JSON.stringify(chatHidden)); } catch {} }, [chatHidden]);
+  const shownRows = sortedRows.filter(a => !chatHidden.includes(appPhaseKey(a)));
+  const filterButtons = [
+    { k:"all", label:"すべて", on: chatHidden.length === 0, onTap: () => setChatHidden([]) },
+    ...CHAT_HIDABLE.map(k => ({
+      k, label: APP_PHASE_LABEL[k], on: chatHidden.includes(k),
+      onTap: () => setChatHidden(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]),
+    })),
+  ].map(b => (
+    <button key={b.k} onClick={b.onTap} aria-pressed={b.on} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: b.on ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: b.on?800:600, color: b.on?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
       {/* 段階色の点＝帯・チップと同じAPP_PHASE_COLOR */}
-      {k !== "all" && <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[k] || "#999", flexShrink:0 }} />}
-      {k === "all" ? "すべて" : APP_PHASE_LABEL[k]}
+      {b.k !== "all" && <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[b.k] || "#999", flexShrink:0 }} />}
+      {/* 選択中＝隠している、を目で分かるように取り消し線（「すべて」は隠す対象ではないso付けない） */}
+      <span style={{ textDecoration: (b.on && b.k !== "all") ? "line-through" : "none" }}>{b.label}</span>
     </button>
   ));
 
@@ -257,10 +271,13 @@ export function ChatList() {
           <p style={{ fontSize:14, margin:0 }}>チャットはまだありません。<br/>応募が承認されると、ここに表示されます。</p>
         </div>
       ) : shownRows.length === 0 ? (
-        /* 絞り込みで0件（チャット自体はある）＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03） */
+        /* 非表示で0件（チャット自体はある）＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03） */
         <div style={{ textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-          <p style={{ fontSize:14, margin:0 }}>「{chatFilter === "all" ? "すべて" : APP_PHASE_LABEL[chatFilter]}」のチャットはいまありません。</p>
-          <button onClick={()=>setChatFilter("all")} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示に戻す</button>
+          <p style={{ fontSize:14, margin:0 }}>
+            表示できるチャットはありません。<br/>
+            {chatHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。
+          </p>
+          <button onClick={()=>setChatHidden([])} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示する</button>
         </div>
       ) : (
         /* 幅の固定（2026-08-06たきと報告「チャット欄の幅が大きくなった」）：
