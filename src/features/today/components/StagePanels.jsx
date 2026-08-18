@@ -10,7 +10,7 @@ import { fetchPublicJobByNumber, fetchInterviewQuestions, getSession, insertMess
   confirmTerms, fetchMyFarmJobs } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb,
-  appPhaseKey, phaseLabelNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../../../lib/utils";
+  appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../../../lib/utils";
 import { openPhaseInfo } from "../../../lib/previewBus";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../../../lib/hire";
 import { Avatar, Dots } from "../../../components/ui";
@@ -215,7 +215,7 @@ export function EmergencyStagePanel({ items, role }) {
                   style={{ width:72, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                   <Avatar url={e.partner_avatar} name={e.partner_name || "？"} size={52} ring={partnerColor} bg={partnerColor} />
                   <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color:"#222", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.partner_name ? e.partner_name + "さん" : "相手"}</span>
-                  {phase && <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:APP_PHASE_COLOR[phase] || "#00A86B", marginTop:1, cursor:"pointer" }}>{phaseLabelNow(phase, e) || ""}</span>}
+                  {phase && <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:phaseColorNow(phase, e), marginTop:1, cursor:"pointer" }}>{phaseLabelNow(phase, e) || ""}</span>}
                 </button>
               </div>
             </div>
@@ -226,7 +226,7 @@ export function EmergencyStagePanel({ items, role }) {
       {boxItem && (() => {
         const e = boxItem;
         const phase = phaseOf(e);
-        const c = APP_PHASE_COLOR[phase] || "#717171";
+        const c = phase ? phaseColorNow(phase, e) : "#717171";
         const photo = photoThumb(e.photos?.[0]);
         const dateLabel = e.date_start ? (e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start)) : "未設定";
         const chatOk = !!(e.application_id && CHAT_ELIGIBLE_STATUSES.includes(e.application_status));

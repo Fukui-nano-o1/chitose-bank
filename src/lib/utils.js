@@ -717,12 +717,17 @@ export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contrac
 //   ・働く日が分からない／全部過ぎた → 「作業中」（最終日の終了時刻で自動完了するので普通は出ない）
 // entry＝働く日を決める材料（agreed_dates優先／無ければ来られる日／無ければ求人日程・holidays除外）＝
 //   entryWorkDays と同じ形。材料が手元に無い画面は従来どおり APP_PHASE_LABEL を使ってよい。
-export const workingPhaseLabel = (entry) => {
+// 「合間」の判定＝次に働く日の "YYYY-MM-DD"。今日が働く日／材料が無い／全部過ぎた は null。
+// ★ラベルと色はこの1つの判定から出す（別々に書くと同じカードで文字と色が食い違う）
+const nextWorkDayYmd = (entry) => {
   const days = entryWorkDays(entry);
-  if (!days || days.size === 0) return APP_PHASE_LABEL.working;
+  if (!days || days.size === 0) return null;
   const today = ymdLocal(new Date());
-  if (days.has(today)) return APP_PHASE_LABEL.working;
-  const next = [...days].filter(d => d > today).sort()[0];
+  if (days.has(today)) return null;
+  return [...days].filter(d => d > today).sort()[0] || null;
+};
+export const workingPhaseLabel = (entry) => {
+  const next = nextWorkDayYmd(entry);
   return next ? `次は ${calFmtDate(next)}` : APP_PHASE_LABEL.working;
 };
 // 帯・チップの“今”のラベルの唯一の入口。working以外は APP_PHASE_LABEL をそのまま返す。
@@ -735,6 +740,13 @@ export const phaseLabelNow = (phase, entry) =>
   phase === "working" ? workingPhaseLabel(entry) : (APP_PHASE_LABEL[phase] || "");
 // appPhaseLabelNow＝応募行そのものを渡す画面用（段階の導出ごと任せる）
 export const appPhaseLabelNow = (a, entry) => phaseLabelNow(appPhaseKey(a), entry || a) || a?.status || "";
+// ★合間の色は採用の色（緑）に戻す（2026-08-18たきと指示「採用の色に戻せ」）：
+//   赤（作業中）は実際に働いている日だけ。働いていない日を赤で出すと急ぎに見える。
+//   段階は working のまま＝タップして出る説明（APP_PHASE_DESC）・絞り込み・DBは不変で、色だけ戻す。
+//   判定はラベルと同じ nextWorkDayYmd＝文字と色が必ず一致する
+export const phaseColorNow = (phase, entry) =>
+  (phase === "working" && nextWorkDayYmd(entry)) ? APP_PHASE_COLOR.contracted : (APP_PHASE_COLOR[phase] || "#00A86B");
+export const appPhaseColorNow = (a, entry) => phaseColorNow(appPhaseKey(a), entry || a);
 // 応募者ページのステータス絞り込みのキー（2026-08-07・帯5段＋終端と同順）。
 // 使う側＝FarmerDashboard（絞り込みの実体）と NewApplicantsPage（同じ並びのピル＝タップで応募者ページへ送る）。
 // 並び・ラベルの唯一のソース＝この配列＋APP_PHASE_LABEL（片方だけ変えない）

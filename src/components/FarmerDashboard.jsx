@@ -8,7 +8,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -638,7 +638,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const info = jobInfoMap[a.job_number] || {};
     return appPhaseLabelNow(a, { ...a, date_start: info.date_start, date_end: info.date_end, holidays: info.holidays }) || a.status;
   };
-  const appRibbonColor = (a) => APP_PHASE_COLOR[appPhaseKey(a)] || "#00A86B";
+  // ★色もラベルと同じ材料で出す（2026-08-18たきと指示「採用の色に戻せ」）＝働く日でない日は
+  //   赤（作業中）でなく採用の色。判定は lib/utils 側で一本化＝文字と色が食い違わない
+  const appRibbonColor = (a) => {
+    const info = jobInfoMap[a.job_number] || {};
+    return appPhaseColorNow(a, { ...a, date_start: info.date_start, date_end: info.date_end, holidays: info.holidays });
+  };
   // 応募者ページの状態フィルタ（2026-07-22・2026-08-07ステータス統一）：
   // 帯と同じ段階判定（appPhaseKey）で絞る＝帯5段（応募中→面接中→採用→作業中→完了）＋終端（見送り/失効）。
   // ラベル・並びは APP_FILTER_KEYS と APP_PHASE_LABEL から引く＝帯・凡例と文言が枝分かれしない
