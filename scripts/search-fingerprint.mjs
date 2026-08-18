@@ -204,6 +204,79 @@ function collect() {
     for (const m of src.matchAll(/const (isOwnJob|ownLoaded|showConsignLane|appPending|myAppLoaded)\s*=\s*([^;]+);/g))
       add("role:derived", `${m[1]} = ${flat(m[2])}`);
 
+    // ⑩ 応募の状態機械（2026-08-18・4-A5b-0で追加）
+    // 応募まわりは「表示は正常なまま、押した先だけ違う」が起こる領域。
+    // 例：myAppStatus==="approved" と "applied" のクリック先を取り違えても、
+    // DB操作の種類も呼び出し回数も変わらないので data:* / api:call では鳴らない。
+    // ここは【条件 → 何になるか】の対応そのものを1本ずつ持つ。
+    // ★アンカーが見つからなければ黙って素通りせず止める。
+    if (/JobSearchMapView\.jsx$|ApplyPanel\.jsx$/.test(f)) {
+      // 値の中の // コメントを落とす（文言の推敲で鳴らせない。判定に効くのはコードだけ）
+      const decomment = (t) => t.split("\n").map((l) => l.replace(/(^|[^:])\/\/.*$/, "$1")).join("\n");
+      // 三項の連鎖（cond ? 値 : cond ? 値 : …）を「条件 => 値」の並びにほどく。
+      // ★深さは ( [ { だけで数える。< > を数えると矢印 => の > で深さが壊れ、連鎖を1本も割れなくなる。
+      // ★文字列の中の ? : では割らない。
+      const chain = (text, key) => {
+        const b = decomment(text).slice(decomment(text).indexOf("=") + 1).replace(/;\s*$/, "");
+        let d = 0, q = null, cur = "", parts = [];
+        for (let i = 0; i < b.length; i++) {
+          const ch = b[i];
+          if (q) { cur += ch; if (ch === q && b[i - 1] !== "\\") q = null; continue; }
+          if (ch === '"' || ch === "'" || ch === "`") { q = ch; cur += ch; continue; }
+          if ("([{".includes(ch)) d++;
+          else if (")]}".includes(ch)) d--;
+          if (d === 0 && (ch === "?" || ch === ":")) { parts.push(cur.trim()); cur = ""; continue; }
+          cur += ch;
+        }
+        parts.push(cur.trim());
+        for (let i = 0; i + 1 < parts.length; i += 2) add(key, `${flat(parts[i])} => ${flat(parts[i + 1])}`.slice(0, 180));
+        if (parts.length % 2 === 1) add(key, `(既定) => ${flat(parts[parts.length - 1])}`.slice(0, 180));
+      };
+      const need = (re, key, label, asChain) => {
+        const m = src.match(re);
+        if (!m) { console.error(`★応募の不変条件が見つかりません（${label}）:`, f); process.exit(2); }
+        if (asChain) chain(m[0], key); else add(key, flat(decomment(m[0])).slice(0, 220));
+        return m[0];
+      };
+      // 押せるか・何と書いてあるか・どんな見た目か・押すとどこへ行くか
+      need(/const applyBtnDisabled = [^\n;]+;/, "apply:disabled", "applyBtnDisabled");
+      need(/const applyBtnLabel = [\s\S]*?\n    : "[^"]*";/, "apply:label", "applyBtnLabel", true);
+      need(/const applyBtnStyle = [\s\S]*?\n    : \{\};/, "apply:style", "applyBtnStyle", true);
+      const onClick = need(/const applyBtnOnClick = [\s\S]*?\n    : \(\(\) => \{[^\n]*\}\);/, "apply:onClick", "applyBtnOnClick", true);
+      // 募集終了の判定と、その時に出す言葉
+      need(/const recruitClosed = [^\n;]+;/, "apply:closed", "recruitClosed");
+      need(/const hideApply = [^\n;]+;/, "apply:closed", "hideApply");
+      need(/const closedLabel = [\s\S]*?期間終了）";/, "apply:closed", "closedLabel");
+      need(/const closedLabelShort = [^\n;]+?;/, "apply:closed", "closedLabelShort");
+      // 状態の出どころ
+      need(/const myAppStatus = [^\n;]+;/, "apply:state", "myAppStatus");
+      need(/const myAppLoaded = [^\n;]+;/, "apply:state", "myAppLoaded");
+      need(/const appPending = [^\n;]+;/, "apply:state", "appPending");
+      need(/const isPeriodJob = [^\n;]+;/, "apply:state", "isPeriodJob");
+      // 期間求人の「来られる日」候補（休日を除く）
+      need(/const periodDays = \(\(\) => \{[\s\S]*?\n  \}\)\(\);/, "apply:periodDays", "periodDays");
+      // 求人を切り替えた時の後始末（消えると前の求人の選択が次に持ち越される）
+      need(/useEffect\(\(\) => \{ setApplyConfirmOpen\(false\);[^\n]*\}, \[selectedJob\?\.id\]\);/, "apply:reset", "selectedJob変更時のreset");
+      // 確認ボックスの初期値と面の数
+      for (const m of src.matchAll(/const \[(applyConfirmOpen|applyConfirmStep|applyChoice|applyImgZoom|applyDates)[^\]]*\] = useState\(([^)]*)\);/g))
+        add("apply:initial", `${m[1]} = ${m[2]}`);
+      for (const m of src.matchAll(/applyConfirmStep === (\d+)/g)) add("apply:step", `step===${m[1]}`);
+      for (const m of src.matchAll(/setApplyConfirmStep\(([^)]*)\)/g)) add("apply:step", `setStep(${flat(m[1])})`);
+      // 応募まわりの遷移先。★応募に関わる関数の中だけを見る（画面全体の hash は url:hash が持つ）
+      const applyFns = [onClick];
+      for (const re of [/const goPending = async \(\) => \{[\s\S]*?\n  \};/, /const doApply = async \(\) => \{[\s\S]*?\n  \};/,
+                        /const handleApply = async \(\) => \{[\s\S]*?\n  \};/, /const cancelMyApplication = async \(\) => \{[\s\S]*?\n  \};/]) {
+        const m = src.match(re);
+        if (!m) { console.error("★応募の関数が見つかりません:", re, f); process.exit(2); }
+        applyFns.push(m[0]);
+      }
+      for (const body of applyFns) {
+        for (const m of decomment(body).matchAll(/window\.location\.hash = ("[^"]*"(?: \+ [\w.?]+)?)/g)) add("apply:goto", flat(m[1]));
+        for (const m of decomment(body).matchAll(/setApplyReturn\(([^)]*)\)/g)) add("apply:goto", `setApplyReturn(${m[1]})`);
+        for (const m of decomment(body).matchAll(/onRegister\(\)/g)) add("apply:goto", "onRegister()");
+      }
+    }
+
     // ⑨ キャッシュのキー（表示専用・冷間復元の経路）
     for (const m of src.matchAll(/(?:getCache|setCache)\(\s*["'`]([^"'`]+)["'`]/g)) add("cache:key", m[1]);
     for (const m of src.matchAll(/snapGet\(\s*["'`](\w+)["'`]/g)) add("cache:snap", m[1]);
