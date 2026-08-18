@@ -5448,3 +5448,18 @@ C2（applications 4→3）。
 【再開する条件の目安】冷間起動が体感で再び10秒級に戻る／利用者から遅いと言われる／
 求人・応募が桁で増えて一覧のページングが要る（2026-08-02の残タスク③）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-18 今日ページの緊急連絡先カードを削除（61b34df）━━━
+【たきと指示】「緊急連絡先カードは必要なくなった。削除」→確認の結果「今日ページの緊急連絡先カードだ」。
+【削除したもの】今日ページの緊急連絡シート（features/today/components/StagePanels.jsx の
+EmergencyStagePanel）内にあった、相手の緊急連絡先カード＝ContractEmergencyContact の描画と import。
+【★消えていないもの（意図的・混同注意）】
+・自分の緊急連絡先の登録（プロフィール編集の🆘ボックス＝EmergencyContactBox）。働き手側は
+  応募に必要な4項目の②のまま（is_worker_profile_ready・lib/workerReady.js も不変）
+・開示の唯一の窓口 contract_emergency_contact RPC・emergency_contacts テーブル・RLS
+・応募者シート（FarmerDashboard）とチャット（ChatView）の同じカード＝従来どおり表示
+・プラポリ第3条データ台帳の緊急連絡先の行（保存・開示の約束は変わっていない）
+＝2026-08-03の裁定（採用成立後・相手方のみ開示）は生きたまま、今日ページでの表示だけをやめた。
+【検証】build成功・lint 0 error（警告1件=既存exhaustive-deps）・StagePanels.jsxに参照0をgrep確認。
+実機：今日ページ→⚠️緊急連絡→カードのシートに緊急連絡先が出ないこと／応募者シート・チャットでは
+従来どおり出ること
