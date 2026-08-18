@@ -5465,3 +5465,43 @@ ContractEmergencyContact の描画と import。
 ＝2026-08-03の裁定（採用成立後・相手方のみ開示）は生きたまま、チャットでの表示だけをやめた。
 【検証】build成功・lint 0 error（警告2件=既存exhaustive-deps）・ChatView.jsxに参照0をgrep確認。
 実機：チャットに緊急連絡先が出ないこと／今日ページの緊急連絡シート・応募者シートでは従来どおり出ること
+
+━━━ 2026-08-18 打刻の全面削除（たきと指示）━━━
+【範囲＝AskUserQuestionで確認】①働き手の打刻 ②打刻の修正申請 ③相方の署名（開始確認・終了確認）を削除。
+④自動開始（cron auto-start-work → started_at・auto_started・status='working'）は残す
+＝作業日の開始時刻を過ぎると自動で「作業中」になる流れは不変。列はDROPしない（たきと裁定
+「列は残し、読み書きをやめる」＝過去の記録は消さない）。
+【★attendance_events は打刻ではない】名前が紛らわしいが中身は緊急連絡の台帳
+（late/absent_notice/cancel/postpone/dispute_no_show/no_show_report）。今回も今後も打刻の掃除で触らない。
+【消したもの】
+・DB：punch_start／request_time_correction／decide_time_correction／confirm_start／confirm_end の5RPC。
+  attendance_corrections テーブル（0行を機構で確かめてから＝記録は失われていない）。
+・フロント：lib/punchQueue.js（圏外キュー）／components/TimeCorrectionSheet.jsx／
+  utils の punchStartWindow・PUNCH_WINDOW_MIN・workStartMinutes・minutesToHm・PUNCH_GAP_MIN・punchDivergence／
+  ui の DeclaredBadge・PunchGapNotice／応募状況ページと求人詳細の「▶ 作業を開始する」／
+  今日ページの confirm_start 用件箱と打刻修正の承認カード。
+【★打刻の署名時刻に依存していた判定を、記録から導出する形へ差し替えた（ここが本体）】
+・農家の「完了して評価」の用件（my_todo_items fstage）：farmer_confirmed_start_at → started_at（自動開始）。
+  ★これを変えないと、開始確認を廃止した時点で農家の完了の用件が【永久に立たない】。同型の連動を必ず確認すること
+・働き手の「評価」の用件（wstage w_review）・帯・FlowBar・プロフィール入口の承認済みバッジ・
+  段階お祝いボックス：worker_confirmed_end_at → 評価の行（reviews）の有無
+・働き手の評価送信は confirm_end を撃たず reviews の行だけを記録にする（署名を二重に持たない）
+・my_todo_items の w_start（作業を開始する）を廃止＝箱が無いのに件数だけ数えていた既存のズレも解消
+・my_nav_badges から time_corrections を削除
+・worker_work_record：遅刻の判定を廃止（開始は必ず自動＝そこから遅刻を導くと憶測になる。
+  2026-08-05「自動開始の回は遅刻判定しない」の行き着く先）。欠勤・回数・時間・作物別作業別は不変
+・当日のお知らせ M32/M33：農家「開始を確認する」→「今日の仕事を見る」、
+  働き手「終了を確認して評価する」→「農家を評価する」。送信条件も終了確認の時刻→評価の行の有無へ
+・admin_attention から corrections・start_unconfirmed を削除／仕事中ページの開始確認・終了確認の行を削除
+【migration】20260818133134 / 133217 / 133316（適用済み・repoへ写経・履歴表と同名）
+【検証】build成功・eslint 0 error（warning 27＝変更前28から、消した eslint-disable 1件ぶんだけ減）。
+DB実測：5RPC=0本／attendance_corrections=0テーブル／打刻列を読む関数は jp_col（列名の辞書）だけ／
+applications 25件・started_at 2件・attendance_events 1件は不変／cron auto-start-work は生存。
+実機目視は未実施→確認：①応募状況ページと求人詳細から開始ボタンが消えているか
+②完了後に「⭐ 農家を評価する」で評価でき、送信後「✓ 評価済み」になるか（帯も「完了」へ）
+③今日ページに開始確認・打刻修正の箱が出ないか・農家の「完了して評価」の箱は従来どおり立つか
+④はたらいた記録に遅刻が出ず欠勤だけになっているか ⑤M32/M33のメール文面
+【二頭運転の記録】本セッション中に並走セッションが auto_complete_work（最終日の終了時刻で自動完了）と
+my_job_actions_add_work_time を適用していた。私が置き換えた関数とは重ならないことを確認済み
+（衝突・巻き戻しなし）。着手前に origin/main を見ておらず rebase で解消＝毎回 pull を先にすること。
+━━━ ここまで ━━━

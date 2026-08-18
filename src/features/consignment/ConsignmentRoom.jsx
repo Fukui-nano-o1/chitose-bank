@@ -1440,7 +1440,7 @@ export function ConsignmentRoom() {
               {curDeal.status === "working" && (
                 <div style={{ background:"#F9FAFB", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
                   {/* minmax(0,1fr)＝グリッドの子がトラック幅より小さくなれる（既定の 1fr は min-width:auto ので
-                      input[type=date] の固有幅がトラックを超えると縮まず枠外へ出る・2026-08-16 打刻シートと同型） */}
+                      input[type=date] の固有幅がトラックを超えると縮まず枠外へ出る・2026-08-16の修理と同型） */}
                   <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr) minmax(0, 1fr)", gap:8, marginBottom:8 }}>
                     <div style={{ minWidth:0 }}><label className="lbl f-sans" style={{ fontSize:12.1 }}>日付</label><input type="date" className="field f-sans" value={pForm.work_date} onChange={e=>setPForm(p=>({...p, work_date:e.target.value}))} style={{ fontSize:14.3, marginBottom:0, width:"100%", maxWidth:"100%", minWidth:0 }} /></div>
                     <div><label className="lbl f-sans" style={{ fontSize:12.1 }}>実働時間(h)</label><input inputMode="decimal" className="field f-sans" value={pForm.hours} onChange={e=>setPForm(p=>({...p, hours:e.target.value.replace(/[^0-9.]/g,"")}))} placeholder="例：6.5" style={{ fontSize:14.3, marginBottom:0 }} /></div>
