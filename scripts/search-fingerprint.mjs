@@ -213,7 +213,14 @@ function collect() {
     // DB操作の種類も呼び出し回数も変わらないので data:* / api:call では鳴らない。
     // ここは【条件 → 何になるか】の対応そのものを1本ずつ持つ。
     // ★アンカーが見つからなければ黙って素通りせず止める。
-    if (/JobSearchMapView\.jsx$|ApplyPanel\.jsx$/.test(f)) {
+    // ★2つに分けて見る（2026-08-18・4-A5b の分割に備えて）：
+    //   状態機械の【定義】（applyBtnLabel 等）は、それを持つファイルで見る＝ファイル名でなく
+    //   中身で判定する。分割で定義がどのファイルへ移っても追随し、移った先に無い anchor を
+    //   探して exit(2) することもない。
+    //   面の番号（applyConfirmStep）のような【使用】は、応募UIを持つどのファイルでも数える。
+    const hasApplyMachine = src.includes("const applyBtnDisabled =");
+    const isApplyUi = /JobSearchMapView\.jsx$|ApplyPanel\.jsx$/.test(f);
+    if (isApplyUi) {
       // 値の中の // コメントを落とす（文言の推敲で鳴らせない。判定に効くのはコードだけ）
       const decomment = (t) => t.split("\n").map((l) => l.replace(/(^|[^:])\/\/.*$/, "$1")).join("\n");
       // 三項の連鎖（cond ? 値 : cond ? 値 : …）を「条件 => 値」の並びにほどく。
@@ -242,6 +249,7 @@ function collect() {
         return m[0];
       };
       // 押せるか・何と書いてあるか・どんな見た目か・押すとどこへ行くか
+      if (hasApplyMachine) {
       need(/const applyBtnDisabled = [^\n;]+;/, "apply:disabled", "applyBtnDisabled");
       need(/const applyBtnLabel = [\s\S]*?\n    : "[^"]*";/, "apply:label", "applyBtnLabel", true);
       need(/const applyBtnStyle = [\s\S]*?\n    : \{\};/, "apply:style", "applyBtnStyle", true);
@@ -278,6 +286,7 @@ function collect() {
         for (const m of decomment(body).matchAll(/setApplyReturn\(([^)]*)\)/g)) add("apply:goto", `setApplyReturn(${m[1]})`);
         for (const m of decomment(body).matchAll(/onRegister\(\)/g)) add("apply:goto", "onRegister()");
       }
+      } // hasApplyMachine
     }
 
     // ⑨ キャッシュのキー（表示専用・冷間復元の経路）
