@@ -8,6 +8,7 @@ import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, Linkifie
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
 import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds } from "../lib/searchJobs";
+import { useRefreshTick, REFRESH_JOBS } from "../lib/refreshBus";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { CropIcon } from "./CropIcon";
@@ -160,6 +161,7 @@ export function JobSearchMapView({ onRegister, me }) {
     setReportDone(true);
     setTimeout(() => { setReportDone(false); closeReportModal(); }, 1500);
   };
+  const jobsRefreshTick = useRefreshTick(REFRESH_JOBS);
   useEffect(() => {
     // 訪問者モード（2026-07-24）：jobs_publicはanon許可ので未ログインでも公開面を読める。
     // 取得・並び規則（新着上位＋ランダム・既読記録）は lib/searchJobs に一本化（玄関の先読みと共有・2026-08-02）
@@ -181,8 +183,10 @@ export function JobSearchMapView({ onRegister, me }) {
       } catch {}
     })();
     // meのオブジェクトでなくidを依存に（2026-08-02）：セッション復元のsetMeで識別子が毎回変わり、
-    // 1起動につき全件取得が2回走っていた
-  }, [me?.id]);
+    // 1起動につき全件取得が2回走っていた。
+    // refreshTick＝画面の復帰の合図（2026-08-18 Speed-1B）。jobsにRealtimeは無いので合図はこれだけ。
+    // 並びは orderSearchJobs が前回の並びを保つので、取り直してもカードが飛び跳ねない
+  }, [me?.id, jobsRefreshTick]);
   const jobList = dbJobs || [];
 
   // ── 「まもなく公開」カード（2026-08-12たきと指示）──────────────────────────

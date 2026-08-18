@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
+import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
 import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow, photoThumb } from "../lib/utils";
 import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
 import { fetchWorkerReady } from "../lib/workerReady";
@@ -17,6 +18,8 @@ export function WorkerApplications({ filter, me }) {
   const [allApps, setAllApps] = useState(() => getCache("wapp:apps") ?? []);
   const [jobDates, setJobDates] = useState(() => getCache("wapp:jobs") ?? {}); // { [job_number]: {date_start, date_end} }
   const [loading, setLoading] = useState(() => getCache("wapp:apps") === undefined);
+  // 応募の変化(Realtime)と画面の復帰で取り直す合図（2026-08-18 Speed-1B）
+  const refreshTick = useRefreshTick(REFRESH_APPLICATIONS);
   // 画面の状態→キャッシュの写し（2026-07-27）。開始打刻・評価・取消は手元のstateだけを書き換えるため、
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
   useEffect(() => { if (loading) return; setCache("wapp:apps", allApps); }, [allApps, loading]);
@@ -221,7 +224,9 @@ export function WorkerApplications({ filter, me }) {
       } catch {}
       setLoading(false);
     })();
-  }, []);
+    // refreshTick＝応募の変化(Realtime)と画面の復帰の合図（2026-08-18 Speed-1B）。
+    // 合図は「変わった」だけ＝中身はこの窓口から取り直す。loadingは立て直さないので骨は出ない
+  }, [refreshTick]);
   const submitEmergency = async () => {
     if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
     setEmergencySubmitting(true);

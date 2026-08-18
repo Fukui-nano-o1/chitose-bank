@@ -5106,3 +5106,41 @@ warning 28（増減なし）。ESM構文が残っていないことも確認済�
 【次】Speed-1B＝DB→UIの再取得配線（applications購読と復帰イベントに一覧・今日の再取得を繋ぐ）→
 Speed-1C＝起動41本バーストの削減。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-18 Speed-1B：DB→UIの再取得配線（合図バス refreshBus）━━━
+【Speed-0で一番ひどかった点】「遅い」ではなく**更新経路そのものが無い**こと。求人・応募者一覧・今日ページは
+DBが変わっても次のリロードまで永遠に古いままだった（Realtimeは購読していたが、繋がっていたのは
+バッジとお祝いボックスだけ。復帰時の再取得を持っていたのもチャット系3画面のみ）。
+【設計の一線＝Realtimeのpayloadを画面へ直接流し込まない】
+  DBの変更 → Realtime / focus・visibilitychange → 合図（topicだけ）→ 各画面が既存のApi窓口で再fetch
+Realtimeは「変わった」の合図としてのみ使い、真実は必ず既存の窓口から取り直す。
+こうしておけばイベントの取りこぼし・再接続後でも、復帰の合図ひとつで整合性が戻る。
+【lib/refreshBus.js（新規）】emitRefresh(topics, reason) と useRefreshTick(topics, minIntervalMs=5000)。
+返り値の数字が増えたら「取り直せ」＝**既存ローダーの依存配列に足すだけ**で使える（ローダーの再構成をしない）。
+取り決め3つ：①見えていない時は取りに行かず保留、復帰した時に1回 ②連発は「最初の1回はすぐ・残りは
+冷却後にまとめて1回」＝1連発で最大2回まで（先頭＝反応の速さ、後追い＝冷却中の変更を取りこぼさない）
+③マウント直後は取りに行かない（起動時fetchと二重にしない＝lastRefの初期値がマウント時刻）。
+【合図の出どころ（App.jsxの2箇所だけ）】
+・stage-watch（applicationsのRealtime・自分が当事者の行だけ届く）→ topic "applications"
+・復帰（focus / visibilitychange）→ "applications" と "jobs" の両方
+【受け手（マウント中の画面だけ・閉じている画面のために通信しない）】
+・今日ページ TodayPage … applications（従来 deps [] のマウント1回きり）
+・応募状況 WorkerApplications … applications
+・お仕事タブ FarmerDashboard … 求人面=jobs／応募者面=applications の2本に分けた
+  ★求人面の「一度きりガード」は jobsLoadedRef を boolean から tick値に変えて維持したまま合図でだけ破る
+   （初回は false !== 0 で通る。面の行き来では取り直さない挙動は不変）
+・さがす JobSearchMapView … jobs。**jobsにRealtimeは無い**ので合図は復帰のみ
+  ★jobsをpublicationに足さない理由：jobsのRLSは本人と運営だけ＝他人の求人の変更は誰にも届かず
+   さがすの役に立たない。realtimeの負荷だけ増える。さがすは復帰の合図で取り直す
+【骨（スケルトン）は出ない】対象4ローダーはいずれも開始時に loading=true を立てず、終了時に false に
+するだけなので、再取得しても前回内容を表示したまま中身が差し替わる（実装を読んで確認済み）。
+【副作用の再発なし】ディープリンク着地（cb_emergencyAppId / cb_completeAppId / cb_agreeAppId /
+cb_openApplicantId）は読んだ直後に removeItem で消費されるため、ローダーが再走してもモーダルは再展開しない。
+【検証】build成功・lint 0 error / warning 28（増減なし）。合図バスの取り決めは本物の refreshBus.js を
+使って node で8項目を機械検算（import行だけをshimに差し替え・他はバイト一致を diff で確認）：
+topic絞り込み／マウント直後の抑止／冷却後の1回／連発の先頭1回＋後追い1回／背面での保留／復帰で1回／配列の合図。
+実機目視は未実施→確認：①別端末で承認・採用すると、開いている応募者一覧・今日・応募状況が数秒で変わるか
+②アプリを背面に置いて戻すと最新になるか ③さがすでカードの並びが飛び跳ねないか
+【手を付けていない（意図的）】FarmerDashboardの入口ローダー（プロフィール・信頼情報・名簿）は合図に
+繋いでいない＝滅多に変わらないものを復帰のたびに取りに行かない。Speed-1C（起動41本の削減）は次。
+━━━ ここまで ━━━

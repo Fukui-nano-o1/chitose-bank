@@ -1,6 +1,7 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
 import { useState, useEffect, useRef } from "react";
 import { getCache, setCache } from "../lib/viewCache";
+import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN,
   workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS, entryWorkDays } from "../lib/utils";
 import { fbSuccess, fbError } from "../lib/feedback";
@@ -19,6 +20,7 @@ import { InterviewReplyPanel, NewApplicantsPanel, EmergencyStagePanel, HireStage
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（stale-while-revalidate・2026-07-27たきと指示）
+  const refreshTick = useRefreshTick(REFRESH_APPLICATIONS);
   const [loading, setLoading] = useState(() => getCache("today:entries") === undefined);
   const [entries, setEntries] = useState(() => getCache("today:entries") ?? []);
   const [hasWorker, setHasWorker] = useState(() => getCache("today:roles")?.w ?? false);
@@ -113,7 +115,9 @@ export function TodayPage({ me, defaultRole }) {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, []);
+    // refreshTick＝応募の変化(Realtime)と画面の復帰の合図（2026-08-18 Speed-1B）。
+    // 中身は合図に含まれない＝ここで同じ窓口から取り直す。loadingは立て直さないので骨は出ない
+  }, [refreshTick]);
 
   const todayYmd = ymdLocal(new Date());
   const in7Ymd = ymdLocal(calAddDays(7));

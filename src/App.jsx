@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { supabase } from "./lib/supabase";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, isUpcomingSoon } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
+import { emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "./lib/refreshBus";
 import { Celebration, ApplyCelebrationVisual } from "./components/Celebration";
 import { PublishChoiceCard } from "./components/PublishChoiceCard";
 import { TodayPage } from "./components/TodayPage";
@@ -1028,6 +1029,23 @@ export default function App(){
       .subscribe();
     return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
   }, [me?.id]);
+  // 画面の復帰で再取得の合図を出す（2026-08-18 Speed-1B）。
+  // バックグラウンドに置いている間はRealtimeのWebSocketが凍結・切断され、イベントを取りこぼす
+  // （iOS PWAで顕著。チャットが2026-07-27に同じ理由で復帰再読込を入れている）。
+  // 戻ってきた時に一度だけ合図を出せば、開いている画面が既存の窓口から取り直して整合性が戻る。
+  // 出すのは合図だけ＝閉じている画面のために通信はしない（受け手はマウント中の画面のみ）
+  useEffect(() => {
+    const onWake = () => {
+      if (document.visibilityState !== "visible") return;
+      emitRefresh([REFRESH_APPLICATIONS, REFRESH_JOBS], "wake");
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    return () => {
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+    };
+  }, []);
   // アプリアイコンのバッジに未読数を反映（2026-07-19）。ログアウト時は0でクリア
   useEffect(() => { syncAppBadge(me?.id ? chatUnread : 0); }, [chatUnread, me?.id]);
   // 採用おめでとうボックス（2026-07-19）：農家が採用を決定した応募を検知し、働き手に1回だけ展開
@@ -1129,9 +1147,12 @@ export default function App(){
       } catch {}
     };
     check();
+    // 応募の変化は「お祝いボックスの判定」だけでなく「開いている画面の再取得の合図」にもする
+    // （2026-08-18 Speed-1B）。payloadは渡さない＝合図だけ。中身は各画面が既存の窓口で取り直す
+    const onAppChange = () => { check(); emitRefresh(REFRESH_APPLICATIONS, "realtime"); };
     const ch = supabase.channel("stage-watch")
-      .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: "worker_id=eq." + me.id }, check)
-      .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: "farmer_id=eq." + me.id }, check)
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: "worker_id=eq." + me.id }, onAppChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: "farmer_id=eq." + me.id }, onAppChange)
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [me?.id]);

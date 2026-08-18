@@ -24,6 +24,7 @@ import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
 import { getCache, setCache } from "../lib/viewCache";
+import { useRefreshTick, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
@@ -303,12 +304,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     })();
   }, []);
 
+  // 再取得の合図（2026-08-18 Speed-1B）。求人面＝求人の変化と復帰／応募者面＝応募の変化と復帰。
+  // 面ごとに分けてある＝合図が来ても、いま開いていない面は取りに行かない
+  const jobsRefreshTick = useRefreshTick(REFRESH_JOBS);
+  const appsRefreshTick = useRefreshTick(REFRESH_APPLICATIONS);
+
   // 【求人】作成中・公開中・期限切れ・応募者（求人名の表示に要る）を開いた時に一度だけ
   const jobsLoadedRef = useRef(false);
   useEffect(() => {
     if (!["draft","active","expired","applicants"].includes(jobTab)) return;
-    if (jobsLoadedRef.current) return;
-    jobsLoadedRef.current = true;
+    // 一度きりガード（面を行き来しても取り直さない）は維持しつつ、再取得の合図が来た時だけ破る。
+    // 初回は false !== 0 で通り、以後は同じ数字の間だけ止まる（2026-08-18 Speed-1B）
+    if (jobsLoadedRef.current === jobsRefreshTick) return;
+    jobsLoadedRef.current = jobsRefreshTick;
     (async () => {
       try {
         // 1往復に集約（2026-08-02たきと指示「求人ページも遅い」）：従来は getSession→自分のjobs取得→
@@ -339,7 +347,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       } catch {}
       setDraftsLoading(false);
     })();
-  }, [jobTab]);
+  }, [jobTab, jobsRefreshTick]);
   const JOB_TABS = [
     { k:"profile", l:"雇い手プロフィール" },
     { k:"draft",   l:"作成中" },
@@ -827,7 +835,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       } catch {}
       setAppsLoading(false);
     })();
-  }, [jobTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [jobTab, appsRefreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const submitEmergency = async () => {
     if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
     setEmergencySubmitting(true);
