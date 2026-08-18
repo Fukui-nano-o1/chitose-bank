@@ -5327,3 +5327,62 @@ C2（applications 4本→3本）は中止＝1本減らす改修には戻らな�
 【次に手を入れるならクライアントではない】残るのは Supabase / PostgREST の cold start（接続プールの
 直列化・スキーマキャッシュ再構築）。Compute増強は買っていない＝買うかどうかは別途たきと判断。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-18 Speed-2 インフラ読み取り監査（第一判定）＝DBクエリ実行は主因でない・Computeはまだ買わない ━━━
+【範囲】コード変更なし・課金なし・原因特定だけ。読み取りのみ（pg_settings/pg_stat_activity/pg_stat_statements/
+各種ログ）。この環境からは chitose-bank.com も supabase.co も外向き接続が塞がれている（CONNECTに403）ため、
+curlによる DNS/TCP/TLS/TTFB の分解は未実施＝未計測のまま残す。
+
+【① pool=10 の正体＝PostgREST の internal pool で確定】
+pg_stat_activity の現物：usename=authenticator / application_name=postgrest / client_addr=::1（ループバック）
+＝PostgREST は同一ホストから Postgres へ直結。Supavisor（server-side pool）は REST の経路に入っていない。
+ログの「Connection Pool initialized with a maximum size of 10 connections」は PostgREST 自身の db-pool の行。
+★Dashboard の Supavisor Pool Size を上げても REST には効かない。
+参考：max_connections=60（使用7）・shared_buffers=224MB・effective_cache_size=384MB（実効512MB級と推定）。
+「DB全体の接続上限の飽和ではない」を棄却しただけで、PostgREST 自身の db-pool（最大10・動的成長）は別の制約。
+
+【② 冷間の分解＝pg_stat_statements の A→B 差分（21:15 の冷間起動1回）】
+・冷間起動 12:15:49.740 UTC。初回REST 21本 min 4,199 / p50 4,229 / max 4,296ms・ばらつき97ms（1波）。
+  4.3秒後の暖まった同一要求（10本同時）は 20〜48ms。後送り3系統 22〜37ms。
+  WebSocket 101 は 12:15:54.133＝jobs_public 完了の後（Speed-1C の順序は維持）。
+  Realtime tenant init → partition DDL → PostgREST schema reload は 12:15:54.5〜12:16:00.1＝全部バーストの後。
+・差分（A 11:42:24 → B 12:18:46・pgss_reset不変・dealloc 1のまま・rows 4849→4850＝リセットも追い出しも無し）：
+  C 利用者SQL +41calls/+1,601.9ms ／ B3 set_config +41/+29.1 ／ A1・A2 セッション初期化 +20 ／
+  D1 tz +4/+2,571.5 ／ D2 内省 +8/+714.1 ／ Z その他 +1,166/+7,212.6。plan_ms は全部0＝
+  ★track_planning=off ので planning は「ゼロ」ではなく【未計測】。
+・区間の整合：区間内REST=41本でCの+41と完全一致。schema reload は4回（11:51に1組・12:15:58〜に1組）で
+  バーストには1つも重なっていない＝D1の+2,571.5msは全部バーストの外。
+・Cの内訳：外形監視6本≒2ms／暖まった14本≲50ms／【バースト21本 ≈ 1,550ms】（1本平均74ms）。wall は 4,231ms。
+  → SQL実行はΣで37%。最大10本並列なので wall に効く分はそれ以下。少なくとも2.7秒（63%）はSQL実行の外側。
+・クエリ自体は軽い（min_exec_time）：my_nav_badges 1.45ms / my_unread 0.94 / page_events 0.16 /
+  jobs_public 0.30〜0.41 / app_errors 0.09。冷間の初回実行が暖まった時の数十〜数百倍になる形（planning含む）。
+・セッション初期化 proxy：+20。長期平均（生涯64,292÷132日=487/日 ≒ 外形監視288/日 + reload73/日×2）から
+  背景を約10と見積もり、【バースト由来 ≈ 10 = db-pool上限と一致】。
+  ★これは接続本数の断定ではない（pg_stat_statementsは「どのHTTP接続がどのDBセッションを新設したか」を記録しない）。
+
+【判定（事前固定の基準に照らして）】A（SQL合計<1秒）✗＝1.55秒／B（数秒）✗／C-1 セッション初期化+10 ✓／
+C-2 SQLは軽い △／C-3 3波 ✗（今回は1波・19:26は3波＝n=2で±30%動く）。
+→【DBクエリ実行が主因である、は棄却】。ただしA も名乗れない中間。冷間のSQL 1.55秒はCPU依存so Compute で
+縮む見込みはあるが、縮んでも効くのは37%で、残り63%の正体は未特定。**Compute はまだ買わない。**
+
+【③ 恒常的な構造問題（初回起動の話ではない）】
+・PostgREST は1日に73回プールを捨てて作り直し、スキーマキャッシュを再構築している
+  （postgrest_logs 24時間：reload通知170回／Connection Pool initialized 73回／Schema cache queried 73回）。
+・引き金は DDL。extensions.pgrst_ddl_watch（ddl_command_end イベントトリガー）が NOTIFY pgrst を飛ばし、
+  Realtime のテナント初期化が打つ CREATE TABLE ... PARTITION OF realtime.messages と
+  ALTER TABLE ... OWNER TO が該当する。Realtime はテナントが暇だと止まり、次の接続で再初期化される＝
+  サイトが暇になるたびにこのループが回る。
+・再構築の中身は SELECT name FROM pg_timezone_names（生涯2,296回・平均707ms・累計27分）＋内省クエリ。
+・キャッシュヒット率100.000%・blks_read 生涯1,695ブロック・active_time/session_time=0.006%
+  ＝DBはほぼ何もしていない。遅さはDBの仕事量ではない。
+
+【④ 次に調べること（Computeより先）】
+1. なぜ Realtime の partition DDL が PostgREST の schema reload をこれほど誘発するのか（Supabase側の仕様・設定）
+2. PostgREST の pool がリクエスト間で空になっている疑い＝5分ごとの外形監視が毎回新セッションを作っている
+   計算になる（288/日）。db-pool-max-idletime 相当が Supabase で露出しているか。ここが効けば
+   「冷えた10本の接続確立」自体が消える
+3. 未計測：planning時間（track_planning=off）／接続確立・認証・pool待ち・HTTP/TLSの内訳
+【メモ】5分ごとの HEAD /rest/v1/farmers?select=id&limit=1 は AWS us-east-1・supabase-js-node の外形監視。
+Cloudflare の IAD colo 経由so 1.2〜1.6秒には太平洋横断が含まれる＝「冷間ペナルティ1.3秒」の根拠には使えない
+（一度この誤りを立てかけて取り下げた）。
+━━━ ここまで ━━━
