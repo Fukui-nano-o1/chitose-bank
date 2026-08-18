@@ -104,10 +104,20 @@ export function JobSearchMapView({ onRegister, me }) {
   // ログアウトで全消去・表示専用）になったので、ここはgetCacheを読むだけでよい。
   // ★復元時にdateStart/dateEndをDateへ再生する（2026-08-03クラッシュ修理）：mapJobPublicRowは
   //   Dateオブジェクトで持つが、localStorage(JSON)経由では文字列に化け、CalendarView等が落ちた
+  // ★もう一つの型（2026-08-18修理）：キャッシュは【前のビルドが焼いた形】で残る。あとから足した項目は
+  //   古い行に存在しないため、配列前提で読むと undefined になって画面が落ちる
+  //   （実例：masked_fields は2026-08-17に追加。それ以前のキャッシュから求人詳細を開くと
+  //    maskedFields.includes(...) で真っ白になった）。新しい項目を mapJobPublicRow に足したら、
+  //   ここにも「無ければ既定値」を1行足すこと
   const [dbJobs, setDbJobs] = useState(() => {
     const c = getCache("search:jobs");
     return Array.isArray(c)
-      ? c.map(j => ({ ...j, dateStart: j.dateStart ? new Date(j.dateStart) : null, dateEnd: j.dateEnd ? new Date(j.dateEnd) : null }))
+      ? c.map(j => ({
+          ...j,
+          dateStart: j.dateStart ? new Date(j.dateStart) : null,
+          dateEnd: j.dateEnd ? new Date(j.dateEnd) : null,
+          maskedFields: Array.isArray(j.maskedFields) ? j.maskedFields : [],
+        }))
       : null;
   });
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
@@ -1048,7 +1058,7 @@ export function JobSearchMapView({ onRegister, me }) {
                 町域は masked_fields に載っている時だけ描く＝町域が未設定の求人に偽のモザイクを出さない */}
             <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
               {selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}
-              {selectedJob.region && selectedJob.maskedFields.includes("town") && <MaskedText label="町域から先の住所" chars={4} />}
+              {selectedJob.region && Array.isArray(selectedJob.maskedFields) && selectedJob.maskedFields.includes("town") && <MaskedText label="町域から先の住所" chars={4} />}
               {me && selectedJob.region && <MaskedAddress value={selectedJob.workAddress} unlocked={true} exists={selectedJob.hasWorkAddress} />}
             </h2>
             {/* 初心者大歓迎・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}

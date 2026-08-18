@@ -5157,3 +5157,22 @@ wakeSent を復帰サイクルの旗にし、離れた時（hidden / blur）に�
 している最中の他人の求人変更は即時反映されない（復帰時のみ）。41本バーストを潰した後、必要なら
 payloadを渡さない求人変更のBroadcastを足して最終SLOへ寄せる。Speed-1C（起動41本の削減）は次。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-18 求人詳細が真っ白になる件の修理（古い形のキャッシュ・#err:07a6g0e）━━━
+【症状】未ログインの訪問者が /work/job/1233 を開いて画面が落ちた。
+undefined is not an object (evaluating 'n.maskedFields.includes') ・error_boundary・1件。
+【原因＝2026-08-03のDateクラッシュと同じ型（永続キャッシュの副作用）】
+viewCacheは【前のビルドが焼いた形】のまま localStorage に残る。masked_fields は2026-08-17に
+追加した新しい列なので、それ以前に search:jobs へ焼かれた求人には maskedFields が存在せず、
+復元して求人詳細を開くと selectedJob.maskedFields.includes("town") が undefined で落ちる。
+未ログイン・1端末・1件という報告の形とも一致（anonスコープのキャッシュ）。
+【修理（JobSearchMapView・2箇所）】
+・根本＝復元時の再生に「無ければ既定値」を追加：maskedFields: Array.isArray(...) ? ... : []
+  （dateStart/dateEnd の Date 再生と同じ場所・同じ考え方）
+・二重の壁＝読む側に Array.isArray ガード（キャッシュ以外の経路で古い形が来ても画面を落とさない）
+【★規則（今後）】mapJobPublicRow に項目を足したら、JobSearchMapView の復元マッパーにも
+「無ければ既定値」を1行足すこと。配列前提で読む箇所（.includes/.map/.length）は特に危険。
+今回あわせて全走査し、selectedJob 系で配列前提の直接呼び出しは この1箇所だけだったことを確認済み。
+【検証】実ソースから復元マッパーと描画条件を切り出してnodeで7項目を機械検算
+（古い形→空配列・Date再生・既存値の保存・配列でない値・キャッシュ無し・旧コードは落ちる/新コードは落ちない）。
+build成功・lint 0 error / warning 28（増減なし）。
