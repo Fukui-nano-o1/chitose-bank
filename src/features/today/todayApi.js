@@ -1,4 +1,4 @@
-// 今日ページ（やること・きょうの仕事・つぎの予定・打刻）が触るDBの全面。
+// 今日ページ（やること・きょうの仕事・つぎの予定）が触るDBの全面。
 // 第2次構造改革 Phase 4-B・2026-08-18で TodayPage.jsx / StagePanels.jsx から分離。
 //
 // ★ここが今日featureのDBの唯一の窓口＝画面側は supabase を直接持たない。
@@ -32,25 +32,8 @@ export const fetchMyApplicationTerms = (uid) =>
   supabase.from("applications")
     .select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
     .eq("worker_id", uid);
-// 打刻の事実：申告フラグと双方の署名時刻。両役割ぶんをまとめて取る（RLSで当事者の行だけ返る）
-export const fetchMyPunchFacts = (uid) =>
-  supabase.from("applications")
-    .select("id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected")
-    .or(`worker_id.eq.${uid},farmer_id.eq.${uid}`)
-    .then(r => r, () => ({ data: [] }));
-// 自分が承認する側の打刻修正（申請者自身には出さない＝RPC側でも拒否される）
-export const fetchPendingCorrections = (uid) =>
-  supabase.from("attendance_corrections")
-    .select("id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)")
-    .eq("status", "pending").neq("requested_by", uid)
-    .order("created_at", { ascending: false })
-    .then(r => r, () => ({ data: [] }));
-
 // ── やることの実行 ─────────────────────────────────────
-// 打刻修正の承認・却下（当事者ゲートはDB側＝申請者自身は 'self' で拒否される）
-export const decideTimeCorrection = (id, approve) =>
-  supabase.rpc("decide_time_correction", { p_id: id, p_approve: approve });
-// 用件カードのその場実行（confirm_insurance / confirm_start）。どのRPCかは TODO_META が持つ
+// 用件カードのその場実行（confirm_insurance）。どのRPCかは TODO_META が持つ
 export const runTodoRpc = (rpc, applicationId) =>
   supabase.rpc(rpc, { p_application_id: applicationId });
 // 採用の確定（採用するページ・応募者シートと同じ confirm_terms＝人数上限・見送りの波及はDB側）

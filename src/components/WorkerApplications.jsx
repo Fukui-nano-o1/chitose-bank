@@ -5,13 +5,11 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, isWorkDayToday, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, punchStartWindow, photoThumb } from "../lib/utils";
-import { enqueuePunch, isQueued, queuedPunches, flushPunchQueue } from "../lib/punchQueue";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, photoThumb } from "../lib/utils";
 import { fetchWorkerReady } from "../lib/workerReady";
-import { YesNoPill, AutoSkeleton, useSkeletonProbe, DeclaredBadge, PunchGapNotice, FlowBar, Dots } from "./ui";
+import { YesNoPill, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
-import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 
 export function WorkerApplications({ filter, me }) {
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（2026-07-27たきと指示）
@@ -20,10 +18,11 @@ export function WorkerApplications({ filter, me }) {
   const [loading, setLoading] = useState(() => getCache("wapp:apps") === undefined);
   // 応募の変化(Realtime)と画面の復帰で取り直す合図（2026-08-18 Speed-1B）
   const refreshTick = useRefreshTick(REFRESH_APPLICATIONS);
-  // 画面の状態→キャッシュの写し（2026-07-27）。開始打刻・評価・取消は手元のstateだけを書き換えるため、
+  // 画面の状態→キャッシュの写し（2026-07-27）。評価・取消は手元のstateだけを書き換えるため、
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
   useEffect(() => { if (loading) return; setCache("wapp:apps", allApps); }, [allApps, loading]);
-  const [punchingId, setPunchingId] = useState(null);
+  // 評価済みの応募（自分が書いた評価の行＝記録から導出する。打刻の署名時刻は使わない）
+  const [reviewedIds, setReviewedIds] = useState(() => new Set(getCache("wapp:reviewed") ?? []));
   // 仮応募（第15弾・2026-07-30）：応募の意思だけ預かった行と、必須項目の残り
   const [pendingApps, setPendingApps] = useState([]);
   const [readyState, setReadyState] = useState(null); // { ready, missing:[...] }
@@ -36,53 +35,7 @@ export function WorkerApplications({ filter, me }) {
   };
   const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
   const [pastOpen, setPastOpen] = useState(false); // 過去の応募（見送り・失効）の折りたたみ（第9弾）
-  // 圏外キュー（第13弾(3)）：通信に失敗したら「押した時刻」を端末に貯め、復帰時に自動送信する。
-  // 送信は同じ punch_start を使い、時刻だけ端末保存値を p_at で渡す（サーバ側でクランプされる）
-  const [offlineIds, setOfflineIds] = useState(() => new Set(queuedPunches().map(x => x.application_id)));
-  const [flushedMsg, setFlushedMsg] = useState("");
-  const punchStart = async (a) => {
-    if (punchingId) return;
-    setPunchingId(a.id);
-    const tappedAt = new Date().toISOString(); // ★押した瞬間の時刻。これを後で送る
-    try {
-      const { data, error } = await supabase.rpc('punch_start', { p_application_id: a.id });
-      if (!error && data && data.ok) {
-        setAllApps(prev => prev.map(x => x.id===a.id ? { ...x, started_at: data.started_at, status: data.already ? x.status : 'working' } : x));
-      } else if (error) {
-        // 通信そのものの失敗＝圏外とみなして端末に貯める（サーバが返した業務エラーは下でalert）
-        enqueuePunch(a.id, tappedAt);
-        setOfflineIds(prev => new Set(prev).add(a.id));
-      } else if (data && !data.ok) {
-        alert('開始できませんでした：' + (data.reason || '不明'));
-      }
-    } catch {
-      enqueuePunch(a.id, tappedAt);
-      setOfflineIds(prev => new Set(prev).add(a.id));
-    }
-    setPunchingId(null);
-  };
-  // 電波が戻ったら自動送信（online イベント＋次回起動時）。送れたぶんだけキューから消える
-  const flushQueue = async () => {
-    const sent = await flushPunchQueue(async (appId, atISO) => {
-      const { data, error } = await supabase.rpc('punch_start', { p_application_id: appId, p_at: atISO });
-      if (error || !data || !data.ok) return false;
-      setAllApps(prev => prev.map(x => x.id===appId ? { ...x, started_at: data.started_at, status: 'working' } : x));
-      return true;
-    });
-    if (sent > 0) {
-      setOfflineIds(new Set(queuedPunches().map(x => x.application_id)));
-      setFlushedMsg(`圏外のあいだの打刻を送信しました（${sent}件）。相手に申告として通知しました`);
-      setTimeout(() => setFlushedMsg(""), 6000); // 1回だけ出す
-    }
-  };
-  useEffect(() => {
-    flushQueue();                                  // 起動時
-    const on = () => flushQueue();
-    window.addEventListener("online", on);         // 復帰時
-    return () => window.removeEventListener("online", on);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 終了確認・評価（Part2）
+  // 評価（Part2・農家の完了記録のあと）
   const [reviewModalApp, setReviewModalApp] = useState(null);
   const [reviewWantAgain, setReviewWantAgain] = useState(null);
   const [reviewAsDescribed, setReviewAsDescribed] = useState(null);
@@ -101,27 +54,18 @@ export function WorkerApplications({ filter, me }) {
     if (!reviewModalApp || reviewWantAgain===null || reviewAsDescribed===null || reviewSafetyCare===null || reviewSubmitting) return;
     setReviewSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc('confirm_end', { p_application_id: reviewModalApp.id });
-      if (error || !data?.ok) { fbError(); alert('確認に失敗しました：' + (data?.reason || error?.message || '不明')); setReviewSubmitting(false); return; }
       const { error: revErr } = await supabase.from('reviews').insert({
         application_id: reviewModalApp.id, reviewer_id: me.id, reviewee_id: reviewModalApp.farmer_id,
         direction: 'worker_to_farmer', want_again: reviewWantAgain, as_described: reviewAsDescribed, safety_care: reviewSafetyCare,
         public_comment: reviewPublicComment.trim() || null, private_memo: reviewPrivateMemo.trim() || null,
       });
       if (revErr) { fbError(); alert('評価の保存に失敗しました：' + revErr.message); setReviewSubmitting(false); return; }
-      setAllApps(prev => prev.map(x => x.id===reviewModalApp.id ? { ...x, worker_confirmed_end_at: new Date().toISOString() } : x));
+      setReviewedIds(prev => new Set(prev).add(reviewModalApp.id));
       setReviewModalApp(null);
       fbSuccess(); setCelebrate({ emoji:"⭐", title:"ありがとうございました" });
     } catch { alert('処理に失敗しました。'); }
     setReviewSubmitting(false);
   };
-
-  // ── 打刻の修正申請（第13弾(2)・2026-07-30たきと指示）──
-  // 開始・終了のどちらか片方だけでも申請できる。相手の承認で記録が直る（申請と結果は記録に残る）。
-  // 重複申請はDB側が弾き message を返すので、それをそのまま出す
-  // シート本体は共通部品 TimeCorrectionSheet（雇い手・今日ページと同じもの）。ここは開く相手を持つだけ
-  const [corrApp, setCorrApp] = useState(null);
-  const openCorrection = (a) => setCorrApp(a);
 
   // 欠勤記録への異議申立（Part2・attended=falseの代替導線）
   const [disputeModalApp, setDisputeModalApp] = useState(null);
@@ -179,12 +123,18 @@ export function WorkerApplications({ filter, me }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         // 仮応募（第15弾・2026-07-30）：意思だけ預かった行と、あと何項目かの内訳を同時に取る
-        const [appsRes, pendRes, readyRes] = await Promise.all([
+        const [appsRes, pendRes, readyRes, revRes] = await Promise.all([
           supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false}),
           supabase.from("pending_applications").select("id,job_number,created_at").order("created_at",{ascending:false}).then(r => r, () => ({ data: [] })),
           fetchWorkerReady().then(r => r, () => null),
+          // 評価済みの判定（打刻の署名時刻の代わり）。失敗時は手元の値を上書きしない（2026-08-07規則）
+          supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).then(r => r, () => ({ error: true })),
         ]);
         setPendingApps(pendRes.data || []);
+        if (!revRes.error && revRes.data) {
+          const ids = revRes.data.map(r => r.application_id).filter(Boolean);
+          setReviewedIds(new Set(ids)); setCache("wapp:reviewed", ids);
+        }
         if (readyRes) setReadyState(readyRes);
         const { data, error } = appsRes;
         if (!error && data) {
@@ -282,17 +232,17 @@ export function WorkerApplications({ filter, me }) {
   const ribbonLabel = (a) => {
     if (a.status === "completed") {
       if (a.attended === false) return "欠勤記録";
-      if (!a.worker_confirmed_end_at) return "評価待ち";
+      if (!reviewedIds.has(a.id)) return "評価待ち";
       return "完了";
     }
     return label(a);
   };
   const ribbonColor = (a) => {
-    if (a.status === "completed") return (a.attended === false || a.worker_confirmed_end_at) ? "#9E9E9E" : "#E24B4A";
+    if (a.status === "completed") return (a.attended === false || reviewedIds.has(a.id)) ? "#9E9E9E" : "#E24B4A";
     return a.status === "working" ? "#C77700" : "#00A86B";
   };
   // 未完了＝働き手側の手続きが残っている応募（完了して評価済み/欠勤記録済みになるまで）
-  const isAppDone = (a) => a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at);
+  const isAppDone = (a) => a.status === "completed" && (a.attended === false || reviewedIds.has(a.id));
   // 応募カード本体（返事待ちタブのリスト表示と、きょうの仕事タブのボトムシートで共用）
   const renderAppCard = (a) => {
     const c = color(a.status);
@@ -304,42 +254,8 @@ export function WorkerApplications({ filter, me }) {
                 <AvailDatesChips value={a.available_dates} />
                 <AgreedDatesRow value={a.agreed_dates} />
                 {/* お仕事の流れ（応募→承認→面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-25） */}
-                {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={a} /></div>}
-                {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
-                {CHAT_ELIGIBLE_STATUSES.includes(a.status) && isWorkDayToday(jobDates[a.job_number]?.date_start, jobDates[a.job_number]?.date_end) && (() => {
-                  // 打刻の時間窓（第13弾(1)）：開始の握手は作業開始時刻の60分前から。
-                  // 窓の外でも「押せない」で終わらせず、必ず修正申請への道を添える
-                  const win = punchStartWindow(jobDates[a.job_number]);
-                  const queued = offlineIds.has(a.id) || isQueued(a.id);
-                  return a.started_at ? (
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>
-                      開始済み（{new Date(a.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
-                      <DeclaredBadge show={a.started_declared} />
-                      {a.time_corrected && <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#717171", background:"#F0F0F0", borderRadius:4, padding:"1px 5px" }}>修正済み</span>}
-                    </p>
-                  ) : queued ? (
-                    <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#C77700", background:"#FFF4E0", borderRadius:10, padding:"9px 10px", margin:"0 0 8px", textAlign:"center", lineHeight:1.6 }}>
-                      圏外のため保存しました。電波が戻ったら自動で送信します
-                    </p>
-                  ) : (
-                    <>
-                      <button onClick={()=>punchStart(a)} disabled={punchingId===a.id || !win.canPunch} className="f-sans"
-                        style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background: win.canPunch ? "#00A86B" : "#E5E5E5", color: win.canPunch ? "#fff" : "#999", border:"none", borderRadius:10, cursor: win.canPunch ? "pointer" : "default", marginBottom: win.canPunch ? 8 : 4 }}>
-                        {punchingId===a.id ? "..." : "▶ 作業を開始する"}
-                      </button>
-                      {!win.canPunch && <p className="f-sans" style={{ fontSize:11, color:"#717171", textAlign:"center", margin:"0 0 8px" }}>{win.reason}</p>}
-                    </>
-                  );
-                })()}
-                {/* 双方の署名時刻の乖離（第13弾・追補）：申告打刻を承認制にしない代わりに、開きを隠さず出す */}
-                <PunchGapNotice app={a} onRequestCorrection={()=>openCorrection(a)} correctionLabel="🕐 自分の打刻を直す → 修正を申請" />
-                {/* 打刻の修正を申請（第13弾(2)）：時間どおりに押せなかった時の道を、打刻の近くに常時置く */}
-                {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
-                  <button onClick={()=>openCorrection(a)} className="f-sans" style={{ display:"block", width:"100%", background:"none", border:"none", fontSize:11, color:"#717171", textDecoration:"underline", textUnderlineOffset:2, cursor:"pointer", margin:"0 0 8px", padding:0 }}>
-                    時間どおりに押せなかった時は → 🕐 打刻の修正を申請
-                  </button>
-                )}
-                {/* 終了確認・評価（Part2・completed後） */}
+                {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={{ ...a, _reviewed: reviewedIds.has(a.id) }} /></div>}
+                {/* 評価（Part2・農家が完了を記録したあと） */}
                 {a.status === "completed" && (
                   a.attended === false ? (
                     a._disputed ? (
@@ -347,16 +263,10 @@ export function WorkerApplications({ filter, me }) {
                     ) : (
                       <button onClick={()=>{ setDisputeModalApp(a); setDisputeReason(""); }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer", marginBottom:8 }}>異議申立</button>
                     )
-                  ) : a.worker_confirmed_end_at ? (
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 完了・評価済み</p>
-                  ) : !a.started_at ? (
-                    /* 終了の握手は開始の握手が済んでいる時だけ（第13弾(1)）。
-                       開始が無いまま終了だけが記録されると、勤務時間が算出できない */
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", background:"#F7F7F7", borderRadius:10, padding:"9px 10px", margin:"0 0 8px", textAlign:"center", lineHeight:1.6 }}>
-                      開始の記録が無いため、終了の確認はできません。<br />上の「打刻の修正を申請」から開始時刻を申請してください
-                    </p>
+                  ) : reviewedIds.has(a.id) ? (
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 評価済み</p>
                   ) : (
-                    <button onClick={()=>openReviewModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>✓ 終了を確認して評価する</button>
+                    <button onClick={()=>openReviewModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>⭐ 農家を評価する</button>
                   )
                 )}
                 {/* 緊急連絡（Part3） */}
@@ -533,12 +443,6 @@ export function WorkerApplications({ filter, me }) {
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
-      {/* 圏外キューの送信完了（第13弾(3)）：送れた時に1回だけ出す。相手には申告として通知が飛んでいる */}
-      {flushedMsg && (
-        <p className="f-sans fade-in" style={{ fontSize:12, fontWeight:700, color:"#00A86B", background:"#E6F7EF", border:"1px solid #00A86B", borderRadius:10, padding:"9px 11px", margin:"0 0 14px", textAlign:"center", lineHeight:1.6 }}>
-          {flushedMsg}
-        </p>
-      )}
       {/* きょうの仕事タブはタイトルをフローバナーに差し替え（2026-07-19）。返事待ちタブは従来のタイトル */}
       {filter !== "approved" && (<>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
@@ -591,7 +495,7 @@ export function WorkerApplications({ filter, me }) {
                     <span className="f-sans" style={{ display:"inline-block", marginTop:4, fontSize:11, fontWeight:700, padding:"2px 10px", borderRadius:20, background: ribbonColor(a) === "#00A86B" ? "#E6F7EF" : ribbonColor(a) === "#C77700" ? "#FFF4E0" : "#F3F3F3", color: ribbonColor(a) }}>{ribbonLabel(a)}</span>
                   </div>
                 </div>
-                <FlowBar a={a} />
+                <FlowBar a={{ ...a, _reviewed: reviewedIds.has(a.id) }} />
               </button>
             );
           })}
@@ -638,10 +542,6 @@ export function WorkerApplications({ filter, me }) {
       )}
 
       {/* 異議申立モーダル（Part2・欠勤記録への異議） */}
-      {/* 打刻の修正を申請（第13弾(2)）。開始・終了のどちらか片方だけでも出せる */}
-      {corrApp && (
-        <TimeCorrectionSheet key={corrApp.id} app={corrApp} baseYmd={jobDates[corrApp.job_number]?.date_start} onClose={()=>setCorrApp(null)} />
-      )}
       {disputeModalApp && (
         <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>

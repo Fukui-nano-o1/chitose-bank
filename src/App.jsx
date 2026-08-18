@@ -1204,16 +1204,19 @@ export default function App(){
       try {
         let shown = []; try { shown = JSON.parse(localStorage.getItem("cb_stageShown") || "[]"); } catch {}
         const since = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
-        const [wRes, fRes] = await Promise.all([
-          supabase.from("applications").select("id,job_number,status,attended,worker_confirmed_end_at,created_at").eq("worker_id", me.id).gte("created_at", since).order("created_at", { ascending: false }).limit(20),
+        const [wRes, fRes, revRes] = await Promise.all([
+          supabase.from("applications").select("id,job_number,status,attended,created_at").eq("worker_id", me.id).gte("created_at", since).order("created_at", { ascending: false }).limit(20),
           supabase.from("applications").select("id,job_number,status,created_at").eq("farmer_id", me.id).gte("created_at", since).order("created_at", { ascending: false }).limit(20),
+          // 評価済みかは自分が書いた評価の行で見る（打刻の終了確認は廃止・2026-08-18）
+          supabase.from("reviews").select("application_id").eq("reviewer_id", me.id).then(r => r, () => ({ error: true })),
         ]);
         if (cancelled) return;
+        const reviewed = new Set(revRes?.error ? [] : (revRes.data || []).map(r => r.application_id));
         const cands = [];
         (wRes.data || []).forEach(a => {
           if (["approved","meeting","interview","contracted","working","completed"].includes(a.status)) cands.push({ a, role:"w", stage:"approved" });
-          if (a.status === "completed" && a.attended === true && !a.worker_confirmed_end_at) cands.push({ a, role:"w", stage:"worked" });
-          if (a.status === "completed" && a.worker_confirmed_end_at) cands.push({ a, role:"w", stage:"reviewed" });
+          if (a.status === "completed" && a.attended === true && !reviewed.has(a.id)) cands.push({ a, role:"w", stage:"worked" });
+          if (a.status === "completed" && reviewed.has(a.id)) cands.push({ a, role:"w", stage:"reviewed" });
         });
         (fRes.data || []).forEach(a => {
           if (a.status === "applied") cands.push({ a, role:"f", stage:"applied" });

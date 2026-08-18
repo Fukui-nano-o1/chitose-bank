@@ -28,10 +28,10 @@ export function ChatList() {
   const [unreadMap, setUnreadMap] = useState(() => chatCache.v?.unreadMap || {}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
   const [initialsMap, setInitialsMap] = useState(() => chatCache.v?.initialsMap || {}); // { partner_auth_id: メール頭文字2文字 }（ニックネーム未設定時のアイコン・2026-07-22）
   // アクション順（2026-07-27たきと指示・同日改定）：並びの既定は「利用者が最後にアクションした順」。
-  // アクション＝メッセージの送受信＋応募の記録（応募・承認/見送り・採用・保険報告・開始・完了・終了確認）。
+  // アクション＝メッセージの送受信＋応募の記録（応募・承認/見送り・採用・保険報告・完了）。
   // ★チャットを開いただけ（既読＝read_at・chat_reads）は動かさない＝アクションではない（記録の憲法）
   const APP_ACTION_COLS = ["created_at","decided_at","status_changed_at","terms_confirmed_worker_at","terms_confirmed_farmer_at",
-    "insurance_prepared_at","started_at","farmer_confirmed_start_at","work_completed_at","worker_confirmed_end_at"];
+    "insurance_prepared_at","work_completed_at"];
   const [lastMsgMap, setLastMsgMap] = useState(() => chatCache.v?.lastMsgMap || {}); // { application_id: 最終メッセージのcreated_at }
   const refreshLastMsg = async (ids) => {
     try {

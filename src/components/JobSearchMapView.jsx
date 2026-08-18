@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
-import { isAdmin, ymdLocal, isWorkDayToday, punchStartWindow, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
+import { isAdmin, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
@@ -30,7 +30,7 @@ import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobP
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
   fetchSavedJobNumbers, deleteSavedJob, insertSavedJob, fetchMyApplications, fetchMyPendingApplications,
   fetchMyApplicationForJob, fetchMyPendingForJob, applyToJob, createPendingApplication, cancelApplication,
-  punchStart, fetchAccountHolderId, fetchMyWorkerNickname, insertJobReport, fetchSurveyAnswered, insertSurvey,
+  fetchAccountHolderId, fetchMyWorkerNickname, insertJobReport, fetchSurveyAnswered, insertSurvey,
   fetchConsignorConsent, fetchSignupOpen } from "../features/jobs/search/jobSearchApi";
 
 // ── JobSearchMapView ────────────────────────────────────────
@@ -573,7 +573,7 @@ export function JobSearchMapView({ onRegister, me }) {
         //   （応募済みの求人で応募ボタンが復活する）事故になっていた。失敗時は手元の値のまま
         if (!appRes.error && appRes.data) {
           const map = {};
-          appRes.data.forEach(r => { map[r.job_number] = { id: r.id, status: r.status, started_at: r.started_at, time_corrected: r.time_corrected }; });
+          appRes.data.forEach(r => { map[r.job_number] = { id: r.id, status: r.status }; });
           setMyAppsMap(map); setCache("search:myApps", map);
         }
         if (!pendRes.error && pendRes.data) {
@@ -586,7 +586,7 @@ export function JobSearchMapView({ onRegister, me }) {
     return () => { cancelled = true; };
   }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- meはidだけを見る（識別子の変化で再取得しない）
   // 開いている求人の応募状況は、上の一覧から同期的に取り出す（求人ごとの往復なし）。
-  // 打刻・取消はこの後 patchMyApp で一覧ごと直すため、裏の再取得で巻き戻らない
+  // 取消はこの後 patchMyApp で一覧ごと直すため、裏の再取得で巻き戻らない
   useEffect(() => {
     if (!selectedJob || !me) { setMyApplication(null); setMyPending(false); return; }
     setMyApplication((myAppsMap && myAppsMap[selectedJob.id]) || null);
@@ -595,7 +595,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // 自分の応募が分かっているか（2026-07-27・「満員」が一瞬映る修理）。
   // 未確定のままhideApplyを決めると、応募済みの人にも一瞬「満員」が出てから本来の表示に戻る
   const myAppLoaded = !me || myAppsLoaded;
-  // 応募状況の手元の変更（打刻・取消・裏取りの結果）を一覧にも反映する＝画面とキャッシュを1つの現実に保つ。
+  // 応募状況の手元の変更（取消・裏取りの結果）を一覧にも反映する＝画面とキャッシュを1つの現実に保つ。
   // 最新値はrefで持つ（effect内から呼ぶとstateのクロージャが古くなり、同時に来た更新を落とすため）
   const myAppsRef = useRef(myAppsMap);
   useEffect(() => { myAppsRef.current = myAppsMap; }, [myAppsMap]);
@@ -647,22 +647,6 @@ export function JobSearchMapView({ onRegister, me }) {
 
   // 集合場所の詳細ページ表示は削除（2026-07-16）。承認後の共有はチャットの「はじめる前の確認」カード（job_meeting_place RPC）に一本化
 
-  // 開始打刻（①）：承認済み以降・作業日当日のみ
-  const [punching, setPunching] = useState(false);
-  const punchStart = async () => {
-    if (punching || !myApplication) return;
-    setPunching(true);
-    try {
-      const { data, error } = await punchStart(myApplication.id);
-      if (!error && data && data.ok) {
-        const next = myApplication ? { ...myApplication, started_at: data.started_at, status: data.already ? myApplication.status : 'working' } : null;
-        if (next) { setMyApplication(next); patchMyApp(selectedJob.id, next); }
-      } else if (data && !data.ok) {
-        alert('開始できませんでした：' + (data.reason || '不明'));
-      }
-    } catch { alert('開始の記録に失敗しました。'); }
-    setPunching(false);
-  };
   const [applying, setApplying] = useState(false);
   // プロフィールゲートのモーダル状態。null=非表示 / {mode:"soft"}=クライアント側の空チェック（両方選べる）
   // / {mode:"hard", hasNickname, qaAnswered, qaRequired}=サーバー側の必須ゲート（プロフィールを書く、のみ）
@@ -1106,30 +1090,6 @@ export function JobSearchMapView({ onRegister, me }) {
             {/* 左カラム */}
             <div>
               <JobKeyFacts job={selectedJob} />
-
-              {/* 開始打刻（①・承認済み以降・作業日当日のみ） */}
-              {CHAT_ELIGIBLE_STATUSES.includes(myApplication?.status) && isWorkDayToday(selectedJob.dateStart, selectedJob.dateEnd) && (
-                <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-                  {myApplication.started_at ? (
-                    <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#00A86B", margin:0 }}>
-                      開始済み（{new Date(myApplication.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}）
-                      {myApplication.time_corrected && <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#717171", background:"#F0F0F0", borderRadius:4, padding:"1px 5px" }}>修正済み</span>}
-                    </p>
-                  ) : (() => {
-                    // 打刻の時間窓（第13弾(1)）。応募状況ページと同じ規則を使う＝ここだけ早く押せる抜け道を作らない
-                    const win = punchStartWindow({ date_start: selectedJob.dateStart, date_end: selectedJob.dateEnd, work_time: selectedJob.workTime });
-                    return (
-                      <>
-                        <button onClick={punchStart} disabled={punching || !win.canPunch} className={win.canPunch ? "btn-primary f-sans" : "f-sans"}
-                          style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, borderRadius:14, ...(win.canPunch ? {} : { background:"#E5E5E5", color:"#999", border:"none" }) }}>
-                          {punching ? "..." : "▶ 作業を開始する"}
-                        </button>
-                        {!win.canPunch && <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"8px 0 0" }}>{win.reason}</p>}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
 
               <JobEmployerCard job={selectedJob} employer={empEmployer} trust={empTrust} onOpenIntro={setFarmIntroOpen} />
 

@@ -56,7 +56,7 @@ export const isJobUnpublished = (j) => !!(j && j.status === "draft" && j.opened_
 // 下書き（作成中）＝まだ一度も掲載しておらず、日程も過ぎていないdraft。これ以外をdraftと呼ばない
 export const isJobDraft = (j) => !!(j && j.status === "draft" && !j.opened_at && !isJobEnded(j));
 
-// 作業日当日か（開始・終了打刻の表示条件などに使用）
+// 作業日当日か（きょうの仕事・当日だけの表示条件などに使用）
 export function isWorkDayToday(dateStart, dateEnd) {
   if (!dateStart) return false;
   const fmt = d => { const dt = new Date(d); return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0"); };
@@ -123,11 +123,7 @@ export function entryWorkDays(entry) {
   return keep(out);
 }
 
-// ── 打刻の時間窓（第13弾(1)・2026-07-30たきと指示）──
-// 他社（タイミー・メルカリハロ・LINEスキマニ）は全て打刻可能な時間窓を持つ。当方も入れる。
-// 判定はここに集約し、打刻ボタンのある画面（応募状況ページ・求人詳細）はこの関数を使う。
-export const PUNCH_WINDOW_MIN = 60; // 開始の握手は作業開始時刻の60分前から押せる
-
+// ── 勤務時間（work_time）の読み取り ──────────────────────
 // work_time（"8:00〜17:00"）の開始時刻を「その日の0時からの分」で返す。取れなければ null
 export const workStartMinutes = (workTime) => {
   const m = String(workTime || "").match(/^\s*(\d{1,2}):(\d{2})/);
@@ -151,53 +147,6 @@ export const workEndMinutes = (workTime) => {
   if (start != null && end <= start) return null; // 日またぎ等＝読めない扱い（当日いっぱいを作業中とみなす）
   return end;
 };
-// "8:00" のような表示用文字列に戻す
-export const minutesToHm = (mins) => {
-  const v = ((mins % 1440) + 1440) % 1440;
-  return Math.floor(v / 60) + ":" + String(v % 60).padStart(2, "0");
-};
-// 開始の握手を押せるか。押せない時は理由の文言つきで返す。
-// ・作業日当日でなければ押せない（深夜4:00の日境界は既存の isWorkDayToday の扱いをそのまま使う）
-// ・work_time が取れない求人は時間で縛らない（＝当日ならいつでも押せる。従来どおり）
-export function punchStartWindow(job, now = new Date()) {
-  if (!isWorkDayToday(job?.date_start, job?.date_end)) {
-    return { canPunch: false, reason: "作業日の当日になると押せます" };
-  }
-  const startMin = workStartMinutes(job?.work_time);
-  if (startMin === null) return { canPunch: true, reason: "" };
-  const openMin = startMin - PUNCH_WINDOW_MIN;
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  if (nowMin >= openMin) return { canPunch: true, reason: "" };
-  return {
-    canPunch: false,
-    reason: `${minutesToHm(startMin)}の${PUNCH_WINDOW_MIN}分前（${minutesToHm(openMin)}）から押せます`,
-  };
-}
-
-// ── 打刻の透明性（第13弾・追補・2026-07-30たきと判断）──
-// オフラインの申告打刻に相手の承認は課さない（電波が最も悪い場面で摩擦を増やさない）。
-// 代わりに「事実の質」を隠さず出す＝申告であることのフラグと、双方の署名時刻の乖離を見せる。
-// 記録そのものは改変しない・申告打刻も実績に算入する、という台帳の扱いは変えない。
-export const PUNCH_GAP_MIN = 30; // これ以上ズレていたら並べて出す
-
-// 働き手の打刻と農家の確認、それぞれの署名時刻の開き（分）。片方でも無ければ null
-const gapMinutes = (a, b) => {
-  if (!a || !b) return null;
-  const d = Math.abs(new Date(a).getTime() - new Date(b).getTime());
-  if (!isFinite(d)) return null;
-  return Math.round(d / 60000);
-};
-// 開始・終了それぞれについて「並べて出すべきか」を返す。
-// 開始＝働き手のstarted_at と 農家のfarmer_confirmed_start_at
-// 終了＝農家のwork_completed_at と 働き手のworker_confirmed_end_at
-export function punchDivergence(app) {
-  const s = gapMinutes(app?.started_at, app?.farmer_confirmed_start_at);
-  const e = gapMinutes(app?.work_completed_at, app?.worker_confirmed_end_at);
-  return {
-    start: (s !== null && s >= PUNCH_GAP_MIN) ? { minutes: s, worker: app.started_at, farmer: app.farmer_confirmed_start_at } : null,
-    end:   (e !== null && e >= PUNCH_GAP_MIN) ? { minutes: e, farmer: app.work_completed_at, worker: app.worker_confirmed_end_at } : null,
-  };
-}
 
 // JSTの短い日時表示（MM/DD HH:MM）
 export const fmtJstShort = (ts) => {
@@ -687,7 +636,7 @@ export const CALENDAR_STATUS_COLOR = (s) => (["approved","contracted","working"]
 // チャット可能な段階（承認以降）のapplicationsを一覧表示。自分がworker/farmerどちらの当事者でも拾う
 export const CHAT_ELIGIBLE_STATUSES = ["approved","meeting","interview","contracted","working"];
 // チャット一覧の表示対象（2026-07-19）：完了後もスレッドを残す＝履歴として双方の確認が取れる状態を保つ。
-// 打刻・緊急連絡など「進行中だけの操作」の判定はCHAT_ELIGIBLE_STATUSESのまま変えない
+// 緊急連絡など「進行中だけの操作」の判定はCHAT_ELIGIBLE_STATUSESのまま変えない
 // applied=応募直後から相手とチャットで繋がる（2026-07-19）。rejected=見送りの自動返信を読めるよう履歴として残す
 // expired=失効も一覧に残す（2026-07-27たきと指示）：判断のないまま開始日を迎えた応募も、何があったかを
 // 双方が後から確認できる状態に保つ（チャット履歴の保全と同じ思想）。チップは黒の「失効」で表示される

@@ -66,8 +66,8 @@ function CardHead({ item }) {
   );
 }
 
-// 仕事中カード。today=本日開始（採用済み・当日・未打刻）はまだ started_at 等が無いので、
-// 採用→保険→開始待ちの並びで「これから始まる」を示す。working は開始〜終了の全打刻を示す
+// 仕事中カード。today=本日開始（採用済み・当日・開始前）はまだ作業中になっていないので、
+// 採用→保険→開始待ちの並びで「これから始まる」を示す。working は開始〜完了の記録を示す
 function WorkCard({ item, today }) {
   return (
     <div className="ledger-card" style={{ padding:"14px 16px", marginBottom:12, borderLeft:"3px solid #E24B4A" }}>
@@ -82,14 +82,10 @@ function WorkCard({ item, today }) {
         {today ? (<>
           <CheckRow label="採用" at={item.hired_at} />
           <CheckRow label="保険の準備" at={item.insurance_prepared_at} />
-          <CheckRow label="開始（働き手）" at={item.started_at} />
-          <CheckRow label="開始確認（農家）" at={item.farmer_confirmed_start_at} />
         </>) : (<>
-          <CheckRow label="開始（働き手）" at={item.started_at} />
-          <CheckRow label="開始確認（農家）" at={item.farmer_confirmed_start_at} />
+          <CheckRow label="開始（自動）" at={item.started_at} />
           <CheckRow label="保険の準備" at={item.insurance_prepared_at} />
           <CheckRow label="完了（農家）" at={item.work_completed_at} />
-          <CheckRow label="終了確認（働き手）" at={item.worker_confirmed_end_at} />
         </>)}
       </div>
     </div>

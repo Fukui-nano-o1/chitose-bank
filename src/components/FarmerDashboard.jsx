@@ -9,10 +9,9 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
-import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
+import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
-import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 import { DragSheet } from "./DragSheet";
 import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
@@ -739,10 +738,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     } catch { alert('解除に失敗しました。'); }
   };
 
-  // 打刻の修正申請（第13弾・追補の訂正／2026-07-30たきと指示「申請権の非対称を解消」）。
-  // 申請は相手の承認で成立するので、雇い手から出しても双方署名の構造は崩れない。シートは働き手側と同じ共通部品
-  const [corrApp, setCorrApp] = useState(null);
-
   // 緊急連絡（Part3・農家側）
   const [emergencyModalApp, setEmergencyModalApp] = useState(null);
   const [emergencyKind, setEmergencyKind] = useState("");
@@ -771,7 +766,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   //   openEmergencyModal を呼ぶため、両方の宣言より後ろでないと宣言前参照になる
   //   （2026-07-29に並べ替え・中身は不変。読み込み処理は上部の入口/求人ローダーと対）
   // 応募者タブを開くたびに応募の最新statusを取り直す（2026-07-16）。
-  // 初回マウント時の1回だけだと、働き手側の操作（終了打刻→completed等）が進んでも
+  // 初回マウント時の1回だけだと、働き手側の操作（評価等）が進んでも
   // カードの帯が古いまま（契約のまま）になるため
   useEffect(() => {
     if (jobTab !== "applicants") return;
@@ -872,7 +867,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const empFlowState = (a) => {
     const approved = ["approved","meeting","interview","contracted","working","completed"].includes(a.status);
     const hired    = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
-    const started  = a.status === "working" || a.status === "completed" || !!a.started_at || !!a.farmer_confirmed_start_at;
+    const started  = a.status === "working" || a.status === "completed"; // 作業日の開始時刻を過ぎると自動でworkingになる
     const reported = a.status === "completed";
     const reviewed = reviewedAppIds.has(a.id) || (a.status === "completed" && a.attended === false); // 欠勤記録は評価の代わり
     const done = [true, approved, hired, hired, started, reported, reviewed];
@@ -1050,16 +1045,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <div style={{ marginBottom:12 }}>{actionButtons}</div>
               {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるので出さない（バナーが理由を説明する） */}
               {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
-              {/* 打刻の事実の質（第13弾・追補）：申告打刻の印と、双方の署名時刻の乖離。
-                  申告打刻に承認は課さない代わりに、農家が見て気づける形で必ず出す */}
-              {a.started_at && (
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>
-                  開始 {new Date(a.started_at).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}
-                  <DeclaredBadge show={a.started_declared} />
-                  {a.time_corrected && <span className="f-sans" style={{ marginLeft:6, fontSize:10, fontWeight:700, color:"#717171", background:"#F0F0F0", borderRadius:4, padding:"1px 5px" }}>修正済み</span>}
-                </p>
-              )}
-              <PunchGapNotice app={a} onRequestCorrection={()=>setCorrApp(a)} correctionLabel="🕐 実際と違う場合は → 修正を申請" />
               <div style={{ marginBottom:10 }}>
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
                 {/* 契約成立後のみ本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
@@ -1990,11 +1975,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button onClick={()=>setCompleteDone(null)} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>閉じる</button>
           </div>
         </div>
-      )}
-
-      {/* 打刻の修正を申請（第13弾・追補の訂正）。働き手側と同じ共通シート */}
-      {corrApp && (
-        <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />
       )}
 
       {/* 緊急連絡モーダル（Part3・農家側） */}

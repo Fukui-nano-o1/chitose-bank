@@ -49,26 +49,24 @@ export const insertSavedJob = (workerId, jobNumber) =>
 
 // ── 自分の応募の状態（一覧のバッジ・詳細のボタン）───────
 export const fetchMyApplications = (workerId) =>
-  supabase.from("applications").select("id,job_number,status,started_at,time_corrected")
+  supabase.from("applications").select("id,job_number,status")
     .eq("worker_id", workerId).neq("status", "canceled");
 export const fetchMyPendingApplications = (workerId) =>
   supabase.from("pending_applications").select("job_number").eq("worker_id", workerId);
 export const fetchMyApplicationForJob = (jobNumber, workerId) =>
-  supabase.from("applications").select("id,status,started_at,time_corrected")
+  supabase.from("applications").select("id,status")
     .eq("job_number", jobNumber).eq("worker_id", workerId).neq("status", "canceled").maybeSingle();
 export const fetchMyPendingForJob = (jobNumber, workerId) =>
   supabase.from("pending_applications").select("id")
     .eq("job_number", jobNumber).eq("worker_id", workerId).maybeSingle();
 
-// ── 応募・取り消し・打刻 ───────────────────────────────
+// ── 応募・取り消し ─────────────────────────────────────
 export const applyToJob = (jobNumber, availableDates) =>
   supabase.rpc("apply_to_job", { p_job_number: jobNumber, p_available_dates: availableDates });
 export const createPendingApplication = (jobNumber, availableDates) =>
   supabase.rpc("create_pending_application", { p_job: jobNumber, p_available_dates: availableDates });
 export const cancelApplication = (applicationId) =>
   supabase.rpc("cancel_application", { p_application_id: applicationId });
-export const punchStart = (applicationId) =>
-  supabase.rpc("punch_start", { p_application_id: applicationId });
 
 // ── 応募の前提（本人確認の届出・働き手プロフィール）─────
 export const fetchAccountHolderId = (authUid) =>

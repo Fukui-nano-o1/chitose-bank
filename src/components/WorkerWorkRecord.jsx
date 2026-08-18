@@ -3,11 +3,12 @@
 // 働き手プレビュー（ボックス展開の横スワイプ2枚目）の両方が、この1つの部品を使う
 // ＝見た目と数え方がページごとにズレない。
 //
-// 中身：① 直近5件に遅刻・欠勤はあるか ② 働いた回数・時間・欠勤 ③ 作物別・作業別の件数と時間
+// 中身：① 直近5件に欠勤はあるか ② 働いた回数・時間・欠勤 ③ 作物別・作業別の件数と時間
 //
 // 【この画面が言わないこと】点数・順位・おすすめ度は作らない。良し悪しの断定もしない。
-//   出すのは記録そのもの（打刻・出欠・求人の勤務時間）だけ。運営の主観は混ぜない（2026-07-16）。
-//   打刻が無い・自動開始の回は「記録なし」と正直に書く＝憶測で遅刻にも時間どおりにもしない。
+//   出すのは記録そのもの（出欠・求人の勤務時間）だけ。運営の主観は混ぜない（2026-07-16）。
+//   遅刻の判定は持たない（2026-08-18「打刻の全面削除」）＝開始時刻は自動で入るので、
+//   その時刻から遅刻を導くと憶測になる。数えるのは記録として残る欠勤だけ。
 //
 // 【見える人】worker_work_record の関係ゲート＝本人・その働き手から応募を受けた農家・運営だけ
 //   （2026-08-05たきと指示で管理者専用を撤回。worker_trust_info と同じ相手・同じ範囲）。
@@ -25,14 +26,6 @@ export const workRecordMinutesLabel = (min) => {
   return m ? `${h}時間${m}分` : `${h}時間`;
 };
 const hm = workRecordMinutesLabel;
-
-// 1回ぶんの打刻の読み方。判定できないものは判定しない（no_record）
-export function punchOf(r) {
-  if (r.attended === false) return { key:"absent", label:"欠勤", color:"#E24B4A", bg:"#FDECEC" };
-  if (r.late_minutes == null) return { key:"no_record", label:"記録なし", color:"#999", bg:"#F5F5F5" };
-  if (r.late_minutes >= 1) return { key:"late", label:`遅刻 ${r.late_minutes}分`, color:"#E24B4A", bg:"#FDECEC" };
-  return { key:"on_time", label:"時間どおり", color:"#00A86B", bg:"#E6F7EF" };
-}
 
 // 大きい数字（回数・時間・欠勤）。ラベルは折り返さない＝「働いた回／数」と割れない
 function BigStat({ label, value, unit, tone }) {
@@ -74,10 +67,9 @@ export function WorkRecordBody({ data, showName }) {
   const recent = data.recent || [];
   // 閲覧された回数の説明は？タップで展開（2026-08-07たきと指示・常時表示をやめる）
   const [showViewHelp, setShowViewHelp] = useState(false);
-  // 直近5件の要約＝この面で農家がまず知りたい1行
-  const lateCount = recent.filter(r => punchOf(r).key === "late").length;
-  const absentCount = recent.filter(r => punchOf(r).key === "absent").length;
-  const clean = lateCount === 0 && absentCount === 0;
+  // 直近5件の要約＝この面で農家がまず知りたい1行（数えるのは記録に残る欠勤だけ）
+  const absentCount = recent.filter(r => r.attended === false).length;
+  const clean = absentCount === 0;
   return (<>
     <div className="ledger-card" style={{ padding:"16px", marginBottom:12 }}>
       {showName && <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 12px" }}>{data.worker?.name || "名前未設定"}</p>}
@@ -110,16 +102,16 @@ export function WorkRecordBody({ data, showName }) {
       )}
     </div>
 
-    {/* ① 直近5件の遅刻・欠勤：要約チップのみ。回ごとの明細行（日付・予定時刻・判定）は
+    {/* ① 直近5件の欠勤：要約チップのみ。回ごとの明細行（日付・予定時刻・判定）は
         2026-08-07たきと指示「丸ごと消せ」で削除した＝日付×時刻から過去の求人を辿らせない徹底。
-        数え方（punchOf・記録なしは遅刻とも時間どおりとも数えない）は不変 */}
+        遅刻は数えない（2026-08-18・打刻の全面削除＝判定の材料が無い） */}
     <div className="ledger-card" style={{ padding:"16px", marginBottom:12 }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
         <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>直近5件</p>
         {recent.length > 0 && (
           <span className="f-sans" style={{ fontSize:11, fontWeight:800, borderRadius:20, padding:"3px 10px",
             color: clean ? "#00A86B" : "#E24B4A", background: clean ? "#E6F7EF" : "#FDECEC" }}>
-            {clean ? "遅刻・欠勤なし" : [lateCount ? `遅刻${lateCount}件` : null, absentCount ? `欠勤${absentCount}件` : null].filter(Boolean).join("・")}
+            {clean ? "欠勤なし" : `欠勤${absentCount}件`}
           </span>
         )}
       </div>
@@ -138,7 +130,7 @@ export function WorkRecordBody({ data, showName }) {
 
     <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"14px 2px 0" }}>
       すべて記録から出しています。時間は求人の勤務時間から数えています（休憩は引いていません）。
-      打刻のない回・自動で開始になった回は、遅刻とも時間どおりとも決めつけません。
+      遅刻の判定はしません（開始時刻は自動で記録されるため、そこから遅刻を決めつけません）。
       点数や順位は付けません。
     </p>
   </>);

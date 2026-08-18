@@ -159,15 +159,17 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
         if (!session || cancelled) return;
         // 【第1波】互いに依存しない4本を同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 依存があるのは「きょうの仕事」件数だけ（応募の結果を見て求人の日程を引く）ので第2波に回す
-        const [{ data: wp }, { data: apps }, openRes, { data: ts }, emgRes] = await Promise.all([
+        const [{ data: wp }, { data: apps }, openRes, { data: ts }, emgRes, revRes] = await Promise.all([
           supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
-          supabase.from("applications").select("status,attended,worker_confirmed_end_at,job_number").eq("worker_id", session.user.id),
+          supabase.from("applications").select("id,status,attended,job_number").eq("worker_id", session.user.id),
           // さがす箱＝きょう応募できる求人件数。jobs_public は終了した求人も返すようになったので
           // status='open' を明示する（2026-08-05・さがすに終了求人を並べた際の連動）
           supabase.from("jobs_public").select("job_number", { count: "exact", head: true }).eq("status", "open").then(r => r, () => ({ count: 0 })),
           supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
           // 緊急連絡先（別テーブル・self-only）＝応募に必要な4項目の1つso名刺バッジの数え方にも要る（2026-08-17）
           supabase.from("emergency_contacts").select("name,phone").eq("auth_id", session.user.id).maybeSingle().then(r => r, () => ({ data: null })),
+          // 評価済みかは自分が書いた評価の行で見る（打刻の終了確認は廃止・2026-08-18）
+          supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).then(r => r, () => ({ error: true })),
         ]);
         if (cancelled) return;
         if (wp) { setWMini(wp); setCache("hub:wMini", wp); snapSet("wMini", wp); }
@@ -178,11 +180,12 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
         // 承認済みバッジは未対応（手続きが残っている応募）のみ計上。完了・評価済みまで数えると
         // バッジが常時点灯し、新しい要対応があっても気づけなくなるため（2026-07-16）
         if (apps) {
+          const reviewed = new Set(revRes?.error ? [] : (revRes.data || []).map(r => r.application_id));
           const counts = {
             applying: apps.filter(a => a.status === "applied").length,
             approved: apps.filter(a =>
               ["approved","meeting","interview","contracted","working","completed"].includes(a.status)
-              && !(a.status === "completed" && (a.attended === false || !!a.worker_confirmed_end_at))
+              && !(a.status === "completed" && (a.attended === false || reviewed.has(a.id)))
             ).length,
           };
           setWAppCounts(counts); setCache("hub:wCounts", counts);

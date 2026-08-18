@@ -6,12 +6,10 @@ import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN,
   workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS, entryWorkDays } from "../lib/utils";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
-import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
-import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
-  countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, fetchMyPunchFacts, fetchPendingCorrections,
-  decideTimeCorrection, runTodoRpc } from "../features/today/todayApi";
+  countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, runTodoRpc } from "../features/today/todayApi";
 import { InterviewReplyPanel, NewApplicantsPanel, EmergencyStagePanel, HireStagePanel,
   HIRE_SHEET_PATH, markHireSheet } from "../features/today/components/StagePanels";
 
@@ -38,28 +36,8 @@ export function TodayPage({ me, defaultRole }) {
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
   useEffect(() => { if (loading) return; setCache("today:todos", todos); }, [todos, loading]);
   const [confirming, setConfirming] = useState("");
-  // 完了の祝祭（2026-08-06）：保険の報告・開始の確認の成功時。演出のみ＝記録・ゲートには触れない
+  // 完了の祝祭（2026-08-06）：保険の報告の成功時。演出のみ＝記録・ゲートには触れない
   const [celebrate, setCelebrate] = useState(null);
-  // 打刻の修正申請（第13弾(2)）：自分が承認する側のpendingを直接読む。
-  // my_todo_items（RETURNS TABLE・固定型）は触らず、件数はDB側のmy_nav_badges が todo に加算済み
-  const [corrections, setCorrections] = useState([]);
-  const [punchFacts, setPunchFacts] = useState({}); // application_id → 打刻の事実（申告フラグ・双方の署名時刻）
-  const [corrApp, setCorrApp] = useState(null);     // 乖離からの修正申請（シートは共通部品・双方から出せる）
-  const [corrDeciding, setCorrDeciding] = useState("");
-  // 承認／見送り。片付いたらカードが消える＝やることの件数・ナビのバッジと一致し続ける。
-  // 申請者自身は承認できない（RPCが 'self' で拒否し message を返すので、それをそのまま出す）
-  const decideCorrection = async (c, approve) => {
-    if (corrDeciding) return;
-    setCorrDeciding(c.id);
-    try {
-      const { data, error } = await decideTimeCorrection(c.id, approve);
-      if (error) { alert("処理に失敗しました：" + error.message); setCorrDeciding(""); return; }
-      if (!data?.ok) { alert(data?.message || ("処理できませんでした：" + (data?.reason || "不明"))); setCorrDeciding(""); return; }
-      setCorrections(prev => prev.filter(x => x.id !== c.id));
-      window.dispatchEvent(new Event("cb:unreadRefresh"));   // ナビのやることバッジを取り直す
-    } catch (e) { alert("処理に失敗しました：" + (e?.message || "不明")); }
-    setCorrDeciding("");
-  };
   const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
     let cancelled = false;
@@ -67,9 +45,9 @@ export function TodayPage({ me, defaultRole }) {
       try {
         const { data: { session } } = await getSession();
         if (!session) { setLoading(false); return; }
-        // 6本とも互いに独立なので1回で同時に投げる（2026-07-27たきと指示「直列を並列に」）。
-        // 以前はカレンダー→やること→残り4本の3段階で待っていた
-        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: emg }, { data: apps }, { data: facts }, { data: corr }] = await Promise.all([
+        // 互いに独立なので1回で同時に投げる（2026-07-27たきと指示「直列を並列に」）。
+        // 以前はカレンダー→やること→残りの3段階で待っていた
+        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: emg }, { data: apps }] = await Promise.all([
           fetchMyCalendarJobs(),
           fetchMyTodoItems(),
           // 役割の判定に加えて、プロフィールの未入力を数えるための列も一緒に取る（往復は増やさない・2026-08-03）。
@@ -83,11 +61,6 @@ export function TodayPage({ me, defaultRole }) {
           // DBには書かれない・CLAUDE.md）、両者の確認時刻で見るしかない。get_my_calendar_jobsは
           // この2列を返さないため、自分の応募から直に引く（当事者RLSの内側・2026-07-27）
           fetchMyApplicationTerms(session.user.id),
-          // 打刻の事実（第13弾・追補）：申告フラグと双方の署名時刻。両役割ぶんをまとめて取る
-          // （RLSで当事者の行だけ返る）。get_my_calendar_jobs/my_todo_items は返さない列なので直に読む
-          fetchMyPunchFacts(session.user.id),
-          // 自分が承認する側の打刻修正（申請者自身には出さない＝RPC側でも拒否される）
-          fetchPendingCorrections(session.user.id),
         ]);
         if (cancelled) return;
         const rows = data || [];
@@ -107,8 +80,6 @@ export function TodayPage({ me, defaultRole }) {
                     && !["rejected","expired","completed"].includes(a.status))
           .map(a => a.id);
         setHiredIds(new Set(hired)); setCache("today:hired", hired);
-        setCorrections(corr || []);
-        setPunchFacts(Object.fromEntries((facts || []).map(f => [f.id, f])));
         // 既定ロールが持っていない側なら、持っている側へ寄せる
         setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
       } catch {}
@@ -138,7 +109,7 @@ export function TodayPage({ me, defaultRole }) {
   // statusだけで見ると採用済みが拾えず、緊急連絡・開始の箱が薄いままだった（2026-07-27たきと報告）
   const hiredMine = mine.filter(e => e.application_id
     && (hiredIds.has(e.application_id) || ["contracted","working"].includes(e.application_status)));
-  // 作業が開始された仕事（開始打刻でstatusがworkingになる）＝終了の箱も開ける（2026-07-27たきと指示）
+  // 作業が始まった仕事（作業日の開始時刻を過ぎるとstatusがworkingになる）＝評価の箱も開ける（2026-07-27たきと指示）
   const startedMine = mine.filter(e => e.application_id && e.application_status === "working");
   const tEmergency = (() => {
     const seen = new Set(); const out = [];
@@ -315,15 +286,6 @@ export function TodayPage({ me, defaultRole }) {
                    nav: (e) => { markHireSheet(e?.application_id); return HIRE_SHEET_PATH; } },
     insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance",
                    desc:"作業前に、保険の準備ができたことを報告します。報告した時刻が記録に残ります。" },
-    // 開始を確認／来なかった の2択（2026-07-30たきと指摘「働き手がこなかった場合の措置がない」）。
-    // 来なかった時に「開始を確認」しか道が無いのは、事実と違う記録を迫ることになる。altは
-    // 応募者ページの完了モーダル（働き手は来ましたか？→来なかった＝欠勤記録・72時間の異議申立つき）へ直行する
-    confirm_start:{ icon:"✓", title:"作業の開始を確認",     btn:"開始を確認",       rpc:"confirm_start",
-                   desc:"働き手が現場に来て作業が始まったことを確認します。来なかった場合の記録もここからできます。",
-                   alt: { label:"来なかった", flag:"cb_completeAppId", to:"/profile/employer/applicants",
-                          // 旧「active（進行中）」はステータス絞り込み統一（2026-08-07）で廃止。該当応募は
-                          // 採用/作業中のどちらもありうるので「すべて」で開く（対象シートはcb_completeAppIdが自動展開）
-                          before: () => { try { sessionStorage.setItem("cb_appFilter", "all"); } catch {} } } },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
     // 完了して評価する（2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
@@ -342,11 +304,11 @@ export function TodayPage({ me, defaultRole }) {
                    desc:"運営から求職内容の修正のお願いが届いたとき、ここから直します。" },
     w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する",
                    desc:"農家から届いた面接の質問に、その場で返事します。返信はチャットにも残ります。" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
-    // w_start（作業を開始する）は廃止（2026-07-27たきと指示）：開始時刻が来たらDB側のcron
-    // auto_start_work() が自動で開始を記録するため、働き手に押させる箱を置かない
-    // 採用済みなら終了の箱も開ける（2026-07-27たきと指示）。行き先は件数に依らず同じので直行(direct)
-    w_review:    { icon:"⭐", title:"終了を確認して評価",   btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
-                   desc:"仕事の終了を確認して、農家を評価します。評価は承認済みの応募一覧から行います。" },
+    // 開始の打刻・確認の箱は廃止（2026-08-18たきと指示「打刻の全面削除」）：作業日の開始時刻が
+    // 来たらDB側のcron auto_start_work() が自動で作業中にする＝誰にも時刻を押させない
+    // 採用済みなら評価の箱も開ける（2026-07-27たきと指示）。行き先は件数に依らず同じので直行(direct)
+    w_review:    { icon:"⭐", title:"農家を評価",           btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
+                   desc:"仕事のあと、農家を評価します。評価は承認済みの応募一覧から行います。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
@@ -358,7 +320,7 @@ export function TodayPage({ me, defaultRole }) {
   const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正", w_revision: "求職の修正", question: "質問に答える" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "confirm_start", "complete"],
+    farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "complete"],
     worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_review"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
@@ -383,7 +345,6 @@ export function TodayPage({ me, defaultRole }) {
       removeTodo(e.application_id, e.stage);
       fbSuccess();
       if (m.rpc === "confirm_insurance") setCelebrate({ emoji:"🛡", title:"報告しました" });
-      else if (m.rpc === "confirm_start") setCelebrate({ emoji:"🌅", title:"作業が始まりました" });
     }
   };
   // count＝バッジの数の上書き（一覧を持たない箱＝プロフィールの未入力数。省略時は対象件数）
@@ -427,8 +388,6 @@ export function TodayPage({ me, defaultRole }) {
           {items.map(t => {
             const busy = confirming === (t.application_id || t.job_number) + t.stage;
             const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" "), (stage.startsWith("t_") && t.work_time) ? "🕒" + t.work_time : ""].filter(Boolean).join(" ");
-            // 打刻の事実（第13弾・追補）：申告フラグと双方の署名時刻の開き。隠さず、この行の下に添える
-            const pf = punchFacts[t.application_id];
             return (
               <div key={todoKey(t)} style={{ display:"grid", gap:6, minWidth:0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
@@ -450,12 +409,6 @@ export function TodayPage({ me, defaultRole }) {
               </div>
               {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
               {t.application_id && <ContractPartyName applicationId={t.application_id} showPending={false} style={{ margin:0, paddingLeft:2 }} />}
-              {pf && (pf.started_declared || pf.ended_declared) && (
-                <span><DeclaredBadge show label={(pf.started_declared ? "開始" : "終了") + "は圏外で申告された時刻"} /></span>
-              )}
-              {/* 導線は双方に出す（2026-07-30たきと訂正）。文言だけ立場で変える */}
-              {pf && <PunchGapNotice app={pf} onRequestCorrection={()=>setCorrApp(pf)}
-                correctionLabel={role === "worker" ? "🕐 自分の打刻を直す → 修正を申請" : "🕐 実際と違う場合は → 修正を申請"} />}
               </div>
             );
           })}
@@ -531,7 +484,6 @@ export function TodayPage({ me, defaultRole }) {
           <TodoStagePanel stage={pageStage} items={pItems} />
         )}
         </div>
-        {corrApp && <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />}
       </div>
     );
   }
@@ -554,14 +506,14 @@ export function TodayPage({ me, defaultRole }) {
         {/* 【やること】採配台：状態カードを締切の近い順に。①②⑧=遷移／③〜⑦=直接実行。件数=今日タブのバッジ(todo)と一致 */}
         {(() => {
           // 最新順（sort_keyの新しい順・同日なら求人番号の新しい順）
-          const myTodos = todos.filter(t => t.my_role === role && t.stage !== "w_start").sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
+          const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
           // 用件（stage）ごとに1箱へ集約。該当ありは最新順で上位、該当なしもカタログ順で常時表示（薄表示・タップ不可）
           const activeOrder = []; const byStage = new Map();
           [["t_card", tCard], ["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chatは削除・2026-07-25）
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
-          // 「終了を確認して評価」は採用済みなら常に開ける（2026-07-27たきと指示）。
+          // 「農家を評価」は採用済みなら常に開ける（2026-07-27たきと指示）。
           // my_todo_itemsのw_reviewは農家の完了記録の後にしか出ないので、それを待たずに灯す。
-          // 開始は自動（auto_start_work）になったため、開始済みがあればそれを優先して件数に出す
+          // 開始済み（作業中）があればそれを優先して件数に出す
           const reviewItems = startedMine.length ? startedMine : hiredMine;
           if (role === "worker" && !byStage.has("w_review") && reviewItems.length) {
             byStage.set("w_review", reviewItems.map(e => ({ ...e, stage: "w_review" })));
@@ -579,8 +531,7 @@ export function TodayPage({ me, defaultRole }) {
           if (unsetN > 0) stageOrder.unshift("profile");
           return (
             <div style={{ marginBottom:24 }}>
-              {/* 件数は打刻修正の承認ぶんも足す＝ナビのバッジ(todo)と一致させる（my_nav_badgesも同じ加算） */}
-              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length + corrections.length}）</p>
+              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
               {/* いま これだけ（2026-08-06・赤ちゃん前提の第0歩）：分かれ道10本の手前に「最優先の1本」を
                   大きく1枚だけ出す。正規フロー順（catalog順）で最初に該当がある用件＝次の一歩。
                   タップの行き先は下のボックスと同じ専用ページ＝入口が増えるだけで、実行の窓口は増やさない。
@@ -604,31 +555,6 @@ export function TodayPage({ me, defaultRole }) {
                   </button>
                 );
               })()}
-              {/* 打刻の修正の承認（第13弾(2)）：やることの最上部。相手が申請したものだけが並ぶ
-                  （申請者自身には出さない＝RPC側でも拒否される）。片付けると消える＝バッジ数と一致する */}
-              {corrections.length > 0 && (
-                <div style={{ display:"grid", gap:10, marginBottom:12 }}>
-                  {corrections.map(c => {
-                    const hm = (ts) => ts ? new Date(ts).toLocaleTimeString("ja-JP", { hour:"2-digit", minute:"2-digit" }) : null;
-                    const parts = [hm(c.proposed_started_at) && ("開始 " + hm(c.proposed_started_at)), hm(c.proposed_ended_at) && ("終了 " + hm(c.proposed_ended_at))].filter(Boolean);
-                    return (
-                      <div key={c.id} style={{ border:"1px solid #F5A623", background:"#FFF9EE", borderRadius:12, padding:"12px 14px" }}>
-                        <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 4px" }}>🕐 打刻の修正の申請が届いています</p>
-                        <p className="f-sans" style={{ fontSize:12, color:"#444", margin:"0 0 2px", lineHeight:1.7 }}>
-                          {c.applications?.job_number ? ("求人 #" + c.applications.job_number + "　") : ""}{parts.join("／") || "（時刻の指定なし）"}
-                        </p>
-                        {c.reason && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 8px", lineHeight:1.7, whiteSpace:"pre-wrap" }}>理由：{c.reason}</p>}
-                        <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                          <button onClick={()=>decideCorrection(c, true)} disabled={corrDeciding===c.id} className="f-sans"
-                            style={{ flex:1, padding:"9px 0", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", opacity: corrDeciding===c.id ? 0.5 : 1 }}>承認する</button>
-                          <button onClick={()=>decideCorrection(c, false)} disabled={corrDeciding===c.id} className="f-sans"
-                            style={{ flex:1, padding:"9px 0", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #DDD", borderRadius:8, cursor:"pointer", opacity: corrDeciding===c.id ? 0.5 : 1 }}>見送る</button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
               <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
                 {stageOrder.filter(st => st !== nowStage).map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} count={st === "profile" ? unsetN : undefined} />)}
               </div>
@@ -658,7 +584,6 @@ export function TodayPage({ me, defaultRole }) {
         {/* 「📅 月の予定を見る」ボタンは削除（2026-07-27たきと指示）：やることのカレンダー箱に統合 */}
       </>)}
       </div>
-      {corrApp && <TimeCorrectionSheet key={corrApp.id} app={corrApp} onClose={()=>setCorrApp(null)} />}
     </div>
   );
 }

@@ -563,7 +563,7 @@ const STEPS = [
         </Card>
       </div>
     ) },
-  { ch:"仕事の当日", name:"作業の開始を確認", url:"#/calendar/todo/confirm_start", act:"当日、働き手が来たことを確かめて開始を記録する（打刻が無くても時刻で自動開始する）。",
+  { ch:"仕事の当日", name:"きょうの仕事", url:"#/calendar", act:"当日の仕事を見る。開始の記録は作業開始時刻を過ぎると自動で入る（誰も時刻を押さない）。",
     body: () => (
       <div style={{ padding:14 }}>
         <Card>
@@ -574,22 +574,8 @@ const STEPS = [
               <PhaseChip k="working" />
             </div>
           </div>
-          <div style={{ background:SOFT, borderRadius:12, padding:"10px 12px", marginBottom:12 }}>
-            <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:0 }}>予定 8:00 開始<br />働き手の打刻 7:56（4分前）</p>
-          </div>
-          <div style={{ display:"flex" }}><Btn kind="green">開始を確認</Btn></div>
-        </Card>
-      </div>
-    ) },
-  { ch:"仕事の当日", name:"打刻の直しを承認", url:"#/calendar", act:"働き手からの打刻の直しを承認する。自分では直せない（相手方の承認だけが通る）。",
-    body: () => (
-      <div style={{ padding:14 }}>
-        <Card style={{ borderColor:AMBER }}>
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:"0 0 8px" }}>⏱ 打刻の直しのお願い</p>
-          <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:"0 0 12px" }}>はなこ さんから<br />開始 7:56 → 8:00 に直したい<br />理由：着替えの前に押してしまいました</p>
-          <div style={{ display:"flex", gap:8 }}>
-            <Btn kind="green">承認する</Btn>
-            <Btn kind="ghost">ことわる</Btn>
+          <div style={{ background:SOFT, borderRadius:12, padding:"10px 12px" }}>
+            <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:0 }}>予定 8:00 開始<br />8:00 に自動で作業中になりました</p>
           </div>
         </Card>
       </div>
