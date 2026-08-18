@@ -3,12 +3,9 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// Service Worker 登録（2026-07-19・チャットのプッシュ通知用）。対応環境のみ・失敗しても無視
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
-  })
-}
+// Service Workerの登録はここでは行わない（2026-08-18 Speed-1A）。
+// vite-plugin-pwa が index.html に入れる registerSW.js が唯一の登録経路＝経路を1本に保つ。
+// SWの中身（precache・ページ本体のNetworkFirst・プッシュ通知）は src/sw.js が正。
 
 // 古いindex.htmlの後片付け（2026-08-08・真っ黒画面の最後の経路）：
 // ページ本体は pages-cache（NetworkFirst・3秒で見切り）に入るため、回線が遅いと

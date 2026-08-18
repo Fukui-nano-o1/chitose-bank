@@ -61,4 +61,10 @@ export default defineConfig([
     files: ['*.js', 'api/**/*.js'],
     languageOptions: { globals: { ...globals.node } },
   },
+  {
+    // Service Worker（src/sw.js）はServiceWorkerGlobalScope＝self/clients/registration等のグローバルを許可。
+    // self.__WB_MANIFEST は vite-plugin-pwa がビルド時に差し込むprecacheの一覧
+    files: ['src/sw.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
 ])

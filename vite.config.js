@@ -6,9 +6,16 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     react(),
+    // Service Worker（2026-08-18 Speed-1A・injectManifest へ一本化）：
+    // generateSW（プラグインがSWを生成する方式）は public/sw.js を同じ /sw.js で上書きし、
+    // プッシュ通知の処理を成果物から消していた。SWの中身は src/sw.js を正とし、
+    // ここではprecacheの一覧を注入するだけにする。
     // registerType: 'autoUpdate' は必須。pushしたら本番へ即反映する運用のため、
     // SWキャッシュが古いビルドを握ったままにならないよう新デプロイを自動で取りに行かせる。
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
@@ -23,7 +30,10 @@ export default defineConfig({
           { src: '/pwa-512.png', sizes: '512x512', type: 'image/png' },
         ],
       },
-      workbox: {
+      injectManifest: {
+        // 旧generateSW時代と同じ範囲に保つ（JS・CSS・HTML＋includeAssets／manifestのアイコン）。
+        // 画像まで広げるとiOSのスプラッシュ32枚が入り、デプロイのたび全員が再取得する（実測+184KiB）
+        globPatterns: ['**/*.{js,css,html}'],
         // 動的読込のチャンクはprecacheに入れない（2026-07-25 heic2any／2026-07-27 拡大）。
         // precacheはデプロイのたび全員が裏で丸ごと再取得するため、起動に要らないものを入れるほど
         // リロードが重くなる。ここに挙げたものは「使う画面を開いた時にネットワークから読む」
@@ -36,41 +46,11 @@ export default defineConfig({
           '**/AdminTab-*.js',
           '**/ConsignmentRoom-*.js',
           '**/AdminBoxRegistryPage-*.js',
-        ],
-        // 新デプロイのSWをすぐ有効化・即座にページを掌握（autoUpdateの実体）
-        clientsClaim: true,
-        skipWaiting: true,
-        // SPAのため未一致パスはindex.htmlへ。ただしページ本体はnetwork-first思想で
-        // 常に最新を取りに行き、オフライン時のみキャッシュへフォールバックする
-        navigateFallback: '/index.html',
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'pages-cache',
-              networkTimeoutSeconds: 3,
-            },
-          },
-          // フォント（2026-08-14 セルフホスト化＝プラポリv3.7・外部送信の削減）：
-          // Google Fonts（fonts.googleapis.com / fonts.gstatic.com）への接続は廃止し、/fonts/ に同梱。
-          // 旧ルールの狙い（リロード時に描画ブロッキングのネット往復を待たない）はそのまま引き継ぐ：
-          // CSSはキャッシュ即返し＋裏で更新（StaleWhileRevalidate）、woff2実体は内容不変soCacheFirstで1年保持。
-          // woff2はprecacheに入れない（globPatternsが拾わない・全部で約6MBあるため必要な字体だけ読む）
-          {
-            urlPattern: /\/fonts\/fonts\.css$/,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'local-fonts-css' },
-          },
-          {
-            urlPattern: /\/fonts\/.*\.woff2$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'local-fonts-woff',
-              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
+          // ★index.html はprecacheしない（2026-08-18 Speed-1A）。
+          // precacheに入れるとナビゲーションをprecacheが先取りし、古いapp shellを握り続ける
+          // （新デプロイがリロード2回でないと出ない）。ページ本体は src/sw.js の
+          // NetworkFirst 一本に任せる＝常に最新を取りに行き、3秒で見切って直近の成功分に落ちる。
+          '**/index.html',
         ],
       },
     }),

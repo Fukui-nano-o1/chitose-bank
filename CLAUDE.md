@@ -5072,3 +5072,37 @@ Phase 2〜5の目的だった「巨大ファイルを安全に切れる境界の
 主要featureのDB窓口化はここで終了。
 これ以降は、サイズを減らすこと自体を目的にリファクタしない。
 新機能・保守上の必要性が発生した場所から局所的に改善する。
+
+━━━ 2026-08-18 Speed-1A：Service Worker の一本化（injectManifest・push復活・navigation修正）━━━
+【前提＝Speed-0監査（docs/speed-0-audit.md・fbefd7c）】ブラウザ実機は使わず、本番ログと実distで計測した。
+起動1回でREST41本を同時発射し冷えた回は全件12〜15秒（clientの15秒timeout直前）／Realtimeはchat系しか
+UIに繋がっていない／最終dist/sw.jsからプッシュ通知の処理が消えている、の3点が確定。Aから着手した。
+【何が壊れていたか】vite-plugin-pwa のgenerateSW（プラグインがSWを生成する方式）と public/sw.js（自作・
+プッシュ担当）が両方 /sw.js を名乗り、後から書かれる生成物が自作を上書き＝**成果物にpush/notificationclickが0件**。
+さらに生成SWは NavigationRoute(index.html) を NetworkFirst より先に登録しており、Workboxは先勝ちなので
+**pages-cacheルートは到達不能**＝ナビゲーションは常にprecacheの古いindex.html（vite.configのコメントと実態が逆）。
+【対処】strategies:'injectManifest' へ移行し、SWの中身は **src/sw.js を唯一の正**にした。
+・src/sw.js＝precache／navigation(NetworkFirst・pages-cache・3秒で見切り)／フォント2ルート／
+  push／notificationclick／skipWaiting・clientsClaim を1本に集約（push処理は public/sw.js から逐語移設）。
+・★index.html はprecacheしない（globIgnoresに追加）。入れると precache がナビゲーションを先取りし
+  古いapp shellを握り続ける。ページ本体はNetworkFirst一本＝常に最新を取りに行き、失敗時のみ直近の成功分。
+・globPatternsは ['**/*.{js,css,html}'] に絞る。画像まで広げるとiOSスプラッシュ32枚がprecacheに入り
+  デプロイのたび全員が再取得する（実測+184KiB・一度入れて戻した）。precache 40件→**39件**＝index.htmlのみ減。
+・public/sw.js は削除（同名衝突の元）。src/main.jsx の手動 register('/sw.js') も削除＝**登録経路は
+  vite-plugin-pwa が入れる registerSW.js の1本だけ**。
+・workbox-core/precaching/routing/strategies/expiration/cacheable-response を devDependencies に明示
+  （7.4.1・従来はworkbox-buildの推移依存に相乗りしていた。版の変動なし＝lockの差分は宣言のみ）。
+・eslint.config.js に src/sw.js 用の serviceworker グローバルを追加。
+【受入条件5つ＝全てbuild成果物で機械確認】push/notificationclick 各1系統／navigationがNetworkFirst／
+precacheにindex.htmlが無く重複0／登録経路1つ（src内の手動register 0件）／build成功・lint 0 error・
+warning 28（増減なし）。ESM構文が残っていないことも確認済み（type:'module'なしで登録するため必須）。
+【★実機での受入試験（たきと）】①プッシュ通知が届く ②通知タップで正しい画面へ行く
+③新デプロイ後リロード1回で新コードになる。
+★③の注意：**この変更を載せた最初のデプロイだけは2回リロードが要る**。1回目のリロードの時点では
+まだ旧SWがページを支配しており、旧precacheの古いindex.htmlを返すため。新SWはその裏で入れ替わるので、
+次のデプロイから1回で反映される。1回目で「直っていない」と判断しないこと。
+【残置（意図的に触っていない）】main.jsx の cb_pagesCachePurge_v1（pages-cacheの1度きりの掃除）は
+既存端末では消費済みで実質no-op。新設計ではpages-cacheが現役の置き場になるため、次に触る時に外す候補。
+【次】Speed-1B＝DB→UIの再取得配線（applications購読と復帰イベントに一覧・今日の再取得を繋ぐ）→
+Speed-1C＝起動41本バーストの削減。
+━━━ ここまで ━━━
