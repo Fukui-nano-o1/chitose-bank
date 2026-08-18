@@ -5021,3 +5021,54 @@ job_publish_checks・interview_question_sends・pending_applications＝それぞ
   それまでは運営者本人の1行だけなので実害はない（現在1行・全て管理者のみ可視）。
 【あわせて片付ける】consignment_fields を退会処理（process_withdrawal）の削除対象に足すか（上記★）。
 ━━━ ここまで ━━━
+
+## 2026-08-18 第2次構造改革 完了（Phase 2〜5）
+第2次構造改革を完了。最終main: 884abfd。
+### 到達した構造
+主要4入口のDBアクセスを画面から分離した。
+- features/jobs/create → jobCreateApi.js
+- features/jobs/search → jobSearchApi.js
+- features/today → todayApi.js
+- features/farmer/dashboard → farmerDashboardApi.js
+画面コンポーネントからSupabase問い合わせの詳細を切り離し、
+DB操作の窓口をfeature単位に集約した。
+### Phase 5 FarmerDashboard
+- 5-1: farmer:* fingerprint 5分類を追加
+  - farmer:rpcArg
+  - farmer:jobBucket
+  - farmer:appFilter
+  - farmer:workerWindow
+  - farmer:roster
+- 5-2: FarmerDashboardのSupabase呼び出し31本を
+  farmerDashboardApi.js の30窓口へ集約
+- FarmerDashboard.jsx: 189,028 → 187,921 B
+- farmerDashboardApi.js: 8,440 B
+- FarmerDashboard.jsx の直接 supabase. 参照は0
+- 表11・RPC13は移設前後で差集合ゼロ
+- build成功
+- lint 0 error / warning 28（増減なし）
+- search-fingerprint --check 一致
+### Phase 5-3を実施しなかった理由
+UI/Pure層を測定したが、安全に独立できるまとまった境界が無かった。
+- 本体JSX: 1024行 / 親依存144
+- renderApplicantCard: 181行 / 親依存23
+- 最大の自己完結ブロックでも qMgrOpen: 70行 / 親依存8
+- 純関数候補は散在した約35行のみ
+サイズ削減だけを目的としたprop drilling・state所有権移動・
+fingerprint再調整は行わないと判断し、ここで停止した。
+FarmerDashboardが大きいこと自体は既知状態。
+機能変更の必要が生じるまで「綺麗にするためだけ」の追加分割はしない。
+### 既知の未対応
+features/consignment 配下の以下は現在もSupabaseを直接利用している。
+- ConsignmentRoom
+- ConsignFieldsPane
+- ConsignLendPane
+- ConsignorInfoEdit
+Phase 2はDB窓口パターン確立前だったため。
+第2次構造改革では横展開禁止として触れていない。
+必要になった時に別タスクとして扱う。
+### 構造改革の停止点
+Phase 2〜5の目的だった「巨大ファイルを安全に切れる境界の形成」と
+主要featureのDB窓口化はここで終了。
+これ以降は、サイズを減らすこと自体を目的にリファクタしない。
+新機能・保守上の必要性が発生した場所から局所的に改善する。
