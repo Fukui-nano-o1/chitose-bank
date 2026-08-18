@@ -671,26 +671,39 @@ export const APP_PHASE_DESC = {
   canceled:   "働き手が取り消した応募です",
 };
 export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#111111", canceled:"#757575" };
-// ── 4段目「作業中」の“今”のラベル（2026-08-18たきと指示「作業していない時間は作業中ではない」）──
+// ── 4段目「作業中」の“今”の姿（2026-08-18たきと指示「作業していない時間は作業中ではない」）──
 // working は記録の上では「自動開始〜完了記録」の間ずっと立つ（降ろす手は完了記録だけ）。
 // 複数日の採用だと、働いていない日も「作業中」と出ていた（実データ #1232＝働く日 8/18・20・21・24・31）。
 // ★段は増やさない（帯5段＝応募中→面接中→採用→作業中→完了 は不変・2026-07-25たきと確定）。
-//   4段目の【ラベルだけ】を記録（働く日）から出し分ける＝DBの app_phase・絞り込み・凡例は無傷。
-//   ・今日が働く日 → 「作業中」（勤務時間の内外は問わない＝当日は作業中・2026-08-18たきと裁定）
-//   ・働く日がまだ先 → 「次は 8/20(木)」（今日ページの“次にやることを出す”思想と同じ）
-//   ・働く日が分からない／全部過ぎた → 「作業中」（最終日の終了時刻で自動完了するので普通は出ない）
-// entry＝働く日を決める材料（agreed_dates優先／無ければ来られる日／無ければ求人日程・holidays除外）＝
-//   entryWorkDays と同じ形。材料が手元に無い画面は従来どおり APP_PHASE_LABEL を使ってよい。
-// 「合間」の判定＝次に働く日の "YYYY-MM-DD"。今日が働く日／材料が無い／全部過ぎた は null。
-// ★ラベルと色はこの1つの判定から出す（別々に書くと同じカードで文字と色が食い違う）
+//   4段目の【文字と色だけ】を記録から出し分ける＝DBの app_phase・絞り込み・凡例は無傷。
+// ★文字も色も「いま働いている時間か（isOnDutyNow）」の1つの判定から出す（2026-08-18たきと指示
+//   「働く日の9:00以降のステータス定義は必要ない。9:00以降から次は8/20と明記」）＝
+//   同じカードで文字と色が食い違わない：
+//   ・働く日の勤務時間内   → 「作業中」＋赤
+//   ・働く日の終業後・合間 → 「次は 8/20(木)」＋採用の色（緑）
+//   ・次の働く日が無い（最終日の終業後）→ 「作業中」のまま＝最終日の終了時刻で自動完了する
+//     （auto_complete_work・毎時20分）ので、出るのは長くても1時間の短い窓
+//   ・働く日・勤務時間が分からない → 「作業中」＋赤（憶測で終わらせない）
+// entry＝働く日を決める材料（agreed_dates優先／無ければ来られる日／無ければ求人日程・holidays除外＝
+//   entryWorkDays と同じ形）＋ work_time。材料が手元に無い画面は従来どおり APP_PHASE_LABEL でよい。
 const nextWorkDayYmd = (entry) => {
   const days = entryWorkDays(entry);
   if (!days || days.size === 0) return null;
   const today = ymdLocal(new Date());
-  if (days.has(today)) return null;
-  return [...days].filter(d => d > today).sort()[0] || null;
+  return [...days].filter(d => d > today).sort()[0] || null; // 今日より後の働く日（終業後の「次は」もこれ）
+};
+// いま実際に働いている時間か＝今日が働く日で、当日の労働終了時刻をまだ過ぎていない
+const isOnDutyNow = (entry) => {
+  const days = entryWorkDays(entry);
+  if (!days || days.size === 0) return true;            // 材料が無い＝判断しない（作業中のまま）
+  if (!days.has(ymdLocal(new Date()))) return false;    // 今日は働く日でない＝合間
+  const end = workEndMinutes(entry?.work_time);
+  if (end == null) return true;                         // 勤務時間が読めない＝当日いっぱいを作業中とみなす
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes() < end;      // 当日の労働終了時刻を過ぎたら合間へ
 };
 export const workingPhaseLabel = (entry) => {
+  if (isOnDutyNow(entry)) return APP_PHASE_LABEL.working;
   const next = nextWorkDayYmd(entry);
   return next ? `次は ${calFmtDate(next)}` : APP_PHASE_LABEL.working;
 };
@@ -704,21 +717,10 @@ export const phaseLabelNow = (phase, entry) =>
   phase === "working" ? workingPhaseLabel(entry) : (APP_PHASE_LABEL[phase] || "");
 // appPhaseLabelNow＝応募行そのものを渡す画面用（段階の導出ごと任せる）
 export const appPhaseLabelNow = (a, entry) => phaseLabelNow(appPhaseKey(a), entry || a) || a?.status || "";
-// ★赤（作業中）は「いま実際に働いている時間」だけ。それ以外は採用の色（緑）に戻す
+// 色：赤（作業中）は「いま実際に働いている時間」だけ。それ以外は採用の色（緑）に戻す
 //   （2026-08-18たきと指示「採用の色に戻せ」→「当日の労働終了時刻から緑に戻せ」）。
-//   働いていない時間を赤で出すと急ぎに見えるため。段階は working のまま＝タップして出る説明
-//   （APP_PHASE_DESC）・絞り込み・DBは不変で、帯とアイコンのリングの色だけ戻す。
-// ★色は時間まで見る／ラベルは日単位（当日は「作業中」のまま・たきと裁定）＝
-//   働く日の終業後は「作業中の文字＋緑」になる。これは意図した組み合わせ（色＝いま働いているか）
-const isOnDutyNow = (entry) => {
-  const days = entryWorkDays(entry);
-  if (!days || days.size === 0) return true;            // 材料が無い＝判断しない（従来どおり作業中の赤）
-  if (!days.has(ymdLocal(new Date()))) return false;    // 今日は働く日でない＝合間
-  const end = workEndMinutes(entry?.work_time);
-  if (end == null) return true;                         // 勤務時間が読めない＝当日いっぱいを作業中とみなす
-  const n = new Date();
-  return n.getHours() * 60 + n.getMinutes() < end;      // 当日の労働終了時刻を過ぎたら緑
-};
+//   段階は working のまま＝タップして出る説明（APP_PHASE_DESC）・絞り込み・DBは不変で、
+//   帯とアイコンのリングの色だけ戻す。判定はラベルと同じ isOnDutyNow
 export const phaseColorNow = (phase, entry) =>
   (phase === "working" && !isOnDutyNow(entry)) ? APP_PHASE_COLOR.contracted : (APP_PHASE_COLOR[phase] || "#00A86B");
 export const appPhaseColorNow = (a, entry) => phaseColorNow(appPhaseKey(a), entry || a);
