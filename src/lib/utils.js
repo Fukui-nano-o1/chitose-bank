@@ -2,6 +2,15 @@
 // ここに置いてよいのは「引数→戻り値」だけで完結する関数と、読み取り専用の定数のみ。
 
 // 管理者判定（届出後にゲートを外す際はここを変更する。保存・入力機能のゲートにも使用）
+// メッセージの冒頭だけを出す（2026-08-18）。改行・連続空白は1つに畳んでから40文字＋…。
+// ★DB側の push_payload(kind, id) と同じ規則。プッシュとアプリ内トーストで見え方を揃えるため、
+//   どちらかを変える時は両方を合わせること（プッシュの文言の正はDB側）
+export const msgSnippet = (s, max = 40) => {
+  const t = String(s || "").replace(/\s+/g, " ").trim();
+  if (!t) return "新しいメッセージが届きました";
+  return t.length > max ? t.slice(0, max) + "…" : t;
+};
+
 export const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
 export const isAdmin = (user) => user?.email === ADMIN_EMAIL;
 

@@ -59,19 +59,25 @@ registerRoute(
   })
 )
 
-// ── プッシュ通知（2026-07-19に public/sw.js で書いたものを、そのままここへ移設）
+// ── プッシュ通知（2026-07-19に public/sw.js で書いたものを移設／2026-08-18 内容つきに変更）
+// ★題名・本文・遷移先・まとめ方は、送られてきた payload をそのまま使う。
+//   文言はDBの push_payload(kind, id) が唯一のソース＝ここでは組み立てない。
+//   payloadに無ければ従来の固定文・チャット一覧へ落ちる（古い送信元とも噛み合う）。
 self.addEventListener('push', (event) => {
   let data = {}
   try { data = event.data ? event.data.json() : {} } catch { data = {} }
   const title = data.title || 'chitose-bank'
   const body = data.body || '新しいメッセージが届きました'
+  const url = data.url || '/#/chats'
   event.waitUntil((async () => {
     await self.registration.showNotification(title, {
       body,
       icon: '/pwa-192.png',
       badge: '/pwa-192.png',
-      tag: 'cb-chat', // 同種は上書き＝通知が溜まりすぎない
-      data: { url: '/#/chats' },
+      // まとめ方はスレッドごと（cb-chat-<応募ID>）＝別のチャットの通知が互いに上書きしない。
+      // 同じスレッドの連投だけがまとめられる（溜まりすぎない狙いは維持）
+      tag: data.tag || 'cb-chat',
+      data: { url },
     })
     // アプリアイコンのバッジ（赤い数字）＝未読数。payloadのbadgeを反映（アプリを閉じていても更新される）
     if (typeof data.badge === 'number' && 'setAppBadge' in self.navigator) {
