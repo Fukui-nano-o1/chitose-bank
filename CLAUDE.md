@@ -5505,3 +5505,34 @@ applications 25件・started_at 2件・attendance_events 1件は不変／cron au
 my_job_actions_add_work_time を適用していた。私が置き換えた関数とは重ならないことを確認済み
 （衝突・巻き戻しなし）。着手前に origin/main を見ておらず rebase で解消＝毎回 pull を先にすること。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-18 緊急連絡モーダル（遅れる／欠勤の連絡／👻現地に相手がいません）を両役割から削除 ━━━
+【たきと指示】「緊急連絡先の修正を行う。まず、スクショのボックス関連削除」＝作り直しの第一手。
+削除の範囲は AskUserQuestion で確認＝【両役割のモーダル＋入口ボタン】。
+【削除したもの（コードのみ・git履歴から復元可）】
+・働き手側 components/WorkerApplications.jsx：緊急連絡モーダル本体・状態7つ・openEmergencyModal・
+  submitEmergency（attendance_events への insert）・応募カードの「⚠️ 緊急連絡」ボタンと
+  「⚠️ 連絡済み（時刻）」表示・#/emergency/{id} 着地（cb_emergencyAppId の消費）
+・農家側 components/FarmerDashboard.jsx：同モーダル本体・状態7つ・openEmergencyModal・
+  submitEmergency（insertAttendanceEvent 経由）・cb_emergencyAppId 着地
+  ※農家側は応募者カードに入口ボタンが元から無く、入口はディープリンクだけだった
+・未使用になった import：WORKER/FARMER_EMERGENCY_KINDS・insertAttendanceEvent・fetchMyJobContext
+  （lib/utils の定数と farmerDashboardApi の窓口2本は残置＝作り直しで使う。tree-shakeでdistには載らない）
+【★消えていないもの（混同注意）】
+・緊急連絡【先】（emergency_contacts＝家族の連絡先）は一切触っていない＝登録の🆘ボックス・
+  contract_emergency_contact RPC・応募に必要な4項目の②・プラポリの行はすべて不変
+・今日ページの緊急連絡ボックス（EmergencyStagePanel）と「⚠️ 緊急連絡をする →」ボタンは残置
+・App.jsx の #/emergency/{id} 着地処理（resolveEmergencyLink）とメールのリンクも残置
+  → ★現在この2つは応募者ページ／応募状況ページに着地するだけで何も開かない（作り直し待ち）
+・DB側は完全に不変：attendance_events テーブル・kind値（late/absent_notice/no_show_report）・
+  通知トリガー・メール（M11a等）は全部生きている＝送る画面だけが無い状態
+【検証】build成功・eslint 0 error / warning 27（origin/main と1件ずつ照合して完全一致＝新規ゼロ。
+FarmerDashboard の appsRefreshTick effect に残った eslint-disable が未使用になったので同時に外した）・
+dist に「現地に相手がいません」が0件を grep 確認。実機目視は未実施→確認項目：
+①応募状況カードに「⚠️ 緊急連絡」が出ないこと ②今日ページの緊急連絡ボックスは従来どおり開くこと
+（中の「⚠️ 緊急連絡をする →」は現在いき先で何も開かない＝作り直しまでの既知の状態）
+【二頭運転】着手中に並走セッションが「打刻の全面削除」を同じ2ファイルへ push（rebase衝突）。
+origin/main を正として取り直し、その上で削除をやり直した（衝突解消でなく再適用＝混ざりを避けた）。
+※scripts/search-fingerprint の baseline は着手前から差分あり。今回の差分（cb_emergencyAppId ×2・
+/chat/ 1件減・fetchMyJobContext・insertAttendanceEvent の消滅）は全て意図した削除so、
+baseline の更新は緊急連絡の作り直しが終わってからにする。

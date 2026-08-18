@@ -1,14 +1,14 @@
-// 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告・緊急連絡）。
+// 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告）。
 import { useState, useEffect, useRef } from "react";
 import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMyRoster, fetchMyEmergencyContact,
-  fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel, fetchMyJobContext,
+  fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel,
   unpublishJob, copyJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
-  markWorkNoShow, submitFarmerReviewRpc, insertAttendanceEvent, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
+  markWorkNoShow, submitFarmerReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
   upsertRoster, deleteRoster, updateQuestionSet, insertQuestionSet, deleteQuestionSetRow, sendInterviewQuestionsRpc,
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -738,32 +738,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     } catch { alert('解除に失敗しました。'); }
   };
 
-  // 緊急連絡（Part3・農家側）
-  const [emergencyModalApp, setEmergencyModalApp] = useState(null);
-  const [emergencyKind, setEmergencyKind] = useState("");
-  const [emergencyReason, setEmergencyReason] = useState("");
-  const [emergencySubmitting, setEmergencySubmitting] = useState(false);
-  const [emergencySent, setEmergencySent] = useState(false);
-  const [emergencySentAt, setEmergencySentAt] = useState("");
-  const [emergencyCtx, setEmergencyCtx] = useState(null); // 状況カード {jobNumber,jobLabel,dateLabel,partnerName}
-  const openEmergencyModal = (a) => {
-    setEmergencyModalApp(a); setEmergencyKind(""); setEmergencyReason(""); setEmergencySent(false);
-    // 「何についての連絡か」を開いた瞬間に見せる（焦っている人に思い出させない）。詳細は非同期で追記
-    setEmergencyCtx({ jobNumber: a.job_number, jobLabel: "", dateLabel: "", partnerName: workerProfiles[a.worker_id]?.nickname || "" });
-    (async () => {
-      try {
-        const { data: job } = await fetchMyJobContext(a.job_number, me.id);
-        setEmergencyCtx(prev => prev && prev.jobNumber === a.job_number ? {
-          ...prev,
-          jobLabel: job ? [job.crop, job.task].filter(Boolean).join(" ") : "",
-          dateLabel: job && job.date_start ? calFmtDate(job.date_start) + (job.work_time ? " " + job.work_time.split("〜")[0] + "〜" : "") : "",
-        } : prev);
-      } catch {}
-    })();
-  };
-
-  // ↓応募者ページの読み込み。ここに置く理由：この中の着地処理が openCompleteModal と
-  //   openEmergencyModal を呼ぶため、両方の宣言より後ろでないと宣言前参照になる
+  // ↓応募者ページの読み込み。ここに置く理由：この中の着地処理が openCompleteModal を呼ぶため、
+  //   その宣言より後ろでないと宣言前参照になる
   //   （2026-07-29に並べ替え・中身は不変。読み込み処理は上部の入口/求人ローダーと対）
   // 応募者タブを開くたびに応募の最新statusを取り直す（2026-07-16）。
   // 初回マウント時の1回だけだと、働き手側の操作（評価等）が進んでも
@@ -798,17 +774,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           Object.entries(bundle.trust).forEach(([wid, v]) => { if (v && v.ok) trustMap[wid] = v; });
           setWorkerTrust(trustMap); setCache("farm:trust", trustMap);
         }
-        // ここから下は、今日ページ・緊急連絡メールからの着地（応募が手元に揃ってから判定する）。
+        // ここから下は、今日ページからの着地（応募が手元に揃ってから判定する）。
         // 行き先はいずれも応募者ページなので、応募をこの面で読む今の形と噛み合っている
-        // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
-        try {
-          const pend = sessionStorage.getItem("cb_emergencyAppId");
-          if (pend) {
-            sessionStorage.removeItem("cb_emergencyAppId");
-            const target = appData.find(x => x.id === pend);
-            if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
-          }
-        } catch {}
         // 完了・評価モーダルの着地（2026-07-24）：今日ページの「完了して評価する」から cb_completeAppId 経由で自動展開（モーダルはここに常駐）
         try {
           const pendC = sessionStorage.getItem("cb_completeAppId");
@@ -842,24 +809,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       } catch {}
       setAppsLoading(false);
     })();
-  }, [jobTab, appsRefreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
-  const submitEmergency = async () => {
-    if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
-    setEmergencySubmitting(true);
-    try {
-      const { error } = await insertAttendanceEvent({
-        application_id: emergencyModalApp.id, actor_id: me.id, kind: emergencyKind, reason: emergencyReason.trim(),
-      });
-      if (error) { alert('送信に失敗しました：' + error.message); setEmergencySubmitting(false); return; }
-      const sentAt = new Date().toLocaleTimeString("ja-JP", { hour:"2-digit", minute:"2-digit" });
-      setEmergencySentAt(sentAt);
-      setDbApplicants(prev => prev.map(x => x.id === emergencyModalApp.id ? { ...x, _emergencySentAt: sentAt } : x));
-      setEmergencySent(true);
-    } catch { alert('送信に失敗しました。'); }
-    setEmergencySubmitting(false);
-  };
+  }, [jobTab, appsRefreshTick]);
 
-  // 応募者カード本体（ボトムシートで表示。承認/見送り・保険・開始確認・完了評価・緊急連絡・チャットの操作込み）
+  // 応募者カード本体（ボトムシートで表示。承認/見送り・保険・開始確認・完了評価・チャットの操作込み）
   // お仕事の流れ（雇い手側・2026-07-26たきと指示）：働き手側FlowBar（WorkerApplications）の鏡写し。
   // 芯は両者共通（承認→面接→採用→仕事→完了報告→評価）で、頭だけ違う＝働き手「応募」／雇い手「掲載」
   // （CLAUDE.md「正規フロー（働き手／雇い手）の整理」に準拠）。現在地は応募行から算出する。
@@ -1973,56 +1925,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               お気に入り登録（また呼びたいリストに登録し、次の求人をお知らせする）
             </label>
             <button onClick={()=>setCompleteDone(null)} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-          </div>
-        </div>
-      )}
-
-      {/* 緊急連絡モーダル（Part3・農家側） */}
-      {emergencyModalApp && (
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            {emergencySent ? (
-              <>
-                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0 8px", margin:0, lineHeight:1.7 }}>
-                  ⚠️ {(FARMER_EMERGENCY_KINDS.find(k=>k.v===emergencyKind)?.l || "緊急")}の連絡を{emergencyCtx?.partnerName ? emergencyCtx.partnerName + "さん" : "働き手さん"}に送りました（{emergencySentAt}）
-                </p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 16px" }}>チャットで詳しく伝えることもできます</p>
-                <button onClick={()=>{ const id = emergencyModalApp.id; setEmergencyModalApp(null); window.location.hash = "/chat/" + id; }} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer", marginBottom:8 }}>チャットを開く →</button>
-                <button onClick={()=>setEmergencyModalApp(null)} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
-              </>
-            ) : (
-              <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>緊急連絡</p>
-                {emergencyCtx && (
-                  <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:10, padding:"10px 12px", marginBottom:12, lineHeight:1.7 }}>
-                    <p style={{ margin:0, fontSize:13, fontWeight:700, color:"#222" }}>求人 #{emergencyCtx.jobNumber}{emergencyCtx.jobLabel ? "・" + emergencyCtx.jobLabel : ""}</p>
-                    <p style={{ margin:0, fontSize:12, color:"#717171" }}>{emergencyCtx.dateLabel && "作業日 " + emergencyCtx.dateLabel}{emergencyCtx.dateLabel && emergencyCtx.partnerName && "　"}{emergencyCtx.partnerName && "相手：" + emergencyCtx.partnerName + "さん"}</p>
-                  </div>
-                )}
-                <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
-                  {FARMER_EMERGENCY_KINDS.map(k => (
-                    <button key={k.v} type="button" onClick={()=>setEmergencyKind(k.v)} className="f-sans" style={{
-                      flex: k.v==="no_show_report" ? "1 1 100%" : "1 1 0", padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
-                      borderColor: emergencyKind===k.v ? "#00A86B" : "#EBEBEB",
-                      background: emergencyKind===k.v ? "#E6F7EF" : "#fff", color: emergencyKind===k.v ? "#00A86B" : "#222",
-                    }}>{k.l}</button>
-                  ))}
-                </div>
-                {emergencyKind==="no_show_report" && (
-                  <div className="f-sans" style={{ background:"#FFF4E0", borderRadius:10, padding:"10px 12px", marginBottom:12, fontSize:12, color:"#C77700", lineHeight:1.7 }}>
-                    まずチャットか電話で連絡を試してください。15分待っても会えない時にこの連絡を送ると、相手と運営に即時に通知され、日時が記録されます。<br/>
-                    作業後の欠勤の記録とは別の、その場の緊急連絡です。
-                  </div>
-                )}
-                <textarea value={emergencyReason} onChange={e=>setEmergencyReason(e.target.value)} placeholder="理由・詳細" rows={4}
-                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={()=>setEmergencyModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-                  <button onClick={submitEmergency} disabled={emergencySubmitting || !emergencyKind || !emergencyReason.trim()}
-                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? <>送信中<Dots /></> : "送信する"}</button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}

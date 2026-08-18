@@ -5,7 +5,7 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, WORKER_EMERGENCY_KINDS, appPhaseKey, APP_PHASE_LABEL, photoThumb } from "../lib/utils";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, photoThumb } from "../lib/utils";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { YesNoPill, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
@@ -85,38 +85,6 @@ export function WorkerApplications({ filter, me }) {
     setDisputeSubmitting(false);
   };
 
-  // 緊急連絡（Part3・働き手側）
-  const [emergencyModalApp, setEmergencyModalApp] = useState(null);
-  const [emergencyKind, setEmergencyKind] = useState("");
-  const [emergencyReason, setEmergencyReason] = useState("");
-  const [emergencySubmitting, setEmergencySubmitting] = useState(false);
-  const [emergencySent, setEmergencySent] = useState(false);
-  const [emergencySentAt, setEmergencySentAt] = useState("");
-  const [emergencyCtx, setEmergencyCtx] = useState(null); // 状況カード {jobNumber,jobLabel,dateLabel,partnerName}
-  const openEmergencyModal = (a) => {
-    setEmergencyModalApp(a); setEmergencyKind(""); setEmergencyReason(""); setEmergencySent(false);
-    // 「何についての連絡か」を開いた瞬間に見せる（焦っている人に思い出させない）。詳細は非同期で追記
-    setEmergencyCtx({ jobNumber: a.job_number, jobLabel: "", dateLabel: "", partnerName: "" });
-    (async () => {
-      try {
-        const [jobRes, epRes] = await Promise.all([
-          supabase.from("jobs_public").select("crop,task,date_start,work_time").eq("job_number", a.job_number).maybeSingle(),
-          supabase.rpc("job_employer_profile", { p_job_number: a.job_number }),
-        ]);
-        const job = jobRes.data;
-        const ep = epRes.data && epRes.data[0];
-        setEmergencyCtx(prev => prev && prev.jobNumber === a.job_number ? {
-          ...prev,
-          jobLabel: job ? [job.crop, job.task].filter(Boolean).join(" ") : "",
-          dateLabel: job && job.date_start ? calFmtDate(job.date_start) + (job.work_time ? " " + job.work_time.split("〜")[0] + "〜" : "") : "",
-          partnerName: ep?.nickname || "",
-        } : prev);
-      } catch {}
-    })();
-  };
-
-  // ↓ここに置く理由：この中の緊急連絡ディープリンク着地が openEmergencyModal を呼ぶため、
-  //   その宣言より後ろに置く（2026-07-29に並べ替え・中身は不変）
   useEffect(() => {
     (async () => {
       try {
@@ -161,15 +129,6 @@ export function WorkerApplications({ filter, me }) {
             setJobDates(map); setCache("wapp:jobs", map);
           }
           if (respEntries.length > 0) setRespByFarmer(Object.fromEntries(respEntries));
-          // 緊急連絡ディープリンク着地：該当応募にバインドしてモーダル自動展開（#/emergency/{id}→resolveEmergencyLink経由）
-          try {
-            const pend = sessionStorage.getItem("cb_emergencyAppId");
-            if (pend) {
-              sessionStorage.removeItem("cb_emergencyAppId");
-              const target = data.find(x => x.id === pend);
-              if (target && CHAT_ELIGIBLE_STATUSES.includes(target.status)) openEmergencyModal(target);
-            }
-          } catch {}
         }
       } catch {}
       setLoading(false);
@@ -177,21 +136,6 @@ export function WorkerApplications({ filter, me }) {
     // refreshTick＝応募の変化(Realtime)と画面の復帰の合図（2026-08-18 Speed-1B）。
     // 合図は「変わった」だけ＝中身はこの窓口から取り直す。loadingは立て直さないので骨は出ない
   }, [refreshTick]);
-  const submitEmergency = async () => {
-    if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
-    setEmergencySubmitting(true);
-    try {
-      const { error } = await supabase.from('attendance_events').insert({
-        application_id: emergencyModalApp.id, actor_id: me.id, kind: emergencyKind, reason: emergencyReason.trim(),
-      });
-      if (error) { alert('送信に失敗しました：' + error.message); setEmergencySubmitting(false); return; }
-      const sentAt = new Date().toLocaleTimeString("ja-JP", { hour:"2-digit", minute:"2-digit" });
-      setEmergencySentAt(sentAt);
-      setAllApps(prev => prev.map(x => x.id === emergencyModalApp.id ? { ...x, _emergencySentAt: sentAt } : x));
-      setEmergencySent(true);
-    } catch { alert('送信に失敗しました。'); }
-    setEmergencySubmitting(false);
-  };
 
   // 応募の取消（承認前のみ・本人）
   const [cancelingId, setCancelingId] = useState(null);
@@ -268,13 +212,6 @@ export function WorkerApplications({ filter, me }) {
                   ) : (
                     <button onClick={()=>openReviewModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>⭐ 農家を評価する</button>
                   )
-                )}
-                {/* 緊急連絡（Part3） */}
-                {CHAT_ELIGIBLE_STATUSES.includes(a.status) && (
-                  <button onClick={()=>openEmergencyModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#C77700", border:"1px solid #FFB020", borderRadius:10, cursor:"pointer", marginBottom:8 }}>⚠️ 緊急連絡</button>
-                )}
-                {a._emergencySentAt && (
-                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#C77700", margin:"0 0 8px", textAlign:"center" }}>⚠️ 連絡済み（{a._emergencySentAt}）</p>
                 )}
                 {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
                 {(a.status==="approved"||a.status==="meeting"||a.status==="interview"||a.status==="contracted"||a.status==="working") && (
@@ -554,55 +491,6 @@ export function WorkerApplications({ filter, me }) {
               <button onClick={submitDispute} disabled={disputeSubmitting || !disputeReason.trim()}
                 className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{disputeSubmitting ? <>送信中<Dots /></> : "送信する"}</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* 緊急連絡モーダル（Part3・働き手側） */}
-      {emergencyModalApp && (
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            {emergencySent ? (
-              <>
-                <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0 8px", margin:0, lineHeight:1.7 }}>
-                  ⚠️ {(WORKER_EMERGENCY_KINDS.find(k=>k.v===emergencyKind)?.l || "緊急")}の連絡を{emergencyCtx?.partnerName ? emergencyCtx.partnerName + "さん" : "農家さん"}に送りました（{emergencySentAt}）
-                </p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 16px" }}>チャットで詳しく伝えることもできます</p>
-                <button onClick={()=>{ const id = emergencyModalApp.id; setEmergencyModalApp(null); window.location.hash = "/chat/" + id; }} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer", marginBottom:8 }}>チャットを開く →</button>
-                <button onClick={()=>setEmergencyModalApp(null)} className="btn-primary f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, borderRadius:10 }}>閉じる</button>
-              </>
-            ) : (
-              <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>緊急連絡</p>
-                {emergencyCtx && (
-                  <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:10, padding:"10px 12px", marginBottom:12, lineHeight:1.7 }}>
-                    <p style={{ margin:0, fontSize:13, fontWeight:700, color:"#222" }}>求人 #{emergencyCtx.jobNumber}{emergencyCtx.jobLabel ? "・" + emergencyCtx.jobLabel : ""}</p>
-                    <p style={{ margin:0, fontSize:12, color:"#717171" }}>{emergencyCtx.dateLabel && "作業日 " + emergencyCtx.dateLabel}{emergencyCtx.dateLabel && emergencyCtx.partnerName && "　"}{emergencyCtx.partnerName && "相手：" + emergencyCtx.partnerName + "さん"}</p>
-                  </div>
-                )}
-                <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
-                  {WORKER_EMERGENCY_KINDS.map(k => (
-                    <button key={k.v} type="button" onClick={()=>setEmergencyKind(k.v)} className="f-sans" style={{
-                      flex: k.v==="no_show_report" ? "1 1 100%" : "1 1 0", padding:"9px", borderRadius:10, fontSize:13, cursor:"pointer", fontWeight:600, border:"2px solid",
-                      borderColor: emergencyKind===k.v ? "#00A86B" : "#EBEBEB",
-                      background: emergencyKind===k.v ? "#E6F7EF" : "#fff", color: emergencyKind===k.v ? "#00A86B" : "#222",
-                    }}>{k.l}</button>
-                  ))}
-                </div>
-                {emergencyKind==="no_show_report" && (
-                  <div className="f-sans" style={{ background:"#FFF4E0", borderRadius:10, padding:"10px 12px", marginBottom:12, fontSize:12, color:"#C77700", lineHeight:1.7 }}>
-                    まずチャットか電話で連絡を試してください。15分待っても会えない時にこの連絡を送ると、相手と運営に即時に通知され、日時が記録されます。
-                  </div>
-                )}
-                <textarea value={emergencyReason} onChange={e=>setEmergencyReason(e.target.value)} placeholder="理由・詳細" rows={4}
-                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={()=>setEmergencyModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-                  <button onClick={submitEmergency} disabled={emergencySubmitting || !emergencyKind || !emergencyReason.trim()}
-                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{emergencySubmitting ? <>送信中<Dots /></> : "送信する"}</button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}
