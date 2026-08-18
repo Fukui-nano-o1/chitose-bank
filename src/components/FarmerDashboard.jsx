@@ -328,7 +328,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: bundle, error } = await fetchMyFarmJobs();
         const allJobs = bundle?.jobs;
         if (!error && allJobs) {
-          const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos, holidays: j.holidays }]));
+          const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos, holidays: j.holidays, work_time: j.work_time }]));
           setJobInfoMap(jim); setCache("farm:jobInfo", jim);
           // 自分の求人を日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
           // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い。
@@ -642,13 +642,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   //   求人（日程・休日）＝jobInfoMap から渡す。凡例・絞り込みは区分名ので従来どおり APP_PHASE_LABEL
   const appRibbonLabel = (a) => {
     const info = jobInfoMap[a.job_number] || {};
-    return appPhaseLabelNow(a, { ...a, date_start: info.date_start, date_end: info.date_end, holidays: info.holidays }) || a.status;
+    return appPhaseLabelNow(a, { ...a, date_start: info.date_start, date_end: info.date_end, holidays: info.holidays, work_time: info.work_time }) || a.status;
   };
   // ★色もラベルと同じ材料で出す（2026-08-18たきと指示「採用の色に戻せ」）＝働く日でない日は
   //   赤（作業中）でなく採用の色。判定は lib/utils 側で一本化＝文字と色が食い違わない
   const appRibbonColor = (a) => {
     const info = jobInfoMap[a.job_number] || {};
-    return appPhaseColorNow(a, { ...a, date_start: info.date_start, date_end: info.date_end, holidays: info.holidays });
+    return appPhaseColorNow(a, { ...a, date_start: info.date_start, date_end: info.date_end, holidays: info.holidays, work_time: info.work_time });
   };
   // 隠す判定（2026-08-18・チャット一覧と同じ形）：段階の判定は帯と同じ appPhaseKey ＝
   // 帯・凡例・チャット一覧と文言も物差しも枝分かれしない

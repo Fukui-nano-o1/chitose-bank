@@ -136,6 +136,21 @@ export const workStartMinutes = (workTime) => {
   if (!(h >= 0 && h <= 23 && mi >= 0 && mi <= 59)) return null;
   return h * 60 + mi;
 };
+// work_time（"8:00〜17:00"）の終了時刻を「その日の0時からの分」で返す。取れなければ null。
+// ★DB側の自動完了（auto_complete_work・2026-08-18）と同じ読み方に揃える：区切り（〜/~/-）の後ろ、
+//   無ければ末尾の時刻。開始以前（日またぎ表記）は読めない扱い＝片方だけ変えると
+//   「画面はもう終わりなのにDBはまだ」の食い違いが出る
+export const workEndMinutes = (workTime) => {
+  const s = String(workTime || "");
+  const m = s.match(/[〜~\-−–]\s*(\d{1,2}):(\d{2})/) || s.match(/(\d{1,2}):(\d{2})\s*$/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+  if (!(h >= 0 && h <= 23 && mi >= 0 && mi <= 59)) return null;
+  const end = h * 60 + mi;
+  const start = workStartMinutes(workTime);
+  if (start != null && end <= start) return null; // 日またぎ等＝読めない扱い（当日いっぱいを作業中とみなす）
+  return end;
+};
 // "8:00" のような表示用文字列に戻す
 export const minutesToHm = (mins) => {
   const v = ((mins % 1440) + 1440) % 1440;
@@ -740,12 +755,23 @@ export const phaseLabelNow = (phase, entry) =>
   phase === "working" ? workingPhaseLabel(entry) : (APP_PHASE_LABEL[phase] || "");
 // appPhaseLabelNow＝応募行そのものを渡す画面用（段階の導出ごと任せる）
 export const appPhaseLabelNow = (a, entry) => phaseLabelNow(appPhaseKey(a), entry || a) || a?.status || "";
-// ★合間の色は採用の色（緑）に戻す（2026-08-18たきと指示「採用の色に戻せ」）：
-//   赤（作業中）は実際に働いている日だけ。働いていない日を赤で出すと急ぎに見える。
-//   段階は working のまま＝タップして出る説明（APP_PHASE_DESC）・絞り込み・DBは不変で、色だけ戻す。
-//   判定はラベルと同じ nextWorkDayYmd＝文字と色が必ず一致する
+// ★赤（作業中）は「いま実際に働いている時間」だけ。それ以外は採用の色（緑）に戻す
+//   （2026-08-18たきと指示「採用の色に戻せ」→「当日の労働終了時刻から緑に戻せ」）。
+//   働いていない時間を赤で出すと急ぎに見えるため。段階は working のまま＝タップして出る説明
+//   （APP_PHASE_DESC）・絞り込み・DBは不変で、帯とアイコンのリングの色だけ戻す。
+// ★色は時間まで見る／ラベルは日単位（当日は「作業中」のまま・たきと裁定）＝
+//   働く日の終業後は「作業中の文字＋緑」になる。これは意図した組み合わせ（色＝いま働いているか）
+const isOnDutyNow = (entry) => {
+  const days = entryWorkDays(entry);
+  if (!days || days.size === 0) return true;            // 材料が無い＝判断しない（従来どおり作業中の赤）
+  if (!days.has(ymdLocal(new Date()))) return false;    // 今日は働く日でない＝合間
+  const end = workEndMinutes(entry?.work_time);
+  if (end == null) return true;                         // 勤務時間が読めない＝当日いっぱいを作業中とみなす
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes() < end;      // 当日の労働終了時刻を過ぎたら緑
+};
 export const phaseColorNow = (phase, entry) =>
-  (phase === "working" && nextWorkDayYmd(entry)) ? APP_PHASE_COLOR.contracted : (APP_PHASE_COLOR[phase] || "#00A86B");
+  (phase === "working" && !isOnDutyNow(entry)) ? APP_PHASE_COLOR.contracted : (APP_PHASE_COLOR[phase] || "#00A86B");
 export const appPhaseColorNow = (a, entry) => phaseColorNow(appPhaseKey(a), entry || a);
 // ※APP_FILTER_KEYS（2026-08-07の8択の段階絞り込み）は廃止（2026-08-18たきと指示）。
 //   チャット一覧・応募者ページとも【隠すもの】3つ（見送り／失効／取り消し）の複数選択に統一し、
