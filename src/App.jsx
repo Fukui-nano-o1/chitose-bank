@@ -1029,21 +1029,37 @@ export default function App(){
       .subscribe();
     return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
   }, [me?.id]);
-  // 画面の復帰で再取得の合図を出す（2026-08-18 Speed-1B）。
+  // 画面の復帰で再取得の合図を出す（2026-08-18 Speed-1B／1B.1で二重発火を除去）。
   // バックグラウンドに置いている間はRealtimeのWebSocketが凍結・切断され、イベントを取りこぼす
   // （iOS PWAで顕著。チャットが2026-07-27に同じ理由で復帰再読込を入れている）。
   // 戻ってきた時に一度だけ合図を出せば、開いている画面が既存の窓口から取り直して整合性が戻る。
-  // 出すのは合図だけ＝閉じている画面のために通信はしない（受け手はマウント中の画面のみ）
+  // 出すのは合図だけ＝閉じている画面のために通信はしない（受け手はマウント中の画面のみ）。
+  //
+  // ★1回の復帰につき1回だけ（時間デバウンスではなく状態で数える）：
+  // ブラウザは通常の復帰で visibilitychange → focus を続けて出すため、素直に両方で合図を出すと
+  // 「即時fetch＋冷却後の後追いfetch」＝1回の復帰で2波になる（refreshBusは先頭1回＋後追い1回so）。
+  // wakeSent を復帰サイクルの旗にして、離れた時（hidden / blur）にだけ倒す。
+  // 　hidden → visible → focus ＝ 1回（focusは抑止）／ blur → focus ＝ 1回
+  // マウント時に見えていれば旗は立てておく＝起動直後のfocusで起動時fetchと二重にしない
   useEffect(() => {
-    const onWake = () => {
-      if (document.visibilityState !== "visible") return;
+    let wakeSent = document.visibilityState === "visible";
+    const emitWake = () => {
+      if (document.visibilityState !== "visible" || wakeSent) return;
+      wakeSent = true;
       emitRefresh([REFRESH_APPLICATIONS, REFRESH_JOBS], "wake");
     };
-    document.addEventListener("visibilitychange", onWake);
-    window.addEventListener("focus", onWake);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") emitWake();
+      else wakeSent = false;
+    };
+    const onBlur = () => { wakeSent = false; };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", emitWake);
+    window.addEventListener("blur", onBlur);
     return () => {
-      document.removeEventListener("visibilitychange", onWake);
-      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", emitWake);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
   // アプリアイコンのバッジに未読数を反映（2026-07-19）。ログアウト時は0でクリア
