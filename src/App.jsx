@@ -1018,6 +1018,32 @@ export default function App(){
     window.addEventListener("cb:confirmNotice", f);
     return () => window.removeEventListener("cb:confirmNotice", f);
   }, [me?.id]);
+  // ── Realtimeの購読開始を、重要な初回取得の後ろへ送る（2026-08-18 Speed-1C 起動衝突テスト）──
+  // 冷間起動の実測で、Realtimeテナントの起動（CheckConnection 2.9秒・レプリケーションスロット作成）と
+  // PostgRESTの再接続・スキーマキャッシュ再構築（3.0秒＋1.1秒）が同じ数秒に重なっていた。
+  // 起動直後にWebSocketを張ると、この作り直しをRESTと奪い合う。so購読開始だけを後ろへ送る。
+  // ★RESTの初回チェックは今までどおり即時（バッジ・お祝いボックスの判定は遅らせない）。
+  // ★購読が始まった時点で各effectが再実行され、check/refresh→subscribe の順に走る＝
+  //   購読していなかった間の取りこぼしがcatch-upとして自然に埋まる。
+  // ★固定の秒数では待たない：さがすの初回取得がsettleした合図（cb:criticalBootSettled）で開ける。
+  const [realtimeBootReady, setRealtimeBootReady] = useState(false);
+  useEffect(() => {
+    if (realtimeBootReady) return;
+    const open = () => setRealtimeBootReady(true);
+    window.addEventListener("cb:criticalBootSettled", open);
+    // ★逃げ道：さがす以外の画面に着地した起動ではJobSearchMapViewがマウントされず合図が来ない。
+    //   その時にRealtimeが永久に始まらないことのないよう、暇になった時点（最長2秒）で開ける。
+    //   合図が先に来ればこちらは何もしない（openは冪等）
+    let idleId = null, timerId = null;
+    if (typeof window.requestIdleCallback === "function") idleId = window.requestIdleCallback(open, { timeout: 2000 });
+    else timerId = window.setTimeout(open, 2000);
+    return () => {
+      window.removeEventListener("cb:criticalBootSettled", open);
+      if (idleId !== null && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleId);
+      if (timerId !== null) window.clearTimeout(timerId);
+    };
+  }, [realtimeBootReady]);
+
   // チャット未読通知（2026-07-17）：下部バー「チャット」に未読合計（当事者チャット＋運営DM）の赤バッジ。
   // 再計算のタイミング＝起動・ページ遷移(hashchange)・チャット/運営DMを開いて既読化した時(cb:unreadRefresh)
   const [chatUnread, setChatUnread] = useState(0);
@@ -1080,12 +1106,13 @@ export default function App(){
     window.addEventListener("cb:unreadRefresh", refresh);
     // リアルタイム（2026-07-19）：自分宛メッセージのINSERTを購読し、バッジ即時更新＋トースト。
     // 配信はRLS準拠＝自分が当事者のchat/自分宛DMしか届かない
-    const ch = supabase.channel("unread-badge")
+    // 購読開始は重要な初回取得の後ろ（2026-08-18 Speed-1C 起動衝突テスト）。上のrefresh()は即時のまま
+    const ch = realtimeBootReady ? supabase.channel("unread-badge")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, onMsg)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, onDm)
-      .subscribe();
-    return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refresh); supabase.removeChannel(ch); };
-  }, [me?.id]);
+      .subscribe() : null;
+    return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refresh); if (ch) supabase.removeChannel(ch); };
+  }, [me?.id, realtimeBootReady]);
   // 画面の復帰で再取得の合図を出す（2026-08-18 Speed-1B／1B.1で二重発火を除去）。
   // バックグラウンドに置いている間はRealtimeのWebSocketが凍結・切断され、イベントを取りこぼす
   // （iOS PWAで顕著。チャットが2026-07-27に同じ理由で復帰再読込を入れている）。
@@ -1153,12 +1180,12 @@ export default function App(){
         setHiredInfoOpen(null);
       } catch {}
     };
-    check();
-    const ch = supabase.channel("hired-watch")
+    check(); // 初回チェックは即時（2026-08-18 Speed-1C）。購読だけを重要な初回取得の後ろへ送る
+    const ch = realtimeBootReady ? supabase.channel("hired-watch")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "applications", filter: "worker_id=eq." + me.id }, check)
-      .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
-  }, [me?.id]);
+      .subscribe() : null;
+    return () => { cancelled = true; if (ch) supabase.removeChannel(ch); };
+  }, [me?.id, realtimeBootReady]);
   // 段階お祝いボックス（2026-07-19）：②承認・⑤仕事・⑥評価を、働き手/農家の両側に1回だけ展開。
   // ①応募=apply/done・④採用=hiredBox は別で担当ので除外。applications変化をRealtime購読＋起動時チェック
   const [stageBox, setStageBox] = useState(null); // {emoji,head,body,link,hash}
@@ -1223,12 +1250,12 @@ export default function App(){
     // 応募の変化は「お祝いボックスの判定」だけでなく「開いている画面の再取得の合図」にもする
     // （2026-08-18 Speed-1B）。payloadは渡さない＝合図だけ。中身は各画面が既存の窓口で取り直す
     const onAppChange = () => { check(); emitRefresh(REFRESH_APPLICATIONS, "realtime"); };
-    const ch = supabase.channel("stage-watch")
+    const ch = realtimeBootReady ? supabase.channel("stage-watch")
       .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: "worker_id=eq." + me.id }, onAppChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "applications", filter: "farmer_id=eq." + me.id }, onAppChange)
-      .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
-  }, [me?.id]);
+      .subscribe() : null;
+    return () => { cancelled = true; if (ch) supabase.removeChannel(ch); };
+  }, [me?.id, realtimeBootReady]);
   // approvalトリガー（応募承認後）の専用照会は2026-07-17に撤去：熱中症お知らせがafter_login×毎回表示に変更され、
   // ログイン済み利用者の来訪すべてをカバーするため。approval値の判定はshowNoticesForに残っており、再開時はここにeffectを足すだけ
   const dismissNotices = () => {
@@ -1273,7 +1300,9 @@ export default function App(){
           .eq("farmer_id", uid).eq("type", "profile_approved")
           .or("read.is.null,read.eq.false").limit(5);
         if (notes && notes.length > 0) showWelcomeApproved(uid, notes.map(n => n.id));
-        // リアルタイム：サイトを開いている最中に承認されたら即展開
+        // リアルタイム：サイトを開いている最中に承認されたら即展開。
+        // 購読開始は重要な初回取得の後ろ（2026-08-18 Speed-1C）。上の未読照会は即時のまま
+        if (!realtimeBootReady) return;
         channel = supabase.channel("cb-profile-approved")
           .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: "farmer_id=eq." + uid }, (payload) => {
             if (payload.new?.type === "profile_approved") showWelcomeApproved(uid, [payload.new.id]);
@@ -1282,7 +1311,7 @@ export default function App(){
       } catch {}
     })();
     return () => { if (channel) { try { supabase.removeChannel(channel); } catch {} } };
-  }, [showWelcomeApproved]);
+  }, [showWelcomeApproved, realtimeBootReady]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

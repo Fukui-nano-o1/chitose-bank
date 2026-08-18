@@ -207,7 +207,12 @@ export function JobSearchMapView({ onRegister, me }) {
       // 起動バーストの削減（2026-08-18 Speed-1C-1）：一覧の初回取得が終わった時点を
       // 「検索画面が成立した」合図にし、初期表示に要らない問い合わせをここから後ろへ送る。
       // 成否は問わない（失敗しても後続を永久に止めない）。合図は初回だけ＝復帰の再取得では立てない
-      if (!bootSettledRef.current) { bootSettledRef.current = true; setBootSettled(true); }
+      if (!bootSettledRef.current) {
+        bootSettledRef.current = true; setBootSettled(true);
+        // Realtimeの購読開始もここまで待たせる（2026-08-18 Speed-1C 起動衝突テスト）。
+        // payloadは載せない・一回きり＝Appはこれを受けて購読を開ける（受け手はApp.jsxのrealtimeBootReady）
+        try { window.dispatchEvent(new Event("cb:criticalBootSettled")); } catch {}
+      }
     })();
     // meのオブジェクトでなくidを依存に（2026-08-02）：セッション復元のsetMeで識別子が毎回変わり、
     // 1起動につき全件取得が2回走っていた。
