@@ -4,6 +4,7 @@ import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, isUpcomingSoon, msgSnip
 import { fbTap, unlockAudio } from "./lib/feedback";
 import { emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "./lib/refreshBus";
 import { chatCache, hydrateChatCache } from "./lib/chatCache";
+import { createIdleQueue } from "./lib/idleQueue";
 import { Celebration, ApplyCelebrationVisual } from "./components/Celebration";
 import { PublishChoiceCard } from "./components/PublishChoiceCard";
 import { TodayPage } from "./components/TodayPage";
@@ -144,6 +145,10 @@ import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
 import { getCache, setCache, clearCache } from "./lib/viewCache";
 
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
+
+// 起動時に要らない問い合わせを後ろへ送る待ち行列（2026-08-18 Speed-1C-1）。アプリに1本。
+// 1本ずつ流す（同じidle枠に2本入れない）。寿命はアプリと同じso cancel は呼ばない
+const bootIdleQueue = createIdleQueue();
 
 
 
@@ -452,15 +457,26 @@ export default function App(){
   const lastLoggedHashRef = useRef(null);
   useEffect(() => {
     if (!me?.id || !isAdmin(me)) return;
-    const logPageEvent = () => {
+    // 起動バーストから外して後送り（2026-08-18 Speed-1C-1）。
+    // ★記録する値は【発生した瞬間】に確定して持つ。実行時に window.location.hash を読み直すと、
+    //   待っている間に利用者が別画面へ移っていて計測が嘘になる
+    // ★保留中に次の遷移が起きたら、保留分を先に流してから新しい分を送る＝DBで前後が入れ替わらない
+    let pending = null;
+    const send = (row) => supabase.from("page_events").insert(row).then(() => {}, () => {});
+    const flushPending = () => { if (pending) { const row = pending; pending = null; send(row); } };
+    const logPageEvent = ({ defer = false } = {}) => {
       const h = window.location.hash || "#/";
       if (h === lastLoggedHashRef.current) return; // 連続同一hashはskip
       lastLoggedHashRef.current = h;
-      supabase.from("page_events").insert({ auth_id: me.id, page_hash: h }).then(() => {}, () => {});
+      const row = { auth_id: me.id, page_hash: h }; // ここで値を固定する
+      if (!defer) { flushPending(); send(row); return; }
+      pending = row;
+      bootIdleQueue.push(() => { flushPending(); });
     };
-    logPageEvent();
-    window.addEventListener("hashchange", logPageEvent);
-    return () => window.removeEventListener("hashchange", logPageEvent);
+    logPageEvent({ defer: true }); // 起動の1件目だけ後送り
+    const onHashLog = () => logPageEvent();
+    window.addEventListener("hashchange", onHashLog);
+    return () => { window.removeEventListener("hashchange", onHashLog); flushPending(); };
   }, [me?.id]);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
   // 訪問者の「登録が必要です」案内をボックス化（2026-07-27たきと指示）。どの画面からでも openLoginBox() で開く
@@ -982,9 +998,13 @@ export default function App(){
       if (fresh.length > 0) setActiveNotices(prev => (prev && prev.length ? prev : fresh)); // 表示中は上書きしない＝1回1件
     } catch {}
   };
-  useEffect(() => { showNoticesFor("startup"); }, [me?.id]); // ログインで農家/働き手向けの未読が増えることがあるため再判定
-  useEffect(() => { if (tab === "login") showNoticesFor("login"); }, [tab]); // ログインをタップ＝ログイン画面を開いた瞬間に展開
-  useEffect(() => { if (me?.id) showNoticesFor("after_login"); }, [me?.id]); // ログイン後（ログイン完了・ログイン済みの起動を含む）
+  // 起動バーストから外して後送り（2026-08-18 Speed-1C-1）：startup と after_login は
+  // 起動のたびに admin_notice_registry を1本ずつ撃つ（管理者は2本）。お知らせのポップアップは
+  // 初期表示の成立条件ではないso、暇な時に1本ずつ流す。★login と confirm は即時のまま
+  // （利用者の操作に対する通知を遅らせない）。★2本を1問い合わせに統合はしない＝意味保存を優先
+  useEffect(() => { bootIdleQueue.push(() => showNoticesFor("startup")); }, [me?.id]); // ログインで農家/働き手向けの未読が増えることがあるため再判定
+  useEffect(() => { if (tab === "login") showNoticesFor("login"); }, [tab]); // ログインをタップ＝ログイン画面を開いた瞬間に展開（即時）
+  useEffect(() => { if (me?.id) bootIdleQueue.push(() => showNoticesFor("after_login")); }, [me?.id]); // ログイン後（ログイン完了・ログイン済みの起動を含む）
   useEffect(() => { // 確認ページ（trigger=confirm）：LandingFlowが「農家プロ未入力で確認ページ到達」を検知してこのイベントを飛ばす
     const f = () => showNoticesFor("confirm");
     window.addEventListener("cb:confirmNotice", f);

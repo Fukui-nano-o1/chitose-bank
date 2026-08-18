@@ -9,6 +9,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
 import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds } from "../lib/searchJobs";
 import { useRefreshTick, REFRESH_JOBS } from "../lib/refreshBus";
+import { createIdleQueue } from "../lib/idleQueue";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { CropIcon } from "./CropIcon";
@@ -171,6 +172,18 @@ export function JobSearchMapView({ onRegister, me }) {
     setReportDone(true);
     setTimeout(() => { setReportDone(false); closeReportModal(); }, 1500);
   };
+  // 後送りの待ち行列（2026-08-18 Speed-1C-1）。画面が消えたら未実行分は捨てる
+  // （閉じた画面のために通信しない・Speed-1Bの原則）。
+  // ★取り出しは必ずこの関数から＝アンマウントで捨てた後に作り直せる
+  //   （開発時のStrictModeは mount→unmount→mount するため、使い捨てのまま残ると二度と流れない）
+  const idleQueueRef = useRef(null);
+  const bootQueue = () => {
+    if (!idleQueueRef.current) idleQueueRef.current = createIdleQueue();
+    return idleQueueRef.current;
+  };
+  useEffect(() => () => { idleQueueRef.current?.cancel(); idleQueueRef.current = null; }, []);
+  const bootSettledRef = useRef(false);
+  const [bootSettled, setBootSettled] = useState(false); // 一覧の初回取得が終わったか
   const jobsRefreshTick = useRefreshTick(REFRESH_JOBS);
   useEffect(() => {
     // 訪問者モード（2026-07-24）：jobs_publicはanon許可ので未ログインでも公開面を読める。
@@ -191,6 +204,10 @@ export function JobSearchMapView({ onRegister, me }) {
           if (newIds.length) recordSeenNewIds(newIds);
         }
       } catch {}
+      // 起動バーストの削減（2026-08-18 Speed-1C-1）：一覧の初回取得が終わった時点を
+      // 「検索画面が成立した」合図にし、初期表示に要らない問い合わせをここから後ろへ送る。
+      // 成否は問わない（失敗しても後続を永久に止めない）。合図は初回だけ＝復帰の再取得では立てない
+      if (!bootSettledRef.current) { bootSettledRef.current = true; setBootSettled(true); }
     })();
     // meのオブジェクトでなくidを依存に（2026-08-02）：セッション復元のsetMeで識別子が毎回変わり、
     // 1起動につき全件取得が2回走っていた。
@@ -206,16 +223,19 @@ export function JobSearchMapView({ onRegister, me }) {
   // ★運営のキルスイッチ：app_settings.pending_preview_on_search='false' で即0件（デプロイ不要）
   const [pendingPreviews, setPendingPreviews] = useState(() => getCache("search:pendingPreviews") ?? []);
   const [pendingInfo, setPendingInfo] = useState(false); // 説明ボックスの開閉
+  // 起動バーストから外して後送り（2026-08-18 Speed-1C-1）：一覧が出てから暇な時に1本流す。
+  // このカードは一覧末尾の付け足しso、初期表示の成立条件ではない
   useEffect(() => {
-    (async () => {
+    if (!bootSettled) return;
+    bootQueue().push(async () => {
       const res = await fetchPendingJobPreviews();
       // 失敗時は手元の値を残す（supabase-jsはHTTPエラーでthrowしない＝errorを見る・2026-08-07規則）
       if (res.error) return;
       const list = res.data || [];
       setPendingPreviews(list);
       setCache("search:pendingPreviews", list);
-    })();
-  }, [me?.id]);
+    });
+  }, [bootSettled, me?.id]);
 
   // ── レーン切替（求人／委託）＝2026-08-03たきと指示 ──────────────────────────
   // 委託タブを出す条件は lib/consignAccess.js の canSeeConsignment ただ1箇所（管理者 かつ 特約同意）。
@@ -223,19 +243,22 @@ export function JobSearchMapView({ onRegister, me }) {
   // 特約の同意状況は consignment_profiles を読んで判定する。RLSが管理者限定ので、
   // 一般ユーザーで無駄な往復をしないよう「見せる可能性がある人」だけ引く
   const [consignor, setConsignor] = useState(() => getCache("search:consignor") ?? null);
+  // 起動バーストから外して後送り（2026-08-18 Speed-1C-1）：委託レーンの出し分けは管理者だけの話so、
+  // 初期表示の成立条件ではない。上の「まもなく公開」と同じ行列＝1本ずつ順に流れる
   useEffect(() => {
     if (!isAdmin(me)) { setConsignor(null); return; } // ★解禁時：この行も一緒に外す（読む相手を広げる）
+    if (!bootSettled) return;
     let cancelled = false;
-    (async () => {
+    bootQueue().push(async () => {
       const { data: { session } } = await getSession();
       if (!session || cancelled) return;
       const { data } = await fetchConsignorConsent(session.user.id);
       if (cancelled) return;
       setConsignor(data || null);
       setCache("search:consignor", data || null);
-    })();
+    });
     return () => { cancelled = true; };
-  }, [me]);
+  }, [bootSettled, me]);
   const showConsignLane = canSeeConsignment(me, consignor);
   const [lane, setLane] = useState("jobs"); // "jobs" | "consign"
   // 条件を満たさなくなった時（ログアウト・特約の版数更新）に委託レーンに取り残されない
