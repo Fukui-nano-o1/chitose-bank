@@ -6,7 +6,8 @@
 //   再マウントされ、textarea のフォーカス・下書き・花びらの演出が途切れる
 //   （LandingFlow のフォーカス消失バグと同族・CLAUDE.md）。
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../../../lib/supabase";
+import { fetchPublicJobByNumber, fetchInterviewQuestions, getSession, insertMessage,
+  confirmTerms, fetchMyFarmJobs } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb,
   appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../../../lib/utils";
@@ -32,7 +33,7 @@ export function InterviewReplyPanel({ items, accent, onAnswered }) {
     setJobOpen(prev => ({ ...prev, [t.application_id]: next }));
     if (next && !(t.job_number in jobInfo)) {
       try {
-        const { data } = await supabase.from("jobs_public").select("*").eq("job_number", t.job_number).maybeSingle();
+        const { data } = await fetchPublicJobByNumber(t.job_number);
         setJobInfo(prev => ({ ...prev, [t.job_number]: data ? mapJobPublicRow(data) : null }));
       } catch { setJobInfo(prev => ({ ...prev, [t.job_number]: null })); }
     }
@@ -44,9 +45,7 @@ export function InterviewReplyPanel({ items, accent, onAnswered }) {
       try {
         const ids = idsKey ? idsKey.split(",") : [];
         if (!ids.length) return;
-        const { data } = await supabase.from("messages")
-          .select("application_id,body,created_at").in("application_id", ids)
-          .like("body", "【面接の質問】%").order("created_at", { ascending: true });
+        const { data } = await fetchInterviewQuestions(ids);
         if (cancelled || !data) return;
         const q = {}; data.forEach(m => { q[m.application_id] = m.body; }); // 昇順で上書き＝各応募の最新が残る
         setQuestions(q);
@@ -59,9 +58,9 @@ export function InterviewReplyPanel({ items, accent, onAnswered }) {
     if (!body || sending) return;
     setSending(t.application_id);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       if (!session) { setSending(""); return; }
-      const { error } = await supabase.from("messages").insert({ application_id: t.application_id, sender_id: session.user.id, body });
+      const { error } = await insertMessage({ application_id: t.application_id, sender_id: session.user.id, body });
       if (error) { alert("送信に失敗しました：" + error.message); setSending(""); return; }
       setSending("");
       setDrafts(prev => ({ ...prev, [t.application_id]: "" }));
@@ -325,7 +324,7 @@ export function HireStagePanel({ items, meId, onHired }) {
     // 二重予約はDB側confirm_termsも同じ式で見張る（2026-08-06・警告の機構化）。警告を見て
     // OKした時（t.dupあり）だけ受諾フラグを渡す。下調べが取りこぼした時はDBがdouble_bookedを
     // 返すので、確認カードに警告を出し直し、もう一度OKで受諾ありになる
-    const { data, error } = await supabase.rpc("confirm_terms", { p_application_id: t.application_id, p_accept_double_booking: !!t.dup });
+    const { data, error } = await confirmTerms(t.application_id, !!t.dup);
     setHiring(false);
     if (!error && data?.reason === "double_booked") {
       setConfirmItem(prev => (prev && prev.application_id === t.application_id) ? { ...prev, dup: data.dup_job, checking: false } : prev);
@@ -358,7 +357,7 @@ export function HireStagePanel({ items, meId, onHired }) {
     let cancelled = false;
     (async () => {
       try {
-        const { data: bundle } = await supabase.rpc("my_farm_jobs");
+        const { data: bundle } = await fetchMyFarmJobs();
         if (cancelled || !bundle?.jobs) return;
         const jim = Object.fromEntries(bundle.jobs.map(j => [j.job_number, { crop:j.crop, task:j.task, date_start:j.date_start, date_end:j.date_end, photos:j.photos, holidays:j.holidays }]));
         setJobInfo(jim); setCache("farm:jobInfo", jim);

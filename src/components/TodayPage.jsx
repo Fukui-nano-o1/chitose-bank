@@ -1,6 +1,5 @@
 // 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN,
   workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS, entryWorkDays } from "../lib/utils";
@@ -9,6 +8,9 @@ import { Celebration } from "./Celebration";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots, DeclaredBadge, PunchGapNotice } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import { TimeCorrectionSheet } from "./TimeCorrectionSheet";
+import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
+  countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, fetchMyPunchFacts, fetchPendingCorrections,
+  decideTimeCorrection, runTodoRpc } from "../features/today/todayApi";
 import { InterviewReplyPanel, NewApplicantsPanel, EmergencyStagePanel, HireStagePanel,
   HIRE_SHEET_PATH, markHireSheet } from "../features/today/components/StagePanels";
 
@@ -48,7 +50,7 @@ export function TodayPage({ me, defaultRole }) {
     if (corrDeciding) return;
     setCorrDeciding(c.id);
     try {
-      const { data, error } = await supabase.rpc("decide_time_correction", { p_id: c.id, p_approve: approve });
+      const { data, error } = await decideTimeCorrection(c.id, approve);
       if (error) { alert("処理に失敗しました：" + error.message); setCorrDeciding(""); return; }
       if (!data?.ok) { alert(data?.message || ("処理できませんでした：" + (data?.reason || "不明"))); setCorrDeciding(""); return; }
       setCorrections(prev => prev.filter(x => x.id !== c.id));
@@ -61,38 +63,29 @@ export function TodayPage({ me, defaultRole }) {
     let cancelled = false;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSession();
         if (!session) { setLoading(false); return; }
         // 6本とも互いに独立なので1回で同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 以前はカレンダー→やること→残り4本の3段階で待っていた
         const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: emg }, { data: apps }, { data: facts }, { data: corr }] = await Promise.all([
-          supabase.rpc("get_my_calendar_jobs"),
-          supabase.rpc("my_todo_items"),
+          fetchMyCalendarJobs(),
+          fetchMyTodoItems(),
           // 役割の判定に加えて、プロフィールの未入力を数えるための列も一緒に取る（往復は増やさない・2026-08-03）。
           // 列は lib/utils の *_UNSET_COLUMNS が唯一のソース＝数え方と列リストが枝分かれしない
-          supabase.from("worker_profiles").select("auth_id," + WORKER_UNSET_COLUMNS).eq("auth_id", session.user.id).maybeSingle(),
-          supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
-          supabase.from("employer_profiles").select("auth_id," + EMPLOYER_UNSET_COLUMNS).eq("auth_id", session.user.id).maybeSingle(),
+          fetchMyWorkerProfile(session.user.id, WORKER_UNSET_COLUMNS),
+          countMyJobs(session.user.id),
+          fetchMyEmployerProfile(session.user.id, EMPLOYER_UNSET_COLUMNS),
           // 🆘緊急連絡先の有無（未入力の数え・self-only RLS・2026-08-07）。失敗時はnull＝未登録扱い
-          supabase.from("emergency_contacts").select("auth_id").eq("auth_id", session.user.id).maybeSingle().then(r => r, () => ({ data: null })),
+          fetchMyEmergencyContact(session.user.id),
           // 採用の判定に要る時刻。採用してもstatusは'approved'のままなので（contractedは表示用の値で
           // DBには書かれない・CLAUDE.md）、両者の確認時刻で見るしかない。get_my_calendar_jobsは
           // この2列を返さないため、自分の応募から直に引く（当事者RLSの内側・2026-07-27）
-          supabase.from("applications")
-            .select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
-            .eq("worker_id", session.user.id),
+          fetchMyApplicationTerms(session.user.id),
           // 打刻の事実（第13弾・追補）：申告フラグと双方の署名時刻。両役割ぶんをまとめて取る
           // （RLSで当事者の行だけ返る）。get_my_calendar_jobs/my_todo_items は返さない列なので直に読む
-          supabase.from("applications")
-            .select("id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected")
-            .or(`worker_id.eq.${session.user.id},farmer_id.eq.${session.user.id}`)
-            .then(r => r, () => ({ data: [] })),
+          fetchMyPunchFacts(session.user.id),
           // 自分が承認する側の打刻修正（申請者自身には出さない＝RPC側でも拒否される）
-          supabase.from("attendance_corrections")
-            .select("id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)")
-            .eq("status", "pending").neq("requested_by", session.user.id)
-            .order("created_at", { ascending: false })
-            .then(r => r, () => ({ data: [] })),
+          fetchPendingCorrections(session.user.id),
         ]);
         if (cancelled) return;
         const rows = data || [];
@@ -380,7 +373,7 @@ export function TodayPage({ me, defaultRole }) {
     if (m.qset) { try { sessionStorage.setItem("cb_openQSet", "1"); } catch {} window.location.hash = "/chat/" + e.application_id; return; }
     if (m.rpc) {
       if (confirming) return; setConfirming(busyKey);
-      const { data, error } = await supabase.rpc(m.rpc, { p_application_id: e.application_id });
+      const { data, error } = await runTodoRpc(m.rpc, e.application_id);
       setConfirming("");
       if (error || !data?.ok) { fbError(); alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
       removeTodo(e.application_id, e.stage);

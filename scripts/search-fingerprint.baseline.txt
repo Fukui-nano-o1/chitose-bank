@@ -3,34 +3,49 @@
 ## api:call
   applyToJob  x1
   cancelApplication  x1
+  confirmTerms  x1
   copyJob  x1
+  countMyJobs  x1
   createPendingApplication  x1
+  decideTimeCorrection  x1
   deleteSavedJob  x1
   fetchAccountHolderId  x1
   fetchConsignorConsent  x1
   fetchEmployerPublicJobCounts  x1
   fetchEmployerPublicJobs  x1
+  fetchInterviewQuestions  x1
   fetchJobEmployerProfile  x1
   fetchJobEmployerTrustInfo  x1
   fetchMyApplicationForJob  x1
+  fetchMyApplicationTerms  x1
   fetchMyApplications  x1
+  fetchMyCalendarJobs  x1
+  fetchMyEmergencyContact  x1
+  fetchMyEmployerProfile  x1
+  fetchMyFarmJobs  x1
   fetchMyJobNumbers  x1
   fetchMyPendingApplications  x1
   fetchMyPendingForJob  x1
+  fetchMyPunchFacts  x1
+  fetchMyTodoItems  x1
   fetchMyWorkerNickname  x1
+  fetchMyWorkerProfile  x1
+  fetchPendingCorrections  x1
   fetchPendingJobPreviews  x1
-  fetchPublicJobByNumber  x1
+  fetchPublicJobByNumber  x2
   fetchPublicJobs  x1
   fetchSavedJobNumbers  x1
   fetchSignupOpen  x1
   fetchSurveyAnswered  x1
   getSession  x4
   insertJobReport  x1
+  insertMessage  x1
   insertSavedJob  x1
   insertSurvey  x1
   orderSearchJobs  x1
   punchStart  x1
   recordSeenNewIds  x1
+  runTodoRpc  x1
   unpublishJob  x1
 
 ## apply:closed
