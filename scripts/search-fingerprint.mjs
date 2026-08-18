@@ -271,8 +271,6 @@ function collect() {
       // 確認ボックスの初期値と面の数
       for (const m of src.matchAll(/const \[(applyConfirmOpen|applyConfirmStep|applyChoice|applyImgZoom|applyDates)[^\]]*\] = useState\(([^)]*)\);/g))
         add("apply:initial", `${m[1]} = ${m[2]}`);
-      for (const m of src.matchAll(/applyConfirmStep === (\d+)/g)) add("apply:step", `step===${m[1]}`);
-      for (const m of src.matchAll(/setApplyConfirmStep\(([^)]*)\)/g)) add("apply:step", `setStep(${flat(m[1])})`);
       // 応募まわりの遷移先。★応募に関わる関数の中だけを見る（画面全体の hash は url:hash が持つ）
       const applyFns = [onClick];
       for (const re of [/const goPending = async \(\) => \{[\s\S]*?\n  \};/, /const doApply = async \(\) => \{[\s\S]*?\n  \};/,
@@ -287,6 +285,9 @@ function collect() {
         for (const m of decomment(body).matchAll(/onRegister\(\)/g)) add("apply:goto", "onRegister()");
       }
       } // hasApplyMachine
+      // 面の番号は【使用】＝応募UIを持つどのファイルでも数える（分割で確認ボックスが移っても総数が保たれる）
+      for (const m of src.matchAll(/applyConfirmStep === (\d+)/g)) add("apply:step", `step===${m[1]}`);
+      for (const m of src.matchAll(/setApplyConfirmStep\(([^)]*)\)/g)) add("apply:step", `setStep(${flat(m[1])})`);
     }
 
     // ⑨ キャッシュのキー（表示専用・冷間復元の経路）
