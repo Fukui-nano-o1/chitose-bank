@@ -74,7 +74,7 @@
   myAppStatus === "approved" => (() => { window.location.hash = "/chat/" + myApplication.id; })  x1
 
 ## apply:periodDays
-  const periodDays = (() => { if (!isPeriodJob) return []; const hs = new Set(Array.isArray(selectedJob.holidays) ? selectedJob.holidays : []); const out = []; const [ys, ms, ds] = selectedJob.dateStartRaw.split("-").map(N  x1
+  const periodDays = (() => { if (!isPeriodJob) return []; const hs = new Set(Array.isArray(selectedJob.holidays) ? selectedJob.holidays : []); const out = []; const [ys, ms, ds] = selectedJob.dateStartRaw.split("-").map(Number); const start = new Date(ys, ms - 1, ds); const end = new Date(selectedJob.dateEndRaw + "T00:00:00"); let guard = 0; for (let d = new Date(start); d <= end && guard < 400; d.setDate(d.getDate() + 1), guard++) { const y = ymdLocal(d); if (!hs.has(y)) out.push(y); } return out; })();  x1
 
 ## apply:reset
   useEffect(() => { setApplyConfirmOpen(false); setApplyConfirmStep(0); setApplyChoice(null); setApplyImgZoom(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);  x1
@@ -295,7 +295,7 @@
 
 ## rule:jobFlag
   closed: j.status === "closed"  x1
-  expired:  expired: (() => { const end = j.date_end || j.date_start; if (!end) return false; const today = ymdLocal(new Date()); if (end < today) return true; // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降＝終了） if (end === today &  x1
+  expired:  expired: (() => { const end = j.date_end || j.date_start; if (!end) return false; const today = ymdLocal(new Date()); if (end < today) return true; // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降＝終了） if (end === today && j.work_time) { const m = String(j.work_time).match(/〜\s*(\d{1,2}):(\d{2})/); if (m) { const n = new Date(); if (n.getHours()*60 + n.getMinutes() > parseInt(m[1],10)*60 + parseInt(m[2],10)) return true; } } return false; })(),  x1
   filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount)  x1
   isNew: !!j.opened_at && (Date.now() - new Date(j.opened_at).getTime()) < 3 * 24 * 60 * 60 * 1000  x1
 

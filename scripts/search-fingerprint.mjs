@@ -9,6 +9,9 @@
 //   node scripts/search-fingerprint.mjs --check    baseline と比較（差分があれば exit 1）
 //   node scripts/search-fingerprint.mjs --write    baseline を更新（意図した変更のときだけ）
 //
+// ★採取した値は【一切切り詰めない】（2026-08-18・4-A5b-0.1）。以前は見やすさのため220文字等で
+//   切っていたが、periodDays の「休日を候補から除く」判定や mapJobPublicRow の expired の後半が
+//   指紋に入らず、そこを壊しても鳴らない穴になっていた。意味を運ぶ塊を途中で切らない。
 // ★これは静的解析＝ソースから読み取れる不変条件だけを見る。実行時の件数（何件返るか）は
 //   scripts/search-fingerprint.baseline.txt の末尾に、採取時点のDB実測値を注記として貼ってある。
 import fs from "node:fs";
@@ -123,10 +126,10 @@ function collect() {
     // 終了判定の実体＝mapJobPublicRow が付ける派生フラグ。ここが変わると除外の意味が変わる
     for (const m of src.matchAll(/^\s{4}(closed|filled|isNew):\s*([^\n]+?),\s*$/gm)) add("rule:jobFlag", `${m[1]}: ${flat(m[2])}`);
     const exp = src.match(/^\s{4}expired:\s*\(\(\) => \{[\s\S]*?\n\s{4}\}\)\(\),/m);
-    if (exp) add("rule:jobFlag", "expired: " + flat(exp[0]).slice(0, 220));
+    if (exp) add("rule:jobFlag", "expired: " + flat(exp[0]));
     // 比較関数つきの sort だけを拾う（引数なしの .sort() は文字列整列＝並び規則ではないので除く）
     for (const m of src.matchAll(/\.sort\(\s*\((\w+),\s*(\w+)\)\s*=>\s*([^;\n]*?)\)(?=[;,.\s)])/g))
-      add("rule:sort", flat(`(${m[1]}, ${m[2]}) => ${m[3]}`).slice(0, 120));
+      add("rule:sort", flat(`(${m[1]}, ${m[2]}) => ${m[3]}`));
     for (const m of src.matchAll(/status\s*[!=]==?\s*["'`](\w+)["'`]/g)) add("rule:statusCompare", m[1]);
 
     // ③ 一覧の絞り込み述語（filteredList の本体）
@@ -152,7 +155,7 @@ function collect() {
       const need = (re, key, label) => {
         const m = src.match(re);
         if (!m) { console.error(`★地図の不変条件が見つかりません（${label}）:`, f); process.exit(2); }
-        add(key, flat(m[1] !== undefined ? m[1] : m[0]).slice(0, 200));
+        add(key, flat(m[1] !== undefined ? m[1] : m[0]));
       };
       // 生成・破棄のタイミング＝全 useEffect の依存配列（地図の再生成条件そのもの）
       for (const m of src.matchAll(/\n\s*\}, (\[[^\]]*\])\);/g)) add("map:effectDeps", flat(m[1]));
@@ -229,13 +232,13 @@ function collect() {
           cur += ch;
         }
         parts.push(cur.trim());
-        for (let i = 0; i + 1 < parts.length; i += 2) add(key, `${flat(parts[i])} => ${flat(parts[i + 1])}`.slice(0, 180));
-        if (parts.length % 2 === 1) add(key, `(既定) => ${flat(parts[parts.length - 1])}`.slice(0, 180));
+        for (let i = 0; i + 1 < parts.length; i += 2) add(key, `${flat(parts[i])} => ${flat(parts[i + 1])}`);
+        if (parts.length % 2 === 1) add(key, `(既定) => ${flat(parts[parts.length - 1])}`);
       };
       const need = (re, key, label, asChain) => {
         const m = src.match(re);
         if (!m) { console.error(`★応募の不変条件が見つかりません（${label}）:`, f); process.exit(2); }
-        if (asChain) chain(m[0], key); else add(key, flat(decomment(m[0])).slice(0, 220));
+        if (asChain) chain(m[0], key); else add(key, flat(decomment(m[0])));
         return m[0];
       };
       // 押せるか・何と書いてあるか・どんな見た目か・押すとどこへ行くか
