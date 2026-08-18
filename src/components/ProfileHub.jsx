@@ -10,7 +10,7 @@ import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
-import ContractRecords from "./ContractRecords";
+import LaborConditionsNotice from "./LaborConditionsNotice";
 
 // 退会で削除される情報の一覧（2026-08-07たきと指示）＝process_withdrawal(migration 20260807133659)の
 // 削除対象を利用者の言葉に噛み砕いたもの。★DBの削除対象を増減したらここも合わせること（表示と実処理を揃える）。
@@ -349,6 +349,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                       </button>
                     );
                   })()}
+                  {/* 📄 労働条件通知書（2026-08-18たきと指示・両役割の入口に新設）：
+                      採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ */}
+                  <LaborConditionsNotice me={me} role="worker" />
                 </div>
               </>);
             })()}
@@ -363,8 +366,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                   {((wHub.completed || 0) > 0 || (wHub.wantAgain || 0) > 0 || (wHub.hours || 0) > 0)
                     ? <WorkerTrustCard profile={wMini || {}} trust={wTrust} hideSelfDeclare />
                     : <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", lineHeight:1.9, padding:"28px 8px" }}>最初の仕事を終えると、ここに実績が刻まれます</p>}
-                  {/* 契約の記録と印刷（2026-08-16たきと指示）：凍結terms_snapshotの表示・印刷。契約が無ければ何も出ない */}
-                  <ContractRecords me={me} />
+                  {/* 契約の記録と印刷（2026-08-16）は「📄 労働条件通知書」カードへ移した（2026-08-18・1機能1入口）。
+                      入口はプロフィール入口の「わたしの記録」に常設＝実績モーダルの中に隠れない */}
                 </div>
               </div>
             )}
