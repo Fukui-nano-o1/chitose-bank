@@ -747,10 +747,9 @@ export const appPhaseLabelNow = (a, entry) => phaseLabelNow(appPhaseKey(a), entr
 export const phaseColorNow = (phase, entry) =>
   (phase === "working" && nextWorkDayYmd(entry)) ? APP_PHASE_COLOR.contracted : (APP_PHASE_COLOR[phase] || "#00A86B");
 export const appPhaseColorNow = (a, entry) => phaseColorNow(appPhaseKey(a), entry || a);
-// 応募者ページのステータス絞り込みのキー（2026-08-07・帯5段＋終端と同順）。
-// 使う側＝FarmerDashboard（絞り込みの実体）と NewApplicantsPage（同じ並びのピル＝タップで応募者ページへ送る）。
-// 並び・ラベルの唯一のソース＝この配列＋APP_PHASE_LABEL（片方だけ変えない）
-export const APP_FILTER_KEYS = ["all","applied","interview","contracted","working","completed","rejected","expired"];
+// ※APP_FILTER_KEYS（2026-08-07の8択の段階絞り込み）は廃止（2026-08-18たきと指示）。
+//   チャット一覧・応募者ページとも【隠すもの】3つ（見送り／失効／取り消し）の複数選択に統一し、
+//   キーは各画面が APP_HIDABLE / CHAT_HIDABLE として持つ（段階の物差しは appPhaseKey で共通）
 // 定型文（2026-07-22・第8弾）：チャット入力欄の＋から役割別に挿入。「何を書けばいいか分からない」摩擦を消す
 export const CHAT_TEMPLATES_FARMER = [
   "承認しました。日程のご相談をお願いします",

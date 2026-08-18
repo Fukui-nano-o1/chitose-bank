@@ -8,7 +8,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -29,9 +29,12 @@ import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 
-// 応募者ページの状態フィルタのキー：lib/utils の APP_FILTER_KEYS に一本化（2026-08-07・
-// 新着の応募ページのピルと並びを共有）。帯5段＋終端（appPhaseKeyの全段階）と同順。
-// 旧キー「active（進行中）」は廃止＝保存済みの値は検証で弾かれ「すべて」に落ちる（壊れない）
+// 応募者ページの非表示の選択（2026-08-18たきと指示「応募者ページも同じようにしろ」＝チャット一覧と同じ形）。
+// ★ピルは「見るもの」ではなく【隠すもの】の選択＝見送り／失効／取り消しの3つだけ。複数選択可。
+//   既定は3つとも選んだ状態＝終わった応募that日常の一覧を埋めない。全部見たい時は選択を外す。
+// 隠すのは表示だけ＝記録・並び・データ取得は不変（行動記録の憲法：記録は消さない）。
+// 段階の物差しは appPhaseKey（帯・凡例・チャット一覧と共通）。モジュールレベル定義＝毎描画で作り直さない
+const APP_HIDABLE = ["rejected", "expired", "canceled"];
 
 
 export function FarmerDashboard({ onNewJob, onResume, me }) {
@@ -440,20 +443,23 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // お気に入り登録しました！ボックス（2026-07-19）：登録成功の瞬間に展開。アイコンに❤️が付く動作つき
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
-  // 応募者タブの状態フィルタ（2026-07-22）。選んだタブはsessionStorageに残す（2026-07-27たきと報告）＝
-  // 画面上端での引き下げ（pull-to-refresh）などでリロードが走っても「すべて」に戻らない。
-  // タブを閉じれば消えるので、次に開き直した時は既定（すべて）から始まる
-  const [appFilter, setAppFilter] = useState(() => {
-    try { const f = sessionStorage.getItem("cb_appFilterCur"); if (f && APP_FILTER_KEYS.includes(f)) return f; } catch {}
-    return "all";
+  const [appHidden, setAppHidden] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem("cb_appHidden");
+      if (raw !== null) { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter(k => APP_HIDABLE.includes(k)); }
+    } catch {}
+    return [...APP_HIDABLE]; // 既定＝3つとも非表示
   });
-  useEffect(() => { try { sessionStorage.setItem("cb_appFilterCur", appFilter); } catch {} }, [appFilter]);
-  // 今日ページ「新着の応募」「採用する」からの着地（2026-07-26）：フラグがあれば指定フィルタで開く。読んだら消す
+  useEffect(() => { try { sessionStorage.setItem("cb_appHidden", JSON.stringify(appHidden)); } catch {} }, [appHidden]);
+  // 今日ページ・新着の応募からの着地（2026-07-26／2026-08-18に意味を変更）：
+  // 旧＝「この段階だけを表示する」。新＝【行き先の応募that隠れていたら見えるようにする】。
+  //   既定で見える段階（応募中・面接中・採用・作業中・完了）なら何もしない＝送り側4箇所は無改修で通る。
+  //   隠している段階（見送り等）を指してきた時だけ、その1つを非表示から外す
   useEffect(() => {
     if (jobTab !== "applicants") return;
     try {
       const f = sessionStorage.getItem("cb_appFilter");
-      if (f) { sessionStorage.removeItem("cb_appFilter"); if (APP_FILTER_KEYS.includes(f)) setAppFilter(f); }
+      if (f) { sessionStorage.removeItem("cb_appFilter"); if (APP_HIDABLE.includes(f)) setAppHidden(prev => prev.filter(k => k !== f)); }
     } catch {}
   }, [jobTab]);
   const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者ページ下部「帯の意味」の説明ボックス開閉
@@ -644,13 +650,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const info = jobInfoMap[a.job_number] || {};
     return appPhaseColorNow(a, { ...a, date_start: info.date_start, date_end: info.date_end, holidays: info.holidays });
   };
-  // 応募者ページの状態フィルタ（2026-07-22・2026-08-07ステータス統一）：
-  // 帯と同じ段階判定（appPhaseKey）で絞る＝帯5段（応募中→面接中→採用→作業中→完了）＋終端（見送り/失効）。
-  // ラベル・並びは APP_FILTER_KEYS と APP_PHASE_LABEL から引く＝帯・凡例と文言が枝分かれしない
-  const APP_FILTERS = [
-    { k:"all", l:"すべて", match: () => true },
-    ...APP_FILTER_KEYS.filter(k => k !== "all").map(k => ({ k, l: APP_PHASE_LABEL[k], match: (s, a) => appPhaseKey(a) === k })),
-  ];
+  // 隠す判定（2026-08-18・チャット一覧と同じ形）：段階の判定は帯と同じ appPhaseKey ＝
+  // 帯・凡例・チャット一覧と文言も物差しも枝分かれしない
   // 応募者ページの横スワイプ＝上部カレンダーの開閉（2026-07-27たきと指示。旧・フィルタ切替から置換）。
   // フィルタは上部/浮遊バーのボタンタップで切り替える（スワイプとの二重割り当てをやめる）。
   // 求人カードのアイコン列など内側の横スクロールで始まったタッチは奪わない
@@ -1495,17 +1496,21 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         ) : (
           // 応募者を求人毎に分ける（2026-07-19）。上部＝状態フィルタタブ（タップ＋横スワイプ）／下部＝帯の意味の説明（2026-07-22）
           (() => {
-            const shown = dbApplicants.filter(a => (APP_FILTERS.find(f => f.k === appFilter) || APP_FILTERS[0]).match(a.status, a));
+            const shown = dbApplicants.filter(a => !appHidden.includes(appPhaseKey(a)));
             const order = []; const byJob = {};
             shown.forEach(a => { const jn = a.job_number; if (!jobInfoMap[jn]) return; if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
             // 絞り込みバー（2026-07-27たきと指示）：下部バーの真上に浮かせる。
             // スクロール格納・入力中の退避・オーバーレイ中の非表示は、浮遊☰と同じCSS作法で揃えてある
             // （.cb-applicant-filter-bar / body.cb-scroll-hide 等）。PCは従来どおり本文中に並べる
-            const filterButtons = APP_FILTERS.map(f => (
-              <button key={f.k} onClick={()=>setAppFilter(f.k)} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: appFilter===f.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: appFilter===f.k?800:600, color: appFilter===f.k?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
-                {/* 段階色の点＝帯・凡例と同じAPP_PHASE_COLOR（ステータス絞り込みだと一目で分かる目印） */}
-                {f.k !== "all" && <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[f.k] || "#999", flexShrink:0 }} />}
-                {f.l}
+            const filterButtons = APP_HIDABLE.map(k => ({
+              k, label: APP_PHASE_LABEL[k], on: appHidden.includes(k),
+              onTap: () => setAppHidden(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]),
+            })).map(b => (
+              <button key={b.k} onClick={b.onTap} aria-pressed={b.on} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: b.on ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: b.on?800:600, color: b.on?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
+                {/* 段階色の点＝帯・凡例と同じAPP_PHASE_COLOR */}
+                <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[b.k] || "#999", flexShrink:0 }} />
+                {/* 選択中＝隠している、を目で分かるように取り消し線 */}
+                <span style={{ textDecoration: b.on ? "line-through" : "none" }}>{b.label}</span>
               </button>
             ));
             const tabBar = (
@@ -1550,7 +1555,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               </p>
             ) : null;
             const body = order.length === 0
-              ? [<p key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>この状態の応募者はいません</p>]
+              // 非表示で0件＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03）
+              ? [<div key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>
+                  <p style={{ margin:0 }}>
+                    表示できる応募者はいません。
+                    {appHidden.length > 0 && <><br/>{appHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。</>}
+                  </p>
+                  {appHidden.length > 0 && (
+                    <button onClick={()=>setAppHidden([])} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示する</button>
+                  )}
+                </div>]
               : order.map(jn => {
                   // 求人カード化（2026-07-25たきと指示）：左＝トップ写真／右＝タイトル・No.／その下に応募者アイコンの横スワイプ列。
                   // アイコン列のtouchはstopPropagationで親のフィルタ切替スワイプと分離する

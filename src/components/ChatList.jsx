@@ -9,6 +9,10 @@ import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LAB
 import { Avatar } from "./ui";
 import { AdminChatFab } from "./AdminChatFab";
 
+// 隠せる段階（2026-08-18たきと指示）：見送り／失効／取り消しの3つ。応募者ページの APP_HIDABLE と対。
+// モジュールレベル定義＝毎描画で作り直さない（effectの依存にも安全に使える）
+const CHAT_HIDABLE = ["rejected", "expired", "canceled"];
+
 // チャット一覧の直近スナップショット（2026-07-22）：チャットから戻った時にスピナーを出さず即表示し、
 // 裏で静かに更新する（リロード感の解消）。モジュールレベルなので再マウントをまたいで生き残る
 export function ChatList() {
@@ -213,7 +217,6 @@ export function ChatList() {
   //   （空状態からは「すべて表示する」で一度に戻せる）。
   // 既定は3つとも選んだ状態＝終わった取引（見送り・失効・取り消し）that日常の一覧を埋めない。
   // 隠すのは表示だけ＝記録・並び・未読・データ取得は不変（行動記録の憲法：記録は消さない）
-  const CHAT_HIDABLE = ["rejected", "expired", "canceled"];
   const [chatHidden, setChatHidden] = useState(() => {
     // 保存キーは_v2＝取り消しを足した既定thatすぐ効く（旧cb_chatHiddenの値は引き継がない）
     try {
