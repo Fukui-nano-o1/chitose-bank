@@ -360,7 +360,7 @@
   const TODO_STAGE_CATALOG = { farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "confirm_start", "complete"], worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_review"], };  x1
 
 ## today:correction
-  p_id: c.id, p_approve: approve  x1
+  p_id: id, p_approve: approve  x1
 
 ## today:punchCols
   id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)  x1

@@ -309,8 +309,12 @@ function collect() {
       for (const m of src.matchAll(/select\("(id,started_at[^"]*|id,application_id,proposed[^"]*)"/g)) add("today:punchCols", m[1]);
       for (const m of src.matchAll(/\b(started_at|farmer_confirmed_start_at|work_completed_at|worker_confirmed_end_at|started_declared|ended_declared|time_corrected)\b/g))
         add("today:punchField", m[1]);
-      // 打刻修正の承認（当事者ゲートはDB側・ここは呼び方だけ）
-      for (const m of src.matchAll(/decide_time_correction", \{ ([^}]*) \}/g)) add("today:correction", flat(m[1]));
+      // 打刻修正の承認（当事者ゲートはDB側・ここは呼び方だけ）。
+      // ★2026-08-18修正：受け渡す変数の【入れ物】は意味を運ばない（c.id を窓口へ通すと id になる）ので
+      //   x.y は y に均す。均さないと、窓口へ集約しただけで鳴る＝構造移動で鳴る穴になっていた。
+      //   均すのは前置きだけ＝p_id と p_approve の【取り違え】は今までどおり差分に出る。
+      for (const m of src.matchAll(/decide_time_correction", \{ ([^}]*) \}/g))
+        add("today:correction", flat(m[1]).replace(/\b[A-Za-z_$][\w$]*\.(\w+)/g, "$1"));
     }
 
     // ⑨ キャッシュのキー（表示専用・冷間復元の経路）
