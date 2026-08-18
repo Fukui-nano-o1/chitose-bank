@@ -10,7 +10,7 @@ import { fetchPublicJobByNumber, fetchInterviewQuestions, getSession, insertMess
   confirmTerms, fetchMyFarmJobs } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb,
-  appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../../../lib/utils";
+  appPhaseKey, phaseLabelNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../../../lib/utils";
 import { openPhaseInfo } from "../../../lib/previewBus";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../../../lib/hire";
 import { Avatar, Dots } from "../../../components/ui";
@@ -215,7 +215,7 @@ export function EmergencyStagePanel({ items, role }) {
                   style={{ width:72, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                   <Avatar url={e.partner_avatar} name={e.partner_name || "？"} size={52} ring={partnerColor} bg={partnerColor} />
                   <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color:"#222", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.partner_name ? e.partner_name + "さん" : "相手"}</span>
-                  {phase && <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:APP_PHASE_COLOR[phase] || "#00A86B", marginTop:1, cursor:"pointer" }}>{APP_PHASE_LABEL[phase] || ""}</span>}
+                  {phase && <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:APP_PHASE_COLOR[phase] || "#00A86B", marginTop:1, cursor:"pointer" }}>{phaseLabelNow(phase, e) || ""}</span>}
                 </button>
               </div>
             </div>
@@ -240,7 +240,9 @@ export function EmergencyStagePanel({ items, role }) {
                 {/* 現在地バナー（ステータスページと同じ・段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
                 {phase && (
                   <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{APP_PHASE_LABEL[phase] || ""}</p>
+                    {/* ★作業中は「今日」で出し分ける（2026-08-18たきと指示「作業していない時間は作業中ではない」）
+                        ＝働く日でない日は「次は 8/20(木)」。説明文は段階の説明ので従来どおり */}
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{phaseLabelNow(phase, e) || ""}</p>
                     {APP_PHASE_DESC[phase] && (
                       <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[phase]}</p>
                     )}

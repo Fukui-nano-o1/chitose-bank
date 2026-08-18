@@ -7,7 +7,7 @@
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow } from "../lib/utils";
 import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo } from "../lib/previewBus";
@@ -452,7 +452,7 @@ export function SavedJobsView({ me }) {
                       style={{ width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                       <Avatar url={myProfile?.avatar_url} name={myProfile?.nickname || (me?.name || "？")} size={52} ring={APP_PHASE_COLOR[phase] || "#00A86B"} />
                       <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color:"#222", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>あなた</span>
-                      <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:APP_PHASE_COLOR[phase] || "#00A86B", marginTop:1, cursor:"pointer" }}>{APP_PHASE_LABEL[phase] || ""}</span>
+                      <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:APP_PHASE_COLOR[phase] || "#00A86B", marginTop:1, cursor:"pointer" }}>{phaseLabelNow(phase, r) || ""}</span>
                     </button>
                   ) : (
                     <button onClick={()=>setBoxJob(r)} className="f-sans" style={{ background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center" }}>
@@ -562,7 +562,9 @@ export function SavedJobsView({ me }) {
                 {/* 現在地バナー（応募者ページと同じ・段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
                 {phase ? (
                   <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{APP_PHASE_LABEL[phase] || ""}</p>
+                    {/* ★作業中は「今日」で出し分ける（2026-08-18たきと指示）＝働く日でない日は「次は 8/20(木)」。
+                        説明文（APP_PHASE_DESC）は段階の説明ので従来どおり */}
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{phaseLabelNow(phase, r) || ""}</p>
                     {APP_PHASE_DESC[phase] && (
                       <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[phase]}</p>
                     )}

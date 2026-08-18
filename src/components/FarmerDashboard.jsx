@@ -8,7 +8,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, DeclaredBadge, PunchGapNotice, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -631,7 +631,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const goHirePage = () => { window.location.hash = "/calendar/todo/hire"; };
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
-  const appRibbonLabel = (a) => APP_PHASE_LABEL[appPhaseKey(a)] || a.status;
+  // ★作業中は「今日」で出し分ける（2026-08-18たきと指示「作業していない時間は作業中ではない」）＝
+  //   働く日でない日は「次は 8/20(木)」。働く日の材料は応募行（agreed_dates/来られる日）＋
+  //   求人（日程・休日）＝jobInfoMap から渡す。凡例・絞り込みは区分名ので従来どおり APP_PHASE_LABEL
+  const appRibbonLabel = (a) => {
+    const info = jobInfoMap[a.job_number] || {};
+    return appPhaseLabelNow(a, { ...a, date_start: info.date_start, date_end: info.date_end, holidays: info.holidays }) || a.status;
+  };
   const appRibbonColor = (a) => APP_PHASE_COLOR[appPhaseKey(a)] || "#00A86B";
   // 応募者ページの状態フィルタ（2026-07-22・2026-08-07ステータス統一）：
   // 帯と同じ段階判定（appPhaseKey）で絞る＝帯5段（応募中→面接中→採用→作業中→完了）＋終端（見送り/失効）。
@@ -1760,6 +1766,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           72時間の異議申立＝2026-07-30に足した「来なかった場合の措置」を消さない） */}
       {completeModalApp && (() => {
         const notDone = completeModalApp.status !== "completed"; // 完了の記録がまだ＝送信で一緒に記録される
+        // 出欠の記録がまだ開いているか（2026-08-18）：最終日の終了時刻で自動完了するようになったため、
+        // 「完了＝もう欠勤を記録できない」ではなくなった。自動完了で出欠が空のままの行は、
+        // 農家がここから欠勤を記録できる（DB側も complete_work が同じ条件で受け付ける）＝
+        // 2026-07-30に足した「来なかった場合の措置」を自動完了で奪わない
+        const attendOpen = notDone || (completeModalApp.auto_completed && completeModalApp.attended == null);
         return (
         <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
@@ -1784,8 +1795,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   <button onClick={submitFarmerReview} disabled={completeSubmitting || completeWantAgain===null || completeEntrust===null}
                     className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{completeSubmitting ? <>送信中<Dots /></> : "送信する"}</button>
                 </div>
-                {/* 例外の道：来なかった場合（完了の記録が済むまでのあいだだけ出す） */}
-                {notDone && (
+                {/* 例外の道：来なかった場合（出欠の記録が済むまでのあいだだけ出す） */}
+                {attendOpen && (
                   <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans"
                     style={{ display:"block", width:"100%", marginTop:16, paddingTop:14, borderTop:"1px solid #F0F0F0", background:"none", border:"none", fontSize:12, color:"#E24B4A", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
                     働き手が来なかった場合は → 欠勤として記録する

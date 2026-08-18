@@ -707,6 +707,34 @@ export const APP_PHASE_DESC = {
   canceled:   "働き手が取り消した応募です",
 };
 export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#111111", canceled:"#757575" };
+// ── 4段目「作業中」の“今”のラベル（2026-08-18たきと指示「作業していない時間は作業中ではない」）──
+// working は記録の上では「自動開始〜完了記録」の間ずっと立つ（降ろす手は完了記録だけ）。
+// 複数日の採用だと、働いていない日も「作業中」と出ていた（実データ #1232＝働く日 8/18・20・21・24・31）。
+// ★段は増やさない（帯5段＝応募中→面接中→採用→作業中→完了 は不変・2026-07-25たきと確定）。
+//   4段目の【ラベルだけ】を記録（働く日）から出し分ける＝DBの app_phase・絞り込み・凡例は無傷。
+//   ・今日が働く日 → 「作業中」（勤務時間の内外は問わない＝当日は作業中・2026-08-18たきと裁定）
+//   ・働く日がまだ先 → 「次は 8/20(木)」（今日ページの“次にやることを出す”思想と同じ）
+//   ・働く日が分からない／全部過ぎた → 「作業中」（最終日の終了時刻で自動完了するので普通は出ない）
+// entry＝働く日を決める材料（agreed_dates優先／無ければ来られる日／無ければ求人日程・holidays除外）＝
+//   entryWorkDays と同じ形。材料が手元に無い画面は従来どおり APP_PHASE_LABEL を使ってよい。
+export const workingPhaseLabel = (entry) => {
+  const days = entryWorkDays(entry);
+  if (!days || days.size === 0) return APP_PHASE_LABEL.working;
+  const today = ymdLocal(new Date());
+  if (days.has(today)) return APP_PHASE_LABEL.working;
+  const next = [...days].filter(d => d > today).sort()[0];
+  return next ? `次は ${calFmtDate(next)}` : APP_PHASE_LABEL.working;
+};
+// 帯・チップの“今”のラベルの唯一の入口。working以外は APP_PHASE_LABEL をそのまま返す。
+// ★凡例・絞り込みピルは「区分の名前」ので、この関数でなく APP_PHASE_LABEL を使うこと
+//   （区分名が日によって変わると、絞り込みの意味が分からなくなる）
+// phaseLabelNow＝段階キーが手元にある画面用（画面側で phaseOf 等の変換を済ませている場合）。
+// ★キーを appPhaseKey に通し直さないこと：'contracted' を status として渡すと
+//   terms列が無い分 'interview' に落ちる（＝採用が面接中に化ける）。だからキー用の入口を分けている
+export const phaseLabelNow = (phase, entry) =>
+  phase === "working" ? workingPhaseLabel(entry) : (APP_PHASE_LABEL[phase] || "");
+// appPhaseLabelNow＝応募行そのものを渡す画面用（段階の導出ごと任せる）
+export const appPhaseLabelNow = (a, entry) => phaseLabelNow(appPhaseKey(a), entry || a) || a?.status || "";
 // 応募者ページのステータス絞り込みのキー（2026-08-07・帯5段＋終端と同順）。
 // 使う側＝FarmerDashboard（絞り込みの実体）と NewApplicantsPage（同じ並びのピル＝タップで応募者ページへ送る）。
 // 並び・ラベルの唯一のソース＝この配列＋APP_PHASE_LABEL（片方だけ変えない）
