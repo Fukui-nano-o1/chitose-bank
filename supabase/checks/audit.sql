@@ -129,5 +129,31 @@ begin
   L := L || case when rec.ghosts=0 then '[OK] ' else '[NG] ' end
     || '⑥ 入口: 直近7日の登録='||rec.recent||'件 うち確認メール無しで確認済み='||rec.ghosts||'件' || E'\n';
 
+  -- ── ⑦ 応募の条件が1本のままか（段A/B/C・2026-08-17）────────────────────
+  -- 応募には3つの入口がある：正面(apply_to_job)／仮応募(create_pending_application)／
+  -- 昇格(promote_my_pending_applications)。昇格は applications へ直接INSERTするため
+  -- apply_to_job を通らず、条件が割れると「正面は弾かれるのに仮応募経由は通る」が起きる。
+  -- ★巻き戻しの地雷：apply_to_job の【旧定義（Q&Aゲート入り）】を丸ごと持つ migration が
+  --   6本ある（20260713041511 / 20260724090000 / 20260725170000 / 20260813052942 /
+  --   20260816033926 / 20260816040500）。create or replace なので、そのどれかを土台にすると
+  --   段Cが無言で巻き戻る。現行の正は 20260817100956（apply_to_job）と 20260817100444
+  --   （is_worker_profile_ready）。NGが出たらこの2本の定義で作り直す。
+  select
+    (select pg_get_functiondef(oid) ilike '%is_worker_profile_ready%' from pg_proc where proname='apply_to_job') as a_ready,
+    (select pg_get_functiondef(oid) ilike '%qa_required%'            from pg_proc where proname='apply_to_job') as a_qa,
+    (select pg_get_functiondef(oid) ilike '%emergency_contacts%'     from pg_proc where proname='is_worker_profile_ready') as r_emg,
+    (select pg_get_functiondef(oid) ilike '%btrim(w.transport)%'     from pg_proc where proname='is_worker_profile_ready') as r_tr,
+    (select pg_get_functiondef(oid) ilike '%own_job%'                from pg_proc where proname='create_pending_application') as p_own,
+    (select pg_get_functiondef(oid) ilike '%is_account_moderated%'   from pg_proc where proname='create_pending_application') as p_ban,
+    (select pg_get_functiondef(oid) ilike '%account_holders%'        from pg_proc where proname='promote_my_pending_applications') as g_reg
+    into rec;
+  L := L || case when rec.a_ready and not rec.a_qa and rec.r_emg and not rec.r_tr
+                      and rec.p_own and rec.p_ban and rec.g_reg
+                 then '[OK] ' else '[NG] ' end
+    || '⑦ 応募の条件が1本: 正面が4項目を見る='||rec.a_ready||' 旧Q&Aゲート残='||rec.a_qa
+    || ' 4項目(緊急連絡先)='||rec.r_emg||' 旧項目(移動手段)残='||rec.r_tr
+    || ' 仮応募の壁(自分の求人/BAN)='||rec.p_own||'/'||rec.p_ban
+    || ' 昇格の本人確認='||rec.g_reg || E'\n';
+
   raise exception E'\n===== 定期点検の結果（読み取り専用・この例外は仕様）=====\n%', L;
 end $audit$;
