@@ -21,7 +21,8 @@ import { canSeeConsignment } from "../lib/consignAccess";
 import { calcMaxPay, jobMonths } from "../features/jobs/search/model";
 import { readStoredSearch, writeStoredSearch } from "../features/jobs/search/filters/searchFilterStorage";
 import { SearchFab, SearchFilterPanel } from "../features/jobs/search/filters/SearchFilterPanel";
-import { JobKeyFacts, JobDescription, JobDangerZones, JobLocationSection } from "../features/jobs/search/components/JobDetailPanel";
+import { JobKeyFacts, JobDescription, JobDangerZones, JobLocationSection,
+  JobPhotoGallery, JobEmployerCard, JobReviews, RelatedJobs } from "../features/jobs/search/components/JobDetailPanel";
 import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, copyJob, unpublishJob,
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
   fetchSavedJobNumbers, deleteSavedJob, insertSavedJob, fetchMyApplications, fetchMyPendingApplications,
@@ -1019,52 +1020,7 @@ export function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
 
-          {/* 写真ギャラリー（最大10枚）。1枚も無い求人は求人者のアイコンを1枚だけ大きく出す（2026-07-30たきと指示） */}
-          {(() => {
-            const photos = Array.isArray(selectedJob.photos) ? selectedJob.photos : [];
-            if (photos.length === 0) return (
-              <div style={{ marginBottom:20 }}>
-                <JobPhotoFallback url={empEmployer?.avatar_url || selectedJob.employerAvatar} name={empEmployer?.nickname || selectedJob.employerName || "？"} />
-              </div>
-            );
-            const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
-            // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側
-            const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
-            return (
-              <>
-                <Carousel
-                  className="carousel-scroll"
-                  style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
-                  wrapperStyle={{ marginBottom:8 }}
-                  onScroll={handlePhotoScroll}
-                  scrollerRef={photoScrollerRef}
-                >
-                  {slides.map((photo, i) => {
-                    const src = typeof photo === "string" ? photo : photo?.url;
-                    const cap = typeof photo === "string" ? "" : photo?.caption;
-                    return (
-                      <div key={i} style={{
-                        flexShrink:0, width:"100%", height:392, borderRadius:12,
-                        background: bgColors[i % bgColors.length],
-                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:72,
-                        scrollSnapAlign:"start", position:"relative", overflow:"hidden",
-                      }}>
-                        <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                        {cap && (
-                          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, lineHeight:1.6, boxSizing:"border-box" }}>{cap}</div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </Carousel>
-                <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:20 }}>
-                  {photos.map((_, i) => (
-                    <span key={i} style={{ fontSize:10, color: i===activeSlide ? "#00A86B" : "#D0D0D0" }}>{i===activeSlide ? "●" : "○"}</span>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
+          <JobPhotoGallery job={selectedJob} employer={empEmployer} photosLooped={photosLooped} activeSlide={activeSlide} scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} />
 
           {/* 仕事の内容 / 保険 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
           {/* 保険は掲載時凍結のinsuranceSnapshotのみを見る（2026-08-02・プロフィール現在値へのフォールバック禁止）。
@@ -1132,57 +1088,7 @@ export function JobSearchMapView({ onRegister, me }) {
                 </div>
               )}
 
-              {/* 門番をRPC待ちから外す（2026-08-14）：名前・アイコンは一覧の行（jobs_public＝
-                  employerName/employerAvatar）がが最初から持っている。待遇表も selectedJob.perks
-                  （掲載時凍結）だけで描ける＝RPCの到着を待たずカードを即描画する。
-                  RPC（empEmployer）は農園紹介モーダルの中身と信頼情報の補強にだけ使う */}
-              {(empEmployer?.nickname || selectedJob.employerName) && (() => {
-                const pk = selectedJob.perks || {}; // 掲載時に確定保存された待遇のみ（2026-08-02・プロフィール現在値とのマージ廃止）
-                const perkRows = [
-                  { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
-                  { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
-                  { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
-                  { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
-                  { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
-                  { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
-                  // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
-                  // 値は掲載時に凍結された perks から（プロフィール現在値は参照しない）。未設定は「ー」
-                  { label:"受動喫煙", on: !!pk.smoking_policy,
-                    value: pk.smoking_policy
-                      ? (pk.smoking_policy === "喫煙場所あり"
-                          ? `喫煙場所あり${pk.smoking_area ? "（" + pk.smoking_area + "）" : ""}`
-                          : pk.smoking_policy)
-                      : EMPTY_MARK },
-                ];
-                return (
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-                    {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16） */}
-                    {/* アイコン・名前タップ→農園紹介をボックス展開（2026-07-16） */}
-                    <div onClick={()=>setFarmIntroOpen(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor:"pointer" }}>
-                      <Avatar url={empEmployer?.avatar_url || selectedJob.employerAvatar} name={empEmployer?.nickname || selectedJob.employerName} size={70} />
-                      <div style={{ minWidth:0 }}>
-                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{empEmployer?.nickname || selectedJob.employerName}さん</p>
-                        {empTrust?.ok && empTrust.member_since && (
-                          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>chitose-bank利用 {empTrust.member_since}から</p>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
-                    <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em", textAlign:"center" }}>待遇</p>
-                    <div style={{ width:"fit-content", margin:"0 auto" }}>{/* 待遇ブロックはカード中央配置（2026-07-16・旧:境界線を中央に合わせるtranslateX(-78px)） */}
-                      {perkRows.map((row, i) => (
-                        <div key={row.label} style={{
-                          display:"flex", alignItems:"center", gap:12, padding:"8px 0",
-                          borderBottom: i < perkRows.length - 1 ? "1px solid #F7F7F7" : "none",
-                        }}>
-                          <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:72, flexShrink:0 }}>{row.label}</span>
-                          <span className="f-sans" style={{ fontSize:15, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400, lineHeight:1.6 }}>{row.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
+              <JobEmployerCard job={selectedJob} employer={empEmployer} trust={empTrust} onOpenIntro={setFarmIntroOpen} />
 
               <JobDescription job={selectedJob} />
 
@@ -1236,103 +1142,9 @@ export function JobSearchMapView({ onRegister, me }) {
 
           {/* 農園紹介セクションはページから削除（2026-07-16）。内容は農家カードのアイコン・名前タップのボックスに集約 */}
 
-          {/* 農家へのレビュー（段階2-a・ガワのみ・取引実績ベース・匿名・日付なし） */}
-          {(() => {
-            const allReviews = selectedJob.farmerReviews || [];
-            if (allReviews.length === 0) return null;
-            const sortedReviews = [...allReviews];
-            if (reviewSort === "high") sortedReviews.sort((a, b) => b.stars - a.stars);
-            else if (reviewSort === "low") sortedReviews.sort((a, b) => a.stars - b.stars);
-            const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 8);
-            const hasMore = sortedReviews.length > 8;
+          <JobReviews job={selectedJob} sort={reviewSort} onSort={setReviewSort} showAll={showAllReviews} onShowAll={setShowAllReviews} />
 
-            return (
-              <div style={{ marginBottom:5 }}>
-                {/* ヘッダー: 左=農家プロフィール(控えめ) / 中央=星評価(主役) */}
-                <div className="review-header-row" style={{ marginBottom:24 }}>
-                  {/* 左: 農家プロフィール（控えめ・既存プロフィール行を縮小） */}
-                  <div className="review-header-profile" style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <div style={{
-                      width:32, height:32, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
-                      display:"flex", alignItems:"center", justifyContent:"center", fontSize:16,
-                    }}>🧑‍🌾</div>
-                    <div>
-                      <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{selectedJob.farmerName}</p>
-                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:0 }}>{selectedJob.farmerBadge}・{selectedJob.farmerYears}</p>
-                    </div>
-                  </div>
-
-                  {/* 中央: 星評価（主役・特大） */}
-                  <div className="review-header-stars">
-                    <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:8 }}>
-                      <span style={{ fontSize:36, color:"#00A86B" }}>★</span>
-                      <span className="f-mono" style={{ fontSize:36, fontWeight:800, color:"#222" }}>{selectedJob.farmerRating}</span>
-                    </div>
-                    <p className="f-sans" style={{ fontSize:15, color:"#717171", margin:0, marginTop:2 }}>{selectedJob.farmerReviewCount}件のレビュー</p>
-                  </div>
-
-                  {/* 右: バランス用の余白 */}
-                  <div className="review-header-spacer" />
-                </div>
-
-                {/* 並び替えタブ */}
-                <div style={{ display:"flex", gap:8, marginBottom:18 }}>
-                  {[
-                    { key:"new",  label:"新しい順" },
-                    { key:"high", label:"評価が高い順" },
-                    { key:"low",  label:"評価が低い順" },
-                  ].map(opt => {
-                    const active = reviewSort === opt.key;
-                    return (
-                      <button key={opt.key} onClick={() => setReviewSort(opt.key)} className="f-sans" style={{
-                        padding:"7px 16px", borderRadius:20, fontSize:13, cursor:"pointer", fontWeight:600,
-                        border: active ? "1px solid #00A86B" : "1px solid #EBEBEB",
-                        background: active ? "#E6F7EF" : "#fff",
-                        color: active ? "#00A86B" : "#717171",
-                      }}>{opt.label}</button>
-                    );
-                  })}
-                </div>
-
-                {/* 個別レビュー一覧（匿名・日付なし・最大8件） */}
-                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-                  {visibleReviews.map((review, i) => (
-                    <div key={i} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px" }}>
-                      <p style={{ margin:0, marginBottom:6, fontSize:15, color:"#00A86B", letterSpacing:1 }}>
-                        {"★".repeat(review.stars)}{"☆".repeat(5 - review.stars)}
-                      </p>
-                      <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.7, margin:0 }}>{review.text}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* もっと見る */}
-                {hasMore && !showAllReviews && (
-                  <button onClick={() => setShowAllReviews(true)} className="f-sans" style={{
-                    display:"block", margin:"18px auto 0", padding:"10px 28px", borderRadius:20,
-                    border:"1px solid #222", background:"#fff", color:"#222", fontSize:13, fontWeight:700, cursor:"pointer",
-                  }}>もっと見る</button>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* その他の求人（0件なら「ありません」を表示） */}
-          <div className="job-detail-more-jobs" style={{ marginBottom:20 }}>
-            <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", marginBottom:12 }}>その他の求人</h3>
-            {jobList.filter(job => job.id !== selectedJob.id).length === 0 ? (
-              <p className="f-sans" style={{ fontSize:15, color:"#999", padding:"20px 0" }}>現在、他の求人はありません。</p>
-            ) : (
-            <Carousel
-              className="carousel-scroll"
-              style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
-            >
-              {jobList.filter(job => job.id !== selectedJob.id).map(job => (
-                <JobCard key={job.id} job={job} variant="related" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} />
-              ))}
-            </Carousel>
-            )}
-          </div>
+          <RelatedJobs currentJob={selectedJob} jobList={jobList} savedIds={savedIds} canLike={canLike} onToggleSave={toggleSave} />
 
           {/* 通報リンク（目立たせない・ログイン時のみ） */}
           {me && (
