@@ -207,34 +207,32 @@ export function ChatList() {
   // ＝「相手の返信が上に来ない」の原因だった。rowLastAt＝メッセージ（双方向）と応募の記録の最新時刻
   const sortedRows = [...rows].sort((x, y) => rowLastAt(y) - rowLastAt(x));
 
-  // 非表示の選択（2026-08-18たきと指示「見送りと失効は非表示する方針。要素はすべてと見送りと失効のみ。
-  // 複数選択可能。選択で非表示にする」＝2026-08-07の8択の段階絞り込みを置き換え）。
-  // ★ピルは「見るもの」ではなく【隠すもの】の選択＝選ぶとその段階のチャットが一覧から消える。
-  //   見送り・失効は同時に選べる（複数選択）。「すべて」＝何も隠さない（選択を全部外す）。
-  //   既定は方針どおり見送り・失効の両方を選んだ状態＝終わった取引that日常の一覧を埋めない。
+  // 非表示の選択（2026-08-18たきと指示。同日改定「すべて削除で、取り消しに差し替え」）：
+  // ピルは【隠すもの】3つだけ＝見送り／失効／取り消し。選ぶとその段階のチャットが一覧から消える。
+  // 3つとも同時に選べる（複数選択）。「すべて」ピルは廃止＝全部表示したい時は選択を1つずつ外す
+  //   （空状態からは「すべて表示する」で一度に戻せる）。
+  // 既定は3つとも選んだ状態＝終わった取引（見送り・失効・取り消し）that日常の一覧を埋めない。
   // 隠すのは表示だけ＝記録・並び・未読・データ取得は不変（行動記録の憲法：記録は消さない）
-  const CHAT_HIDABLE = ["rejected", "expired"];
+  const CHAT_HIDABLE = ["rejected", "expired", "canceled"];
   const [chatHidden, setChatHidden] = useState(() => {
+    // 保存キーは_v2＝取り消しを足した既定thatすぐ効く（旧cb_chatHiddenの値は引き継がない）
     try {
-      const raw = sessionStorage.getItem("cb_chatHidden");
+      const raw = sessionStorage.getItem("cb_chatHidden_v2");
       if (raw !== null) { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter(k => CHAT_HIDABLE.includes(k)); }
     } catch {}
-    return [...CHAT_HIDABLE]; // 既定＝両方とも非表示
+    return [...CHAT_HIDABLE]; // 既定＝3つとも非表示
   });
-  useEffect(() => { try { sessionStorage.setItem("cb_chatHidden", JSON.stringify(chatHidden)); } catch {} }, [chatHidden]);
+  useEffect(() => { try { sessionStorage.setItem("cb_chatHidden_v2", JSON.stringify(chatHidden)); } catch {} }, [chatHidden]);
   const shownRows = sortedRows.filter(a => !chatHidden.includes(appPhaseKey(a)));
-  const filterButtons = [
-    { k:"all", label:"すべて", on: chatHidden.length === 0, onTap: () => setChatHidden([]) },
-    ...CHAT_HIDABLE.map(k => ({
-      k, label: APP_PHASE_LABEL[k], on: chatHidden.includes(k),
-      onTap: () => setChatHidden(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]),
-    })),
-  ].map(b => (
+  const filterButtons = CHAT_HIDABLE.map(k => ({
+    k, label: APP_PHASE_LABEL[k], on: chatHidden.includes(k),
+    onTap: () => setChatHidden(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]),
+  })).map(b => (
     <button key={b.k} onClick={b.onTap} aria-pressed={b.on} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: b.on ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: b.on?800:600, color: b.on?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
       {/* 段階色の点＝帯・チップと同じAPP_PHASE_COLOR */}
-      {b.k !== "all" && <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[b.k] || "#999", flexShrink:0 }} />}
-      {/* 選択中＝隠している、を目で分かるように取り消し線（「すべて」は隠す対象ではないso付けない） */}
-      <span style={{ textDecoration: (b.on && b.k !== "all") ? "line-through" : "none" }}>{b.label}</span>
+      <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[b.k] || "#999", flexShrink:0 }} />
+      {/* 選択中＝隠している、を目で分かるように取り消し線 */}
+      <span style={{ textDecoration: b.on ? "line-through" : "none" }}>{b.label}</span>
     </button>
   ));
 
