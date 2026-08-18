@@ -1,6 +1,11 @@
 // 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告・緊急連絡）。
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../lib/supabase";
+import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMyRoster, fetchMyEmergencyContact,
+  fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel, fetchMyJobContext,
+  unpublishJob, copyJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
+  markWorkNoShow, submitFarmerReviewRpc, insertAttendanceEvent, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
+  upsertRoster, deleteRoster, updateQuestionSet, insertQuestionSet, deleteQuestionSetRow, sendInterviewQuestionsRpc,
+  upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, FARMER_EMERGENCY_KINDS, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, APP_FILTER_KEYS, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
@@ -96,10 +101,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setQSaving(true);
     try {
       if (qEditing.id) {
-        const { error } = await supabase.from("farmer_question_sets").update({ title, questions, updated_at: new Date().toISOString() }).eq("id", qEditing.id).eq("farmer_id", me.id);
+        const { error } = await updateQuestionSet(qEditing.id, me.id, title, questions);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("farmer_question_sets").insert({ farmer_id: me.id, title, questions });
+        const { error } = await insertQuestionSet(me.id, title, questions);
         if (error) throw error;
       }
       await loadQuestionSets();
@@ -110,7 +115,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const deleteQuestionSet = async (id) => {
     if (!id || !confirm("この質問集を削除しますか？")) return;
     try {
-      const { error } = await supabase.from("farmer_question_sets").delete().eq("id", id).eq("farmer_id", me.id);
+      const { error } = await deleteQuestionSetRow(id, me.id);
       if (error) throw error;
       await loadQuestionSets();
       setQEditing(null);
@@ -123,7 +128,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (!sendQTarget || sendingQ) return;
     setSendingQ(true);
     try {
-      const { data, error } = await supabase.rpc("send_interview_questions", { p_application_id: sendQTarget.id, p_set_id: setId });
+      const { data, error } = await sendInterviewQuestionsRpc(sendQTarget.id, setId);
       if (error || !data?.ok) { alert("送信に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); setSendingQ(false); return; }
       const appId = sendQTarget.id;
       setSendQTarget(null); setSendingQ(false);
@@ -241,12 +246,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (insSaving) return;
     setInsSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       if (!session) { setInsSaving(false); return; }
       // ひとことは選択中の項目のぶんだけ残す（外した項目のメモは持ち越さない＝保険ページと同じ規則）
       const pruned = {};
       insItems.forEach(k => { const t = (insNotes[k] || "").trim(); if (t) pruned[k] = t; });
-      const { error } = await supabase.from("employer_profiles").upsert({ auth_id: session.user.id, insurance_items: insItems, insurance_notes: pruned, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      const { error } = await upsertInsurance(session.user.id, insItems, pruned);
       if (error) throw error;
       setEmpMini(prev => { const nx = { ...(prev || {}), insurance_items: insItems, insurance_notes: pruned }; setCache("farm:empMini", nx); snapSet("empMini", nx); return nx; });
       setInsOpenKey(null);
@@ -273,21 +278,21 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   useEffect(() => {
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSession();
         if (!session) return;
         const uid = session.user.id;
         const [epRes, trustRes, rosterRes, emgRes] = await Promise.all([
-          supabase.from("employer_profiles").select("*").eq("auth_id", uid).maybeSingle(), // トップボックス裏面プレビュー用に全列（2026-07-16）
-          supabase.rpc('employer_trust_info', { p_farmer_id: uid }).then(r => r, () => ({ data: null })),
-          supabase.from("repeat_roster").select("worker_id,created_at").eq("farmer_id", uid).order("created_at",{ascending:false}),
-          supabase.from("emergency_contacts").select("auth_id").eq("auth_id", uid).maybeSingle(), // 🆘の有無だけ（self-only RLS・バッジ用）
+          fetchMyEmployerProfileFull(uid),   // トップボックス裏面プレビュー用に全列（2026-07-16）
+          fetchEmployerTrustInfo(uid),
+          fetchMyRoster(uid),
+          fetchMyEmergencyContact(uid),      // 🆘の有無だけ（self-only RLS・バッジ用）
         ]);
         const epMini = epRes.data, tI = trustRes.data, rosterData = rosterRes.data;
         setEmpTrust(tI && tI.ok ? tI : null); setCache("farm:empTrust", tI && tI.ok ? tI : null);
         if (!emgRes.error) { const has = !!emgRes.data; setHasEmergency(has); setCache("farm:hasEmergency", has); }
         if (epMini) { setEmpMini(epMini); setCache("farm:empMini", epMini); snapSet("empMini", epMini); }
         if (rosterData && rosterData.length > 0) {
-          const { data: rosterWp } = await supabase.rpc("worker_cards_for_farmer", { p_worker_ids: rosterData.map(r => r.worker_id) });
+          const { data: rosterWp } = await fetchWorkerCards(rosterData.map(r => r.worker_id));
           const wpMap = {};
           (rosterWp || []).forEach(wp => { wpMap[wp.auth_id] = wp; });
           const rr = rosterData.map(r => ({ worker_id: r.worker_id, nickname: wpMap[r.worker_id]?.nickname || null, avatar_url: wpMap[r.worker_id]?.avatar_url || null }));
@@ -309,7 +314,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         // 1往復に集約（2026-08-02たきと指示「求人ページも遅い」）：従来は getSession→自分のjobs取得→
         // 未回答質問集計の直列で、スケルトン解除が最後だった。my_farm_jobs（SECURITY INVOKER＝RLSそのまま）
         // が求人と未回答質問数をまとめて返す
-        const { data: bundle, error } = await supabase.rpc("my_farm_jobs");
+        const { data: bundle, error } = await fetchMyFarmJobs();
         const allJobs = bundle?.jobs;
         if (!error && allJobs) {
           const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos, holidays: j.holidays }]));
@@ -371,7 +376,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (!confirm('欠勤として記録します。働き手に通知され、72時間の異議申立ができます')) return;
     setCompleteSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc('complete_work', { p_application_id: completeModalApp.id, p_attended: false });
+      const { data, error } = await markWorkNoShow(completeModalApp.id);
       if (error || !data?.ok) { fbError(); alert('記録に失敗しました：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:false } : x));
       setCompleteModalApp(null);
@@ -384,11 +389,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     try {
       // 原子化（2026-07-19）：完了処理・評価保存・お気に入り登録を1つのRPC＝1トランザクションで実行。
       // 送信ボタンのタップだけがトリガーで、途中失敗なら何も保存されない（中途半端な履歴が残らない）
-      const { data, error } = await supabase.rpc('submit_farmer_review', {
-        p_application_id: completeModalApp.id,
-        p_want_again: completeWantAgain, p_entrust: completeEntrust,
-        p_public_comment: completePublicComment.trim(), p_private_memo: completePrivateMemo.trim(),
-        p_favorite: completeNotifyNext,
+      const { data, error } = await submitFarmerReviewRpc(completeModalApp.id, {
+        wantAgain: completeWantAgain, entrust: completeEntrust,
+        publicComment: completePublicComment.trim(), privateMemo: completePrivateMemo.trim(),
+        favorite: completeNotifyNext,
       });
       if (error || !data?.ok) { fbError(); alert('送信に失敗しました（何も保存されていません）：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
       const favorited = !!data.favorited;
@@ -407,7 +411,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       if (cached) jobLabel = [cached.crop, cached.task].filter(Boolean).join(" ");
       else {
         try {
-          const { data: jr } = await supabase.from("jobs").select("crop,task").eq("job_number", completeModalApp.job_number).eq("farmer_id", me.id).maybeSingle();
+          const { data: jr } = await fetchMyJobLabel(completeModalApp.job_number, me.id);
           if (jr) jobLabel = [jr.crop, jr.task].filter(Boolean).join(" ");
         } catch {}
       }
@@ -502,10 +506,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (!completeDone) return;
     try {
       if (checked) {
-        const { error } = await supabase.from('repeat_roster').upsert(
-          { farmer_id: me.id, worker_id: completeDone.workerId, notify: true },
-          { onConflict: 'farmer_id,worker_id' }
-        );
+        const { error } = await upsertRoster(me.id, completeDone.workerId);
         if (error) { alert('登録に失敗しました：' + error.message); return; }
         const wp = workerProfiles[completeDone.workerId];
         setRosterRows(prev => prev.some(r => r.worker_id === completeDone.workerId) ? prev
@@ -513,7 +514,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         setFavDetailOpen(false);
         setFavDone({ workerId: completeDone.workerId, nickname: wp?.nickname || "", avatar_url: wp?.avatar_url || "" });
       } else {
-        const { error } = await supabase.from('repeat_roster').delete().eq('farmer_id', me.id).eq('worker_id', completeDone.workerId);
+        const { error } = await deleteRoster(me.id, completeDone.workerId);
         if (error) { alert('解除に失敗しました：' + error.message); return; }
         setRosterRows(prev => prev.filter(r => r.worker_id !== completeDone.workerId));
       }
@@ -538,7 +539,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       // その状態の農家には赤帯で別途知らせているので、この確認文には書かない（普通の一時非公開の話を短く伝える）
       // ★応募中・面接中は見送りになる（migration 20260808004900・採用済みは不変）＝確認文に明記
       if (!confirm("この求人を一時非公開にしますか？（さがすに表示されなくなります。応募中・面接中の方は見送りになります。あとから再掲載できます）")) return;
-      const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: num });
+      const { data, error } = await unpublishJob(num);
       if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
       // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
       setDbActive(prev => prev.map(d => d.job_number === num ? { ...d, status: "draft" } : d));
@@ -547,14 +548,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (kind === "delete") {
       // 削除は下書きのみ（タップ側で判定済み＋DBの trg_block_delete_past_job が二重の壁）。最終確認あり（不可逆）
       if (!confirm("この求人（下書き）を削除しますか？元に戻せません")) return;
-      const { error } = await supabase.from("jobs").delete().eq("job_number", num).eq("farmer_id", me.id);
+      const { error } = await deleteMyJob(num, me.id);
       if (error) { alert("削除に失敗しました：" + error.message); return; }
       setDbDrafts(prev => prev.filter(d => d.job_number !== num));
       setDbActive(prev => prev.filter(d => d.job_number !== num));
       return;
     }
     if (kind === "copy") {
-      const { data, error } = await supabase.rpc("copy_job", { p_job_number: num });
+      const { data, error } = await copyJob(num);
       if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
       // コピーした行をそのまま次の画面へ渡す（2026-08-03）：jobsの読み直しを待たずに復元できる
       try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
@@ -608,7 +609,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     let dead = false;
     (async () => {
       try {
-        const { data } = await supabase.from("jobs_public").select("*").eq("job_number", jn).maybeSingle();
+        const { data } = await fetchPublicJobByNumber(jn);
         if (!dead) setSheetJobFull(prev => ({ ...prev, [jn]: data ? mapJobPublicRow(data) : null }));
       } catch { if (!dead) setSheetJobFull(prev => ({ ...prev, [jn]: null })); }
     })();
@@ -695,8 +696,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       try {
         const [wpRes, trustRes] = await Promise.all([
           // 未承認の自己紹介(pr_pending等)を農家に渡さないため、承認済み列だけ返すRPC経由（2026-08-07）
-          supabase.rpc("worker_profile_for_farmer", { p_worker_id: workerId }),
-          supabase.rpc("worker_trust_info", { p_worker_id: workerId }),
+          fetchWorkerProfileForFarmer(workerId),
+          fetchWorkerTrustInfo(workerId),
         ]);
         setRosterDetail(prev => prev && prev.worker_id === workerId ? {
           worker_id: workerId, loading: false,
@@ -712,7 +713,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const stopRosterNotify = async (workerId) => {
     if (!confirm('この方への新求人のお知らせを止めますか？（次回の評価で再登録できます）')) return;
     try {
-      const { error } = await supabase.from('repeat_roster').delete().eq('farmer_id', me.id).eq('worker_id', workerId);
+      const { error } = await deleteRoster(me.id, workerId);
       if (error) { alert('解除に失敗しました：' + error.message); return; }
       setRosterRows(prev => prev.filter(r => r.worker_id !== workerId));
     } catch { alert('解除に失敗しました。'); }
@@ -736,7 +737,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setEmergencyCtx({ jobNumber: a.job_number, jobLabel: "", dateLabel: "", partnerName: workerProfiles[a.worker_id]?.nickname || "" });
     (async () => {
       try {
-        const { data: job } = await supabase.from("jobs").select("crop,task,date_start,work_time").eq("job_number", a.job_number).eq("farmer_id", me.id).maybeSingle();
+        const { data: job } = await fetchMyJobContext(a.job_number, me.id);
         setEmergencyCtx(prev => prev && prev.jobNumber === a.job_number ? {
           ...prev,
           jobLabel: job ? [job.crop, job.task].filter(Boolean).join(" ") : "",
@@ -760,7 +761,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         // ①やること＋応募一覧→②評価＋プロフィール＋信頼情報（＋質問送信済み）の直列2波・計6本で、
         // 全部返るまでスケルトンのままだった。my_farm_applicants（SECURITY INVOKER＝各テーブルの
         // RLSがそのまま適用・見える範囲は従来の直叩きと同一）が全部まとめて返す
-        const { data: bundle, error } = await supabase.rpc("my_farm_applicants");
+        const { data: bundle, error } = await fetchMyFarmApplicants();
         if (error || !bundle) { setAppsLoading(false); return; }
         const appData = bundle.apps || [];
         // 未対応（＝こちらの番）の応募＝やること・バッジと同じ単一ソース my_todo_items 由来（2026-07-26たきと指示）。
@@ -831,7 +832,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (!emergencyModalApp || !emergencyKind || !emergencyReason.trim() || emergencySubmitting) return;
     setEmergencySubmitting(true);
     try {
-      const { error } = await supabase.from('attendance_events').insert({
+      const { error } = await insertAttendanceEvent({
         application_id: emergencyModalApp.id, actor_id: me.id, kind: emergencyKind, reason: emergencyReason.trim(),
       });
       if (error) { alert('送信に失敗しました：' + error.message); setEmergencySubmitting(false); return; }
@@ -892,7 +893,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const setFollowup = async (a, kind) => {
     if (followupBusy) return;
     setFollowupBusy(true);
-    const { data, error } = await supabase.rpc('set_application_followup', { p_application_id: a.id, p_kind: kind });
+    const { data, error } = await setApplicationFollowup(a.id, kind);
     setFollowupBusy(false);
     if (error || !data?.ok) { fbError(); alert('保存に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
     setDbApplicants(prev => prev.map(x => x.id === a.id ? { ...x, held_at: data.held_at, handled_at: data.handled_at } : x));
@@ -934,12 +935,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     <div style={{ display:"flex", gap:8 }}>
                       <button onClick={async ()=>{
                         if (!confirm('この応募を見送りますか？')) return;
-                        const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: false });
+                        const { data, error } = await rejectApplication(a.id);
                         if (error || !data?.ok) { fbError(); alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
                         setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
                       }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
                       <button onClick={async ()=>{
-                        const { data, error } = await supabase.rpc('approve_application', { p_application_id: a.id, p_approve: true });
+                        const { data, error } = await approveApplication(a.id);
                         if (error || !data?.ok) { fbError(); alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
                         setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
                         fbSuccess(); setCelebrate({ emoji:"✅", title:"承認しました" });
@@ -1734,7 +1735,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   if (agreeSel.length===0) return;
                   setAgreeSaving(true);
                   const dates = [...agreeSel].sort();
-                  const { data, error } = await supabase.rpc("set_agreed_dates", { p_application_id: agreeModal.id, p_dates: dates });
+                  const { data, error } = await setAgreedDates(agreeModal.id, dates);
                   setAgreeSaving(false);
                   if (error || !data?.ok) { alert("確定に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); return; }
                   setDbApplicants(prev => prev.map(x => x.id===agreeModal.id ? { ...x, agreed_dates: dates } : x));

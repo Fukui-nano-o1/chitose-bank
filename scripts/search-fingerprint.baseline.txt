@@ -2,17 +2,22 @@
 
 ## api:call
   applyToJob  x1
+  approveApplication  x1
   cancelApplication  x1
   confirmTerms  x1
-  copyJob  x1
+  copyJob  x2
   countMyJobs  x1
   createPendingApplication  x1
   decideTimeCorrection  x1
+  deleteMyJob  x1
+  deleteQuestionSetRow  x1
+  deleteRoster  x2
   deleteSavedJob  x1
   fetchAccountHolderId  x1
   fetchConsignorConsent  x1
   fetchEmployerPublicJobCounts  x1
   fetchEmployerPublicJobs  x1
+  fetchEmployerTrustInfo  x1
   fetchInterviewQuestions  x1
   fetchJobEmployerProfile  x1
   fetchJobEmployerTrustInfo  x1
@@ -20,33 +25,52 @@
   fetchMyApplicationTerms  x1
   fetchMyApplications  x1
   fetchMyCalendarJobs  x1
-  fetchMyEmergencyContact  x1
+  fetchMyEmergencyContact  x2
   fetchMyEmployerProfile  x1
-  fetchMyFarmJobs  x1
+  fetchMyEmployerProfileFull  x1
+  fetchMyFarmApplicants  x1
+  fetchMyFarmJobs  x2
+  fetchMyJobContext  x1
+  fetchMyJobLabel  x1
   fetchMyJobNumbers  x1
   fetchMyPendingApplications  x1
   fetchMyPendingForJob  x1
   fetchMyPunchFacts  x1
+  fetchMyRoster  x1
   fetchMyTodoItems  x1
   fetchMyWorkerNickname  x1
   fetchMyWorkerProfile  x1
   fetchPendingCorrections  x1
   fetchPendingJobPreviews  x1
-  fetchPublicJobByNumber  x2
+  fetchPublicJobByNumber  x3
   fetchPublicJobs  x1
   fetchSavedJobNumbers  x1
   fetchSignupOpen  x1
   fetchSurveyAnswered  x1
+  fetchWorkerCards  x1
+  fetchWorkerProfileForFarmer  x1
+  fetchWorkerTrustInfo  x1
   getSession  x6
+  insertAttendanceEvent  x1
   insertJobReport  x1
   insertMessage  x1
+  insertQuestionSet  x1
   insertSavedJob  x1
   insertSurvey  x1
+  markWorkNoShow  x1
   orderSearchJobs  x1
   punchStart  x1
   recordSeenNewIds  x1
+  rejectApplication  x1
   runTodoRpc  x1
-  unpublishJob  x1
+  sendInterviewQuestionsRpc  x1
+  setAgreedDates  x1
+  setApplicationFollowup  x1
+  submitFarmerReviewRpc  x1
+  unpublishJob  x2
+  updateQuestionSet  x1
+  upsertInsurance  x1
+  upsertRoster  x1
 
 ## apply:closed
   const closedLabel = selectedJob?.filled ? ((selectedJob.closed || selectedJob.expired) ? "この求人は掲載を終了しました（満員）" : "この募集は終了しました（満員）") : selectedJob?.closed ? "この募集は終了しました" : "この募集は終了しました（期間終了）";  x1
@@ -180,8 +204,8 @@
   from:attendance_events | insert
   from:consignment_profiles | eq:auth_id | maybeSingle | select:consignment_terms_consent,consignment_terms_consent_version
   from:emergency_contacts | eq:auth_id | maybeSingle | select:auth_id
+  from:employer_profiles | eq:auth_id | maybeSingle | select:*
   from:employer_profiles | eq:auth_id | maybeSingle | select:auth_id,
-  from:employer_profiles | rpc:employer_trust_info | eq:auth_id | maybeSingle | p_farmer_id | select:*
   from:employer_profiles | upsert
   from:farmer_question_sets | delete | eq:farmer_id | eq:id
   from:farmer_question_sets | eq:farmer_id | eq:id | update
@@ -217,6 +241,7 @@
   rpc:decide_time_correction | p_approve | p_id
   rpc:employer_public_job_counts | p_job_number
   rpc:employer_public_jobs | p_job_number
+  rpc:employer_trust_info | p_farmer_id
   rpc:get_my_calendar_jobs
   rpc:job_employer_profile | p_job_number
   rpc:job_employer_trust_info | p_job_number
@@ -353,7 +378,7 @@
   DbExpired = allJobs.filter(isPast)  x1
 
 ## farmer:roster
-  delete | eq:farmer_id | eq:worker_id  x2
+  delete | eq:farmer_id | eq:worker_id  x1
   eq:farmer_id | select  x1
   onConflict:farmer_id,worker_id | upsert  x1
 
