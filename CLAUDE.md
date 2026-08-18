@@ -5278,6 +5278,15 @@ idleにはtimeout:2000を付ける＝暇にならなくても最後は必ず動�
 実ソースを使ったnodeの機械検算：idleQueue 6項目（3本とも実行／同時に走らない／登録順／cancelで破棄／
 例外でも止まらない／requestIdleCallbackがある環境でも同じ）＋page_events 6項目（起動直後は送らない／
 記録は発生時点のhash／遷移が先でも順序保存／二重送信なし／同一hashはskip／2件目以降は即時）。
+【C1.1（同日・たきと指摘）page_eventsの直列保証】flushPending が Promise を返しておらず、
+待ち行列から見ると即終了＝DBへの挿入が通信中でも次のidle taskへ進んでいた（「1本終わってから次」が崩れる）。
+遷移時も flushPending(); send(row); と2本を並行発射しており、DB上の前後は保証されていなかった。
+→ flushPending は必ず Promise を返し、遷移時は void flushPending().then(() => send(row)) にした。
+検証＝送信を40msの非同期にして実ソースを実行し7項目を機械検算（taskがPromiseを返す／待った後に完了／
+search→profileの順序／同時に2本走らせない／保留が無ければそのまま送る／起動直後は送らない／同一hashはskip）。
+【残る限界（推測で足さない・冷間ログで確認する）】requestIdleCallback は「JSメインスレッドが暇」であって
+「ネットワークが暇」ではない。App側の startup / after_login / page_events は重要RESTが通信中でも
+idleで発射されうる。検索側の pending/consignment は fetchPublicJobs 完了後の bootSettled で明確に後ろへ送られている。
 【★次＝冷間実測】C1デプロイ後にiPhoneで冷間起動を1回。最初の7秒のREST本数（25→?）・p50・max・
 jobs_public完了時刻・後送り4系統の到着時刻を時系列で出す。20本という数字は合格条件にしない＝実ログを正とする。
 その測定までC2（applicationsの4→3）には入らない。

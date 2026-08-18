@@ -463,15 +463,23 @@ export default function App(){
     // ★保留中に次の遷移が起きたら、保留分を先に流してから新しい分を送る＝DBで前後が入れ替わらない
     let pending = null;
     const send = (row) => supabase.from("page_events").insert(row).then(() => {}, () => {});
-    const flushPending = () => { if (pending) { const row = pending; pending = null; send(row); } };
+    // ★必ずPromiseを返す（2026-08-18 C1.1）。返さないと待ち行列から見て即終了になり、
+    //   DBへの挿入が通信中でも次のidle taskへ進んでしまう＝「1本終わってから次」が崩れる
+    const flushPending = () => {
+      if (!pending) return Promise.resolve();
+      const row = pending;
+      pending = null;
+      return send(row);
+    };
     const logPageEvent = ({ defer = false } = {}) => {
       const h = window.location.hash || "#/";
       if (h === lastLoggedHashRef.current) return; // 連続同一hashはskip
       lastLoggedHashRef.current = h;
       const row = { auth_id: me.id, page_hash: h }; // ここで値を固定する
-      if (!defer) { flushPending(); send(row); return; }
+      // ★保留分の完了を待ってから次を送る（2026-08-18 C1.1）。並行に撃つとDB上で前後が入れ替わる
+      if (!defer) { void flushPending().then(() => send(row)); return; }
       pending = row;
-      bootIdleQueue.push(() => { flushPending(); });
+      bootIdleQueue.push(flushPending);
     };
     logPageEvent({ defer: true }); // 起動の1件目だけ後送り
     const onHashLog = () => logPageEvent();
