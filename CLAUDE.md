@@ -5290,3 +5290,40 @@ idleで発射されうる。検索側の pending/consignment は fetchPublicJobs
 【★次＝冷間実測】C1デプロイ後にiPhoneで冷間起動を1回。最初の7秒のREST本数（25→?）・p50・max・
 jobs_public完了時刻・後送り4系統の到着時刻を時系列で出す。20本という数字は合格条件にしない＝実ログを正とする。
 その測定までC2（applicationsの4→3）には入らない。
+
+━━━ 2026-08-18 Speed-1C 起動衝突テスト：結果＝Realtime競合が主因（設計を正式採用）━━━
+【何を測ったか】App常駐の4購読（unread-badge / hired-watch / stage-watch / cb-profile-approved）の
+.subscribe() だけを、さがすの初回取得（jobs_public）が settle した後ろへ送った版で冷間起動を1回。
+RESTの初回チェックは即時のまま。合図＝JobSearchMapView が飛ばす cb:criticalBootSettled（payload無し・一回きり）。
+逃げ道（requestIdleCallback timeout 2000）は「さがす以外に着地した起動」だけに予約する（C1.3）。
+判定基準は測定前に固定した（順序が入れ替わり＋RESTが大幅高速化なら競合が主因／10〜13秒のままなら棄却）。
+
+【結果1・順序は入れ替わった】
+  前 18:25 → WebSocket 101 が 09:25:20.197＝RESTバースト（09:25:20.27〜）より【先】
+  後 19:26 → jobs_public完了 10:26:59.82 → catch-up REST :59.875〜.884 → WebSocket 101 :59.914
+  逃げ道は発火していない（起動+2秒ではなく jobs_public 完了直後に開いている）
+【結果2・初回REST（同じ21本で比較）】p50 12,815→6,178ms（−51.8%）／max 13,097→6,235ms（−52.4%）／min 8,794→3,333ms
+【結果3・因果の本体＝PostgRESTの作り直し】
+  Realtimeテナント初期化が「Creating partitions for realtime.messages」というDDLを打つ
+  → 約1秒後にPostgRESTが「Received a schema cache reload message」を受け、接続プール(10)を作り直し
+     スキーマキャッシュを再構築する。
+  前：09:25:29.45 にバーストの真っ最中へ落ちた（21本がin flight）→ Schema cache queried 3071.6ms＋1113.8ms
+  後：10:27:03.04 にバーストの後ろ（暇な区間）へ落ちた → 1018.5ms＋1206.2ms＋455.2ms
+  ＝順序を変えただけで衝突が消えた。
+
+【判定】Realtime競合が主因。この設計（購読開始を重要な初回取得の後ろへ送る）を正式採用。
+【正直に残す2点】
+ (1) 交絡：後の回は素のoriginがやや温かい（CheckConnection 2925→1731ms・schema cache 3071→1018ms）。
+     改善の一部は温度。ただし後の回はPostgREST再構築がバーストに1つも重なっていない状態で6.2秒かかっており、
+     6.2秒＝素の冷間コスト／前回の残り6.6秒＝衝突ぶん、と読める。
+ (2) 残る6.2秒の正体：後の回のバーストは 3.3秒／5.1〜6.0秒／6.2秒 の3波。21本÷接続プール10≒3波
+     ＝冷えたDBに対する接続プールの直列化。クライアント側では減らない。
+【変化なし】page_events は今回も初回バーストと同時に飛んだ（:53.592）＝requestIdleCallback は
+  ネットワークの暇を見ない、という2026-08-18の所見のまま。
+
+【この一連の到達点】Speed-1A（SW一本化・push復活）／1B（DB→UIの合図バス）／1B.1（復帰の二重発火除去）／
+1C-1（起動バーストから4系統を後送り）／1C-1.1（page_eventsの直列保証）／1C-3（Realtime購読の後送り・本項）。
+C2（applications 4本→3本）は中止＝1本減らす改修には戻らない。
+【次に手を入れるならクライアントではない】残るのは Supabase / PostgREST の cold start（接続プールの
+直列化・スキーマキャッシュ再構築）。Compute増強は買っていない＝買うかどうかは別途たきと判断。
+━━━ ここまで ━━━
