@@ -13,7 +13,6 @@ import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE }
 import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
-import ContractEmergencyContact from "./ContractEmergencyContact";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
@@ -547,10 +546,10 @@ export function ChatView({ applicationId, onBack }) {
       {activeAppId && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
         <ContractPartyName applicationId={activeAppId} style={{ padding:"2px 0 0" }} />
       )}
-      {/* 緊急連絡先も採用成立後のみ（同じ窓口作法・2026-08-03） */}
-      {activeAppId && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
-        <ContractEmergencyContact applicationId={activeAppId} />
-      )}
+      {/* 相手の緊急連絡先カードはチャットから削除（2026-08-18たきと指示）。
+          ★消えたのはチャットの表示だけ＝登録（プロフィールの🆘ボックス）・開示の窓口
+          （contract_emergency_contact RPC）・今日ページの緊急連絡シート／応募者シートの
+          同カードは従来どおり不変（2026-08-03の裁定＝採用成立後・相手方のみ開示、は生きている） */}
       {reportMode && !reportTarget && (
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
       )}

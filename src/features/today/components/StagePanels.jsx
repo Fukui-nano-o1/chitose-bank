@@ -15,6 +15,7 @@ import { openPhaseInfo } from "../../../lib/previewBus";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../../../lib/hire";
 import { Avatar, Dots } from "../../../components/ui";
 import ContractPartyName from "../../../components/ContractPartyName";
+import ContractEmergencyContact from "../../../components/ContractEmergencyContact";
 
 
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
@@ -261,9 +262,8 @@ export function EmergencyStagePanel({ items, role }) {
                 </div>
                 {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
                 {e.application_id && <ContractPartyName applicationId={e.application_id} showPending={false} style={{ margin:"0 0 12px", paddingLeft:2 }} />}
-                {/* 相手の緊急連絡先カードは削除（2026-08-18たきと指示「今日ページの緊急連絡先カードは必要なくなった」）。
-                    ★消えたのはこのシートの表示だけ＝登録（プロフィールの緊急連絡先）・開示の窓口
-                    （contract_emergency_contact RPC）・応募者シート／チャットの同カードは従来どおり不変 */}
+                {/* 緊急連絡先も採用成立後のみ（同じ窓口作法・2026-08-03）。緊急連絡の直前で相手の連絡先が見える */}
+                {e.application_id && <ContractEmergencyContact applicationId={e.application_id} style={{ margin:"0 0 12px" }} />}
                 {/* 操作（ステータスページのボタン群と同じ位置づけ。主役＝緊急連絡） */}
                 <div style={{ display:"grid", gap:8 }}>
                   <button onClick={()=>{ setBoxItem(null); window.location.hash = "/emergency/" + e.application_id; }} className="f-sans"
