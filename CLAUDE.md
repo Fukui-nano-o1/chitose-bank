@@ -5386,3 +5386,53 @@ C-2 SQLは軽い △／C-3 3波 ✗（今回は1波・19:26は3波＝n=2で±30%
 Cloudflare の IAD colo 経由so 1.2〜1.6秒には太平洋横断が含まれる＝「冷間ペナルティ1.3秒」の根拠には使えない
 （一度この誤りを立てかけて取り下げた）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-18 Speed-2A：realtime DDL 由来の PostgREST schema cache reload は【不要】と確定（読み取りのみ）━━━
+【打ち切った探索】db-pool-max-idletime（PostgREST既定30秒）は公式仕様上 in-database 設定不可で、Supabaseの
+公開設定一覧でも self-hosted 向け扱い。managed Supabase の公開手段では延長できない＝ここを探すのは終了。
+実測でも pg_db_role_setting / pg_roles の全件に pgrst.* の設定は存在しない（authenticator にあるのは
+session_preload_libraries=safeupdate / statement_timeout=8s / lock_timeout=8s のみ）。
+
+【① pgrst_ddl_watch の現物】PostgREST公式例そのまま。CREATE/ALTER TABLE 等の command_tag を拾い、
+除外は cmd.schema_name is distinct from 'pg_temp' だけ＝【スキーマの絞り込みが無い】。
+so realtime.messages のパーティション CREATE / ALTER OWNER が そのまま NOTIFY pgrst を撃つ。
+pgrst_drop_watch も object_type='table' を拾うため、パーティションが落ちる時にも撃つ（ローテーションの両端で発火）。
+
+【② exposed schema は public のみ＝realtime は schema cache の対象外（決定的）】
+PGRST_DB_SCHEMAS は env ので SQL からは読めない。schema cache の中身から逆算した：
+・24時間の再構築 75回が読み込んだ関係数は【全部 56 Relations】（Relationships も 25 で固定）
+・public の関係数は【56】＝完全一致
+・realtime の関係数は10。うち messages_2026_08_15〜_08_21 の【日次パーティション7枚のローリング窓】＝
+  毎日1枚増えて1枚落ちる。realtime が cache に入っていればこの数字は日々動くはずだが、75回すべて 56 のまま
+・動いたのは Functions（116→117→118）だけ＝私たちが関数を足し引きしたぶん＝正当な reload
+★これは PGRST_DB_SCHEMAS を直接読んだのではなく cache の中身からの強い推論。ただし 56 の完全一致と
+  「realtime 側は毎日動くのに cache は不動」の2点で実質確定と判断した。
+
+【③ 因果を数で閉じた（直近24時間）】
+・Realtime tenant init（Creating partitions for realtime.messages）= 34
+・PostgREST が受けた NOTIFY pgrst = 175 → 175÷34 ≈ 5.1/init（パーティション窓7枚の CREATE/ALTER OWNER/DROP と整合）
+・実際の schema cache 再構築 = 75 → 75÷34 ≈ 2.2/init（PostgRESTが連続NOTIFYをまとめた結果。
+  2回の冷間起動で実測した「1 init につき2回の再構築」と一致）
+＝1日75回の再構築は、ほぼ全部が Realtime のテナント初期化由来。
+
+【④ コスト】1回あたり pg_timezone_names 643ms＋内省クエリ 89ms×2 ≈ 820ms の DB CPU
+（ログ上の Schema cache queried は 1,000〜3,000ms）。75回/日 ≈ 60〜90秒/日。加えて毎回 接続プールを
+捨てて作り直す（Connection Pool initialized 73回/日）。その間リクエストは待たされる。中身は1ビットも
+変わっていない（56 Relations を1日75回読み直しているだけ）。
+
+【判定】realtime schema の DDL による PostgREST schema cache reload は【不要】。
+★トリガーは書き換えない：Supabase 管理下の event trigger を独自変更して将来の migration や
+  プラットフォーム更新と殴り合うのは割に合わない。この証明を持って Supabase 側の仕様確認・サポート判断へ進む。
+【Supabaseへ持ち込む材料（そのまま使える）】プロジェクト aegwepgtmwcnwzybpgsh・ap-northeast-1／
+ extensions.pgrst_ddl_watch が realtime の partition DDL を拾って NOTIFY pgrst を撃つ／exposed schema は
+ public のみ（cache は常に56 Relations・realtime は対象外）／tenant init 34回/日 → NOTIFY 175回/日 →
+ schema cache 再構築 75回/日・中身は不変／1回あたり DB CPU 約820ms＋接続プール破棄／冷間起動時に
+ バーストと衝突すると体感が約2倍悪化（Speed-1C 実測：p50 12.8秒 → 6.2秒）。
+
+【4.23秒の結論（精密版・固定）】wall 4.23s ／ cold SQL exec Σ 約1.55s ／ SQL外 最低 約2.7s ／ 暖機後REST 20〜48ms。
+DBクエリ実行が主因ではない＝確定。ただし1.55秒は実在するので「Computeが全く効かない」でもない。
+仮にComputeでSQL部分が半減しても改善は理論上せいぜい0.8秒級で、残り2.7秒以上には直接届かない＝今払う理由が弱い。
+
+【次の順序（固定）】Speed-2A（本項・完了）→ 必要ならSupabase側へ持ち込む → Speed-2B（残る4.2秒の
+接続確立/pool待ち/gateway の分解）→ 最後に必要ならCompute比較実験。フロントは触らない。C2にも戻らない。
+━━━ ここまで ━━━
