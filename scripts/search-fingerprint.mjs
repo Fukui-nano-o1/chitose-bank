@@ -40,6 +40,10 @@ const FILES = [
   "src/components/TodayPage.jsx",
   "src/features/today/todayApi.js",
   "src/features/today/components/StagePanels.jsx",
+  // 農家のお仕事タブ（Phase 5・2026-08-18）。求人の仕分け・応募者の絞り込み・書き込みRPCだけを固定する
+  "src/components/FarmerDashboard.jsx",
+  "src/features/farmer/dashboard/farmerDashboardApi.js",
+  "src/features/farmer/dashboard/model.js",
 ];
 
 const read = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : null);
@@ -315,6 +319,49 @@ function collect() {
       //   均すのは前置きだけ＝p_id と p_approve の【取り違え】は今までどおり差分に出る。
       for (const m of src.matchAll(/decide_time_correction", \{ ([^}]*) \}/g))
         add("today:correction", flat(m[1]).replace(/\b[A-Za-z_$][\w$]*\.(\w+)/g, "$1"));
+    }
+
+    // ⑫ 農家のお仕事タブ（2026-08-18・Phase 5で追加・最低限）。
+    // ここで固定するのは【壊れても画面が正常に見えるまま結果だけ変わる】境界だけ：
+    //   ・求人がどのタブに入るか（作成中／公開中／期限切れ）
+    //   ・応募者の絞り込みの作り方
+    //   ・書き込みRPCの引数（承認と見送りは同じRPCで真偽だけが違う＝取り違えが最も怖い）
+    //   ・働き手の情報の入手経路（承認済み列だけ返すRPC窓口を通っているか＝2026-08-07のプラポリ修理の回帰防止）
+    //   ・また呼びたい名簿の絞り込み（farmer_id と worker_id の両方＝2026-07-16労働局回答③の範囲限定）
+    if (/FarmerDashboard\.jsx$|farmer\/dashboard\/.*\.jsx?$/.test(f)) {
+      for (const m of src.matchAll(/set(DbDrafts|DbActive|DbExpired)\(([\s\S]*?)\);\n/g))
+        add("farmer:jobBucket", `${m[1]} = ${flat(m[2])}`);
+      const af = src.match(/const APP_FILTERS = \[[\s\S]*?\n  \];/);
+      if (af) add("farmer:appFilter", flat(af[0]));
+      // 書き込みRPC：引数の【名前と並び】＋【直値】。
+      // data:rpcArg は名前しか見ないので p_approve の true/false の取り違えを拾えない。ここが本命
+      // （承認と見送りは同じ approve_application で真偽だけが違う）。
+      // 変数式は名前を書かない＝窓口へ通して仮引数名が変わっても鳴らない（構造移動で鳴らせない）。
+      for (const m of src.matchAll(/\.rpc\(\s*["'`](\w+)["'`]\s*,\s*\{([^}]*)\}/g)) {
+        const args = flat(m[2]).split(",").map(x => x.trim()).filter(Boolean).map(x => {
+          const kv = x.match(/^(p_\w+)\s*:\s*(.*)$/); if (!kv) return x;
+          const lit = /^(true|false|null|-?\d+(\.\d+)?|["'`].*["'`])$/.test(kv[2].trim());
+          return lit ? `${kv[1]}=${kv[2].trim()}` : kv[1];
+        });
+        add("farmer:rpcArg", `${m[1]}(${args.join(", ")})`);
+      }
+      // 働き手の情報を触る経路。生の worker_profiles を直に select したら差分に出る
+      for (const m of src.matchAll(/(?:\.rpc\(\s*["'`](worker_\w+)["'`]|\.from\(\s*["'`](worker_profiles)["'`])/g))
+        add("farmer:workerWindow", m[1] || `from:${m[2]}`);
+      // ★行コメントを先に落とす：コメント中の「repeat_roster」の語が連鎖の起点になってしまい、
+      //   本物の問い合わせ（Promise.all の中の select）を丸ごと飲み込んで取りこぼしていた
+      const noCom = src.replace(/(^|[^:])\/\/.*$/gm, "$1");
+      for (const c0 of joinCalls(noCom, "repeat_roster")) {
+        // 行またぎの連鎖を1本につないだ結果には、Promise.all の隣の問い合わせまで入ってくる。
+        // repeat_roster から次の supabase. までを切り出す＝窓口へ1本ずつ分けても形が変わらない
+        let c = c0.slice(c0.indexOf("repeat_roster"));
+        const nx = c.indexOf("supabase."); if (nx > 0) c = c.slice(0, nx);
+        const ops = [];
+        for (const m of c.matchAll(/\.(upsert|delete|select|insert|update)\(/g)) ops.push(m[1]);
+        for (const m of c.matchAll(/\.eq\(\s*["'`](\w+)["'`]/g)) ops.push(`eq:${m[1]}`);
+        for (const m of c.matchAll(/onConflict:\s*["'`]([^"'`]+)["'`]/g)) ops.push(`onConflict:${m[1]}`);
+        if (ops.length) add("farmer:roster", ops.sort().join(" | "));
+      }
     }
 
     // ⑨ キャッシュのキー（表示専用・冷間復元の経路）

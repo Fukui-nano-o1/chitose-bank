@@ -37,7 +37,7 @@
   fetchSavedJobNumbers  x1
   fetchSignupOpen  x1
   fetchSurveyAnswered  x1
-  getSession  x4
+  getSession  x6
   insertJobReport  x1
   insertMessage  x1
   insertSavedJob  x1
@@ -117,7 +117,18 @@
   myAppStatus === "rejected" => { background:"#EBEBEB", color:"#717171" }  x1
 
 ## cache:key
-  farm:jobInfo  x2
+  farm:active  x2
+  farm:apps  x3
+  farm:drafts  x3
+  farm:empMini  x3
+  farm:empTrust  x2
+  farm:expired  x2
+  farm:hasEmergency  x2
+  farm:jobInfo  x4
+  farm:qUnanswered  x2
+  farm:roster  x2
+  farm:trust  x2
+  farm:wp  x2
   search:consignDeals  x2
   search:consignor  x2
   search:jobs  x4
@@ -132,11 +143,13 @@
   today:unset  x2
 
 ## cache:snap
+  empMini  x1
   wMini  x1
 
 ## data:filter
   eq:auth_id
   eq:farmer_id
+  eq:id
   eq:job_number
   eq:status
   eq:worker_id
@@ -149,6 +162,8 @@
   getSession
   insert
   maybeSingle
+  update
+  upsert
 
 ## data:order
   order:created_at:asc=false
@@ -162,10 +177,19 @@
   from:applications | eq:worker_id | select:id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at
   from:applications | select:id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected
   from:attendance_corrections | eq:status | neq:requested_by | order:created_at:asc=false | select:id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)
+  from:attendance_events | insert
   from:consignment_profiles | eq:auth_id | maybeSingle | select:consignment_terms_consent,consignment_terms_consent_version
   from:emergency_contacts | eq:auth_id | maybeSingle | select:auth_id
   from:employer_profiles | eq:auth_id | maybeSingle | select:auth_id,
+  from:employer_profiles | rpc:employer_trust_info | eq:auth_id | maybeSingle | p_farmer_id | select:*
+  from:employer_profiles | upsert
+  from:farmer_question_sets | delete | eq:farmer_id | eq:id
+  from:farmer_question_sets | eq:farmer_id | eq:id | update
+  from:farmer_question_sets | insert
   from:job_reports | insert
+  from:jobs | delete | eq:farmer_id | eq:job_number
+  from:jobs | eq:farmer_id | eq:job_number | maybeSingle | select:crop,task
+  from:jobs | eq:farmer_id | eq:job_number | maybeSingle | select:crop,task,date_start,work_time
   from:jobs | eq:farmer_id | select:job_number
   from:jobs_public | eq:job_number | maybeSingle | select:*
   from:jobs_public | order:job_number:asc=false | select:*
@@ -173,6 +197,9 @@
   from:messages | insert
   from:pending_applications | eq:job_number | eq:worker_id | maybeSingle | select:id
   from:pending_applications | eq:worker_id | select:job_number
+  from:repeat_roster | delete | eq:farmer_id | eq:worker_id
+  from:repeat_roster | eq:farmer_id | order:created_at:asc=false | select:worker_id,created_at
+  from:repeat_roster | upsert
   from:saved_jobs | delete | eq:job_number | eq:worker_id
   from:saved_jobs | eq:worker_id | select:job_number
   from:saved_jobs | insert
@@ -181,7 +208,9 @@
   from:worker_profiles | eq:auth_id | maybeSingle | select:auth_id,
   from:worker_profiles | eq:auth_id | maybeSingle | select:nickname,avatar_url
   rpc:apply_to_job | p_available_dates | p_job_number
+  rpc:approve_application | p_application_id | p_approve
   rpc:cancel_application | p_application_id
+  rpc:complete_work | p_application_id | p_attended
   rpc:confirm_terms | p_accept_double_booking | p_application_id
   rpc:copy_job | p_job_number
   rpc:create_pending_application | p_available_dates | p_job
@@ -191,40 +220,71 @@
   rpc:get_my_calendar_jobs
   rpc:job_employer_profile | p_job_number
   rpc:job_employer_trust_info | p_job_number
+  rpc:my_farm_applicants
   rpc:my_farm_jobs
   rpc:my_todo_items
   rpc:pending_job_previews
   rpc:punch_start | p_application_id
+  rpc:send_interview_questions | p_application_id | p_set_id
+  rpc:set_agreed_dates | p_application_id | p_dates
+  rpc:set_application_followup | p_application_id | p_kind
   rpc:signup_open
+  rpc:submit_farmer_review | p_application_id | p_entrust | p_favorite | p_private_memo | p_public_comment | p_want_again
   rpc:unpublish_job | p_job_number
+  rpc:worker_cards_for_farmer | p_worker_ids
+  rpc:worker_profile_for_farmer | p_worker_id
+  rpc:worker_trust_info | p_worker_id
 
 ## data:rpc
   rpc:apply_to_job
+  rpc:approve_application
   rpc:cancel_application
+  rpc:complete_work
   rpc:confirm_terms
   rpc:copy_job
   rpc:create_pending_application
   rpc:decide_time_correction
   rpc:employer_public_job_counts
   rpc:employer_public_jobs
+  rpc:employer_trust_info
   rpc:get_my_calendar_jobs
   rpc:job_employer_profile
   rpc:job_employer_trust_info
+  rpc:my_farm_applicants
   rpc:my_farm_jobs
   rpc:my_todo_items
   rpc:pending_job_previews
   rpc:punch_start
+  rpc:send_interview_questions
+  rpc:set_agreed_dates
+  rpc:set_application_followup
   rpc:signup_open
+  rpc:submit_farmer_review
   rpc:unpublish_job
+  rpc:worker_cards_for_farmer
+  rpc:worker_profile_for_farmer
+  rpc:worker_trust_info
 
 ## data:rpcArg
   p_accept_double_booking
   p_application_id
   p_approve
+  p_attended
   p_available_dates
+  p_dates
+  p_entrust
+  p_farmer_id
+  p_favorite
   p_id
   p_job
   p_job_number
+  p_kind
+  p_private_memo
+  p_public_comment
+  p_set_id
+  p_want_again
+  p_worker_id
+  p_worker_ids
 
 ## data:select
   select:*
@@ -232,6 +292,8 @@
   select:auth_id
   select:auth_id,
   select:consignment_terms_consent,consignment_terms_consent_version
+  select:crop,task
+  select:crop,task,date_start,work_time
   select:id
   select:id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)
   select:id,job_number,status,started_at,time_corrected
@@ -240,31 +302,35 @@
   select:id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at
   select:job_number
   select:nickname,avatar_url
+  select:worker_id,created_at
 
 ## data:table
   from:account_holders
   from:applications
   from:attendance_corrections
+  from:attendance_events
   from:consignment_profiles
   from:emergency_contacts
   from:employer_profiles
+  from:farmer_question_sets
   from:job_reports
   from:jobs
   from:jobs_public
   from:messages
   from:pending_applications
+  from:repeat_roster
   from:saved_jobs
   from:user_onboarding_survey
   from:worker_profiles
 
 ## event:dom
-  add:hashchange  x2
+  add:hashchange  x3
   add:popstate  x1
   add:touchcancel  x2
   add:touchend  x2
   add:touchmove  x2
   add:touchstart  x2
-  remove:hashchange  x2
+  remove:hashchange  x3
   remove:popstate  x1
   remove:touchcancel  x2
   remove:touchend  x2
@@ -274,6 +340,42 @@
 ## event:passive
   passive:false  x3
   passive:true  x6
+
+## farmer:appFilter
+  const APP_FILTERS = [ { k:"all", l:"すべて", match: () => true }, ...APP_FILTER_KEYS.filter(k => k !== "all").map(k => ({ k, l: APP_PHASE_LABEL[k], match: (s, a) => appPhaseKey(a) === k })), ];  x1
+
+## farmer:jobBucket
+  DbActive = allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j))  x1
+  DbActive = prev => prev.filter(d => d.job_number !== num)  x1
+  DbActive = prev => prev.map(d => d.job_number === num ? { ...d, status: "draft" } : d)  x1
+  DbDrafts = allJobs.filter(j => (isJobDraft(j) || (j.status === "pending" && !isPast(j))))  x1
+  DbDrafts = prev => prev.filter(d => d.job_number !== num)  x1
+  DbExpired = allJobs.filter(isPast)  x1
+
+## farmer:roster
+  delete | eq:farmer_id | eq:worker_id  x2
+  eq:farmer_id | select  x1
+  onConflict:farmer_id,worker_id | upsert  x1
+
+## farmer:rpcArg
+  approve_application(p_application_id, p_approve=false)  x1
+  approve_application(p_application_id, p_approve=true)  x1
+  complete_work(p_application_id, p_attended=false)  x1
+  copy_job(p_job_number)  x1
+  employer_trust_info(p_farmer_id)  x1
+  send_interview_questions(p_application_id, p_set_id)  x1
+  set_agreed_dates(p_application_id, p_dates)  x1
+  set_application_followup(p_application_id, p_kind)  x1
+  submit_farmer_review(p_application_id, p_want_again, p_entrust, p_public_comment, p_private_memo, p_favorite)  x1
+  unpublish_job(p_job_number)  x1
+  worker_cards_for_farmer(p_worker_ids)  x1
+  worker_profile_for_farmer(p_worker_id)  x1
+  worker_trust_info(p_worker_id)  x1
+
+## farmer:workerWindow
+  worker_cards_for_farmer  x1
+  worker_profile_for_farmer  x1
+  worker_trust_info  x1
 
 ## map:addTo
   addTo(map)  x3
@@ -333,7 +435,7 @@
   showConsignLane = canSeeConsignment(me, consignor)  x1
 
 ## role:isAdmin
-  isAdmin(me)  x3
+  isAdmin(me)  x4
 
 ## role:visitor
   visitor=!me  x1
@@ -368,8 +470,14 @@
 
 ## rule:statusCompare
   closed  x2
+  completed  x7
   done  x1
-  working  x2
+  draft  x11
+  expired  x2
+  open  x10
+  pending  x3
+  rejected  x1
+  working  x3
 
 ## today:catalog
   const TODO_STAGE_CATALOG = { farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "confirm_start", "complete"], worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_review"], };  x1
@@ -414,23 +522,32 @@
   #/search  x1
   #/work/job/  x2
   /account  x2
+  /admin/consignment  x1
   /admin/consignment/deal/  x1
   /apply/done  x2
   /apply/pending  x2
   /calendar  x1
   /calendar/todo/  x2
-  /chat/  x4
+  /calendar/todo/hire  x1
+  /chat/  x7
   /emergency/  x1
+  /insurance  x1
   /profile/employer  x1
+  /profile/employer/active  x1
   /profile/employer/applicants  x1
+  /profile/employer/drafts  x1
+  /profile/employer/profile  x1
   /saved  x1
   /search  x1
-  /work/edit/  x1
-  /work/job/  x6
+  /work/edit/  x2
+  /work/job/  x7
 
 ## url:local
   cb_celebratedApps  x2
+  cb_empTopBack  x2
+  cb_insCardBack  x2
   cb_likeBoxShown  x2
+  cb_qCardBack  x2
   cb_searchFilters  x2
   cb_seenNewJobs  x2
   cb_todayMemo  x2
@@ -440,14 +557,20 @@
 
 ## url:session
   (不明)  x1
-  cb_appFilter  x3
+  cb_afterDraftSave  x3
+  cb_agreeAppId  x2
+  cb_appFilter  x5
+  cb_appFilterCur  x2
   cb_applyAlready  x2
   cb_applyVisual  x1
-  cb_editJobPrefill  x1
+  cb_completeAppId  x2
+  cb_editJobPrefill  x2
+  cb_emergencyAppId  x2
   cb_fillProfile  x1
-  cb_jobBackTo  x10
-  cb_openApplicantId  x1
-  cb_openCalendar  x1
+  cb_insFromApp  x1
+  cb_jobBackTo  x11
+  cb_openApplicantId  x3
+  cb_openCalendar  x3
   cb_openQSet  x1
   cb_pendingNew  x1
 
