@@ -6,6 +6,7 @@ import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK
   CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
+import { closeReadNotifications } from "../lib/push";
 import { chatCache, hydrateChatCache } from "../lib/chatCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
@@ -153,6 +154,9 @@ export function ChatView({ applicationId, onBack }) {
             await supabase.from("messages").update({ read_at: new Date().toISOString() })
               .in("application_id", scope).neq("sender_id", session.user.id).is("read_at", null);
             window.dispatchEvent(new Event("cb:unreadRefresh"));
+            // 読んだら、そのスレッドの通知も消す（2026-08-18たきと指示「LINEと同じ設計を」）。
+            // 通知はtagがスレッドごとso、この応募の分だけが消えて他のチャットの通知は残る
+            closeReadNotifications(scope.map(id => "cb-chat-" + id));
           }
           // 一覧キャッシュの未読も即クリア（既読化と同時＝一覧に戻った時に未読が一瞬残らない・2026-07-22）
           if (chatCache.v && chatCache.v.unreadMap) {

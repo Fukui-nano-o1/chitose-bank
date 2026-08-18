@@ -137,7 +137,7 @@ import { CSS } from "./appStyles";
 import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/VisitAndInsurance";
 import { WorkerExperiencePage } from "./components/WorkerExperiencePage";
 
-import { syncAppBadge } from "./lib/push";
+import { syncAppBadge, closeReadNotifications } from "./lib/push";
 import { peekApplyReturn } from "./lib/applyReturn";
 import { armLoginReturn, takeLoginReturn } from "./lib/loginReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
@@ -1000,7 +1000,14 @@ export default function App(){
     const refresh = async () => {
       try {
         const { data } = await supabase.rpc("my_unread_message_counts");
-        if (data) setChatUnread((data.chat || 0) + (data.dm || 0));
+        if (data) {
+          const total = (data.chat || 0) + (data.dm || 0);
+          setChatUnread(total);
+          // 未読が0＝もう読んだ、なので残っている通知を消す（2026-08-18・LINEと同じ設計）。
+          // 別の端末で読んだ場合の後始末はここが担う（この端末がアプリを開いた時に消える）。
+          // ★初期値の0では消さない＝実際に数えた結果が0の時だけ（起動直後に本物の通知を消さない）
+          if (total === 0) closeReadNotifications();
+        }
       } catch {}
     };
     // 新着でアプリ内トースト表示。2026-08-18たきと裁定で「誰から・どんな内容か」を出す形に変更

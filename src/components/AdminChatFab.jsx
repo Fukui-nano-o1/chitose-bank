@@ -4,6 +4,7 @@
 // ポップアップ・リアルタイム・復帰時再取得）は2026-07-16〜の実装をそのまま移設。
 // raised: 応募者ページ用＝絞り込みバー(.cb-applicant-filter-bar)の真上に浮かせる（モバイルのみ・CSS側）
 import { useState, useEffect, useRef } from "react";
+import { closeReadNotifications } from "../lib/push";
 import { supabase } from "../lib/supabase";
 import { fmtJstShort } from "../lib/utils";
 import { LinkifiedText } from "./ui";
@@ -30,6 +31,7 @@ export function AdminChatFab({ raised }) {
         await supabase.from("admin_messages").update({ read_at: new Date().toISOString() }).eq("user_id", session.user.id).eq("from_admin", true).is("read_at", null);
         setDmUnread(0);
         window.dispatchEvent(new Event("cb:unreadRefresh"));
+        closeReadNotifications(["cb-dm"]); // 読んだら運営DMの通知も消す（2026-08-18・LINEと同じ設計）
       }
     } catch {}
   };

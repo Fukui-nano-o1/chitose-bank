@@ -50,6 +50,27 @@ const swReady = (ms) => Promise.race([
   navigator.serviceWorker.ready,
   new Promise(resolve => setTimeout(() => resolve(null), ms)),
 ]);
+// 既読になった通知を消す（2026-08-18たきと指示「LINEと同じ設計を」）。
+// 通知は tag（cb-chat-<応募ID> / cb-dm）で1スレッド1件so、tagを指定すればそのスレッドの分だけ消える。
+// tags を省略すると自分の通知を全部消す（未読が0になった時に使う）。
+// ★消せるのは【この端末に出ている通知】だけ。別の端末で読んでも、そちらの通知はその端末が
+//   アプリを開いた時（未読0を確認した時）に消える。iOSのWeb Pushは userVisibleOnly＝
+//   「通知を出さないプッシュ」を送れないため、読んだ瞬間に他の端末の通知を消すことはできない。
+export const closeReadNotifications = async (tags) => {
+  try {
+    if (!("serviceWorker" in navigator)) return;
+    const reg = await swReady(3000);
+    if (!reg || typeof reg.getNotifications !== "function") return;
+    const list = await reg.getNotifications();
+    for (const n of list) {
+      const t = n.tag || "";
+      if (!t.startsWith("cb-chat") && t !== "cb-dm") continue; // 自分の出した通知だけ触る
+      if (Array.isArray(tags) && !tags.includes(t)) continue;
+      n.close();
+    }
+  } catch { /* 非対応環境では何もしない */ }
+};
+
 // 既存の購読that今の鍵で作られたものか。options.applicationServerKey を出さない環境では判定せず true 扱い
 const sameServerKey = (sub, key) => {
   try {
