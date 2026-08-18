@@ -36,6 +36,10 @@ const FILES = [
   "src/features/jobs/search/components/ApplyPanel.jsx",
   "src/features/jobs/search/searchJobs.js",
   "src/features/jobs/search/jobSearchApi.js",
+  // 今日ページ（Phase 4-B・2026-08-18）。検索とは別の面だが、同じ道具で最低限だけ固定する
+  "src/components/TodayPage.jsx",
+  "src/features/today/todayApi.js",
+  "src/features/today/components/StagePanels.jsx",
 ];
 
 const read = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : null);
@@ -288,6 +292,25 @@ function collect() {
       // 面の番号は【使用】＝応募UIを持つどのファイルでも数える（分割で確認ボックスが移っても総数が保たれる）
       for (const m of src.matchAll(/applyConfirmStep === (\d+)/g)) add("apply:step", `step===${m[1]}`);
       for (const m of src.matchAll(/setApplyConfirmStep\(([^)]*)\)/g)) add("apply:step", `setStep(${flat(m[1])})`);
+    }
+
+    // ⑪ 今日ページの用件と作業の状態（2026-08-18・4-Bで追加・最低限）
+    // 「やること」は記録から導出する（表示用の別状態を持たない）＝導出の規則が変わると
+    // 出る用件そのものが変わる。ここは用件の一覧・段階の綴り・実行するRPC・
+    // 作業の進み（開始前／開始済み／終了／打刻修正）を読む列だけを固定する。
+    if (/TodayPage\.jsx$|today\/.*\.jsx?$/.test(f)) {
+      // 用件の綴りと、それぞれが叩くRPC（取り違えると別の用件が実行される）
+      for (const m of src.matchAll(/^\s{4}(\w+):\s*\{ icon:"[^"]*", title:"([^"]*)"/gm)) add("today:todo", `${m[1]} = ${m[2]}`);
+      for (const m of src.matchAll(/rpc:"(\w+)"/g)) add("today:todoRpc", m[1]);
+      // 役割ごとに出る用件の並び（catalog）
+      const cat = src.match(/const TODO_STAGE_CATALOG = \{[\s\S]*?\n  \};/);
+      if (cat) add("today:catalog", flat(cat[0]));
+      // 作業の進みを読む列（開始前／開始済み／終了／打刻修正の判定材料）
+      for (const m of src.matchAll(/select\("(id,started_at[^"]*|id,application_id,proposed[^"]*)"/g)) add("today:punchCols", m[1]);
+      for (const m of src.matchAll(/\b(started_at|farmer_confirmed_start_at|work_completed_at|worker_confirmed_end_at|started_declared|ended_declared|time_corrected)\b/g))
+        add("today:punchField", m[1]);
+      // 打刻修正の承認（当事者ゲートはDB側・ここは呼び方だけ）
+      for (const m of src.matchAll(/decide_time_correction", \{ ([^}]*) \}/g)) add("today:correction", flat(m[1]));
     }
 
     // ⑨ キャッシュのキー（表示専用・冷間復元の経路）

@@ -24,7 +24,7 @@
   fetchSavedJobNumbers  x1
   fetchSignupOpen  x1
   fetchSurveyAnswered  x1
-  getSession  x2
+  getSession  x4
   insertJobReport  x1
   insertSavedJob  x1
   insertSurvey  x1
@@ -102,6 +102,7 @@
   myAppStatus === "rejected" => { background:"#EBEBEB", color:"#717171" }  x1
 
 ## cache:key
+  farm:jobInfo  x2
   search:consignDeals  x2
   search:consignor  x2
   search:jobs  x4
@@ -109,6 +110,11 @@
   search:myJobNums  x3
   search:myPend  x3
   search:pendingPreviews  x2
+  today:entries  x3
+  today:hired  x2
+  today:roles  x3
+  today:todos  x2
+  today:unset  x2
 
 ## cache:snap
   wMini  x1
@@ -117,7 +123,10 @@
   eq:auth_id
   eq:farmer_id
   eq:job_number
+  eq:status
   eq:worker_id
+  in:application_id
+  neq:requested_by
   neq:status
 
 ## data:method
@@ -127,17 +136,26 @@
   maybeSingle
 
 ## data:order
+  order:created_at:asc=false
+  order:created_at:asc=true
   order:job_number:asc=false
 
 ## data:queryShape
   from:account_holders | eq:auth_id | maybeSingle | select:id
   from:applications | eq:job_number | eq:worker_id | maybeSingle | neq:status | select:id,status,started_at,time_corrected
   from:applications | eq:worker_id | neq:status | select:id,job_number,status,started_at,time_corrected
+  from:applications | eq:worker_id | select:id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at
+  from:applications | select:id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected
+  from:attendance_corrections | eq:status | neq:requested_by | order:created_at:asc=false | select:id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)
   from:consignment_profiles | eq:auth_id | maybeSingle | select:consignment_terms_consent,consignment_terms_consent_version
+  from:emergency_contacts | eq:auth_id | maybeSingle | select:auth_id
+  from:employer_profiles | eq:auth_id | maybeSingle | select:auth_id,
   from:job_reports | insert
   from:jobs | eq:farmer_id | select:job_number
   from:jobs_public | eq:job_number | maybeSingle | select:*
   from:jobs_public | order:job_number:asc=false | select:*
+  from:messages | in:application_id | order:created_at:asc=true | select:application_id,body,created_at
+  from:messages | insert
   from:pending_applications | eq:job_number | eq:worker_id | maybeSingle | select:id
   from:pending_applications | eq:worker_id | select:job_number
   from:saved_jobs | delete | eq:job_number | eq:worker_id
@@ -145,15 +163,21 @@
   from:saved_jobs | insert
   from:user_onboarding_survey | eq:auth_id | maybeSingle | select:auth_id
   from:user_onboarding_survey | insert
+  from:worker_profiles | eq:auth_id | maybeSingle | select:auth_id,
   from:worker_profiles | eq:auth_id | maybeSingle | select:nickname,avatar_url
   rpc:apply_to_job | p_available_dates | p_job_number
   rpc:cancel_application | p_application_id
+  rpc:confirm_terms | p_accept_double_booking | p_application_id
   rpc:copy_job | p_job_number
   rpc:create_pending_application | p_available_dates | p_job
+  rpc:decide_time_correction | p_approve | p_id
   rpc:employer_public_job_counts | p_job_number
   rpc:employer_public_jobs | p_job_number
+  rpc:get_my_calendar_jobs
   rpc:job_employer_profile | p_job_number
   rpc:job_employer_trust_info | p_job_number
+  rpc:my_farm_jobs
+  rpc:my_todo_items
   rpc:pending_job_previews
   rpc:punch_start | p_application_id
   rpc:signup_open
@@ -162,62 +186,79 @@
 ## data:rpc
   rpc:apply_to_job
   rpc:cancel_application
+  rpc:confirm_terms
   rpc:copy_job
   rpc:create_pending_application
+  rpc:decide_time_correction
   rpc:employer_public_job_counts
   rpc:employer_public_jobs
+  rpc:get_my_calendar_jobs
   rpc:job_employer_profile
   rpc:job_employer_trust_info
+  rpc:my_farm_jobs
+  rpc:my_todo_items
   rpc:pending_job_previews
   rpc:punch_start
   rpc:signup_open
   rpc:unpublish_job
 
 ## data:rpcArg
+  p_accept_double_booking
   p_application_id
+  p_approve
   p_available_dates
+  p_id
   p_job
   p_job_number
 
 ## data:select
   select:*
+  select:application_id,body,created_at
   select:auth_id
+  select:auth_id,
   select:consignment_terms_consent,consignment_terms_consent_version
   select:id
+  select:id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)
   select:id,job_number,status,started_at,time_corrected
+  select:id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected
   select:id,status,started_at,time_corrected
+  select:id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at
   select:job_number
   select:nickname,avatar_url
 
 ## data:table
   from:account_holders
   from:applications
+  from:attendance_corrections
   from:consignment_profiles
+  from:emergency_contacts
+  from:employer_profiles
   from:job_reports
   from:jobs
   from:jobs_public
+  from:messages
   from:pending_applications
   from:saved_jobs
   from:user_onboarding_survey
   from:worker_profiles
 
 ## event:dom
-  add:hashchange  x1
+  add:hashchange  x2
   add:popstate  x1
-  add:touchcancel  x1
-  add:touchend  x1
-  add:touchmove  x1
-  add:touchstart  x1
-  remove:hashchange  x1
+  add:touchcancel  x2
+  add:touchend  x2
+  add:touchmove  x2
+  add:touchstart  x2
+  remove:hashchange  x2
   remove:popstate  x1
-  remove:touchcancel  x1
-  remove:touchend  x1
-  remove:touchmove  x1
-  remove:touchstart  x1
+  remove:touchcancel  x2
+  remove:touchend  x2
+  remove:touchmove  x2
+  remove:touchstart  x2
 
 ## event:passive
-  passive:false  x1
-  passive:true  x3
+  passive:false  x3
+  passive:true  x6
 
 ## map:addTo
   addTo(map)  x3
@@ -303,6 +344,9 @@
   savedIds.has  x8
 
 ## rule:sort
+  (a, b) => (a.date_start || ""  x1
+  (a, b) => (a.work_time || ""  x1
+  (a, b) => (b.sort_key || ""  x1
   (a, b) => a - b  x1
   (a, b) => a.stars - b.stars  x1
   (a, b) => b.stars - a.stars  x1
@@ -310,7 +354,46 @@
 ## rule:statusCompare
   closed  x2
   done  x1
-  working  x1
+  working  x2
+
+## today:catalog
+  const TODO_STAGE_CATALOG = { farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "confirm_start", "complete"], worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_review"], };  x1
+
+## today:correction
+  p_id: c.id, p_approve: approve  x1
+
+## today:punchCols
+  id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)  x1
+  id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected  x1
+
+## today:punchField
+  ended_declared  x2
+  farmer_confirmed_start_at  x1
+  started_at  x1
+  started_declared  x3
+  time_corrected  x1
+  work_completed_at  x1
+  worker_confirmed_end_at  x1
+
+## today:todo
+  approve = 新着の応募  x1
+  complete = 完了して評価する  x1
+  confirm_start = 作業の開始を確認  x1
+  hire = 採用する  x1
+  insurance = 保険の準備の報告  x1
+  interview = 面接の質問を送る  x1
+  profile = プロフィールの未入力  x1
+  question = 求人への質問  x1
+  revision = 求人に修正のお願い  x1
+  t_card = カレンダー  x1
+  t_emergency = 緊急連絡  x1
+  w_interview = 面接の回答  x1
+  w_review = 終了を確認して評価  x1
+  w_revision = 求職に修正のお願い  x1
+
+## today:todoRpc
+  confirm_insurance  x1
+  confirm_start  x1
 
 ## url:hash
   #/search  x1
@@ -319,25 +402,38 @@
   /admin/consignment/deal/  x1
   /apply/done  x2
   /apply/pending  x2
-  /chat/  x1
+  /calendar  x1
+  /calendar/todo/  x2
+  /chat/  x4
+  /emergency/  x1
   /profile/employer  x1
   /profile/employer/applicants  x1
   /saved  x1
+  /search  x1
   /work/edit/  x1
+  /work/job/  x6
 
 ## url:local
+  cb_celebratedApps  x2
   cb_likeBoxShown  x2
   cb_searchFilters  x2
   cb_seenNewJobs  x2
+  cb_todayMemo  x2
 
 ## url:regex
   JOB_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance))?$/  x1
 
 ## url:session
+  (不明)  x1
+  cb_appFilter  x3
   cb_applyAlready  x2
   cb_applyVisual  x1
   cb_editJobPrefill  x1
-  cb_jobBackTo  x3
+  cb_fillProfile  x1
+  cb_jobBackTo  x10
+  cb_openApplicantId  x1
+  cb_openCalendar  x1
+  cb_openQSet  x1
   cb_pendingNew  x1
 
 # ── 採取時点のDB実測（静的解析では出ない値）─────────────────────────
