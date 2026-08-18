@@ -592,7 +592,9 @@ export function TodayPage({ me, defaultRole }) {
                 return (
                   <button onClick={() => { window.location.hash = "/calendar/todo/" + nowStage; }}
                     className="f-sans cb-now-pulse"
-                    style={{ width:"100%", display:"flex", alignItems:"center", gap:16, background:"#fff", border:"3px solid " + accent, borderRadius:20, padding:"20px 18px", marginBottom:12, cursor:"pointer", textAlign:"left" }}>
+                    /* 幅と左右の余白は .cb-now-pulse が持つ（拡大ぶんの余白を確保するため。
+                       ここで width:100% を書くとインラインが勝って余白が消え、脈動で縁が切れる） */
+                    style={{ display:"flex", alignItems:"center", gap:16, background:"#fff", border:"3px solid " + accent, borderRadius:20, padding:"20px 18px", marginBottom:12, cursor:"pointer", textAlign:"left" }}>
                     <span style={{ fontSize:44, lineHeight:1, flexShrink:0 }}>{nm.icon}</span>
                     <span style={{ flex:1, minWidth:0 }}>
                       <span className="f-sans" style={{ display:"block", fontSize:12, fontWeight:800, color:accent, letterSpacing:".08em" }}>いま これだけ</span>

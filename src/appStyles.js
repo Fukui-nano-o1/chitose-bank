@@ -227,7 +227,17 @@ input:focus { outline: none; }
   0%,100% { transform: scale(1);     box-shadow: 0 2px 10px rgba(0,0,0,.08); }
   50%     { transform: scale(1.015); box-shadow: 0 8px 24px rgba(0,0,0,.16); }
 }
-.cb-now-pulse { animation: cbNowPulse 2.2s ease-in-out infinite; }
+/* 脈動で膨らむぶん(--cb-now-grow)を最初から左右の余白として確保する（2026-08-18たきと報告
+   「アップしたとき左右が見切れる」）。今日ページの根は役割の横スワイプのため overflow-x:hidden＝
+   はみ出した分は切り落とされるため、カードを幅いっぱいにすると拡大時に縁が削れる。
+   ★scaleの倍率を上げる時は --cb-now-grow も一緒に上げること（幅600pxで1.015倍＝左右各4.5px） */
+.cb-now-pulse {
+  --cb-now-grow: 6px;
+  width: calc(100% - var(--cb-now-grow) * 2);
+  margin-left: var(--cb-now-grow);
+  margin-right: var(--cb-now-grow);
+  animation: cbNowPulse 2.2s ease-in-out infinite;
+}
 .shake       { animation: shake .4s ease; }
 
 
