@@ -1033,16 +1033,24 @@ export default function App(){
     window.addEventListener("cb:criticalBootSettled", open);
     // ★逃げ道：さがす以外の画面に着地した起動ではJobSearchMapViewがマウントされず合図が来ない。
     //   その時にRealtimeが永久に始まらないことのないよう、暇になった時点（最長2秒）で開ける。
-    //   合図が先に来ればこちらは何もしない（openは冪等）
+    //   ★さがすが立ち上がる起動では予約しない（2026-08-18 C1.3）：予約すると、jobs_publicの完了より
+    //     先に逃げ道が開いてRealtimeが元の競合区間へ戻る＝この施策自体を打ち消す。
+    //   ★どのURLでさがすが立ち上がるかは既存ルーティング（readHashTab）を正とする。
+    //     work/job/… や apply/… はreadHashTabがsearchへ解決する。hash無し(null)も既定＝さがす
+    //     （664行の stillOnDefault と同じ判定）。ここでURL一覧を手書きしない
+    const t = readHashTab();
+    const searchWillMount = t === null || t === "search";
     let idleId = null, timerId = null;
-    if (typeof window.requestIdleCallback === "function") idleId = window.requestIdleCallback(open, { timeout: 2000 });
-    else timerId = window.setTimeout(open, 2000);
+    if (!searchWillMount) {
+      if (typeof window.requestIdleCallback === "function") idleId = window.requestIdleCallback(open, { timeout: 2000 });
+      else timerId = window.setTimeout(open, 2000);
+    }
     return () => {
       window.removeEventListener("cb:criticalBootSettled", open);
       if (idleId !== null && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleId);
       if (timerId !== null) window.clearTimeout(timerId);
     };
-  }, [realtimeBootReady]);
+  }, [realtimeBootReady]); // eslint-disable-line react-hooks/exhaustive-deps -- readHashTabは毎描画で作り直される。依存に入れると描画ごとに逃げ道を取り消して予約し直す
 
   // チャット未読通知（2026-07-17）：下部バー「チャット」に未読合計（当事者チャット＋運営DM）の赤バッジ。
   // 再計算のタイミング＝起動・ページ遷移(hashchange)・チャット/運営DMを開いて既読化した時(cb:unreadRefresh)
