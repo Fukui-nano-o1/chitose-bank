@@ -210,11 +210,12 @@ export function SavedJobsView({ me }) {
       if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
     }, 40);
   };
-  // 常時展開のカレンダー（2026-08-19たきと指示「展開がデフォルトで、非表示できないように」）。
-  // 読み込み中の画面にも同じものを出す＝この面に来れば必ず予定が見える。
-  // cb-cal-reveal は面を開いた時のヌルッとした登場（畳む側 cb-cal-closing はもう使わない）
+  // 常時展開のカレンダー（2026-08-19たきと指示「展開がデフォルトで、非表示できないように」
+  // →「アニメーションも削除。常に展開している状態」）。
+  // 開閉の仕掛けも登場アニメ（cb-cal-reveal）も持たない＝最初から開いた形でそこにあるだけ。
+  // 読み込み中の画面にも同じものを出す＝この面に来れば必ず予定が見える
   const calendarTop = (
-    <div className="cb-cal-reveal" style={{ marginBottom:14 }}><div><MyCalendar onDayTapJobs={onCalDayTap} /></div></div>
+    <div style={{ marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>
   );
   // ★取得の失敗を「0件」と断定しない（2026-08-17・たきと報告「アイコン→ボックス→求人タップ→閉じると
   //   ステータスページが空になる」の根治）。

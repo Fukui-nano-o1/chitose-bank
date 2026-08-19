@@ -364,7 +364,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     }
     return null;
   };
-  // 今日ページ「プロフィールの未入力」からの着地（2026-08-03たきと指示）：働き手側と同じ作法。
+  // 今日ページ「プロフィール入力」からの着地（2026-08-03たきと指示）：働き手側と同じ作法。
   // 最初の未入力ボックスをその場で開き、以後は保存のたびに次の未入力へ（既存の連鎖に乗る）。
   // 読み込み完了後に1回だけ判定する（読み込み前は全項目が空に見えるため）
   const fillGuideRef = useRef(false);

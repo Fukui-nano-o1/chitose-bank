@@ -95,11 +95,15 @@ input:focus { outline: none; }
 .cb-cal-reveal { animation: cbCalSweep .34s cubic-bezier(.22, .8, .36, 1) backwards; transform-origin: center center; }
 /* ②縦に開く部分（見出しより下の中身）。①が終わる0.34秒後から動き出す */
 @keyframes cbCalUnfold { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
-.cb-cal-body-wrap { display: grid; grid-template-rows: 1fr; animation: cbCalUnfold .42s cubic-bezier(.22, .8, .36, 1) .34s backwards; }
+/* ★中身の“開く”アニメは .cb-cal-reveal（開閉式の親）の中だけ（2026-08-19たきと指示
+   「アニメーションも削除。常に展開している状態」）＝素で置いたカレンダー（ステータスページ）は
+   最初から開いた形で、動かずにそこにある。レイアウト（grid）は親に関係なく効かせる */
+.cb-cal-body-wrap { display: grid; grid-template-rows: 1fr; }
+.cb-cal-reveal .cb-cal-body-wrap { animation: cbCalUnfold .42s cubic-bezier(.22, .8, .36, 1) .34s backwards; }
 .cb-cal-body-wrap > * { min-height: 0; overflow: hidden; }
 /* 見出しの文字は帯が伸びる間に薄く入る（帯だけが先に見える） */
 @keyframes cbCalHead { from { opacity: 0; } to { opacity: 1; } }
-.cb-cal-head { animation: cbCalHead .3s ease .1s both; }
+.cb-cal-reveal .cb-cal-head { animation: cbCalHead .3s ease .1s both; }
 /* ── 閉じる時は開く時の逆順（2026-07-29たきと指示）：【①縦に畳む →（畳み切ってから）②横に縮む】。
    .cb-cal-closing が付いている間だけ有効。付け外しは各ページ（応募者・ステータス）が
    「畳むアニメが終わってから要素を外す」形で面倒を見る（外すのが早いとアニメが見えない） ── */
@@ -110,7 +114,7 @@ input:focus { outline: none; }
 /* ②畳み切った0.34秒後に、残った〈○○年○○月〉の帯が中央へ縮む */
 .cb-cal-reveal.cb-cal-closing { animation: cbCalShrink .3s cubic-bezier(.4, 0, .7, .2) .34s both; }
 @media (prefers-reduced-motion: reduce) {
-  .cb-cal-reveal, .cb-cal-head, .cb-cal-body-wrap,
+  .cb-cal-reveal, .cb-cal-reveal .cb-cal-head, .cb-cal-reveal .cb-cal-body-wrap,
   .cb-cal-reveal.cb-cal-closing, .cb-cal-reveal.cb-cal-closing .cb-cal-body-wrap { animation: none; }
 }
 /* 進み具合バーの現在地「仕事」の目印（2026-08-18たきと指示「仕事のところだけ、アップダウンに点滅を追加」）：

@@ -540,7 +540,8 @@ const STEPS = [
         </Card>
         <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:SUB, margin:"0 0 8px" }}>やること</p>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-          {[["📨","新着の応募",1],["❓","面接の質問を送る"],["🤝","採用する"],["🛡","保険の準備の報告",1],["✓","作業の開始を確認",1],["✅","完了して評価する"],["⚠️","緊急連絡"],["📅","カレンダー"],["👤","プロフィールの未入力",1]].map(([e, l, n]) => (
+          {/* 実物に追従（2026-08-19）：📅カレンダーの箱は削除／👤は「プロフィール入力」に改称し常設 */}
+          {[["👤","プロフィール入力",1],["📨","新着の応募",1],["❓","面接の質問を送る"],["🤝","採用する"],["🛡","保険の準備の報告",1],["✓","作業の開始を確認",1],["✅","完了して評価する"],["⚠️","緊急連絡"]].map(([e, l, n]) => (
             <div key={l} style={{ position:"relative", border:`1px solid ${LINE}`, borderRadius:16, padding:"16px 6px 12px", textAlign:"center", background:"#fff", opacity: n ? 1 : 0.45 }}>
               <div style={{ fontSize:22 }}>{e}</div>
               <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:INK, margin:"6px 0 0", lineHeight:1.4 }}>{l}</p>
