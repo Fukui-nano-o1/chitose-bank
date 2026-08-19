@@ -530,6 +530,8 @@ export default function App(){
   const [openAccountForm,setOpenAccountForm]=useState(() => isAccountHash());
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
+  // 求人フローの「戻る」（保存せずに終了）の行き先＝フローに入る直前の画面。onHashで控える（下記）
+  const flowBackToRef = useRef("/profile/employer");
   const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/consignment"); } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19。/profile 等のサブページ含む）
   const [workingRoom,setWorkingRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/working"); } catch { return false; } }); // 仕事中専用ページ（#/admin/working・管理者専用・2026-08-01）
   const [upcomingRoom,setUpcomingRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/upcoming"); } catch { return false; } }); // まもなく開始ページ（#/admin/upcoming・管理者専用・2026-08-01）
@@ -624,6 +626,10 @@ export default function App(){
       // 更新し、共通タブ（カレンダー/チャット等）へ移っても保持（sticky・localStorage永続）。下部ナビの役割追従もこれを見る
       if (rawHash.startsWith("profile/employer")) { setEmpCtx(true); try { localStorage.setItem("cb_empCtx","1"); } catch {} }
       else if (rawHash === "profile" || rawHash.startsWith("profile/worker")) { setEmpCtx(false); try { localStorage.setItem("cb_empCtx","0"); } catch {} }
+      // 求人フローを閉じた時の戻り先（2026-08-19たきと指示「前回の画面に保存せずに強制遷移」）。
+      // フロー以外のハッシュを通るたびに控える＝フローに入る直前に見ていた画面。
+      // 直リンク・リロードでフローから始まった場合は控えがないので既定（雇い手プロフィール）に倒す
+      if (rawHash && !rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) flowBackToRef.current = "/" + rawHash;
       if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
       if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
       setShowApplyDone(rawHash === "apply/done");
@@ -2141,7 +2147,8 @@ export default function App(){
           initialRole="farmer"
           onPublished={(wasOpen, jobNumber)=>{ setShowJobPost(false); window.location.hash="/profile/employer"; setPubCelebrate({ open: !!wasOpen, jobNumber: jobNumber || null }); setPubIdle(true); }}
           onComplete={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
-          onSkip={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
+          // 「戻る」（保存せずに終了）＝入る直前の画面へ強制遷移（2026-08-19たきと指示）
+          onSkip={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
           onStepChange={(s)=>{ if(window.location.hash.replace(/^#\/?/,"").startsWith("work/new")) window.location.hash="/work/new/"+s; }}
           initialStep={(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^work\/new\/(\d+)$/); return m?parseInt(m[1],10):undefined; })()}

@@ -1029,12 +1029,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             <h3 className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", marginBottom:20, textAlign:"center" }}>作成を終了しますか？</h3>
             <div style={{ display:"grid", gap:10 }}>
               <button onClick={() => { setShowExitModal(false); handleTopSave({ exit: true }); }} disabled={draftSaving} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12 }}>保存して終了</button>
+              {/* 「戻る」＝保存せずに、フローに入る直前の画面へ強制遷移（2026-08-19たきと指示）。
+                  行き先は親（App）が控えている入口の画面なので、ここでは hash を書かず onSkip に委ねる。
+                  onSkip を持たない呼び出し（devJump等）のためのフォールバックだけ残す */}
               <button onClick={() => {
                 try { localStorage.removeItem('landingFlowDraft_v1'); localStorage.removeItem('postLoginReturnTo'); } catch {}
                 setShowExitModal(false);
-                window.location.hash = "/profile/employer";
                 if (typeof onSkip === "function") onSkip();
-              }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12, background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer" }}>保存せずに終了</button>
+                else window.location.hash = "/profile/employer";
+              }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12, background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer" }}>戻る</button>
             </div>
           </div>
         </div>
