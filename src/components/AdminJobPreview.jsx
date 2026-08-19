@@ -518,13 +518,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor:"pointer", animation:"fadeIn .2s ease", padding:16,
         }}>
-          <button onClick={e => { e.stopPropagation(); setDangerLightbox(null); }} style={{
-            position:"absolute", top:20, right:20,
-            width:40, height:40, borderRadius:"50%",
-            background:"rgba(255,255,255,0.15)", border:"none",
-            color:"#fff", fontSize:22, cursor:"pointer",
-            display:"flex", alignItems:"center", justifyContent:"center",
-          }}>✕</button>
           <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
         </div>
       )}
@@ -533,7 +526,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
       {editTarget && createPortal(
         <div onClick={()=>setEditTarget(null)} style={{ position:"fixed", inset:0, zIndex:10050, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:420, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <button onClick={()=>setEditTarget(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#EA580C", margin:"0 0 4px" }}>この項目を指摘</p>
             <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 14px" }}>【{editTarget}】</p>
             <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>どう問題ですか？</p>

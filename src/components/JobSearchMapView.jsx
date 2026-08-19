@@ -977,7 +977,6 @@ export function JobSearchMapView({ onRegister, me }) {
       {pendingInfo && (
         <div onClick={()=>setPendingInfo(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
-            <button onClick={()=>setPendingInfo(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             <div style={{ fontSize:48, marginBottom:10 }}>🌱</div>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 16px" }}>まもなく公開されます</p>
             <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:"0 0 6px" }}>この求人は、公開の準備が整いしだい、ここに並びます。</p>
@@ -1168,8 +1167,7 @@ export function JobSearchMapView({ onRegister, me }) {
             <img onClick={e=>e.stopPropagation()} src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
               width={1000} height={750} style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1000 / 750", height:"auto", padding:"56px 0" }} />
           </div>
-          <button onClick={()=>setApplyImgZoom(false)} aria-label="閉じる" style={{ position:"absolute", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, width:44, height:44, borderRadius:"50%", background:"#fff", border:"none", fontSize:20, fontWeight:600, color:"#222", cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,0.4)", zIndex:2 }}>✕</button>
-          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体が見られます</p>
+          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体を見られます／余白をタップで閉じます</p>
         </div>
       )}
 
@@ -1249,13 +1247,6 @@ export function JobSearchMapView({ onRegister, me }) {
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor:"pointer", animation:"fadeIn .2s ease", padding:16,
         }}>
-          <button onClick={e => { e.stopPropagation(); setDangerLightbox(null); }} style={{
-            position:"absolute", top:20, right:20,
-            width:40, height:40, borderRadius:"50%",
-            background:"rgba(255,255,255,0.15)", border:"none",
-            color:"#fff", fontSize:22, cursor:"pointer",
-            display:"flex", alignItems:"center", justifyContent:"center",
-          }}>✕</button>
           <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
         </div>
       )}
@@ -1293,7 +1284,6 @@ export function JobSearchMapView({ onRegister, me }) {
               {pastJobsOpen && (
                 <div onClick={()=>setPastJobsOpen(false)} style={{ position:"fixed", inset:0, zIndex:10001, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
                   <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:20, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
-                    <button onClick={()=>setPastJobsOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                     <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>{empEmployer.nickname ? `${empEmployer.nickname}さんの求人` : "この農家の求人"}</h3>
                     {pastJobs === null ? (
                       <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>

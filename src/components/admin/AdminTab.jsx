@@ -348,7 +348,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
         <div onClick={()=>setDmUser(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-              <button onClick={()=>setDmUser(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
               <Avatar url={dmUser.avatar} name={dmUser.name} size={28} />
               <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>{dmUser.name} さんへのメッセージ</p>
             </div>
@@ -454,7 +453,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
         <div onClick={()=>setOtherBox(null)} style={{ position:"fixed", inset:0, zIndex:600, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-              <button onClick={()=>setOtherBox(null)} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
               <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>
                 {otherBox==="flow" ? "求人フロー" : "きっかけ"}
               </p>
@@ -561,7 +559,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                     下部バー・☰thが隠れるので、下端はバー前提でなくセーフエリア+10pxまで伸ばす */}
                 <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                    <button onClick={()=>{ setExpandedAccount(null); setEmailShown(null); }} aria-label="閉じる" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:14, cursor:"pointer", flexShrink:0 }}>✕</button>
                     <Avatar url={acctDisplay(u).avatar} name={acctDisplay(u).name} size={30} />
                     <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{acctDisplay(u).name || "—"}</p>
                   </div>
@@ -768,7 +765,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       {contractDetail && createPortal(
         <div onClick={()=>setContractDetail(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9600 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <button onClick={()=>setContractDetail(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 }}>✕</button>
             {(() => {
               const c = contractDetail; const s = c.snapshot || {};
               const title = [s.crop, s.task].filter(Boolean).join(" ") || `求人 #${c.job_number}`;

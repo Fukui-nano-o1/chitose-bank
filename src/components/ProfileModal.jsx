@@ -285,13 +285,6 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor:"pointer", animation:"fadeIn .2s ease",
         }}>
-          <button onClick={e => { e.stopPropagation(); setShowLightbox(false); }} style={{
-            position:"absolute", top:20, right:20,
-            width:40, height:40, borderRadius:"50%",
-            background:"rgba(255,255,255,0.15)", border:"none",
-            color:"#fff", fontSize:22, cursor:"pointer",
-            display:"flex", alignItems:"center", justifyContent:"center",
-          }}>✕</button>
           <img src={displayUrl} alt="avatar full" onClick={e => e.stopPropagation()}
             style={{ maxWidth:"90vw", maxHeight:"90vh", objectFit:"contain", borderRadius:4, cursor:"default" }} />
         </div>

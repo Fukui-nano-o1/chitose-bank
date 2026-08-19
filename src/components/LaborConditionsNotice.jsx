@@ -141,7 +141,6 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
       {listOpen && createPortal(
         <div onClick={(e) => { if (e.target === e.currentTarget) setListOpen(false); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000 }}>
           <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", position:"relative" }}>
-            <button onClick={() => setListOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1 }}>✕</button>
             {/* 見出し行ごと「？」の当たり判定にする（22pxだけだと外して黒幕に当たる・2026-08-18たきと報告）。
                 ✕（右上・36px）と重ならないよう右に48pxの余白を空ける。？は見た目の丸チップ＝入れ子のbuttonにしない */}
             <button type="button" onClick={(e) => { e.stopPropagation(); setInfoOpen(v => !v); }} aria-label="説明を見る" aria-expanded={infoOpen}

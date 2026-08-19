@@ -594,7 +594,6 @@ export function ChatView({ applicationId, onBack }) {
         return (
           <div onClick={()=>setConfirmBoxOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
             <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:18, padding:"20px", maxWidth:420, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-              <button onClick={()=>setConfirmBoxOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
               <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>はじめる前の確認</p>
               <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 14px" }}>{chatJobNumber != null ? `求人 #${chatJobNumber}　` : ""}{!done ? `${confirmStep + 1} / ${rows.length}` : "内容の確認"}</p>
               {!done ? (
@@ -705,7 +704,6 @@ export function ChatView({ applicationId, onBack }) {
       {reportTarget && (
         <div onClick={()=>{ if (!reportSending) { setReportTarget(null); if (reportDone) setReportMode(false); } }} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <button onClick={()=>{ setReportTarget(null); if (reportDone) setReportMode(false); }} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             {reportDone ? (
               <div style={{ textAlign:"center", padding:"16px 0" }}>
                 <div style={{ fontSize:40, marginBottom:12 }}>🚩</div>
@@ -734,7 +732,6 @@ export function ChatView({ applicationId, onBack }) {
       {jobBox && (
         <div onClick={()=>setJobBox(null)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <button onClick={()=>setJobBox(null)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2, boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>✕</button>
             {jobBox.loading ? (
               <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
             ) : jobBox.job ? (
@@ -859,7 +856,6 @@ export function ChatView({ applicationId, onBack }) {
               <>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
                   <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>定型文</p>
-                  <button onClick={()=>setTmplOpen(false)} aria-label="閉じる" style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer" }}>✕</button>
                 </div>
                 {phrasePanel}
               </>
@@ -872,7 +868,6 @@ export function ChatView({ applicationId, onBack }) {
                       <button key={t.k} onClick={()=>setTmplTab(t.k)} className="f-sans" style={{ background:"none", border:"none", cursor:"pointer", padding:"4px 2px 8px", fontSize:15, fontWeight: tmplTab===t.k ? 800 : 600, color: tmplTab===t.k ? "#00A86B" : "#999", borderBottom: tmplTab===t.k ? "2px solid #00A86B" : "2px solid transparent" }}>{t.l}</button>
                     ))}
                   </div>
-                  <button onClick={()=>setTmplOpen(false)} aria-label="閉じる" style={{ width:34, height:34, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer" }}>✕</button>
                 </div>
                 <div style={{ overflow:"hidden" }}
                   onTouchStart={e=>{ tmplSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}

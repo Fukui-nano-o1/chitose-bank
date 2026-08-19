@@ -326,13 +326,6 @@ export function JobDetailBody({ job, me, onBack }) {
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor:"pointer", animation:"fadeIn .2s ease", padding:16,
         }}>
-          <button onClick={e => { e.stopPropagation(); setDangerLightbox(null); }} style={{
-            position:"absolute", top:20, right:20,
-            width:40, height:40, borderRadius:"50%",
-            background:"rgba(255,255,255,0.15)", border:"none",
-            color:"#fff", fontSize:22, cursor:"pointer",
-            display:"flex", alignItems:"center", justifyContent:"center",
-          }}>✕</button>
           <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
         </div>
       )}
