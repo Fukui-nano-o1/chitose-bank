@@ -320,7 +320,7 @@ export function JobDetailBody({ job, me, onBack }) {
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
       {dangerLightbox && (
-        <div onClick={() => setDangerLightbox(null)} style={{
+        <div className="cb-lock-scroll" onClick={() => setDangerLightbox(null)} style={{
           position:"fixed", inset:0, zIndex:10000,
           background:"rgba(0,0,0,0.92)",
           display:"flex", alignItems:"center", justifyContent:"center",

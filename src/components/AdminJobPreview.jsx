@@ -512,7 +512,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
       {dangerLightbox && (
-        <div onClick={() => setDangerLightbox(null)} style={{
+        <div className="cb-lock-scroll" onClick={() => setDangerLightbox(null)} style={{
           position:"fixed", inset:0, zIndex:10000,
           background:"rgba(0,0,0,0.92)",
           display:"flex", alignItems:"center", justifyContent:"center",
@@ -524,7 +524,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
 
       {/* 指摘エディタ（2026-07-19）：項目の「指摘」タップで開く。何がどう問題かを選んで補足を書く */}
       {editTarget && createPortal(
-        <div onClick={()=>setEditTarget(null)} style={{ position:"fixed", inset:0, zIndex:10050, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+        <div className="cb-lock-scroll" onClick={()=>setEditTarget(null)} style={{ position:"fixed", inset:0, zIndex:10050, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:420, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#EA580C", margin:"0 0 4px" }}>この項目を指摘</p>
             <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 14px" }}>【{editTarget}】</p>
@@ -549,7 +549,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
 
       {/* 送信完了トースト（2026-07-19） */}
       {revSent && createPortal(
-        <div style={{ position:"fixed", inset:0, zIndex:10060, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10060, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
           <div className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"28px 24px", maxWidth:340, width:"100%", textAlign:"center" }}>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 6px" }}>修正依頼を送りました</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>農家にチャットとメールで届きます。求人は「作成中」に戻ります。</p>

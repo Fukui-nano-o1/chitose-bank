@@ -1017,7 +1017,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
       {/* 終了3択モーダル */}
       {showExitModal && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:28, maxWidth:360, width:"100%", boxShadow:"0 8px 40px rgba(0,0,0,0.15)" }}>
             <h3 className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", marginBottom:20, textAlign:"center" }}>作成を終了しますか？</h3>
             <div style={{ display:"grid", gap:10 }}>
@@ -1107,7 +1107,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {isFarmer && step === 3 && (<>
             {/* 農家プロの作業場所ボックス（未設定時に⎘から展開・2026-07-16）。保存＝農家プロ＋この画面の両方へ反映 */}
             {placeBoxOpen && (
-              <div onClick={()=>setPlaceBoxOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:700, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+              <div className="cb-lock-scroll" onClick={()=>setPlaceBoxOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:700, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
                 <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
                     <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>📍 作業場所（農家プロフィール）</p>
@@ -1998,7 +1998,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               {confIntroOpen && confEmployer && (() => {
                 const topics = farmIntroTopics(confEmployer);
                 return (
-                  <div onClick={() => setConfIntroOpen(false)} style={{
+                  <div className="cb-lock-scroll" onClick={() => setConfIntroOpen(false)} style={{
                     position:"fixed", inset:0, zIndex:10000,
                     background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none",
                   }}>

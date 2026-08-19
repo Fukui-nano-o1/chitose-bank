@@ -279,7 +279,7 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
 
       {/* ライトボックス */}
       {showLightbox && displayUrl && (
-        <div onClick={() => setShowLightbox(false)} style={{
+        <div className="cb-lock-scroll" onClick={() => setShowLightbox(false)} style={{
           position:"fixed", inset:0, zIndex:10000,
           background:"rgba(0,0,0,0.92)",
           display:"flex", alignItems:"center", justifyContent:"center",

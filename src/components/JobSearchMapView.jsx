@@ -1174,7 +1174,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* きっかけアンケート（初回いいね時・2026-07-24）：スキップ導線なし（10秒・一度きり・いいね限定のゲート）。
           応募・Q&A・チャットには絶対にゲートを置かない＝コア動作は永久に無料通行 */}
       {surveyJob && (
-        <div style={{ position:"fixed", inset:0, zIndex:10050, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10050, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
           <div className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"22px 20px", maxWidth:460, width:"100%", maxHeight:"88vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>はじめてのいいねの前に</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 18px", lineHeight:1.7 }}>10秒だけ教えてください。今後の運営の参考にします。</p>
@@ -1241,7 +1241,7 @@ export function JobSearchMapView({ onRegister, me }) {
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
       {dangerLightbox && (
-        <div onClick={() => setDangerLightbox(null)} style={{
+        <div className="cb-lock-scroll" onClick={() => setDangerLightbox(null)} style={{
           position:"fixed", inset:0, zIndex:10000,
           background:"rgba(0,0,0,0.92)",
           display:"flex", alignItems:"center", justifyContent:"center",
@@ -1255,7 +1255,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {farmIntroOpen && empEmployer && (() => {
         const topics = farmIntroTopics(empEmployer);
         return (
-          <div onClick={() => setFarmIntroOpen(false)} style={{
+          <div className="cb-lock-scroll" onClick={() => setFarmIntroOpen(false)} style={{
             position:"fixed", inset:0, zIndex:10000,
             background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none",
           }}>
@@ -1282,7 +1282,7 @@ export function JobSearchMapView({ onRegister, me }) {
               )}
               {/* 過去の求人ボックス（受け入れ実績タップで展開・公開中/終了の帯・タップで詳細へ） */}
               {pastJobsOpen && (
-                <div onClick={()=>setPastJobsOpen(false)} style={{ position:"fixed", inset:0, zIndex:10001, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
+                <div className="cb-lock-scroll" onClick={()=>setPastJobsOpen(false)} style={{ position:"fixed", inset:0, zIndex:10001, background:"rgba(0,0,0,0.5)", animation:"fadeIn .2s ease", touchAction:"none" }}>
                   <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:20, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
                     <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 16px", paddingRight:40 }}>{empEmployer.nickname ? `${empEmployer.nickname}さんの求人` : "この農家の求人"}</h3>
                     {pastJobs === null ? (
@@ -1398,7 +1398,7 @@ export function JobSearchMapView({ onRegister, me }) {
 
       {/* 通報モーダル：差し戻しモーダル(759e54c)と同じ視覚文法・語彙 */}
       {showReportModal && (
-        <div style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             {reportDone ? (
               <p className="f-sans" style={{ fontSize:14, color:"#00A86B", fontWeight:700, textAlign:"center", padding:"20px 0", margin:0 }}>報告を受け付けました。運営が確認します</p>

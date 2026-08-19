@@ -129,7 +129,7 @@ export function PrivacyPolicy({ onClose }) {
   const sections = PRIVACY_SECTIONS;
 
   return (
-    <div
+    <div className="cb-lock-scroll"
       style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.38)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
       onClick={onClose}
     >

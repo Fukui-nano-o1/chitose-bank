@@ -852,7 +852,7 @@ export function ConsignmentRoom() {
         </button>
       )}
       {termsModal && (
-        <div onClick={()=>setTermsModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:70, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div className="cb-lock-scroll" onClick={()=>setTermsModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:70, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:560, width:"100%", maxHeight:"80vh", overflowY:"auto", padding:"20px 18px", boxSizing:"border-box" }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 10px" }}>
               <h3 className="f-sans" style={{ fontSize:17.6, fontWeight:800, color:"#111111", margin:0 }}>委託機能を利用する前に</h3>

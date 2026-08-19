@@ -138,7 +138,7 @@ export default function Terms({ onClose }) {
 
   // 様式はプライバシーポリシー（App.jsx PrivacyPolicy）と同一。片方を変えたらもう片方も合わせること
   return (
-    <div
+    <div className="cb-lock-scroll"
       style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.38)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
       onClick={onClose}
     >
