@@ -131,9 +131,10 @@ export function EmergencyStagePanel({ items, role }) {
 }
 
 // 応募者ページへの着地：どの応募のシートを開くかだけを渡す（詳しく見たい時の導線）。
-// ★2026-08-06たきと指示で、採用そのものはこのページでも押せるようになった（下の HireStagePanel）。
-//   採用の窓口は2つになったが、二重予約の判定と告知文は lib/hire に集約して食い違わせない。
-//   実行は双方とも同じ confirm_terms＝人数上限・見送りの波及・権限はDB側が担保する
+// ★農家の採用の実行窓口は、この採用するページ（下の HireStagePanel）だけ。
+//   応募者シートの🤝はリンクに変更（2026-08-19）、チャットの採用ボックスも削除（2026-08-19）。
+//   二重予約の判定と告知文は lib/hire に集約＝ここが唯一の使い手。
+//   実行は confirm_terms＝人数上限・見送りの波及・権限・二重予約の壁はDB側が担保する
 export const HIRE_SHEET_PATH = "/profile/employer/applicants";
 export function markHireSheet(applicationId) {
   try {
