@@ -1633,6 +1633,16 @@ export default function App(){
         </button>
 
         <div style={{ display:"flex", alignItems:"center", gap:12, position:"relative" }}>
+          {/* 求人を探す（2026-08-19たきと指示）。旧「求人を出す」CTAの位置に置き換え。
+              狭い画面ではラベルを「探す」に縮める（.app-header-search-btn の @media） */}
+          <button onClick={() => { setTab("search"); window.location.hash = "/search"; }}
+            className="f-sans app-header-search-btn"
+            style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
+                     fontSize:14, fontWeight:600, color:"#222", padding:"8px 14px", borderRadius:20 }}>
+            <span className="search-label-full">求人を探す</span>
+            <span className="search-label-short">探す</span>
+          </button>
+
           <button onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
             aria-label="メニュー"
             style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
@@ -2053,6 +2063,7 @@ export default function App(){
           </div>
           <div>
             <p className="f-sans footer-col-title">雇う・働く</p>
+            <button onClick={()=>{ window.location.hash="/search"; }} className="f-sans footer-col-link">求人を探す</button>
             <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">掲載のしくみ</button>
             <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">満額支払型とは</button>
             <button onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans footer-col-link">保険の準備</button>
