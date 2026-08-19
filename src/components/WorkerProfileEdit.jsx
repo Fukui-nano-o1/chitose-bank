@@ -70,10 +70,6 @@ const WORKER_QA_PAGES = (() => {
   })).filter(p => p.questions.length > 0);
 })();
 
-const WORKER_QA_PLACEHOLDERS = {
-  "これまでにどんな農作業の経験がありますか？（他のサービスや手伝いでの経験も、作業の内容で教えてください）": "ナスの収穫と袋詰めを2シーズン。タイミーで倉庫の仕分けもしていました",
-};
-
 // 15秒カード用プリセット（2026-07-14たきと判断でCLAUDE.md許可リストに追加。詳細はCLAUDE.md参照）
 // はたらき方の希望4問の正は lib/utils の WORKER_STYLE_QUESTIONS（2026-08-14拡充）。
 // 旧ラベル（軽めの作業希望/どちらでも/力仕事もOK）で保存済みの値は書き換えない＝そのまま表示される
@@ -254,6 +250,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   // 質問に答える＝1問1ページの送り（2026-08-19）。はたらき方の希望と同じ作法。
   // ★入力中は snap と横スクロールを止める：iOSはscroll-snapコンテナ内のtextareaにフォーカスすると
   //   キーボード表示のレイアウト変化で再スナップが走り、打鍵が奪われる（WorkerExperienceEntriesSwipeと同じ対策）
+  const [openQaQ, setOpenQaQ] = useState(null);   // いま入力欄を開いている問い（1つずつ・2026-08-19）
   const qaScrollRef = useRef(null);
   const [qaIdx, setQaIdx] = useState(0);
   const [qaTyping, setQaTyping] = useState(false);
@@ -754,23 +751,32 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
               <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px", letterSpacing:".02em" }}>{group}</p>
               {questions.map(q => {
                 const ans = prQa.find(x => x.q === q)?.a || "";
+                const open = openQaQ === q;
                 const revFlaggedQ = revTargets.includes(q); // 修正のお願いの指摘対象は赤で明示（2026-07-19）
                 return (
-                  <div key={q} style={{ marginBottom:14 }}>
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color: revFlaggedQ ? "#E24B4A" : "#222", margin:"0 0 6px", lineHeight:1.6 }}>
+                  <div key={q} style={{ marginBottom:8 }}>
+                    {/* 質問はタブ（行）だけ並べ、タップでその下に入力欄が開く（2026-08-19たきと指示）。
+                        開くのは1つずつ＝画面が入力欄で埋まらない。答えた問いは✓と役割色で分かる */}
+                    <button type="button" onClick={()=>setOpenQaQ(open ? null : q)} className="f-sans"
+                      style={{ width:"100%", textAlign:"left", padding:"11px 13px", borderRadius:12, cursor:"pointer", lineHeight:1.6,
+                               border:"1px solid " + (revFlaggedQ ? "#E24B4A" : (open || ans.trim()) ? ROLE_ORANGE : "#EBEBEB"),
+                               background: revFlaggedQ ? "#FDECEC" : open ? "#FFF6EF" : "#fff",
+                               color: revFlaggedQ ? "#E24B4A" : ans.trim() ? ROLE_ORANGE : "#222",
+                               fontSize:13, fontWeight:700 }}>
                       {revFlaggedQ ? "⚠️ " : ans.trim() ? "✓ " : ""}{q}
-                    </p>
-                    <textarea
-                      value={ans}
-                      onChange={e=>setQaAnswer(q, e.target.value)}
-                      onFocus={()=>setQaTyping(true)}
-                      onBlur={()=>setQaTyping(false)}
-                      rows={2}
-                      placeholder={WORKER_QA_PLACEHOLDERS[q] || ""}
-                      className="field f-sans"
-                      style={{ width:"100%", fontSize:16, resize:"vertical", boxSizing:"border-box",
-                               border: revFlaggedQ ? "1px solid #E24B4A" : undefined }}
-                    />
+                    </button>
+                    {open && (
+                      <textarea
+                        value={ans}
+                        onChange={e=>setQaAnswer(q, e.target.value)}
+                        onFocus={()=>setQaTyping(true)}
+                        onBlur={()=>setQaTyping(false)}
+                        rows={3}
+                        autoFocus
+                        className="field f-sans fade-in"
+                        style={{ width:"100%", fontSize:16, marginTop:6, resize:"vertical", boxSizing:"border-box" }}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -808,9 +814,6 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
       {editBox !== "emergency" && (
         <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
-      )}
-      {(editBox === "pr" || editBox === "qa") && (
-        <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", marginTop:10 }}>保存すると公開されます（電話番号・メールアドレス・URLは記載できません）</p>
       )}
       </div>
       </div>
