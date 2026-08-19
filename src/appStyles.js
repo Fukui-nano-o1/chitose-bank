@@ -89,8 +89,9 @@ input:focus { outline: none; }
    高さは中身の実寸を測らずにautoへ animate できる技法。効かない環境でもフェードは効くので「出ない」事故はなし ── */
 @keyframes cbCalSweep { from { transform: scaleX(.08); opacity: 0; } 60% { opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
 /* fillは backwards（2026-07-27修理・both禁止）：bothだと終わった後もtransformが残り、
-   この要素が「画面固定(fixed)の基準」になってしまう。すると中で開くボックス
-   （下書きを進めませんか？等）がカレンダーの箱の中に閉じ込められ、求人カードの下へ潜る。
+   この要素が「画面固定(fixed)の基準」になってしまう。すると中で開くボックスが
+   カレンダーの箱の中に閉じ込められ、求人カードの下へ潜る（例に挙げていた
+   「下書きを進めませんか？」は2026-08-19に削除。理由そのものは今も有効）。
    backwardsなら見え方は同じまま、終了後にtransformが外れて基準が画面に戻る */
 .cb-cal-reveal { animation: cbCalSweep .34s cubic-bezier(.22, .8, .36, 1) backwards; transform-origin: center center; }
 /* ②縦に開く部分（見出しより下の中身）。①が終わる0.34秒後から動き出す */
