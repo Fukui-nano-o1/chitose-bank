@@ -6491,19 +6491,19 @@ submit_farmer_review に p_on_time / p_as_described / p_followed_instructions / 
 　6引数（名前付き）の呼び出しもそのまま通る＝入れ替えの前後で評価が落ちない（実測で確認）。
 　権限は anon revoke・authenticated grant を再宣言（作り直しの既定付与を残さない）。
 【共有部品 components/ReviewWizard.jsx を新設】ページ送り・戻る・最終確認の機構をここ1箇所に置いた。
-両方向（WorkerReviewSheet／FarmerDashboard の完了・評価）that同じ器を使う＝送り方・見た目that枝分かれしない。
-・設問と保存は呼び出し側that持つ（向きで中身that違うため）。answers は列名を鍵にしたオブジェクト
-・入力中の判定は onFocusCapture/onBlurCapture で器that自分で見る＝最終ページの中身は素のJSXでよい
+両方向（WorkerReviewSheet／FarmerDashboard の完了・評価）が同じ器を使う＝送り方・見た目が枝分かれしない。
+・設問と保存は呼び出し側が持つ（向きで中身が違うため）。answers は列名を鍵にしたオブジェクト
+・入力中の判定は onFocusCapture/onBlurCapture で器が自分で見る＝最終ページの中身は素のJSXでよい
 ・footer prop＝入力ページの下にいつも出す小さな導線（農家側の「欠勤として記録する」をここに載せた）
 ・confirmExtra prop＝最終確認に足す表示（公開コメント・❤️お気に入り登録の有無）
 【農家側の画面（FarmerDashboard）】state を completeWantAgain/completeEntrust の2つ→ completeAnswers の
 1つに。❤️お気に入り登録は最終入力ページ（また呼びたい＝はい のときだけ）。評価登録完了の控えも6項目に。
-YesNoPill は使い手thatゼロになったので FarmerDashboard・WorkerApplications の import を外した
-（ui.jsx の定義は残置＝汎用部品so消すかは別途判断）。
+YesNoPill は使い手がゼロになったので FarmerDashboard・WorkerApplications の import を外した
+（ui.jsx の定義は残置＝汎用部品なので消すかは別途判断）。
 【検証】build成功・lint 0 error（警告24＝着手前と同数）／DB実弾（ロールバック付き・残置ゼロ実測
-reviews3・apps25・roster3・ghost0）で ①6項目that正しい列に入る・完了と出欠と名簿登録that従来どおり
-②古い6引数の呼び出しthat通り、新しい4列は null のまま ③双方の評価that揃う前はバッジ0（第8条3のゲート不変）。
+reviews3・apps25・roster3・ghost0）で ①6項目が正しい列に入る・完了と出欠と名簿登録が従来どおり
+②古い6引数の呼び出しが通り、新しい4列は null のまま ③双方の評価が揃う前はバッジ0（第8条3のゲート不変）。
 【実機目視の残り】①応募者シートの✅完了・欠勤を記録→6問を送れるか ②また呼びたい＝はい のとき
-最終ページに❤️that出るか ③送信する→最終確認→送信で評価登録完了の控えthat6項目出るか
-④「働き手が来なかった場合は→欠勤として記録する」thatどのページからでも押せるか
+最終ページに❤️が出るか ③送信する→最終確認→送信で評価登録完了の控えが6項目出るか
+④「働き手が来なかった場合は→欠勤として記録する」がどのページからでも押せるか
 ━━━ ここまで ━━━
