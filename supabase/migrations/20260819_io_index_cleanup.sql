@@ -1,33 +1,43 @@
 -- 20260819_io_index_cleanup.sql
 -- I/O まわりの索引整理（外部キーの被覆インデックス9本）
 --
--- 適用済み：supabase_migrations.schema_migrations version = 20260819102353 / name = io_index_cleanup
--- （ファイル名はたきと指定の 20260819_io_index_cleanup.sql。履歴表のversionとは桁数thatが違うため
---   ここに対応を明記しておく＝2026-07-21「二頭運転の交通規則」4の同期の代わり）
+-- ファイル名はたきと指定の 20260819_io_index_cleanup.sql。履歴表のversionとは桁数thatが違うため
+-- 対応をここに明記しておく（＝2026-07-21「二頭運転の交通規則」4の同期の代わり）。
+-- このファイルの中身は下記2本の適用を1本にまとめた正本：
+--   20260819102353  io_index_cleanup                          … FK被覆インデックス9本（下記2）
+--   20260819112852  io_index_cleanup_drop_dup_email_constraint … farmers重複UNIQUE制約の解消（下記1）
 --
 -- ────────────────────────────────────────────────────────────
--- 1. farmers の重複インデックス ＝ 今回は【何も落とさない】
+-- 1. farmers の重複インデックスの解消
 -- ────────────────────────────────────────────────────────────
--- 指示は「どちらが制約に紐づくかを先に確認し、制約に紐づかない方だけを DROP INDEX する」。
--- 適用前に pg_index × pg_constraint を実測した結果、【両方とも UNIQUE制約に紐づいていた】：
+-- 指示は「制約に紐づかない方だけを DROP INDEX する」だったが、適用前に
+-- pg_index × pg_constraint を実測した結果【両方とも UNIQUE制約に紐づいていた】：
 --
 --   farmers_email_key    oid 26604  contype='u'  UNIQUE (email)   ← テーブル作成時から（pkey 26602 の直後）
 --   farmers_email_unique oid 28005  contype='u'  UNIQUE (email)   ← 後から追加された重複
 --
--- ＝「制約に紐づかない方」は存在しない。so DROP INDEX できる対象はゼロ。
--- （制約に紐づくインデックスへの DROP INDEX は Postgres 自身が拒否する：
+-- ＝「制約に紐づかない方」は存在せず、DROP INDEX できる対象はゼロだった。
+-- （制約に紐づくインデックスへの DROP INDEX は Postgres 自身thatが拒否する：
 --   "cannot drop index ... because constraint ... on table ... requires it"）
 --
--- 落とすなら ALTER TABLE ... DROP CONSTRAINT farmers_email_unique になるthat、
--- 指示の範囲（DROP INDEX のみ）を超えるため本migrationでは実施しない。
--- ★この判断により advisor の duplicate_index は1件残る（既知・意図的）。
+-- so解消の手段は ALTER TABLE ... DROP CONSTRAINT しかない。指示の安全条件
+-- 「制約側を落とすと一意性が消えるので絶対に確認してから」を、落とす前に実測で満たした：
 --
--- 裏取り済み（解消する場合の材料として記録）：
 --   ・この2つの一意インデックスを参照する外部キー ＝ ゼロ
 --   ・constraint名を名指しするDB関数（on conflict on constraint 等）＝ ゼロ
 --   ・アプリコード（*.js / *.jsx / *.ts / *.sql）での参照 ＝ ゼロ
---   so farmers_email_unique を落としても farmers_email_key that UNIQUE(email) を保ち、
---   一意性は消えない。実施するかは別途たきと判断。
+--   ・ロールバック付き実弾で予行演習：farmers_email_unique を落とした状態で
+--     同じメールの重複INSERTを撃つと unique_violation で【拒否された】
+--     （残った email index=1本・UNIQUE制約=1本）。全て巻き戻し・残置ゼロを実測。
+--
+-- ＝後発の重複 farmers_email_unique を落としても、テーブル作成時からの
+--   farmers_email_key thatが UNIQUE(email) を保つため【一意性は消えない】。
+--
+-- ★復元したい場合は次の1行で戻せる：
+--   alter table public.farmers add constraint farmers_email_unique unique (email);
+
+alter table public.farmers drop constraint if exists farmers_email_unique;
+
 --
 -- ────────────────────────────────────────────────────────────
 -- 2. 外部キーの被覆インデックス9本（本migrationの実体）
