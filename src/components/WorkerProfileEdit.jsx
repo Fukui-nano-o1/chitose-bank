@@ -484,7 +484,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
               <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:1, padding:"5px 6px", borderRadius:"0 0 20px 20px", background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>⚠️ 修正のお願い</span>
             )}
             {/* アイコンのカードだけ1行まるごと＋アイコン本体を大きく（2026-08-14たきと指示・雇い手編集ページと同型） */}
-            {b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} />}
+            {b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} ring={ROLE_ORANGE} />}
             <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
             <span style={{ fontSize:11, color: b.v ? ROLE_ORANGE : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
           </button>
@@ -511,7 +511,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>アイコン</label>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
-        <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid #00A86B", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
+        <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid " + ROLE_ORANGE, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
           <Avatar url={avatarUrl} name={nickname} size={64} />
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>

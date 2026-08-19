@@ -518,7 +518,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           // 未入力ボックスは赤影アニメで促す（2026-07-16）。ロゴ・アイコンだけ1行まるごと（2026-08-14たきと指示）
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: "1px solid " + AC, borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
             {/* ロゴ・アイコンだけはアイコン本体を大きく見せる（2026-08-14たきと指示）。他カードはテキストのみ */}
-            {!black && b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} />}
+            {!black && b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} ring={AC} />}
             <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
             <span style={{ fontSize:11, color: b.v ? AC : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
           </button>
