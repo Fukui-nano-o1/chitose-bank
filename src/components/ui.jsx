@@ -489,14 +489,17 @@ export const FlowBar = ({ a }) => {
       {FLOW_STEPS.map((s, i) => {
         const isDone = done[i]; const isActive = i === active;
         const reached = isDone || isActive;
+        const isNow = isActive && s === "仕事"; // いま作業中＝塗りつぶしの緑＋上下に跳ねて明滅
         return (
           <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
             {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#00A86B" : "#E5E5E5" }} />}
             {/* 現在地が「仕事」の時だけ上下に跳ねながら明滅（2026-08-18たきと指示
                 「仕事のところだけ、アップダウンに点滅を追加」）＝いま作業中であることの目印 */}
-            <div className={isActive && s === "仕事" ? "cb-flow-now" : undefined}
+            {/* ★現在地が「仕事」の丸は塗りつぶしの緑（✓は入れない・2026-08-19たきと指示
+                「●は緑で透けないようにしろ」）＝白抜きの輪だと後ろの横棒が見えてしまう */}
+            <div className={isNow ? "cb-flow-now" : undefined}
               style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
-              background: isDone ? "#00A86B" : "#fff", border: isDone ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
+              background: (isDone || isNow) ? "#00A86B" : "#fff", border: (isDone || isNow) ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
               {isDone ? "✓" : ""}
             </div>
             <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#00A86B" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
