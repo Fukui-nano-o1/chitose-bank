@@ -1,9 +1,9 @@
 // チャット（分割・大物②＝最終ピース・2026-07-24）：LINE式スレッド。求人コンテキストカード・確認カード・
-// 定型文/質問集/候補日シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
+// 質問集/候補日シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
-  CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, photoThumb,
+  CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { closeReadNotifications } from "../lib/push";
@@ -22,7 +22,7 @@ export function ChatView({ applicationId, onBack }) {
   const [sending, setSending] = useState(false);
   // 入力欄の自動伸縮（改行対応・2026-08-16たきと指示）：中身の行数に合わせて高さを変える。
   // 上限132px（≒6行）を超えたら内側スクロール＝入力欄が画面を埋め尽くさない。
-  // 定型文の挿入・送信後のクリアでもtextが変わるので、この1箇所で高さが追従する
+  // 候補日の挿入・送信後のクリアでもtextが変わるので、この1箇所で高さが追従する
   const inputRef = useRef(null);
   const CHAT_INPUT_MAX_H = 132;
   useEffect(() => {
@@ -56,10 +56,11 @@ export function ChatView({ applicationId, onBack }) {
   const [confirmingTerms, setConfirmingTerms] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
   const [confirmBoxOpen, setConfirmBoxOpen] = useState(false); // 求人内容確認をボックス展開（2026-07-19）
-  // 定型文シート（2026-07-22・第8弾）：入力欄横の＋→役割別のテンプレをタップで挿入
+  // ＋シート（2026-07-22・第8弾）：入力欄横の＋で開く。定型文は削除（2026-08-19たきと指示）ので
+  // 中身は【質問集】と【📅候補日】の2枚＝どちらも農家の機能。働き手側には＋を出さない
   const [tmplOpen, setTmplOpen] = useState(false);
-  // ＋シートのタブ（2026-07-23）：定型文 / 質問集（質問集は農家側のみ）。スワイプで切替
-  const [tmplTab, setTmplTab] = useState("phrase");
+  // ＋シートのタブ（2026-07-23）：質問集 / 📅候補日。スワイプで切替
+  const [tmplTab, setTmplTab] = useState("qset");
   // 今日のやること「面接の質問を送る」からの着地（2026-07-25）：フラグがあれば質問集シートを自動で開く（農家側のみ）
   const wantQSetRef = useRef(false);
   useEffect(() => { try { if (sessionStorage.getItem("cb_openQSet")) { sessionStorage.removeItem("cb_openQSet"); wantQSetRef.current = true; } } catch {} }, []);
@@ -793,8 +794,11 @@ export function ChatView({ applicationId, onBack }) {
          高さは中身に合わせて伸ばす＝1行から最大6行（それ以上は内側スクロール）。
          alignItemsをflex-endにして、伸びた時に＋と送信が下端に揃う */
       <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE", alignItems:"flex-end" }}>
-        {/* 定型文（2026-07-22・第8弾）：＋で役割別テンプレシートを開く */}
-        <button onClick={()=>{ setTmplTab("phrase"); setTmplOpen(true); }} aria-label="定型文・質問集" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
+        {/* ＋シート（2026-07-22・第8弾）：質問集／候補日。どちらも農家の機能ので働き手側には出さない
+            （定型文の削除・2026-08-19たきと指示で、働き手にとって中身が無くなったため） */}
+        {!isWorkerSide && (
+        <button onClick={()=>{ setTmplTab("qset"); setTmplOpen(true); }} aria-label="質問集・候補日" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
+        )}
         <textarea ref={inputRef} value={text} rows={1} onChange={e=>setText(e.target.value)}
           placeholder="メッセージを入力" className="field f-sans"
           style={{ flex:1, fontSize:14, resize:"none", lineHeight:1.6, maxHeight:132, overflowY:"auto" }} />
@@ -802,19 +806,10 @@ export function ChatView({ applicationId, onBack }) {
       </div>
       )}
 
-      {/* ＋シート（2026-07-22 第8弾→2026-07-23 タブ化）：定型文／質問集をタブ＋スワイプで切替。
-          定型文＝タップで入力欄に挿入（編集して送信可）／質問集＝タップでチャットに投函（農家のみ・回答は残る） */}
-      {tmplOpen && (() => {
-        const phrasePanel = (
-          <>
-            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップで入力欄に入ります。送信前に編集できます。</p>
-            <div style={{ display:"grid", gap:8 }}>
-              {(isWorkerSide ? CHAT_TEMPLATES_WORKER : CHAT_TEMPLATES_FARMER).map(t => (
-                <button key={t} onClick={()=>{ setText(prev => prev.trim() ? (prev.replace(/\s*$/, "") + " " + t) : t); setTmplOpen(false); }} className="f-sans" style={{ textAlign:"left", background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#222", cursor:"pointer", lineHeight:1.6 }}>{t}</button>
-              ))}
-            </div>
-          </>
-        );
+      {/* ＋シート（2026-07-22 第8弾→2026-07-23 タブ化→2026-08-19 定型文を削除）：
+          質問集／📅候補日をタブ＋スワイプで切替。質問集＝タップでチャットに投函（回答も残る）／
+          候補日＝選ぶと入力欄に文章が入る。どちらも農家の機能ので、このシートは農家側にしか出ない */}
+      {tmplOpen && !isWorkerSide && (() => {
         const qsetPanel = (
           <>
             <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップでチャットに【面接の質問】として送ります。回答もチャットに残ります。</p>
@@ -859,40 +854,27 @@ export function ChatView({ applicationId, onBack }) {
             </>
           );
         })();
-        const TMPL_TABS = [{ k:"phrase", l:"定型文" }, { k:"qset", l:"質問集" }, { k:"dates", l:"📅 候補日" }];
+        const TMPL_TABS = [{ k:"qset", l:"質問集" }, { k:"dates", l:"📅 候補日" }];
         const tmplIdx = TMPL_TABS.findIndex(t => t.k === tmplTab);
         return (
         <div onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            {isWorkerSide ? (
-              /* 働き手側：定型文のみ（質問集は農家の機能） */
-              <>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>定型文</p>
-                </div>
-                {phrasePanel}
-              </>
-            ) : (
-              /* 農家側：定型文／質問集のタブ＋スワイプ */
-              <>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                  <div style={{ display:"flex", gap:6 }}>
-                    {TMPL_TABS.map(t => (
-                      <button key={t.k} onClick={()=>setTmplTab(t.k)} className="f-sans" style={{ background:"none", border:"none", cursor:"pointer", padding:"4px 2px 8px", fontSize:15, fontWeight: tmplTab===t.k ? 800 : 600, color: tmplTab===t.k ? "#00A86B" : "#999", borderBottom: tmplTab===t.k ? "2px solid #00A86B" : "2px solid transparent" }}>{t.l}</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ overflow:"hidden" }}
-                  onTouchStart={e=>{ tmplSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
-                  onTouchEnd={e=>{ const s = tmplSwipe.current; tmplSwipe.current = null; if (!s) return; const dx = e.changedTouches[0].clientX - s.x; const dy = e.changedTouches[0].clientY - s.y; if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return; const ni = dx < 0 ? Math.min(tmplIdx + 1, TMPL_TABS.length - 1) : Math.max(tmplIdx - 1, 0); setTmplTab(TMPL_TABS[ni].k); }}>
-                  <div style={{ display:"flex", width:"300%", transform: `translateX(-${tmplIdx * (100/3)}%)`, transition:"transform .25s ease" }}>
-                    <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingRight:4 }}>{phrasePanel}</div>
-                    <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", padding:"0 4px" }}>{qsetPanel}</div>
-                    <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingLeft:4 }}>{datesPanel}</div>
-                  </div>
-                </div>
-              </>
-            )}
+            {/* 質問集／📅候補日のタブ＋スワイプ（農家のみ） */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+              <div style={{ display:"flex", gap:6 }}>
+                {TMPL_TABS.map(t => (
+                  <button key={t.k} onClick={()=>setTmplTab(t.k)} className="f-sans" style={{ background:"none", border:"none", cursor:"pointer", padding:"4px 2px 8px", fontSize:15, fontWeight: tmplTab===t.k ? 800 : 600, color: tmplTab===t.k ? "#00A86B" : "#999", borderBottom: tmplTab===t.k ? "2px solid #00A86B" : "2px solid transparent" }}>{t.l}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ overflow:"hidden" }}
+              onTouchStart={e=>{ tmplSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+              onTouchEnd={e=>{ const s = tmplSwipe.current; tmplSwipe.current = null; if (!s) return; const dx = e.changedTouches[0].clientX - s.x; const dy = e.changedTouches[0].clientY - s.y; if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return; const ni = dx < 0 ? Math.min(tmplIdx + 1, TMPL_TABS.length - 1) : Math.max(tmplIdx - 1, 0); setTmplTab(TMPL_TABS[ni].k); }}>
+              <div style={{ display:"flex", width:"200%", transform: `translateX(-${tmplIdx * 50}%)`, transition:"transform .25s ease" }}>
+                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:4 }}>{qsetPanel}</div>
+                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:4 }}>{datesPanel}</div>
+              </div>
+            </div>
           </div>
         </div>
         );
