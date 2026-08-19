@@ -349,6 +349,18 @@ export function SavedJobsView({ me }) {
     terms_confirmed_farmer_at: r.terms_confirmed_farmer_at,
   } : null; return a ? appPhaseKey(a) : null; };
   const shownRows = rows.filter(r => { const k = truePhaseOf(r); return !k || !savedHidden.includes(k); });
+  // 終わったカード（暗幕＋中央ラベルthatかかるもの）＝完了・見送り・掲載取り下げ・取り消し・失効。
+  // ★下の描画の covered と同じ式を使う（片方だけ変えない）＝並びと見た目that食い違わない
+  const isDoneRow = (r) => {
+    const jobEnd = r.date_end || r.date_start;
+    const jobPast = !!jobEnd && jobEnd < ymdLocal(new Date());
+    return jobPast
+      || ["rejected", "canceled", "expired", "completed"].includes(r.application_status);
+  };
+  // 終わったカードは下へ（2026-08-19たきと指示「完了ラベルのあるカードは下の方に配置」）。
+  // 進行中のもの＝上。終わったもの＝下。それぞれの中の並び（求人番号の新しい順）は変えない
+  // （Array.prototype.sort は安定so、同じ組の中の順序はそのまま保たれる）
+  const orderedRows = [...shownRows].sort((a, b) => (isDoneRow(a) ? 1 : 0) - (isDoneRow(b) ? 1 : 0));
   // ピルの見た目・作法はチャット一覧／応募者ページと同一（同じCSSクラスを共用＝
   // モバイルは下部の浮遊バー・PCは本文中の並び。格納・オーバーレイ中の非表示も同じ）
   const filterButtons = SAVED_HIDABLE.map(k => ({
@@ -414,7 +426,7 @@ export function SavedJobsView({ me }) {
         </div>
       ) : (
         <div ref={skelRef} style={{ display:"grid", gap:10 }}>
-          {shownRows.map(r => {
+          {orderedRows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);
             // 終わった応募・求人は暗幕＋中央ラベル＋タップ無反応（応募者ページと同設計）。
