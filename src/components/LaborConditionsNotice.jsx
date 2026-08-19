@@ -128,22 +128,14 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
 
   return (
     <>
-      {/* 独立したセクション（2026-08-18たきと指示「カードを新設。そこに該当する機能を統合」）＝
-          既存の「記録」セクションに同居させず、労働条件通知書だけの区画を持つ。
+      {/* 「わたしの記録」「記録」カテゴリーの中に並ぶ1枚（2026-08-18たきと指示）＝専用の見出しは持たない。
           件数0でもカードは出す（タップ不能・非表示にしない＝2026-08-03の原則。中で説明を出す） */}
-      <div style={{ marginTop:16 }}>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>労働条件通知書</p>
-        <button onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-          <span style={{ flex:1, minWidth:0 }}>
-            <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>
-              {count > 0 ? `採用が決まった仕事　${count}件` : "採用が決まった仕事"}
-            </span>
-            <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
-              {rows === null ? "読み込み中…" : count > 0 ? "採用の時点で決まった労働条件です。1件ずつ表示・印刷できます" : (isWorker ? "採用が決まると、その時の労働条件がここに残ります" : "働き手の採用を決めると、その時の労働条件がここに残ります")}
-            </span>
-          </span>
-        </button>
-      </div>
+      <button onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>労働条件通知書</span>
+        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
+          {rows === null ? "読み込み中…" : count > 0 ? `${count}件　採用の時点で決まった労働条件です。表示・印刷できます` : (isWorker ? "採用が決まると、その時の労働条件がここに残ります" : "働き手の採用を決めると、その時の労働条件がここに残ります")}
+        </span>
+      </button>
 
       {/* 一覧（契約の選択） */}
       {listOpen && createPortal(

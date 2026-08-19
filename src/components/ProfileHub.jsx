@@ -319,7 +319,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                   </button>
                 </div>
                 <div style={{ marginTop:16 }}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>📖 わたしの記録</p>
+                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>わたしの記録</p>
                   <button onClick={()=>{ setShowWAch(true); setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {} }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
                     {wHub.reviewed > wSeenReviews && <span style={{ position:"absolute", top:10, right:12, fontSize:18, lineHeight:1 }}>🌟</span>}
                     <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🌟</span>
@@ -352,11 +352,11 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                       </button>
                     );
                   })()}
+                  {/* 労働条件通知書（2026-08-18たきと指示）＝「わたしの記録」カテゴリーの1枚。
+                      採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ＝保存・入力は無い。
+                      旧「契約の記録」（実績モーダル内）の機能はここへ統合済み＝1機能1入口 */}
+                  <LaborConditionsNotice me={me} role="worker" />
                 </div>
-                {/* 📄 労働条件通知書（2026-08-18たきと指示・新設カード）：独立した区画。
-                    採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ＝保存・入力は無い。
-                    旧「契約の記録」（実績モーダル内）の機能はここへ統合済み＝1機能1入口 */}
-                <LaborConditionsNotice me={me} role="worker" />
               </>);
             })()}
             {showWAch && (
