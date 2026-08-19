@@ -5594,3 +5594,18 @@ C開始1時間前→before_60／D開始時刻→start、各2役割。before_15 �
 ①新規登録で緊急連絡先が自動生成（本人/氏名/電話）②本人が家族に変更した後で登録情報を更新しても
 上書きされない ③緊急連絡先が無くても is_worker_profile_ready が true。
 【残・別途】プライバシーポリシーと利用規約の改訂（案を提示済み・本文の適用は指示待ち）。
+
+━━━ 2026-08-19 今日ページのカレンダーカードを削除（950e329）━━━
+【たきと指示】「カレンダーカード削除」＝やることの📅カレンダー箱（TODO_META.t_card）。
+【削除の連鎖（TodayPage.jsx）】TODO_META.t_card／TODO_STAGE_CATALOG の両役から "t_card"／
+byStage の種まき [["t_card", tCard], …]／todayStageItems の t_card 分岐／const tCard／
+TodoStageBox の always 分岐と calendarReady（t_card が唯一の always ので道連れ）。
+【★消えていないもの】カレンダー本体は不変＝働き手はステータスページ(#/saved)、農家は応募者ページの
+上部に従来どおりある（横スワイプ or 案内行のタップで開く）。今日ページからの入口だけをやめた。
+受け側の合図 cb_openCalendar の読み取り（SavedJobsView・FarmerDashboard）は残置＝別の入口を
+作る時にそのまま使える（今は誰も立てない）。
+【残る軽微】旧URL #/calendar/todo/t_card は TODO_META に無くなったため、開くと今日ページ本体が出る
+（ハッシュはそのまま）。到達手段は古いブックマークのみso放置。
+【検証】build成功・lint 0 error（警告1件=既存exhaustive-deps）・distから旧説明文の消失をgrep確認。
+実機：今日ページのやることに📅カレンダーの箱が無いこと／ステータスページ・応募者ページの
+カレンダーが従来どおり開くこと
