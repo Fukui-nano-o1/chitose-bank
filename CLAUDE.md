@@ -5738,3 +5738,54 @@ my_todo_items（todayStageItems は w_review を返さない）so、箱の数＝
 【変えていないもの】評価の中身・向き（reviews.direction = worker_to_farmer＝評価の相手は農家）・
 公開バッジ・RPC・DBは不変。モーダルの見出し「終了の確認・評価」など役割名を含まない文言も不変。
 【検証】build成功・lint 0 error（警告1件=既存）・distに新文言をgrep確認。
+
+━━━ 2026-08-19 事故記録：緊急連絡先が未同意の相手方へ開示可能だった（発見・同日封鎖）━━━
+【事実】contract_emergency_contact は当事者性と terms_snapshot だけを見ており、緊急連絡先の【本人】が
+現行のプライバシーポリシーに同意していなくても、氏名と電話を相手方へ返していた（個情法27条1項）。
+【範囲（発見時2026-08-19の実測）】契約成立済みの応募4件が対象。4件とも当事者のどちらかが v1-2026-07 のまま
+＝緊急連絡先の項目が存在しない版にしか同意していない状態だった。関係する人数のべ7名。登録者11人の同意版は
+v1が9人・v3.1が1人・v3.2が1人（v4.0は0人）。実際に開示が行われたかのアクセス解析は行っていない。
+【背景】再同意の仕組みが存在しなかった。バナー showLegalV2Banner は 2026-07-21〜07-28 の日付ベタ書きで
+期限切れ、agreed_privacy_version は登録時に書くだけで読む箇所がゼロ。PrivacyPolicy.jsx 冒頭の
+「版上げで再同意が出る」は事実に反するコメント（＝遺跡）だった。★コメントは証拠にならない。実装を読むこと。
+【封鎖（同日・migration 20260819020715）】contract_emergency_contact に本人の同意版ゲートを追加。
+現行版は app_settings.privacy_version の1行（版上げはこの1行のUPDATEで足りる・デプロイ不要）。
+設定行が無い場合は開示しない（フェイルクローズ）。★フロントの lib/utils.js PRIVACY_VERSION と
+必ず同じ文字列にすること。ズレると全員が未同意扱いになる。
+【再同意フロー】components/PrivacyReconsent.jsx。版が違う登録済み利用者に同意画面を出し、同意で
+agreed_privacy_version を現行版へ更新する。同意するまで閉じられない（閉じられるバナーは今回の前例で
+誰にも届かなかったため採らない）。全safeTab描画式27箇所と求人フローに !needsPrivacyReconsent を付与。
+【実弾4本・全ロールバック・残置ゼロ実測】v1未同意=not_consented／v4.0同意=ok・氏名と電話が返る／
+契約当事者以外=not_party／未ログイン=EXECUTE権限で拒否。
+【今回やらないと決めたこと（バックログ）】confirmed_at の追加、既存11行の削除、第三者提供ログの新設、
+過去4件のアクセス解析、Terms v2.5、督促メール、第9条改訂、法務アーキテクチャの再設計。
+既存11行・自動登録トリガー・Privacy v4.0本文はそのまま。
+━━━ ここまで ━━━
+
+━━━ 2026-08-19 今日ページから「新着の応募」「面接する」を削除（89f9883）━━━
+【たきと指示】「新着の応募、面接するは削除」。
+【削除の連鎖（TodayPage.jsx）】TODO_META.approve／TODO_META.interview／TODO_STAGE_CATALOG.farmer の
+2エントリ／TODO_BOX_LABEL.interview／専用ページの approve 分岐（NewApplicantsPanel の描画とimport）／
+面接の質問の合図 m.qset（interview 専用だった）。
+【★件数の食い違いを防ぐ】DBのやること一覧(my_todo_items)は approve・interview を返し続けるため、
+モジュール定数 REMOVED_STAGES で画面から除外＝myTodos に入れない（件数にも箱にも出ない）。
+箱を足し引きしたら REMOVED_STAGES も対で直すこと。
+【★消えていない行為（入口が別にある）】
+・新着の応募＝専用ページ #/new-applicants（応募が届くと起動時にそこへ着地する既定の導線）と応募者ページ。
+  承認・見送りの実行は従来どおり応募者シートが唯一の窓口。
+・面接の質問＝チャットの質問集シート。合図 cb_openQSet は ChatView に残置so別の入口を作る時に使える。
+【★残る不整合（DB側・未対処）】下部ナビ「今日」のバッジ(my_nav_badges.todo)は my_todo_items を
+数えるため、箱を消した approve・interview のぶんも数え続ける＝画面に箱が無いのに数字が付く。
+直すなら my_nav_badges の todo から2用件を除くmigrationが要る（たきと判断待ち）。
+なお applicants_pending は別バッジso新着の応募の通知自体は従来どおり残る。
+【検証】build成功・lint 0 error。実機：農家面のやることに📨・❓が無いこと／件数が箱と合うこと／
+#/new-applicants と応募者ページ・チャットの質問集が従来どおり使えること
+
+━━━ 2026-08-19 今日ページの📝メモを削除（b0a1654）━━━
+【たきと指示】「メモ機能削除。必要ない」。
+【削除】TodayPage の 📝メモ（textarea・memo state・localStorage への書き込み）。
+【後始末】DBには一切保存していなかった（端末内の cb_todayMemo だけ）soサーバー側の後始末は無い。
+既に書かれた文字は利用者の端末に残す＝消すと本人の書いたものを黙って壊すことになるため触らない
+（機能が無くなるので画面からは読めない。気になるなら次の掃除で削除する判断を別途）。
+ヘルプ・見本帳にこの機能を案内している箇所は無いことを確認済み。
+【検証】build成功・lint 0 error（警告1件=既存）・distから cb_todayMemo の消失をgrep確認。
