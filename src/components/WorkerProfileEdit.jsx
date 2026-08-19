@@ -468,15 +468,15 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         ];
         if (steps.every(s => s.done)) return null;
         return (
-          <div className="f-sans" style={{ background:"#F0F7F4", border:"1px solid #00A86B33", borderRadius:16, padding:"16px", marginBottom:20 }}>
-            <p style={{ fontSize:14, fontWeight:800, color:"#00A86B", margin:"0 0 4px" }}>この3つで応募できます</p>
+          <div className="f-sans" style={{ background:"#FFF6EF", border:"1px solid " + ROLE_ORANGE + "33", borderRadius:16, padding:"16px", marginBottom:20 }}>
+            <p style={{ fontSize:14, fontWeight:800, color:ROLE_ORANGE, margin:"0 0 4px" }}>この3つで応募できます</p>
             <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この3つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
             <div style={{ display:"grid", gap:8 }}>
               {steps.map(s => (
-                <button key={s.k} onClick={()=>setEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?"#00A86B":"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
-                  <span style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, background: s.done?"#00A86B":"#F0F0F0", color: s.done?"#fff":"#B0B0B0" }}>{s.done?"✓":""}</span>
-                  <span style={{ fontSize:14, fontWeight:700, color: s.done?"#00A86B":"#222", flex:1 }}>{s.l}</span>
-                  {!s.done && <span style={{ fontSize:12, color:"#00A86B", fontWeight:700, flexShrink:0 }}>入力する →</span>}
+                <button key={s.k} onClick={()=>setEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?ROLE_ORANGE:"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+                  <span style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, background: s.done?ROLE_ORANGE:"#F0F0F0", color: s.done?"#fff":"#B0B0B0" }}>{s.done?"✓":""}</span>
+                  <span style={{ fontSize:14, fontWeight:700, color: s.done?ROLE_ORANGE:"#222", flex:1 }}>{s.l}</span>
+                  {!s.done && <span style={{ fontSize:12, color:ROLE_ORANGE, fontWeight:700, flexShrink:0 }}>入力する →</span>}
                 </button>
               ))}
             </div>
@@ -522,7 +522,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         })}
       </div>
       {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:14 }}>{savedInReview ? "保存しました ✓　自己紹介も公開されました" : "保存しました ✓"}</p>
+        <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:14 }}>{savedInReview ? "保存しました ✓　自己紹介も公開されました" : "保存しました ✓"}</p>
       )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
@@ -571,13 +571,13 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {editBox==="transport" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>移動手段</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>集合場所までの足の確認に使われます。</p>
-      <LFPillSelect options={["車","バイク","自転車","公共交通"]} value={transport} onSelect={setTransport} />
+      <LFPillSelect options={["車","バイク","自転車","公共交通"]} value={transport} onSelect={setTransport} accent={ROLE_ORANGE} />
       </>)}
 
       {editBox==="exp" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>農業就労の経験</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>未経験でも大丈夫。正直に選んでください。</p>
-      <LFPillSelect options={["未経験","経験あり"]} value={farmExperience} onSelect={setFarmExperience} />
+      <LFPillSelect options={["未経験","経験あり"]} value={farmExperience} onSelect={setFarmExperience} accent={ROLE_ORANGE} />
       </>)}
 
       {/* はたらき方の希望＝4問（2026-08-14拡充・雇い手の関わり方4問と対）。
@@ -597,7 +597,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
             <div key={q.k} style={{ flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", padding:"0 2px", alignSelf:"flex-start" }}>
               <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>{q.label}（任意）</label>
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 8px" }}>{i + 1} / {WORKER_STYLE_QUESTIONS.length}</p>
-              <LFPillSelect options={q.options} value={cur} onSelect={v => {
+              <LFPillSelect options={q.options} accent={ROLE_ORANGE} value={cur} onSelect={v => {
                 const next = cur === v ? "" : v;   // 同じものをもう一度タップ＝選び直し（空に戻す）
                 set(next);
                 // 選んだら次の質問へ自動で送る（最後の質問は送らない＝下の「保存する」で締める）
@@ -641,9 +641,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           return (
             <button key={v} type="button" onClick={()=>toggleInterest(v)} disabled={disabled} className="f-sans" style={{
               padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor: disabled ? "default" : "pointer",
-              border:"1px solid " + (selected ? "#00A86B" : "#EBEBEB"),
-              background: selected ? "#E6F7EF" : "#F7F7F7",
-              color: selected ? "#00A86B" : (disabled ? "#D0D0D0" : "#717171"),
+              border:"1px solid " + (selected ? ROLE_ORANGE : "#EBEBEB"),
+              background: selected ? "#FFF1E8" : "#F7F7F7",
+              color: selected ? ROLE_ORANGE : (disabled ? "#D0D0D0" : "#717171"),
             }}>{v}</button>
           );
         })}
@@ -656,9 +656,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         {LANGUAGE_OPTIONS.map(v => (
           <button key={v} type="button" onClick={()=>toggleLanguage(v)} className="f-sans" style={{
             padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
-            border:"1px solid " + (languages.includes(v) ? "#00A86B" : "#EBEBEB"),
-            background: languages.includes(v) ? "#E6F7EF" : "#F7F7F7",
-            color: languages.includes(v) ? "#00A86B" : "#717171",
+            border:"1px solid " + (languages.includes(v) ? ROLE_ORANGE : "#EBEBEB"),
+            background: languages.includes(v) ? "#FFF1E8" : "#F7F7F7",
+            color: languages.includes(v) ? ROLE_ORANGE : "#717171",
           }}>{v}</button>
         ))}
       </div>
@@ -683,7 +683,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
             return (
               <button key={v} type="button" onClick={()=>setExperiencedTasks(prev => on ? prev.filter(x=>x!==v) : [...prev, v])} className="f-sans" style={{
                 padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
-                border:"1px solid " + (on ? "#00A86B" : "#EBEBEB"), background: on ? "#E6F7EF" : "#F7F7F7", color: on ? "#00A86B" : "#717171",
+                border:"1px solid " + (on ? ROLE_ORANGE : "#EBEBEB"), background: on ? "#FFF1E8" : "#F7F7F7", color: on ? ROLE_ORANGE : "#717171",
               }}>{v}</button>
             );
           })}
@@ -703,9 +703,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
             className="f-sans"
             style={{
               padding:"6px 12px", borderRadius:20,
-              border:"1px solid " + (prPromptIndex===i ? "#00A86B" : "#EBEBEB"),
-              background: prPromptIndex===i ? "#E6F7EF" : "#F7F7F7",
-              color: prPromptIndex===i ? "#00A86B" : "#717171",
+              border:"1px solid " + (prPromptIndex===i ? ROLE_ORANGE : "#EBEBEB"),
+              background: prPromptIndex===i ? "#FFF1E8" : "#F7F7F7",
+              color: prPromptIndex===i ? ROLE_ORANGE : "#717171",
               fontSize:12, fontWeight:600, cursor:"pointer",
             }}
           >{p.q}</button>
@@ -729,7 +729,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           初期値として自動で入っており、変えたい人だけ変える。
           ★別テーブルsoこの部品の中で保存が完結する＝共通の save() を通らない。保存の直後に
           仮応募の昇格を試すのは従来どおり残す（3項目がそろっていなければ何も起きない） */}
-      <EmergencyContactBox accent="#00A86B" onSaved={async ({ name, relation, phone }) => {
+      <EmergencyContactBox accent={ROLE_ORANGE} onSaved={async ({ name, relation, phone }) => {
         setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"));
         setHasEmg(!!((name || "").trim() || (phone || "").trim()));
         const promoted = await promotePendingApplications();
@@ -829,7 +829,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
           両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
       {editBox !== "emergency" && (
-        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
+        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4, background:ROLE_ORANGE }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       )}
       </div>
       </div>
@@ -885,7 +885,7 @@ function WorkerProfilePreview({ me, onEdit, onEditItem }) {
           <div style={{ fontSize:32, marginBottom:14 }}>🧑‍🌾</div>
           <p style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 8px" }}>プロフィールを完成させましょう</p>
           <p style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
-          <button onClick={onEdit} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12 }}>はじめる</button>
+          <button onClick={onEdit} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12, background:ROLE_ORANGE }}>はじめる</button>
         </div>
       ) : (
         <div style={{ border:"1px solid #EBEBEB", borderRadius:16, padding:"20px" }}>
@@ -930,7 +930,7 @@ function WorkerProfilePreview({ me, onEdit, onEditItem }) {
             まだ勤務実績はありません。初回勤務後から、労働時間・作業・出勤状況が記録されます。
           </p>
           {wantAgainCount > 0 && (
-            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"10px 0 0" }}>🌟また呼びたい ×{wantAgainCount}</p>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:ROLE_ORANGE, margin:"10px 0 0" }}>🌟また呼びたい ×{wantAgainCount}</p>
           )}
         </div>
       )}

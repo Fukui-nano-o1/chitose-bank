@@ -396,14 +396,17 @@ export function MaskedText({ label, chars = 4 }) {
   );
 }
 
-export function LFPillSelect({ options, value, onSelect }) {
+// accent＝選んだ時の色（既定は緑）。働き手の画面は橙を渡す（役割色・2026-08-19たきと指示）。
+// accentSoft を渡さない時は accent の薄い塗りを自動で作る
+export function LFPillSelect({ options, value, onSelect, accent = "#00A86B", accentSoft }) {
+  const soft = accentSoft || (accent === "#00A86B" ? "#E6F7EF" : "#FFF1E8");
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:8 }}>
       {options.map(o => (
         <button key={o} onClick={() => onSelect(o)} className="f-sans" style={{
           padding:"7px 14px", borderRadius:20, fontSize:12, cursor:"pointer", fontWeight:600, border:"2px solid",
-          borderColor: value===o ? "#00A86B" : "#EBEBEB",
-          background: value===o ? "#E6F7EF" : "#fff", color: value===o ? "#00A86B" : "#222",
+          borderColor: value===o ? accent : "#EBEBEB",
+          background: value===o ? soft : "#fff", color: value===o ? accent : "#222",
         }}>{o}</button>
       ))}
     </div>
