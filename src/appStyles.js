@@ -577,7 +577,7 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   overflow-y: auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.12);
 }
-/* ☰の中身（求人を出す・管理・運営憲章・利用規約・プライバシー・ログアウト）。バーの真上に開く */
+/* ☰の中身（求人を探す・使い方・報告・管理・ログアウト）。バーの真上に開く */
 .app-header-mobile-menu {
   position: absolute;
   bottom: 100%;
@@ -602,11 +602,6 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   font-size: 14px;
   color: #222;
   padding: 12px 16px;
-}
-.app-header-post-btn .post-label-short { display: none; }
-@media (max-width: 380px) {
-  .app-header-post-btn .post-label-full { display: none; }
-  .app-header-post-btn .post-label-short { display: inline; }
 }
 
 /* ── 農家プロ(雇い手空間)：モバイルで画面端から10pxに詰める
