@@ -136,7 +136,7 @@ export const TERMS_ARTICLES = [
 export default function Terms({ onClose }) {
   const articles = TERMS_ARTICLES;
 
-  // 様式はプライバシーポリシー（App.jsx PrivacyPolicy）と同一。片方を変えたらもう片方も合わせること
+  // 様式はプライバシーポリシー（app/legal/PrivacyPolicy.jsx）と同一。片方を変えたらもう片方も合わせること
   return (
     <div className="cb-lock-scroll"
       style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.38)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
@@ -150,7 +150,7 @@ export default function Terms({ onClose }) {
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 制定：2026年7月5日／全面改訂：2026年7月21日／一部改訂：2026年8月19日</p>
         <div style={{ display:"grid", gap:20 }}>
           {articles.map((a, i) => (
-            <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
+            <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", minWidth:0 }}>
               <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{a.title}</h3>
               {a.body.map((p, j) => (
                 <p key={j} className="f-sans" style={{ fontSize:16, color:"#444", lineHeight:1.9, margin: j < a.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>

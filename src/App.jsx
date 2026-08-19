@@ -2007,9 +2007,10 @@ export default function App(){
               ))}
             </nav>
 
+            {/* 各条の箱の minWidth:0 は、モーダル側（app/legal/PrivacyPolicy.jsx）と同じ理由＝表が箱を押し広げないように */}
             <div style={{ display:"grid", gap:20 }}>
               {PRIVACY_SECTIONS.map((s, i) => (
-                <div key={i} id={s.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88 }}>
+                <div key={i} id={s.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88, minWidth:0 }}>
                   <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
                   {s.body.map((p, j) => (
                     <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>

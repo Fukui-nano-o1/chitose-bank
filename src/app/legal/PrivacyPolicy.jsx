@@ -141,7 +141,9 @@ export function PrivacyPolicy({ onClose }) {
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>千歳（chitose-bank） · 制定：2026年7月5日／全面改訂：2026年7月21日／改訂：2026年8月19日</p>
         <div style={{ display:"grid", gap:20 }}>
           {sections.map((s, i) => (
-            <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB" }}>
+            // minWidth:0 ＝ 第3条のデータ台帳の表（minWidth:760）が箱ごと横に押し広げるのを防ぐ。
+            // これが無いと表のない条（第1条など）まで一緒に伸びて本文が右端で切れる。横スクロールは表の中だけ
+            <div key={i} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", minWidth:0 }}>
               <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
               {s.body.map((p, j) => (
                 <p key={j} className="f-sans" style={{ fontSize:16, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>
