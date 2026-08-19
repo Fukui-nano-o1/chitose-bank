@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
-  CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, photoThumb,
+  CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow, CHAT_TEMPLATES_FARMER, CHAT_TEMPLATES_WORKER, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { closeReadNotifications } from "../lib/push";
@@ -109,6 +109,12 @@ export function ChatView({ applicationId, onBack }) {
   const [activeAvail, setActiveAvail] = useState(() => _cr?.available_dates ?? null); // 現役応募の来られる日（期間求人・文脈カードで表示・2026-07-24）
   const [activeAgreed, setActiveAgreed] = useState(() => _cr?.agreed_dates ?? null); // 現役応募の働く日（確定・文脈カード/確認カードで表示・2026-07-24 追記3）
   const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
+  // 求人No.帯の段階チップを「いま」で出すための日程（2026-08-19たきと指示）：作業日でない日は
+  // 「作業中」でなく「次は M/D(曜)」。{ job_number: {work_time,date_start,date_end,holidays} }。
+  // 本文の表示より後に取る（段階表示の原則＝最初は最低限）。届くまでは従来どおり段階名that出る
+  const [jobSchedMap, setJobSchedMap] = useState({});
+  // 応募行＋求人の日程＝appPhaseLabelNow の材料（応募者ページ・チャット一覧と同じ形）
+  const phaseEntry = (r) => ({ ...r, ...(jobSchedMap[r.job_number] || {}) });
   // 現役応募を切り替える（状態＝採用/確認カード/保険/#N をその応募に合わせる）。求人ページ取得も行う
   const applyActive = async (row) => {
     if (!row) return;
@@ -258,6 +264,13 @@ export function ChatView({ applicationId, onBack }) {
           setAppIds(ids);
           setThreadApps(relRows || []);
           if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
+          // 帯の段階チップ用の日程（待たない＝本文・状態の表示を遅らせない）
+          const schedNums = [...new Set((relRows || []).map(r => r.job_number).filter(Boolean))];
+          if (schedNums.length) {
+            supabase.from("jobs_public").select("job_number,work_time,date_start,date_end,holidays").in("job_number", schedNums)
+              .then(res => { if (res.error) return; // 失敗しても手元の表示を壊さない（2026-08-07規則）
+                setJobSchedMap(Object.fromEntries((res.data || []).map(j => [j.job_number, j]))); });
+          }
           // メッセージ読込は冒頭で発火済み（本文最優先）。ここでは重ねて取らない
           if (active) applyActive(active);
           return;
@@ -527,7 +540,7 @@ export function ChatView({ applicationId, onBack }) {
                 }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>#{r.job_number}</span>
                   {/* 帯統一（2026-07-25）：段階名は応募者リストと同じ段階色で表示 */}
-                  <span style={{ display:"block", fontSize:11, marginTop:2 }}><span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(r)); }} role="button" style={{ color: APP_PHASE_COLOR[appPhaseKey(r)] || "#999", fontWeight:700, cursor:"pointer" }}>{APP_PHASE_LABEL[appPhaseKey(r)] || r.status}</span><span style={{ color:"#999" }}>{isActive ? "・表示中" : "・開く"}</span></span>
+                  <span style={{ display:"block", fontSize:11, marginTop:2 }}><span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(r)); }} role="button" style={{ color: appPhaseColorNow(r, phaseEntry(r)) || "#999", fontWeight:700, cursor:"pointer" }}>{appPhaseLabelNow(r, phaseEntry(r)) || r.status}</span><span style={{ color:"#999" }}>{isActive ? "・表示中" : "・開く"}</span></span>
                 </button>
               );
             })}

@@ -5,13 +5,19 @@ import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache"
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush, isIOS } from "../lib/push";
-import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../lib/utils";
+import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow } from "../lib/utils";
 import { Avatar } from "./ui";
 import { AdminChatFab } from "./AdminChatFab";
 
 // 隠せる段階（2026-08-18たきと指示）：見送り／失効／取り消しの3つ。応募者ページの APP_HIDABLE と対。
 // モジュールレベル定義＝毎描画で作り直さない（effectの依存にも安全に使える）
 const CHAT_HIDABLE = ["rejected", "expired", "canceled"];
+
+// 段階チップの「いま」の材料（2026-08-19たきと指示「いま休日。その日の作業thaが終わったら次の日程を表示」）：
+// 応募行（合意した日・来られる日）に求人の日程（jobs_public）を重ねて appPhaseLabelNow に渡す。
+// 作業日でない日・その日の終了時刻を過ぎた後は「作業中」でなく「次は M/D(曜)」になる。
+// ★応募者ページ（FarmerDashboard の appRibbonLabel）と同じ形＝画面ごとに判定が枝分かれしない
+const phaseEntry = (a) => ({ ...a, work_time: a.job?.work_time, date_start: a.job?.date_start, date_end: a.job?.date_end, holidays: a.job?.holidays });
 
 // チャット一覧の直近スナップショット（2026-07-22）：チャットから戻った時にスピナーを出さず即表示し、
 // 裏で静かに更新する（リロード感の解消）。モジュールレベルなので再マウントをまたいで生き残る
@@ -154,7 +160,9 @@ export function ChatList() {
         const [epRes, wpRes, jobRes] = await Promise.all([
           farmerIds.length ? supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url").in("auth_id", farmerIds) : Promise.resolve({ data: [] }),
           workerIds.length ? supabase.rpc("worker_cards_for_farmer", { p_worker_ids: workerIds }) : Promise.resolve({ data: [] }),
-          jobNumbers.length ? supabase.from("jobs_public").select("job_number,crop,task").in("job_number", jobNumbers) : Promise.resolve({ data: [] }),
+          // 日程4列（work_time/date_start/date_end/holidays）は段階チップの「いま」表示用＝
+          // 作業日でない日は「作業中」でなく「次は M/D(曜)」を出す（appPhaseLabelNow）
+          jobNumbers.length ? supabase.from("jobs_public").select("job_number,crop,task,work_time,date_start,date_end,holidays").in("job_number", jobNumbers) : Promise.resolve({ data: [] }),
         ]);
         if (cancelled) return;
         const epMap = {}; (epRes.data || []).forEach(e => { epMap[e.auth_id] = e; });
@@ -304,7 +312,7 @@ export function ChatList() {
                     <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
                     {rowUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{rowUnread}</span>}
                     {/* 帯統一（2026-07-25たきと指示）：応募者リストと同じ段階色（APP_PHASE_COLOR）のチップ。凡例と同じ地色＋白文字 */}
-                    <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(a)); }} role="button" style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: APP_PHASE_COLOR[appPhaseKey(a)] || "#999", color:"#fff", flexShrink:0, cursor:"pointer" }}>{APP_PHASE_LABEL[appPhaseKey(a)] || a.status}</span>
+                    <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(a)); }} role="button" style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: appPhaseColorNow(a, phaseEntry(a)) || "#999", color:"#fff", flexShrink:0, cursor:"pointer" }}>{appPhaseLabelNow(a, phaseEntry(a)) || a.status}</span>
                   </div>
                   <p style={{ fontSize:12, color:"#717171", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>求人 #{a.job_number}{title ? "　" + title : ""}</p>
                 </div>

@@ -5,7 +5,7 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, photoThumb } from "../lib/utils";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, photoThumb } from "../lib/utils";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { YesNoPill, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
@@ -114,7 +114,7 @@ export function WorkerApplications({ filter, me }) {
           const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
           const [jobRes, respEntries] = await Promise.all([
             jobNumbers.length > 0
-              ? supabase.from("jobs_public").select("job_number,date_start,date_end,crop,task,photos,work_time,pay_type,hourly_wage,daily_wage,city,town").in("job_number", jobNumbers).then(r => r, () => ({ data: [] }))
+              ? supabase.from("jobs_public").select("job_number,date_start,date_end,holidays,crop,task,photos,work_time,pay_type,hourly_wage,daily_wage,city,town").in("job_number", jobNumbers).then(r => r, () => ({ data: [] }))
               : Promise.resolve({ data: [] }),
             waitFarmerIds.length > 0
               ? Promise.all(waitFarmerIds.map(async fid => {
@@ -166,7 +166,10 @@ export function WorkerApplications({ filter, me }) {
     return a.status !== "rejected" && a.status !== "canceled";
   });
   // リアルタイム帯（2026-07-25）：応募中→面接中→採用→作業中→完了（appPhaseKeyで導出）
-  const label = (a) => a.status==="applied" ? "応募中" : (APP_PHASE_LABEL[appPhaseKey(a)] || a.status);
+  // 「作業中」は【いま】で出す（2026-08-19たきと指示）：作業日でない日・その日の終了時刻を過ぎた後は
+  // 「次は M/D(曜)」。材料は応募行（合意した日・来られる日）＋求人の日程（jobDates）
+  const label = (a) => a.status==="applied" ? "応募中"
+    : (appPhaseLabelNow(a, { ...a, ...(jobDates[a.job_number] || {}) }) || a.status);
   const color = (s) => s==="approved"||s==="contracted"||s==="working" ? {bg:"#E6F7EE",fg:"#00A86B"} : s==="rejected" ? {bg:"#F3F3F3",fg:"#999"} : {bg:"#FFF4E0",fg:"#C77700"};
   // 承認済みタブのグリッド用（農家の作成中ページと同設計・2026-07-16）
   const [sheetAppId, setSheetAppId] = useState(null); // タップした応募のボトムシート
