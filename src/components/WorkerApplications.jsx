@@ -11,6 +11,7 @@ import { fetchWorkerReady } from "../lib/workerReady";
 import { YesNoPill, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
+import { WorkerReviewSheet } from "./WorkerReviewSheet";
 
 export function WorkerApplications({ filter, me }) {
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（2026-07-27たきと指示）
@@ -36,37 +37,12 @@ export function WorkerApplications({ filter, me }) {
   };
   const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
   const [pastOpen, setPastOpen] = useState(false); // 過去の応募（見送り・失効）の折りたたみ（第9弾）
-  // 評価（Part2・農家の完了記録のあと）
+  // 評価（Part2）：フォームと保存は共有部品 WorkerReviewSheet が持つ（今日ページの「仕事の評価」と
+  // 同じ入力を使う＝2箇所で枝分かれさせない・2026-08-19）。ここが持つのは「どの応募を開いているか」だけ
   const [reviewModalApp, setReviewModalApp] = useState(null);
-  const [reviewWantAgain, setReviewWantAgain] = useState(null);
-  const [reviewAsDescribed, setReviewAsDescribed] = useState(null);
-  const [reviewSafetyCare, setReviewSafetyCare] = useState(null);
-  const [reviewPublicComment, setReviewPublicComment] = useState("");
-  const [reviewPrivateMemo, setReviewPrivateMemo] = useState("");
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   // 完了の祝祭（2026-08-06）：評価送信の成功時。演出のみ＝記録には触れない
   const [celebrate, setCelebrate] = useState(null);
-  const openReviewModal = (a) => {
-    setReviewModalApp(a);
-    setReviewWantAgain(null); setReviewAsDescribed(null); setReviewSafetyCare(null);
-    setReviewPublicComment(""); setReviewPrivateMemo("");
-  };
-  const submitWorkerReview = async () => {
-    if (!reviewModalApp || reviewWantAgain===null || reviewAsDescribed===null || reviewSafetyCare===null || reviewSubmitting) return;
-    setReviewSubmitting(true);
-    try {
-      const { error: revErr } = await supabase.from('reviews').insert({
-        application_id: reviewModalApp.id, reviewer_id: me.id, reviewee_id: reviewModalApp.farmer_id,
-        direction: 'worker_to_farmer', want_again: reviewWantAgain, as_described: reviewAsDescribed, safety_care: reviewSafetyCare,
-        public_comment: reviewPublicComment.trim() || null, private_memo: reviewPrivateMemo.trim() || null,
-      });
-      if (revErr) { fbError(); alert('評価の保存に失敗しました：' + revErr.message); setReviewSubmitting(false); return; }
-      setReviewedIds(prev => new Set(prev).add(reviewModalApp.id));
-      setReviewModalApp(null);
-      fbSuccess(); setCelebrate({ title:"ありがとうございました" });
-    } catch { alert('処理に失敗しました。'); }
-    setReviewSubmitting(false);
-  };
+  const openReviewModal = (a) => setReviewModalApp(a);
 
   // 欠勤記録への異議申立（Part2・attended=falseの代替導線）
   const [disputeModalApp, setDisputeModalApp] = useState(null);
@@ -466,25 +442,11 @@ export function WorkerApplications({ filter, me }) {
       })()}
 
       {/* 終了確認・評価モーダル（Part2） */}
-      {reviewModalApp && (
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:16 }}>終了の確認・評価</p>
-            <YesNoPill label="また働きたい" value={reviewWantAgain} onChange={setReviewWantAgain} />
-            <YesNoPill label="説明のとおりだった" value={reviewAsDescribed} onChange={setReviewAsDescribed} />
-            <YesNoPill label="安全に配慮されていた" value={reviewSafetyCare} onChange={setReviewSafetyCare} />
-            <textarea value={reviewPublicComment} onChange={e=>setReviewPublicComment(e.target.value)} placeholder="農園について良かった点を一言（公開されます）" rows={3}
-              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
-            <textarea value={reviewPrivateMemo} onChange={e=>setReviewPrivateMemo(e.target.value)} placeholder="自分だけが見えるメモ（任意）" rows={3}
-              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
-            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-              <button onClick={()=>setReviewModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-              <button onClick={submitWorkerReview} disabled={reviewSubmitting || reviewWantAgain===null || reviewAsDescribed===null || reviewSafetyCare===null}
-                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{reviewSubmitting ? <>送信中<Dots /></> : "送信する"}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 終了の確認・評価：フォームと保存は共有部品（今日ページの「仕事の評価」と同じもの）。
+          送信できたら一覧の表示を評価済みに変え、祝祭を出す＝画面側の役目だけをここに残す */}
+      <WorkerReviewSheet app={reviewModalApp && { id: reviewModalApp.id, farmer_id: reviewModalApp.farmer_id }} meId={me.id}
+        onClose={()=>setReviewModalApp(null)}
+        onDone={(id)=>{ setReviewedIds(prev => new Set(prev).add(id)); setReviewModalApp(null); setCelebrate({ title:"ありがとうございました" }); }} />
 
       {/* 異議申立モーダル（Part2・欠勤記録への異議） */}
       {disputeModalApp && (

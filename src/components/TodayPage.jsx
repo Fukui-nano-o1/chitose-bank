@@ -10,7 +10,7 @@ import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
   countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, runTodoRpc } from "../features/today/todayApi";
-import { EmergencyStagePanel, HireStagePanel,
+import { EmergencyStagePanel, HireStagePanel, ReviewStagePanel,
   HIRE_SHEET_PATH, markHireSheet } from "../features/today/components/StagePanels";
 
 // 今日ページから箱を消した用件（2026-08-19たきと指示）。DBのやること一覧(my_todo_items)は
@@ -298,7 +298,8 @@ export function TodayPage({ me, defaultRole }) {
     // 来たらDB側のcron auto_start_work() が自動で作業中にする＝誰にも時刻を押させない
     // ここに出るのは「農家が完了を記録した後・自分がまだ終了を確認していない・完了から3日以内」だけ
     // （my_todo_items の w_review の定義）。作業が終わる前は出ない＝まだ評価できない（2026-08-19）
-    w_review:    { icon:"⭐", title:"仕事の評価",         btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
+    // 専用ページ（ReviewStagePanel）that一覧と入力を両方持つso、行ボタン用のnavは持たない（2026-08-19）
+    w_review:    { icon:"⭐", title:"仕事の評価",         btn:"評価する →",
                    desc:"働いた農園を評価します。作業が始まってから、終わって24時間の間ここに並びます。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
@@ -458,6 +459,10 @@ export function TodayPage({ me, defaultRole }) {
           /* 採用するページは応募者ページと同じカード構造・ただし応募者単位（2026-08-06たきと指示）。
              🤝→最終確認→OKでその場で採用（ページ遷移しない）。片付いた応募はやることからも消す */
           <HireStagePanel items={pItems} meId={me?.id} onHired={(id)=>removeTodo(id, "hire")} />
+        ) : pageStage === "w_review" ? (
+          /* 仕事の評価はさがすの求人一覧と同じカード構造（2026-08-19たきと指示）。
+             タップでその場に 終了の確認・評価 を開く＝ページを移らない */
+          <ReviewStagePanel items={pItems} meId={me?.id} onReviewed={(id)=>removeTodo(id, "w_review")} />
         ) : pageStage === "t_emergency" ? (
           /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示） */
           <EmergencyStagePanel items={pItems} role={role} />

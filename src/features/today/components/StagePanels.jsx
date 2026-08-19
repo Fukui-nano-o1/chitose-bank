@@ -8,15 +8,18 @@
 //   （LandingFlow のフォーカス消失バグと同族・CLAUDE.md）。
 import { useState, useEffect, useRef } from "react";
 import { useSheetDragClose } from "../../../lib/sheetDrag";
-import { confirmTerms, fetchMyFarmJobs } from "../todayApi";
+import { confirmTerms, fetchMyFarmJobs, fetchPublicJobsByNumbers } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
-import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, photoThumb,
+import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, photoThumb, mapJobPublicRow,
   appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../../../lib/utils";
 import { openPhaseInfo } from "../../../lib/previewBus";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../../../lib/hire";
 import { Avatar, Dots } from "../../../components/ui";
 import ContractPartyName from "../../../components/ContractPartyName";
 import ContractEmergencyContact from "../../../components/ContractEmergencyContact";
+import { JobCard } from "../../../components/JobCard";
+import { WorkerReviewSheet } from "../../../components/WorkerReviewSheet";
+import { Celebration } from "../../../components/Celebration";
 
 
 // 緊急連絡の専用ページ（2026-08-02たきと指示「ステータスと同じ構造に」）：
@@ -405,4 +408,67 @@ function AutoClose({ onDone, ms = 2600 }) {
   const cb = useRef(onDone); cb.current = onDone;
   useEffect(() => { const id = setTimeout(() => cb.current?.(), ms); return () => clearTimeout(id); }, [ms]);
   return null;
+}
+
+// 仕事の評価ページ（#/calendar/todo/w_review・2026-08-19たきと指示
+// 「探すページの求人一覧と同じ構造に。タップで、終了の確認・評価ボックス展開」）：
+// ★カードは JobCard variant="list" ＝さがす一覧と【同じ部品】を使う。似せて描かない＝
+//   さがすの見た目を直せばこの面も自動で追従する（写真・作物×作業・報酬・地域・期間の5枠）。
+// 材料は jobs_public（open/closedを含む）から job_number でまとめて引く。my_todo_items は
+// 写真も報酬も返さないため。引けなかった求人（行that消えた等）は最小のカードで出す＝一覧から落とさない。
+// タップ→終了の確認・評価（共有部品 WorkerReviewSheet＝応募状況ページと同じ入力・同じ保存）。
+// ★モジュールレベル定義を維持すること（親内定義はフォーカス消失バグの元）
+export function ReviewStagePanel({ items, meId, onReviewed }) {
+  // ★viewCacheには入れない：mapJobPublicRow の dateStart/dateEnd は Date オブジェクトso、
+  //   JSONで保存→復元すると文字列になり読む側that落ちる（2026-08-03の実害と同じ型）。
+  //   この面は開いた時に1往復するだけso、素直に毎回引く
+  const [jobs, setJobs] = useState({}); // job_number → mapJobPublicRow
+  const [reviewApp, setReviewApp] = useState(null); // 展開中の 終了の確認・評価
+  const [done, setDone] = useState(null);           // 送信できた祝祭（演出のみ）
+  const numsKey = items.map(t => t.job_number).filter(Boolean).join(",");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const nums = numsKey ? numsKey.split(",").map(Number) : [];
+      if (!nums.length) return;
+      try {
+        const { data, error } = await fetchPublicJobsByNumbers(nums);
+        // 失敗時は手元の値を上書きしない（2026-08-07フェイルオープン規則）
+        if (cancelled || error || !data) return;
+        setJobs(prev => {
+          const nx = { ...prev };
+          data.forEach(r => { nx[r.job_number] = mapJobPublicRow(r); });
+          return nx;
+        });
+      } catch { /* 取得できなくてもカードは最小形で出す */ }
+    })();
+    return () => { cancelled = true; };
+  }, [numsKey]);
+  return (
+    <>
+      {/* さがす一覧と同じ縦並び（1列・カードの間隔もあちらに合わせる） */}
+      <div style={{ display:"grid", gap:24 }}>
+        {items.map(t => {
+          const job = jobs[t.job_number];
+          const open = () => setReviewApp({ id: t.application_id, farmer_id: t.partner_id });
+          if (job) {
+            // onOpen＝タップの行き先をこの面に預ける（新しいタブで求人詳細を開かない）
+            return <JobCard key={t.application_id} job={job} variant="list" onOpen={open} hideEndLabel />;
+          }
+          // 求人の情報that引けなかった時（掲載の行that無い等）：作物×作業と#No.だけの最小カード
+          return (
+            <button key={t.application_id} onClick={open} className="f-sans"
+              style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
+              <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>{[t.crop, t.task].filter(Boolean).join(" ") || "求人"}</span>
+              <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{t.job_number}</span>
+            </button>
+          );
+        })}
+      </div>
+      <WorkerReviewSheet app={reviewApp} meId={meId}
+        onClose={()=>setReviewApp(null)}
+        onDone={(id)=>{ setReviewApp(null); setDone({ title:"ありがとうございました" }); onReviewed(id); }} />
+      {done && <Celebration title={done.title} onDone={()=>setDone(null)} />}
+    </>
+  );
 }

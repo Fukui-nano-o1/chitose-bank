@@ -46,3 +46,7 @@ export const fetchPublicJobByNumber = (jobNumber) =>
 export const fetchMyFarmJobs = () => supabase.rpc("my_farm_jobs");
 // 面接の質問の取得・メッセージの投函の窓口は削除（2026-08-19）：今日ページの面接の回答パネルが
 // 唯一の使い手だったが、その箱ごと廃止した（返事はチャットで行う＝ChatViewが自前の窓口を持つ）
+// 仕事の評価ページ（2026-08-19）：さがすと同じ求人カードを描くための材料。
+// jobs_public は open と closed を含む（2026-08-05）ので、掲載が終わった求人でもカードを描ける。
+export const fetchPublicJobsByNumbers = (nums) =>
+  supabase.from("jobs_public").select("*").in("job_number", nums);
