@@ -8,6 +8,7 @@ import { Carousel, JobFlagBadges, DangerItem, Dots, LinkifiedText, MaskedAddress
 import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
+import { JobInsuranceSection } from "./InsurancePanel";
 // 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
 const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い","差別的な条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","表現が不明瞭","写真が不適切","その他"];
 
@@ -480,6 +481,19 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
             <div style={{ marginBottom:20 }}>
               <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} holidays={job.holidays} />
             </div>
+          )}
+
+          {/* 保険カード（カレンダーの下・2026-08-19たきと指示。求人詳細・確認ページと同じ位置） */}
+          {/* 見るのは掲載時に凍結された insuranceSnapshot だけ（2026-08-02・プロフィール現在値への
+              フォールバック禁止）。掲載前の下書きはまだ凍結されていない＝区画ごと出ない
+              （そこでの見え方は求人フローの確認ページthaが受け持つ）。
+              複数枚は指連動の横スワイプ＝中の .carousel-scroll は公開の右スワイプthaが掴まない（L138の除外） */}
+          {job.insuranceSnapshot && (
+            <JobInsuranceSection
+              style={{ position:"relative", marginBottom:20, ...revOutline("保険") }}
+              employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }}>
+              {revChip("保険")}
+            </JobInsuranceSection>
           )}
         </>)}
       </div>

@@ -90,11 +90,14 @@ export function InsurancePanel({ employer, swipe = false }) {
 // 保険タブは廃止＝表示の入口はここ1つ（求人詳細・ボックス版・掲載前の確認ページで同じ形）。
 // 申告が無い求人は見出しごと出さない（危険箇所セクションと同じ作法）。
 // style＝置く場所ごとの余白を合わせる（地図・カレンダーと同じ高さにする）。
-export function JobInsuranceSection({ employer, style }) {
+// children＝区画の中に重ねるもの（審査プレビューの指摘チップ。position:absolute so
+//   style に position:"relative" を渡すこと＝他の区画と同じ作法）。
+export function JobInsuranceSection({ employer, style, children }) {
   const items = normalizeInsuranceItems(employer?.insurance_items);
   if (items.length === 0) return null;
   return (
     <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:16, marginBottom:5, boxSizing:"border-box", ...style }}>
+      {children}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
         <span style={{ fontSize:18 }}>🛡</span>
         <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>保険の準備</h3>
