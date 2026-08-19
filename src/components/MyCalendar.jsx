@@ -183,18 +183,12 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       {/* 見出し「カレンダー」は削除（2026-07-27たきと指示）：カレンダーを見れば分かる＝重複。
           「今日」から入った月の予定（backToToday）だけは、どの画面かの手がかりとして残す */}
       {backToToday && <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>月の予定</h2>}
-      {/* 読み込み中の骨は〈○○年○○月〉の見出し1本ぶんだけ（2026-07-29たきと指示）。
-          盤面ぶんの大きな面は出さない＝展開の順番（見出しが出て、そこから下に開く）と骨の形が一致する */}
-      {loading ? (
-        <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:10 }}>
-          <div aria-busy="true" aria-label="読み込み中" className="ghost-line" style={{ height:27, borderRadius:8 }} />
-        </div>
-      ) : entries.length === 0 ? (
-        <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
-          <div style={{ fontSize:40, marginBottom:12 }}>📅</div>
-          <p style={{ fontSize:14, margin:0 }}>予定はまだありません。<br/>応募が承認されると、ここに表示されます。</p>
-        </div>
-      ) : (
+      {/* ★盤面は常に出す（2026-08-19たきと指示「カレンダーが閉じている状態から展開している。
+          展開したままにしろ」）：以前は読み込み中だけ見出し1本ぶんの骨を出し、予定が0件なら
+          盤面ごと案内文に差し替えていたため、データが届いた瞬間に下へ開いて見えていた。
+          月のマス目は予定が無くても描けるので先に出し、予定の点・名前だけが後から入る＝形が変わらない。
+          読み込み中／予定なしの知らせは、盤面の下に小さく添える（差し替えない） */}
+      {(
         <>
           <div onTouchStart={onCalTouchStart} onTouchMove={onCalTouchMove} onTouchEnd={onCalTouchEnd} onTouchCancel={onCalTouchEnd} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:10, touchAction:"pan-y", overflow:"hidden" }}>
             {/* 展開の2段（2026-07-27）：見出し（○○年○○月）が先に入り、盤面が少し遅れて開く。
@@ -314,6 +308,11 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
           <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"2px 0 0" }}>名前は採用が決まった方のみ表示されます（面接中は出ません）</p>
           {flashNoPlan && (
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
+          )}
+          {!loading && entries.length === 0 && (
+            <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"10px 0 0", lineHeight:1.7 }}>
+              予定はまだありません。応募が承認されると、ここに表示されます。
+            </p>
           )}
         </>
       )}
