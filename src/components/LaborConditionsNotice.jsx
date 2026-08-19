@@ -29,7 +29,9 @@ const fmtYmd = (d) => {
 };
 
 // 記録に無い法定の明示事項（この通知書では作らないもの）。文末の注意書きで当事者間の明示を促す
-const NOT_RECORDED_ITEMS = "契約の更新の有無と基準／就業の場所・従事すべき業務の変更の範囲／退職に関する事項（解雇の事由を含む）／社会保険・雇用保険の適用／昇給・賞与・退職手当";
+// ★2026-08-19：昇給・賞与・退職手当は待遇（jobs.perks）として掲載時に凍結されるようになったので
+//   この一覧から外した。凍結前の旧契約は perks にキーが無い＝5.賃金の欄が「記録にありません」になる
+const NOT_RECORDED_ITEMS = "契約の更新の有無と基準／就業の場所・従事すべき業務の変更の範囲／退職に関する事項（解雇の事由を含む）／社会保険・雇用保険の適用";
 
 // 凍結スナップショットから通知書の中身を組み立てる（値が無い法定項目は null＝「記録にありません」）
 function buildSections(s, r) {
@@ -45,6 +47,10 @@ function buildSections(s, r) {
   const place = [s.prefecture, s.city, s.town, s.address].filter(Boolean).join("") || null;
   const closing = WAGE_CLOSING_RULE_LABELS[s.wage_closing_rule] || null;
   const payTerms = payTermsLine({ payTiming: s.pay_timing, payMethod: s.pay_method });
+  // 昇給・賞与・退職手当（2026-08-19）：掲載時に凍結された待遇から「あり／なし」を出す。
+  // キーが無い＝凍結前の旧契約なので null＝「記録にありません」（憶測で「なし」にしない）
+  const pk = s.perks || {};
+  const yesNo = (v) => (v === true ? "あり" : v === false ? "なし" : null);
   const ins = s.insurance_snapshot || null;
   const insItems = normalizeInsuranceItems(Array.isArray(ins?.items) ? ins.items : [])
     .map(k => (INSURANCE_ITEMS.find(x => x.k === k) || {}).label).filter(Boolean).join("・");
@@ -73,6 +79,9 @@ function buildSections(s, r) {
       ["賃金の締切", closing],
       ["支払方法・支払時期", payTerms === "支払条件を確認できません" ? null : payTerms.replace(/^支払：/, "")],
       ["天候中止などの取扱い", s.full_pay_guarantee ? "作業が中止になった場合も満額を支払う" : null],
+      ["昇給", yesNo(pk.has_raise)],
+      ["賞与", yesNo(pk.has_bonus)],
+      ["退職手当", yesNo(pk.has_severance_pay)],
     ]},
     { h: "6. そのほかの記録", rows: [
       ["持ち物", s.belongings || null],

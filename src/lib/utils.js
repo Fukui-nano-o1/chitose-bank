@@ -864,6 +864,9 @@ export function perkBadges(ep) {
     ep.has_parking && "🅿️ 駐車場",
     ep.has_commute_allowance && "🚃 通勤手当",
     ep.has_bonus && "🎁 賞与",
+    // 昇給・退職手当（2026-08-19たきと指示）：賞与と同じ有無だけの項目＝労働条件の明示事項
+    ep.has_raise && "📈 昇給",
+    ep.has_severance_pay && "💼 退職手当",
     ep.employer_pays_supplies && ("🧤 持ち物は農家負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "")),
     ep.accessory_ok && "💍 アクセサリーOK",
   ].filter(Boolean);
@@ -932,7 +935,7 @@ export function employerUnsetCount(e, { hasEmergency = false } = {}) {
   // ★編集ページ（EmployerProfileEdit の boxFilled）と同じ物差しで数える（2026-08-03）：
   //   氏名・名称＝recruiter_name（保存時に nickname へも写るので両方見る）
   //   住所・所在地＝recruiter_* の分割値、無ければ1行の recruiter_address
-  //   待遇＝6つの待遇のどれか、または受動喫煙の設定
+  //   待遇＝8つの待遇のどれか、または受動喫煙の設定（2026-08-19に昇給・退職手当を追加）
   //   （旧実装は place_city を見ていたが、その列を編集する入力欄はもう無く、
   //     空のままの人は永久に「未入力1」が残り続けていた＝今日ページの未入力ボックスも消えなかった）
   const placeFilled = !!((e.recruiter_prefecture || "") + (e.recruiter_city || "") + (e.recruiter_address_detail || "")).trim()
@@ -943,7 +946,7 @@ export function employerUnsetCount(e, { hasEmergency = false } = {}) {
     placeFilled,
   ].filter(x => !x).length;
   const opt = [
-    !!(e.has_transport || e.has_parking || e.has_commute_allowance || e.has_bonus || e.employer_pays_supplies || e.accessory_ok || e.smoking_policy),
+    !!(e.has_transport || e.has_parking || e.has_commute_allowance || e.has_bonus || e.has_raise || e.has_severance_pay || e.employer_pays_supplies || e.accessory_ok || e.smoking_policy),
     [e.intro_path, e.intro_joy, e.intro_crops, e.intro_atmosphere, e.intro_message, e.owner_comment].some(t => t && String(t).trim()),
     [e.unique_point, e.always_do, e.break_style].some(t => t && String(t).trim()),
     // 関わり方＝4問（HOST_STYLE_QUESTIONS）のどれかに回答があれば設定済み（2026-08-14拡充）
@@ -956,4 +959,4 @@ export function employerUnsetCount(e, { hasEmergency = false } = {}) {
 // 上の判定に必要な列だけ（今日ページはプロフィール全列を読まない＝転送量を増やさない）。
 // ★項目を足したら、上の関数と一緒にこの列リストも直すこと
 export const WORKER_UNSET_COLUMNS = "avatar_url,nickname,pr,pr_pending,residence_city,transport,farm_experience,physical_level,work_mood,learning_pref,work_pattern,interests,languages,pr_qa,pr_qa_pending";
-export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_contact,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style,teaching_style,chat_style,question_style";
+export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_contact,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,has_raise,has_severance_pay,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style,teaching_style,chat_style,question_style";

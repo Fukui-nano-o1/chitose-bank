@@ -35,6 +35,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [hasParking, setHasParking] = useState(false);
   const [hasCommuteAllowance, setHasCommuteAllowance] = useState(false);
   const [hasBonus, setHasBonus] = useState(false);
+  // 昇給・退職手当（2026-08-19たきと指示）：賞与と同じく有無だけの項目（自由記述は持たせない）
+  const [hasRaise, setHasRaise] = useState(false);
+  const [hasSeverancePay, setHasSeverancePay] = useState(false);
   const [employerPaysSupplies, setEmployerPaysSupplies] = useState(false);
   const [accessoryOk, setAccessoryOk] = useState(false);
   const [parkingCapacity, setParkingCapacity] = useState("");
@@ -167,6 +170,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setHasParking(data.has_parking ?? false);
           setHasCommuteAllowance(data.has_commute_allowance ?? false);
           setHasBonus(data.has_bonus ?? false);
+          setHasRaise(data.has_raise ?? false);
+          setHasSeverancePay(data.has_severance_pay ?? false);
           setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
           setAccessoryOk(data.accessory_ok ?? false);
           setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
@@ -343,7 +348,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // black（委託）では 関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
   // 従業員数(staff)は全面削除（2026-08-01たきと指示）
   const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","intro","ask","style"];
-  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
+  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", hasRaise&&"昇給", hasSeverancePay&&"退職手当", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   // 関わり方4問の回答済みラベル（格子サマリー用・2026-08-14）。ローカルstateから引く＝保存前でも即反映
@@ -420,7 +425,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         place_zip: placeZip.trim(), place_prefecture: placePref.trim(), place_city: placeCity.trim(),
         place_town: placeTown.trim(), place_address: placeAddr.trim(),
         has_transport: hasTransport, has_parking: hasParking, has_commute_allowance: hasCommuteAllowance,
-        has_bonus: hasBonus, employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
+        has_bonus: hasBonus, has_raise: hasRaise, has_severance_pay: hasSeverancePay,
+        employer_pays_supplies: employerPaysSupplies, accessory_ok: accessoryOk,
         parking_capacity: hasParking && parkingCapacity !== "" ? Number(parkingCapacity) : null,
         // 住所・所在地：分割値をそのまま保存し、表示用の1行（recruiter_address）は合成して保存（2026-08-01）。
         // 分割欄が全て空の既存利用者は composeRecruiterAddress が旧1行値を返す＝消えない
@@ -645,6 +651,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           )}
         </div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="賞与" checked={hasBonus} onChange={setHasBonus} /></div>
+        {/* 昇給・退職手当（2026-08-19たきと指示）：賞与と並ぶ労働条件の明示事項。有無だけを持つ */}
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="昇給" checked={hasRaise} onChange={setHasRaise} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="退職手当" checked={hasSeverancePay} onChange={setHasSeverancePay} /></div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
           <ToggleSwitch accent={AC} label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} />
           {employerPaysSupplies && (

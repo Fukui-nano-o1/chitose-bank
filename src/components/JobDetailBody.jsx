@@ -187,6 +187,9 @@ export function JobDetailBody({ job, me, onBack }) {
           { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
           { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
           { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
+          // 昇給・退職手当（2026-08-19たきと指示）：掲載時に凍結された perks から。旧求人はキーが無い＝「ー」
+          { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? "あり" : EMPTY_MARK },
+          { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? "あり" : EMPTY_MARK },
           { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
           { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
           { label:"受動喫煙", on: !!pk.smoking_policy,

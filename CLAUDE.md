@@ -6222,3 +6222,33 @@ top:8/right:8 so、見出し行thaが無くなったぶん、いちばん右の�
 0件＝見出しthaが消えたことを確認。index チャンクの「保険の準備」は13→12（1件だけ減った＝見出しのぶん）で、
 他画面の同じ文言（保険の準備ページ・今日ページの保険の報告・緑の箱）は無傷。
 ━━━ ここまで ━━━
+━━━ 2026-08-19 待遇に「昇給」「退職手当」を追加（たきと指示）━━━
+【形】賞与と同じ有無だけの項目（自由記述を持たせない＝texts_pending／NG検査の経路を増やさない）。
+待遇は8項目になった：送迎・駐車場・通勤手当・賞与・昇給・退職手当・持ち物は農家負担・アクセサリーOK
+（＋受動喫煙）。掲載時必須にはしていない（賞与と同じ任意）。
+【DB（本番適用済み・repo写経済み・履歴表のname＝repoファイル名で一致）】
+・20260819044500_perks_add_raise_and_severance_pay：employer_profiles に has_raise / has_severance_pay
+  （boolean not null default false）／employer_profiles_public を【今の本番定義】を土台に作り直して
+  2列を末尾追加（2026-08-06の教訓）＋revoke all→grant select（2026-07-19規則）／
+  trg_job_publish_snapshot の perks jsonb に2キーを追加。★関数本文に日本語があるため書き写さず、
+  pg_get_functiondef の現物の 'has_bonus' 行を replace して execute（置換1箇所を検査・冪等・
+  適用後に日本語リテラルが無傷であることを実測）。
+・20260819045000_consignment_profiles_perks_parity：consignment_profiles にも同じ2列。
+  ★EmployerProfileEdit は雇い手レーンと委託(black)レーンで【同じpayload】を upsert するため、
+  待遇の列は両テーブルに揃っていないと委託側の保存が「column does not exist」で落ちる。
+  待遇に列を足すときは必ず両方に足すこと。
+【フロント（8箇所）】lib/utils（perkBadges・employerUnsetCount の待遇判定・EMPLOYER_UNSET_COLUMNS）／
+EmployerProfileEdit（state・読み込み・保存payload・perksOn・トグル2つ）／LandingFlow（perkDraftの初期値・
+savePerksToProfile・確認ページの待遇表・待遇の変更ボックスの行・未入力通知の待遇判定）／
+JobDetailBody・JobDetailPanel（待遇表＝掲載時に凍結された perks のみ参照）／PreviewSheets（公開ビューの列）。
+【労働条件通知書】5.賃金 に 昇給／賞与／退職手当 の3行を追加（凍結perksから あり／なし。キーが無い
+旧契約は「記録にありません」＝憶測で「なし」にしない）。あわせて文末の「この記録に残っていない事項」から
+昇給・賞与・退職手当を外した（記録されるようになったため）。
+【検証】DB実弾（全ロールバック・残置ゼロ実測 jobs42・has_raise=0）：①draft→pendingで perks に
+has_raise/has_severance_pay が凍結される（キー12→14）②本人（authenticated）が2列を更新でき、
+employer_profiles_public にも出る③公開ビューの権限は authenticated:SELECT のみ。
+build成功・eslint 0 error・警告26（変更前と同数＝新規ゼロ）・search-fingerprint の差分は変更前と同一。
+【実機目視の残り】①雇い手プロフィール＞待遇に「昇給」「退職手当」のトグルが出て保存できるか
+②求人フローの確認ページ「待遇の変更」ボックスにも2行が出るか ③新しく掲載した求人の詳細ページの
+待遇表に2行が出るか（既存の公開中求人は凍結済みなので「ー」＝設計どおり）④求人カードの待遇バッジ
+（📈 昇給／💼 退職手当）⑤労働条件通知書の5.賃金の3行

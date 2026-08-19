@@ -301,6 +301,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       has_parking: !!base.has_parking, parking_capacity: base.parking_capacity || "",
       has_commute_allowance: !!base.has_commute_allowance, commute_allowance_detail: base.commute_allowance_detail || "",
       has_bonus: !!base.has_bonus,
+      // 昇給・退職手当（2026-08-19たきと指示）：賞与と同じく有無だけ
+      has_raise: !!base.has_raise,
+      has_severance_pay: !!base.has_severance_pay,
       employer_pays_supplies: !!base.employer_pays_supplies, supplies_cap: base.supplies_cap || "",
       accessory_ok: !!base.accessory_ok,
       // 受動喫煙（2026-08-07たきと指示「ここでも変更可能に」）。jobPerksには入らないため常にプロフィール値
@@ -365,6 +368,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         parking_capacity: (() => { const n = parseInt(String(perkDraft.parking_capacity ?? "").replace(/[^0-9]/g, ""), 10); return (perkDraft.has_parking && Number.isFinite(n)) ? n : null; })(),
         has_commute_allowance: perkDraft.has_commute_allowance,
         has_bonus: perkDraft.has_bonus,
+        has_raise: perkDraft.has_raise,
+        has_severance_pay: perkDraft.has_severance_pay,
         employer_pays_supplies: perkDraft.employer_pays_supplies,
         accessory_ok: perkDraft.accessory_ok,
         // 受動喫煙（2026-08-07）：EmployerProfileEditと同じ作法＝直接列へ。
@@ -838,7 +843,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           || !ep.avatar_url
           || !filledText(ep.nickname)
           || !filledText(ep.place_city)
-          || !(ep.has_transport || ep.has_parking || ep.has_commute_allowance || ep.has_bonus || ep.employer_pays_supplies || ep.accessory_ok)
+          || !(ep.has_transport || ep.has_parking || ep.has_commute_allowance || ep.has_bonus || ep.has_raise || ep.has_severance_pay || ep.employer_pays_supplies || ep.accessory_ok)
           || !filledText(ep.owner_comment, ep.intro_path, ep.intro_joy, ep.intro_crops, ep.intro_atmosphere, ep.intro_message)
           || !filledText(ep.unique_point, ep.always_do, ep.break_style)
           || !filledText(ep.interaction_style);
@@ -1763,6 +1768,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
                       { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
                       { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
+                      { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? "あり" : EMPTY_MARK },
+                      { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? "あり" : EMPTY_MARK },
                       { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
                       { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
                       // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
@@ -1833,6 +1840,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                             { k:"has_parking", l:"🅿️ 駐車場", tk:"parking_capacity", tp:"台数（例：3）" },
                             { k:"has_commute_allowance", l:"🚃 通勤手当", tk:"commute_allowance_detail", tp:"内容（例：1日500円まで）" },
                             { k:"has_bonus", l:"🎁 賞与" },
+                            { k:"has_raise", l:"📈 昇給" },
+                            { k:"has_severance_pay", l:"💼 退職手当" },
                             { k:"employer_pays_supplies", l:"🧤 持ち物は農家負担", tk:"supplies_cap", tp:"上限（例：軍手・長靴まで）" },
                             { k:"accessory_ok", l:"💍 アクセサリーOK" },
                           ].map(row => (
