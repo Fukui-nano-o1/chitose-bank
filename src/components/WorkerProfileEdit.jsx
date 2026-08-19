@@ -749,37 +749,44 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           {WORKER_QA_PAGES.map(({ group, questions }, i) => (
             <div key={group} style={{ flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", padding:"0 2px", alignSelf:"flex-start" }}>
               <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px", letterSpacing:".02em" }}>{group}</p>
-              {questions.map(q => {
-                const ans = prQa.find(x => x.q === q)?.a || "";
-                const open = openQaQ === q;
-                const revFlaggedQ = revTargets.includes(q); // 修正のお願いの指摘対象は赤で明示（2026-07-19）
-                return (
-                  <div key={q} style={{ marginBottom:8 }}>
-                    {/* 質問はタブ（行）だけ並べ、タップでその下に入力欄が開く（2026-08-19たきと指示）。
-                        開くのは1つずつ＝画面が入力欄で埋まらない。答えた問いは✓と役割色で分かる */}
-                    <button type="button" onClick={()=>setOpenQaQ(open ? null : q)} className="f-sans"
-                      style={{ width:"100%", textAlign:"left", padding:"11px 13px", borderRadius:12, cursor:"pointer", lineHeight:1.6,
-                               border:"1px solid " + (revFlaggedQ ? "#E24B4A" : (open || ans.trim()) ? ROLE_ORANGE : "#EBEBEB"),
-                               background: revFlaggedQ ? "#FDECEC" : open ? "#FFF6EF" : "#fff",
-                               color: revFlaggedQ ? "#E24B4A" : ans.trim() ? ROLE_ORANGE : "#222",
-                               fontSize:13, fontWeight:700 }}>
+              {/* 質問はタブ（横に並ぶ・2026-08-19たきと指示「質問はタブ化。タップで入力欄表示」）。
+                  タブは1行（はみ出す分はCSSの…で省略）。選んだ質問の全文と入力欄を下に出す。
+                  ★文字数での切り出しはしない：半角混じりの問い（chitose-bank…）で意味が切れるため、
+                    maxWidth＋ellipsis に任せて自然な位置で省く
+                  答えた問いには✓。選ぶまで入力欄は出さない（タップで表示） */}
+              <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch",
+                            scrollbarWidth:"none", margin:"0 -2px 10px", padding:"2px" }}>
+                {questions.map(q => {
+                  const ans = prQa.find(x => x.q === q)?.a || "";
+                  const on = openQaQ === q;
+                  const revFlaggedQ = revTargets.includes(q); // 修正のお願いの指摘対象は赤で明示（2026-07-19）
+                  return (
+                    <button key={q} type="button" onClick={()=>setOpenQaQ(on ? null : q)} className="f-sans"
+                      style={{ flexShrink:0, maxWidth:200, padding:"7px 13px", borderRadius:20, cursor:"pointer", whiteSpace:"nowrap",
+                               overflow:"hidden", textOverflow:"ellipsis", fontSize:12, fontWeight:700,
+                               border:"1px solid " + (revFlaggedQ ? "#E24B4A" : on ? ROLE_ORANGE : ans.trim() ? ROLE_ORANGE + "66" : "#EBEBEB"),
+                               background: revFlaggedQ ? "#FDECEC" : on ? ROLE_ORANGE : "#fff",
+                               color: revFlaggedQ ? "#E24B4A" : on ? "#fff" : ans.trim() ? ROLE_ORANGE : "#717171" }}>
                       {revFlaggedQ ? "⚠️ " : ans.trim() ? "✓ " : ""}{q}
                     </button>
-                    {open && (
-                      <textarea
-                        value={ans}
-                        onChange={e=>setQaAnswer(q, e.target.value)}
-                        onFocus={()=>setQaTyping(true)}
-                        onBlur={()=>setQaTyping(false)}
-                        rows={3}
-                        autoFocus
-                        className="field f-sans fade-in"
-                        style={{ width:"100%", fontSize:16, marginTop:6, resize:"vertical", boxSizing:"border-box" }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+              {questions.includes(openQaQ) && (
+                <div className="fade-in" style={{ marginBottom:12 }}>
+                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 6px", lineHeight:1.6 }}>{openQaQ}</p>
+                  <textarea
+                    value={prQa.find(x => x.q === openQaQ)?.a || ""}
+                    onChange={e=>setQaAnswer(openQaQ, e.target.value)}
+                    onFocus={()=>setQaTyping(true)}
+                    onBlur={()=>setQaTyping(false)}
+                    rows={3}
+                    autoFocus
+                    className="field f-sans"
+                    style={{ width:"100%", fontSize:16, resize:"vertical", boxSizing:"border-box" }}
+                  />
+                </div>
+              )}
               <div style={{ display:"flex", gap:8, marginTop:4 }}>
                 {i > 0 && (
                   <button type="button" onClick={()=>goQa(i - 1)} className="f-sans"
