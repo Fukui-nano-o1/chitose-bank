@@ -69,7 +69,8 @@ export function ChatView({ applicationId, onBack }) {
   //   農家の「働く日を決める」（set_agreed_dates）が唯一の記録（表示は記録から導出の原則）
   const [planSel, setPlanSel] = useState(null); // { msgId, labels:[...] } タップ中の日
   const planBaseRef = useRef("");               // 選び始めた時点の入力＝打ちかけの文を壊さない
-  const [planConfirm, setPlanConfirm] = useState(null); // 送信前の最終確認 { body }
+  const [planConfirm, setPlanConfirm] = useState(null); // 送信前の最終確認 { body, labels }
+  const [planBusy, setPlanBusy] = useState(false);       // 承認の記録中（送信ボタンの二度押し防止）
   // 【日程案】の本文から日付のラベルだけを取り出す（送った時と同じ「・」区切り）
   const parsePlanLabels = (body) => {
     if (!body || !body.startsWith("【日程案】")) return null;
@@ -135,6 +136,16 @@ export function ChatView({ applicationId, onBack }) {
   const [jobSchedMap, setJobSchedMap] = useState({});
   // 応募行＋求人の日程＝appPhaseLabelNow の材料（応募者ページ・チャット一覧と同じ形）
   const phaseEntry = (r) => ({ ...r, ...(jobSchedMap[r.job_number] || {}) });
+  // タブのラベル（8/20(木)）は本文から拾ったものので、保存に使う "YYYY-MM-DD" に戻す。
+  // 材料は日程案を作った時と同じ求人の期間（confirmJob ?? jobSchedMap）＝送る側と受ける側で同じ日を指す
+  const planYmds = (labels) => {
+    const sched = jobSchedMap[chatJobNumber] || {};
+    const period = daysBetweenYmd(confirmJob?.dateStartRaw || sched.date_start || "",
+                                  confirmJob?.dateEndRaw || sched.date_end || "");
+    const byLabel = {};
+    period.forEach(d => { const l = calFmtDate(d); if (!(l in byLabel)) byLabel[l] = d; });
+    return labels.map(l => byLabel[l]).filter(Boolean);
+  };
   // 現役応募を切り替える（状態＝採用/確認カード/保険/#N をその応募に合わせる）。求人ページ取得も行う
   const applyActive = async (row) => {
     if (!row) return;
@@ -470,6 +481,28 @@ export function ChatView({ applicationId, onBack }) {
     if (!text.trim() || sending) return;
     if (planSel && planSel.labels.length) { setPlanConfirm({ body: text.trim(), labels: planSel.labels }); return; }
     send();
+  };
+  // 最終確認の「送信する」（2026-08-19たきと承認）：承認した日を先に記録してからメッセージを送る。
+  // 記録先は available_dates（働き手自身の申告）＝カレンダーはこの日を斜線（未確定）で描き、
+  // 農家が採用した時点でベタ塗り（確定）に変わる。働く日の確定は農家の set_agreed_dates のまま。
+  // ★記録に失敗してもメッセージは送る＝相手への連絡（本来の目的）を人手のミスで止めない。
+  //   ただし黙って落とさず、記録できなかったことは画面で伝える
+  const sendPlanApproval = async () => {
+    if (!planConfirm || planBusy || sending) return;
+    setPlanBusy(true);
+    const ymds = planYmds(planConfirm.labels);
+    let saved = ymds.length === planConfirm.labels.length;
+    let why = saved ? "" : "日付を求人の期間に照らし合わせられませんでした";
+    if (saved) {
+      try {
+        const { data, error } = await supabase.rpc("set_my_available_dates", { p_application_id: activeAppId, p_dates: ymds });
+        saved = !error && !!data?.ok;
+        if (!saved) why = data?.message || data?.reason || error?.message || "不明";
+      } catch (e) { saved = false; why = e?.message || "不明"; }
+    }
+    setPlanBusy(false);
+    if (!saved) alert("カレンダーへの記録ができませんでした（" + why + "）。メッセージはこのまま送ります。");
+    await send();
   };
   // 既読マーカー（2026-07-22・第8弾）：LINE式に、相手が読んだ自分の最新メッセージ1件にだけ「既読」を出す。
   // partnerReadAt（相手の最終既読時刻）以前に送った自分のメッセージのうち、最後の1件のidを求める
@@ -810,7 +843,7 @@ export function ChatView({ applicationId, onBack }) {
       {/* 日程の承認の最終確認（2026-08-19たきと指示「送信ボタンタップで最終確認」）：
           後戻りしにくい返事ので、送る前に日付と本文をそのまま見せる。ボックス外タップで閉じる */}
       {planConfirm && (
-        <div className="cb-box-overlay cb-lock-scroll" onClick={()=>{ if (!sending) setPlanConfirm(null); }}
+        <div className="cb-box-overlay cb-lock-scroll" onClick={()=>{ if (!sending && !planBusy) setPlanConfirm(null); }}
           style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ width:"100%", maxWidth:420, maxHeight:"86vh", overflowY:"auto", background:"#fff", borderRadius:18, padding:"20px 18px calc(18px + env(safe-area-inset-bottom, 0px))" }}>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>最終確認</p>
@@ -823,9 +856,9 @@ export function ChatView({ applicationId, onBack }) {
             <p className="f-sans" style={{ fontSize:13, color:"#555", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", lineHeight:1.8, margin:"0 0 16px", whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{planConfirm.body}</p>
             <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 14px" }}>作業日の確定は農家が行います。この返事は、その相談のためのものです。</p>
             <div style={{ display:"grid", gap:8 }}>
-              <button onClick={send} disabled={sending} className="f-sans"
-                style={{ padding:"13px", fontSize:15, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: sending ? 0.5 : 1 }}>{sending ? <>送信しています<Dots /></> : "送信する"}</button>
-              <button onClick={()=>{ if (!sending) setPlanConfirm(null); }} disabled={sending} className="f-sans"
+              <button onClick={sendPlanApproval} disabled={sending || planBusy} className="f-sans"
+                style={{ padding:"13px", fontSize:15, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (sending || planBusy) ? 0.5 : 1 }}>{(sending || planBusy) ? <>送信しています<Dots /></> : "送信する"}</button>
+              <button onClick={()=>{ if (!sending && !planBusy) setPlanConfirm(null); }} disabled={sending || planBusy} className="f-sans"
                 style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
             </div>
           </div>
