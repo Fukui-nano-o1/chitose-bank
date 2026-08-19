@@ -51,6 +51,7 @@ function buildSections(s, r) {
   // キーが無い＝凍結前の旧契約なので null＝「記録にありません」（憶測で「なし」にしない）
   const pk = s.perks || {};
   const yesNo = (v) => (v === true ? "あり" : v === false ? "なし" : null);
+  const withDetail = (v, d) => (v === true ? (String(d || "").trim() ? `あり（${String(d).trim()}）` : "あり") : yesNo(v));
   const ins = s.insurance_snapshot || null;
   const insItems = normalizeInsuranceItems(Array.isArray(ins?.items) ? ins.items : [])
     .map(k => (INSURANCE_ITEMS.find(x => x.k === k) || {}).label).filter(Boolean).join("・");
@@ -79,13 +80,18 @@ function buildSections(s, r) {
       ["賃金の締切", closing],
       ["支払方法・支払時期", payTerms === "支払条件を確認できません" ? null : payTerms.replace(/^支払：/, "")],
       ["天候中止などの取扱い", s.full_pay_guarantee ? "作業が中止になった場合も満額を支払う" : null],
-      ["昇給", yesNo(pk.has_raise)],
-      ["賞与", yesNo(pk.has_bonus)],
-      ["退職手当", yesNo(pk.has_severance_pay)],
+      // 「あり」のときは内容（時期・金額等）まで出す＝労基則5条1項3号（昇給）・5号（賞与）・
+      // 4号の2（退職手当）は、定めがある場合その内容の明示を求めているため（2026-08-19）
+      ["昇給", withDetail(pk.has_raise, pk.raise_detail)],
+      ["賞与", withDetail(pk.has_bonus, pk.bonus_detail)],
+      ["退職手当", withDetail(pk.has_severance_pay, pk.severance_detail)],
     ]},
     { h: "6. そのほかの記録", rows: [
       ["持ち物", s.belongings || null],
       ["注意・備考", s.cautions || null],
+      // 相談窓口（2026-08-19）：パート有期法6条1項＋則2条の4点セットの1つ。
+      // 掲載時にperksへ凍結された値なので、あとからプロフィールを変えてもこの通知書は変わらない
+      ["相談窓口", String(pk.consultation_contact || "").trim() || null],
       ["募集主の保険の申告", insItems || null],
       ["求人番号", `#${r.job_number}`],
     ]},

@@ -301,9 +301,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       has_parking: !!base.has_parking, parking_capacity: base.parking_capacity || "",
       has_commute_allowance: !!base.has_commute_allowance, commute_allowance_detail: base.commute_allowance_detail || "",
       has_bonus: !!base.has_bonus,
-      // 昇給・退職手当（2026-08-19たきと指示）：賞与と同じく有無だけ
-      has_raise: !!base.has_raise,
-      has_severance_pay: !!base.has_severance_pay,
+      // 昇給・退職手当（2026-08-19たきと指示）と、あり のときの内容（時期・金額等・任意）
+      has_raise: !!base.has_raise, raise_detail: base.raise_detail || "",
+      has_severance_pay: !!base.has_severance_pay, severance_detail: base.severance_detail || "",
+      bonus_detail: base.bonus_detail || "",
       employer_pays_supplies: !!base.employer_pays_supplies, supplies_cap: base.supplies_cap || "",
       accessory_ok: !!base.accessory_ok,
       // 受動喫煙（2026-08-07たきと指示「ここでも変更可能に」）。jobPerksには入らないため常にプロフィール値
@@ -352,6 +353,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         transport_area: perkDraft.has_transport ? (perkDraft.transport_area || "") : "",
         commute_allowance_detail: perkDraft.has_commute_allowance ? (perkDraft.commute_allowance_detail || "") : "",
         supplies_cap: perkDraft.employer_pays_supplies ? (perkDraft.supplies_cap.trim() || "") : "",
+        raise_detail: perkDraft.has_raise ? (perkDraft.raise_detail || "") : "",
+        bonus_detail: perkDraft.has_bonus ? (perkDraft.bonus_detail || "") : "",
+        severance_detail: perkDraft.has_severance_pay ? (perkDraft.severance_detail || "") : "",
       };
       // 空にした項目（例：通勤手当のチェックを外す）は審査に出さず、その場で公開列を空にする
       // （2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。審査は文字が入る変更だけ
@@ -1770,9 +1774,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
                       { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
                       { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
-                      { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
-                      { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? "あり" : EMPTY_MARK },
-                      { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? "あり" : EMPTY_MARK },
+                      { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? `あり${pk.bonus_detail ? "（" + pk.bonus_detail + "）" : ""}` : EMPTY_MARK },
+                      { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? `あり${pk.raise_detail ? "（" + pk.raise_detail + "）" : ""}` : EMPTY_MARK },
+                      { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? `あり${pk.severance_detail ? "（" + pk.severance_detail + "）" : ""}` : EMPTY_MARK },
                       { label:"作業用品の負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `募集主が負担${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
                       { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
                       // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
@@ -1842,9 +1846,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                             { k:"has_transport", l:"🚐 送迎", tk:"transport_area", tp:"送迎の範囲（例：吉野川市内）" },
                             { k:"has_parking", l:"🅿️ 駐車場", tk:"parking_capacity", tp:"台数（例：3）" },
                             { k:"has_commute_allowance", l:"🚃 通勤手当", tk:"commute_allowance_detail", tp:"内容（例：1日500円まで）" },
-                            { k:"has_bonus", l:"🎁 賞与" },
-                            { k:"has_raise", l:"📈 昇給" },
-                            { k:"has_severance_pay", l:"💼 退職手当" },
+                            { k:"has_bonus", l:"🎁 賞与", tk:"bonus_detail", tp:"時期・金額など（例：年2回（夏・冬））" },
+                            { k:"has_raise", l:"📈 昇給", tk:"raise_detail", tp:"時期・金額など（例：年1回（4月））" },
+                            { k:"has_severance_pay", l:"💼 退職手当", tk:"severance_detail", tp:"対象・計算・支払時期など" },
                             { k:"employer_pays_supplies", l:"🧤 作業用品は募集主の負担", tk:"supplies_cap", tp:"上限（例：軍手・長靴まで）" },
                             { k:"accessory_ok", l:"💍 アクセサリーOK" },
                           ].map(row => (

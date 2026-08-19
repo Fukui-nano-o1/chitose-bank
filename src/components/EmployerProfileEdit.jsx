@@ -35,9 +35,17 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [hasParking, setHasParking] = useState(false);
   const [hasCommuteAllowance, setHasCommuteAllowance] = useState(false);
   const [hasBonus, setHasBonus] = useState(false);
-  // 昇給・退職手当（2026-08-19たきと指示）：賞与と同じく有無だけの項目（自由記述は持たせない）
+  // 昇給・退職手当（2026-08-19たきと指示）：賞与と並ぶ有無の項目。
+  // ★「あり」のときの内容（時期・金額等）は任意の補足欄で持つ（2026-08-19たきと裁定）＝
+  //   パート有期法6条は有無の文書明示、労基則5条1項3号・4号の2・5号は定めの内容の明示を求める
   const [hasRaise, setHasRaise] = useState(false);
   const [hasSeverancePay, setHasSeverancePay] = useState(false);
+  const [raiseDetail, setRaiseDetail] = useState("");
+  const [bonusDetail, setBonusDetail] = useState("");
+  const [severanceDetail, setSeveranceDetail] = useState("");
+  // 相談窓口（パート有期法6条1項＋則2条の4点セットの1つ・2026-08-19）：連絡先を書く項目なので
+  // NG検査（電話・メール・URLの拒否）には載せない＝募集者の連絡先と同じ扱い
+  const [consultationContact, setConsultationContact] = useState("");
   const [employerPaysSupplies, setEmployerPaysSupplies] = useState(false);
   const [accessoryOk, setAccessoryOk] = useState(false);
   const [parkingCapacity, setParkingCapacity] = useState("");
@@ -172,6 +180,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setHasBonus(data.has_bonus ?? false);
           setHasRaise(data.has_raise ?? false);
           setHasSeverancePay(data.has_severance_pay ?? false);
+          setConsultationContact(data.consultation_contact || "");
           setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
           setAccessoryOk(data.accessory_ok ?? false);
           setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
@@ -184,11 +193,15 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             intro_crops: data.intro_crops ?? "", intro_atmosphere: data.intro_atmosphere ?? "", intro_message: data.intro_message ?? "",
             unique_point: data.unique_point ?? "", always_do: data.always_do ?? "", break_style: data.break_style ?? "",
             transport_area: data.transport_area ?? "", commute_allowance_detail: data.commute_allowance_detail ?? "", supplies_cap: data.supplies_cap ?? "",
+            raise_detail: data.raise_detail ?? "", bonus_detail: data.bonus_detail ?? "", severance_detail: data.severance_detail ?? "",
           };
           if (seeded) approvedTextsRef.current = {};
           setCommuteAllowanceDetail(tp.commute_allowance_detail ?? (data.commute_allowance_detail || ""));
           setSuppliesCap(tp.supplies_cap ?? (data.supplies_cap || ""));
           setTransportArea(tp.transport_area ?? (data.transport_area || ""));
+          setRaiseDetail(tp.raise_detail ?? (data.raise_detail || ""));
+          setBonusDetail(tp.bonus_detail ?? (data.bonus_detail || ""));
+          setSeveranceDetail(tp.severance_detail ?? (data.severance_detail || ""));
           setIntroPath(tp.intro_path ?? data.intro_path ?? "");
           setIntroJoy(tp.intro_joy ?? data.intro_joy ?? "");
           setIntroCrops(tp.intro_crops ?? data.intro_crops ?? "");
@@ -411,6 +424,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         transport_area: hasTransport ? (transportArea || "") : "",
         commute_allowance_detail: hasCommuteAllowance ? (commuteAllowanceDetail || "") : "",
         supplies_cap: employerPaysSupplies ? (suppliesCap.trim() || "") : "",
+        raise_detail: hasRaise ? (raiseDetail || "") : "",
+        bonus_detail: hasBonus ? (bonusDetail || "") : "",
+        severance_detail: hasSeverancePay ? (severanceDetail || "") : "",
       };
       // 空にした項目はその場で公開列を空にする（2026-08-03たきと指示「入力項目を空にするなら
       // 審査は必要ない」の名残）。承認プロセス削除後はどちらの経路でも即公開＝結果は同じ
@@ -433,6 +449,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         // 分割欄が全て空の既存利用者は composeRecruiterAddress が旧1行値を返す＝消えない
         recruiter_name: recruiterName.trim(), recruiter_name_kana: recruiterNameKana.trim(),
         recruiter_address: composeRecruiterAddress(), recruiter_contact: recruiterContact.trim(),
+        consultation_contact: consultationContact.trim(),
         // 受動喫煙：「あり」以外を選んだら場所の記述は保存しない（選び直しの残骸を残さない）
         smoking_policy: smokingPolicy || null,
         smoking_area: smokingPolicy === "喫煙場所あり" ? smokingArea.trim() : "",
@@ -650,10 +667,34 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             </div>
           )}
         </div>
-        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="賞与" checked={hasBonus} onChange={setHasBonus} /></div>
-        {/* 昇給・退職手当（2026-08-19たきと指示）：賞与と並ぶ労働条件の明示事項。有無だけを持つ */}
-        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="昇給" checked={hasRaise} onChange={setHasRaise} /></div>
-        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="退職手当" checked={hasSeverancePay} onChange={setHasSeverancePay} /></div>
+        {/* 昇給・賞与・退職手当（2026-08-19たきと裁定）：有無のトグル＋「あり」のときだけ内容の補足欄。
+            パート有期法6条は【有無】の文書明示、労基則5条1項3号（昇給）・4号の2（退職手当）・5号（賞与）は
+            定めがある場合の【内容】の明示を求める＝有無だけで止めると「あり」の人が不足になる。
+            補足欄は任意（掲載は止めない）。書けば掲載時にperksへ凍結され、労働条件通知書にも出る */}
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}>
+          <ToggleSwitch accent={AC} label="昇給" checked={hasRaise} onChange={setHasRaise} />
+          {hasRaise && (
+            <div style={{ marginLeft:16, paddingBottom:12 }}>
+              <input value={raiseDetail} onChange={e=>setRaiseDetail(e.target.value)} placeholder="時期・金額など（例：年1回（4月）・実績に応じて）" maxLength={200} className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+            </div>
+          )}
+        </div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}>
+          <ToggleSwitch accent={AC} label="賞与" checked={hasBonus} onChange={setHasBonus} />
+          {hasBonus && (
+            <div style={{ marginLeft:16, paddingBottom:12 }}>
+              <input value={bonusDetail} onChange={e=>setBonusDetail(e.target.value)} placeholder="時期・金額など（例：年2回（夏・冬）・業績に応じて）" maxLength={200} className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+            </div>
+          )}
+        </div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}>
+          <ToggleSwitch accent={AC} label="退職手当" checked={hasSeverancePay} onChange={setHasSeverancePay} />
+          {hasSeverancePay && (
+            <div style={{ marginLeft:16, paddingBottom:12 }}>
+              <input value={severanceDetail} onChange={e=>setSeveranceDetail(e.target.value)} placeholder="対象・計算・支払時期など（例：勤続1年以上・基本給の1か月分）" maxLength={200} className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+            </div>
+          )}
+        </div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
           {/* 「作業用品」＝労基法89条5号・労基則5条1項6号の語（2026-08-19たきと確認）。
               「持ち物」等に言い換えないこと＝労働条件通知書と同じ語で揃える */}
@@ -725,6 +766,17 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:16, lineHeight:1.7 }}>
               電話番号やメールアドレスなど、応募者が連絡できる手段を書いてください。
               日々のやり取りは引き続きサイト内チャットをお使いいただけます。
+            </p>
+            {/* 相談窓口（2026-08-19たきと指示）：パート有期法6条1項＋則2条の4点セット
+                （昇給の有無・退職手当の有無・賞与の有無・相談窓口）の残り1つ。
+                採用が決まると労働条件通知書に出る。連絡先を書く項目なのでNG検査には載せない */}
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>相談窓口</label>
+            <input value={consultationContact} onChange={e=>setConsultationContact(e.target.value)} placeholder="例：千歳農園 福井（088-000-0000）" maxLength={200}
+              className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:16, lineHeight:1.7 }}>
+              働き方の相談を受ける担当者と連絡先です（部署名・担当者名・連絡先）。
+              パートタイム・有期雇用の方には、この窓口を書面で伝えることが法律で決められています。
+              採用が決まると、労働条件通知書に表示されます。
             </p>
       </>)}
 
