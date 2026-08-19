@@ -448,7 +448,7 @@ export function WorkerApplications({ filter, me }) {
       })()}
 
       {/* 終了確認・評価モーダル（Part2） */}
-      {/* 終了の確認・評価：フォームと保存は共有部品（今日ページの「仕事の評価」と同じもの）。
+      {/* 仕事の評価：フォームと保存は共有部品（今日ページの「仕事の評価」と同じもの）。
           送信できたら一覧の表示を評価済みに変え、祝祭を出す＝画面側の役目だけをここに残す */}
       <WorkerReviewSheet app={reviewModalApp && { id: reviewModalApp.id, farmer_id: reviewModalApp.farmer_id }} meId={me.id}
         onClose={()=>setReviewModalApp(null)}
