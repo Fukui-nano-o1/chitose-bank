@@ -146,14 +146,12 @@ export function markHireSheet(applicationId) {
 // 応募者ページ（FarmerDashboard・#/profile/employer/applicants）のカード＝左に求人のトップ写真
 // （タイトル・#No.を下部に重ねる）／右に働き手のアイコン（リング＝段階色）＋名前＋段階、をそのまま使う。
 // 違いは束ね方だけ＝応募者ページは1枚のカードに1求人（応募者アイコンが横に並ぶ）／このページは1枚＝1応募者。
-// カードは横3分割（写真／アイコン／🤝採用）。写真・アイコンのタップで下からのボックス（要約と導線）、
-// 🤝で最終確認→OKでその場で採用（ページ遷移しない・2026-08-06たきと指示）。
+// カードは横2分割（写真／アイコン）。2026-08-19たきと指示「採用する枠削除。カードタップで採用する最終確認」＝
+// 3列目の🤝採用ボタンと、間に挟んでいた要約ボックスを廃止し、カードのどこを押しても最終確認が開く。
+// OKでその場で採用（ページ遷移しない・2026-08-06たきと指示）。決める前に見たい時の導線
+// （チャット・応募者ページ）は最終確認の中に小さく置いた。
 // ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされる（フォーカス消失バグの同族）
 export function HireStagePanel({ items, meId, onHired }) {
-  const [boxItem, setBoxItem] = useState(null);
-  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
-  const boxSheetRef = useRef(null), boxScrollRef = useRef(null);
-  useSheetDragClose(boxSheetRef, boxScrollRef, ()=>setBoxItem(null), !!boxItem);
   // 最終確認（2026-08-06たきと指示「ここで採用を押す。最終確認。OKタップで採用。ページ遷移しない」）：
   // 🤝タップ→この画面内の確認カード→OKで confirm_terms を実行。応募者ページへは飛ばさない。
   // ★確認に必ず載せるもの＝二重予約の警告（lib/hire・応募者シートと同じ判定）と、
@@ -163,7 +161,6 @@ export function HireStagePanel({ items, meId, onHired }) {
   const [done, setDone] = useState(null);   // 採用アニメーション { name, jobNumber, extra }
   const [hiredIds, setHiredIds] = useState(() => new Set()); // 採用済み＝この画面から消す（やることが片付く）
   const openConfirm = async (t) => {
-    setBoxItem(null);
     setConfirmItem({ ...t, dup: null, checking: true });
     const dup = meId ? await findDoubleBookingJob(meId, t.partner_id, t.job_number) : null;
     setConfirmItem(prev => (prev && prev.application_id === t.application_id) ? { ...prev, dup, checking: false } : prev);
@@ -241,11 +238,11 @@ export function HireStagePanel({ items, meId, onHired }) {
         {shown.map(t => {
           const photo = photoOf(t);
           return (
-            /* 横幅を3分割（2026-08-06たきと指示）：写真／アイコン／🤝採用 を各1/3。
-               3列とも同じ幅ので、どのカードでも採用ボタンの位置が縦に揃う（迷わず押せる） */
+            /* 横幅を2分割（2026-08-19たきと指示）：写真／アイコン。どちらを押しても最終確認が開く
+               ＝カード全体が「この人を採用する」の入口（押す場所を選ばせない） */
             <div key={t.application_id} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
               {/* ①求人のトップ写真＋タイトル・#No.（応募者ページのカードと同じ作法・枠は3:4固定） */}
-              <button onClick={()=>setBoxItem(t)} aria-label="この応募を開く" className="f-sans"
+              <button onClick={()=>openConfirm(t)} aria-label="この応募者を採用する" className="f-sans"
                 style={{ flex:"1 1 0", minWidth:0, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
                 {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
                 <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
@@ -256,68 +253,17 @@ export function HireStagePanel({ items, meId, onHired }) {
               {/* ②この応募の働き手ひとり（応募者ページのアイコン列と同じ見た目＝リングは段階色・
                   未設定アイコンの下地は相手の役割色＝働き手のオレンジ） */}
               <div style={{ flex:"1 1 0", minWidth:0, padding:"10px 8px 8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <button onClick={()=>setBoxItem(t)} className="f-sans"
+                <button onClick={()=>openConfirm(t)} aria-label="この応募者を採用する" className="f-sans"
                   style={{ width:"100%", maxWidth:88, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                   <Avatar url={t.partner_avatar} name={t.partner_name || "？"} size={52} ring={phaseColor} bg={ROLE_ORANGE} />
                   <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: t.partner_name ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.partner_name ? t.partner_name + "さん" : "未設定"}</span>
                   <span onClick={(ev)=>{ ev.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:phaseColor, marginTop:1, cursor:"pointer" }}>{APP_PHASE_LABEL[phase]}</span>
                 </button>
               </div>
-              {/* ③🤝採用：このページの用件そのもの。押すと最終確認（画面内）→OKでその場で採用。
-                  ページ遷移はしない（2026-08-06たきと指示）。判定と告知文は応募者シートと共有（lib/hire） */}
-              <button onClick={()=>openConfirm(t)} aria-label="この応募者を採用する" className="f-sans"
-                style={{ flex:"1 1 0", minWidth:0, border:"none", borderLeft:"1px solid #F0F0F0", background:"#fff", cursor:"pointer", padding:"10px 8px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4 }}>
-                <span style={{ fontSize:30, lineHeight:1 }}>🤝</span>
-                <span style={{ fontSize:12, fontWeight:800, color:"#00A86B" }}>採用する</span>
-              </button>
             </div>
           );
         })}
       </div>
-      {/* ═══ カードタップで展開するボックス（緊急連絡ページ・ステータスページのシートと同じ作法） ═══ */}
-      {boxItem && (() => {
-        const t = boxItem;
-        const photo = photoOf(t);
-        return (
-          <div onClick={()=>setBoxItem(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-            <div ref={boxSheetRef} onClick={ev=>ev.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-              <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-              </div>
-              <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
-                {/* 現在地バナー（段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
-                <div style={{ background: phaseColor + "14", borderLeft: "4px solid " + phaseColor, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
-                  <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:phaseColor, margin:0 }}>{APP_PHASE_LABEL[phase]}</p>
-                  <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[phase]}</p>
-                </div>
-                {/* 応募者（このページの主役）＋求人の要約 */}
-                <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
-                  <div style={{ flexShrink:0, width:88, height:88, borderRadius:12, overflow:"hidden", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
-                    {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
-                  </div>
-                  <div style={{ minWidth:0 }}>
-                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{titleOf(t)}</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"2px 0 0" }}>#{t.job_number}</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📅 {dateOf(t)}{t.work_time ? "　🕒" + t.work_time : ""}</p>
-                    {t.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>応募者 {t.partner_name}さん</p>}
-                  </div>
-                </div>
-                {/* 操作（主役＝採用。この場で最終確認→採用まで進む） */}
-                <div style={{ display:"grid", gap:8 }}>
-                  <button onClick={()=>openConfirm(t)} className="f-sans"
-                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する</button>
-                  <button onClick={()=>{ setBoxItem(null); markHireSheet(t.application_id); window.location.hash = HIRE_SHEET_PATH; }} className="f-sans"
-                    style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>応募者ページで詳しく見る</button>
-                  <button onClick={()=>{ setBoxItem(null); window.location.hash = "/chat/" + t.application_id; }} className="f-sans"
-                    style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
-                  <button onClick={()=>{ setBoxItem(null); try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans"
-                    style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>求人ページを見る</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* ═══ 最終確認（画面内・ページ遷移しない） ═══
           OKを押した時だけ confirm_terms が走る。ここに出す情報は「後戻りできない判断」に必要なものだけ */}
       {confirmItem && (() => {
@@ -352,6 +298,14 @@ export function HireStagePanel({ items, meId, onHired }) {
                 </button>
                 <button onClick={()=>setConfirmItem(null)} disabled={hiring} className="f-sans"
                   style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
+              </div>
+              {/* 決める前に見る導線（2026-08-19）：要約ボックスを廃止したので、その役目をここに引き継ぐ。
+                  後戻りできない判断の前に、やり取りと応募者の中身を見に行ける道を必ず残す */}
+              <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:14 }}>
+                <button onClick={()=>{ if (hiring) return; window.location.hash = "/chat/" + t.application_id; }} className="f-sans"
+                  style={{ background:"none", border:"none", padding:0, fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer", textDecoration:"underline" }}>チャットを見る</button>
+                <button onClick={()=>{ if (hiring) return; markHireSheet(t.application_id); window.location.hash = HIRE_SHEET_PATH; }} className="f-sans"
+                  style={{ background:"none", border:"none", padding:0, fontSize:12, fontWeight:700, color:"#717171", cursor:"pointer", textDecoration:"underline" }}>応募者ページで詳しく見る</button>
               </div>
             </div>
           </div>
