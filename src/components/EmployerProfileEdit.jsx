@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview } from "../lib/utils";
-import { Avatar, AutoSkeleton, Dots, LFPillSelect } from "./ui";
+import { Avatar, AutoSkeleton, Dots } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { EmergencyContactBox } from "./EmergencyContactBox";
@@ -348,7 +348,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // black（委託）では 関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
   // 従業員数(staff)は全面削除（2026-08-01たきと指示）
   const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","intro","ask","style"];
-  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", hasRaise&&"昇給", hasSeverancePay&&"退職手当", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK"].filter(Boolean);
+  // 待遇ボックスの要約チップ。受動喫煙も他の待遇と同じ行になった（2026-08-19）ので、決めてあればここに出す
+  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", hasRaise&&"昇給", hasSeverancePay&&"退職手当", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK", smokingPolicy && (smokingPolicy === "喫煙場所あり" ? "喫煙場所あり" : "禁煙")].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   // 関わり方4問の回答済みラベル（格子サマリー用・2026-08-14）。ローカルstateから引く＝保存前でも即反映
@@ -662,19 +663,37 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             </div>
           )}
         </div>
-        <div><ToggleSwitch accent={AC} label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
+        <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="アクセサリーOK" checked={accessoryOk} onChange={setAccessoryOk} /></div>
+        {/* 受動喫煙の状況（2026-08-19たきと指示「他の待遇欄と同じ構造に」・元は2026-08-03のピル2択）：
+            見た目・並びは他の待遇行と同じトグル。ONで喫煙場所ありとその場所、OFFで禁煙。
+            ★ただし三つ目の状態＝「未設定」を残す（トグルはON/OFFしか表せないため、触るまで値を書かない）。
+            掲載時のDBトリガーが smoking_policy の空を弾く壁は、この未設定があって初めて効く＝
+            OFF＝禁煙として既定で保存すると、就業場所の実態と違う申告が黙って入り、壁も常に通ってしまう */}
+        <div>
+          <ToggleSwitch accent={AC} label="喫煙場所あり" checked={smokingPolicy === "喫煙場所あり"}
+            onChange={(v)=>setSmokingPolicy(v ? "喫煙場所あり" : "禁煙（喫煙場所なし）")} />
+          {smokingPolicy === "喫煙場所あり" && (
+            <div style={{ marginLeft:16, paddingBottom:12 }}>
+              <input value={smokingArea} onChange={e=>setSmokingArea(e.target.value)} placeholder="喫煙場所（例：屋外の休憩小屋の横）" maxLength={100}
+                className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+            </div>
+          )}
+          {smokingPolicy === "禁煙（喫煙場所なし）" && (
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 12px 16px", lineHeight:1.6 }}>求人には「禁煙（喫煙場所なし）」と表示されます。</p>
+          )}
+          {!smokingPolicy && (
+            <div style={{ marginLeft:16, paddingBottom:12 }}>
+              <p className="f-sans" style={{ fontSize:12, color:"#C77700", margin:"0 0 8px", lineHeight:1.6 }}>
+                未設定です。就業場所での受動喫煙の状況は求人の明示事項なので、どちらかを選ぶまで求人を掲載できません。
+              </p>
+              <button type="button" onClick={()=>setSmokingPolicy("禁煙（喫煙場所なし）")} className="f-sans"
+                style={{ padding:"8px 12px", fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
+                禁煙（喫煙場所なし）にする
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      {/* 受動喫煙の状況（2026-08-03たきと指示・待遇ボックス内に設置）：就業場所の受動喫煙対策は求人の明示事項 */}
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>受動喫煙の状況</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:10, lineHeight:1.6 }}>
-        就業場所での受動喫煙を防ぐ取り組みの状況は、求人の明示事項です。当てはまる方を選んでください。
-      </p>
-      <LFPillSelect options={["禁煙（喫煙場所なし）","喫煙場所あり"]} value={smokingPolicy} onSelect={setSmokingPolicy} />
-      {smokingPolicy === "喫煙場所あり" && (<>
-        <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", margin:"12px 0 4px" }}>喫煙場所はどこですか</label>
-        <input value={smokingArea} onChange={e=>setSmokingArea(e.target.value)} placeholder="例：屋外の休憩小屋の横" maxLength={100}
-          className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:4 }} />
-      </>)}
       <div style={{ marginBottom:16 }} />
       </>)}
 

@@ -1857,16 +1857,34 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                               )}
                             </div>
                           ))}
-                          {/* 受動喫煙（2026-08-07たきと指示）：UIはEmployerProfileEditと同じ2択＋場所。
+                          {/* 受動喫煙（2026-08-19たきと指示「他の待遇欄と同じ構造に」・元は2026-08-07のピル2択）：
+                              上の行と同じボタン。押すたび 喫煙場所あり ⇄ 禁煙（喫煙場所なし）。
+                              ★未設定は残す（触るまで値を書かない）＝掲載時のDBトリガー（空を弾く壁）が効き続ける。
                               求人ごとの上書きにはしない（2026-08-03裁定を維持）＝どちらのボタンでもプロフィールへ保存 */}
+                          {(() => {
+                            const smokeOn = perkDraft.smoking_policy === "喫煙場所あり";
+                            return (
                           <div style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
-                            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>🚭 受動喫煙の状況</p>
-                            <LFPillSelect options={["禁煙（喫煙場所なし）","喫煙場所あり"]} value={perkDraft.smoking_policy} onSelect={(v)=>setPerkDraft(p=>({ ...p, smoking_policy: v }))} />
-                            {perkDraft.smoking_policy === "喫煙場所あり" && (
+                            <button type="button" onClick={()=>setPerkDraft(p=>({ ...p, smoking_policy: p.smoking_policy === "喫煙場所あり" ? "禁煙（喫煙場所なし）" : "喫煙場所あり" }))} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"10px 12px", borderRadius:10, border:"2px solid", borderColor: smokeOn ? "#00A86B" : "#EBEBEB", background: smokeOn ? "#E6F7EF" : "#fff", cursor:"pointer", fontSize:14, fontWeight:700, color: smokeOn ? "#00A86B" : "#222" }}>
+                              🚭 喫煙場所あり{smokeOn ? "　✓" : ""}
+                            </button>
+                            {smokeOn && (
                               <input value={perkDraft.smoking_area} onChange={e=>setPerkDraft(p=>({ ...p, smoking_area: e.target.value }))} placeholder="喫煙場所（例：屋外の休憩小屋の横）" maxLength={100} className="field f-sans" style={{ fontSize:13, marginTop:8, marginBottom:0 }} />
                             )}
+                            {perkDraft.smoking_policy === "禁煙（喫煙場所なし）" && (
+                              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.6 }}>求人には「禁煙（喫煙場所なし）」と表示されます。</p>
+                            )}
+                            {!perkDraft.smoking_policy && (<>
+                              <p className="f-sans" style={{ fontSize:12, color:"#C77700", margin:"8px 0 0", lineHeight:1.6 }}>未設定です。受動喫煙の状況は求人の明示事項なので、どちらかを選ぶまで掲載できません。</p>
+                              <button type="button" onClick={()=>setPerkDraft(p=>({ ...p, smoking_policy: "禁煙（喫煙場所なし）" }))} className="f-sans"
+                                style={{ marginTop:8, padding:"8px 12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>
+                                禁煙（喫煙場所なし）にする
+                              </button>
+                            </>)}
                             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.6 }}>受動喫煙は事業所（就業場所）の設定のため、「この求人のみ」を押した場合も農家プロフィールに保存されます。</p>
                           </div>
+                            );
+                          })()}
                           <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, marginTop:10 }}>
                             「保存」＝農家プロフィールの待遇も更新します。「この求人のみ」＝この求人だけに適用し、プロフィールは変わりません。
                           </p>
