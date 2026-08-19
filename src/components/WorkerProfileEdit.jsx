@@ -600,11 +600,27 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
               <LFPillSelect options={q.options} value={cur} onSelect={v => {
                 const next = cur === v ? "" : v;   // 同じものをもう一度タップ＝選び直し（空に戻す）
                 set(next);
-                // 選んだら次の質問へ。最後の質問で選んだ時だけ保存して閉じる（＝全て入力で保存）
+                // 選んだら次の質問へ自動で送る（最後の質問は送らない＝下の「保存する」で締める）
                 if (!next) return;                 // 取り消しでは進めない
                 if (i < WORKER_STYLE_QUESTIONS.length - 1) setTimeout(() => goStyle(i + 1), 220);
-                else setTimeout(() => save(true), 220);   // 保存の連鎖に乗せる（次の未入力へ／無ければ閉じる）
               }} />
+              {/* 既定は「戻る／次へ」、最後の質問だけ「保存する」（2026-08-19たきと指示）。
+                  選ばずに飛ばしたい人もボタンで進める＝任意の項目が行き止まりにならない */}
+              <div style={{ display:"flex", gap:8, marginTop:14 }}>
+                {i > 0 && (
+                  <button type="button" onClick={()=>goStyle(i - 1)} className="f-sans"
+                    style={{ flex:"0 0 auto", padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>← 戻る</button>
+                )}
+                {i < WORKER_STYLE_QUESTIONS.length - 1 ? (
+                  <button type="button" onClick={()=>goStyle(i + 1)} className="f-sans"
+                    style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>次へ →</button>
+                ) : (
+                  <button type="button" onClick={()=>save(true)} disabled={saving} className="f-sans"
+                    style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                    {saving ? <>保存中<Dots /></> : "保存する"}
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -790,7 +806,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
               <div style={{ display:"flex", gap:8, marginTop:4 }}>
                 {i > 0 && (
                   <button type="button" onClick={()=>goQa(i - 1)} className="f-sans"
-                    style={{ flex:"0 0 auto", padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>← 前へ</button>
+                    style={{ flex:"0 0 auto", padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>← 戻る</button>
                 )}
                 {i < WORKER_QA_PAGES.length - 1 ? (
                   <button type="button" onClick={()=>goQa(i + 1)} className="f-sans"
