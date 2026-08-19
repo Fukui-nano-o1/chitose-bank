@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview } from "../lib/utils";
-import { Avatar, AutoSkeleton, Dots } from "./ui";
+import { Avatar, AutoSkeleton, Dots, FieldHelp } from "./ui";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { EmergencyContactBox } from "./EmergencyContactBox";
@@ -562,11 +562,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       {editBox==="nickname" && (<>
       {/* 農園名から氏名・名称に差し替え（2026-07-27たきと指示）。労働者の募集広告に必要な明示事項なので、
           求人ページの「募集者情報」に出る。個人なら氏名、法人・屋号があればその名称 */}
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>氏名・名称</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>
+      <FieldHelp label="氏名・名称" accent={AC}>
         労働者の募集広告には募集者の氏名または名称の明示が必要です。<b>あなたの求人ページに「募集者情報」として表示されます。</b>
         新規登録で入力した内容を初期値にしています。
-      </p>
+      </FieldHelp>
       <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
         style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
         {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
@@ -583,11 +582,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       {/* 作業場所（4分割）から住所・所在地に差し替え（2026-07-27たきと指示）。
           労働者の募集広告に必要な明示事項なので、求人ページの「募集者情報」に出る。
           求人ごとの集合場所は求人作成フローで入力する（ここは募集者＝あなたの所在地） */}
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>住所・所在地</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>
+      <FieldHelp label="住所・所在地" accent={AC}>
         労働者の募集広告には住所・所在地の明示が必要です。<b>あなたの求人ページに「募集者情報」として表示されます。</b>
         新規登録で入力した住所を初期値にしています。
-      </p>
+      </FieldHelp>
       <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
         style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
         {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}
@@ -625,8 +623,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </>)}
 
       {editBox==="perks" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>求人に共通する条件</label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:8, lineHeight:1.6 }}>ここで設定した内容は、あなたが出す全ての求人に共通して表示されます。</p>
+      <FieldHelp label="求人に共通する条件" accent={AC}>ここで設定した内容は、あなたが出す全ての求人に共通して表示されます。</FieldHelp>
       <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
           <ToggleSwitch accent={AC} label="送迎" checked={hasTransport} onChange={setHasTransport} />
@@ -712,11 +709,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </>)}
 
       {editBox==="recruiter" && (<>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>募集者の情報</label>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
+            <FieldHelp label="募集者の情報" accent={AC}>
               労働者の募集広告には、募集者の氏名または名称・住所・連絡先の明示が必要です。
               <b>入力した内容は、あなたの求人ページに「募集者情報」として表示されます。</b>
-            </p>
+            </FieldHelp>
             <button onClick={carryFromAccount} disabled={carrying} className="f-sans"
               style={{ width:"100%", padding:"11px", marginBottom:14, fontSize:13, fontWeight:700, background:"#fff", color:AC, border:"1px solid " + AC, borderRadius:10, cursor:"pointer" }}>
               {carrying ? <>読み込み中<Dots /></> : "新規登録の内容を引き継ぐ"}

@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS, ROLE_ORANGE } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
-import { Avatar, LFPillSelect, AutoSkeleton, Dots } from "./ui";
+import { Avatar, LFPillSelect, AutoSkeleton, Dots, FieldHelp } from "./ui";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
 import { EmergencyContactBox } from "./EmergencyContactBox";
@@ -602,8 +602,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           （save()が experience_entries / self_declared / experienced_tasks を含む・配線済み）。
           専用ページ #/experience（WorkerExperiencePage）はURL直打ち・ProfileHub経由用に残置 */}
       {editBox==="declared" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>経験・資格（自己申告）</label>
-      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
+      <FieldHelp label="経験・資格（自己申告）" accent={ROLE_ORANGE}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</FieldHelp>
       {/* 経験／免許・資格・保険方針：タブ＋全幅ページ切替スワイプ（2026-08-03たきと指示・指連動＝ネイティブ横スクロール＋snap） */}
       <div style={{ marginBottom:16 }}>
         <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />

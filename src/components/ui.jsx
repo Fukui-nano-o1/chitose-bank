@@ -47,6 +47,29 @@ export function ExpandableText({ text, limit = 100, style, moreLabel = "もっ�
 
 // 危険項目の表示（詳細・確認・プレビュー共通・2026-07-16）：
 // タイトル=写真の上・説明=写真の内部（1枚目にグラデ帯）・全て中央配置。写真なしは⚠️色ボックス内に説明
+// 入力欄の見出し＋長い説明（2026-08-19たきと指示「長文説明は？ボタンを設置してタップで展開」）。
+// 画面を文字で埋めない。説明は消していない＝押せばいつでも読める（EmergencyContactBoxの作法を部品化）。
+// label＝見出し／children＝説明の本文／accent＝役割色（開いている時の？の色）。
+// ★短い一言（1行で収まる注記）はこれで畳まない＝畳む価値がない上に、押さないと読めない文that増えるだけ。
+export function FieldHelp({ label, accent = "#00A86B", children, labelSize = 12 }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: open ? 8 : 12 }}>
+        <label className="f-sans" style={{ fontSize:labelSize, fontWeight:600, color:"#222" }}>{label}</label>
+        <button type="button" onClick={()=>setOpen(v => !v)} aria-label={open ? "説明を閉じる" : "説明を見る"} aria-expanded={open}
+          className="f-sans" style={{ width:22, height:22, borderRadius:"50%", flexShrink:0, cursor:"pointer",
+            border:"1px solid " + (open ? accent : "#DDD"), background: open ? accent : "#fff",
+            color: open ? "#fff" : "#999", fontSize:12, fontWeight:800, lineHeight:1,
+            display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>?</button>
+      </div>
+      {open && (
+        <p className="f-sans fade-in" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>{children}</p>
+      )}
+    </>
+  );
+}
+
 export function DangerItem({ icon, label, desc, photos, onPhotoClick }) {
   const list = (photos || []).map(p => (typeof p === "string" ? p : p?.url)).filter(Boolean);
   return (
