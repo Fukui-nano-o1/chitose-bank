@@ -44,9 +44,5 @@ export const confirmTerms = (applicationId, acceptDoubleBooking) =>
 export const fetchPublicJobByNumber = (jobNumber) =>
   supabase.from("jobs_public").select("*").eq("job_number", jobNumber).maybeSingle();
 export const fetchMyFarmJobs = () => supabase.rpc("my_farm_jobs");
-// 面接の質問（各応募の最新1件を昇順で上書きして拾う）
-export const fetchInterviewQuestions = (ids) =>
-  supabase.from("messages")
-    .select("application_id,body,created_at").in("application_id", ids)
-    .like("body", "【面接の質問】%").order("created_at", { ascending: true });
-export const insertMessage = (row) => supabase.from("messages").insert(row);
+// 面接の質問の取得・メッセージの投函の窓口は削除（2026-08-19）：今日ページの面接の回答パネルが
+// 唯一の使い手だったが、その箱ごと廃止した（返事はチャットで行う＝ChatViewが自前の窓口を持つ）

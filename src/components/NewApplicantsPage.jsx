@@ -29,7 +29,7 @@ function goApplicantSheet(applicationId) {
   window.location.hash = "/profile/employer/applicants";
 }
 
-// お祝いの花びら（今日ページの NewApplicantsPanel と同じ演出・同じ記録キー cb_celebratedApps）。
+// お祝いの花びら（記録キー cb_celebratedApps＝一度見た応募では舞わない）。
 // はじめて見る応募が含まれる時だけ舞う＝再訪では静か。※モジュールレベル定義を維持すること
 function Petals({ ids }) {
   const [on, setOn] = useState(false);

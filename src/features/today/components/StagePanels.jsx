@@ -1,15 +1,15 @@
 // 今日ページの段階パネル（第2次構造改革 Phase 4-B・2026-08-18に TodayPage.jsx から移設）。
-// 中身は1行も変えていない＝この5つは元から【モジュールレベル定義】であり、TodayPage の state を
-// 1つも持たない（props と自分の state だけで完結する）。ので、ファイルを分けても所有権は動かない。
+// TodayPage の state を1つも持たない（props と自分の state だけで完結する）ので、ファイルを分けても
+// 所有権は動かない。現在の中身＝緊急連絡・採用する の2パネル（面接の回答・新着の応募の
+// 2パネルは、その箱を廃止した2026-08-19に削除した）。
 //
 // ★モジュールレベル定義を維持すること（移設後も同じ）：親の中で定義すると再レンダーのたびに
 //   再マウントされ、textarea のフォーカス・下書き・花びらの演出が途切れる
 //   （LandingFlow のフォーカス消失バグと同族・CLAUDE.md）。
 import { useState, useEffect, useRef } from "react";
-import { fetchPublicJobByNumber, fetchInterviewQuestions, getSession, insertMessage,
-  confirmTerms, fetchMyFarmJobs } from "../todayApi";
+import { confirmTerms, fetchMyFarmJobs } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
-import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, mapJobPublicRow, payLabel, photoThumb,
+import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, photoThumb,
   appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../../../lib/utils";
 import { openPhaseInfo } from "../../../lib/previewBus";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../../../lib/hire";
@@ -17,175 +17,6 @@ import { Avatar, Dots } from "../../../components/ui";
 import ContractPartyName from "../../../components/ContractPartyName";
 import ContractEmergencyContact from "../../../components/ContractEmergencyContact";
 
-
-// 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
-// ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
-//   textareaのフォーカス・下書きが消える（LandingFlowのフォーカス消失バグと同族）
-// ★現在この部品を使う画面は無い（2026-08-19に今日ページの✍️面接の回答の箱を削除したため）。
-//   返事はチャットで行う。箱を戻す時にそのまま使えるので残置＝消す判断は別途
-export function InterviewReplyPanel({ items, accent, onAnswered }) {
-  const [questions, setQuestions] = useState({}); // application_id → 最新の【面接の質問】本文
-  const [drafts, setDrafts] = useState({});       // application_id → 入力中の回答
-  const [sending, setSending] = useState("");
-  const [jobOpen, setJobOpen] = useState({});     // application_id → 該当求人ボックスの展開状態（2026-07-25たきと指示）
-  const [jobInfo, setJobInfo] = useState({});     // job_number → mapJobPublicRow整形済み（null=取得失敗・undefined=未取得）
-  const toggleJob = async (t) => {
-    if (!t.job_number) return;
-    const next = !jobOpen[t.application_id];
-    setJobOpen(prev => ({ ...prev, [t.application_id]: next }));
-    if (next && !(t.job_number in jobInfo)) {
-      try {
-        const { data } = await fetchPublicJobByNumber(t.job_number);
-        setJobInfo(prev => ({ ...prev, [t.job_number]: data ? mapJobPublicRow(data) : null }));
-      } catch { setJobInfo(prev => ({ ...prev, [t.job_number]: null })); }
-    }
-  };
-  const idsKey = items.map(t => t.application_id).filter(Boolean).join(",");
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const ids = idsKey ? idsKey.split(",") : [];
-        if (!ids.length) return;
-        const { data } = await fetchInterviewQuestions(ids);
-        if (cancelled || !data) return;
-        const q = {}; data.forEach(m => { q[m.application_id] = m.body; }); // 昇順で上書き＝各応募の最新が残る
-        setQuestions(q);
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [idsKey]);
-  const send = async (t) => {
-    const body = (drafts[t.application_id] || "").trim();
-    if (!body || sending) return;
-    setSending(t.application_id);
-    try {
-      const { data: { session } } = await getSession();
-      if (!session) { setSending(""); return; }
-      const { error } = await insertMessage({ application_id: t.application_id, sender_id: session.user.id, body });
-      if (error) { alert("送信に失敗しました：" + error.message); setSending(""); return; }
-      setSending("");
-      setDrafts(prev => ({ ...prev, [t.application_id]: "" }));
-      onAnswered(t.application_id);
-    } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); setSending(""); }
-  };
-  return (
-    <div style={{ gridColumn:"1 / -1", border:"1px solid #EBEBEB", borderRadius:12, background:"#fff", padding:"12px 14px" }}>
-      {/* ボックス内タイトル・左端の役割色バーは廃止（2026-07-26たきと指示：見出しはページヘッダーが担う。TodoStagePanelと同じ整理） */}
-      <div style={{ display:"grid", gap:14 }}>
-        {items.map(t => (
-          <div key={t.application_id} style={{ display:"grid", gap:8 }}>
-            {/* 求人チップ：タップでその場に求人ボックスを展開（2026-07-25たきと指示。ページ遷移はボックス内リンクに退避） */}
-            <button onClick={()=>toggleJob(t)}
-              className="f-sans" style={{ justifySelf:"start", fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>
-              {[t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" ")].filter(Boolean).join(" ")}{jobOpen[t.application_id] ? " ▲" : " ▼"}
-            </button>
-            {jobOpen[t.application_id] && (
-              <div style={{ border:"1px solid #EBEBEB", borderRadius:12, background:"#FAFAFA", overflow:"hidden" }}>
-                {!(t.job_number in jobInfo) ? (
-                  <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", padding:"14px 0", margin:0 }}>読み込み中<Dots /></p>
-                ) : jobInfo[t.job_number] ? (() => {
-                  const j = jobInfo[t.job_number];
-                  const photo = photoThumb(j.photos?.[0]);
-                  return (
-                    <>
-                      <div style={{ display:"flex", gap:10, padding:"10px 12px 8px", alignItems:"center" }}>
-                        <div style={{ width:48, height:48, borderRadius:8, background:"#F0F0F0", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, overflow:"hidden" }}>
-                          {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                        </div>
-                        <div style={{ minWidth:0 }}>
-                          <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || "求人"}</p>
-                          {j.region && <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"2px 0 0" }}>📍 {j.region}</p>}
-                        </div>
-                      </div>
-                      <div style={{ padding:"0 12px 10px", display:"grid", gap:3 }}>
-                        {[["日程", j.dateLabel], ["勤務時間", j.workTime], ["休憩", j.breakTime], ["報酬", j.pay ? payLabel(j) : ""], ["人数", j.count]].filter(r => r[1]).map(r => (
-                          <div key={r[0]} style={{ display:"flex", gap:10 }}>
-                            <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0, width:52 }}>{r[0]}</span>
-                            <span className="f-sans" style={{ fontSize:12, color:"#222", fontWeight:600, minWidth:0 }}>{r[1]}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }}
-                        className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", background:"#fff", border:"none", borderTop:"1px solid #EBEBEB", padding:"9px", fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>求人ページを見る →</button>
-                    </>
-                  );
-                })() : (
-                  <div style={{ padding:"12px" }}>
-                    <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 8px", textAlign:"center" }}>求人情報を取得できませんでした。</p>
-                    <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }}
-                      className="f-sans" style={{ display:"block", margin:"0 auto", background:"none", border:"none", fontSize:12, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>求人ページを見る →</button>
-                  </div>
-                )}
-              </div>
-            )}
-            <p className="f-sans" style={{ fontSize:12, color:"#222", lineHeight:1.7, background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>
-              {questions[t.application_id] || <>質問を読み込み中<Dots /></>}
-            </p>
-            <textarea rows={3} value={drafts[t.application_id] || ""} onChange={ev => setDrafts(prev => ({ ...prev, [t.application_id]: ev.target.value }))}
-              placeholder="回答を入力（そのまま相手に届きます）" className="field f-sans" style={{ width:"100%", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
-            <button onClick={()=>send(t)} disabled={sending === t.application_id || !(drafts[t.application_id] || "").trim()}
-              className="f-sans" style={{ justifySelf:"end", padding:"9px 16px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", opacity: (sending === t.application_id || !(drafts[t.application_id] || "").trim()) ? 0.5 : 1 }}>
-              {sending === t.application_id ? "..." : "返事を送る"}
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// 新着の応募のお祝いパネル（2026-07-26たきと指示）：応募は祝い事。おめでとう文言＋「応募者 ----→ 求人」の対応行。
-// 初展開（その応募をはじめて見た時）だけ花びらが舞う（見た応募IDはlocalStorage cb_celebratedAppsに記録＝再訪では舞わない）。
-// ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされ花びらが途切れる
-// ★現在この部品を使う画面は無い（2026-08-19に今日ページの📨新着の応募の箱を削除したため）。
-//   新着の応募は専用ページ #/new-applicants が担う（花びらの演出はあちらが自前で持つ）。残置＝消す判断は別途
-export function NewApplicantsPanel({ items, onTap }) {
-  const [petals, setPetals] = useState(false);
-  useEffect(() => {
-    try {
-      const seen = new Set(JSON.parse(localStorage.getItem("cb_celebratedApps") || "[]"));
-      if (items.some(t => t.application_id && !seen.has(t.application_id))) {
-        setPetals(true);
-        items.forEach(t => { if (t.application_id) seen.add(t.application_id); });
-        localStorage.setItem("cb_celebratedApps", JSON.stringify([...seen].slice(-200)));
-      }
-    } catch { setPetals(true); }
-  }, []);
-  return (
-    <div style={{ position:"relative", border:"1px solid #EBEBEB", borderRadius:12, background:"#fff", padding:"18px 14px" }}>
-      {petals && (
-        <div aria-hidden style={{ position:"absolute", inset:0, overflow:"hidden", pointerEvents:"none", borderRadius:12 }}>
-          {/* 降ってくるのは光の粒（2026-08-19：🌸の花びらから差し替え＝アニメーションに絵を使わない）。
-              大きさを3段に散らし、役割色（緑）の濃淡で降らせる */}
-          {Array.from({ length: 14 }).map((_, i) => {
-            const d = 5 + (i % 3) * 3;
-            return (
-              <span key={i} style={{ position:"absolute", top:-24, left: ((i * 29 + 7) % 96) + "%", width:d, height:d, borderRadius:"50%", background:"#00A86B", opacity:0, animation: `cbPetalFall ${1.9 + (i % 5) * 0.25}s ease-in ${(i % 7) * 0.13}s forwards` }} />
-            );
-          })}
-        </div>
-      )}
-      <style>{`@keyframes cbPetalFall{0%{transform:translateY(0) rotate(0deg);opacity:0}12%{opacity:1}100%{transform:translateY(360px) rotate(230deg);opacity:0}}`}</style>
-      <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>おめでとうございます！</p>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 16px" }}>あなたの求人に新しい応募が届きました。タップして確認しましょう。</p>
-      <div style={{ display:"grid", gap:10 }}>
-        {items.map(t => (
-          <button key={t.application_id} onClick={()=>onTap(t)} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, width:"100%", background:"#FAFAFA", border:"1px solid #F0F0F0", borderRadius:12, padding:"12px 10px", cursor:"pointer", minWidth:0 }}>
-            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flexShrink:0, maxWidth:72 }}>
-              <Avatar url={t.partner_avatar} name={t.partner_name} size={40} bg={ROLE_ORANGE} />
-              <span className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#222", maxWidth:72, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.partner_name ? t.partner_name + "さん" : "応募者"}</span>
-            </div>
-            <span aria-hidden className="f-sans" style={{ flexShrink:0, fontSize:13, fontWeight:700, color:"#00A86B", letterSpacing:1 }}>----→</span>
-            <span className="f-sans" style={{ minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:13, fontWeight:700, color:"#222", background:"#fff", border:"1px solid #EBEBEB", borderRadius:10, padding:"9px 12px" }}>
-              {[t.crop, t.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontSize:11 }}>#{t.job_number}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // 緊急連絡の専用ページ（2026-08-02たきと指示「ステータスと同じ構造に」）：
 // ステータスページ(#/saved・SavedJobsView)と同じカード構造＝左:求人トップ写真＋タイトル/#No.オーバーレイ／
@@ -386,7 +217,7 @@ export function HireStagePanel({ items, meId, onHired }) {
   const shown = items.filter(t => !hiredIds.has(t.application_id));
   return (
     <>
-      {/* 採用の演出（下の SUCCESS 用）。keyframesは使う場所に同居させる（NewApplicantsPanelの花びらと同じ作法） */}
+      {/* 採用の演出（下の SUCCESS 用）。keyframesは使う場所に同居させる（花びらの演出と同じ作法＝keyframesは使う場所に置く） */}
       <style>{`
 @keyframes cbHireSeal{0%{transform:scale(.3) rotate(-18deg);opacity:0}45%{transform:scale(1.18) rotate(4deg);opacity:1}70%{transform:scale(.95) rotate(0)}100%{transform:scale(1) rotate(0);opacity:1}}
 @keyframes cbHireRing{0%{transform:scale(.5);opacity:.55}100%{transform:scale(2.6);opacity:0}}
