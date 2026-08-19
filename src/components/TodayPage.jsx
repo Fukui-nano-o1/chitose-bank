@@ -43,7 +43,6 @@ export function TodayPage({ me, defaultRole }) {
   const [confirming, setConfirming] = useState("");
   // 完了の祝祭（2026-08-06）：保険の報告の成功時。演出のみ＝記録・ゲートには触れない
   const [celebrate, setCelebrate] = useState(null);
-  const [memo, setMemo] = useState(() => { try { return localStorage.getItem("cb_todayMemo") || ""; } catch { return ""; } }); // 私的メモ（端末内・本人のみ）
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -566,11 +565,9 @@ export function TodayPage({ me, defaultRole }) {
             </div>
           </div>
         )}
-        {/* 📝メモ（私的・端末内localStorage・本人のみ／DB非保存） */}
-        <div style={{ marginBottom:24 }}>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>📝 メモ</p>
-          <textarea value={memo} onChange={e=>{ setMemo(e.target.value); try { localStorage.setItem("cb_todayMemo", e.target.value); } catch {} }} placeholder="自分用のメモ（この端末だけに保存されます）" rows={3} className="field f-sans" style={{ width:"100%", fontSize:14, resize:"vertical", boxSizing:"border-box" }} />
-        </div>
+        {/* 📝メモは削除（2026-08-19たきと指示「必要ない」）。端末内localStorage(cb_todayMemo)だけの
+            私的メモでDBには保存していなかったsoサーバー側の後始末は無い。既に書かれた文字は
+            利用者の端末に残るが、消すと本人の書いたものを黙って壊すことになるso触らない */}
         {/* 「📅 月の予定を見る」ボタンは削除（2026-07-27たきと指示）：やることのカレンダー箱に統合 */}
       </>)}
       </div>
