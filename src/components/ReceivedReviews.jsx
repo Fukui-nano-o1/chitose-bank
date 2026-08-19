@@ -17,10 +17,16 @@ const BADGE_DEFS = {
     { k: "followed_instructions", label: "指示どおり" },
     { k: "completed_work", label: "最後までやり切った" },
   ],
+  // 2026-08-19に3→6項目（たきと指示「もっと入力項目を増やせ」）。
+  // ★入力（components/WorkerReviewSheet.jsx の REVIEW_QUESTIONS）とDBの reviews_public_badges の
+  //   列挙と、この3つを対で直すこと。どれか1つでも欠けると入力できるのに表示されない
   worker_to_farmer: [
     { k: "want_again", label: "🌟 また働きたい" },
     { k: "as_described", label: "説明どおり" },
     { k: "safety_care", label: "安全に配慮" },
+    { k: "on_time", label: "時間どおり" },
+    { k: "instructions_clear", label: "教え方が分かりやすい" },
+    { k: "paid_as_posted", label: "賃金は求人のとおり" },
   ],
 };
 

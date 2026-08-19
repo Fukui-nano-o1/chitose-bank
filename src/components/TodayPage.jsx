@@ -471,7 +471,7 @@ export function TodayPage({ me, defaultRole }) {
           <HireStagePanel items={pItems} meId={me?.id} onHired={(id)=>removeTodo(id, "hire")} />
         ) : pageStage === "w_review" ? (
           /* 仕事の評価はさがすの求人一覧と同じカード構造（2026-08-19たきと指示）。
-             タップでその場に 終了の確認・評価 を開く＝ページを移らない */
+             タップでその場に 仕事の評価（1問1ページ）を開く＝ページを移らない */
           <ReviewStagePanel items={pItems} meId={me?.id} onReviewed={(id)=>removeTodo(id, "w_review")} />
         ) : pageStage === "t_emergency" ? (
           /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示）。
