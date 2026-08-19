@@ -603,6 +603,11 @@ body.cb-scroll-hide .cb-search-fab { transform: translate3d(0, calc(100% + 64px 
   color: #222;
   padding: 12px 16px;
 }
+.app-header-search-btn .search-label-short { display: none; }
+@media (max-width: 380px) {
+  .app-header-search-btn .search-label-full { display: none; }
+  .app-header-search-btn .search-label-short { display: inline; }
+}
 
 /* ── 農家プロ(雇い手空間)：モバイルで画面端から10pxに詰める
    （main左右12px − 負マージン6px ＋ ラッパーpadding4px ＝ 10px。
