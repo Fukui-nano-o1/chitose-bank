@@ -235,6 +235,16 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   // 🆘緊急連絡先のカード表示用サマリー（2026-08-14たきと報告「保存しても空のまま」の修理）：
   // 別テーブル（emergency_contacts・self-only）のでこのページの本体読み込みとは独立に読む。
   // 従来は v:"" 固定＝保存してもカードが永久に「未設定」＋赤影のままだった
+  // はたらき方の希望＝1問1ページの送り（2026-08-19たきと指示「項目ごとに分ける。タップで右にスワイプ」）。
+  // 送りはネイティブ横スクロール＋scroll-snap＝指でも戻れる（自前のtransform管理を持たない）
+  const styleScrollRef = useRef(null);
+  const [styleIdx, setStyleIdx] = useState(0);
+  const onStyleScroll = () => {
+    const el = styleScrollRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setStyleIdx(Math.max(0, Math.min(WORKER_STYLE_QUESTIONS.length - 1, Math.round(el.scrollLeft / el.clientWidth))));
+  };
+  const goStyle = (i) => { const el = styleScrollRef.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" }); };
   const [emgSummary, setEmgSummary] = useState("");
   // ★登録済みかの判定は emgSummary（表示用＝関係＋お名前）ではなく hasEmg（お名前 or 電話）で持つ。
   //   関係の既定は「本人」that先に入るので、emgSummary は空欄保存でも "本人" になり、
@@ -282,6 +292,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     : k === "interests" ? interests.length > 0 : k === "languages" ? languages.length > 0
     : k === "declared" ? (selfDeclared.length > 0 || expEntries.some(e => (e.crop||"").trim())) : k === "avatar" ? !!avatarUrl : prQa.length > 0
   );
+  useEffect(() => { if (editBox === "intensity") setStyleIdx(0); }, [editBox]);
   const nextUnfilledBox = (afterKey) => {
     const start = Math.max(0, BOX_ORDER.indexOf(afterKey));
     for (let i = 1; i <= BOX_ORDER.length; i++) {
@@ -550,19 +561,43 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       <LFPillSelect options={["未経験","経験あり"]} value={farmExperience} onSelect={setFarmExperience} />
       </>)}
 
+      {/* はたらき方の希望＝4問（2026-08-14拡充・雇い手の関わり方4問と対）。
+          2026-08-19たきと指示「項目ごとに分ける。タップで右にスワイプ。全て入力で保存」＝
+          縦に4問並べるのをやめ、1問1ページにした。選ぶと次の質問へ送り、4問目を選ぶとそのまま保存して閉じる。
+          送りはネイティブ横スクロール＋scroll-snap（WorkerExperienceEntriesSwipe と同じ作法）＝
+          指でも戻れる。答えたい質問だけでよい性質は不変so、下の「保存する」で途中保存もできる */}
       {editBox==="intensity" && (<>
-      {/* はたらき方の希望＝4問（2026-08-14拡充・雇い手の関わり方4問と対）。答えたい質問だけでOK */}
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"8px 0 10px", lineHeight:1.6 }}>答えたい質問だけ選んでください（任意）。答えた内容は応募先の農家に表示されます。</p>
-      {WORKER_STYLE_QUESTIONS.map(q => {
-        const cur = { physical_level: physicalLevel, work_mood: workMood, learning_pref: learningPref, work_pattern: workPattern }[q.k];
-        const set = { physical_level: setPhysicalLevel, work_mood: setWorkMood, learning_pref: setLearningPref, work_pattern: setWorkPattern }[q.k];
-        return (
-          <div key={q.k} style={{ marginBottom:14 }}>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>{q.label}（任意）</label>
-            <LFPillSelect options={q.options} value={cur} onSelect={v => set(cur === v ? "" : v)} />
-          </div>
-        );
-      })}
+      <div ref={styleScrollRef} onScroll={onStyleScroll}
+        style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory", WebkitOverflowScrolling:"touch",
+                 overscrollBehaviorX:"contain", scrollbarWidth:"none", margin:"0 -2px" }}>
+        {WORKER_STYLE_QUESTIONS.map((q, i) => {
+          const cur = { physical_level: physicalLevel, work_mood: workMood, learning_pref: learningPref, work_pattern: workPattern }[q.k];
+          const set = { physical_level: setPhysicalLevel, work_mood: setWorkMood, learning_pref: setLearningPref, work_pattern: setWorkPattern }[q.k];
+          return (
+            <div key={q.k} style={{ flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", padding:"0 2px", alignSelf:"flex-start" }}>
+              <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>{q.label}（任意）</label>
+              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 8px" }}>{i + 1} / {WORKER_STYLE_QUESTIONS.length}</p>
+              <LFPillSelect options={q.options} value={cur} onSelect={v => {
+                const next = cur === v ? "" : v;   // 同じものをもう一度タップ＝選び直し（空に戻す）
+                set(next);
+                // 選んだら次の質問へ。最後の質問で選んだ時だけ保存して閉じる（＝全て入力で保存）
+                if (!next) return;                 // 取り消しでは進めない
+                if (i < WORKER_STYLE_QUESTIONS.length - 1) setTimeout(() => goStyle(i + 1), 220);
+                else setTimeout(() => save(true), 220);   // 保存の連鎖に乗せる（次の未入力へ／無ければ閉じる）
+              }} />
+            </div>
+          );
+        })}
+      </div>
+      {/* 進み具合（タップでその質問へ）。全部が下の「保存する」でも保存できる＝途中でやめても壊れない */}
+      <div style={{ display:"flex", justifyContent:"center", gap:6, margin:"14px 0 4px" }}>
+        {WORKER_STYLE_QUESTIONS.map((q, i) => (
+          <button key={q.k} type="button" onClick={()=>goStyle(i)} aria-label={q.label}
+            style={{ width:8, height:8, borderRadius:"50%", border:"none", padding:0, cursor:"pointer",
+                     background: i === styleIdx ? ROLE_ORANGE : "#DDD" }} />
+        ))}
+      </div>
       </>)}
 
       {editBox==="interests" && (<>
