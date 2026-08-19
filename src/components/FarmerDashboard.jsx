@@ -22,6 +22,7 @@ import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
+import LaborConditionsNotice from "./LaborConditionsNotice";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { snapGet, snapSet } from "../lib/snapshot";
@@ -1270,6 +1271,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 ? <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます。</p>
                 : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
             </div>
+            {/* 📄 労働条件通知書（2026-08-18たきと指示・両役割の入口に新設）：
+                採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ＝保存・入力は無い */}
+            <LaborConditionsNotice me={me} role="farmer" />
           </div>
           {/* 「期限切れの求人を見る」リンクは削除（2026-07-25たきと指示）。ページ自体(/profile/employer/expired)はURL直打ちで到達可 */}
         </>

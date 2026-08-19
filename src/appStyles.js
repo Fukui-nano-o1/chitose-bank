@@ -1104,7 +1104,8 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 
 /* 契約の印刷（わたしの実績→契約の記録・2026-08-16）：印刷時は契約書(.cb-ctr-print)だけを紙に出す。
    ボックスは固定オーバーレイ＋内側スクロールなので、印刷時は static に戻して複数ページに流す
-   （fixed のままだと1ページ目で切れる）。ComponentはContractRecords.jsx＝3クラスと対。 */
+   （fixed のままだと1ページ目で切れる）。ComponentはLaborConditionsNotice.jsx＝3クラスと対
+   （旧ContractRecords.jsxは2026-08-18に統合して削除）。 */
 @media print {
   body * { visibility: hidden; }
   .cb-ctr-print, .cb-ctr-print * { visibility: visible; }
