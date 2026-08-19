@@ -10,8 +10,13 @@ import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
   countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, runTodoRpc } from "../features/today/todayApi";
-import { InterviewReplyPanel, NewApplicantsPanel, EmergencyStagePanel, HireStagePanel,
+import { InterviewReplyPanel, EmergencyStagePanel, HireStagePanel,
   HIRE_SHEET_PATH, markHireSheet } from "../features/today/components/StagePanels";
+
+// 今日ページから箱を消した用件（2026-08-19たきと指示）。DBのやること一覧(my_todo_items)は
+// これらを返し続けるが、この画面では数えも並べもしない＝件数と箱が食い違わないようにするための一覧。
+// ★箱を足し引きしたらここも合わせること（TODO_META・TODO_STAGE_CATALOG と対で管理する）
+const REMOVED_STAGES = new Set(["approve", "interview"]);
 
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。
 // カレンダーは各役割の面へ移植（農家＝応募者ページ／働き手＝ステータスページ・2026-07-27）。
@@ -255,20 +260,14 @@ export function TodayPage({ me, defaultRole }) {
       try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
       return "/work/job/" + e.job_number + "/questions"; // タブ指定つきURL（リロードしても質問タブのまま）
     } },
-    // 新着の応募（2026-07-26たきと指示・同日改定）：タップでお祝いパネル（NewApplicantsPanel）を展開。
-    // 行タップで応募者ページへ「応募中」フィルタ着地＝どの求人に誰が応募したかを応募者ページの求人カード設計で見せる
-    // 行き先は新着の応募ページ（#/new-applicants・2026-08-05たきと指示で新設）に変更。
-    // 応募を受けた雇い手のための専用ページ＝サイトを開いた時の着地先と同じ面に揃える
-    // （そこから応募者シート＝承認・見送りの唯一の窓口へ送られる）
-    approve:     { icon:"📨", title:"新着の応募",           btn:"確認して承認 →",
-                   desc:"あなたの求人に新しく届いた応募を確認します。承認すると面接に進めます。",
-                   nav: () => "/new-applicants" },
+    // 📨新着の応募・❓面接する の2箱は削除（2026-08-19たきと指示）。
+    // ★行為そのものは消えていない：
+    //   新着の応募＝専用ページ #/new-applicants（応募が届くとサイトを開いた時にそこへ着地する）と
+    //     応募者ページ。承認・見送りの実行は従来どおり応募者シートが唯一の窓口。
+    //   面接の質問＝チャットの質問集シート（合図 cb_openQSet はChatViewに残置so、別の入口を
+    //     作りたくなったらそのまま使える）。
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
     // 日程変更が必要な時だけ応募者ページの働く日モーダル（set_agreed_dates・cb_agreeAppId着地は温存）で行う
-    // interview/hire（2026-07-25たきと指示）：チャットの質問集シート・採用ボタンを今日のリストへ移設。
-    // チャットは「アクションの報告（自動送信）＋直接やりとりが必要な時だけ」の最小役割に寄せていく
-    interview:   { icon:"❓", title:"面接の質問を送る",     btn:"質問を送る →",     qset:true,
-                   desc:"承認した応募者に面接の質問を送ります。質問と回答はチャットに証跡として残ります。" },
     // 採用する（2026-07-27たきと指示）：その場実行をやめ、応募者ページの「面接中」タブへ直行。
     // 採用の実行は応募者シートの🤝採用するボタン（二重予約警告つき）が担う
     // 2026-08-06：専用ページを応募者単位のカードに刷新（HireStagePanel）。行き先も一覧でなく
@@ -310,10 +309,10 @@ export function TodayPage({ me, defaultRole }) {
   // 面接の回答を送信してリストが空になった時は「送信完了しました。」を出す（2026-07-26たきと指示。ページを離れたらリセット）
   const [answeredDone, setAnsweredDone] = useState(false);
   useEffect(() => { setAnsweredDone(false); }, [pageStage]);
-  const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正", w_revision: "求職の修正", question: "質問に答える" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
+  const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正", question: "質問に答える" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "complete"],
+    farmer: ["t_emergency", "revision", "question", "hire", "insurance", "complete"],   // approve・interviewは削除（2026-08-19）
     worker: ["t_emergency", "w_revision", "w_interview", "w_review"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
@@ -329,7 +328,6 @@ export function TodayPage({ me, defaultRole }) {
     if (m.nav) { window.location.hash = m.nav(e); return; }
     if (m.flag) { if (m.before) m.before(); try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
     // 面接の質問（チャットからの移設）：チャットに着地して質問集シートを自動で開く（回答は面接の証跡としてチャットに残る）
-    if (m.qset) { try { sessionStorage.setItem("cb_openQSet", "1"); } catch {} window.location.hash = "/chat/" + e.application_id; return; }
     if (m.rpc) {
       if (confirming) return; setConfirming(busyKey);
       const { data, error } = await runTodoRpc(m.rpc, e.application_id);
@@ -459,8 +457,6 @@ export function TodayPage({ me, defaultRole }) {
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{answeredDone ? "送信完了しました。" : "この用事はいまありません"}</p>
             {pm.desc && <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 auto", maxWidth:420, textAlign:"left" }}>{pm.desc}</p>}
           </div>
-        ) : pageStage === "approve" ? (
-          <NewApplicantsPanel items={pItems} onTap={(t)=>runTodo(TODO_META.approve, t)} />
         ) : pageStage === "hire" ? (
           /* 採用するページは応募者ページと同じカード構造・ただし応募者単位（2026-08-06たきと指示）。
              🤝→最終確認→OKでその場で採用（ページ遷移しない）。片付いた応募はやることからも消す */
@@ -496,7 +492,9 @@ export function TodayPage({ me, defaultRole }) {
         {/* 【やること】採配台：状態カードを締切の近い順に。①②⑧=遷移／③〜⑦=直接実行。件数=今日タブのバッジ(todo)と一致 */}
         {(() => {
           // 最新順（sort_keyの新しい順・同日なら求人番号の新しい順）
-          const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
+          // 箱を消した用件（approve・interview）はDBのやること一覧に残るが、ここでは数えも並べもしない
+          //   ＝件数と箱が食い違わない（2026-08-19のバッジのソース一致の規則）
+          const myTodos = todos.filter(t => t.my_role === role && !REMOVED_STAGES.has(t.stage)).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
           // 用件（stage）ごとに1箱へ集約。該当ありは最新順で上位、該当なしもカタログ順で常時表示（薄表示・タップ不可）
           const activeOrder = []; const byStage = new Map();
           [["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chat・t_cardは削除）
