@@ -21,6 +21,8 @@ import ContractEmergencyContact from "../../../components/ContractEmergencyConta
 // 面接の回答パネル（2026-07-25・働き手）：農家からの【面接の質問】に今日のリストからその場で返事する。
 // ★モジュールレベル定義を維持すること：親（TodayPage）内で定義すると再レンダーごとに再マウントされ、
 //   textareaのフォーカス・下書きが消える（LandingFlowのフォーカス消失バグと同族）
+// ★現在この部品を使う画面は無い（2026-08-19に今日ページの✍️面接の回答の箱を削除したため）。
+//   返事はチャットで行う。箱を戻す時にそのまま使えるので残置＝消す判断は別途
 export function InterviewReplyPanel({ items, accent, onAnswered }) {
   const [questions, setQuestions] = useState({}); // application_id → 最新の【面接の質問】本文
   const [drafts, setDrafts] = useState({});       // application_id → 入力中の回答
@@ -136,6 +138,8 @@ export function InterviewReplyPanel({ items, accent, onAnswered }) {
 // 新着の応募のお祝いパネル（2026-07-26たきと指示）：応募は祝い事。おめでとう文言＋「応募者 ----→ 求人」の対応行。
 // 初展開（その応募をはじめて見た時）だけ花びらが舞う（見た応募IDはlocalStorage cb_celebratedAppsに記録＝再訪では舞わない）。
 // ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされ花びらが途切れる
+// ★現在この部品を使う画面は無い（2026-08-19に今日ページの📨新着の応募の箱を削除したため）。
+//   新着の応募は専用ページ #/new-applicants が担う（花びらの演出はあちらが自前で持つ）。残置＝消す判断は別途
 export function NewApplicantsPanel({ items, onTap }) {
   const [petals, setPetals] = useState(false);
   useEffect(() => {

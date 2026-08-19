@@ -10,13 +10,13 @@ import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
   countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, runTodoRpc } from "../features/today/todayApi";
-import { InterviewReplyPanel, EmergencyStagePanel, HireStagePanel,
+import { EmergencyStagePanel, HireStagePanel,
   HIRE_SHEET_PATH, markHireSheet } from "../features/today/components/StagePanels";
 
 // 今日ページから箱を消した用件（2026-08-19たきと指示）。DBのやること一覧(my_todo_items)は
 // これらを返し続けるが、この画面では数えも並べもしない＝件数と箱が食い違わないようにするための一覧。
 // ★箱を足し引きしたらここも合わせること（TODO_META・TODO_STAGE_CATALOG と対で管理する）
-const REMOVED_STAGES = new Set(["approve", "interview"]);
+const REMOVED_STAGES = new Set(["approve", "interview", "w_interview"]);
 
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。
 // カレンダーは各役割の面へ移植（農家＝応募者ページ／働き手＝ステータスページ・2026-07-27）。
@@ -292,8 +292,8 @@ export function TodayPage({ me, defaultRole }) {
     // 中身（遷移先・実行内容）は未定ので nav/rpc は持たせない＝現状は常に「該当なし」の薄い箱として並ぶ
     w_revision:  { icon:"📝", title:"求職に修正のお願い", btn:"修正する →",
                    desc:"運営から求職内容の修正のお願いが届いたとき、ここから直します。" },
-    w_interview: { icon:"✍️", title:"面接の回答",           btn:"返事する",
-                   desc:"農家から届いた面接の質問に、その場で返事します。返信はチャットにも残ります。" }, // 農家の【面接の質問】にここで返事（専用パネル・返信はチャットにも残る）
+    // ✍️面接の回答の箱は削除（2026-08-19たきと指示）。★返事ができなくなるわけではない：
+    //   農家の【面接の質問】はチャットに届くので、そのままチャットで返事する（同じ相手・同じ証跡）。
     // 開始の打刻・確認の箱は廃止（2026-08-18たきと指示「打刻の全面削除」）：作業日の開始時刻が
     // 来たらDB側のcron auto_start_work() が自動で作業中にする＝誰にも時刻を押させない
     // ここに出るのは「農家が完了を記録した後・自分がまだ終了を確認していない・完了から3日以内」だけ
@@ -305,14 +305,12 @@ export function TodayPage({ me, defaultRole }) {
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
   // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（求人チップで識別）
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
-  // 面接の回答を送信してリストが空になった時は「送信完了しました。」を出す（2026-07-26たきと指示。ページを離れたらリセット）
-  const [answeredDone, setAnsweredDone] = useState(false);
-  useEffect(() => { setAnsweredDone(false); }, [pageStage]);
+  // answeredDone（送信完了しました。の一時表示）は廃止（2026-08-19）：面接の回答パネル専用だった
   const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["t_emergency", "revision", "question", "hire", "insurance", "complete"],   // approve・interviewは削除（2026-08-19）
-    worker: ["t_emergency", "w_revision", "w_interview", "w_review"],
+    worker: ["t_emergency", "w_revision", "w_review"],   // w_interviewは削除（2026-08-19）
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
@@ -453,7 +451,7 @@ export function TodayPage({ me, defaultRole }) {
              なぜ空なのか・いつここに何が来るのかが分からないため、用件の説明を本文として大きく出す */
           <div style={{ background:"#F7F7F7", borderRadius:14, padding:"28px 20px", textAlign:"center" }}>
             <div style={{ fontSize:32, marginBottom:10 }}>{pm.icon}</div>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{answeredDone ? "送信完了しました。" : "この用事はいまありません"}</p>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>この用事はいまありません</p>
             {pm.desc && <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 auto", maxWidth:420, textAlign:"left" }}>{pm.desc}</p>}
           </div>
         ) : pageStage === "hire" ? (
@@ -463,8 +461,6 @@ export function TodayPage({ me, defaultRole }) {
         ) : pageStage === "t_emergency" ? (
           /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示） */
           <EmergencyStagePanel items={pItems} role={role} />
-        ) : pageStage === "w_interview" ? (
-          <InterviewReplyPanel items={pItems} accent={accent} onAnswered={(id)=>{ removeTodo(id, "w_interview"); setAnsweredDone(true); }} />
         ) : (
           <TodoStagePanel stage={pageStage} items={pItems} />
         )}
