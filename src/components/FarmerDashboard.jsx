@@ -4,10 +4,9 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel,
   unpublishJob, copyJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
   markWorkNoShow, submitFarmerReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
-  upsertRoster, deleteRoster, updateQuestionSet, insertQuestionSet, deleteQuestionSetRow, sendInterviewQuestionsRpc,
+  upsertRoster, deleteRoster,
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
-import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
@@ -68,82 +67,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     window.addEventListener("cb:employerHome", onEmployerHome);
     return () => window.removeEventListener("cb:employerHome", onEmployerHome);
   }, []);
-  // ── 面接の質問集（2026-07-23）：農家が質問セット(タイトル＋質問1〜5)を作り、応募者チャットに投函 ──
-  const [questionSets, setQuestionSets] = useState([]);
-  const [qMgrOpen, setQMgrOpen] = useState(false);      // 管理モーダル
-  const qMgrScrollY = useRef(0);                        // 質問集を開く直前のハブのスクロール位置（閉じたら元の場所へ戻す・2026-07-24）
-  // 質問集フルページ(.qset-full)は body{overflow:hidden;height:100%} で開くため、閉じるとハブ先頭へ飛ぶ。開く前の位置を控えて復元する
-  // 使う側（openQMgr・応募者の読み込み・評価の送信）より前に置く（宣言前参照の解消・2026-07-29）
-  const [qEditing, setQEditing] = useState(null);       // 編集中セット {id?, title, questions:[...]}（null=一覧）
-  // 質問集カードの反転（2026-07-29たきと指示）：表=案内文／裏=作ってある質問集のタイトル横スクロール。
-  // トップボックス(empTopBack)と同じ作法で、切り返した面をlocalStorageに覚える
-  const [qCardBack, setQCardBack] = useState(() => { try { return localStorage.getItem("cb_qCardBack") === "1"; } catch { return false; } });
-  const [qCardAnim, setQCardAnim] = useState("");       // 反転アニメ: pflip-out|pflip-in（0.4s×2）
   const [favDone, setFavDone] = useState(null); // {workerId, nickname, avatar_url}
   const [favDetailOpen, setFavDetailOpen] = useState(false);
   const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
   const [reviewedAppIds, setReviewedAppIds] = useState(() => new Set()); // 自分が評価を書いた応募ID。お仕事の流れバーの「評価」段の点灯に使う
 
-  const openQMgr = () => { qMgrScrollY.current = window.scrollY; setQEditing(null); setQMgrOpen(true); };
-  const closeQMgr = () => { const y = qMgrScrollY.current; setQMgrOpen(false); requestAnimationFrame(() => window.scrollTo(0, y)); };
-  const [qSaving, setQSaving] = useState(false);
-  const [sendQTarget, setSendQTarget] = useState(null); // 「質問を送る」対象の応募(a)
-  const [sendingQ, setSendingQ] = useState(false);
-  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
-  const sendQSheetRef = useRef(null), sendQScrollRef = useRef(null);
-  useSheetDragClose(sendQSheetRef, sendQScrollRef, ()=>{ if (!sendingQ) setSendQTarget(null); }, !!sendQTarget);
-  const loadQuestionSets = async () => {
-    if (!me?.id) { setQuestionSets([]); return; }
-    try {
-      // 初回はデフォルト3種を用意してから読み込む（準備しておく・2026-07-23）
-      const list = await ensureDefaultQuestionSets(me.id);
-      setQuestionSets(list);
-    } catch {}
-  };
-  useEffect(() => { loadQuestionSets(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [me?.id]);
-  const saveQuestionSet = async () => {
-    if (!qEditing || !me?.id) return;
-    const title = (qEditing.title || "").trim();
-    const questions = (qEditing.questions || []).map(q => (q || "").trim()).filter(Boolean).slice(0, 5);
-    if (!title && questions.length === 0) { alert("タイトルか質問を入力してください"); return; }
-    setQSaving(true);
-    try {
-      if (qEditing.id) {
-        const { error } = await updateQuestionSet(qEditing.id, me.id, title, questions);
-        if (error) throw error;
-      } else {
-        const { error } = await insertQuestionSet(me.id, title, questions);
-        if (error) throw error;
-      }
-      await loadQuestionSets();
-      setQEditing(null);
-    } catch (e) { alert("保存に失敗しました：" + (e?.message || "不明")); }
-    finally { setQSaving(false); }
-  };
-  const deleteQuestionSet = async (id) => {
-    if (!id || !confirm("この質問集を削除しますか？")) return;
-    try {
-      const { error } = await deleteQuestionSetRow(id, me.id);
-      if (error) throw error;
-      await loadQuestionSets();
-      setQEditing(null);
-    } catch (e) { alert("削除に失敗しました：" + (e?.message || "不明")); }
-  };
-  const [qSentAppIds, setQSentAppIds] = useState(() => new Set());
-  // loadQSentIds（質問送信済みの個別取得）は廃止（2026-08-02）：my_farm_applicants の qsent_ids に統合
-
-  const sendInterviewQuestions = async (setId) => {
-    if (!sendQTarget || sendingQ) return;
-    setSendingQ(true);
-    try {
-      const { data, error } = await sendInterviewQuestionsRpc(sendQTarget.id, setId);
-      if (error || !data?.ok) { alert("送信に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); setSendingQ(false); return; }
-      const appId = sendQTarget.id;
-      setSendQTarget(null); setSendingQ(false);
-      setQSentAppIds(prev => new Set(prev).add(appId)); // 初面接後＝シートのボタンが「採用する」に切り替わる
-      if (confirm("チャットに質問を送りました。チャットを開きますか？")) window.location.hash = "/chat/" + appId;
-    } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); setSendingQ(false); }
-  };
   // 作成中⇄公開中ページャー（2026-07-16）：2枚のパネルを横並びにし、指に追従して実際に横移動させる。
   // 横ロック判定後はtrackのtransformを直接書く（state経由だと1フレーム遅れてカクつくため）。
   // 端（作成中で右・公開中で左）は1/3の抵抗。離した時に幅の1/4（最大80px）を超えていたらタブ確定
@@ -608,8 +536,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     })();
     return () => { dead = true; };
   }, [sheetApplicantId]); // eslint-disable-line react-hooks/exhaustive-deps -- sheetJobFullは取得済み判定のみ（依存に入れると再取得ループ）
-  // 面接の質問を一度でも送った応募ID（interview_question_sends・農家本人select可）。
-  // シートのボタン出し分け「初面接後=採用する」の判定に使用（2026-07-26たきと指示）
   // 採用の実行窓口は「採用するページ」1箇所に一本化（2026-08-06たきと指示「器と機能の役割は一つに絞れ」）。
   // シートの役割は判断材料を見せることに徹し、採用ボタンは採用ページへのリンク。
   // 最終確認・二重予約警告・本名開示の明示・実行（confirm_terms）はすべて採用ページ側が担う。
@@ -688,7 +614,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         // 働き手が答えるとchat(未読)で再び跳ねる。やることリスト側のhireはそのまま（表示だけの調整）
         setTodoAppIds(new Set((bundle.todo || []).filter(t => t.stage !== "hire").map(t => t.application_id)));
         setDbApplicants(appData);
-        setQSentAppIds(new Set(bundle.qsent_ids || []));
         // 自分が書いた評価（お仕事の流れバーの「評価」段の判定）。RLS「review select own」で自分の行のみ
         setReviewedAppIds(new Set(bundle.reviewed_ids || []));
         if (Array.isArray(bundle.profiles) && bundle.profiles.length > 0) {
@@ -876,12 +801,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   </div>
                   );
                 }
+                // 面接中＝チャットで直接やり取りし、決まったら採用する（2026-08-17たきと指示で質問集を廃止。
+                // 従来は「📋 質問を送る」＋送信済みなら「採用する」の出し分けだった）
                 if (phase === "interview") return (
                   <div style={{ display:"flex", gap:8 }}>
-                    <button onClick={()=>setSendQTarget(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>📋 質問を送る</button>
-                    {qSentAppIds.has(a.id)
-                      ? <button onClick={goHirePage} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する →</button>
-                      : chatBtn}
+                    {chatBtn}
+                    <button onClick={goHirePage} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する →</button>
                   </div>
                 );
                 // 採用〜作業中（＝作業日が来ている／来る応募）に「完了・欠勤を記録」を置く（2026-07-30たきと指摘
@@ -1046,82 +971,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>圃場ごとの作業を請け負う委託の仕様書を作ります。</span>
             </button>
           )}
-          {/* 面接の質問集（2026-07-23）：応募者チャットに送る質問を用意。
-              右上⇄で反転（2026-07-29たきと指示）：裏＝作ってある質問集のタイトルを横スクロールで一覧。
-              反転はトップボックスと同じ作法（pflip-out→中身入替→pflip-in・0.4s×2）。
-              裏面は<div>で描く＝中のタイトルを本物のボタンにできる（button の中に button は置けない） */}
-          <div style={{ position:"relative", marginTop:12 }}>
-            {!qCardBack ? (
-              <button onClick={openQMgr} className={"f-sans" + (qCardAnim ? " " + qCardAnim : "")}
-                onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && qCardAnim === "pflip-in") setQCardAnim(""); }}
-                style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box" }}>
-                <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📋</span>
-                <span style={{ minWidth:0, paddingRight:28 }}>
-                  <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>面接の質問集</span>
-                  <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>聞きたいことをセットにして、応募者のチャットに送れます。回答もチャットに残ります。</span>
-                </span>
-              </button>
-            ) : (
-              <div className={"f-sans" + (qCardAnim ? " " + qCardAnim : "")}
-                onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && qCardAnim === "pflip-in") setQCardAnim(""); }}
-                style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box", display:"flex", flexDirection:"column", justifyContent:"center" }}>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 10px", paddingRight:28 }}>📋 質問集（{questionSets.length}）</p>
-                {questionSets.length === 0 ? (
-                  <button onClick={openQMgr} className="f-sans" style={{ background:"none", border:"none", padding:0, textAlign:"left", fontSize:13, color:"#717171", lineHeight:1.6, cursor:"pointer" }}>まだありません。タップして作成できます。</button>
-                ) : (
-                  /* 横スクロール（たきと指示）：タイトルの箱を横一列に。タップでその場にボックスが開き、
-                     質問をここで直接入力できる（2026-07-29たきと指示）。もう一度タップで畳む */
-                  <>
-                    <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
-                      {questionSets.map(s => {
-                        const on = qEditing?.id === s.id;
-                        return (
-                          <button key={s.id} onClick={()=>setQEditing(on ? null : { id:s.id, title:s.title || "", questions:(s.questions && s.questions.length) ? [...s.questions] : [""] })}
-                            className="f-sans" style={{ flexShrink:0, maxWidth:200, background: on ? "#EAF7F1" : "#F7F7F7", border:"1px solid " + (on ? ROLE_GREEN : "#EBEBEB"), borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
-                            <span style={{ display:"block", fontSize:13, fontWeight:700, color: on ? ROLE_GREEN : "#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title || "無題"}</span>
-                            <span style={{ display:"block", fontSize:11, color:"#B0B0B0", marginTop:2 }}>{(s.questions || []).length}問</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {qEditing?.id && (
-                      /* 展開したボックス：この質問集の質問をその場で入力・保存する。
-                         状態(qEditing)と保存(saveQuestionSet)は質問集ページと共用＝入力の作法が2つに割れない */
-                      <div className="fade-in" style={{ marginTop:12, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px" }}>
-                        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>{qEditing.title || "無題"} の質問（最大5問）</p>
-                        <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:10 }}>
-                          {qEditing.questions.map((q,i) => (
-                            <div key={i} style={{ display:"flex", gap:8, alignItems:"center" }}>
-                              <span className="f-sans" style={{ fontSize:13, color:"#999", flexShrink:0, width:16 }}>{i+1}.</span>
-                              <input value={q} onChange={e=>setQEditing(prev=>({ ...prev, questions: prev.questions.map((x,j)=> j===i ? e.target.value : x) }))} placeholder={`質問${i+1}`} className="field f-sans" style={{ fontSize:14, flex:1, minWidth:0, background:"#fff" }} />
-                              {qEditing.questions.length > 1 && (
-                                <button onClick={()=>setQEditing(prev=>({ ...prev, questions: prev.questions.filter((_,j)=>j!==i) }))} aria-label="削除" className="f-sans" style={{ flexShrink:0, width:32, height:32, borderRadius:8, background:"#EBEBEB", border:"none", color:"#999", fontSize:16, cursor:"pointer" }}>×</button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {qEditing.questions.length < 5 && (
-                          <button onClick={()=>setQEditing(prev=>({ ...prev, questions:[...prev.questions, ""] }))} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:ROLE_GREEN, cursor:"pointer", fontWeight:600, marginBottom:10 }}>＋ 質問を追加</button>
-                        )}
-                        <div style={{ display:"flex", gap:8 }}>
-                          <button onClick={()=>setQEditing(null)} className="f-sans" style={{ flex:"0 0 auto", padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-                          <button onClick={saveQuestionSet} disabled={qSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qSaving ? <>保存中<Dots /></> : "保存する"}</button>
-                        </div>
-                        {/* タイトルの変更・削除は質問集ページで（ここは質問の入力に絞る） */}
-                        <button onClick={()=>{ qMgrScrollY.current = window.scrollY; setQMgrOpen(true); }} className="f-sans" style={{ width:"100%", marginTop:8, padding:"6px", fontSize:12, background:"none", border:"none", color:"#B0B0B0", cursor:"pointer" }}>タイトルの変更・削除はこちら →</button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-            <button onClick={()=>{
-              if (qCardAnim === "pflip-out") return; // 連打ガード
-              setQEditing(null);                     // 開いていた入力ボックスは畳んでから返す
-              setQCardAnim("pflip-out");
-              setTimeout(()=>{ setQCardBack(v=>{ const nv = !v; try { localStorage.setItem("cb_qCardBack", nv ? "1" : "0"); } catch {} return nv; }); setQCardAnim("pflip-in"); }, 400);
-            }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
-          </div>
           {/* 保険の準備（2026-07-24・専用ページ#/insuranceへ遷移）。アプリ内遷移の目印を残し、戻るは history.back で元の場所（スクロール位置）へ復帰させる。
               質問集カードと同じ反転式（2026-07-29たきと指示）：裏＝保険の箱を横スクロール、タップでその場に開いて申告できる */}
           <div style={{ position:"relative", marginTop:12 }}>
@@ -1859,103 +1708,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         </div>
       )}
 
-      {/* ═══ 面接の質問集 管理モーダル（2026-07-23）：セットの作成・編集・削除＋テンプレのコピー ═══ */}
-      {qMgrOpen && (
-        <div className="qset-full">
-          {/* 見出しまわりは保険の準備ページと同じ構造（2026-07-25たきと指示）：小さい「← 戻る」→絵文字付き見出し→グレー説明文 */}
-          <div className="f-sans" style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", maxWidth:560, width:"100%", margin:"0 auto", padding:"calc(env(safe-area-inset-top,0px) + 24px) 20px calc(env(safe-area-inset-bottom,0px) + 96px)", boxSizing:"border-box" }}>
-            <button onClick={()=>{ if (qEditing) setQEditing(null); else closeQMgr(); }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 14px", display:"inline-flex", alignItems:"center", gap:6 }}>← 戻る</button>
-            <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>📋 面接の質問集</h1>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>聞きたいことをセットにして保存し、応募者のチャットに送れます。回答もチャットに残ります。</p>
-
-            {qEditing === null ? (
-              <>
-                {/* 1列の行カード（2026-07-27たきと指示・同日改定）：左＝タイトル／右＝中身。
-                    応募者ページの求人カードと同じ読み方に揃え、ボックス内のアイコンは置かない */}
-                <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:12, marginBottom:12 }}>
-                  {questionSets.map(s => (
-                    <button key={s.id} onClick={()=>setQEditing({ id:s.id, title:s.title || "", questions: (Array.isArray(s.questions) && s.questions.length ? [...s.questions] : [""]) })} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, textAlign:"left" }}>
-                      {/* 左＝タイトル／右＝中身（応募者ページのカードと同じ並び・2026-07-27たきと指示）。
-                          ボックス内の📋アイコンは削除＝中身が質問集であることは見出しが示している */}
-                      <span style={{ flexShrink:0, maxWidth:"46%", fontSize:15, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title || "無題の質問集"}</span>
-                      <span style={{ flex:1, minWidth:0, textAlign:"right", overflow:"hidden" }}>
-                        <span style={{ display:"block", fontSize:11, fontWeight:700, color:"#00A86B" }}>質問{Array.isArray(s.questions) ? s.questions.filter(Boolean).length : 0}問</span>
-                        <span style={{ display:"block", fontSize:12, color:"#717171", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {(Array.isArray(s.questions) ? s.questions.filter(Boolean) : []).join("・") || "質問はまだありません"}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                  {/* テンプレ区画は削除（2026-07-25たきと指示）：＋自分で作るを押した時、未使用テンプレの内容を
-                      デフォルト値として入力欄に表示する方式に（編集・上書き保存可能）。全テンプレ使用済みなら白紙。
-                      ボックス格子の最後の1枠として同じ大きさで並べる（2026-07-27） */}
-                  <button onClick={()=>{
-                    const used = new Set(questionSets.map(s => s.title));
-                    const tpl = INTERVIEW_TEMPLATES.find(t => !used.has(t.title));
-                    setQEditing(tpl ? { title: tpl.title, questions: [...tpl.questions] } : { title:"", questions:[""] });
-                  }} className="f-sans" style={{ background:"#fff", border:"1px dashed #C8C8C8", borderRadius:14, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12, minWidth:0, textAlign:"left" }}>
-                    <span style={{ flexShrink:0, fontSize:15, fontWeight:700, color:"#00A86B" }}>＋ 自分で作る</span>
-                    <span style={{ flex:1, minWidth:0, textAlign:"right", fontSize:12, color:"#B0B0B0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>新しい質問集</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <label className="f-sans" style={{ display:"block", fontSize:12, fontWeight:700, color:"#222", marginBottom:6 }}>タイトル</label>
-                <input value={qEditing.title} onChange={e=>setQEditing(prev=>({ ...prev, title:e.target.value }))} placeholder="例：経験の確認" className="field f-sans" style={{ fontSize:14, marginBottom:16 }} />
-                <label className="f-sans" style={{ display:"block", fontSize:12, fontWeight:700, color:"#222", marginBottom:6 }}>質問（最大5問）</label>
-                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:12 }}>
-                  {qEditing.questions.map((q,i) => (
-                    <div key={i} style={{ display:"flex", gap:8, alignItems:"center" }}>
-                      <span className="f-sans" style={{ fontSize:13, color:"#999", flexShrink:0, width:16 }}>{i+1}.</span>
-                      <input value={q} onChange={e=>setQEditing(prev=>({ ...prev, questions: prev.questions.map((x,j)=> j===i ? e.target.value : x) }))} placeholder={`質問${i+1}`} className="field f-sans" style={{ fontSize:14, flex:1 }} />
-                      {qEditing.questions.length > 1 && (
-                        <button onClick={()=>setQEditing(prev=>({ ...prev, questions: prev.questions.filter((_,j)=>j!==i) }))} aria-label="削除" className="f-sans" style={{ flexShrink:0, width:32, height:32, borderRadius:8, background:"#F5F5F5", border:"none", color:"#999", fontSize:16, cursor:"pointer" }}>×</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {qEditing.questions.length < 5 && (
-                  <button onClick={()=>setQEditing(prev=>({ ...prev, questions:[...prev.questions, ""] }))} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"9px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, marginBottom:16 }}>＋ 質問を追加</button>
-                )}
-                <div style={{ display:"flex", gap:8, marginTop:4 }}>
-                  <button onClick={()=>setQEditing(null)} className="f-sans" style={{ flex:"0 0 auto", padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>戻る</button>
-                  <button onClick={saveQuestionSet} disabled={qSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{qSaving ? <>保存中<Dots /></> : "保存する"}</button>
-                </div>
-                {qEditing.id && (
-                  <button onClick={()=>deleteQuestionSet(qEditing.id)} className="f-sans" style={{ width:"100%", marginTop:10, padding:"9px", fontSize:13, background:"none", color:"#E24B4A", border:"none", cursor:"pointer" }}>この質問集を削除</button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ═══ 質問を送る（応募者カード「📋 質問を送る」→セット選択→send_interview_questions RPC・2026-07-23） ═══ */}
-      {sendQTarget && (
-        <div onClick={()=>{ if (!sendingQ) setSendQTarget(null); }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10002, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div ref={sendQSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom,0px) + 20px)", maxWidth:520, width:"100%", maxHeight:"80vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px", paddingRight:40 }}>📋 質問を送る</h3>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 16px", lineHeight:1.6 }}>選んだ質問集を、この応募者とのチャットに【面接の質問】として送ります。回答もチャットに残ります。</p>
-            {questionSets.length === 0 ? (
-              <div style={{ textAlign:"center", padding:"12px 0" }}>
-                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:"0 0 16px" }}>まだ質問集がありません。</p>
-                <button onClick={()=>{ qMgrScrollY.current=window.scrollY; setSendQTarget(null); setQEditing(null); setQMgrOpen(true); }} className="f-sans" style={{ background:"#00A86B", color:"#fff", border:"none", borderRadius:10, padding:"11px 20px", fontSize:14, fontWeight:700, cursor:"pointer" }}>質問集を作る</button>
-              </div>
-            ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                {questionSets.map(s => (
-                  <button key={s.id} disabled={sendingQ} onClick={()=>sendInterviewQuestions(s.id)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
-                    <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{s.title || "無題の質問集"}</span>
-                    <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(Array.isArray(s.questions) ? s.questions : []).join(" / ") || "質問なし"}</span>
-                  </button>
-                ))}
-                {sendingQ && <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"4px 0 0" }}>送信中<Dots /></p>}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

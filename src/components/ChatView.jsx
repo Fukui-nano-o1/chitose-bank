@@ -10,7 +10,6 @@ import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/pr
 import { closeReadNotifications } from "../lib/push";
 import { chatCache, hydrateChatCache } from "../lib/chatCache";
 import { snapGet, snapSet } from "../lib/snapshot";
-import { ensureDefaultQuestionSets } from "../lib/questionSets";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 export function ChatView({ applicationId, onBack }) {
@@ -61,18 +60,7 @@ export function ChatView({ applicationId, onBack }) {
   // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
   const tmplSheetRef = useRef(null), tmplScrollRef = useRef(null);
   useSheetDragClose(tmplSheetRef, tmplScrollRef, ()=>setTmplOpen(false), tmplOpen);
-  // ＋シートのタブ（2026-07-23）：質問集 / 📅候補日。スワイプで切替
-  const [tmplTab, setTmplTab] = useState("qset");
-  // 今日のやること「面接の質問を送る」からの着地（2026-07-25）：フラグがあれば質問集シートを自動で開く（農家側のみ）
-  const wantQSetRef = useRef(false);
-  useEffect(() => { try { if (sessionStorage.getItem("cb_openQSet")) { sessionStorage.removeItem("cb_openQSet"); wantQSetRef.current = true; } } catch {} }, []);
-  useEffect(() => {
-    if (wantQSetRef.current && myId && !isWorkerSide) { wantQSetRef.current = false; setTmplTab("qset"); setTmplOpen(true); }
-  }, [myId, isWorkerSide]);
-  const [chatQSets, setChatQSets] = useState(null); // 農家の面接の質問集（null=未読込）
-  const [qSending, setQSending] = useState(false);
   const [dateSel, setDateSel] = useState([]); // ＋シート「候補日を送る」で選択中の候補日（農家→働き手・2026-07-24）
-  const tmplSwipe = useRef(null); // ＋シートの横スワイプ判定
   // 既読（2026-07-22・第8弾）：相手（counterpart）のchat_reads最終既読時刻。自分の送信でこれ以前のものに「既読」
   const [partnerReadAt, setPartnerReadAt] = useState(null);
   // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
@@ -434,30 +422,6 @@ export function ChatView({ applicationId, onBack }) {
     } catch {}
     setSending(false);
   };
-  // ＋シートの質問集タブ（2026-07-23）：農家が自分の面接の質問集をチャットに投函（回答はチャットに残る）
-  useEffect(() => {
-    if (!tmplOpen || isWorkerSide || !myId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        // 初回はデフォルト3種を用意してから読み込む（準備しておく・2026-07-23）
-        const list = await ensureDefaultQuestionSets(myId);
-        if (!cancelled) setChatQSets(list);
-      } catch { if (!cancelled) setChatQSets([]); }
-    })();
-    return () => { cancelled = true; };
-  }, [tmplOpen, isWorkerSide, myId]);
-  const sendQSetToChat = async (setId) => {
-    if (qSending) return;
-    setQSending(true);
-    try {
-      const { data, error } = await supabase.rpc("send_interview_questions", { p_application_id: activeAppId, p_set_id: setId });
-      if (error || !data?.ok) { alert("送信に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); setQSending(false); return; }
-      setQSending(false); setTmplOpen(false);
-      await load();
-      try { window.dispatchEvent(new Event("cb:unreadRefresh")); } catch {}
-    } catch (e) { alert("送信に失敗しました：" + (e?.message || "不明")); setQSending(false); }
-  };
   // 既読マーカー（2026-07-22・第8弾）：LINE式に、相手が読んだ自分の最新メッセージ1件にだけ「既読」を出す。
   // partnerReadAt（相手の最終既読時刻）以前に送った自分のメッセージのうち、最後の1件のidを求める
   const readMarkMsgId = (() => {
@@ -638,7 +602,7 @@ export function ChatView({ applicationId, onBack }) {
           <Fragment key={m.id}>
           <div
             onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
-            style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...((typeof m.body==="string" && m.body.startsWith("【面接の質問】")) ? { border: m.sender_id===myId ? "2px solid rgba(255,255,255,0.7)" : "2px solid #F5A623" } : {}) }} className="f-sans">{m.body}</div>
+            style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }} className="f-sans">{m.body}</div>
           {/* 既読（2026-07-22・第8弾）：相手が読んだ自分の最新メッセージにだけ小さく表示 */}
           {m.id === readMarkMsgId && (
             <span className="f-sans" style={{ alignSelf:"flex-end", fontSize:10, color:"#B0B0B0", marginTop:-4 }}>既読</span>
@@ -757,7 +721,7 @@ export function ChatView({ applicationId, onBack }) {
         {/* ＋シート（2026-07-22・第8弾）：質問集／候補日。どちらも農家の機能ので働き手側には出さない
             （定型文の削除・2026-08-19たきと指示で、働き手にとって中身が無くなったため） */}
         {!isWorkerSide && (
-        <button onClick={()=>{ setTmplTab("qset"); setTmplOpen(true); }} aria-label="質問集・候補日" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
+        <button onClick={()=>setTmplOpen(true)} aria-label="候補日" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
         )}
         <textarea ref={inputRef} value={text} rows={1} onChange={e=>setText(e.target.value)}
           placeholder="メッセージを入力" className="field f-sans"
@@ -766,32 +730,9 @@ export function ChatView({ applicationId, onBack }) {
       </div>
       )}
 
-      {/* ＋シート（2026-07-22 第8弾→2026-07-23 タブ化→2026-08-19 定型文を削除）：
-          質問集／📅候補日をタブ＋スワイプで切替。質問集＝タップでチャットに投函（回答も残る）／
-          候補日＝選ぶと入力欄に文章が入る。どちらも農家の機能ので、このシートは農家側にしか出ない */}
+      {/* ＋シート（2026-07-22 第8弾→2026-08-19 定型文を削除→2026-08-17 質問集を削除）：
+          いまは📅候補日の1枚＝選ぶと入力欄に文章が入る。農家の機能so、このシートは農家側にしか出ない */}
       {tmplOpen && !isWorkerSide && (() => {
-        const qsetPanel = (
-          <>
-            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>タップでチャットに【面接の質問】として送ります。回答もチャットに残ります。</p>
-            {chatQSets === null ? (
-              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 0" }}>読み込み中<Dots /></p>
-            ) : chatQSets.length === 0 ? (
-              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"20px 8px", lineHeight:1.7 }}>まだ質問集がありません。<br/>プロフィールの「📋 面接の質問集」から作成できます。</p>
-            ) : (
-              /* minmax(0,1fr)：nowrapの質問プレビューがmin-content幅で列を押し広げ、カードが画面右へ
-                 はみ出すのを防ぐ（auto列はnowrap長文の幅まで育つ・2026-07-25修正）。ellipsisはこれで効く */
-              <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:8 }}>
-                {chatQSets.map(s => (
-                  <button key={s.id} disabled={qSending} onClick={()=>sendQSetToChat(s.id)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
-                    <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{s.title || "無題の質問集"}</span>
-                    <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(Array.isArray(s.questions) ? s.questions : []).join(" / ") || "質問なし"}</span>
-                  </button>
-                ))}
-                {qSending && <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"4px 0 0" }}>送信中<Dots /></p>}
-              </div>
-            )}
-          </>
-        );
         // 候補日を送る（引っ越し(5)）：期間求人で、来られる日の候補を働き手に提案する。選んで入力欄に入れて送信
         const datesPanel = (() => {
           const period = daysBetweenYmd(confirmJob?.dateStartRaw, confirmJob?.dateEndRaw);
@@ -814,27 +755,12 @@ export function ChatView({ applicationId, onBack }) {
             </>
           );
         })();
-        const TMPL_TABS = [{ k:"qset", l:"質問集" }, { k:"dates", l:"📅 候補日" }];
-        const tmplIdx = TMPL_TABS.findIndex(t => t.k === tmplTab);
         return (
         <div className="cb-lock-scroll" onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
           <div ref={tmplSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            {/* 質問集／📅候補日のタブ＋スワイプ（農家のみ） */}
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-              <div style={{ display:"flex", gap:6 }}>
-                {TMPL_TABS.map(t => (
-                  <button key={t.k} onClick={()=>setTmplTab(t.k)} className="f-sans" style={{ background:"none", border:"none", cursor:"pointer", padding:"4px 2px 8px", fontSize:15, fontWeight: tmplTab===t.k ? 800 : 600, color: tmplTab===t.k ? "#00A86B" : "#999", borderBottom: tmplTab===t.k ? "2px solid #00A86B" : "2px solid transparent" }}>{t.l}</button>
-                ))}
-              </div>
-            </div>
-            <div style={{ overflow:"hidden" }}
-              onTouchStart={e=>{ tmplSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
-              onTouchEnd={e=>{ const s = tmplSwipe.current; tmplSwipe.current = null; if (!s) return; const dx = e.changedTouches[0].clientX - s.x; const dy = e.changedTouches[0].clientY - s.y; if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return; const ni = dx < 0 ? Math.min(tmplIdx + 1, TMPL_TABS.length - 1) : Math.max(tmplIdx - 1, 0); setTmplTab(TMPL_TABS[ni].k); }}>
-              <div style={{ display:"flex", width:"200%", transform: `translateX(-${tmplIdx * 50}%)`, transition:"transform .25s ease" }}>
-                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:4 }}>{qsetPanel}</div>
-                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:4 }}>{datesPanel}</div>
-              </div>
-            </div>
+            {/* 質問集タブは廃止（2026-08-17たきと指示）＝このシートは📅候補日の1枚so、タブとスワイプは置かない */}
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 10px" }}>📅 候補日</p>
+            {datesPanel}
           </div>
         </div>
         );

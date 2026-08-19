@@ -16,6 +16,8 @@ import { EmergencyStagePanel, HireStagePanel, ReviewStagePanel,
 // 今日ページから箱を消した用件（2026-08-19たきと指示）。DBのやること一覧(my_todo_items)は
 // これらを返し続けるが、この画面では数えも並べもしない＝件数と箱が食い違わないようにするための一覧。
 // ★箱を足し引きしたらここも合わせること（TODO_META・TODO_STAGE_CATALOG と対で管理する）
+// interview・w_interview はDB側（my_todo_items）からも消えた（2026-08-17 面接の質問集の廃止）。
+// 古いキャッシュに残った分をここで落とす＝更新前の端末でも箱が復活しない
 const REMOVED_STAGES = new Set(["approve", "interview", "w_interview"]);
 
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。
@@ -263,8 +265,7 @@ export function TodayPage({ me, defaultRole }) {
     // ★行為そのものは消えていない：
     //   新着の応募＝専用ページ #/new-applicants（応募が届くとサイトを開いた時にそこへ着地する）と
     //     応募者ページ。承認・見送りの実行は従来どおり応募者シートが唯一の窓口。
-    //   面接の質問＝チャットの質問集シート（合図 cb_openQSet はChatViewに残置so、別の入口を
-    //     作りたくなったらそのまま使える）。
+    //   面接＝チャットで直接やり取りする（面接の質問集そのものを2026-08-17に廃止）。
     // decide_dates（働く日を決める）は廃止（2026-07-24たきと確定）：日程宣言なしもいつでもOKも全期間working前提。
     // 日程変更が必要な時だけ応募者ページの働く日モーダル（set_agreed_dates・cb_agreeAppId着地は温存）で行う
     // 採用する：専用ページ（HireStagePanel）が応募者単位のカードを並べ、カードをタップすると

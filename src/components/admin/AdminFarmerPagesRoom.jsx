@@ -471,20 +471,6 @@ const STEPS = [
         </Card>
       </div>
     ) },
-  { ch:"応募がくる", name:"面接の質問を送る", url:"#/calendar/todo/interview", act:"承認したら、聞きたいことを質問集から選んでチャットに送る。",
-    body: () => (
-      <div style={{ padding:14 }}>
-        <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:INK, margin:"0 0 6px" }}>はなこ さんに聞きますか？</p>
-        <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>選んだ質問が、そのままチャットに届きます。</p>
-        {["農作業の経験はありますか？","車で来られますか？","当日の集合時間は大丈夫ですか？","持病やけがはありますか？"].map((q, i) => (
-          <div key={q} style={{ display:"flex", gap:9, alignItems:"flex-start", padding:"10px 0", borderBottom:`1px solid ${SOFT}` }}>
-            <span className="f-sans" style={{ fontSize:13, color: i < 3 ? GREEN : "#CCC" }}>{i < 3 ? "☑" : "☐"}</span>
-            <span className="f-sans" style={{ fontSize:13, color:INK, lineHeight:1.7 }}>{q}</span>
-          </div>
-        ))}
-        <div style={{ marginTop:14, display:"flex" }}><Btn kind="green">3つの質問を送る</Btn></div>
-      </div>
-    ) },
   { ch:"応募がくる", name:"チャット", url:"#/chat/{応募id}", act:"働き手と直接やりとりする。上に求人の箱が出て、段階が分かる。メッセージは消せない（記録）。",
     body: () => (
       <div style={{ background:SOFT, minHeight:300 }}>

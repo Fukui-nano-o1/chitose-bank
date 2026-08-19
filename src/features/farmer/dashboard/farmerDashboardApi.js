@@ -12,12 +12,10 @@
 //   ＝未承認の自己紹介(pr_pending等)を農家のクライアントに渡さないための壁（2026-08-07のプラポリ修理）。
 // ★また呼びたい名簿（repeat_roster）の操作は必ず farmer_id で絞る（削除は worker_id も）。
 //   登録の効果をその求人者本人の範囲から出さないための約束（2026-07-16 労働局回答③）。
-// ★質問集（ensureDefaultQuestionSets）は lib/questionSets が持っている共有の処理ので、
-//   ここへ吸収しない（画面からそのまま呼ぶ）。
 import { supabase } from "../../../lib/supabase";
 
-// ★画面側に同名のハンドラ（submitFarmerReview / deleteQuestionSet / sendInterviewQuestions /
-//   saveInsurance）が既にあるので、窓口側の名前を Rpc / Row / upsert で分けてある。
+// ★画面側に同名のハンドラ（submitFarmerReview / saveInsurance）が既にあるので、
+//   窓口側の名前を Rpc / upsert で分けてある。
 //   画面側の識別子は1つも改名しない（構造分割中は名前を凍結する・2026-08-18の規則）。
 
 // ── 認証 ───────────────────────────────────────────────
@@ -95,16 +93,6 @@ export const upsertRoster = (farmerId, workerId) =>
   );
 export const deleteRoster = (farmerId, workerId) =>
   supabase.from('repeat_roster').delete().eq('farmer_id', farmerId).eq('worker_id', workerId);
-
-// ── 面接の質問集（farmer_question_sets・本人のセットだけ）─
-export const updateQuestionSet = (id, farmerId, title, questions) =>
-  supabase.from("farmer_question_sets").update({ title, questions, updated_at: new Date().toISOString() }).eq("id", id).eq("farmer_id", farmerId);
-export const insertQuestionSet = (farmerId, title, questions) =>
-  supabase.from("farmer_question_sets").insert({ farmer_id: farmerId, title, questions });
-export const deleteQuestionSetRow = (id, farmerId) =>
-  supabase.from("farmer_question_sets").delete().eq("id", id).eq("farmer_id", farmerId);
-export const sendInterviewQuestionsRpc = (applicationId, setId) =>
-  supabase.rpc("send_interview_questions", { p_application_id: applicationId, p_set_id: setId });
 
 // ── 保険（雇い手プロフィールへ書き戻す）─────────────────
 export const upsertInsurance = (uid, items, notes) =>

@@ -1040,10 +1040,6 @@ body:has(.chat-full) .site-footer-fixed { display: none !important; }
 html:has(.chat-full), body:has(.chat-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 body:has(.chat-full) main { overflow: hidden !important; }
 
-/* 面接の質問集：フルページ表示（下部ナビ・浮遊☰・フッターを隠す＝チャットと同方式・2026-07-23） */
-.qset-full { position: fixed; inset: 0; z-index: 9000; background: #fff; display: flex; flex-direction: column; }
-body:has(.qset-full) .app-header-mobile,
-body:has(.qset-full) .app-header-mobile-float,
 /* ボックス表示中は役割切替トグルを隠す（2026-07-29たきと指示）。メディアクエリの外にも置く＝
    画面幅に関係なく必ず効く（760〜768pxの隙間で漏れていた） */
 body:has(.cb-lock-scroll) .profile-employer-fab,
@@ -1053,11 +1049,7 @@ body:has(.cb-box-overlay) .profile-employer-fab { display: none !important; }
    ボックス・プレビュー展開中は暗幕の下に透けるので隠す */
 body:has(.cb-lock-scroll) .cb-float-box,
 body:has(.cb-preview-overlay) .cb-float-box,
-body:has(.cb-box-overlay) .cb-float-box,
-body:has(.qset-full) .cb-float-box { display: none !important; }
-body:has(.qset-full) .profile-employer-fab,
-body:has(.qset-full) .nav-coach { display: none !important; }
-body:has(.qset-full) .site-footer-fixed { display: none !important; }
+body:has(.cb-box-overlay) .cb-float-box { display: none !important; }
 /* 保険の準備ページ（#/insurance）はフッター（サポート等）を出さない（2026-07-29たきと指示）。
    保存ボタンの下にリンクの列が続くと、申告の締めが見えにくいため */
 body:has(.ins-prep-page) .site-footer-fixed { display: none !important; }
@@ -1093,7 +1085,6 @@ body:has(.cb-farmer-walk-page) .app-header-mobile-float { display: none !importa
 .cb-walk-bar .cb-walk-prev { background: #fff; border: 1px solid #DDD; color: #444; }
 .cb-walk-bar .cb-walk-next { background: #222; border: 1px solid #222; color: #fff; }
 .cb-walk-bar .cb-walk-count { flex: 0 0 auto; min-width: 56px; text-align: center; font-size: 12px; font-weight: 700; color: #999; }
-html:has(.qset-full), body:has(.qset-full) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
 /* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。
    .cb-lock-scroll＝同じ効果の汎用クラス（2026-07-26たきと指示）。ボックス/シートを全画面で被せる
