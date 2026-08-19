@@ -6475,3 +6475,35 @@ reviews3・apps25・ghost0）で 6項目の保存が当事者・向き・段階�
 【メモ】この作業中、python heredoc 経由の日本語で「が」が"tha" に化ける現象が再発した
 （2026-08-16の記録と同型）。コメントは chr(0x304C) で組み立てて回避した。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-19 農家→働き手の評価も1問1ページに（両方向を同じ形に・共有部品 ReviewWizard）━━━
+【たきと指示】「同じように農家→働き手の評価を設計しろ」＝働き手→農園と対にする。
+【項目を2→6に（農家→働き手）】また呼びたい（want_again）／安心して任せられた（entrust）／
+時間どおりに来た（on_time）／聞いていたとおりだった（as_described）／指示どおりに作業した
+（followed_instructions）／最後までやり切った（completed_work）。
+★列は1つも足していない：この6つは reviews に既にあり、DBの reviews_public_badges も
+　ReceivedReviews.BADGE_DEFS.farmer_to_worker も最初から6つ全部を列挙していた
+　＝画面が want_again と entrust の2つしか書いていなかっただけ（受け皿は揃っていた）。
+【DB（migration 20260819062347・本番適用済み・repo写経は本文md5がDB現物と一致）】
+submit_farmer_review に p_on_time / p_as_described / p_followed_instructions / p_completed_work を追加。
+★引数を足すので CREATE OR REPLACE では置き換わらない（別の関数になり呼び出しが曖昧になる）＝
+　旧6引数版を drop してから作り直した。新しい4つは default null so、古いJSを掴んだ端末からの
+　6引数（名前付き）の呼び出しもそのまま通る＝入れ替えの前後で評価が落ちない（実測で確認）。
+　権限は anon revoke・authenticated grant を再宣言（作り直しの既定付与を残さない）。
+【共有部品 components/ReviewWizard.jsx を新設】ページ送り・戻る・最終確認の機構をここ1箇所に置いた。
+両方向（WorkerReviewSheet／FarmerDashboard の完了・評価）that同じ器を使う＝送り方・見た目that枝分かれしない。
+・設問と保存は呼び出し側that持つ（向きで中身that違うため）。answers は列名を鍵にしたオブジェクト
+・入力中の判定は onFocusCapture/onBlurCapture で器that自分で見る＝最終ページの中身は素のJSXでよい
+・footer prop＝入力ページの下にいつも出す小さな導線（農家側の「欠勤として記録する」をここに載せた）
+・confirmExtra prop＝最終確認に足す表示（公開コメント・❤️お気に入り登録の有無）
+【農家側の画面（FarmerDashboard）】state を completeWantAgain/completeEntrust の2つ→ completeAnswers の
+1つに。❤️お気に入り登録は最終入力ページ（また呼びたい＝はい のときだけ）。評価登録完了の控えも6項目に。
+YesNoPill は使い手thatゼロになったので FarmerDashboard・WorkerApplications の import を外した
+（ui.jsx の定義は残置＝汎用部品so消すかは別途判断）。
+【検証】build成功・lint 0 error（警告24＝着手前と同数）／DB実弾（ロールバック付き・残置ゼロ実測
+reviews3・apps25・roster3・ghost0）で ①6項目that正しい列に入る・完了と出欠と名簿登録that従来どおり
+②古い6引数の呼び出しthat通り、新しい4列は null のまま ③双方の評価that揃う前はバッジ0（第8条3のゲート不変）。
+【実機目視の残り】①応募者シートの✅完了・欠勤を記録→6問を送れるか ②また呼びたい＝はい のとき
+最終ページに❤️that出るか ③送信する→最終確認→送信で評価登録完了の控えthat6項目出るか
+④「働き手が来なかった場合は→欠勤として記録する」thatどのページからでも押せるか
+━━━ ここまで ━━━

@@ -70,10 +70,15 @@ export const markWorkNoShow = (applicationId) =>
 // ★引数名は窓口の中で綴る（呼び出し側から丸ごとのpayloadを受け取らない）：
 //   p_public_comment（公開）と p_private_memo（本人だけ）の取り違えは表に出ない事故ので、
 //   どのRPCにどの名前で渡しているかを1箇所に残して指紋の対象に留める。
+// r.answers＝{ want_again, entrust, on_time, as_described, followed_instructions, completed_work }
+// （2026-08-19に2問→6問）。DB側は新しい4つを default null で受けるので、
+// 万一キーが欠けても保存自体は通る（その項目が空のまま残るだけ）。
 export const submitFarmerReviewRpc = (applicationId, r) =>
   supabase.rpc('submit_farmer_review', {
     p_application_id: applicationId,
-    p_want_again: r.wantAgain, p_entrust: r.entrust,
+    p_want_again: r.answers.want_again, p_entrust: r.answers.entrust,
+    p_on_time: r.answers.on_time, p_as_described: r.answers.as_described,
+    p_followed_instructions: r.answers.followed_instructions, p_completed_work: r.answers.completed_work,
     p_public_comment: r.publicComment, p_private_memo: r.privateMemo,
     p_favorite: r.favorite,
   });

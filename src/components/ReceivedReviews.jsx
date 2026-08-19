@@ -7,19 +7,21 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { Dots } from "./ui";
 
-// 方向ごとの肯定バッジ定義（falseは公開しない＝第8条2）。順序＝表示順
+// 方向ごとの肯定バッジ定義（falseは公開しない＝第8条2）。順序＝表示順。
+// ★入力の設問（農家→働き手＝FarmerDashboard の FARMER_REVIEW_QUESTIONS／
+//   働き手→農園＝WorkerReviewSheet の REVIEW_QUESTIONS）と、DBの reviews_public_badges の列挙と、
+//   ここの3箇所は対で直すこと。どれか1つでも欠けると「入力できるのに誰にも表示されない」になる
 const BADGE_DEFS = {
+  // 2026-08-19に画面が2項目→6項目に（受け皿の6キーは最初から揃っていた）
   farmer_to_worker: [
     { k: "want_again", label: "🌟 また呼びたい" },
     { k: "entrust", label: "安心して任せられた" },
     { k: "on_time", label: "時間どおり" },
-    { k: "as_described", label: "説明どおり" },
+    { k: "as_described", label: "聞いていたとおり" },
     { k: "followed_instructions", label: "指示どおり" },
     { k: "completed_work", label: "最後までやり切った" },
   ],
-  // 2026-08-19に3→6項目（たきと指示「もっと入力項目を増やせ」）。
-  // ★入力（components/WorkerReviewSheet.jsx の REVIEW_QUESTIONS）とDBの reviews_public_badges の
-  //   列挙と、この3つを対で直すこと。どれか1つでも欠けると入力できるのに表示されない
+  // 2026-08-19に3→6項目（instructions_clear / paid_as_posted は同日に reviews へ追加した列）
   worker_to_farmer: [
     { k: "want_again", label: "🌟 また働きたい" },
     { k: "as_described", label: "説明どおり" },

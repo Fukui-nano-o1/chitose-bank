@@ -9,7 +9,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDayReached } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
-import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
+import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { DragSheet } from "./DragSheet";
@@ -29,6 +29,7 @@ import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { DayReportSheet } from "./DayReportSheet";
+import { ReviewWizard } from "./ReviewWizard";
 
 // 応募者ページの非表示の選択（2026-08-18たきと指示「応募者ページも同じようにしろ」＝チャット一覧と同じ形）。
 // ★ピルは「見るもの」ではなく【隠すもの】の選択＝見送り／失効／取り消しの3つだけ。複数選択可。
@@ -37,6 +38,21 @@ import { DayReportSheet } from "./DayReportSheet";
 // 段階の物差しは appPhaseKey（帯・凡例・チャット一覧と共通）。モジュールレベル定義＝毎描画で作り直さない
 const APP_HIDABLE = ["rejected", "expired", "canceled"];
 
+
+// 仕事の全体的な評価（農家→働き手）の設問（2026-08-19に2問→6問・たきと指示
+// 「同じように農家→働き手の評価を設計しろ」）。k は reviews の列名と1対1。
+// ★列は増やしていない：この6つは reviews に既にあり、DBの reviews_public_badges も
+//   components/ReceivedReviews.jsx の BADGE_DEFS.farmer_to_worker も最初から6つを列挙している
+//   （画面が2つしか書いていなかっただけ）。設問を足す時はその3箇所を対で直すこと。
+// ★肯定（はい）だけが働き手に表示される（利用規約 第8条2）。いいえは公開されないが記録には残る。
+const FARMER_REVIEW_QUESTIONS = [
+  { k:"want_again",            label:"また呼びたい",             hint:"次の求人でも、この方に来てほしいと思いましたか" },
+  { k:"entrust",               label:"安心して任せられた",       hint:"見ていなくても任せられる働きぶりでしたか" },
+  { k:"on_time",               label:"時間どおりに来た",         hint:"開始の時刻に間に合っていましたか" },
+  { k:"as_described",          label:"聞いていたとおりだった",   hint:"プロフィールや面接で聞いた経験・できることのとおりでしたか" },
+  { k:"followed_instructions", label:"指示どおりに作業した",     hint:"教えたやり方のとおりに進めてもらえましたか" },
+  { k:"completed_work",        label:"最後までやり切った",       hint:"その日の作業を最後まで終えてもらえましたか" },
+];
 
 export function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
@@ -303,8 +319,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [dayReportApp, setDayReportApp] = useState(null);
   // 完了・評価モーダル（Part1）
   const [completeModalApp, setCompleteModalApp] = useState(null);
-  const [completeWantAgain, setCompleteWantAgain] = useState(null);
-  const [completeEntrust, setCompleteEntrust] = useState(null);
+  // 全体の評価の答え（2026-08-19に2問→6問・1問1ページ）。列名をそのまま鍵にする
+  const [completeAnswers, setCompleteAnswers] = useState({});
   const [completePublicComment, setCompletePublicComment] = useState("");
   const [completePrivateMemo, setCompletePrivateMemo] = useState("");
   const [completeSubmitting, setCompleteSubmitting] = useState(false);
@@ -316,7 +332,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     // 送信＝完了の記録＋評価（submit_farmer_review・1トランザクション）。
     // 来なかった場合（欠勤の記録・72時間の異議申立）は評価画面の下に控えめに残す＝例外の道は消さない
     setCompleteModalApp(a);
-    setCompleteWantAgain(null); setCompleteEntrust(null);
+    setCompleteAnswers({});
     setCompletePublicComment(""); setCompletePrivateMemo("");
     setCompleteNotifyNext(true);
   };
@@ -333,13 +349,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setCompleteSubmitting(false);
   };
   const submitFarmerReview = async () => {
-    if (!completeModalApp || completeWantAgain===null || completeEntrust===null || completeSubmitting) return;
+    if (!completeModalApp || completeSubmitting) return;
+    if (FARMER_REVIEW_QUESTIONS.some(q => completeAnswers[q.k] === undefined)) return;
     setCompleteSubmitting(true);
     try {
       // 原子化（2026-07-19）：完了処理・評価保存・お気に入り登録を1つのRPC＝1トランザクションで実行。
       // 送信ボタンのタップだけがトリガーで、途中失敗なら何も保存されない（中途半端な履歴が残らない）
       const { data, error } = await submitFarmerReviewRpc(completeModalApp.id, {
-        wantAgain: completeWantAgain, entrust: completeEntrust,
+        answers: completeAnswers,
         publicComment: completePublicComment.trim(), privateMemo: completePrivateMemo.trim(),
         favorite: completeNotifyNext,
       });
@@ -369,7 +386,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         workerId: completeModalApp.worker_id,
         workerName: workerProfiles[completeModalApp.worker_id]?.nickname || "働き手",
         at: new Date().toLocaleString("ja-JP", { year:"numeric", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit" }),
-        wantAgain: completeWantAgain, entrust: completeEntrust,
+        answers: completeAnswers,
         publicComment: completePublicComment.trim(), privateMemo: completePrivateMemo.trim(),
         favorited,
       });
@@ -1527,46 +1544,72 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         // 農家がここから欠勤を記録できる（DB側も complete_work が同じ条件で受け付ける）＝
         // 2026-07-30に足した「来なかった場合の措置」を自動完了で奪わない
         const attendOpen = notDone || (completeModalApp.auto_completed && completeModalApp.attended == null);
+        const wantAgain = completeAnswers.want_again === true;
         return (
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom: notDone ? 6 : 16 }}>{notDone ? "作業の完了と評価" : "作業の評価"}</p>
-                {notDone && (
-                  <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 16px" }}>送信すると、作業の完了が記録され、評価が働き手に届きます。</p>
-                )}
-                <YesNoPill label="また呼びたい" value={completeWantAgain} onChange={setCompleteWantAgain} />
-                <YesNoPill label="安心して任せられた" value={completeEntrust} onChange={setCompleteEntrust} />
-                <textarea value={completePublicComment} onChange={e=>setCompletePublicComment(e.target.value)} placeholder="働きぶりで良かった点を一言（働き手のプロフィールに表示されます）" rows={3}
-                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:8 }} />
-                <textarea value={completePrivateMemo} onChange={e=>setCompletePrivateMemo(e.target.value)} placeholder="自分だけが見えるメモ（任意）" rows={3}
-                  className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
-                {completeWantAgain === true && (
-                  <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", marginBottom:16 }}>
+        /* 1問1ページ＋戻る＋最終確認（2026-08-19たきと指示「同じように農家→働き手の評価を設計しろ」）。
+           送り・戻る・最終確認の機構は共有部品 ReviewWizard＝働き手→農園の評価と同じ形になる。
+           完了の記録は従来どおり submit_farmer_review が評価と1トランザクションで行う */
+        <ReviewWizard
+          title={notDone ? "作業の完了と評価" : "作業の評価"}
+          questions={FARMER_REVIEW_QUESTIONS}
+          answers={completeAnswers}
+          onAnswer={(k, v)=>setCompleteAnswers(prev => ({ ...prev, [k]: v }))}
+          resetKey={completeModalApp.id}
+          submitting={completeSubmitting}
+          onSubmit={submitFarmerReview}
+          onClose={()=>setCompleteModalApp(null)}
+          pageHeight={280}
+          lastPageTitle="ひとこと（任意）"
+          lastPageHint="書かなくても送信できます。"
+          lastPage={
+            <>
+              <textarea value={completePublicComment} onChange={e=>setCompletePublicComment(e.target.value)}
+                placeholder="働きぶりで良かった点を一言（働き手のプロフィールに表示されます）" rows={3}
+                className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:16, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }} />
+              <textarea value={completePrivateMemo} onChange={e=>setCompletePrivateMemo(e.target.value)}
+                placeholder="自分だけが見えるメモ" rows={3}
+                className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:16, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginTop:8 }} />
+              {/* お気に入り登録＝リピート即決の判定そのもの（trg_instant_approve が repeat_roster を見る・2026-08-19）。
+                  登録の意味を伏せない。解除はまた呼びたいリストからいつでもできる */}
+              {wantAgain && (
+                <>
+                  <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", margin:"12px 0 0" }}>
                     <input type="checkbox" checked={completeNotifyNext} onChange={e=>setCompleteNotifyNext(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
                     ❤️ お気に入り登録する
                   </label>
-                )}
-                {/* お気に入り登録＝リピート即決の判定そのもの（trg_instant_approve が repeat_roster を見る・2026-08-19）。
-                    登録の意味を伏せない。解除はまた呼びたいリストからいつでもできる */}
-                {completeWantAgain === true && (
-                  <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"-10px 0 16px 26px" }}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"4px 0 0 26px" }}>
                     登録すると、新しい求人のお知らせが届きます。「🌟また呼びたい即決」をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。登録はまた呼びたいリストからいつでも解除できます。
                   </p>
-                )}
-                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                  <button onClick={()=>setCompleteModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-                  <button onClick={submitFarmerReview} disabled={completeSubmitting || completeWantAgain===null || completeEntrust===null}
-                    className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{completeSubmitting ? <>送信中<Dots /></> : "送信する"}</button>
+                </>
+              )}
+            </>
+          }
+          confirmNote={notDone
+            ? "送信すると、作業の完了が記録され、評価が働き手に届きます。あとから直すことはできません。「はい」と答えた項目だけが働き手に表示されます。"
+            : "送信すると、評価が働き手に届きます。あとから直すことはできません。「はい」と答えた項目だけが働き手に表示されます。"}
+          confirmExtra={
+            <>
+              <div style={{ padding:"9px 0", borderBottom: wantAgain ? "1px solid #F4F4F4" : "none" }}>
+                <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 2px" }}>働きぶりについて一言（公開）</p>
+                <p className="f-sans" style={{ fontSize:13, color: completePublicComment.trim() ? "#222" : "#B0B0B0", margin:0, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{completePublicComment.trim() || "（なし）"}</p>
+              </div>
+              {wantAgain && (
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"9px 0" }}>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222" }}>❤️ お気に入り登録</span>
+                  <span className="f-sans" style={{ fontSize:13, fontWeight:800, flexShrink:0, color: completeNotifyNext ? "#00A86B" : "#B0B0B0" }}>{completeNotifyNext ? "する" : "しない"}</span>
                 </div>
-                {/* 例外の道：来なかった場合（出欠の記録が済むまでのあいだだけ出す） */}
-                {attendOpen && (
-                  <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans"
-                    style={{ display:"block", width:"100%", marginTop:16, paddingTop:14, borderTop:"1px solid #F0F0F0", background:"none", border:"none", fontSize:12, color:"#E24B4A", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
-                    働き手が来なかった場合は → 欠勤として記録する
-                  </button>
-                )}
-          </div>
-        </div>
+              )}
+            </>
+          }
+          /* 例外の道：来なかった場合（出欠の記録が済むまでのあいだだけ出す）。
+             どのページからでも押せるよう、送りの外（下）に置いたまま */
+          footer={attendOpen ? (
+            <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans"
+              style={{ display:"block", width:"100%", marginTop:16, paddingTop:14, borderTop:"1px solid #F0F0F0", background:"none", border:"none", fontSize:12, color:"#E24B4A", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
+              働き手が来なかった場合は → 欠勤として記録する
+            </button>
+          ) : null}
+        />
         );
       })()}
 
@@ -1714,8 +1757,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </div>
             <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", fontSize:13, marginBottom:14 }}>
               <p style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 8px" }}>評価内容</p>
-              <p style={{ margin:"0 0 4px", color:"#222" }}>また呼びたい：<strong>{completeDone.wantAgain ? "はい" : "いいえ"}</strong></p>
-              <p style={{ margin:0, color:"#222" }}>安心して任せられた：<strong>{completeDone.entrust ? "はい" : "いいえ"}</strong></p>
+              {FARMER_REVIEW_QUESTIONS.map(q => (
+                <p key={q.k} style={{ margin:"0 0 4px", color:"#222" }}>{q.label}：<strong>{completeDone.answers?.[q.k] ? "はい" : "いいえ"}</strong></p>
+              ))}
               {completeDone.publicComment && (
                 <p style={{ margin:"8px 0 0", color:"#222", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{completeDone.publicComment}</p>
               )}
