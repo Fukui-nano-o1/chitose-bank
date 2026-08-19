@@ -6132,3 +6132,30 @@ App.jsx 2057 の <footer className="site-footer-fixed"> の条件を変える＝
 （JSX×2＋CSS×1）を grep確認。実機目視は未実施→確認：今日ページと各用件ページで
 フッターthat出ないこと／さがす・プロフィールでは従来どおり出ること
 ━━━ ここまで ━━━
+
+━━━ 2026-08-19(続) プレビューにも保険カードを反映（確認ページは前回済み）━━━
+【たきと指示】「では確認ページとプレビューにも反映」。
+確認ページ（求人フロー step11・LandingFlow）は前回 06c99a8 で反映済みだった。残っていたのは
+AdminJobPreview＝審査プレビュー（#/admin/review/{No}）とオーナープレビュー（農家thaが自分の求人カードを
+タップして開く全画面）。この画面は元々【保険の表示自体を持っていなかった】ので、新しく置いた。
+【置き方】カレンダーの下に JobInsuranceSection・余白はこの画面の地図とカレンダーに合わせて20。
+他の区画（写真・危険箇所・場所地図…）と同じく指摘チップに対応＝revChip("保険")／revOutline("保険")。
+そのために JobInsuranceSection に children を足した（区画の中に重ねる・style で position:"relative" を
+渡す作法も他の区画と同じ）。
+【データ】見るのは掲載時に凍結された insuranceSnapshot だけ（2026-08-02・プロフィール現在値への
+フォールバック禁止）。ownerView は jobs を select("*")・審査は admin_preview_job（SETOF jobs_public）so
+どちらも列は届く。★凍結前の下書きは snapshot thaが無い＝区画ごと出ない（そこでの見え方は求人フローの
+確認ページthaが受け持つ＝二重に持たせない）。
+【横スワイプの取り合い（確認済み）】①公開の右スワイプは .carousel-scroll の中では掴まない
+（AdminJobPreview L138 の既存の除外）＝保険の横一列は同クラスsoそのまま除外される
+②このシートも touch-action:pan-y so、ブラウザの横スクロールは効かず useHorizontalDrag
+（scrollLeft 自前書き）thaがそのまま要る＝求人詳細と同じ理由。
+【検証】build成功／eslint 0 error・warning 26（着手前と同数）／4画面とも「カレンダーの行より下」に
+あることを行番号で機械確認（JobDetailPanel・JobDetailBody・LandingFlow・AdminJobPreview）／
+dist で確認ページと審査プレビューのチャンクに呼び出しthaが入っていることを実物の断片で確認
+（minifyで "保険" thaがバッククォートになるので、二重引用符でgrepすると0件に見える＝判定を誤らないこと）。
+【実機目視の残り】①審査プレビュー・オーナープレビューでカレンダーの下に保険thaが出るか
+②修正を依頼モードで「保険」の指摘チップthaが出て、指摘すると区画thaがオレンジ枠になるか
+③下書き（未掲載）のオーナープレビューでは出ないこと ④公開の右スワイプthaが保険の横スワイプに
+邪魔されないか
+━━━ ここまで ━━━
