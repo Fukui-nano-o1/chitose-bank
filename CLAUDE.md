@@ -6028,8 +6028,11 @@ SavedJobsViewのinline・審査プレビュー=AdminJobPreview）は不変。
 ボックス展開」。
 【実装】features/today/components/StagePanels.jsx に ReviewStagePanel を新設し、
 今日ページの #/calendar/todo/w_review をこれで描く（従来は行リストのTodoStagePanel）。
-・カードは【さがす一覧と同じ部品】JobCard variant="list"＝似せて描かない。さがすの見た目を直せば
-  この面も自動で追従する。hideEndLabel で終了帯は出さない（段階は別の場所that語る既定の作法）。
+・カードは JobCard variant="wide"＝関連求人と同じ「写真に情報を重ねる」型（同日たきと訂正
+  「カードは関連求人と同じに。見た目だけ」）。関連(related)は横スクロール用に幅280px固定so、
+  縦一列のこの面には全幅版の wide を使う（JobCardのコメントどおり wide＝関連カードと同じ型を全幅で）。
+  似せて描かない＝JobCardを直せばこの面も自動で追従する。hideEndLabel で終了帯は出さない
+  （段階は別の場所that語る既定の作法）。
 ・材料は jobs_public から job_number でまとめて引く（fetchPublicJobsByNumbers を todayApi に新設）。
   my_todo_items は写真も報酬も返さないため。取得に失敗しても手元の値を上書きしない（フェイルオープン規則）。
   引けなかった求人は作物×作業と#No.だけの最小カードで出す＝一覧から落とさない。
