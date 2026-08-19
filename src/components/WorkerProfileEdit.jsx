@@ -58,6 +58,17 @@ const WORKER_QA_QUESTIONS = [
 
 // 特定の問いにだけ入力例を添える（回数・バッジ・星ではなく「作業の中身」を書いてもらう誘導）。
 // キーは質問文そのもの。未定義の問いはプレースホルダなし
+// 質問に答える＝1問1ページの送り（2026-08-19たきと指示「質問に答えるも同様」）。
+// グループの区切りは保ったまま、重複する問い（「自分の強みはなんですか？」が2グループにある）を
+// 落として一列に並べる＝同じ問いのページが2枚できない。この配列がページの並びの唯一のソース。
+const WORKER_QA_FLAT = (() => {
+  const seen = new Set(); const out = [];
+  WORKER_QA_QUESTIONS.forEach(({ group, questions }) => {
+    questions.forEach(q => { if (seen.has(q)) return; seen.add(q); out.push({ q, group }); });
+  });
+  return out;
+})();
+
 const WORKER_QA_PLACEHOLDERS = {
   "これまでにどんな農作業の経験がありますか？（他のサービスや手伝いでの経験も、作業の内容で教えてください）": "ナスの収穫と袋詰めを2シーズン。タイミーで倉庫の仕分けもしていました",
 };
@@ -73,8 +84,6 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [pr, setPr] = useState("");
   const [prPromptIndex, setPrPromptIndex] = useState(null); // 選んだ問い(ヒント)。PR欄への保存内容には含めない
   const [prQa, setPrQa] = useState([]); // [{q,a}]（20問メニューのうち答えた分だけ）
-  const [activeQ, setActiveQ] = useState(null); // 現在テキストエリアを開いている問い
-  const [qaDraft, setQaDraft] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [residenceCity, setResidenceCity] = useState("");
   const [transport, setTransport] = useState("");
@@ -144,17 +153,13 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     return [...prev, v];
   });
   const toggleLanguage = (v) => setLanguages(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
-  const qaAnswerFor = (q) => prQa.find(x => x.q === q)?.a || "";
-  const openQuestion = (q) => { setActiveQ(q); setQaDraft(qaAnswerFor(q)); };
-  const saveQaAnswer = () => {
-    const text = qaDraft.trim();
-    if (!text) return;
-    setPrQa(prev => prev.some(x => x.q === activeQ) ? prev.map(x => x.q === activeQ ? { ...x, a: text } : x) : [...prev, { q: activeQ, a: text }]);
-    setActiveQ(null); setQaDraft("");
-  };
-  const deleteQaAnswer = (q) => {
-    setPrQa(prev => prev.filter(x => x.q !== q));
-    if (activeQ === q) { setActiveQ(null); setQaDraft(""); }
+  // 1問1ページ版の書き込み（打つそばから prQa に入れる。保存はモーダルの「保存する」＝既存の作法）。
+  // 空にしたらその問いの行ごと消す＝「未回答」に戻る（空文字の行を残さない）
+  const setQaAnswer = (q, text) => {
+    setPrQa(prev => {
+      if (!text.trim()) return prev.filter(x => x.q !== q);
+      return prev.some(x => x.q === q) ? prev.map(x => x.q === q ? { ...x, a: text } : x) : [...prev, { q, a: text }];
+    });
   };
   // 任意形式の画像をCanvasでjpegに統一変換（heic以外の全形式に対応・バケット制限も回避）
   const convertToJpeg = (file) => new Promise((resolve, reject) => {
@@ -245,6 +250,22 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     setStyleIdx(Math.max(0, Math.min(WORKER_STYLE_QUESTIONS.length - 1, Math.round(el.scrollLeft / el.clientWidth))));
   };
   const goStyle = (i) => { const el = styleScrollRef.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" }); };
+  // 質問に答える＝1問1ページの送り（2026-08-19）。はたらき方の希望と同じ作法。
+  // ★入力中は snap と横スクロールを止める：iOSはscroll-snapコンテナ内のtextareaにフォーカスすると
+  //   キーボード表示のレイアウト変化で再スナップが走り、打鍵が奪われる（WorkerExperienceEntriesSwipeと同じ対策）
+  const qaScrollRef = useRef(null);
+  const [qaIdx, setQaIdx] = useState(0);
+  const [qaTyping, setQaTyping] = useState(false);
+  const onQaScroll = () => {
+    const el = qaScrollRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setQaIdx(Math.max(0, Math.min(WORKER_QA_FLAT.length - 1, Math.round(el.scrollLeft / el.clientWidth))));
+  };
+  const goQa = (i) => {
+    const n = Math.max(0, Math.min(WORKER_QA_FLAT.length - 1, i));
+    const el = qaScrollRef.current;
+    if (el) el.scrollTo({ left: n * el.clientWidth, behavior: "smooth" });
+  };
   const [emgSummary, setEmgSummary] = useState("");
   // ★登録済みかの判定は emgSummary（表示用＝関係＋お名前）ではなく hasEmg（お名前 or 電話）で持つ。
   //   関係の既定は「本人」that先に入るので、emgSummary は空欄保存でも "本人" になり、
@@ -714,71 +735,61 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       <div style={{ marginBottom:8 }} />
       </>)}
 
+      {/* 質問に答える＝1問1ページ（2026-08-19たきと指示「質問に答えるも同様」）。
+          チップの一覧＋その場で展開をやめ、問いを1枚ずつ送る形にした。打つそばから prQa に入り、
+          最後の問いの「保存する」＝既存の保存の連鎖（save(true)）。好きな問いだけでよい性質は不変so
+          「答えずに次へ」で飛ばせるし、下の「保存する」でいつでも保存できる */}
       {editBox==="qa" && (
       <div style={{ marginTop:8, marginBottom:16 }}>
-        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:12, paddingRight:36 }}>質問に答えて、あなたを伝える（好きな質問だけでOK）</p>
-        {prQa.length > 0 && (
-          <div style={{ display:"grid", gap:8, marginBottom:16 }}>
-            {prQa.map(({ q, a }) => (
-              <div key={q} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", background:"#F7FBF9" }}>
-                <p className="f-sans" style={{ fontSize:11, color:"#717171", marginBottom:4 }}>{q}</p>
-                <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{a}</p>
+        <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:4, paddingRight:36 }}>質問に答えて、あなたを伝える</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 10px" }}>
+          {qaIdx + 1} / {WORKER_QA_FLAT.length}　好きな質問だけでOK{prQa.length > 0 ? `（${prQa.length}問に回答済み）` : ""}
+        </p>
+        <div ref={qaScrollRef} onScroll={onQaScroll}
+          style={{ display:"flex", overflowX: qaTyping ? "hidden" : "auto", scrollSnapType: qaTyping ? "none" : "x mandatory",
+                   WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", scrollbarWidth:"none", margin:"0 -2px" }}>
+          {WORKER_QA_FLAT.map(({ q, group }, i) => {
+            const ans = prQa.find(x => x.q === q)?.a || "";
+            const revFlaggedQ = revTargets.includes(q); // 修正のお願いの指摘対象は赤で明示（2026-07-19）
+            return (
+              <div key={q} style={{ flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", padding:"0 2px", alignSelf:"flex-start" }}>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, margin:"0 0 4px", letterSpacing:".04em" }}>{group}</p>
+                <p className="f-sans" style={{ fontSize:14, fontWeight:700, color: revFlaggedQ ? "#E24B4A" : "#222", margin:"0 0 8px", lineHeight:1.6 }}>
+                  {revFlaggedQ ? "⚠️ " : ""}{q}
+                </p>
+                <textarea
+                  value={ans}
+                  onChange={e=>setQaAnswer(q, e.target.value)}
+                  onFocus={()=>setQaTyping(true)}
+                  onBlur={()=>setQaTyping(false)}
+                  rows={3}
+                  placeholder={WORKER_QA_PLACEHOLDERS[q] || ""}
+                  className="field f-sans"
+                  style={{ width:"100%", fontSize:16, marginBottom:10, resize:"vertical", boxSizing:"border-box",
+                           border: revFlaggedQ ? "1px solid #E24B4A" : undefined }}
+                />
+                <div style={{ display:"flex", gap:8 }}>
+                  {i > 0 && (
+                    <button type="button" onClick={()=>goQa(i - 1)} className="f-sans"
+                      style={{ flex:"0 0 auto", padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>← 前へ</button>
+                  )}
+                  {i < WORKER_QA_FLAT.length - 1 ? (
+                    <button type="button" onClick={()=>goQa(i + 1)} className="f-sans"
+                      style={{ flex:1, padding:"10px", background: ans.trim() ? ROLE_ORANGE : "#F7F7F7", color: ans.trim() ? "#fff" : "#717171",
+                               border: ans.trim() ? "none" : "1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                      {ans.trim() ? "次へ →" : "答えずに次へ →"}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={()=>save(true)} disabled={saving} className="f-sans"
+                      style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                      {saving ? <>保存中<Dots /></> : "保存する"}
+                    </button>
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-        {WORKER_QA_QUESTIONS.map(({ group, questions }) => (
-          <div key={group} style={{ marginBottom:14 }}>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, marginBottom:6, letterSpacing:".04em" }}>{group}</p>
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-              {questions.map(q => {
-                const answered = prQa.some(x => x.q === q);
-                const revFlaggedQ = revTargets.includes(q); // 修正依頼の指摘対象の質問は赤で明示（2026-07-19）
-                return (
-                  <button
-                    key={q}
-                    type="button"
-                    onClick={() => openQuestion(q)}
-                    className="f-sans"
-                    style={{
-                      padding:"6px 12px", borderRadius:20,
-                      border: revFlaggedQ ? "2px solid #E24B4A" : "1px solid " + (answered ? "#00A86B" : "#EBEBEB"),
-                      background: revFlaggedQ ? "#FDECEC" : answered ? "#E6F7EF" : "#F7F7F7",
-                      color: revFlaggedQ ? "#E24B4A" : answered ? "#00A86B" : "#717171",
-                      fontSize:12, fontWeight:600, cursor:"pointer",
-                    }}
-                  >{revFlaggedQ ? "⚠️ " : answered ? "✓ " : ""}{q}</button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-        {activeQ && (
-          <div style={{ border:"1px solid #00A86B", borderRadius:12, padding:14, marginTop:4 }}>
-            <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>{activeQ}</p>
-            <textarea
-              value={qaDraft}
-              onChange={e=>setQaDraft(e.target.value)}
-              rows={3}
-              autoFocus
-              placeholder={WORKER_QA_PLACEHOLDERS[activeQ] || ""}
-              className="field f-sans"
-              style={{ width:"100%", fontSize:14, marginBottom:10, resize:"vertical" }}
-            />
-            <div style={{ display:"flex", gap:8 }}>
-              <button
-                onClick={saveQaAnswer}
-                disabled={!qaDraft.trim()}
-                className="f-sans"
-                style={{ flex:1, padding:"10px", background: qaDraft.trim() ? "#00A86B" : "#EBEBEB", color: qaDraft.trim() ? "#fff" : "#717171", border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}
-              >保存</button>
-              {prQa.some(x => x.q === activeQ) && (
-                <button onClick={() => deleteQaAnswer(activeQ)} className="f-sans" style={{ padding:"10px 16px", background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A44", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>削除</button>
-              )}
-              <button onClick={() => { setActiveQ(null); setQaDraft(""); }} className="f-sans" style={{ padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>閉じる</button>
-            </div>
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
       )}
 
