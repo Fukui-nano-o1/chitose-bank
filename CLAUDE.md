@@ -5750,3 +5750,22 @@ agreed_privacy_version を現行版へ更新する。同意するまで閉じら
 過去4件のアクセス解析、Terms v2.5、督促メール、第9条改訂、法務アーキテクチャの再設計。
 既存11行・自動登録トリガー・Privacy v4.0本文はそのまま。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-19 今日ページから「新着の応募」「面接する」を削除（89f9883）━━━
+【たきと指示】「新着の応募、面接するは削除」。
+【削除の連鎖（TodayPage.jsx）】TODO_META.approve／TODO_META.interview／TODO_STAGE_CATALOG.farmer の
+2エントリ／TODO_BOX_LABEL.interview／専用ページの approve 分岐（NewApplicantsPanel の描画とimport）／
+面接の質問の合図 m.qset（interview 専用だった）。
+【★件数の食い違いを防ぐ】DBのやること一覧(my_todo_items)は approve・interview を返し続けるため、
+モジュール定数 REMOVED_STAGES で画面から除外＝myTodos に入れない（件数にも箱にも出ない）。
+箱を足し引きしたら REMOVED_STAGES も対で直すこと。
+【★消えていない行為（入口が別にある）】
+・新着の応募＝専用ページ #/new-applicants（応募が届くと起動時にそこへ着地する既定の導線）と応募者ページ。
+  承認・見送りの実行は従来どおり応募者シートが唯一の窓口。
+・面接の質問＝チャットの質問集シート。合図 cb_openQSet は ChatView に残置so別の入口を作る時に使える。
+【★残る不整合（DB側・未対処）】下部ナビ「今日」のバッジ(my_nav_badges.todo)は my_todo_items を
+数えるため、箱を消した approve・interview のぶんも数え続ける＝画面に箱が無いのに数字が付く。
+直すなら my_nav_badges の todo から2用件を除くmigrationが要る（たきと判断待ち）。
+なお applicants_pending は別バッジso新着の応募の通知自体は従来どおり残る。
+【検証】build成功・lint 0 error。実機：農家面のやることに📨・❓が無いこと／件数が箱と合うこと／
+#/new-applicants と応募者ページ・チャットの質問集が従来どおり使えること
