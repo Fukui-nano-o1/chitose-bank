@@ -253,7 +253,7 @@ export function TodayPage({ me, defaultRole }) {
                    desc:"運営から求人内容の修正のお願いが届いたとき、ここから直して再申請します。" },
     // 求人への質問（2026-07-27たきと指示）：公開Q&A（job_questions）の未回答＝求人カードの❓Nと同じ母集団。
     // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ
-    question:    { icon:"💬", title:"求人への質問",         btn:"回答する →",
+    question:    { icon:"💬", title:"求人の質問",           btn:"回答する →",
                    desc:"あなたの求人に届いた質問に回答します。回答は求人ページに公開されます。", nav: e => {
       // 出どころ＝カレンダー（今日）：求人詳細の浮遊「←戻る」ボックスを出さない目印（2026-07-27たきと指示）
       try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
@@ -308,7 +308,7 @@ export function TodayPage({ me, defaultRole }) {
   // 面接の回答を送信してリストが空になった時は「送信完了しました。」を出す（2026-07-26たきと指示。ページを離れたらリセット）
   const [answeredDone, setAnsweredDone] = useState(false);
   useEffect(() => { setAnsweredDone(false); }, [pageStage]);
-  const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正", question: "質問に答える" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
+  const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["t_emergency", "revision", "question", "hire", "insurance", "complete"],   // approve・interviewは削除（2026-08-19）
