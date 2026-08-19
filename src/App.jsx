@@ -5,6 +5,7 @@ import { fbTap, unlockAudio } from "./lib/feedback";
 import { emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "./lib/refreshBus";
 import { chatCache, hydrateChatCache } from "./lib/chatCache";
 import { createIdleQueue } from "./lib/idleQueue";
+import { useSheetDragClose } from "./lib/sheetDrag";
 import { Celebration } from "./components/Celebration";
 import { PublishChoiceCard } from "./components/PublishChoiceCard";
 import { TodayPage } from "./components/TodayPage";
@@ -491,6 +492,9 @@ export default function App(){
   const [needsPrivacyReconsent,setNeedsPrivacyReconsent]=useState(false); // プラポリの版が古ければ再同意画面（2026-08-19）
   // 訪問者の「登録が必要です」案内をボックス化（2026-07-27たきと指示）。どの画面からでも openLoginBox() で開く
   const [loginBox, setLoginBox] = useState(false);
+  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
+  const loginSheetRef = useRef(null), loginScrollRef = useRef(null);
+  useSheetDragClose(loginSheetRef, loginScrollRef, ()=>setLoginBox(false), loginBox);
   useEffect(() => {
     // ボックスで開く時も、閉じて別経路でログインした時に戻れるよう発火ページを覚えておく
     const f = () => { armLoginReturn(); setLoginBox(true); };
@@ -1564,10 +1568,10 @@ export default function App(){
           認証の入口は1つだけ（分岐を増やさない）。閉じれば見ていた画面に戻る */}
       {loginBox && (
         <div onClick={()=>setLoginBox(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10200, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          <div ref={loginSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
             </div>
-            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"0 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+            <div ref={loginScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"0 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
               <LoginScreen farmers={farmers} onLogin={f=>{
                 setLoginBox(false);
                 setMe(f);

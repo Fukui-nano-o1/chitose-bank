@@ -4,6 +4,7 @@ import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
 import { isAdmin, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
+import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
@@ -73,6 +74,9 @@ export function JobSearchMapView({ onRegister, me }) {
   //    あなたの求人に差し替え。タップでコピーと一時非公開と応募者一覧」）──
   // 実体はお仕事タブの浮遊ピルと同じRPC・同じ確認文（窓口がが増えても文言・挙動を食い違わせない）
   const [ownMenuOpen, setOwnMenuOpen] = useState(false);
+  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
+  const ownMenuSheetRef = useRef(null), ownMenuScrollRef = useRef(null);
+  useSheetDragClose(ownMenuSheetRef, ownMenuScrollRef, ()=>setOwnMenuOpen(false), ownMenuOpen);
   const ownCopyJob = async () => {
     setOwnMenuOpen(false);
     const { data, error } = await copyJob(selectedJob.id);
@@ -1133,7 +1137,7 @@ export function JobSearchMapView({ onRegister, me }) {
           cb-lock-scroll＝表示中は下部バー・☰がが隠れる（既存規格） */}
       {selectedJob && isOwnJob && ownMenuOpen && (
         <div onClick={()=>setOwnMenuOpen(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px calc(20px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:560, boxSizing:"border-box" }}>
+          <div ref={ownMenuSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"20px 16px calc(20px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:560, boxSizing:"border-box" }}>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 12px" }}>あなたの求人 #{selectedJob.id}</p>
             <div style={{ display:"grid", gap:8 }}>
               <button onClick={ownCopyJob} className="f-sans" style={{ padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", borderRadius:12, cursor:"pointer" }}>コピーして新しい求人を作る</button>

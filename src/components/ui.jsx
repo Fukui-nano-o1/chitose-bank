@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, qaShort, ROLE_ORANGE } from "../lib/utils";
 import { openLoginBox } from "../lib/previewBus";
+import { useSheetDragClose } from "../lib/sheetDrag";
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 import { CropIcon } from "./CropIcon";
 
@@ -453,10 +454,13 @@ export function PhaseInfoSheet() {
     window.addEventListener("cb:openPhaseInfo", f);
     return () => window.removeEventListener("cb:openPhaseInfo", f);
   }, []);
+  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則）。★フックは早期returnより前
+  const phaseSheetRef = useRef(null);
+  useSheetDragClose(phaseSheetRef, null, () => setPk(null), !!pk && !!APP_PHASE_LABEL[pk]);
   if (!pk || !APP_PHASE_LABEL[pk]) return null;
   return (
     <div className="cb-lock-scroll" onClick={()=>setPk(null)} style={{ position:"fixed", inset:0, zIndex:9800, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .15s ease" }}>
-      <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"16px 16px 0 0", padding:"20px 20px calc(env(safe-area-inset-bottom, 0px) + 24px)", maxWidth:560, width:"100%", boxSizing:"border-box" }}>
+      <div ref={phaseSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"16px 16px 0 0", padding:"20px 20px calc(env(safe-area-inset-bottom, 0px) + 24px)", maxWidth:560, width:"100%", boxSizing:"border-box" }}>
         <span className="f-sans" style={{ display:"inline-block", background:APP_PHASE_COLOR[pk] || "#999", color:"#fff", fontSize:12, fontWeight:800, borderRadius:8, padding:"4px 14px", marginBottom:10 }}>{APP_PHASE_LABEL[pk]}</span>
         <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:0 }}>{APP_PHASE_DESC[pk] || ""}</p>
       </div>

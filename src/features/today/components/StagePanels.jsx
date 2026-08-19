@@ -7,6 +7,7 @@
 //   再マウントされ、textarea のフォーカス・下書き・花びらの演出が途切れる
 //   （LandingFlow のフォーカス消失バグと同族・CLAUDE.md）。
 import { useState, useEffect, useRef } from "react";
+import { useSheetDragClose } from "../../../lib/sheetDrag";
 import { confirmTerms, fetchMyFarmJobs } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, photoThumb,
@@ -25,6 +26,9 @@ import ContractEmergencyContact from "../../../components/ContractEmergencyConta
 // ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされる（フォーカス消失バグの同族）
 export function EmergencyStagePanel({ items, role }) {
   const [boxItem, setBoxItem] = useState(null); // 展開中のボックス（ステータスページのboxJobと同じ作法）
+  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
+  const boxSheetRef = useRef(null), boxScrollRef = useRef(null);
+  useSheetDragClose(boxSheetRef, boxScrollRef, ()=>setBoxItem(null), !!boxItem);
   // 段階はステータスページと同じ導出（appPhaseKey＝帯の唯一のソース。entriesはterms_confirmed_*を持つ）
   const phaseOf = (e) => e.application_id ? appPhaseKey({ status: e.application_status,
     terms_confirmed_worker_at: e.terms_confirmed_worker_at, terms_confirmed_farmer_at: e.terms_confirmed_farmer_at }) : null;
@@ -72,10 +76,10 @@ export function EmergencyStagePanel({ items, role }) {
         const chatOk = !!(e.application_id && CHAT_ELIGIBLE_STATUSES.includes(e.application_status));
         return (
           <div onClick={()=>setBoxItem(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-            <div onClick={ev=>ev.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div ref={boxSheetRef} onClick={ev=>ev.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
               <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               </div>
-              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+              <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
                 {/* 現在地バナー（ステータスページと同じ・段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
                 {phase && (
                   <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
@@ -144,6 +148,9 @@ export function markHireSheet(applicationId) {
 // ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされる（フォーカス消失バグの同族）
 export function HireStagePanel({ items, meId, onHired }) {
   const [boxItem, setBoxItem] = useState(null);
+  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
+  const boxSheetRef = useRef(null), boxScrollRef = useRef(null);
+  useSheetDragClose(boxSheetRef, boxScrollRef, ()=>setBoxItem(null), !!boxItem);
   // 最終確認（2026-08-06たきと指示「ここで採用を押す。最終確認。OKタップで採用。ページ遷移しない」）：
   // 🤝タップ→この画面内の確認カード→OKで confirm_terms を実行。応募者ページへは飛ばさない。
   // ★確認に必ず載せるもの＝二重予約の警告（lib/hire・応募者シートと同じ判定）と、
@@ -270,10 +277,10 @@ export function HireStagePanel({ items, meId, onHired }) {
         const photo = photoOf(t);
         return (
           <div onClick={()=>setBoxItem(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-            <div onClick={ev=>ev.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div ref={boxSheetRef} onClick={ev=>ev.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
               <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               </div>
-              <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+              <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
                 {/* 現在地バナー（段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
                 <div style={{ background: phaseColor + "14", borderLeft: "4px solid " + phaseColor, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
                   <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:phaseColor, margin:0 }}>{APP_PHASE_LABEL[phase]}</p>

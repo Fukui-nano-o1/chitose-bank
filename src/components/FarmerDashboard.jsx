@@ -9,6 +9,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { INTERVIEW_TEMPLATES, ensureDefaultQuestionSets } from "../lib/questionSets";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
+import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -88,6 +89,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [qSaving, setQSaving] = useState(false);
   const [sendQTarget, setSendQTarget] = useState(null); // 「質問を送る」対象の応募(a)
   const [sendingQ, setSendingQ] = useState(false);
+  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
+  const sendQSheetRef = useRef(null), sendQScrollRef = useRef(null);
+  useSheetDragClose(sendQSheetRef, sendQScrollRef, ()=>{ if (!sendingQ) setSendQTarget(null); }, !!sendQTarget);
   const loadQuestionSets = async () => {
     if (!me?.id) { setQuestionSets([]); return; }
     try {
@@ -1923,7 +1927,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       {/* ═══ 質問を送る（応募者カード「📋 質問を送る」→セット選択→send_interview_questions RPC・2026-07-23） ═══ */}
       {sendQTarget && (
         <div onClick={()=>{ if (!sendingQ) setSendQTarget(null); }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10002, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom,0px) + 20px)", maxWidth:520, width:"100%", maxHeight:"80vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+          <div ref={sendQSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"20px 20px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom,0px) + 20px)", maxWidth:520, width:"100%", maxHeight:"80vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <h3 className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px", paddingRight:40 }}>📋 質問を送る</h3>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 16px", lineHeight:1.6 }}>選んだ質問集を、この応募者とのチャットに【面接の質問】として送ります。回答もチャットに残ります。</p>
             {questionSets.length === 0 ? (

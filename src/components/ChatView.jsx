@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
   CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
+import { useSheetDragClose } from "../lib/sheetDrag";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { closeReadNotifications } from "../lib/push";
 import { chatCache, hydrateChatCache } from "../lib/chatCache";
@@ -59,6 +60,9 @@ export function ChatView({ applicationId, onBack }) {
   // ＋シート（2026-07-22・第8弾）：入力欄横の＋で開く。定型文は削除（2026-08-19たきと指示）ので
   // 中身は【質問集】と【📅候補日】の2枚＝どちらも農家の機能。働き手側には＋を出さない
   const [tmplOpen, setTmplOpen] = useState(false);
+  // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
+  const tmplSheetRef = useRef(null), tmplScrollRef = useRef(null);
+  useSheetDragClose(tmplSheetRef, tmplScrollRef, ()=>setTmplOpen(false), tmplOpen);
   // ＋シートのタブ（2026-07-23）：質問集 / 📅候補日。スワイプで切替
   const [tmplTab, setTmplTab] = useState("qset");
   // 今日のやること「面接の質問を送る」からの着地（2026-07-25）：フラグがあれば質問集シートを自動で開く（農家側のみ）
@@ -858,7 +862,7 @@ export function ChatView({ applicationId, onBack }) {
         const tmplIdx = TMPL_TABS.findIndex(t => t.k === tmplTab);
         return (
         <div className="cb-lock-scroll" onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+          <div ref={tmplSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             {/* 質問集／📅候補日のタブ＋スワイプ（農家のみ） */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
               <div style={{ display:"flex", gap:6 }}>
