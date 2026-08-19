@@ -190,7 +190,7 @@ export function JobDetailBody({ job, me, onBack }) {
           // 昇給・退職手当（2026-08-19たきと指示）：掲載時に凍結された perks から。旧求人はキーが無い＝「ー」
           { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? "あり" : EMPTY_MARK },
           { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? "あり" : EMPTY_MARK },
-          { label:"農家負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
+          { label:"持ち物負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
           { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
           { label:"受動喫煙", on: !!pk.smoking_policy,
             value: pk.smoking_policy
