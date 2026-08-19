@@ -33,7 +33,7 @@ const HELP_CONTENT = {
       { key:"farmer-chatMeet",        label: "⑦ チャットと確認カードで打ち合わせ", body: "承認後、チャットと確認カードで日程や集合場所などを打ち合わせます。" },
       { key:"farmer-insurance",       label: "⑧ 保険の準備", body: "作業当日に備えて、働き手のケガに備える保険（1日傷害保険など）の準備をおすすめします。準備したら「☑保険を準備した」を押しましょう。働き手にお知らせが届きます。" },
       { key:"farmer-startAuto",       label: "⑨ 当日", body: "作業の開始時刻を過ぎると、自動で「作業中」になります。開始の記録のために押すものはありません。" },
-      { key:"farmer-completeReview",  label: "⑩ 作業後「完了して評価する」", body: "働き手が来たか確認し、2タップで評価します。" },
+      { key:"farmer-completeReview",  label: "⑩ 作業後「バイトの評価」", body: "働き手が来たか確認し、2タップで評価します。" },
       { key:"farmer-fullPay",         label: "満額支払型とは", body: "満額支払型（デフォルト）では、予定より早く作業が終わっても、予定していた時間分の報酬が満額支払われます。" },
     ],
   },
@@ -47,7 +47,7 @@ const HELP_CONTENT = {
       { key:"worker-approveMail", label: "⑤ 承認メール", body: "農家が承認すると、メールで知らされます。" },
       { key:"worker-chatMeet",    label: "⑥ チャット・確認カード", body: "チャットと確認カードで、日程や集合場所などを打ち合わせます。" },
       { key:"worker-startAuto",   label: "⑦ 当日", body: "作業の開始時刻を過ぎると、自動で「作業中」になります。開始の記録のために押すものはありません。" },
-      { key:"worker-endReview",   label: "⑧ 作業後「⭐ バイトを評価する」", body: "作業が終わったら、3タップでバイトを評価します。" },
+      { key:"worker-endReview",   label: "⑧ 作業後「⭐ 仕事の評価」", body: "作業が終わったら、3タップで仕事を評価します。" },
     ],
   },
   mails: {
