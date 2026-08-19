@@ -108,7 +108,7 @@ export function TodayPage({ me, defaultRole }) {
   // statusだけで見ると採用済みが拾えず、緊急連絡・開始の箱が薄いままだった（2026-07-27たきと報告）
   const hiredMine = mine.filter(e => e.application_id
     && (hiredIds.has(e.application_id) || ["contracted","working"].includes(e.application_status)));
-  // startedMine（作業中の応募）は廃止（2026-08-19）：「農家を評価」の先取り点灯だけが読み手だったが、
+  // startedMine（作業中の応募）は廃止（2026-08-19）：「バイトを評価」の先取り点灯だけが読み手だったが、
   // 中身の無いバッジ・作業が終わる前の評価の誘いになっていたため下で削除した
   const tEmergency = (() => {
     const seen = new Set(); const out = [];
@@ -300,7 +300,7 @@ export function TodayPage({ me, defaultRole }) {
     // 来たらDB側のcron auto_start_work() が自動で作業中にする＝誰にも時刻を押させない
     // ここに出るのは「農家が完了を記録した後・自分がまだ終了を確認していない・完了から3日以内」だけ
     // （my_todo_items の w_review の定義）。作業が終わる前は出ない＝まだ評価できない（2026-08-19）
-    w_review:    { icon:"⭐", title:"農家を評価",           btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
+    w_review:    { icon:"⭐", title:"バイトを評価",         btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
                    desc:"仕事がすべて終わり、農家が完了を記録すると、ここに評価する仕事が並びます。作業中や作業日の途中はまだ評価できません。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
@@ -501,7 +501,7 @@ export function TodayPage({ me, defaultRole }) {
           const activeOrder = []; const byStage = new Map();
           [["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chat・t_cardは削除）
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
-          // ★「農家を評価」の先取り点灯は削除（2026-08-19たきと報告）：
+          // ★「バイトを評価」（旧・農家を評価）の先取り点灯は削除（2026-08-19たきと報告）：
           //   2026-07-27の「採用済みなら常に開ける」で、DBのやること(my_todo_items)ではなく
           //   採用済み・作業中の応募の数で箱を灯していた。その数はこの箱の専用ページが読む
           //   my_todo_items には無いので【バッジは1なのに開くと「この用事はいまありません」】になり、

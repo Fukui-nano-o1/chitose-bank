@@ -47,7 +47,7 @@ const HELP_CONTENT = {
       { key:"worker-approveMail", label: "⑤ 承認メール", body: "農家が承認すると、メールで知らされます。" },
       { key:"worker-chatMeet",    label: "⑥ チャット・確認カード", body: "チャットと確認カードで、日程や集合場所などを打ち合わせます。" },
       { key:"worker-startAuto",   label: "⑦ 当日", body: "作業の開始時刻を過ぎると、自動で「作業中」になります。開始の記録のために押すものはありません。" },
-      { key:"worker-endReview",   label: "⑧ 作業後「⭐ 農家を評価する」", body: "作業が終わったら、3タップで農家を評価します。" },
+      { key:"worker-endReview",   label: "⑧ 作業後「⭐ バイトを評価する」", body: "作業が終わったら、3タップでバイトを評価します。" },
     ],
   },
   mails: {
