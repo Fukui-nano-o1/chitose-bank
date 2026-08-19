@@ -21,6 +21,7 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);   // 「これは？」で説明を展開（既定は畳む）
   useEffect(() => {
     (async () => {
       try {
@@ -73,18 +74,31 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
   if (loading) return <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>読み込み中<Dots /></p>;
   return (
     <>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>
-        緊急連絡先
-      </label>
-      <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:10, lineHeight:1.6 }}>
-        作業中のケガや事故など、<b>緊急時に連絡する先</b>です。
-        <b>新規登録で入力したお名前と電話番号が、はじめから入っています</b>（関係は「本人」）。
-        ご家族などに<b>変更することもできます（任意）</b>。<b>採用が決まった相手にだけ表示されます</b>
-        （求人ページや一覧、応募の段階では表示されません）。
-      </p>
-      <p className="f-sans" style={{ fontSize:11, color:"#B03A3A", background:"#FFF4F4", border:"1px solid #F3C9C9", borderRadius:8, padding:"8px 10px", margin:"0 0 12px", lineHeight:1.6 }}>
-        ご家族など、ご本人以外の連絡先に変更するときは、<b>その方に伝えて同意を得たうえで</b>ご登録ください。
-      </p>
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+        <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222" }}>緊急連絡先</label>
+        {/* 説明は既定でたたむ（2026-08-19たきと指示「これは？ボタンタップで展開」）＝
+            画面を文字で埋めない。中身は消していない＝押せばいつでも読める */}
+        <button type="button" onClick={()=>setShowHelp(v => !v)} aria-expanded={showHelp} className="f-sans"
+          style={{ fontSize:11, fontWeight:700, color:"#717171", background:"#F2F2F2", border:"1px solid #EBEBEB",
+                   borderRadius:20, padding:"3px 10px", cursor:"pointer", lineHeight:1.4 }}>
+          {showHelp ? "閉じる" : "これは？"}
+        </button>
+      </div>
+      {showHelp && (
+        <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:10, lineHeight:1.6 }}>
+          作業中のケガや事故など、<b>緊急時に連絡する先</b>です。
+          <b>新規登録で入力したお名前と電話番号が、はじめから入っています</b>（関係は「本人」）。
+          ご家族などに<b>変更することもできます（任意）</b>。<b>採用が決まった相手にだけ表示されます</b>
+          （求人ページや一覧、応募の段階では表示されません）。
+        </p>
+      )}
+      {/* ★第三者の同意のお願いだけは、実際に本人以外へ変えた時は畳まない＝
+          必要になった場面で必ず目に入る（たたむのは説明であって注意ではない） */}
+      {(showHelp || (relation && relation !== "本人")) && (
+        <p className="f-sans" style={{ fontSize:11, color:"#B03A3A", background:"#FFF4F4", border:"1px solid #F3C9C9", borderRadius:8, padding:"8px 10px", margin:"0 0 12px", lineHeight:1.6 }}>
+          ご家族など、ご本人以外の連絡先に変更するときは、<b>その方に伝えて同意を得たうえで</b>ご登録ください。
+        </p>
+      )}
       <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>お名前</label>
       <input value={name} onChange={e=>setName(e.target.value)} placeholder="例：山田 花子" maxLength={100}
         className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:10 }} />
