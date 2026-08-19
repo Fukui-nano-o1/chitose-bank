@@ -8,10 +8,13 @@ import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_
 import { getCache, setCache } from "../lib/viewCache";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
-// #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
-// 紐づく求人の作業日程を月グリッドに塗る。日付タップ＝その日の求人番号を親へ通知。
+// #/calendar：自分（農家・働き手どちらの立場でも）の予定を月グリッドに塗る。
+// 日付タップ＝その日の求人番号を親へ通知。
 // jobsテーブルを直接読むとRLS(owner select=farmer_idのみ)で相手方の求人が読めないため、
-// get_my_calendar_jobs（SECURITY DEFINER）経由で自分の当事者applicationsに紐づく行だけ取得する。
+// get_my_calendar_jobs（SECURITY DEFINER）経由で取得する。
+// ★出すのは【公開中の求人】と【応募している求人】だけ（2026-08-19たきと指示・migration
+//   20260819…_calendar_only_open_and_applied）。終了・審査中・下書きの自分の求人と、
+//   いいねしただけの求人は出さない（いいねは予定ではない）。絞り込みはRPC側that行う。
 export function MyCalendar({ backToToday, onDayTapJobs }) {
   // ── 前回の予定で即描画（2026-08-11たきと報告「日程の反映に10秒ほどかかる。一瞬で表示」）──
   // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果so、
@@ -98,7 +101,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   // 採用（両者の確認時刻が揃う＝契約成立）で確定する。
   // ★確定の分かれ目は段階であって、農家が「働く日を決める」を押したか（agreed_dates の有無）ではない。
   //   働く日を決めるのは日を絞る操作で、契約の成立とは別（採用前に決めても確定にはならない）。
-  // 求人期間の行（own＝自分の出した求人／liked＝いいね）は人との約束ではないので従来どおりの塗り。
+  // 求人期間の行（own＝自分の出した公開中の求人）は人との約束ではないので従来どおりの塗り。
   const isConfirmedEntry = (e) => e.relation !== "application" || HIRED_PHASES.includes(phaseOfEntry(e));
 
   const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
@@ -262,7 +265,9 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
                       : (solid ? baseColor : baseColor + "22"))
                   : null;
                 const fillFg = baseColor ? (solid ? "#fff" : baseColor) : "#222";
-                const liked = es.some(e => e.relation === "liked" || likedIds.has(e.job_number)); // いいね済み＝右上に小さく❤️
+                // いいね済み＝右上に小さく❤️。いいねしただけの求人はカレンダーに出さなくなった（2026-08-19）so、
+                // ❤️that付くのは「応募した求人のうち、いいねもしていたもの」だけになる（relation==='liked'は消滅）
+                const liked = es.some(e => likedIds.has(e.job_number));
                 const isToday = ymd === todayYmd;
                 const isSelected = selectedDay && ymdLocal(selectedDay) === ymd;
                 return (
