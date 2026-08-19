@@ -202,8 +202,10 @@ export function WorkerApplications({ filter, me }) {
                 <AgreedDatesRow value={a.agreed_dates} />
                 {/* お仕事の流れ（応募→承認→面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-25） */}
                 {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={{ ...a, _reviewed: reviewedIds.has(a.id) }} /></div>}
-                {/* 評価（Part2・農家が完了を記録したあと） */}
-                {a.status === "completed" && (
+                {/* 評価（Part2）：作業が始まってから出す（2026-08-19たきと指示「作業開始から終了24時間以内まで」）。
+                    今日ページの⭐仕事の評価の箱と同じ窓＝箱that灯っているのにここにボタンthat無い、を作らない。
+                    DBの壁(trg_reviews_phase_gate)も worker_to_farmer は working 以上を許す */}
+                {["working","completed"].includes(a.status) && (
                   a.attended === false ? (
                     a._disputed ? (
                       <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 8px", textAlign:"center" }}>異議申立を送信しました</p>
