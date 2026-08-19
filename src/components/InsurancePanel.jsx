@@ -88,7 +88,9 @@ export function InsurancePanel({ employer, swipe = false }) {
 
 // カレンダーの下に置く保険の区画（2026-08-19たきと指示「保険カードをカレンダーの下に移植」）。
 // 保険タブは廃止＝表示の入口はここ1つ（求人詳細・ボックス版・掲載前の確認ページで同じ形）。
-// 申告が無い求人は見出しごと出さない（危険箇所セクションと同じ作法）。
+// 申告が無い求人は区画ごと出さない（危険箇所セクションと同じ作法）。
+// 見出し「🛡 保険の準備」は削除（2026-08-19たきと指示「文言のみ削除」）＝区画とカードは残す。
+// 何の区画かは、カードの下の緑の箱「この農家の保険の準備（自己申告）」thaが引き続き説明する。
 // style＝置く場所ごとの余白を合わせる（地図・カレンダーと同じ高さにする）。
 // children＝区画の中に重ねるもの（審査プレビューの指摘チップ。position:absolute so
 //   style に position:"relative" を渡すこと＝他の区画と同じ作法）。
@@ -98,10 +100,6 @@ export function JobInsuranceSection({ employer, style, children }) {
   return (
     <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:16, marginBottom:5, boxSizing:"border-box", ...style }}>
       {children}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
-        <span style={{ fontSize:18 }}>🛡</span>
-        <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>保険の準備</h3>
-      </div>
       <InsurancePanel employer={employer} swipe />
     </div>
   );
