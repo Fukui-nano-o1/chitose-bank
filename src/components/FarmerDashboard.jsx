@@ -7,7 +7,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster,
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDayReached } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -841,11 +841,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 // ★2026-08-19たきと指示「最終日だけ全体的な評価。これは全ての工程の終了を意味する。
                 //   それ以外は遅刻や欠勤、農家が来ていないとかの入力にする」＝最終の作業日に達するまでは
                 //   完了・評価でなく【その日の記録】を出す。中日にここから完了させると、まだ作業が残って
-                //   いるのに全工程が終わってしまう。判定は lib/utils の isFinalWorkDayReached
+                //   いるのに全工程が終わってしまう。判定は lib/utils の isFinalWorkDone
                 //   （DBの my_todo_items と同じ物差し＝app_work_dates の最終日）
                 if (phase === "contracted" || phase === "working") {
                   const jinfo = jobInfoMap[a.job_number];
-                  if (!isFinalWorkDayReached(a, jinfo)) return (
+                  if (!isFinalWorkDone(a, jinfo)) return (
                     <div style={{ display:"flex", gap:8 }}>
                       {chatBtn}
                       <button onClick={()=>setDayReportApp(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>📋 今日の記録</button>

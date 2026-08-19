@@ -156,12 +156,6 @@ export function lastAppWorkDay(app, job) {
   for (const d of appWorkDates(app, job)) if (!last || d > last) last = d;
   return last;
 }
-// 今日が最終作業日に達したか（＝全体の評価を出してよいか）。
-// 日程が分からない求人は true に倒す＝評価の道を塞がない（DB側 my_todo_items の coalesce と同じ）
-export function isFinalWorkDayReached(app, job, today = ymdLocal(new Date())) {
-  const last = lastAppWorkDay(app, job);
-  return !last || today >= last;
-}
 
 // ── 勤務時間（work_time）の読み取り ──────────────────────
 // work_time（"8:00〜17:00"）の開始時刻を「その日の0時からの分」で返す。取れなければ null
@@ -187,6 +181,21 @@ export const workEndMinutes = (workTime) => {
   if (start != null && end <= start) return null; // 日またぎ等＝読めない扱い（当日いっぱいを作業中とみなす）
   return end;
 };
+// 最終作業日の仕事が終わったか（＝全体の評価・完了を出してよいか）。
+// ★2026-08-19たきと指示「完了ラベルを貼るのは最終日の仕事が終わった時だけ。7/10〜20の17時に
+//   終了する仕事なら、7/20の17:00に完了」＝日付だけでなく【終了時刻】まで見る。
+// ★DB側の app_work_due_at と同じ物差しにすること（片方だけ変えると「画面には出るのにDBが拒む」
+//   の食い違いが出る＝最賃の壁の教訓）。終了時刻が読めない時は23:59に倒すのも同じ。
+// 日程が分からない求人は true に倒す＝評価の道を塞がない（DB側 coalesce と同じ）
+export function isFinalWorkDone(app, job, now = new Date()) {
+  const last = lastAppWorkDay(app, job);
+  if (!last) return true;
+  const today = ymdLocal(now);
+  if (today < last) return false;
+  if (today > last) return true;
+  const end = workEndMinutes(job?.work_time ?? app?.work_time) ?? (23 * 60 + 59);
+  return now.getHours() * 60 + now.getMinutes() >= end;
+}
 
 // JSTの短い日時表示（MM/DD HH:MM）
 export const fmtJstShort = (ts) => {

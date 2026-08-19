@@ -5,7 +5,7 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, photoThumb, isFinalWorkDayReached } from "../lib/utils";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, photoThumb, isFinalWorkDone } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -188,10 +188,10 @@ export function WorkerApplications({ filter, me }) {
                     今日ページの📋今日の記録の箱が受け持つ。
                     ★今日ページの⭐仕事の評価の箱と同じ窓にする＝箱が灯っているのにここにボタンが無い、
                       逆にここにボタンがあるのに箱が無い、のどちらも作らない。判定は lib/utils の
-                      isFinalWorkDayReached（DBの my_todo_items と同じ物差し＝app_work_dates の最終日）。
+                      isFinalWorkDone（DBの my_todo_items と同じ物差し＝app_work_dates の最終日）。
                     DBの壁(trg_reviews_phase_gate)も worker_to_farmer は working 以上を許す */}
                 {(a.status === "completed"
-                  || (a.status === "working" && isFinalWorkDayReached(a, jobDates[a.job_number]))) && (
+                  || (a.status === "working" && isFinalWorkDone(a, jobDates[a.job_number]))) && (
                   a.attended === false ? (
                     a._disputed ? (
                       <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 8px", textAlign:"center" }}>異議申立を送信しました</p>
