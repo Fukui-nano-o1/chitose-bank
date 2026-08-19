@@ -124,7 +124,24 @@ export function Carousel({ children, style, className, wrapperStyle, onScroll, s
 
   useEffect(() => { updatePos(); });
 
-  const scroll = dir => ref.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
+  // ‹ › は「隣の1枚を画面の中央へ寄せる」（2026-08-19たきと指示）。
+  // ★旧実装は固定300pxずつ動かしていたso、カードの幅（＋gap）と合わずタップのたびにズレていった。
+  //   位置は getBoundingClientRect で測る＝offsetParent（この容器thaが position:relative かどうか）に
+  //   左右されない。いま中央に一番近い子を現在地とし、その隣を中央に置く。
+  //   写真カルーセルのような全幅スライドでは「中央に寄せる＝スライドの頭に合わせる」と同じ結果になる。
+  const scroll = dir => {
+    const el = ref.current; if (!el) return;
+    const kids = Array.from(el.children).filter(n => n.nodeType === 1);
+    if (kids.length === 0) { el.scrollBy({ left: dir * 300, behavior: 'smooth' }); return; }
+    const box = el.getBoundingClientRect();
+    const mid = box.left + box.width / 2;
+    const offsetOf = n => { const r = n.getBoundingClientRect(); return r.left + r.width / 2 - mid; }; // 中央からのズレ
+    let idx = 0, best = Infinity;
+    kids.forEach((n, i) => { const d = Math.abs(offsetOf(n)); if (d < best - 0.5) { best = d; idx = i; } });
+    const next = Math.max(0, Math.min(kids.length - 1, idx + dir));
+    const left = el.scrollLeft + offsetOf(kids[next]);
+    el.scrollTo({ left: Math.max(0, Math.min(left, el.scrollWidth - el.clientWidth)), behavior: 'smooth' });
+  };
 
   const handleScroll = e => { updatePos(); onScroll && onScroll(e); };
 
