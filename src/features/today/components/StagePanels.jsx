@@ -412,8 +412,10 @@ function AutoClose({ onDone, ms = 2600 }) {
 
 // 仕事の評価ページ（#/calendar/todo/w_review・2026-08-19たきと指示
 // 「探すページの求人一覧と同じ構造に。タップで、終了の確認・評価ボックス展開」）：
-// ★カードは JobCard variant="list" ＝さがす一覧と【同じ部品】を使う。似せて描かない＝
-//   さがすの見た目を直せばこの面も自動で追従する（写真・作物×作業・報酬・地域・期間の5枠）。
+// ★カードは JobCard variant="wide" ＝関連求人と同じ「写真に情報を重ねる」型（2026-08-19たきと訂正）。
+//   関連(related)は横スクロール用に幅280px固定so、縦一列のこの面には全幅版の wide を使う
+//   （wide＝「関連カードと同じ型を全幅で」・ステータスページの展開ボックスと同じ）。
+//   似せて描かない＝JobCardを直せばこの面も自動で追従する。
 // 材料は jobs_public（open/closedを含む）から job_number でまとめて引く。my_todo_items は
 // 写真も報酬も返さないため。引けなかった求人（行that消えた等）は最小のカードで出す＝一覧から落とさない。
 // タップ→終了の確認・評価（共有部品 WorkerReviewSheet＝応募状況ページと同じ入力・同じ保存）。
@@ -446,14 +448,14 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
   }, [numsKey]);
   return (
     <>
-      {/* さがす一覧と同じ縦並び（1列・カードの間隔もあちらに合わせる） */}
-      <div style={{ display:"grid", gap:24 }}>
+      {/* 縦一列（関連求人と同じ型のカードを全幅で並べる） */}
+      <div style={{ display:"grid", gap:16 }}>
         {items.map(t => {
           const job = jobs[t.job_number];
           const open = () => setReviewApp({ id: t.application_id, farmer_id: t.partner_id });
           if (job) {
             // onOpen＝タップの行き先をこの面に預ける（新しいタブで求人詳細を開かない）
-            return <JobCard key={t.application_id} job={job} variant="list" onOpen={open} hideEndLabel />;
+            return <JobCard key={t.application_id} job={job} variant="wide" onOpen={open} hideEndLabel />;
           }
           // 求人の情報that引けなかった時（掲載の行that無い等）：作物×作業と#No.だけの最小カード
           return (
