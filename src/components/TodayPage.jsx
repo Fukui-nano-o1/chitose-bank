@@ -101,8 +101,7 @@ export function TodayPage({ me, defaultRole }) {
     .filter(isTodayJob)
     .sort((a, b) => (a.work_time || "").localeCompare(b.work_time || ""));
   // きょうの仕事の分解（2026-07-25たきと指示・同日改定）：1箱でなく役割ごとの箱に分ける。
-  // 確認カード（現場情報）／緊急連絡（当日の遅刻・欠勤・中止）／きょうのチャット（相手との連絡）
-  const tCard = todayJobs.map(e => ({ ...e, stage: "t_card" }));
+  // 残るのは緊急連絡（当日の遅刻・欠勤・中止）だけ＝確認カード→カレンダーの箱は削除（2026-08-19）
   // 採用済み（契約〜作業中）の仕事は、作業日でなくても緊急連絡・開始の入口を開ける（2026-07-27たきと指示）。
   // 遅刻・欠勤・中止の連絡は前日にもしたいし、開始ページは採用が決まった時点で見たいため
   // 採用済み＝両者の確認が揃った応募（status='approved'のまま採用になる。帯のappPhaseKeyと同じ判定）。
@@ -120,7 +119,7 @@ export function TodayPage({ me, defaultRole }) {
     });
     return out;
   })();
-  const todayStageItems = (st) => st === "t_card" ? tCard : st === "t_emergency" ? tEmergency : null; // t_chatは削除（2026-07-25）
+  const todayStageItems = (st) => st === "t_emergency" ? tEmergency : null; // t_chat（2026-07-25）・t_card（2026-08-19）は削除
   const upcoming = mine
     .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
     .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
@@ -237,19 +236,12 @@ export function TodayPage({ me, defaultRole }) {
                      try { sessionStorage.setItem("cb_fillProfile", "1"); } catch {}
                      return role === "farmer" ? "/profile/employer/profile" : "/profile/worker/profile";
                    } },
-    // カレンダー（2026-07-27たきと指示：確認カードをカレンダーに差し替え・統合）：
-    // 応募（予定）が1件でもあれば件数0でも常にタップ可＝月カレンダーへ直行。バッジ＝きょうが作業日の仕事の数。
-    // 現場情報の確認はカレンダーの日タップ→求人ページで担う（確認カードの役割を吸収）
-    // 遷移先は「その役割のカレンダーが載っている面」＝農家は応募者ページ／働き手はステータスページ。
-    // どちらも上部にカレンダーを展開して着地する（合図＝cb_openCalendar・2026-07-27たきと指示）。
-    // 月カレンダー単独のページ(#/calendar/month)は廃止した
-    t_card:      { icon:"📅", title:"カレンダー",           btn:"カレンダー →",     always:true,
-                   desc:"応募した仕事・自分の求人の予定を、月のカレンダーで見られます。予定が入ると、日をタップしてその日の仕事を確認できます。",
-                   nav: () => {
-      try { sessionStorage.setItem("cb_openCalendar", "1"); } catch {}
-      return role === "farmer" ? "/profile/employer/applicants" : "/saved";
-    } },
-    t_emergency: { icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id,
+    // 📅カレンダーの箱は削除（2026-08-19たきと指示「カレンダーカード削除」）。
+    // ★カレンダー自体は消えていない：働き手＝ステータスページ(#/saved)／農家＝応募者ページの上部に
+    //   従来どおりある（横スワイプ or 案内行のタップで開く）。今日ページからの入口だけをやめた。
+    //   受け側の合図 cb_openCalendar の読み取り（SavedJobsView・FarmerDashboard）は残置＝
+    //   別の入口から開いた状態で着地させたくなった時にそのまま使える
+    t_emergency:{ icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id,
                    desc:"遅刻・欠勤・中止など、作業当日の急な連絡をする窓口です。採用が決まった仕事から使えます。" },
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
@@ -320,8 +312,8 @@ export function TodayPage({ me, defaultRole }) {
   const TODO_BOX_LABEL = { insurance: "保険の報告", interview: "面接する", revision: "求人の修正", w_revision: "求職の修正", question: "質問に答える" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "complete"],
-    worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_review"],
+    farmer: ["t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "complete"],
+    worker: ["t_emergency", "w_revision", "w_interview", "w_review"],
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
@@ -353,17 +345,14 @@ export function TodayPage({ me, defaultRole }) {
     const n = count ?? items.length;
     // 各ボックス＝専用ページ(#/calendar/todo/{stage})へのリンクに統一（2026-08-02たきと指示
     // 「各ボックスの遷移先を新設。リンクも新設」）。1件直行・direct直行は廃止＝
-    // 実行・個別遷移は専用ページの行が担う。カレンダー（always）だけはカレンダー面へ直行（専用ページを挟まない）。
+    // 実行・個別遷移は専用ページの行が担う。
     // ★タップ不能は全廃（2026-08-03たきと指示）：どのボックスも常に開ける。
     //   薄表示は「いま用事が無い」の目印としてのみ残す（押せなさの表現ではない）
     // ★なにもなければ説明文を明記（2026-08-03たきと指示）：行き先が空っぽの面だと
-    //   「なぜ何も無いのか」が分からないため、カレンダーも予定がゼロの時は専用ページ
-    //   （用件の説明＋空状態）へ送る。予定があるときだけカレンダー面へ直行する
-    const calendarReady = entries.some(e => e.my_role === role) || mine.length > 0;
+    //   「なぜ何も無いのか」が分からないため、該当0件でも専用ページ（用件の説明＋空状態）へ送る
     const dim = n === 0;
     const onTapBox = () => {
       if (m.boxNav) { window.location.hash = m.boxNav(); return; }   // 専用ページを挟まず直接その面へ（プロフィールの未入力）
-      if (m.always && calendarReady) { window.location.hash = m.nav(); return; }
       window.location.hash = "/calendar/todo/" + stage;
     };
     return (
@@ -509,7 +498,7 @@ export function TodayPage({ me, defaultRole }) {
           const myTodos = todos.filter(t => t.my_role === role).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
           // 用件（stage）ごとに1箱へ集約。該当ありは最新順で上位、該当なしもカタログ順で常時表示（薄表示・タップ不可）
           const activeOrder = []; const byStage = new Map();
-          [["t_card", tCard], ["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chatは削除・2026-07-25）
+          [["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chat・t_cardは削除）
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
           // 「農家を評価」は採用済みなら常に開ける（2026-07-27たきと指示）。
           // my_todo_itemsのw_reviewは農家の完了記録の後にしか出ないので、それを待たずに灯す。
