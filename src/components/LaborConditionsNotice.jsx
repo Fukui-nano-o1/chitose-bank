@@ -218,7 +218,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
                   </p>
 
                   {/* 当事者欄 */}
-                  <div style={{ border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
+                  <div className="cb-ctr-sec" style={{ border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
                     <p className="f-sans" style={{ fontSize:11, color:"#909090", margin:"0 0 2px" }}>使用者（募集主）</p>
                     <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 2px" }}>{farmerName}</p>
                     {s.recruiter_address && <p className="f-sans" style={{ fontSize:12, color:"#444", margin:0 }}>{s.recruiter_address}</p>}
@@ -228,7 +228,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
                   </div>
 
                   {sections.map(sec => (
-                    <div key={sec.h} style={{ marginBottom:12 }}>
+                    <div key={sec.h} className="cb-ctr-sec" style={{ marginBottom:12 }}>
                       <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:accent, margin:"0 0 6px" }}>{sec.h}</p>
                       <div style={{ display:"grid", gap:8 }}>
                         {sec.rows.map(([k, v]) => (

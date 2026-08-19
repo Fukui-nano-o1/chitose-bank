@@ -1107,11 +1107,24 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
    （fixed のままだと1ページ目で切れる）。ComponentはLaborConditionsNotice.jsx＝3クラスと対
    （旧ContractRecords.jsxは2026-08-18に統合して削除）。 */
 @media print {
+  /* ★1枚目から通知書を出す（2026-08-18たきと報告「プリント1枚目の大部分が空白」）：
+     visibility:hidden は【見えなくなるだけで場所は取り続ける】ため、アプリ本体(#root)の
+     ページ全体の高さがそのまま白紙として先に流れ、通知書が後ろへ押し出されていた。
+     紙に出さないものは display:none で流し込みから外す＝通知書が1枚目の先頭から始まる。
+     visibility の指定も残す：他の @media print ブロック（QR印刷・委託の仕様書）が
+     body * { visibility: hidden } を無条件に掛けるため、それを打ち消す必要がある。 */
+  body:has(.cb-ctr-print) > *:not(.cb-ctr-print-overlay) { display: none !important; }
   body * { visibility: hidden; }
   .cb-ctr-print, .cb-ctr-print * { visibility: visible; }
-  html:has(.cb-ctr-print), body:has(.cb-ctr-print) { overflow: visible !important; height: auto !important; }
-  .cb-ctr-print-overlay { position: static !important; display: block !important; padding: 0 !important; background: #fff !important; }
-  .cb-ctr-print-sheet { position: static !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; max-width: none !important; border-radius: 0 !important; animation: none !important; }
+  html:has(.cb-ctr-print), body:has(.cb-ctr-print) {
+    overflow: visible !important; height: auto !important; position: static !important;
+    margin: 0 !important; background: #fff !important;
+  }
+  .cb-ctr-print-overlay { position: static !important; display: block !important; padding: 0 !important; background: #fff !important; animation: none !important; }
+  .cb-ctr-print-sheet { position: static !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; max-width: none !important; border-radius: 0 !important; animation: none !important; padding: 0 !important; }
+  .cb-ctr-print-overlay .no-print { display: none !important; }
+  /* 区画（当事者欄・1〜6の各項目）が改ページで割れないようにする＝紙で読める形を保つ */
+  .cb-ctr-sec { break-inside: avoid; page-break-inside: avoid; }
 }
 
 /* 開催期間カレンダー📅の浮遊ボタン（.calendar-fab*）は削除（2026-07-24・誰も展開しないため） */
