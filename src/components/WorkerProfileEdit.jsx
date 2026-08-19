@@ -584,7 +584,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           2026-08-19たきと指示「項目ごとに分ける。タップで右にスワイプ。全て入力で保存」＝
           縦に4問並べるのをやめ、1問1ページにした。選ぶと次の質問へ送り、4問目を選ぶとそのまま保存して閉じる。
           送りはネイティブ横スクロール＋scroll-snap（WorkerExperienceEntriesSwipe と同じ作法）＝
-          指でも戻れる。答えたい質問だけでよい性質は不変so、下の「保存する」で途中保存もできる */}
+          指でも戻れる。答えたい質問だけでよい性質は不変＝下の共通「保存する」で保存する */}
       {editBox==="intensity" && (<>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"8px 0 10px", lineHeight:1.6 }}>答えたい質問だけ選んでください（任意）。答えた内容は応募先の農家に表示されます。</p>
       <div ref={styleScrollRef} onScroll={onStyleScroll}
@@ -604,21 +604,18 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
                 if (!next) return;                 // 取り消しでは進めない
                 if (i < WORKER_STYLE_QUESTIONS.length - 1) setTimeout(() => goStyle(i + 1), 220);
               }} />
-              {/* 既定は「戻る／次へ」、最後の質問だけ「保存する」（2026-08-19たきと指示）。
-                  選ばずに飛ばしたい人もボタンで進める＝任意の項目が行き止まりにならない */}
+              {/* 既定は「戻る／次へ」（2026-08-19たきと指示）。選ばずに飛ばしたい人もボタンで進める
+                  ＝任意の項目が行き止まりにならない。保存はモーダル下部の共通ボタンが担う */}
               <div style={{ display:"flex", gap:8, marginTop:14 }}>
                 {i > 0 && (
                   <button type="button" onClick={()=>goStyle(i - 1)} className="f-sans"
                     style={{ flex:"0 0 auto", padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>← 戻る</button>
                 )}
-                {i < WORKER_STYLE_QUESTIONS.length - 1 ? (
+                {/* 最後の項目に「保存する」は置かない（2026-08-19たきと指示）＝
+                    モーダル下部の共通「保存する」と同じ文言のボタンが2つ並ぶため（緊急連絡先と同じ判断） */}
+                {i < WORKER_STYLE_QUESTIONS.length - 1 && (
                   <button type="button" onClick={()=>goStyle(i + 1)} className="f-sans"
                     style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>次へ →</button>
-                ) : (
-                  <button type="button" onClick={()=>save(true)} disabled={saving} className="f-sans"
-                    style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>
-                    {saving ? <>保存中<Dots /></> : "保存する"}
-                  </button>
                 )}
               </div>
             </div>
@@ -751,8 +748,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {/* 質問に答える＝1問1ページ（2026-08-19たきと指示「質問に答えるも同様」）。
           チップの一覧＋その場で展開をやめ、問いを1枚ずつ送る形にした。打つそばから prQa に入り、
-          最後の問いの「保存する」＝既存の保存の連鎖（save(true)）。好きな問いだけでよい性質は不変so
-          「答えずに次へ」で飛ばせるし、下の「保存する」でいつでも保存できる */}
+          保存はモーダル下部の共通「保存する」が担う（各ページには置かない）。好きな問いだけでよい
+          性質は不変＝答えずに次へ送れる */}
       {editBox==="qa" && (
       <div style={{ marginTop:8, marginBottom:16 }}>
         <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:4, paddingRight:36 }}>質問に答えて、あなたを伝える</p>
@@ -808,14 +805,10 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
                   <button type="button" onClick={()=>goQa(i - 1)} className="f-sans"
                     style={{ flex:"0 0 auto", padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>← 戻る</button>
                 )}
-                {i < WORKER_QA_PAGES.length - 1 ? (
+                {/* 最後のページに「保存する」は置かない（2026-08-19たきと指示・下部の共通ボタンと二重になるため） */}
+                {i < WORKER_QA_PAGES.length - 1 && (
                   <button type="button" onClick={()=>goQa(i + 1)} className="f-sans"
                     style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>次へ →</button>
-                ) : (
-                  <button type="button" onClick={()=>save(true)} disabled={saving} className="f-sans"
-                    style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>
-                    {saving ? <>保存中<Dots /></> : "保存する"}
-                  </button>
                 )}
               </div>
             </div>
