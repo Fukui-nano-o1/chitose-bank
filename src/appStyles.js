@@ -1065,6 +1065,11 @@ body:has(.ins-prep-page) .site-footer-fixed { display: none !important; }
 body:has(.cb-exp-page) .site-footer-fixed { display: none !important; }
 /* 新着の応募ページもサイトフッターを出さない（2026-08-11たきと指示・画面幅に関係なく効かせる） */
 body:has(.cb-new-applicants-page) .site-footer-fixed { display: none !important; }
+/* 今日ページ（#/calendar）と用件ページ（#/calendar/todo/*）もサイトフッターを出さない
+   （2026-08-19たきと指示）。目印 .cb-today-page はTodayPageの2つのルート（本体・用件ページ）に付く。
+   下部バー・浮遊☰は出したままので、他のページへ抜ける道は残る。
+   規約・プライバシー等の法定のリンクは他のページのフッターと☰から従来どおり辿れる */
+body:has(.cb-today-page) .site-footer-fixed { display: none !important; }
 /* 管理画面で操作するページはサイトフッター（サポート等）を出さない（2026-08-05たきと指示）。
    メディアクエリの外に置く＝画面幅に関係なく効く（PCでも管理画面にはフッターを出さない）。
    下部バー・浮遊☰は出したままので、管理画面から他のページへ抜ける道は残る */

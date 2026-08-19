@@ -426,7 +426,7 @@ export function TodayPage({ me, defaultRole }) {
     // 指に追従・50px以上で切替成立・slideKey更新でスライドイン・両役持ちのみ）。他の用件ページは従来どおり単ページ
     const swipeStage = pageStage === "t_emergency";
     return (
-      <div ref={swipeStage ? rootRef : undefined}
+      <div ref={swipeStage ? rootRef : undefined} className="cb-today-page"
         style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", ...(swipeStage ? { overflowX:"hidden", touchAction:"pan-y" } : {}) }}>
         {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
         <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 16px" }}>
@@ -475,7 +475,7 @@ export function TodayPage({ me, defaultRole }) {
   }
 
   return (
-    <div ref={rootRef} style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden", touchAction:"pan-y" }}>
+    <div ref={rootRef} className="cb-today-page" style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden", touchAction:"pan-y" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
       {/* 見出し「📆 今日」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示すため冗長 */}
       {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示（roleTabsRow＝共通化・2026-08-02） */}
