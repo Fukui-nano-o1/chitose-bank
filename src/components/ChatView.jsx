@@ -254,12 +254,25 @@ export function ChatView({ applicationId, onBack }) {
           setAppIds(ids);
           setThreadApps(relRows || []);
           if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
-          // 帯の段階チップ用の日程（待たない＝本文・状態の表示を遅らせない）
+          // 帯の段階チップ・候補日タブ用の日程（待たない＝本文・状態の表示を遅らせない）
           const schedNums = [...new Set((relRows || []).map(r => r.job_number).filter(Boolean))];
           if (schedNums.length) {
-            supabase.from("jobs_public").select("job_number,work_time,date_start,date_end,holidays").in("job_number", schedNums)
-              .then(res => { if (res.error) return; // 失敗しても手元の表示を壊さない（2026-08-07規則）
-                setJobSchedMap(Object.fromEntries((res.data || []).map(j => [j.job_number, j]))); });
+            (async () => {
+              try {
+                const pub = await supabase.from("jobs_public").select("job_number,work_time,date_start,date_end,holidays").in("job_number", schedNums);
+                if (pub.error) return; // 失敗しても手元の表示を壊さない（2026-08-07規則）
+                const map = Object.fromEntries((pub.data || []).map(j => [j.job_number, j]));
+                // jobs_public に無い求人（一時非公開・下書きに戻したもの）は、その求人の持ち主なら
+                // jobs から読める（RLS「jobs owner select」）。応募が生きているのに日程だけ
+                // 分からない、を無くす＝チャットは求人が公開中かどうかに左右されない
+                const rest = schedNums.filter(n => !map[n]);
+                if (rest.length) {
+                  const own = await supabase.from("jobs").select("job_number,work_time,date_start,date_end,holidays").in("job_number", rest);
+                  if (!own.error) (own.data || []).forEach(j => { map[j.job_number] = j; });
+                }
+                setJobSchedMap(map);
+              } catch {}
+            })();
           }
           // メッセージ読込は冒頭で発火済み（本文最優先）。ここでは重ねて取らない
           if (active) applyActive(active);
@@ -735,9 +748,24 @@ export function ChatView({ applicationId, onBack }) {
       {tmplOpen && !isWorkerSide && (() => {
         // 候補日を送る（引っ越し(5)）：期間求人で、来られる日の候補を働き手に提案する。選んで入力欄に入れて送信
         const datesPanel = (() => {
-          const period = daysBetweenYmd(confirmJob?.dateStartRaw, confirmJob?.dateEndRaw);
-          if (!confirmJob?.dateStartRaw) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 8px" }}>この求人の日程が取得できませんでした。</p>;
-          if (period.length <= 1) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 8px", lineHeight:1.7 }}>この求人は単日のため、候補日はありません。</p>;
+          // 日程の出どころは2つ：求人ページの全項目（confirmJob）と、帯の段階チップ用に取った
+          // 軽い日程（jobSchedMap・work_time/date_start/date_end/holidays）。前者が未着・
+          // 取得できなかった時は後者に落とす＝「日程が取得できませんでした」を出す条件を最後の手段にする
+          const sched = jobSchedMap[chatJobNumber] || {};
+          const startRaw = confirmJob?.dateStartRaw || sched.date_start || "";
+          const endRaw = confirmJob?.dateEndRaw || sched.date_end || "";
+          const period = daysBetweenYmd(startRaw, endRaw);
+          if (!startRaw) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 8px" }}>この求人の日程が取得できませんでした。</p>;
+          // 1日だけの募集（2026-08-19たきと指示「1日だけの場合はその日付のタグを設置。タップ不可」）：
+          // 選ぶものが無いので、その日付を選べないタグとして出す（buttonにしない＝押せる見た目にしない）
+          if (period.length <= 1) return (
+            <>
+              <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>この求人は1日だけの募集です。選ぶ候補日はありません。</p>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                <span className="f-sans" style={{ padding:"9px 12px", fontSize:13, fontWeight:700, borderRadius:20, background:"#F2F2F2", color:"#717171", border:"1px solid #E5E5E5", cursor:"default" }}>{calFmtDate(startRaw)}</span>
+              </div>
+            </>
+          );
           return (
             <>
               <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>来られる日の候補を選ぶと、入力欄に文章が入ります。送信前に編集できます。</p>
