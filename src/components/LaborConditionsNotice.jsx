@@ -91,6 +91,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
   const [listOpen, setListOpen] = useState(false);
   const [open, setOpen] = useState(null);        // 表示中の契約（applications行）
   const [partnerName, setPartnerName] = useState(""); // 凍結名を持たない旧契約のRPCフォールバック名
+  const [infoOpen, setInfoOpen] = useState(false); // 説明は？ボタンで展開（また呼びたいリストと同じ作法・2026-08-18たきと指示）
 
   useEffect(() => {
     if (!me?.id) return;
@@ -131,9 +132,8 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
           既存の「記録」セクションに同居させず、労働条件通知書だけの区画を持つ。
           件数0でもカードは出す（タップ不能・非表示にしない＝2026-08-03の原則。中で説明を出す） */}
       <div style={{ marginTop:16 }}>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>📄 労働条件通知書</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>労働条件通知書</p>
         <button onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-          <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📄</span>
           <span style={{ flex:1, minWidth:0 }}>
             <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>
               {count > 0 ? `採用が決まった仕事　${count}件` : "採用が決まった仕事"}
@@ -150,10 +150,15 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
         <div onClick={() => setListOpen(false)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000 }}>
           <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", position:"relative" }}>
             <button onClick={() => setListOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1 }}>✕</button>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>📄 労働条件通知書</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, margin:"0 0 14px" }}>
-              採用（両者の確認）が決まった時点の労働条件の記録です。タップすると内容の表示・印刷ができます。あとから変更できません。
-            </p>
+            <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 12px" }}>
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>労働条件通知書</p>
+              <button onClick={() => setInfoOpen(v => !v)} aria-label="説明を見る" className="f-sans" style={{ width:22, height:22, borderRadius:11, background: infoOpen ? accent : "#F0F0F0", color: infoOpen ? "#fff" : "#717171", border:"none", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</button>
+            </div>
+            {infoOpen && (
+              <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, margin:"0 0 12px" }}>
+                採用（両者の確認）が決まった時点の労働条件の記録です。タップすると内容の表示・印刷ができます。あとから変更できません。
+              </p>
+            )}
             {rows === null ? (
               <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px" }}>読み込み中…</p>
             ) : count === 0 ? (
@@ -175,7 +180,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
                         <span style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{fmtJstFull(s.snapshot_at || r.terms_confirmed_farmer_at)}</span>
                       </div>
                       {who && <span style={{ display:"block", fontSize:12, color:"#717171", marginTop:2 }}>{isWorker ? "募集主" : "働き手"}：{who}</span>}
-                      <span style={{ display:"block", fontSize:11, color:accent, marginTop:4 }}>🖨 表示・印刷 →</span>
+                      <span style={{ display:"block", fontSize:11, color:accent, marginTop:4 }}>表示・印刷 →</span>
                     </button>
                   );
                 })}
@@ -245,7 +250,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
                   </p>
                 </div>
                 <div className="no-print" style={{ display:"flex", gap:10, marginTop:16 }}>
-                  <button onClick={() => { try { window.print(); } catch {} }} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>🖨 印刷する</button>
+                  <button onClick={() => { try { window.print(); } catch {} }} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
                   <button onClick={() => setOpen(null)} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
                 </div>
               </div>
