@@ -36,6 +36,10 @@ import { WorkerPreviewSheet, EmployerPreviewSheet } from "./app/preview/PreviewS
 // 「働き手に切り替わってから1秒後に遷移する」ように見えていた。
 // 【対処】①背後を描かない（ProfileHubの描画条件に !showJobPost）②その1秒をこの画面で埋める。
 // 意匠は保存中オーバーレイ（LandingFlow）と同じ緑のスピナー＝アプリ内で待ち画面の見た目を1つに保つ。
+// 開いている画面thaが求人を取り直す間隔（2026-08-19）。jobs にはRealtimeを繋げないため、
+// 「見えている間の定期的な合図」thaが新しい掲載を届ける唯一の経路になる（下のuseEffectで使用）
+const JOBS_POLL_MS = 3 * 60 * 1000;
+
 // ★モジュールレベル定義（フォーカス消失バグ回避の作法）
 function FlowLoading({ label = <>求人フローを開いています<Dots /></> }) {
   return (
@@ -1198,6 +1202,22 @@ export default function App(){
       window.removeEventListener("focus", emitWake);
       window.removeEventListener("blur", onBlur);
     };
+  }, []);
+  // 開きっぱなしの画面にも新しい掲載を届ける（2026-08-19）。
+  // 【契機】ある農家thaが14:32に求人を公開したのに、開いていた画面に出てこなかった。DB側は正常
+  // （jobs_public に anon・ログインとも出ていた・公開の通知も全部出ていた）＝取り直す合図thaが無かった。
+  // 【なぜ穴thaが空いたか】jobs にはRealtimeを繋げない（jobsのRLSは本人と運営だけso、publicationに
+  //   足しても他人の求人の変更は誰にも届かない）。so 合図は「アプリに戻った時」の1本だけで、
+  //   画面を開いたままにしていると永久に取り直さなかった（2026-08-18 Speed-1B に残した既知の穴）。
+  // 【対処】見えている間だけ、定期的に取り直しの合図を出す。合図を出すだけ＝閉じている画面のためには
+  //   通信しない（受け手はマウント中の画面のみ）。隠れている間は refreshBus thaが保留し、復帰時に1回にまとめる。
+  //   取り直しの実費は小さい（jobs_public 全件で約12KB・my_farm_jobs 約10KB/46ms の実測）。
+  //   ★間隔を変えるならこの1箇所（JOBS_POLL_MS）。applications は Realtime thaがあるso対象にしない
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") emitRefresh(REFRESH_JOBS, "poll");
+    }, JOBS_POLL_MS);
+    return () => clearInterval(id);
   }, []);
   // アプリアイコンのバッジに未読数を反映（2026-07-19）。ログアウト時は0でクリア
   useEffect(() => { syncAppBadge(me?.id ? chatUnread : 0); }, [chatUnread, me?.id]);
