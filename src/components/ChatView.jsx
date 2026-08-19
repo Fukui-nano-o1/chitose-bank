@@ -82,14 +82,13 @@ export function ChatView({ applicationId, onBack }) {
     labels.length ? "【日程の承認】" + labels.join("・") + " に伺います。よろしくお願いします。" : "";
   // タブのタップ：選び直すたびに、打ちかけの文の後ろの返事だけを作り替える
   const togglePlanDay = (msgId, label) => {
-    setPlanSel(prev => {
-      const cur = (prev && prev.msgId === msgId) ? prev.labels : [];
-      if (!prev || prev.msgId !== msgId) planBaseRef.current = text.replace(/\s*$/, "");
-      const next = cur.includes(label) ? cur.filter(x => x !== label) : [...cur, label];
-      const base = planBaseRef.current;
-      setText(next.length ? (base ? base + " " : "") + planReplyText(next) : base);
-      return next.length ? { msgId, labels: next } : null;
-    });
+    const cur = (planSel && planSel.msgId === msgId) ? planSel.labels : [];
+    // このメッセージのタブを触り始めた時点の入力を土台にする（打ちかけの文を壊さない）
+    if (!planSel || planSel.msgId !== msgId) planBaseRef.current = text.replace(/\s*$/, "");
+    const next = cur.includes(label) ? cur.filter(x => x !== label) : [...cur, label];
+    const base = planBaseRef.current;
+    setPlanSel(next.length ? { msgId, labels: next } : null);
+    setText(next.length ? (base ? base + " " : "") + planReplyText(next) : base);
   };
   // 既読（2026-07-22・第8弾）：相手（counterpart）のchat_reads最終既読時刻。自分の送信でこれ以前のものに「既読」
   const [partnerReadAt, setPartnerReadAt] = useState(null);
@@ -132,7 +131,7 @@ export function ChatView({ applicationId, onBack }) {
   const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
   // 求人No.帯の段階チップを「いま」で出すための日程（2026-08-19たきと指示）：作業日でない日は
   // 「作業中」でなく「次は M/D(曜)」。{ job_number: {work_time,date_start,date_end,holidays} }。
-  // 本文の表示より後に取る（段階表示の原則＝最初は最低限）。届くまでは従来どおり段階名that出る
+  // 本文の表示より後に取る（段階表示の原則＝最初は最低限）。届くまでは従来どおり段階名が出る
   const [jobSchedMap, setJobSchedMap] = useState({});
   // 応募行＋求人の日程＝appPhaseLabelNow の材料（応募者ページ・チャット一覧と同じ形）
   const phaseEntry = (r) => ({ ...r, ...(jobSchedMap[r.job_number] || {}) });
@@ -693,22 +692,30 @@ export function ChatView({ applicationId, onBack }) {
             const mine = m.sender_id === myId;
             const sel = (planSel && planSel.msgId === m.id) ? planSel.labels : [];
             return (
-              <div style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth:"75%", display:"flex", flexWrap:"wrap", gap:6, marginTop:-2 }}>
-                {labels.map(l => {
-                  if (mine || reportMode) return (
-                    <span key={l} className="f-sans" style={{ padding:"7px 11px", fontSize:12, fontWeight:700, borderRadius:20, background:"#F2F2F2", color:"#717171", border:"1px solid #E5E5E5", cursor:"default" }}>{l}</span>
-                  );
-                  const on = sel.includes(l);
-                  return (
-                    <button key={l} onClick={()=>togglePlanDay(m.id, l)} className="f-sans"
-                      style={{ padding:"7px 11px", fontSize:12, fontWeight:700, borderRadius:20, cursor:"pointer",
-                        background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{l}</button>
-                  );
-                })}
+              /* ★幅を固定する（2026-08-19たきと報告「複数選択すると別の日がタップされる」の根治）：
+                 以前は maxWidth:75% の箱に注記も入れていたため、選ぶたびに注記の文が入れ替わり、
+                 箱の幅が中身に合わせて変わり、チップが折り返し直されて指の下の日が動いていた。
+                 幅を75%固定にし、注記は箱の外へ出す＝チップの位置は選んでも動かない
+                 （2026-07-27・2026-08-16と同じ「タップ対象は動かしてはいけない」） */
+              <div style={{ alignSelf: mine ? "flex-end" : "flex-start", width:"75%" }}>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:-2, justifyContent: mine ? "flex-end" : "flex-start" }}>
+                  {labels.map(l => {
+                    if (mine || reportMode) return (
+                      <span key={l} className="f-sans" style={{ padding:"7px 11px", fontSize:12, fontWeight:700, borderRadius:20, background:"#F2F2F2", color:"#717171", border:"1px solid #E5E5E5", cursor:"default" }}>{l}</span>
+                    );
+                    const on = sel.includes(l);
+                    return (
+                      <button key={l} onClick={()=>togglePlanDay(m.id, l)} className="f-sans"
+                        style={{ padding:"7px 11px", fontSize:12, fontWeight:700, borderRadius:20, cursor:"pointer",
+                          background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{l}</button>
+                    );
+                  })}
+                </div>
+                {/* 注記は箱の外＝チップの折り返しに影響しない。高さも2行ぶんで固定して下の吹き出しも動かさない */}
                 {!mine && !reportMode && (
-                  <span className="f-sans" style={{ width:"100%", fontSize:11, color:"#999", marginTop:2 }}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"4px 0 0", lineHeight:1.5, minHeight:33 }}>
                     {sel.length ? "選んだ日が入力欄に入りました。送信ボタンで最終確認します。" : "来られる日をタップすると、返事が入力欄に入ります。"}
-                  </span>
+                  </p>
                 )}
               </div>
             );
